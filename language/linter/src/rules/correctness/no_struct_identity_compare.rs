@@ -1,7 +1,7 @@
-use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, SymbolType, walk_expression};
+use destack_dir::{self as dir, DeclarationForm, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{expression_unwrap_transparent, is_reference_symbol_type};
+use crate::rules::common::{expression_unwrap_transparent, is_reference_declaration_form};
 use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -90,12 +90,22 @@ impl<'a, 'b> StructCompareVisitor<'a, 'b> {
 
         // resolve the left operand type
         let left_is_struct = self.ctx.expression_type_id(left).is_some_and(|type_id| {
-            is_reference_symbol_type(self.ctx.types, type_id, SymbolType::Struct)
+            is_reference_declaration_form(
+                self.ctx.types,
+                self.ctx.symbols,
+                type_id,
+                DeclarationForm::Struct,
+            )
         });
 
         // resolve the right operand type
         let right_is_struct = self.ctx.expression_type_id(right).is_some_and(|type_id| {
-            is_reference_symbol_type(self.ctx.types, type_id, SymbolType::Struct)
+            is_reference_declaration_form(
+                self.ctx.types,
+                self.ctx.symbols,
+                type_id,
+                DeclarationForm::Struct,
+            )
         });
 
         // at least one operand must be a struct

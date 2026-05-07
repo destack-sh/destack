@@ -134,7 +134,7 @@ impl<'a, 'b> NoConsoleVisitor<'a, 'b> {
     /// Return true when the expression is a console reference.
     fn is_console_reference(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         expression_is_symbol_or_global_qualified_member(
-            self.ctx.tree,
+            self.ctx,
             expression_id,
             self.console_symbol,
             &self.global_qualifiers,

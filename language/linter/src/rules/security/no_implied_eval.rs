@@ -189,7 +189,7 @@ impl<'a, 'b> NoImpliedEvalVisitor<'a, 'b> {
     /// Return true when the expression refers to the Function constructor.
     fn is_function_symbol(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         expression_is_symbol_or_global_qualified_member(
-            self.ctx.tree,
+            self.ctx,
             expression_id,
             self.function_symbol,
             &self.global_qualifiers,
@@ -214,7 +214,7 @@ impl<'a, 'b> NoImpliedEvalVisitor<'a, 'b> {
         ];
 
         expression_is_any_symbol_or_global_qualified_member(
-            self.ctx.tree,
+            self.ctx,
             expression_id,
             &symbols,
             &self.global_qualifiers,
@@ -245,12 +245,10 @@ impl<'a, 'b> NoImpliedEvalVisitor<'a, 'b> {
         }
 
         expression_type_or_call_return_type_map(
-            self.ctx.repository.as_ref(),
-            self.ctx.revision,
+            self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.tree,
-            self.ctx.symbols,
             self.ctx.types,
             expression_id,
             |types, type_id| is_string_type(types, type_id, self.string_symbol),

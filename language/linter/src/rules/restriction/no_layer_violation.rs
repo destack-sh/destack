@@ -216,32 +216,32 @@ fn collect_forbidden_dependency_diagnostics(
     diagnostics
 }
 
-/// Return direct resolved dependencies for one module.
+/// Return direct module dependencies for one module.
 fn module_dependencies(ctx: &LintWorkspaceDirContext, module_id: ModuleId) -> Vec<ModuleId> {
-    let Some(resolved) = ctx.resolved_dir(module_id) else {
+    let Some(exported) = ctx.exported_dir(module_id) else {
         return Vec::new();
     };
 
-    resolved_module_dependencies(&resolved)
+    exported_module_dependencies(&exported)
 }
 
-/// Return direct resolved dependencies from one exported DIR.
-fn resolved_module_dependencies(resolved: &DirExported) -> Vec<ModuleId> {
+/// Return direct module dependencies from one exported DIR.
+fn exported_module_dependencies(exported: &DirExported) -> Vec<ModuleId> {
     let mut dependencies = Vec::new();
 
     // collect import edges for both value and type space
-    for resolution in resolved.import_resolutions.values() {
+    for resolution in exported.imports.resolution_by_key.values() {
         if let Some(module_id) = resolution.value.and_then(|target| target.module_id()) {
             dependencies.push(module_id);
         }
 
-        if let Some(module_id) = resolution.ty.and_then(|target| target.module_id()) {
+        if let Some(module_id) = resolution.type_target.and_then(|target| target.module_id()) {
             dependencies.push(module_id);
         }
     }
 
     // collect namespace re export edges
-    for export in resolved.namespace_exports.iter() {
+    for export in exported.exports.namespace_exports.iter() {
         if let Some(module_id) = export.module_id.module_id() {
             dependencies.push(module_id);
         }
@@ -376,7 +376,7 @@ fn module_path_candidates(module_path: Option<&std::path::Path>, file_name: &str
     let file_name = normalize_glob_text(file_name);
     candidates.push(file_name);
 
-    // include resolved module path as a fallback matching surface
+    // include exported module path as an additional matching surface
     if let Some(module_path) = module_path {
         let module_path = normalize_glob_text(&module_path.to_string_lossy());
         if !candidates.contains(&module_path) {

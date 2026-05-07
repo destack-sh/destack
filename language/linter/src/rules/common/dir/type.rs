@@ -3,21 +3,12 @@ use std::collections::{HashMap, HashSet};
 use destack_core::StringPool;
 use destack_dir as dir;
 
-/// The default relation cache key used for flow normalization.
-///
-/// This matches the assign relation cache key used by compiler type normalization.
-pub const DEFAULT_RELATION_CACHE_KEY: u64 = 0;
-
-/// Normalize one type id with flow mode and the default relation cache key.
+/// Return the type id used for flow queries.
 pub fn normalized_flow_type_id(
-    types: &dir::TypeTable,
+    _types: &dir::TypeTable,
     type_id: dir::LocalTypeId,
 ) -> dir::LocalTypeId {
-    types.get_normalized_type_id_or(
-        dir::NormalizationMode::Flow,
-        DEFAULT_RELATION_CACHE_KEY,
-        type_id,
-    )
+    type_id
 }
 
 /// Return true when two types are equivalent after flow normalization.
@@ -93,10 +84,8 @@ impl SymbolQueryState {
 /// Resolve the next type id for value-like wrappers.
 fn value_like_type_id(ty: &dir::Type) -> Option<dir::LocalTypeId> {
     match ty {
-        dir::Type::Value { value } => Some(*value),
-        dir::Type::ValueOf { right, .. }
-        | dir::Type::ReferenceOf { right, .. }
-        | dir::Type::PointerOf { right, .. } => Some(*right),
+        dir::Type::Value(value) => Some(value.value),
+        dir::Type::Form(form) => Some(form.base),
         _ => None,
     }
 }
@@ -104,17 +93,16 @@ fn value_like_type_id(ty: &dir::Type) -> Option<dir::LocalTypeId> {
 /// Resolve union or intersection element type ids.
 fn union_or_intersection_elements(ty: &dir::Type) -> Option<&[dir::LocalTypeId]> {
     match ty {
-        dir::Type::Union { elements } | dir::Type::Intersection { elements } => {
-            Some(elements.as_slice())
-        }
+        dir::Type::Union(union) => Some(union.elements.as_slice()),
+        dir::Type::Intersection(intersection) => Some(intersection.elements.as_slice()),
         _ => None,
     }
 }
 
-/// Resolve the primary target type id for one reference symbol.
+/// Resolve the preferred type id for one reference symbol.
 ///
 /// This follows instance types first and then value types for aliases.
-fn primary_reference_target_type_id(
+fn reference_symbol_type_id(
     types: &dir::TypeTable,
     symbol: dir::GlobalSymbolId,
 ) -> Option<dir::LocalTypeId> {
@@ -123,8 +111,8 @@ fn primary_reference_target_type_id(
         .or_else(|| types.get_value_type_id(symbol))
 }
 
-/// Visit all available reference target type ids for one symbol.
-fn for_each_reference_target_type_id(
+/// Visit all available type ids for one reference symbol.
+fn for_each_reference_symbol_type_id(
     types: &dir::TypeTable,
     symbol: dir::GlobalSymbolId,
     mut visitor: impl FnMut(dir::LocalTypeId),
@@ -183,9 +171,11 @@ enum TypeBooleanQuery<'a> {
         promise_symbol: dir::GlobalSymbolId,
     },
     /// Check reference symbol type compatibility.
-    ReferenceSymbolType {
+    ReferenceDeclarationForm {
+        /// Local symbol table for declaration form reads.
+        symbols: &'a dir::SymbolTable,
         /// Required symbol type.
-        symbol_type: dir::SymbolType,
+        declaration_form: dir::DeclarationForm,
     },
     /// Check infer variable compatibility.
     InferVar,
@@ -302,15 +292,11 @@ fn evaluate_boolean_type_query_inner(
     let ty = types.get_type(normalized_type_id);
     let result = if let Some(next_type_id) = value_like_type_id(ty) {
         evaluate_boolean_type_query_inner(types, next_type_id, query, state)
-    } else if let dir::Type::Reference {
-        symbol,
-        generic_arguments,
-    } = ty
-    {
+    } else if let dir::Type::Reference(reference) = ty {
         evaluate_reference_boolean_type_query(
             types,
-            *symbol,
-            generic_arguments.as_deref(),
+            reference.symbol,
+            reference.generic_arguments.as_deref(),
             query,
             state,
         )
@@ -332,11 +318,11 @@ fn type_query_composition_policy(
     ty: &dir::Type,
 ) -> TypeCompositionPolicy {
     match ty {
-        dir::Type::Union { .. } => match query {
+        dir::Type::Union(_) => match query {
             TypeBooleanQuery::Any
             | TypeBooleanQuery::ExplicitAny
             | TypeBooleanQuery::PromiseOrAny { .. }
-            | TypeBooleanQuery::ReferenceSymbolType { .. }
+            | TypeBooleanQuery::ReferenceDeclarationForm { .. }
             | TypeBooleanQuery::InferVar
             | TypeBooleanQuery::PromiseSpreadElementCompatible { .. }
             | TypeBooleanQuery::MapWithEmptyValue { .. }
@@ -345,10 +331,10 @@ fn type_query_composition_policy(
             | TypeBooleanQuery::HasNonNullishFalsy { .. } => TypeCompositionPolicy::Any,
             _ => TypeCompositionPolicy::All,
         },
-        dir::Type::Intersection { .. } => match query {
+        dir::Type::Intersection(_) => match query {
             TypeBooleanQuery::Promise { .. }
             | TypeBooleanQuery::PromiseOrAny { .. }
-            | TypeBooleanQuery::ReferenceSymbolType { .. }
+            | TypeBooleanQuery::ReferenceDeclarationForm { .. }
             | TypeBooleanQuery::InferVar
             | TypeBooleanQuery::PromiseSpreadElementCompatible { .. }
             | TypeBooleanQuery::MapWithEmptyValue { .. }
@@ -411,8 +397,13 @@ fn evaluate_reference_boolean_type_query(
                 return true;
             }
         }
-        TypeBooleanQuery::ReferenceSymbolType { symbol_type } => {
-            if symbol.ty() == symbol_type {
+        TypeBooleanQuery::ReferenceDeclarationForm {
+            symbols,
+            declaration_form,
+        } => {
+            if symbol.module_id == symbols.module_id
+                && symbols.get_symbol(symbol.local_id).form == declaration_form
+            {
                 return true;
             }
         }
@@ -429,7 +420,7 @@ fn evaluate_reference_boolean_type_query(
             }
         }
         TypeBooleanQuery::HasUsefulToString => {
-            if !matches!(symbol.ty(), dir::SymbolType::Void) {
+            if symbol.module_id == types.module_id {
                 return true;
             }
         }
@@ -452,7 +443,7 @@ fn evaluate_reference_boolean_type_query(
         _ => {}
     }
 
-    if let Some(next_type_id) = primary_reference_target_type_id(types, symbol) {
+    if let Some(next_type_id) = reference_symbol_type_id(types, symbol) {
         return evaluate_boolean_type_query_inner(types, next_type_id, query, state);
     }
 
@@ -469,45 +460,43 @@ fn evaluate_terminal_boolean_type_query(
     match query {
         TypeBooleanQuery::StrictBoolean => matches!(
             ty,
-            dir::Type::TypeLiteral {
+            dir::Type::Literal(dir::LiteralType {
                 value: dir::TypeLiteral::Primitive(dir::PrimitiveType::Boolean)
                     | dir::TypeLiteral::ScalarLiteral(dir::ScalarLiteral::Boolean(_))
-            }
+            })
         ),
         TypeBooleanQuery::Array { .. } => matches!(
             ty,
-            dir::Type::Array { .. } | dir::Type::ArraySized { .. } | dir::Type::Tuple { .. }
+            dir::Type::Slice(_) | dir::Type::FixedArray(_) | dir::Type::Tuple(_)
         ),
         TypeBooleanQuery::String { .. } => match ty {
-            dir::Type::TemplateLiteral { .. } => true,
-            dir::Type::TypeLiteral { value } => type_literal_is_string_like(value),
+            dir::Type::TemplateLiteral(_) => true,
+            dir::Type::Literal(literal) => type_literal_is_string_like(&literal.value),
             _ => false,
         },
         TypeBooleanQuery::Float => matches!(
             ty,
-            dir::Type::TypeLiteral {
+            dir::Type::Literal(dir::LiteralType {
                 value: dir::TypeLiteral::Primitive(dir::PrimitiveType::Float(_))
                     | dir::TypeLiteral::Primitive(dir::PrimitiveType::Number)
-            }
+            })
         ),
         TypeBooleanQuery::Function => match ty {
-            dir::Type::Function { .. } => true,
-            dir::Type::Object {
-                call_signatures, ..
-            } => !call_signatures.is_empty(),
+            dir::Type::Function(_) => true,
+            dir::Type::Object(object) => !object.call_signatures.is_empty(),
             _ => false,
         },
         TypeBooleanQuery::HasThisParameter => match ty {
-            dir::Type::Function { this_parameter, .. } => this_parameter.is_some(),
+            dir::Type::Function(function) => function.this_parameter.is_some(),
             _ => false,
         },
-        TypeBooleanQuery::ReferenceSymbolType { .. } => false,
-        TypeBooleanQuery::InferVar => matches!(ty, dir::Type::InferVar { .. }),
+        TypeBooleanQuery::ReferenceDeclarationForm { .. } => false,
+        TypeBooleanQuery::InferVar => matches!(ty, dir::Type::InferVariable(_)),
         TypeBooleanQuery::PromiseSpreadElementCompatible { promise_symbol } => match ty {
-            dir::Type::TypeLiteral {
+            dir::Type::Literal(dir::LiteralType {
                 value: dir::TypeLiteral::Any | dir::TypeLiteral::Unknown,
-            } => true,
-            dir::Type::Array { element, .. } => element.is_some_and(|element_type_id| {
+            }) => true,
+            dir::Type::Slice(slice) => slice.element.is_some_and(|element_type_id| {
                 evaluate_boolean_type_query_inner(
                     types,
                     element_type_id,
@@ -515,13 +504,13 @@ fn evaluate_terminal_boolean_type_query(
                     state,
                 )
             }),
-            dir::Type::ArraySized { element, .. } => evaluate_boolean_type_query_inner(
+            dir::Type::FixedArray(array) => evaluate_boolean_type_query_inner(
                 types,
-                *element,
+                array.element,
                 TypeBooleanQuery::PromiseOrAny { promise_symbol },
                 state,
             ),
-            dir::Type::Tuple { elements, .. } => elements.iter().any(|element| {
+            dir::Type::Tuple(tuple) => tuple.elements.iter().any(|element| {
                 evaluate_boolean_type_query_inner(
                     types,
                     element.ty,
@@ -533,9 +522,9 @@ fn evaluate_terminal_boolean_type_query(
         },
         TypeBooleanQuery::MapWithEmptyValue { .. } => false,
         TypeBooleanQuery::HasUsefulToString => match ty {
-            dir::Type::TypeLiteral { value } => {
+            dir::Type::Literal(literal) => {
                 matches!(
-                    value,
+                    literal.value,
                     dir::TypeLiteral::Primitive(dir::PrimitiveType::String)
                         | dir::TypeLiteral::Primitive(dir::PrimitiveType::Number)
                         | dir::TypeLiteral::Primitive(dir::PrimitiveType::Boolean)
@@ -545,7 +534,7 @@ fn evaluate_terminal_boolean_type_query(
                         | dir::TypeLiteral::ScalarLiteral(_)
                 )
             }
-            dir::Type::Array { element, .. } => element.is_none_or(|element_type_id| {
+            dir::Type::Slice(slice) => slice.element.is_none_or(|element_type_id| {
                 evaluate_boolean_type_query_inner(
                     types,
                     element_type_id,
@@ -553,13 +542,13 @@ fn evaluate_terminal_boolean_type_query(
                     state,
                 )
             }),
-            dir::Type::ArraySized { element, .. } => evaluate_boolean_type_query_inner(
+            dir::Type::FixedArray(array) => evaluate_boolean_type_query_inner(
                 types,
-                *element,
+                array.element,
                 TypeBooleanQuery::HasUsefulToString,
                 state,
             ),
-            dir::Type::Tuple { elements, .. } => elements.iter().all(|element| {
+            dir::Type::Tuple(tuple) => tuple.elements.iter().all(|element| {
                 evaluate_boolean_type_query_inner(
                     types,
                     element.ty,
@@ -567,16 +556,14 @@ fn evaluate_terminal_boolean_type_query(
                     state,
                 )
             }),
-            dir::Type::Function { .. } => true,
-            dir::Type::Object { .. } => false,
+            dir::Type::Function(_) => true,
+            dir::Type::Object(_) => false,
             dir::Type::Error => true,
             _ => false,
         },
         TypeBooleanQuery::AsyncFunction => match ty {
-            dir::Type::Function { asynchrony, .. } => *asynchrony == dir::Asynchrony::Async,
-            dir::Type::Object {
-                call_signatures, ..
-            } => call_signatures.iter().any(|type_id| {
+            dir::Type::Function(function) => function.asynchrony == dir::Asynchrony::Async,
+            dir::Type::Object(object) => object.call_signatures.iter().any(|type_id| {
                 evaluate_boolean_type_query_inner(
                     types,
                     *type_id,
@@ -588,35 +575,35 @@ fn evaluate_terminal_boolean_type_query(
         },
         TypeBooleanQuery::Any => matches!(
             ty,
-            dir::Type::TypeLiteral {
+            dir::Type::Literal(dir::LiteralType {
                 value: dir::TypeLiteral::Any | dir::TypeLiteral::Unknown
-            }
+            })
         ),
         TypeBooleanQuery::PromiseOrAny { .. } => matches!(
             ty,
-            dir::Type::TypeLiteral {
+            dir::Type::Literal(dir::LiteralType {
                 value: dir::TypeLiteral::Any | dir::TypeLiteral::Unknown
-            }
+            })
         ),
         TypeBooleanQuery::ExplicitAny => matches!(
             ty,
-            dir::Type::TypeLiteral {
+            dir::Type::Literal(dir::LiteralType {
                 value: dir::TypeLiteral::Any
-            }
+            })
         ),
         TypeBooleanQuery::Promise { .. } => false,
         TypeBooleanQuery::VoidOrNever => matches!(
             ty,
-            dir::Type::TypeLiteral {
+            dir::Type::Literal(dir::LiteralType {
                 value: dir::TypeLiteral::Void | dir::TypeLiteral::Never
-            }
+            })
         ),
         TypeBooleanQuery::TemplateInterpolation { .. } => match ty {
-            dir::Type::TemplateLiteral { .. } => true,
-            dir::Type::TypeLiteral { value } => {
-                type_literal_is_string_like(value)
+            dir::Type::TemplateLiteral(_) => true,
+            dir::Type::Literal(literal) => {
+                type_literal_is_string_like(&literal.value)
                     || matches!(
-                        value,
+                        literal.value,
                         dir::TypeLiteral::Primitive(
                             dir::PrimitiveType::Bigint
                                 | dir::PrimitiveType::Number
@@ -632,58 +619,57 @@ fn evaluate_terminal_boolean_type_query(
             _ => false,
         },
         TypeBooleanQuery::StringLikePropertyKey => match ty {
-            dir::Type::TypeLiteral { value } => type_literal_is_string_like_property_key(value),
+            dir::Type::Literal(literal) => type_literal_is_string_like_property_key(&literal.value),
             _ => false,
         },
         TypeBooleanQuery::NumericPropertyKey => match ty {
-            dir::Type::TypeLiteral { value } => type_literal_is_numeric_property_key(value),
+            dir::Type::Literal(literal) => type_literal_is_numeric_property_key(&literal.value),
             _ => false,
         },
         TypeBooleanQuery::SymbolLikePropertyKey => match ty {
-            dir::Type::TypeLiteral { value } => type_literal_is_symbol_like_property_key(value),
+            dir::Type::Literal(literal) => type_literal_is_symbol_like_property_key(&literal.value),
             _ => false,
         },
         TypeBooleanQuery::DefinitelyNonErrorValue { .. } => matches!(
             ty,
-            dir::Type::TypeLiteral {
+            dir::Type::Literal(dir::LiteralType {
                 value: dir::TypeLiteral::Never
                     | dir::TypeLiteral::Undefined
                     | dir::TypeLiteral::Void
                     | dir::TypeLiteral::Null
                     | dir::TypeLiteral::Primitive(_)
                     | dir::TypeLiteral::ScalarLiteral(_)
-            }
+            })
         ),
         TypeBooleanQuery::MaybeNullish => matches!(
             ty,
-            dir::Type::TypeLiteral {
+            dir::Type::Literal(dir::LiteralType {
                 value: dir::TypeLiteral::Null
                     | dir::TypeLiteral::Undefined
                     | dir::TypeLiteral::Void
                     | dir::TypeLiteral::Any
                     | dir::TypeLiteral::Infer
                     | dir::TypeLiteral::Unknown
-            } | dir::Type::InferVar { .. }
-                | dir::Type::Conditional { .. }
-                | dir::Type::Mapped { .. }
-                | dir::Type::Index { .. }
-                | dir::Type::TemplateLiteral { .. }
-                | dir::Type::Import { .. }
-                | dir::Type::Infer { .. }
-                | dir::Type::Predicate { .. }
-                | dir::Type::Readonly { .. }
-                | dir::Type::KeyOf { .. }
-                | dir::Type::Must { .. }
-                | dir::Type::AsComptime { .. }
-                | dir::Type::Not { .. }
-                | dir::Type::In { .. }
-                | dir::Type::Extends { .. }
-                | dir::Type::Implements { .. }
+            }) | dir::Type::InferVariable(_)
+                | dir::Type::Conditional(_)
+                | dir::Type::Mapped(_)
+                | dir::Type::Index(_)
+                | dir::Type::TemplateLiteral(_)
+                | dir::Type::Import(_)
+                | dir::Type::Infer(_)
+                | dir::Type::Predicate(_)
+                | dir::Type::KeyOf(_)
+                | dir::Type::Must(_)
+                | dir::Type::AsComptime(_)
+                | dir::Type::Not(_)
+                | dir::Type::In(_)
+                | dir::Type::Extends(_)
+                | dir::Type::Implements(_)
                 | dir::Type::Error
                 | dir::Type::Unevaluated(_)
         ),
         TypeBooleanQuery::HasNonNullishFalsy { strings } => match ty {
-            dir::Type::TypeLiteral { value } => match value {
+            dir::Type::Literal(literal) => match &literal.value {
                 dir::TypeLiteral::Null | dir::TypeLiteral::Undefined | dir::TypeLiteral::Void => {
                     false
                 }
@@ -713,29 +699,28 @@ fn evaluate_terminal_boolean_type_query(
                 },
                 dir::TypeLiteral::Intrinsic(_) => true,
             },
-            dir::Type::Array { .. }
-            | dir::Type::ArraySized { .. }
-            | dir::Type::Tuple { .. }
-            | dir::Type::Object { .. }
-            | dir::Type::Function { .. } => false,
-            dir::Type::InferVar { .. }
+            dir::Type::Slice(_)
+            | dir::Type::FixedArray(_)
+            | dir::Type::Tuple(_)
+            | dir::Type::Object(_)
+            | dir::Type::Function(_) => false,
+            dir::Type::InferVariable(_)
             | dir::Type::This
             | dir::Type::Unevaluated(_)
-            | dir::Type::Conditional { .. }
-            | dir::Type::Mapped { .. }
-            | dir::Type::Index { .. }
-            | dir::Type::TemplateLiteral { .. }
-            | dir::Type::Import { .. }
-            | dir::Type::Infer { .. }
-            | dir::Type::Predicate { .. }
-            | dir::Type::Readonly { .. }
-            | dir::Type::KeyOf { .. }
-            | dir::Type::Must { .. }
-            | dir::Type::AsComptime { .. }
-            | dir::Type::Not { .. }
-            | dir::Type::In { .. }
-            | dir::Type::Extends { .. }
-            | dir::Type::Implements { .. }
+            | dir::Type::Conditional(_)
+            | dir::Type::Mapped(_)
+            | dir::Type::Index(_)
+            | dir::Type::TemplateLiteral(_)
+            | dir::Type::Import(_)
+            | dir::Type::Infer(_)
+            | dir::Type::Predicate(_)
+            | dir::Type::KeyOf(_)
+            | dir::Type::Must(_)
+            | dir::Type::AsComptime(_)
+            | dir::Type::Not(_)
+            | dir::Type::In(_)
+            | dir::Type::Extends(_)
+            | dir::Type::Implements(_)
             | dir::Type::Error => true,
             _ => false,
         },
@@ -856,17 +841,15 @@ pub fn tuple_type_arity(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> Op
 
         let current_type = types.get_type(current_type_id);
         match current_type {
-            dir::Type::Tuple { elements, .. } => return Some(elements.len()),
-            dir::Type::Value { value } => {
-                current_type_id = *value;
+            dir::Type::Tuple(tuple) => return Some(tuple.elements.len()),
+            dir::Type::Value(value) => {
+                current_type_id = value.value;
             }
-            dir::Type::ValueOf { right, .. }
-            | dir::Type::ReferenceOf { right, .. }
-            | dir::Type::PointerOf { right, .. } => {
-                current_type_id = *right;
+            dir::Type::Form(form) => {
+                current_type_id = form.base;
             }
-            dir::Type::Reference { symbol, .. } => {
-                current_type_id = primary_reference_target_type_id(types, *symbol)?;
+            dir::Type::Reference(reference) => {
+                current_type_id = reference_symbol_type_id(types, reference.symbol)?;
             }
             _ => return None,
         }
@@ -899,41 +882,51 @@ fn is_string_array_type_inner(
 
     let ty = types.get_type(normalized_type_id);
     let result = match ty {
-        dir::Type::Array { element, .. } => element
+        dir::Type::Slice(slice) => slice
+            .element
             .is_some_and(|element_type_id| is_string_type(types, element_type_id, string_symbol)),
-        dir::Type::ArraySized { element, .. } => is_string_type(types, *element, string_symbol),
-        dir::Type::Tuple { elements, .. } => elements
+        dir::Type::FixedArray(array) => is_string_type(types, array.element, string_symbol),
+        dir::Type::Tuple(tuple) => tuple
+            .elements
             .iter()
             .all(|element| is_string_type(types, element.ty, string_symbol)),
-        dir::Type::Reference {
-            symbol,
-            generic_arguments,
-        } => {
-            if array_symbol.is_none_or(|array_symbol| *symbol != array_symbol) {
+        dir::Type::Reference(reference) => {
+            if array_symbol.is_none_or(|array_symbol| reference.symbol != array_symbol) {
                 false
             } else {
-                generic_arguments.as_ref().is_some_and(|generic_arguments| {
-                    generic_arguments.first().is_some_and(|generic_argument| {
-                        generic_argument_type_id(types, generic_argument).is_some_and(
-                            |element_type_id| is_string_type(types, element_type_id, string_symbol),
-                        )
+                reference
+                    .generic_arguments
+                    .as_ref()
+                    .is_some_and(|generic_arguments| {
+                        generic_arguments.first().is_some_and(|generic_argument| {
+                            generic_argument_type_id(types, generic_argument).is_some_and(
+                                |element_type_id| {
+                                    is_string_type(types, element_type_id, string_symbol)
+                                },
+                            )
+                        })
                     })
-                })
             }
         }
-        dir::Type::Union { elements } => elements.iter().all(|element_type_id| {
+        dir::Type::Union(union) => union.elements.iter().all(|element_type_id| {
             is_string_array_type_inner(types, *element_type_id, array_symbol, string_symbol, state)
         }),
-        dir::Type::Intersection { elements } => elements.iter().any(|element_type_id| {
-            is_string_array_type_inner(types, *element_type_id, array_symbol, string_symbol, state)
-        }),
-        dir::Type::Value { value } => {
-            is_string_array_type_inner(types, *value, array_symbol, string_symbol, state)
+        dir::Type::Intersection(intersection) => {
+            intersection.elements.iter().any(|element_type_id| {
+                is_string_array_type_inner(
+                    types,
+                    *element_type_id,
+                    array_symbol,
+                    string_symbol,
+                    state,
+                )
+            })
         }
-        dir::Type::ValueOf { right, .. }
-        | dir::Type::ReferenceOf { right, .. }
-        | dir::Type::PointerOf { right, .. } => {
-            is_string_array_type_inner(types, *right, array_symbol, string_symbol, state)
+        dir::Type::Value(value) => {
+            is_string_array_type_inner(types, value.value, array_symbol, string_symbol, state)
+        }
+        dir::Type::Form(form) => {
+            is_string_array_type_inner(types, form.base, array_symbol, string_symbol, state)
         }
         _ => false,
     };
@@ -988,8 +981,17 @@ fn is_array_like_iteration_type_inner(
 
     let type_node = types.get_type(type_id);
     match type_node {
-        dir::Type::Union { elements } | dir::Type::Intersection { elements } => {
-            elements.iter().any(|element_type_id| {
+        dir::Type::Union(union) => union.elements.iter().any(|element_type_id| {
+            is_array_like_iteration_type_inner(
+                types,
+                strings,
+                *element_type_id,
+                array_symbol,
+                visited_type_ids,
+            )
+        }),
+        dir::Type::Intersection(intersection) => {
+            intersection.elements.iter().any(|element_type_id| {
                 is_array_like_iteration_type_inner(
                     types,
                     strings,
@@ -999,29 +1001,23 @@ fn is_array_like_iteration_type_inner(
                 )
             })
         }
-        dir::Type::Value { value } => is_array_like_iteration_type_inner(
+        dir::Type::Value(value) => is_array_like_iteration_type_inner(
             types,
             strings,
-            *value,
+            value.value,
             array_symbol,
             visited_type_ids,
         ),
-        dir::Type::ValueOf { right, .. }
-        | dir::Type::ReferenceOf { right, .. }
-        | dir::Type::PointerOf { right, .. } => is_array_like_iteration_type_inner(
+        dir::Type::Form(form) => is_array_like_iteration_type_inner(
             types,
             strings,
-            *right,
+            form.base,
             array_symbol,
             visited_type_ids,
         ),
-        dir::Type::Object {
-            fields,
-            index_signatures,
-            ..
-        } => {
-            object_has_numeric_index_signature(types, index_signatures)
-                && object_has_array_like_length_field(types, strings, fields)
+        dir::Type::Object(object) => {
+            object_has_numeric_index_signature(types, &object.index_signatures)
+                && object_has_array_like_length_field(types, strings, &object.fields)
         }
         _ => false,
     }
@@ -1075,15 +1071,19 @@ pub fn is_function_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bo
 }
 
 /// Return true when one type may resolve to one symbol type.
-pub fn is_reference_symbol_type(
+pub fn is_reference_declaration_form(
     types: &dir::TypeTable,
+    symbols: &dir::SymbolTable,
     type_id: dir::LocalTypeId,
-    symbol_type: dir::SymbolType,
+    declaration_form: dir::DeclarationForm,
 ) -> bool {
     evaluate_boolean_type_query(
         types,
         type_id,
-        TypeBooleanQuery::ReferenceSymbolType { symbol_type },
+        TypeBooleanQuery::ReferenceDeclarationForm {
+            symbols,
+            declaration_form,
+        },
     )
 }
 
@@ -1116,30 +1116,31 @@ fn has_non_void_this_parameter_type_inner(
 
     let ty = types.get_type(normalized_type_id);
     match ty {
-        dir::Type::Function { this_parameter, .. } => {
-            this_parameter.is_some_and(|this_parameter_type_id| {
-                !is_void_or_never_type(types, this_parameter_type_id)
-            })
+        dir::Type::Function(function) => {
+            function
+                .this_parameter
+                .is_some_and(|this_parameter_type_id| {
+                    !is_void_or_never_type(types, this_parameter_type_id)
+                })
         }
-        dir::Type::Object {
-            call_signatures, ..
-        } => call_signatures.iter().any(|signature_type_id| {
+        dir::Type::Object(object) => object.call_signatures.iter().any(|signature_type_id| {
             has_non_void_this_parameter_type_inner(types, *signature_type_id, visited_type_ids)
         }),
-        dir::Type::Union { elements } | dir::Type::Intersection { elements } => {
-            elements.iter().any(|element_type_id| {
+        dir::Type::Union(union) => union.elements.iter().any(|element_type_id| {
+            has_non_void_this_parameter_type_inner(types, *element_type_id, visited_type_ids)
+        }),
+        dir::Type::Intersection(intersection) => {
+            intersection.elements.iter().any(|element_type_id| {
                 has_non_void_this_parameter_type_inner(types, *element_type_id, visited_type_ids)
             })
         }
-        dir::Type::Value { value } => {
-            has_non_void_this_parameter_type_inner(types, *value, visited_type_ids)
+        dir::Type::Value(value) => {
+            has_non_void_this_parameter_type_inner(types, value.value, visited_type_ids)
         }
-        dir::Type::ValueOf { right, .. }
-        | dir::Type::ReferenceOf { right, .. }
-        | dir::Type::PointerOf { right, .. } => {
-            has_non_void_this_parameter_type_inner(types, *right, visited_type_ids)
+        dir::Type::Form(form) => {
+            has_non_void_this_parameter_type_inner(types, form.base, visited_type_ids)
         }
-        dir::Type::Reference { symbol, .. } => primary_reference_target_type_id(types, *symbol)
+        dir::Type::Reference(reference) => reference_symbol_type_id(types, reference.symbol)
             .is_some_and(|target_type_id| {
                 has_non_void_this_parameter_type_inner(types, target_type_id, visited_type_ids)
             }),
@@ -1406,10 +1407,10 @@ pub fn unwrap_value_type_id(
         }
 
         let ty = types.get_type(type_id);
-        let dir::Type::Value { value } = ty else {
+        let dir::Type::Value(value) = ty else {
             return type_id;
         };
-        type_id = *value;
+        type_id = value.value;
     }
 }
 
@@ -1432,8 +1433,8 @@ fn type_truthiness_inner(
     let ty = types.get_type(normalized_type_id);
     let truthiness = if let Some(next_type_id) = value_like_type_id(ty) {
         type_truthiness_inner(types, strings, next_type_id, state)
-    } else if let dir::Type::Reference { symbol, .. } = ty {
-        if let Some(next_type_id) = primary_reference_target_type_id(types, *symbol) {
+    } else if let dir::Type::Reference(reference) = ty {
+        if let Some(next_type_id) = reference_symbol_type_id(types, reference.symbol) {
             type_truthiness_inner(types, strings, next_type_id, state)
         } else {
             TypeTruthiness::AlwaysTruthy
@@ -1446,7 +1447,7 @@ fn type_truthiness_inner(
         )
     } else {
         match ty {
-            dir::Type::TypeLiteral { value } => match value {
+            dir::Type::Literal(literal) => match &literal.value {
                 dir::TypeLiteral::Never => TypeTruthiness::Unknown,
                 dir::TypeLiteral::Any | dir::TypeLiteral::Infer | dir::TypeLiteral::Unknown => {
                     TypeTruthiness::Unknown
@@ -1504,29 +1505,28 @@ fn type_truthiness_inner(
                 },
                 dir::TypeLiteral::Intrinsic(_) => TypeTruthiness::Unknown,
             },
-            dir::Type::Array { .. }
-            | dir::Type::ArraySized { .. }
-            | dir::Type::Tuple { .. }
-            | dir::Type::Object { .. }
-            | dir::Type::Function { .. } => TypeTruthiness::AlwaysTruthy,
-            dir::Type::InferVar { .. }
+            dir::Type::Slice(_)
+            | dir::Type::FixedArray(_)
+            | dir::Type::Tuple(_)
+            | dir::Type::Object(_)
+            | dir::Type::Function(_) => TypeTruthiness::AlwaysTruthy,
+            dir::Type::InferVariable(_)
             | dir::Type::This
             | dir::Type::Unevaluated(_)
-            | dir::Type::Conditional { .. }
-            | dir::Type::Mapped { .. }
-            | dir::Type::Index { .. }
-            | dir::Type::TemplateLiteral { .. }
-            | dir::Type::Import { .. }
-            | dir::Type::Infer { .. }
-            | dir::Type::Predicate { .. }
-            | dir::Type::Readonly { .. }
-            | dir::Type::KeyOf { .. }
-            | dir::Type::Must { .. }
-            | dir::Type::AsComptime { .. }
-            | dir::Type::Not { .. }
-            | dir::Type::In { .. }
-            | dir::Type::Extends { .. }
-            | dir::Type::Implements { .. }
+            | dir::Type::Conditional(_)
+            | dir::Type::Mapped(_)
+            | dir::Type::Index(_)
+            | dir::Type::TemplateLiteral(_)
+            | dir::Type::Import(_)
+            | dir::Type::Infer(_)
+            | dir::Type::Predicate(_)
+            | dir::Type::KeyOf(_)
+            | dir::Type::Must(_)
+            | dir::Type::AsComptime(_)
+            | dir::Type::Not(_)
+            | dir::Type::In(_)
+            | dir::Type::Extends(_)
+            | dir::Type::Implements(_)
             | dir::Type::Error => TypeTruthiness::Unknown,
             _ => TypeTruthiness::Unknown,
         }
@@ -1555,8 +1555,8 @@ fn type_nullishness_inner(
     let ty = types.get_type(normalized_type_id);
     let nullishness = if let Some(next_type_id) = value_like_type_id(ty) {
         type_nullishness_inner(types, next_type_id, state)
-    } else if let dir::Type::Reference { symbol, .. } = ty {
-        if let Some(next_type_id) = primary_reference_target_type_id(types, *symbol) {
+    } else if let dir::Type::Reference(reference) = ty {
+        if let Some(next_type_id) = reference_symbol_type_id(types, reference.symbol) {
             type_nullishness_inner(types, next_type_id, state)
         } else {
             TypeNullishness::Never
@@ -1569,7 +1569,7 @@ fn type_nullishness_inner(
         )
     } else {
         match ty {
-            dir::Type::TypeLiteral { value } => match value {
+            dir::Type::Literal(literal) => match &literal.value {
                 dir::TypeLiteral::Null | dir::TypeLiteral::Undefined | dir::TypeLiteral::Void => {
                     TypeNullishness::Always
                 }
@@ -1582,29 +1582,28 @@ fn type_nullishness_inner(
                 | dir::TypeLiteral::Intrinsic(_)
                 | dir::TypeLiteral::ScalarLiteral(_) => TypeNullishness::Never,
             },
-            dir::Type::Array { .. }
-            | dir::Type::ArraySized { .. }
-            | dir::Type::Tuple { .. }
-            | dir::Type::Object { .. }
-            | dir::Type::Function { .. } => TypeNullishness::Never,
-            dir::Type::InferVar { .. }
+            dir::Type::Slice(_)
+            | dir::Type::FixedArray(_)
+            | dir::Type::Tuple(_)
+            | dir::Type::Object(_)
+            | dir::Type::Function(_) => TypeNullishness::Never,
+            dir::Type::InferVariable(_)
             | dir::Type::This
             | dir::Type::Unevaluated(_)
-            | dir::Type::Conditional { .. }
-            | dir::Type::Mapped { .. }
-            | dir::Type::Index { .. }
-            | dir::Type::TemplateLiteral { .. }
-            | dir::Type::Import { .. }
-            | dir::Type::Infer { .. }
-            | dir::Type::Predicate { .. }
-            | dir::Type::Readonly { .. }
-            | dir::Type::KeyOf { .. }
-            | dir::Type::Must { .. }
-            | dir::Type::AsComptime { .. }
-            | dir::Type::Not { .. }
-            | dir::Type::In { .. }
-            | dir::Type::Extends { .. }
-            | dir::Type::Implements { .. }
+            | dir::Type::Conditional(_)
+            | dir::Type::Mapped(_)
+            | dir::Type::Index(_)
+            | dir::Type::TemplateLiteral(_)
+            | dir::Type::Import(_)
+            | dir::Type::Infer(_)
+            | dir::Type::Predicate(_)
+            | dir::Type::KeyOf(_)
+            | dir::Type::Must(_)
+            | dir::Type::AsComptime(_)
+            | dir::Type::Not(_)
+            | dir::Type::In(_)
+            | dir::Type::Extends(_)
+            | dir::Type::Implements(_)
             | dir::Type::Error => TypeNullishness::Maybe,
             _ => TypeNullishness::Maybe,
         }
@@ -1729,28 +1728,29 @@ fn type_may_be_nominal_symbol_inner(
     // inspect the type node
     let ty = types.get_type(type_id);
     let result = match ty {
-        dir::Type::Reference {
-            symbol: candidate, ..
-        } => {
-            if *candidate == symbol || symbol_lineage_contains(types, *candidate, symbol) {
+        dir::Type::Reference(reference) => {
+            if reference.symbol == symbol
+                || symbol_lineage_contains(types, reference.symbol, symbol)
+            {
                 true
-            } else if let Some(instance_type_id) = types.get_instance_type_id(*candidate) {
+            } else if let Some(instance_type_id) = types.get_instance_type_id(reference.symbol) {
                 type_may_be_nominal_symbol_inner(types, instance_type_id, symbol, state)
-            } else if let Some(value_type_id) = types.get_value_type_id(*candidate) {
+            } else if let Some(value_type_id) = types.get_value_type_id(reference.symbol) {
                 type_may_be_nominal_symbol_inner(types, value_type_id, symbol, state)
             } else {
                 false
             }
         }
-        dir::Type::Value { value } => {
-            type_may_be_nominal_symbol_inner(types, *value, symbol, state)
+        dir::Type::Value(value) => {
+            type_may_be_nominal_symbol_inner(types, value.value, symbol, state)
         }
-        dir::Type::ValueOf { right, .. }
-        | dir::Type::ReferenceOf { right, .. }
-        | dir::Type::PointerOf { right, .. } => {
-            type_may_be_nominal_symbol_inner(types, *right, symbol, state)
-        }
-        dir::Type::Union { elements } | dir::Type::Intersection { elements } => elements
+        dir::Type::Form(form) => type_may_be_nominal_symbol_inner(types, form.base, symbol, state),
+        dir::Type::Union(union) => union
+            .elements
+            .iter()
+            .any(|element| type_may_be_nominal_symbol_inner(types, *element, symbol, state)),
+        dir::Type::Intersection(intersection) => intersection
+            .elements
             .iter()
             .any(|element| type_may_be_nominal_symbol_inner(types, *element, symbol, state)),
         _ => false,
@@ -1833,23 +1833,22 @@ fn function_parameter_type_at_inner(
     // inspect the type node
     let ty = types.get_type(type_id);
     let result = match ty {
-        dir::Type::Function { parameters, .. } => parameters.get(index).copied(),
-        dir::Type::Object {
-            call_signatures, ..
-        } => call_signatures
-            .first()
-            .copied()
-            .and_then(|first_signature| {
-                function_parameter_type_at_inner(types, first_signature, index, state)
-            }),
-        dir::Type::Value { value } => function_parameter_type_at_inner(types, *value, index, state),
-        dir::Type::ValueOf { right, .. }
-        | dir::Type::ReferenceOf { right, .. }
-        | dir::Type::PointerOf { right, .. } => {
-            function_parameter_type_at_inner(types, *right, index, state)
+        dir::Type::Function(function) => function.parameters.get(index).copied(),
+        dir::Type::Object(object) => {
+            object
+                .call_signatures
+                .first()
+                .copied()
+                .and_then(|first_signature| {
+                    function_parameter_type_at_inner(types, first_signature, index, state)
+                })
         }
-        dir::Type::Reference { symbol, .. } => {
-            if let Some(next_type_id) = primary_reference_target_type_id(types, *symbol) {
+        dir::Type::Value(value) => {
+            function_parameter_type_at_inner(types, value.value, index, state)
+        }
+        dir::Type::Form(form) => function_parameter_type_at_inner(types, form.base, index, state),
+        dir::Type::Reference(reference) => {
+            if let Some(next_type_id) = reference_symbol_type_id(types, reference.symbol) {
                 function_parameter_type_at_inner(types, next_type_id, index, state)
             } else {
                 None
@@ -1878,35 +1877,36 @@ fn function_parameter_types_at_inner(
     // inspect the type node
     let ty = types.get_type(type_id);
     match ty {
-        dir::Type::Function { parameters, .. } => {
-            if let Some(parameter_type_id) = parameters.get(index).copied()
+        dir::Type::Function(function) => {
+            if let Some(parameter_type_id) = function.parameters.get(index).copied()
                 && !results.contains(&parameter_type_id)
             {
                 results.push(parameter_type_id);
             }
         }
-        dir::Type::Object {
-            call_signatures, ..
-        } => {
-            for signature_id in call_signatures {
+        dir::Type::Object(object) => {
+            for signature_id in &object.call_signatures {
                 function_parameter_types_at_inner(types, *signature_id, index, state, results);
             }
         }
-        dir::Type::Union { elements } | dir::Type::Intersection { elements } => {
-            for element_type_id in elements {
+        dir::Type::Union(union) => {
+            for element_type_id in &union.elements {
                 function_parameter_types_at_inner(types, *element_type_id, index, state, results);
             }
         }
-        dir::Type::Value { value } => {
-            function_parameter_types_at_inner(types, *value, index, state, results);
+        dir::Type::Intersection(intersection) => {
+            for element_type_id in &intersection.elements {
+                function_parameter_types_at_inner(types, *element_type_id, index, state, results);
+            }
         }
-        dir::Type::ValueOf { right, .. }
-        | dir::Type::ReferenceOf { right, .. }
-        | dir::Type::PointerOf { right, .. } => {
-            function_parameter_types_at_inner(types, *right, index, state, results);
+        dir::Type::Value(value) => {
+            function_parameter_types_at_inner(types, value.value, index, state, results);
         }
-        dir::Type::Reference { symbol, .. } => {
-            for_each_reference_target_type_id(types, *symbol, |next_type_id| {
+        dir::Type::Form(form) => {
+            function_parameter_types_at_inner(types, form.base, index, state, results);
+        }
+        dir::Type::Reference(reference) => {
+            for_each_reference_symbol_type_id(types, reference.symbol, |next_type_id| {
                 function_parameter_types_at_inner(types, next_type_id, index, state, results);
             });
         }
@@ -1930,19 +1930,16 @@ fn function_return_type_inner(
     // inspect the type node
     let ty = types.get_type(type_id);
     let result = match ty {
-        dir::Type::Function { return_type, .. } => *return_type,
-        dir::Type::Object {
-            call_signatures, ..
-        } => call_signatures
+        dir::Type::Function(function) => function.return_type,
+        dir::Type::Object(object) => object
+            .call_signatures
             .first()
             .copied()
             .and_then(|first_signature| function_return_type_inner(types, first_signature, state)),
-        dir::Type::Value { value } => function_return_type_inner(types, *value, state),
-        dir::Type::ValueOf { right, .. }
-        | dir::Type::ReferenceOf { right, .. }
-        | dir::Type::PointerOf { right, .. } => function_return_type_inner(types, *right, state),
-        dir::Type::Reference { symbol, .. } => {
-            if let Some(next_type_id) = primary_reference_target_type_id(types, *symbol) {
+        dir::Type::Value(value) => function_return_type_inner(types, value.value, state),
+        dir::Type::Form(form) => function_return_type_inner(types, form.base, state),
+        dir::Type::Reference(reference) => {
+            if let Some(next_type_id) = reference_symbol_type_id(types, reference.symbol) {
                 function_return_type_inner(types, next_type_id, state)
             } else {
                 None

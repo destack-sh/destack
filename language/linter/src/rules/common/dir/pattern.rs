@@ -2,7 +2,7 @@ use destack_dir as dir;
 
 use crate::LintModuleDirContext;
 
-use super::{canonical_symbol_for, expression_target_symbol, expression_unwrap_parenthesized};
+use super::{expression_target_symbol, expression_unwrap_parenthesized};
 
 /// Return true when one DIR pattern matches all remaining values.
 pub fn pattern_is_total(tree: &dir::Tree, pattern_id: dir::LocalNodeId<dir::Pattern>) -> bool {
@@ -96,11 +96,11 @@ pub fn pattern_subsumes_semantically(
             pattern_subsumes_semantically(ctx, left_inner, right_inner)
         }
         (
-            dir::Pattern::ReferenceOf {
+            dir::Pattern::BorrowOf {
                 mutability: left_mutability,
                 right: left_inner,
             },
-            dir::Pattern::ReferenceOf {
+            dir::Pattern::BorrowOf {
                 mutability: right_mutability,
                 right: right_inner,
             },
@@ -109,11 +109,11 @@ pub fn pattern_subsumes_semantically(
                 && pattern_subsumes_semantically(ctx, left_inner, right_inner)
         }
         (
-            dir::Pattern::ValueOf {
+            dir::Pattern::MoveOf {
                 mutability: left_mutability,
                 right: left_inner,
             },
-            dir::Pattern::ValueOf {
+            dir::Pattern::MoveOf {
                 mutability: right_mutability,
                 right: right_inner,
             },
@@ -142,32 +142,13 @@ fn pattern_expression_is_equal(
         return true;
     }
 
-    // otherwise compare resolved symbols canonically
-    let left_symbol = expression_target_symbol(ctx.tree, left_expression_id);
-    let right_symbol = expression_target_symbol(ctx.tree, right_expression_id);
-    if let (Some(left_symbol), Some(right_symbol)) = (left_symbol, right_symbol) {
-        let left_symbol = canonical_symbol_for(
-            &ctx.repository,
-            ctx.revision,
-            ctx.profile_id,
-            ctx.module_id(),
-            ctx.symbols,
-            left_symbol,
-        )
-        .unwrap_or(left_symbol);
-        let right_symbol = canonical_symbol_for(
-            &ctx.repository,
-            ctx.revision,
-            ctx.profile_id,
-            ctx.module_id(),
-            ctx.symbols,
-            right_symbol,
-        )
-        .unwrap_or(right_symbol);
-
-        if left_symbol == right_symbol {
-            return true;
-        }
+    // otherwise compare symbol targets
+    let left_symbol = expression_target_symbol(ctx, left_expression_id);
+    let right_symbol = expression_target_symbol(ctx, right_expression_id);
+    if let (Some(left_symbol), Some(right_symbol)) = (left_symbol, right_symbol)
+        && left_symbol == right_symbol
+    {
+        return true;
     }
 
     let left_expression = ctx.tree.get(left_expression_id);

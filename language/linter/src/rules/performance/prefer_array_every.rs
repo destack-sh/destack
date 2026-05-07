@@ -204,7 +204,7 @@ impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
         }
 
         // resolve the receiver path for matching
-        let receiver_path = expression_reference_path(self.ctx.tree, receiver_id)?;
+        let receiver_path = expression_reference_path(self.ctx, receiver_id)?;
         Some(FilterLengthMatch {
             receiver_path,
             arguments: arguments.clone(),
@@ -230,7 +230,7 @@ impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
         }
 
         // resolve the receiver path
-        let Some(path) = expression_reference_path(self.ctx.tree, *left) else {
+        let Some(path) = expression_reference_path(self.ctx, *left) else {
             return false;
         };
 

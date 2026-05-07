@@ -189,8 +189,7 @@ impl<'a, 'b> NoObjectSpreadInReduceVisitor<'a, 'b> {
             };
 
             // check if this spreads the accumulator
-            let spread_expr = self.ctx.tree.get(*value);
-            let target_symbol = spread_expr.target_symbol();
+            let target_symbol = self.ctx.expression_target_symbol(*value);
             if target_symbol != Some(accumulator_symbol) {
                 continue;
             }
@@ -240,8 +239,7 @@ impl<'a, 'b> NoObjectSpreadInReduceVisitor<'a, 'b> {
         }
 
         // require Object.assign(...)
-        let receiver_expression = self.ctx.tree.get(method_call.receiver_id);
-        if receiver_expression.target_symbol() != Some(object_symbol) {
+        if self.ctx.expression_target_symbol(method_call.receiver_id) != Some(object_symbol) {
             return;
         }
 
@@ -276,8 +274,7 @@ impl<'a, 'b> NoObjectSpreadInReduceVisitor<'a, 'b> {
             let dir::Argument::Positional { value, .. } = argument else {
                 continue;
             };
-            let value_expression = self.ctx.tree.get(*value);
-            if value_expression.target_symbol() == Some(accumulator_symbol) {
+            if self.ctx.expression_target_symbol(*value) == Some(accumulator_symbol) {
                 has_accumulator_argument = true;
                 break;
             }

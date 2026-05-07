@@ -127,7 +127,7 @@ impl<'a, 'b> IteratorInvalidationVisitor<'a, 'b> {
         }
 
         // check if the receiver is one of our iterated collections
-        let Some(receiver_symbol) = expression_target_symbol(self.ctx.tree, *receiver) else {
+        let Some(receiver_symbol) = expression_target_symbol(self.ctx, *receiver) else {
             return;
         };
         if !self.is_iterated_symbol(receiver_symbol) {
@@ -180,7 +180,7 @@ impl<'a, 'b> IteratorInvalidationVisitor<'a, 'b> {
         };
 
         // require initializer to reference an iterated symbol
-        let Some(source_symbol) = expression_target_symbol(self.ctx.tree, value_id) else {
+        let Some(source_symbol) = expression_target_symbol(self.ctx, value_id) else {
             return;
         };
         if !active_symbols.contains(&source_symbol) {
@@ -223,7 +223,7 @@ impl NodeVisitor for IteratorInvalidationVisitor<'_, '_> {
         } = expression
         {
             // get the iterated collection's symbol
-            if let Some(symbol) = expression_target_symbol(tree, *iterator) {
+            if let Some(symbol) = self.ctx.expression_target_symbol(*iterator) {
                 // push one scope for this loop and walk body
                 self.iterated_symbol_scopes.push(HashSet::from([symbol]));
 

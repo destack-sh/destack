@@ -118,36 +118,13 @@ fn dependency_item_exports_default(
 
     // only inspect export nodes, not imports
     match ctx.tree.get(parent_id) {
-        dir::Expression::Export { .. }
-        | dir::Expression::ReExport { .. }
-        | dir::Expression::UnresolvedReExport { .. } => {}
+        dir::Expression::Export { .. } | dir::Expression::ReExport { .. } => {}
         _ => return false,
     }
 
     match item {
         dir::DependencyItem::Value { binding, .. } => *binding == dir::DependencyBinding::Default,
-        dir::DependencyItem::Local {
-            binding,
-            space,
-            name,
-            alias,
-            ..
-        }
-        | dir::DependencyItem::UnresolvedLocal {
-            binding,
-            space,
-            name,
-            alias,
-            ..
-        }
-        | dir::DependencyItem::Remote {
-            binding,
-            space,
-            name,
-            alias,
-            ..
-        }
-        | dir::DependencyItem::UnresolvedRemote {
+        dir::DependencyItem::Item {
             binding,
             space,
             name,

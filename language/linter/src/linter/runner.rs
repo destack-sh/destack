@@ -1,13 +1,12 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use destack_source::{ModuleId, PackageId};
+use destack_source::{File, FileId, ModuleId, PackageId};
 use destack_workspace::{
-    LintCategory, LintPreset, LinterOptions, Module, Package, Profile, ProfileId, Repository,
-    Revision, Workspace,
+    ArtifactCache, LintCategory, LintPreset, LinterOptions, Module, Package, Profile, ProfileId,
+    Repository, Revision, Workspace,
 };
 
-use crate::linter::artifact::{read_ast, read_dir_checked, read_dir_declared, read_dir_exported};
 use crate::{
     BoxedLintRule, LintAstContext, LintLevel, LintModuleDirContext, LintPackageAstContext,
     LintPackageDirContext, LintReport, LintScope, LintWorkspaceAstContext, LintWorkspaceDirContext,
@@ -235,8 +234,8 @@ impl LintRunner {
     fn repository_file(
         repository: &Repository,
         revision: Revision,
-        file_id: destack_source::FileId,
-    ) -> Option<Arc<destack_source::File>> {
+        file_id: FileId,
+    ) -> Option<Arc<File>> {
         repository.file(revision, file_id).ok().flatten()
     }
 
@@ -278,6 +277,24 @@ impl LintRunner {
         options: &LinterOptions,
         level: LintLevel,
     ) -> LintModuleReport {
+        let artifacts = Arc::new(ArtifactCache::new(repository.clone(), revision));
+
+        self.lint_module_profiled_with_artifacts(
+            repository, artifacts, revision, module, profile, options, level,
+        )
+    }
+
+    /// Lint a module with a shared artifact cache.
+    fn lint_module_profiled_with_artifacts(
+        &self,
+        repository: Arc<Repository>,
+        artifacts: Arc<ArtifactCache>,
+        revision: Revision,
+        module: Arc<Module>,
+        profile: Profile,
+        options: &LinterOptions,
+        level: LintLevel,
+    ) -> LintModuleReport {
         if !options.enabled {
             return LintModuleReport::default();
         }
@@ -286,6 +303,7 @@ impl LintRunner {
         let diagnostics = match level {
             LintLevel::Ast => self.lint_module_ast(
                 repository,
+                artifacts,
                 revision,
                 module,
                 profile,
@@ -294,6 +312,7 @@ impl LintRunner {
             ),
             LintLevel::Dir => self.lint_module_dir(
                 repository,
+                artifacts,
                 revision,
                 module,
                 profile,
@@ -313,6 +332,7 @@ impl LintRunner {
     fn lint_module_ast(
         &self,
         repository: Arc<Repository>,
+        artifacts: Arc<ArtifactCache>,
         revision: Revision,
         module: Arc<Module>,
         _profile: Profile,
@@ -320,7 +340,8 @@ impl LintRunner {
         mut performance: Option<&mut LintPerformanceReport>,
     ) -> Vec<LintReport> {
         let module = module.as_ref();
-        let ast = read_ast(&repository, revision, module.id)
+        let ast = artifacts
+            .ast(module.id)
             .expect("lint AST pass requires committed AST artifact");
         let Some(file) = Self::repository_file(repository.as_ref(), revision, module.file_id)
         else {
@@ -328,6 +349,7 @@ impl LintRunner {
         };
         let mut ctx = LintAstContext::new(
             repository,
+            artifacts,
             module,
             revision,
             file,
@@ -378,6 +400,7 @@ impl LintRunner {
     fn lint_module_dir(
         &self,
         repository: Arc<Repository>,
+        artifacts: Arc<ArtifactCache>,
         revision: Revision,
         module: Arc<Module>,
         profile: Profile,
@@ -386,21 +409,23 @@ impl LintRunner {
     ) -> Vec<LintReport> {
         // context
         let module = module.as_ref();
-        let ast = read_ast(&repository, revision, module.id)
+        let ast = artifacts
+            .ast(module.id)
             .expect("lint DIR pass requires committed AST artifact");
         let Some(file) = Self::repository_file(repository.as_ref(), revision, module.file_id)
         else {
             return Vec::new();
         };
-        let declared = read_dir_declared(&repository, revision, module.id, profile.id())
+        let declared = artifacts
+            .dir_declared(module.id, profile.id())
             .expect("lint DIR pass requires committed declared DIR artifact");
-        let checked = read_dir_checked(&repository, revision, module.id, profile.id())
+        let checked = artifacts
+            .dir_checked(module.id, profile.id())
             .expect("lint DIR pass requires committed checked DIR artifact");
-        let resolved = read_dir_exported(&repository, revision, module.id, profile.id())
-            .expect("lint DIR pass requires committed exported DIR artifact");
 
         let mut ctx = LintModuleDirContext::new(
             repository,
+            artifacts,
             module,
             revision,
             profile,
@@ -414,13 +439,6 @@ impl LintRunner {
             declared.namespace_symbol,
             declared.namespace_scope,
             declared.default_symbol,
-            resolved
-                .namespace_exports
-                .iter()
-                .map(|export| export.module_id)
-                .collect(),
-            resolved.import_resolutions.clone(),
-            resolved.export_by_symbol_key.clone(),
             options,
             self.compute_fixes,
         );
@@ -502,6 +520,7 @@ impl LintRunner {
 
         let mut diagnostics = Vec::new();
         let mut performance = LintPerformanceReport::default();
+        let artifacts = Arc::new(ArtifactCache::new(repository.clone(), revision));
         for module_id in repository
             .module_ids(revision)
             .expect("workspace module ids should load")
@@ -513,8 +532,9 @@ impl LintRunner {
             let Ok(profile) = repository.module_profile(revision, module.id) else {
                 continue;
             };
-            let report = self.lint_module_profiled(
+            let report = self.lint_module_profiled_with_artifacts(
                 repository.clone(),
+                artifacts.clone(),
                 revision,
                 module,
                 profile.as_ref().clone(),
@@ -557,8 +577,14 @@ impl LintRunner {
         let Some(workspace) = Self::repository_workspace(repository.as_ref(), revision) else {
             return LintRunReport::default();
         };
-        let mut ctx =
-            LintWorkspaceAstContext::new(repository, workspace, revision, options.clone());
+        let artifacts = Arc::new(ArtifactCache::new(repository.clone(), revision));
+        let mut ctx = LintWorkspaceAstContext::new(
+            repository,
+            artifacts,
+            workspace,
+            revision,
+            options.clone(),
+        );
 
         for rule in &self.rules {
             let meta = rule.meta();
@@ -623,7 +649,9 @@ impl LintRunner {
         else {
             return LintRunReport::default();
         };
-        let mut ctx = LintPackageAstContext::new(repository, package, revision, options.clone());
+        let artifacts = Arc::new(ArtifactCache::new(repository.clone(), revision));
+        let mut ctx =
+            LintPackageAstContext::new(repository, artifacts, package, revision, options.clone());
 
         for rule in &self.rules {
             let meta = rule.meta();
@@ -687,8 +715,15 @@ impl LintRunner {
         let Some(workspace) = Self::repository_workspace(repository.as_ref(), revision) else {
             return LintRunReport::default();
         };
-        let mut ctx =
-            LintWorkspaceDirContext::new(repository, workspace, revision, profile, options.clone());
+        let artifacts = Arc::new(ArtifactCache::new(repository.clone(), revision));
+        let mut ctx = LintWorkspaceDirContext::new(
+            repository,
+            artifacts,
+            workspace,
+            revision,
+            profile,
+            options.clone(),
+        );
 
         for rule in &self.rules {
             let meta = rule.meta();
@@ -755,8 +790,15 @@ impl LintRunner {
         else {
             return LintRunReport::default();
         };
-        let mut ctx =
-            LintPackageDirContext::new(repository, package, revision, profile, options.clone());
+        let artifacts = Arc::new(ArtifactCache::new(repository.clone(), revision));
+        let mut ctx = LintPackageDirContext::new(
+            repository,
+            artifacts,
+            package,
+            revision,
+            profile,
+            options.clone(),
+        );
 
         for rule in &self.rules {
             let meta = rule.meta();

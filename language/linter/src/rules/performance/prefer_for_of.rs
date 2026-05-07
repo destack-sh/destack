@@ -212,8 +212,7 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
         };
 
         // verify left is the index variable
-        let left_expr = self.ctx.tree.get(*left);
-        if left_expr.target_symbol() != Some(index_symbol) {
+        if self.ctx.expression_target_symbol(*left) != Some(index_symbol) {
             return None;
         }
 
@@ -227,8 +226,7 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
         }
 
         // get the array symbol
-        let array_expr = self.ctx.tree.get(*left);
-        let array_symbol = array_expr.target_symbol()?;
+        let array_symbol = self.ctx.expression_target_symbol(*left)?;
 
         // verify it's an array type
         let type_id = self.ctx.expression_type_id(*left)?;
@@ -258,13 +256,12 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
                 dir::UnaryOperator::PreIncrement | dir::UnaryOperator::PostIncrement
             )
         {
-            let right_expr = self.ctx.tree.get(*right);
-            return right_expr.target_symbol() == Some(index_symbol);
+            return self.ctx.expression_target_symbol(*right) == Some(index_symbol);
         }
 
         // match i = i + 1 (desugared from i += 1)
         if let dir::Expression::Assign { left, right } = incr {
-            if assign_pattern_target_symbol(self.ctx.tree, *left) != Some(index_symbol) {
+            if assign_pattern_target_symbol(self.ctx, *left) != Some(index_symbol) {
                 return false;
             }
 
@@ -276,10 +273,8 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
             } = right_expr
             {
                 // check that bin_left is i
-                let bin_left_expr = self.ctx.tree.get(*bin_left);
-                if bin_left_expr.target_symbol() != Some(index_symbol) {
-                    let bin_right_expr = self.ctx.tree.get(*bin_right);
-                    if bin_right_expr.target_symbol() != Some(index_symbol) {
+                if self.ctx.expression_target_symbol(*bin_left) != Some(index_symbol) {
+                    if self.ctx.expression_target_symbol(*bin_right) != Some(index_symbol) {
                         return false;
                     }
 
@@ -316,6 +311,8 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
     ) -> Option<Vec<LocalNodeId<dir::Expression>>> {
         // collect all uses of the index variable
         let mut collector = IndexUseCollector {
+            module_id: self.ctx.module_id(),
+            types: self.ctx.types,
             index_symbol,
             array_symbol,
             all_uses_are_indexing: true,
@@ -385,7 +382,9 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
 }
 
 /// Collector to check how the index variable is used.
-struct IndexUseCollector {
+struct IndexUseCollector<'a> {
+    module_id: destack_source::ModuleId,
+    types: &'a dir::TypeTable,
     index_symbol: GlobalSymbolId,
     array_symbol: GlobalSymbolId,
     all_uses_are_indexing: bool,
@@ -394,7 +393,21 @@ struct IndexUseCollector {
     options: NodeVisitorOptions,
 }
 
-impl NodeVisitor for IndexUseCollector {
+impl IndexUseCollector<'_> {
+    fn expression_target_symbol(
+        &self,
+        expression_id: LocalNodeId<dir::Expression>,
+    ) -> Option<GlobalSymbolId> {
+        self.types
+            .symbol_resolution(expression_id.into_global_any(self.module_id))
+            .and_then(|resolution| match resolution {
+                dir::SymbolResolution::Target(symbol) => Some(*symbol),
+                dir::SymbolResolution::Candidates(_) => None,
+            })
+    }
+}
+
+impl NodeVisitor for IndexUseCollector<'_> {
     fn options(&self) -> &NodeVisitorOptions {
         &self.options
     }
@@ -407,15 +420,11 @@ impl NodeVisitor for IndexUseCollector {
     ) {
         // check for index expressions arr[i]
         if let dir::Expression::Index { left, right } = expression {
-            let left_expr = tree.get(*left);
-
             // check if right side exists (it's optional in Index)
             if let Some(right_id) = right {
-                let index_expr = tree.get(*right_id);
-
                 // if this is arr[i], mark as valid use
-                if left_expr.target_symbol() == Some(self.array_symbol)
-                    && index_expr.target_symbol() == Some(self.index_symbol)
+                if self.expression_target_symbol(*left) == Some(self.array_symbol)
+                    && self.expression_target_symbol(*right_id) == Some(self.index_symbol)
                 {
                     if index_expression_is_write_target(tree, id) {
                         self.all_uses_are_indexing = false;
@@ -432,7 +441,7 @@ impl NodeVisitor for IndexUseCollector {
         }
 
         // check for any other reference to the index variable
-        if let Some(target) = expression.target_symbol()
+        if let Some(target) = self.expression_target_symbol(id)
             && target == self.index_symbol
         {
             // this is a use outside of arr[i] pattern

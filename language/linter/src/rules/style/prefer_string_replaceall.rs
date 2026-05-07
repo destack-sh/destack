@@ -290,7 +290,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
             }
 
             // follow direct symbol aliases for const regex bindings
-            let Some(target_symbol) = expression_target_symbol(self.ctx.tree, expression_id) else {
+            let Some(target_symbol) = expression_target_symbol(self.ctx, expression_id) else {
                 return false;
             };
             if !visited_symbols.insert(target_symbol) {
@@ -298,8 +298,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
             }
 
             let Some(initializer_id) = symbol_initializer_expression(
-                &self.ctx.repository,
-                self.ctx.revision,
+                self.ctx.artifacts.as_ref(),
                 self.ctx.profile_id,
                 self.ctx.module_id(),
                 self.ctx.symbols,
@@ -388,14 +387,13 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
         }
 
         // follow local symbol aliases for const string flags
-        let target_symbol = expression_target_symbol(self.ctx.tree, expression_id)?;
+        let target_symbol = expression_target_symbol(self.ctx, expression_id)?;
         if !visited_symbols.insert(target_symbol) {
             return None;
         }
 
         let initializer_id = symbol_initializer_expression(
-            &self.ctx.repository,
-            self.ctx.revision,
+            self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.symbols,
@@ -416,7 +414,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
         };
 
         expression_is_symbol_or_global_qualified_member(
-            self.ctx.tree,
+            self.ctx,
             expression_id,
             regexp_symbol,
             &self.global_qualifiers,

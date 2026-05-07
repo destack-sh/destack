@@ -95,7 +95,6 @@ fn report_recursive_only_parameters(
 
     // collect recursive and non recursive parameter usages
     let mut visitor = RecursiveParameterUseVisitor::new(
-        ctx.tree,
         ctx.types,
         ctx.module_id(),
         function_symbol.into_global(ctx.module_id()),
@@ -202,7 +201,7 @@ fn scope_subtree_contains_name(
 
         let scope = ctx.symbols.get_scope_by_id(current_scope_id);
 
-        for (_, symbol_id) in ctx.symbols.active_named_symbols(scope) {
+        for (_, symbol_id) in ctx.symbols.named_symbols(scope) {
             let symbol = ctx.symbols.get_symbol(symbol_id);
             if symbol.name() == Some(name_id) {
                 return true;
@@ -219,8 +218,6 @@ fn scope_subtree_contains_name(
 
 /// Collect parameter symbol usage while tracking recursive call argument context.
 struct RecursiveParameterUseVisitor<'a> {
-    /// The DIR tree.
-    tree: &'a dir::Tree,
     /// The DIR type table.
     types: &'a dir::TypeTable,
     /// The current module id.
@@ -242,14 +239,12 @@ struct RecursiveParameterUseVisitor<'a> {
 impl<'a> RecursiveParameterUseVisitor<'a> {
     /// Build a visitor for one callable body.
     fn new(
-        tree: &'a dir::Tree,
         types: &'a dir::TypeTable,
         module_id: destack_source::ModuleId,
         function_symbol: dir::GlobalSymbolId,
         parameter_symbols: HashSet<dir::LocalSymbolId>,
     ) -> Self {
         Self {
-            tree,
             types,
             module_id,
             function_symbol,
@@ -262,8 +257,15 @@ impl<'a> RecursiveParameterUseVisitor<'a> {
     }
 
     /// Record one reference usage when it points at a tracked parameter symbol.
-    fn record_parameter_usage(&mut self, expression: &dir::Expression) {
-        let Some(target_symbol) = expression.target_symbol() else {
+    fn record_parameter_usage(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) {
+        let Some(target_symbol) = self
+            .types
+            .symbol_resolution(expression_id.into_global_any(self.module_id))
+            .and_then(|resolution| match resolution {
+                dir::SymbolResolution::Target(symbol) => Some(*symbol),
+                dir::SymbolResolution::Candidates(_) => None,
+            })
+        else {
             return;
         };
 
@@ -290,27 +292,34 @@ impl<'a> RecursiveParameterUseVisitor<'a> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
-        let expression = self.tree.get(expression_id);
-
         // fast path: direct target symbol match
-        if expression.target_symbol() == Some(self.function_symbol) {
+        if self
+            .types
+            .symbol_resolution(expression_id.into_global_any(self.module_id))
+            .is_some_and(|resolution| match resolution {
+                dir::SymbolResolution::Target(symbol) => *symbol == self.function_symbol,
+                dir::SymbolResolution::Candidates(symbols) => {
+                    symbols.contains(&self.function_symbol)
+                }
+            })
+        {
             return true;
         }
 
-        // fallback: resolution candidate match
+        // inspect dispatch candidates
         let global_expression_id = expression_id.into_global_any(self.module_id);
-        let Some(resolution_id) = self.types.node_resolution_id(global_expression_id) else {
+        let Some(resolution) = self.types.resolution(global_expression_id) else {
             return false;
         };
-        let resolution = self.types.get_resolution(resolution_id);
+
         match resolution {
-            dir::Resolution::Static { candidate, .. } => {
-                candidate.target_symbol == self.function_symbol
+            dir::Resolution::Dispatch(dir::DispatchResolution::Static { target, .. }) => {
+                target.symbol == self.function_symbol
             }
-            dir::Resolution::Dynamic { candidates, .. } => candidates
+            dir::Resolution::Dispatch(dir::DispatchResolution::Dynamic { targets, .. }) => targets
                 .iter()
-                .any(|candidate| candidate.target_symbol == self.function_symbol),
-            dir::Resolution::Unresolved { .. } | dir::Resolution::Builtin { .. } => false,
+                .any(|target| target.symbol == self.function_symbol),
+            _ => false,
         }
     }
 }
@@ -327,7 +336,7 @@ impl NodeVisitor for RecursiveParameterUseVisitor<'_> {
         expression: &dir::Expression,
     ) {
         // record parameter references at this expression
-        self.record_parameter_usage(expression);
+        self.record_parameter_usage(id);
 
         // call arguments need recursive-context tracking
         if let dir::Expression::Call {

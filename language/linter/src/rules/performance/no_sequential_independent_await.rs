@@ -75,6 +75,7 @@ fn report_sequential_independent_awaits(
             && awaits_are_independent(
                 ctx.tree,
                 ctx.module_id(),
+                ctx.types,
                 previous_await_statement,
                 &current_await,
             )
@@ -127,7 +128,7 @@ fn await_statement_from_expression(
     {
         let mut bound_symbols = HashSet::new();
 
-        if let Some(target_symbol) = assign_pattern_target_symbol(ctx.tree, *left)
+        if let Some(target_symbol) = assign_pattern_target_symbol(ctx, *left)
             && target_symbol.module_id == ctx.module_id()
         {
             bound_symbols.insert(target_symbol.local_id);
@@ -201,6 +202,7 @@ fn await_operand_expression_id(
 fn awaits_are_independent(
     tree: &dir::Tree,
     module_id: destack_source::ModuleId,
+    types: &dir::TypeTable,
     previous: &AwaitStatement,
     current: &AwaitStatement,
 ) -> bool {
@@ -213,6 +215,7 @@ fn awaits_are_independent(
     !expression_references_any_symbol(
         tree,
         module_id,
+        types,
         current.await_operand_expression_id,
         &previous.bound_symbols,
     )
@@ -222,10 +225,11 @@ fn awaits_are_independent(
 fn expression_references_any_symbol(
     tree: &dir::Tree,
     module_id: destack_source::ModuleId,
+    types: &dir::TypeTable,
     expression_id: dir::LocalNodeId<dir::Expression>,
     target_symbols: &HashSet<dir::LocalSymbolId>,
 ) -> bool {
-    let mut visitor = SymbolReferenceVisitor::new(module_id, target_symbols);
+    let mut visitor = SymbolReferenceVisitor::new(module_id, types, target_symbols);
     let expression = tree.get(expression_id);
     visitor.visit_expression(tree, expression_id, expression);
     visitor.is_referenced
@@ -235,6 +239,8 @@ fn expression_references_any_symbol(
 struct SymbolReferenceVisitor<'a> {
     /// The current module id.
     module_id: destack_source::ModuleId,
+    /// The type table carrying semantic resolutions.
+    types: &'a dir::TypeTable,
     /// Target local symbols to detect.
     target_symbols: &'a HashSet<dir::LocalSymbolId>,
     /// Whether any target symbol was referenced.
@@ -247,10 +253,12 @@ impl<'a> SymbolReferenceVisitor<'a> {
     /// Build a visitor for one symbol set.
     fn new(
         module_id: destack_source::ModuleId,
+        types: &'a dir::TypeTable,
         target_symbols: &'a HashSet<dir::LocalSymbolId>,
     ) -> Self {
         Self {
             module_id,
+            types,
             target_symbols,
             is_referenced: false,
             options: NodeVisitorOptions::default(),
@@ -283,7 +291,13 @@ impl NodeVisitor for SymbolReferenceVisitor<'_> {
         }
 
         // detect symbol-backed references
-        if let Some(target_symbol) = expression.target_symbol()
+        if let Some(target_symbol) = self
+            .types
+            .symbol_resolution(id.into_global_any(self.module_id))
+            .and_then(|resolution| match resolution {
+                dir::SymbolResolution::Target(symbol) => Some(*symbol),
+                dir::SymbolResolution::Candidates(_) => None,
+            })
             && target_symbol.module_id == self.module_id
             && self.target_symbols.contains(&target_symbol.local_id)
         {

@@ -85,7 +85,7 @@ impl<'a, 'b> SymbolDescriptionVisitor<'a, 'b> {
         };
 
         // check if this is a Symbol call
-        let Some(target_symbol) = expression_target_symbol(self.ctx.tree, *left) else {
+        let Some(target_symbol) = expression_target_symbol(self.ctx, *left) else {
             return;
         };
         if target_symbol != self.symbol_symbol {

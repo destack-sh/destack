@@ -1,7 +1,7 @@
-use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, SymbolType, walk_expression};
+use destack_dir::{self as dir, DeclarationForm, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{expression_target_symbol, symbol_primary_declaration_for};
+use crate::rules::common::{expression_target_symbol, symbol_declaration_for, symbol_for};
 use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -71,11 +71,18 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
 
     /// Return true when the constructor callee resolves to a struct symbol.
     fn is_struct_constructor(&self, callee_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        let Some(target_symbol) = expression_target_symbol(self.ctx.tree, callee_id) else {
+        let Some(target_symbol) = expression_target_symbol(self.ctx, callee_id) else {
             return false;
         };
 
-        target_symbol.ty() == SymbolType::Struct
+        symbol_for(
+            self.ctx.artifacts.as_ref(),
+            self.ctx.profile_id,
+            self.ctx.module_id(),
+            self.ctx.symbols,
+            target_symbol,
+        )
+        .is_some_and(|symbol| symbol.form == DeclarationForm::Struct)
     }
 
     /// Collect struct field names in constructor order for one constructor callee.
@@ -84,15 +91,21 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
         callee_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<Vec<destack_core::StringId>> {
         // resolve the struct constructor symbol
-        let target_symbol = expression_target_symbol(self.ctx.tree, callee_id)?;
-        if target_symbol.ty() != SymbolType::Struct {
+        let target_symbol = expression_target_symbol(self.ctx, callee_id)?;
+        let target_symbol_entry = symbol_for(
+            self.ctx.artifacts.as_ref(),
+            self.ctx.profile_id,
+            self.ctx.module_id(),
+            self.ctx.symbols,
+            target_symbol,
+        )?;
+        if target_symbol_entry.form != DeclarationForm::Struct {
             return None;
         }
 
-        // resolve the primary declaration for the struct symbol
-        let declaration_id = symbol_primary_declaration_for(
-            &self.ctx.repository,
-            self.ctx.revision,
+        // resolve the declaration for the struct symbol
+        let declaration_id = symbol_declaration_for(
+            self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.symbols,

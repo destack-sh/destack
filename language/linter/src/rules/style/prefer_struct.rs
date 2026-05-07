@@ -3,8 +3,7 @@ use destack_dir::{self as dir};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    declaration_has_embedded_types, declaration_has_extends_heritage,
-    local_symbol_has_other_declarations, members_are_all_fields,
+    declaration_has_embedded_types, declaration_has_extends_heritage, members_are_all_fields,
 };
 use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
@@ -67,9 +66,8 @@ impl LintRule for PreferStruct {
             )
             .label("use struct instead");
 
-            // attach the rewrite only when the declaration has no merge complexity
+            // attach the rewrite when source form is available
             if ctx.include_fixes
-                && !local_symbol_has_other_declarations(ctx.symbols, declaration.symbol())
                 && let Some(source_declaration_id) =
                     ctx.source_node_id::<ast::Declaration>(declaration_id.into_any())
                 && let Some(fix) = prefer_struct_fix(ctx, source_declaration_id)

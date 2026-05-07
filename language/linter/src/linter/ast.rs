@@ -3,9 +3,8 @@ use std::sync::Arc;
 use destack_artifact::Ast;
 use destack_ast::{self as ast, Argument, Decorator, Expression, ScalarLiteral, StringPool};
 use destack_source::{EditBuilder, File, FileId, ModuleId, Span};
-use destack_workspace::{LintSeverity, LinterOptions, Module, Repository, Revision};
+use destack_workspace::{ArtifactCache, LintSeverity, LinterOptions, Module, Repository, Revision};
 
-use crate::linter::artifact::read_ast;
 use crate::rules::common::expression_path_segments;
 use crate::{
     ConstValue, LintAstAnalysisCache, LintMeta, LintRegexParse, LintReport, LintRequirement,
@@ -30,10 +29,12 @@ pub(crate) struct DecoratorCall<'a> {
     pub arguments: Option<&'a [ast::LocalNodeId<ast::Argument>]>,
 }
 
-/// Context for AST-level linting of a single module. Unfurls Ast.
+/// Context for AST-level linting of a single module.
 pub struct LintAstContext<'a> {
     /// The repository containing this module.
     pub repository: Arc<Repository>,
+    /// Revision artifact cache for this lint pass.
+    pub artifacts: Arc<ArtifactCache>,
     /// The module being linted.
     pub module: &'a Module,
     /// The source revision for this lint pass.
@@ -76,6 +77,7 @@ impl<'a> LintAstContext<'a> {
     /// Create a new AST lint context for a module.
     pub fn new(
         repository: Arc<Repository>,
+        artifacts: Arc<ArtifactCache>,
         module: &'a Module,
         revision: Revision,
         file: Arc<File>,
@@ -88,6 +90,7 @@ impl<'a> LintAstContext<'a> {
     ) -> Self {
         Self {
             repository,
+            artifacts,
             module,
             revision,
             file,
@@ -103,12 +106,12 @@ impl<'a> LintAstContext<'a> {
     }
 
     /// Return the file id.
-    pub fn file_id(&self) -> destack_source::FileId {
+    pub fn file_id(&self) -> FileId {
         self.module.file_id
     }
 
     /// Return the module id.
-    pub fn module_id(&self) -> destack_source::ModuleId {
+    pub fn module_id(&self) -> ModuleId {
         self.module.id
     }
 
@@ -132,7 +135,7 @@ impl<'a> LintAstContext<'a> {
 
     /// Return one AST artifact for one revision-scoped module.
     pub fn module_ast(&self, module_id: ModuleId) -> Option<Arc<Ast>> {
-        read_ast(&self.repository, self.revision, module_id)
+        self.artifacts.ast(module_id)
     }
 
     /// Return the linter options.
@@ -153,7 +156,8 @@ impl<'a> LintAstContext<'a> {
 
     /// Check if a requirement is met.
     pub fn is_requirement_met(&self, _requirement: &LintRequirement) -> bool {
-        false // AST does not have lib symbols or well-known symbols
+        // ast linting does not have semantic symbols
+        false
     }
 
     /// Check if a rule is supported.

@@ -6,7 +6,7 @@ use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
     PromiseCallbackArity, expression_type_map, expression_unwrap_transparent,
     function_parameter_types_at, is_explicit_any_type, is_promise_type, promise_rejection_callback,
-    symbol_primary_declaration_for,
+    symbol_declaration_for,
 };
 use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
@@ -70,12 +70,10 @@ impl LintRule for UseUnknownInCatchCallbackVariable {
                 continue;
             };
             let is_promise_receiver = expression_type_map(
-                &ctx.repository,
-                ctx.revision,
+                ctx.artifacts.as_ref(),
                 ctx.profile_id,
                 ctx.module_id(),
                 ctx.tree,
-                ctx.symbols,
                 ctx.types,
                 promise_receiver,
                 |types, type_id| is_promise_type(types, type_id, Some(promise_symbol)),
@@ -240,13 +238,13 @@ fn catch_callback_uses_any_parameter(
     }
 
     // inspect primary callback declarations across module boundaries
-    if let Some(declaration_id) = callback_primary_declaration(ctx, callback_expression_id)
+    if let Some(declaration_id) = callback_declaration(ctx, callback_expression_id)
         && callback_declaration_uses_any_parameter(ctx, declaration_id)
     {
         return true;
     }
 
-    // for unresolved callback declarations, rely on callback expression types
+    // rely on callback expression types when declarations are unavailable
     callback_type_uses_any_parameter(ctx, callback_expression_id)
 }
 
@@ -256,12 +254,10 @@ fn callback_type_uses_any_parameter(
     callback_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     let Some(callback_type_id) = expression_type_map(
-        &ctx.repository,
-        ctx.revision,
+        ctx.artifacts.as_ref(),
         ctx.profile_id,
         ctx.module_id(),
         ctx.tree,
-        ctx.symbols,
         ctx.types,
         callback_expression_id,
         |_, type_id| type_id,
@@ -279,8 +275,8 @@ fn callback_type_uses_any_parameter(
         .any(|parameter_type_id| is_explicit_any_type(ctx.types, parameter_type_id))
 }
 
-/// Resolve the primary declaration for one callback expression.
-fn callback_primary_declaration(
+/// Resolve the declaration for one callback expression.
+fn callback_declaration(
     ctx: &LintModuleDirContext<'_>,
     callback_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::GlobalNodeIdAny> {
@@ -289,10 +285,9 @@ fn callback_primary_declaration(
         return Some((*declaration).into_global_any(ctx.module_id()));
     }
 
-    let target_symbol = callback_expression.target_symbol()?;
-    symbol_primary_declaration_for(
-        &ctx.repository,
-        ctx.revision,
+    let target_symbol = ctx.expression_target_symbol(callback_expression_id)?;
+    symbol_declaration_for(
+        ctx.artifacts.as_ref(),
         ctx.profile_id,
         ctx.module_id(),
         ctx.symbols,
@@ -308,7 +303,7 @@ fn callback_declaration_uses_any_parameter(
     let Some(declared_dir) = ctx.declared_dir(declaration_id.module_id) else {
         return false;
     };
-    let Some(checked_dir) = ctx.analyzed_dir(declaration_id.module_id) else {
+    let Some(checked_dir) = ctx.checked_dir(declaration_id.module_id) else {
         return false;
     };
     let Some(ast) = ctx.module_ast(declaration_id.module_id) else {
@@ -359,7 +354,7 @@ fn first_callback_parameter(
     ctx: &LintModuleDirContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::LocalNodeId<dir::Parameter>> {
-    let declaration_id = callback_primary_declaration(ctx, expression_id)?;
+    let declaration_id = callback_declaration(ctx, expression_id)?;
     if declaration_id.module_id != ctx.module_id() {
         return None;
     }

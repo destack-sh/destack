@@ -4,7 +4,7 @@ use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    collect_module_resolved_read_symbol_usage, collect_parameter_value_binding_symbols,
+    collect_module_read_symbol_usage, collect_parameter_value_binding_symbols,
     parameter_binding_span,
 };
 use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
@@ -38,8 +38,7 @@ impl LintRule for NoUnusedParameters {
     /// Check module DIR nodes for unused function and method parameters.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
-        let read_symbols =
-            collect_module_resolved_read_symbol_usage(ctx.module_id(), ctx.tree, ctx.types);
+        let read_symbols = collect_module_read_symbol_usage(ctx.module_id(), ctx.tree, ctx.types);
 
         // inspect all parameters
         for parameter_id in ctx.tree.iter_node_ids_of_type::<dir::Parameter>() {
@@ -122,7 +121,7 @@ impl LintRule for NoUnusedParameters {
                     binding_symbols.sort_unstable_by_key(|binding_symbol| {
                         let symbol = ctx.symbols.get_symbol(*binding_symbol);
                         symbol
-                            .primary_declaration
+                            .declaration
                             .map_or(u32::MAX, |node_id| node_id.local_id.id)
                     });
 
@@ -145,7 +144,7 @@ impl LintRule for NoUnusedParameters {
                         }
 
                         // require optional structure
-                        let Some(node_id) = symbol.primary_declaration else {
+                        let Some(node_id) = symbol.declaration else {
                             continue;
                         };
 
@@ -236,10 +235,7 @@ fn unused_named_parameter_fix(
 /// Return true when this symbol is a value space binding.
 fn symbol_is_value_binding(ctx: &LintModuleDirContext<'_>, symbol_id: dir::LocalSymbolId) -> bool {
     let symbol = ctx.symbols.get_symbol(symbol_id);
-    matches!(
-        symbol.space,
-        dir::SymbolSpace::Value | dir::SymbolSpace::TypeValue
-    )
+    symbol.space == dir::SymbolSpace::Value
 }
 
 /// Return true when the parameter belongs to a declaration or member body.

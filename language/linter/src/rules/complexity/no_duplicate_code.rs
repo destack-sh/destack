@@ -1429,7 +1429,7 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
             ast::Expression::Unary { operator, .. } => {
                 self.push_debug("expr_unary_operator", *operator);
             }
-            ast::Expression::ValueOf {
+            ast::Expression::MoveOf {
                 mutability,
                 variance,
                 ..
@@ -1437,7 +1437,7 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
                 self.push_debug_optional("expr_value_of_mutability", *mutability);
                 self.push_debug_optional("expr_value_of_variance", *variance);
             }
-            ast::Expression::ReferenceOf {
+            ast::Expression::BorrowOf {
                 mutability,
                 variance,
                 ..

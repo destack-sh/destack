@@ -186,14 +186,14 @@ fn callee_is_direct_function_reference(
     let callee_expression_id = expression_unwrap_transparent(ctx.tree, callee_expression_id);
 
     // keep direct references only, not member access with receiver binding
-    let Some(reference_path) = expression_reference_path(ctx.tree, callee_expression_id) else {
+    let Some(reference_path) = expression_reference_path(ctx, callee_expression_id) else {
         return false;
     };
     if !reference_path.members.is_empty() {
         return false;
     }
 
-    let Some(callee_symbol) = expression_target_symbol(ctx.tree, callee_expression_id) else {
+    let Some(callee_symbol) = expression_target_symbol(ctx, callee_expression_id) else {
         return false;
     };
     if parameter_symbols
@@ -219,7 +219,7 @@ fn arguments_forward_parameters(
         };
 
         let value_expression_id = expression_unwrap_transparent(ctx.tree, *value);
-        let value_symbol = expression_target_symbol(ctx.tree, value_expression_id);
+        let value_symbol = expression_target_symbol(ctx, value_expression_id);
         if value_symbol != Some(parameter_symbol_id.into_global(ctx.module_id())) {
             return false;
         }

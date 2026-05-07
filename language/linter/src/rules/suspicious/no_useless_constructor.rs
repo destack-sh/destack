@@ -279,7 +279,7 @@ fn constructor_argument_binding(
         | dir::Argument::Error { .. } => return None,
     };
 
-    let value_symbol = expression_target_symbol(ctx.tree, value_expression_id)?;
+    let value_symbol = expression_target_symbol(ctx, value_expression_id)?;
     Some((value_symbol, is_spread))
 }
 

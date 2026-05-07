@@ -68,7 +68,7 @@ impl LintFix {
     }
 
     /// Convert to a final diagnostic suggestion.
-    pub(crate) fn into_suggestion(
+    pub(crate) fn to_suggestion(
         &self,
         context: &dyn DiagnosticContext,
     ) -> Result<DiagnosticSuggestion, DiagnosticError> {

@@ -121,8 +121,8 @@ pub fn collect_pattern_value_binding_symbols(
             collect_pattern_value_binding_symbols(tree, symbols, *pattern, bindings);
         }
         dir::Pattern::Must(inner)
-        | dir::Pattern::ReferenceOf { right: inner, .. }
-        | dir::Pattern::ValueOf { right: inner, .. } => {
+        | dir::Pattern::BorrowOf { right: inner, .. }
+        | dir::Pattern::MoveOf { right: inner, .. } => {
             collect_pattern_value_binding_symbols(tree, symbols, *inner, bindings);
         }
         dir::Pattern::Tuple { fields }
@@ -185,10 +185,7 @@ fn collect_symbol_when_value_space(
     bindings: &mut HashSet<dir::LocalSymbolId>,
 ) {
     let symbol = symbols.get_symbol(symbol_id);
-    if matches!(
-        symbol.space,
-        dir::SymbolSpace::Value | dir::SymbolSpace::TypeValue
-    ) {
+    if symbol.space == dir::SymbolSpace::Value {
         bindings.insert(symbol_id);
     }
 }

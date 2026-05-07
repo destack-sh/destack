@@ -3,7 +3,6 @@ use destack_dir as dir;
 use destack_source::{NodeSpanRegion, NodeSpanType};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::local_symbol_has_class_merge;
 use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -103,7 +102,6 @@ impl LintRule for NoEmptyInterface {
             )
             .label("use `type X = Parent` or `newtype X = Parent` instead");
             if ctx.include_fixes
-                && !local_symbol_has_class_merge(ctx.tree, ctx.symbols, declaration.symbol)
                 && let Some(fix) = no_empty_interface_single_extends_fix(
                     ctx,
                     source_declaration_id,

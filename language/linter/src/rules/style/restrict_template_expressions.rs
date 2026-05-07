@@ -97,12 +97,10 @@ fn expression_allows_template_interpolation(
 
     // use DIR expression types as the source of truth
     expression_type_or_call_return_type_map(
-        &ctx.repository,
-        ctx.revision,
+        ctx.artifacts.as_ref(),
         ctx.profile_id,
         ctx.module_id(),
         ctx.tree,
-        ctx.symbols,
         ctx.types,
         expression_id,
         |types, type_id| is_template_interpolation_type(types, type_id, Some(string_symbol)),

@@ -271,9 +271,7 @@ fn branch_assigned_value(
     };
 
     // keep plain `name = value` assignments
-    let Some(left_expression_id) = assign_pattern_expression(tree, *left) else {
-        return None;
-    };
+    let left_expression_id = assign_pattern_expression(tree, *left)?;
     if !is_path_with_name(tree, left_expression_id, variable_name) {
         return None;
     }

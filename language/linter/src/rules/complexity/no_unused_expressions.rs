@@ -437,8 +437,8 @@ fn statement_expression_subject_id(
                 current_expression_id =
                     expression_unwrap_parenthesized_source_form(ctx.tree, *left);
             }
-            ast::Expression::ReferenceOf { right, .. }
-            | ast::Expression::ValueOf { right, .. }
+            ast::Expression::BorrowOf { right, .. }
+            | ast::Expression::MoveOf { right, .. }
             | ast::Expression::PointerOf { right, .. } => {
                 current_expression_id =
                     expression_unwrap_parenthesized_source_form(ctx.tree, *right);

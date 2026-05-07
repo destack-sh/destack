@@ -199,8 +199,7 @@ impl<'a, 'b> NoAccumulatingSpreadVisitor<'a, 'b> {
             };
 
             // check if this spreads the accumulator
-            let spread_expr = self.ctx.tree.get(*value);
-            let target_symbol = spread_expr.target_symbol();
+            let target_symbol = self.ctx.expression_target_symbol(*value);
             if target_symbol != Some(accumulator_symbol) {
                 continue;
             }
@@ -234,7 +233,7 @@ impl<'a, 'b> NoAccumulatingSpreadVisitor<'a, 'b> {
                 continue;
             };
 
-            let target_symbol = expression_target_symbol(self.ctx.tree, *value);
+            let target_symbol = expression_target_symbol(self.ctx, *value);
             if target_symbol != Some(accumulator_symbol) {
                 continue;
             }
@@ -263,7 +262,7 @@ impl<'a, 'b> NoAccumulatingSpreadVisitor<'a, 'b> {
             return;
         }
 
-        let receiver_symbol = expression_target_symbol(self.ctx.tree, method_call.receiver_id);
+        let receiver_symbol = expression_target_symbol(self.ctx, method_call.receiver_id);
         if receiver_symbol != Some(self.object_symbol) {
             return;
         }
@@ -280,7 +279,7 @@ impl<'a, 'b> NoAccumulatingSpreadVisitor<'a, 'b> {
         // match Object.assign(target, accumulator, ...)
         let source_argument = self.ctx.tree.get(arguments[1]);
         let source_expression_id = source_argument.value();
-        let source_symbol = expression_target_symbol(self.ctx.tree, source_expression_id);
+        let source_symbol = expression_target_symbol(self.ctx, source_expression_id);
         if source_symbol != Some(accumulator_symbol) {
             return;
         }

@@ -96,7 +96,12 @@ impl<'a, 'b> UselessAssignmentVisitor<'a, 'b> {
             let inner_expr = self.ctx.tree.get(inner_id);
 
             // check if this expression reads any of the assigned variables
-            let reads = collect_expression_read_symbol_usage(self.ctx.tree, inner_id);
+            let reads = collect_expression_read_symbol_usage(
+                self.ctx.module_id(),
+                self.ctx.tree,
+                self.ctx.types,
+                inner_id,
+            );
             for read in &reads {
                 last_assignments.remove(read);
             }
@@ -130,14 +135,14 @@ impl<'a, 'b> UselessAssignmentVisitor<'a, 'b> {
         match expression {
             // regular assignments like `x = 1`
             dir::Expression::Assign { left, .. } => {
-                if let Some(target_symbol) = assign_pattern_target_symbol(self.ctx.tree, *left) {
+                if let Some(target_symbol) = assign_pattern_target_symbol(self.ctx, *left) {
                     targets.push(target_symbol);
                 }
             }
 
             // compound assignments like `x += 1`
             dir::Expression::AssignBinary { left, .. } => {
-                if let Some(target_symbol) = expression_target_symbol(self.ctx.tree, *left) {
+                if let Some(target_symbol) = expression_target_symbol(self.ctx, *left) {
                     targets.push(target_symbol);
                 }
             }

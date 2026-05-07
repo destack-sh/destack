@@ -207,8 +207,7 @@ impl<'a, 'b> PreferArrayFilterVisitor<'a, 'b> {
         }
 
         // keep push targets that resolve to a symbol
-        let push_receiver_expression = self.ctx.tree.get(push_call.receiver_id);
-        let push_target_symbol = push_receiver_expression.target_symbol()?;
+        let push_target_symbol = self.ctx.expression_target_symbol(push_call.receiver_id)?;
 
         Some(FilterPattern {
             parameter_name: *name,
@@ -294,17 +293,15 @@ impl<'a, 'b> PreferArrayFilterVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         symbol: dir::GlobalSymbolId,
     ) -> bool {
-        let expression = self.ctx.tree.get(expression_id);
-
         // direct symbol target
-        if expression.target_symbol() == Some(symbol) {
+        if self.ctx.expression_target_symbol(expression_id) == Some(symbol) {
             return true;
         }
 
         // parenthesized symbol target
+        let expression = self.ctx.tree.get(expression_id);
         if let dir::Expression::Parenthesized { expression } = expression {
-            let inner_expression = self.ctx.tree.get(*expression);
-            return inner_expression.target_symbol() == Some(symbol);
+            return self.ctx.expression_target_symbol(*expression) == Some(symbol);
         }
 
         false

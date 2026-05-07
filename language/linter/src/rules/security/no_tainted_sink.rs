@@ -84,16 +84,13 @@ impl<'a, 'b> NoTaintedSinkVisitor<'a, 'b> {
         callee_id: dir::LocalNodeId<dir::Expression>,
         arguments: &[dir::LocalNodeId<dir::Argument>],
     ) {
-        let callee = self.ctx.tree.get(callee_id);
         let sink_labels = expression_sink_taint_labels(
-            self.ctx.repository.as_ref(),
-            self.ctx.revision,
+            self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.symbols,
             self.ctx.types,
             callee_id,
-            callee,
         );
         if sink_labels.is_empty() {
             return;
@@ -117,16 +114,13 @@ impl<'a, 'b> NoTaintedSinkVisitor<'a, 'b> {
         left: dir::LocalNodeId<dir::Expression>,
         right: dir::LocalNodeId<dir::Expression>,
     ) {
-        let left_expression = self.ctx.tree.get(left);
         let sink_labels = expression_sink_taint_labels(
-            self.ctx.repository.as_ref(),
-            self.ctx.revision,
+            self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.symbols,
             self.ctx.types,
             left,
-            left_expression,
         );
         if sink_labels.is_empty() {
             return;
@@ -146,8 +140,7 @@ impl<'a, 'b> NoTaintedSinkVisitor<'a, 'b> {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> TaintLabels {
         let mut taint = TaintAnalysis::new(
-            self.ctx.repository.as_ref(),
-            self.ctx.revision,
+            self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.tree,

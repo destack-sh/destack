@@ -117,7 +117,7 @@ impl<'a, 'b> NoStringConcatInLoopVisitor<'a, 'b> {
         };
 
         // resolve the left reference path
-        let Some(left_path) = assign_pattern_reference_path(self.ctx.tree, *left) else {
+        let Some(left_path) = assign_pattern_reference_path(self.ctx, *left) else {
             return;
         };
 
@@ -207,8 +207,7 @@ impl<'a, 'b> NoStringConcatInLoopVisitor<'a, 'b> {
         }
 
         // compare the resolved path
-        expression_reference_path(self.ctx.tree, expression_id)
-            .is_some_and(|path| path == *reference)
+        expression_reference_path(self.ctx, expression_id).is_some_and(|path| path == *reference)
     }
 
     /// Return true when a + chain contains a string-like operand.
@@ -269,7 +268,7 @@ impl<'a, 'b> NoStringConcatInLoopVisitor<'a, 'b> {
                 return false;
             };
 
-            let is_target_reference = expression_reference_path(self.ctx.tree, *value_id)
+            let is_target_reference = expression_reference_path(self.ctx, *value_id)
                 .is_some_and(|path| path == *reference);
             if is_target_reference {
                 has_target_reference = true;

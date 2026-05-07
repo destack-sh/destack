@@ -109,8 +109,8 @@ fn binds_anything(ctx: &LintAstContext<'_>, pattern_id: ast::LocalNodeId<ast::Pa
 
         // reference/value patterns bind if inner binds
         ast::Pattern::Must(inner)
-        | ast::Pattern::ReferenceOf { right: inner, .. }
-        | ast::Pattern::ValueOf { right: inner, .. } => binds_anything(ctx, *inner),
+        | ast::Pattern::BorrowOf { right: inner, .. }
+        | ast::Pattern::MoveOf { right: inner, .. } => binds_anything(ctx, *inner),
     }
 }
 

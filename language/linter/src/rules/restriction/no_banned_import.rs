@@ -111,7 +111,7 @@ impl<'a, 'b> NoBannedImportVisitor<'a, 'b> {
         let specifier_id =
             expression_import_target_specifier(self.ctx.tree, expression).or_else(|| {
                 expression_require_target_specifier(
-                    self.ctx.tree,
+                    self.ctx,
                     expression,
                     &self.global_qualifiers,
                     self.require_name,
@@ -125,6 +125,7 @@ impl<'a, 'b> NoBannedImportVisitor<'a, 'b> {
         // match specifier or resolved target identity against restricted patterns
         let Some(matched_target) = matching_target(
             self.ctx,
+            expression_id,
             expression,
             &specifier_text,
             &self.restricted_patterns,
@@ -214,11 +215,22 @@ impl TargetSurface {
 }
 
 /// Return the resolved module target for an import like expression.
-fn expression_target_module(expression: &dir::Expression) -> Option<dir::ModuleTarget> {
-    match expression {
-        dir::Expression::Import { target_module, .. }
-        | dir::Expression::ReExport { target_module, .. } => Some(*target_module),
-        _ => None,
+fn expression_target_module(
+    ctx: &LintModuleDirContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    expression: &dir::Expression,
+) -> Option<dir::ModuleTarget> {
+    let space = match expression {
+        dir::Expression::Import { space, .. } | dir::Expression::ReExport { space, .. } => *space,
+        _ => return None,
+    };
+    let resolution = ctx
+        .types
+        .dependency_resolution(expression_id.into_global_any(ctx.module_id()))?;
+
+    match resolution {
+        dir::DependencyResolution::Module(module) => module.for_space(space),
+        dir::DependencyResolution::Binding(_) => None,
     }
 }
 
@@ -233,6 +245,7 @@ fn matching_pattern(target: &str, patterns: &[String]) -> Option<String> {
 /// Return the first restricted target match for one import expression.
 fn matching_target(
     ctx: &LintModuleDirContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
     expression: &dir::Expression,
     specifier_text: &str,
     patterns: &[String],
@@ -247,7 +260,7 @@ fn matching_target(
     }
 
     // resolve target module
-    let target_module = expression_target_module(expression)?;
+    let target_module = expression_target_module(ctx, expression_id, expression)?;
     match target_module {
         dir::ModuleTarget::Module(module_id) => {
             let module = ctx.repository_module(module_id)?;
@@ -302,7 +315,7 @@ fn matching_target(
 
 /// Return one static `require()` target specifier for require-like calls.
 fn expression_require_target_specifier(
-    tree: &dir::Tree,
+    ctx: &LintModuleDirContext<'_>,
     expression: &dir::Expression,
     global_qualifiers: &[dir::GlobalSymbolId],
     require_name: destack_core::StringId,
@@ -323,30 +336,27 @@ fn expression_require_target_specifier(
         return None;
     }
 
-    let callee_id = expression_unwrap_transparent(tree, *left);
-    let callee = tree.get(callee_id);
+    let callee_id = expression_unwrap_transparent(ctx.tree, *left);
+    let callee = ctx.tree.get(callee_id);
 
     let is_require = match callee {
-        dir::Expression::UnresolvedPath { path, .. }
-        | dir::Expression::GlobalReference { path, .. }
+        dir::Expression::Path { path, .. }
             if path.segments.len() == 1 && path.segments[0] == require_name =>
         {
             true
         }
-        _ => {
-            expression_is_global_qualified_member(tree, callee_id, global_qualifiers, require_name)
-        }
+        _ => expression_is_global_qualified_member(ctx, callee_id, global_qualifiers, require_name),
     };
     if !is_require {
         return None;
     }
 
-    let argument = tree.get(arguments[0]);
+    let argument = ctx.tree.get(arguments[0]);
     let dir::Argument::Positional { value, .. } = argument else {
         return None;
     };
 
-    expression_static_string_literal(tree, *value)
+    expression_static_string_literal(ctx.tree, *value)
 }
 
 #[cfg(test)]

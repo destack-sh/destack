@@ -149,7 +149,7 @@ fn function_symbol_returns_promise(
     symbol_id: dir::GlobalSymbolId,
     promise_symbols: &[dir::GlobalSymbolId],
 ) -> bool {
-    let Some(function_type_id) = ctx.types.symbol_type_id(ctx.symbols, symbol_id) else {
+    let Some(function_type_id) = ctx.types.declaration_form_id(ctx.symbols, symbol_id) else {
         return false;
     };
     let Some(return_type_id) = function_return_type(ctx.types, function_type_id) else {

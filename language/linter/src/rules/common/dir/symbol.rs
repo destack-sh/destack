@@ -1,9 +1,7 @@
 use destack_artifact::WellKnownSymbols;
 use destack_dir as dir;
 use destack_source::ModuleId;
-use destack_workspace::{ProfileId, Repository, Revision};
-
-use crate::linter::artifact::{read_dir_checked, read_dir_declared};
+use destack_workspace::{ArtifactCache, ProfileId};
 
 /// Symbol type id tied to the module that owns its type table.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -14,79 +12,48 @@ pub struct SymbolValueTypeId {
     pub type_id: dir::LocalTypeId,
 }
 
-/// Return canonical candidate symbols for an expression usage site.
+/// Return candidate symbols for an expression usage site.
 pub fn expression_candidate_symbols(
-    repository: &Repository,
-    revision: Revision,
-    profile_id: ProfileId,
     local_module_id: ModuleId,
-    local_symbols: &dir::SymbolTable,
     local_types: &dir::TypeTable,
     expression_id: dir::LocalNodeId<dir::Expression>,
-    expression: &dir::Expression,
 ) -> Vec<dir::GlobalSymbolId> {
     let mut symbols = Vec::new();
 
-    // include direct expression target symbols
-    if let Some(symbol_id) = expression.target_symbol() {
-        push_unique_symbol(&mut symbols, symbol_id);
+    // include lexical reference targets
+    let global_expression_id = expression_id.into_global_any(local_module_id);
+    if let Some(resolution) = local_types.symbol_resolution(global_expression_id) {
+        for symbol_id in symbol_resolution_target_symbols(resolution) {
+            push_unique_symbol(&mut symbols, symbol_id);
+        }
     }
 
-    // include resolver candidates for dynamic/static lookups
-    let global_expression_id = expression_id.into_global_any(local_module_id);
-    if let Some(resolution_id) = local_types.node_resolution_id(global_expression_id) {
-        let resolution = local_types.get_resolution(resolution_id);
+    // include dispatch target symbols
+    if let Some(resolution) = local_types.resolution(global_expression_id) {
         for symbol_id in resolution_target_symbols(resolution) {
             push_unique_symbol(&mut symbols, symbol_id);
         }
     }
 
-    // canonicalize symbols and keep deterministic unique order
-    let mut canonical_symbols = Vec::new();
-    for symbol_id in symbols {
-        let canonical_symbol_id = canonical_symbol_for(
-            repository,
-            revision,
-            profile_id,
-            local_module_id,
-            local_symbols,
-            symbol_id,
-        )
-        .unwrap_or(symbol_id);
-        push_unique_symbol(&mut canonical_symbols, canonical_symbol_id);
-    }
-
-    canonical_symbols
+    symbols
 }
 
-/// Map decorators found on expression candidate symbols.
+/// Map attributes found on expression candidate symbols.
 #[allow(clippy::too_many_arguments)]
-pub fn expression_decorator_map<T>(
-    repository: &Repository,
-    revision: Revision,
+pub fn expression_attribute_map<T>(
+    artifacts: &ArtifactCache,
     profile_id: ProfileId,
     local_module_id: ModuleId,
     local_symbols: &dir::SymbolTable,
     local_types: &dir::TypeTable,
     expression_id: dir::LocalNodeId<dir::Expression>,
-    expression: &dir::Expression,
-    mut map: impl FnMut(&dir::SymbolDecorators) -> Option<T>,
+    mut map: impl FnMut(&dir::SymbolAttributes) -> Option<T>,
 ) -> Option<T> {
-    let symbols = expression_candidate_symbols(
-        repository,
-        revision,
-        profile_id,
-        local_module_id,
-        local_symbols,
-        local_types,
-        expression_id,
-        expression,
-    );
+    let symbols = expression_candidate_symbols(local_module_id, local_types, expression_id);
 
     for symbol_id in symbols {
-        let Some(decorators) = symbol_decorators_for(
-            repository,
-            revision,
+        let Some(attributes) = symbol_attributes_for(
+            artifacts,
             profile_id,
             local_module_id,
             local_symbols,
@@ -95,7 +62,7 @@ pub fn expression_decorator_map<T>(
             continue;
         };
 
-        if let Some(value) = map(&decorators) {
+        if let Some(value) = map(&attributes) {
             return Some(value);
         }
     }
@@ -103,29 +70,25 @@ pub fn expression_decorator_map<T>(
     None
 }
 
-/// Return true when an expression candidate symbol matches one decorator predicate.
+/// Return true when an expression candidate symbol matches one attribute predicate.
 #[allow(clippy::too_many_arguments)]
-pub fn expression_has_decorator(
-    repository: &Repository,
-    revision: Revision,
+pub fn expression_has_attribute(
+    artifacts: &ArtifactCache,
     profile_id: ProfileId,
     local_module_id: ModuleId,
     local_symbols: &dir::SymbolTable,
     local_types: &dir::TypeTable,
     expression_id: dir::LocalNodeId<dir::Expression>,
-    expression: &dir::Expression,
-    mut predicate: impl FnMut(&dir::SymbolDecorators) -> bool,
+    mut predicate: impl FnMut(&dir::SymbolAttributes) -> bool,
 ) -> bool {
-    expression_decorator_map(
-        repository,
-        revision,
+    expression_attribute_map(
+        artifacts,
         profile_id,
         local_module_id,
         local_symbols,
         local_types,
         expression_id,
-        expression,
-        |decorators| predicate(decorators).then_some(()),
+        |attributes| predicate(attributes).then_some(()),
     )
     .is_some()
 }
@@ -133,12 +96,43 @@ pub fn expression_has_decorator(
 /// Collect target symbols from a resolution.
 pub fn resolution_target_symbols(resolution: &dir::Resolution) -> Vec<dir::GlobalSymbolId> {
     match resolution {
-        dir::Resolution::Static { candidate, .. } => vec![candidate.target_symbol],
-        dir::Resolution::Dynamic { candidates, .. } => candidates
-            .iter()
-            .map(|candidate| candidate.target_symbol)
-            .collect(),
-        dir::Resolution::Unresolved { .. } | dir::Resolution::Builtin { .. } => Vec::new(),
+        dir::Resolution::Symbol(symbol) => symbol_resolution_target_symbols(symbol),
+        dir::Resolution::Dependency(dependency) => dependency_resolution_target_symbols(dependency),
+        dir::Resolution::Control(_) => Vec::new(),
+        dir::Resolution::Dispatch(dispatch) => dispatch_resolution_target_symbols(dispatch),
+    }
+}
+
+/// Collect target symbols from a symbol resolution.
+pub fn symbol_resolution_target_symbols(
+    resolution: &dir::SymbolResolution,
+) -> Vec<dir::GlobalSymbolId> {
+    match resolution {
+        dir::SymbolResolution::Target(symbol) => vec![*symbol],
+        dir::SymbolResolution::Candidates(symbols) => symbols.clone(),
+    }
+}
+
+/// Collect target symbols from a dependency resolution.
+pub fn dependency_resolution_target_symbols(
+    resolution: &dir::DependencyResolution,
+) -> Vec<dir::GlobalSymbolId> {
+    match resolution {
+        dir::DependencyResolution::Binding(symbol) => vec![*symbol],
+        dir::DependencyResolution::Module(_) => Vec::new(),
+    }
+}
+
+/// Collect target symbols from a dispatch resolution.
+pub fn dispatch_resolution_target_symbols(
+    resolution: &dir::DispatchResolution,
+) -> Vec<dir::GlobalSymbolId> {
+    match resolution {
+        dir::DispatchResolution::Static { target, .. } => vec![target.symbol],
+        dir::DispatchResolution::Dynamic { targets, .. } => {
+            targets.iter().map(|target| target.symbol).collect()
+        }
+        dir::DispatchResolution::Builtin { .. } => Vec::new(),
     }
 }
 
@@ -155,7 +149,7 @@ pub fn well_known_symbol_candidates(
     well_known_symbols: &WellKnownSymbols,
     symbol: dir::WellKnownSymbol,
 ) -> Vec<dir::GlobalSymbolId> {
-    let Some(group) = well_known_symbols.get_group(symbol) else {
+    let Some(group) = well_known_symbols.get_pair(symbol) else {
         return Vec::new();
     };
 
@@ -172,8 +166,7 @@ pub fn well_known_symbol_candidates(
 
 /// Read one symbol entry from local or remote module tables.
 pub fn symbol_for(
-    repository: &Repository,
-    revision: Revision,
+    artifacts: &ArtifactCache,
     profile_id: ProfileId,
     local_module_id: ModuleId,
     local_symbols: &dir::SymbolTable,
@@ -183,156 +176,58 @@ pub fn symbol_for(
         return Some(local_symbols.get_symbol(symbol_id.local_id).clone());
     }
 
-    let dir = read_dir_declared(repository, revision, symbol_id.module_id, profile_id)?;
+    let dir = artifacts.dir_declared(symbol_id.module_id, profile_id)?;
     Some(dir.symbols.get_symbol(symbol_id.local_id).clone())
 }
 
-/// Resolve the canonical target symbol when available.
-pub fn canonical_symbol_for(
-    repository: &Repository,
-    revision: Revision,
+/// Read attributes for a symbol.
+pub fn symbol_attributes_for(
+    artifacts: &ArtifactCache,
     profile_id: ProfileId,
     local_module_id: ModuleId,
     local_symbols: &dir::SymbolTable,
     symbol_id: dir::GlobalSymbolId,
-) -> Option<dir::GlobalSymbolId> {
+) -> Option<dir::SymbolAttributes> {
     let symbol = symbol_for(
-        repository,
-        revision,
+        artifacts,
         profile_id,
         local_module_id,
         local_symbols,
         symbol_id,
     )?;
-
-    Some(
-        symbol
-            .canonical_symbol
-            .or(symbol.target_symbol)
-            .unwrap_or(symbol_id),
-    )
+    Some(symbol.attributes)
 }
 
-/// Return true when one symbol matches an expected symbol directly or canonically.
-pub fn symbol_matches_or_canonical(
-    repository: &Repository,
-    revision: Revision,
-    profile_id: ProfileId,
-    local_module_id: ModuleId,
-    local_symbols: &dir::SymbolTable,
-    symbol_id: dir::GlobalSymbolId,
-    expected_symbol: dir::GlobalSymbolId,
-) -> bool {
-    if symbol_id == expected_symbol {
-        return true;
-    }
-
-    canonical_symbol_for(
-        repository,
-        revision,
-        profile_id,
-        local_module_id,
-        local_symbols,
-        symbol_id,
-    )
-    .is_some_and(|canonical_symbol_id| canonical_symbol_id == expected_symbol)
-}
-
-/// Return true when one symbol matches any candidate symbol directly or canonically.
-pub fn symbol_matches_any_or_canonical(
-    repository: &Repository,
-    revision: Revision,
-    profile_id: ProfileId,
-    local_module_id: ModuleId,
-    local_symbols: &dir::SymbolTable,
-    symbol_id: dir::GlobalSymbolId,
-    expected_symbols: &[dir::GlobalSymbolId],
-) -> bool {
-    if expected_symbols.contains(&symbol_id) {
-        return true;
-    }
-
-    canonical_symbol_for(
-        repository,
-        revision,
-        profile_id,
-        local_module_id,
-        local_symbols,
-        symbol_id,
-    )
-    .is_some_and(|canonical_symbol_id| expected_symbols.contains(&canonical_symbol_id))
-}
-
-/// Read decorators for a symbol after canonicalization.
-pub fn symbol_decorators_for(
-    repository: &Repository,
-    revision: Revision,
-    profile_id: ProfileId,
-    local_module_id: ModuleId,
-    local_symbols: &dir::SymbolTable,
-    symbol_id: dir::GlobalSymbolId,
-) -> Option<dir::SymbolDecorators> {
-    let symbol_id = canonical_symbol_for(
-        repository,
-        revision,
-        profile_id,
-        local_module_id,
-        local_symbols,
-        symbol_id,
-    )?;
-    let symbol = symbol_for(
-        repository,
-        revision,
-        profile_id,
-        local_module_id,
-        local_symbols,
-        symbol_id,
-    )?;
-    Some(symbol.decorators)
-}
-
-/// Read the primary declaration id for a symbol after canonicalization.
-pub fn symbol_primary_declaration_for(
-    repository: &Repository,
-    revision: Revision,
+/// Read the declaration id for a symbol.
+pub fn symbol_declaration_for(
+    artifacts: &ArtifactCache,
     profile_id: ProfileId,
     local_module_id: ModuleId,
     local_symbols: &dir::SymbolTable,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<dir::GlobalNodeIdAny> {
-    let symbol_id = canonical_symbol_for(
-        repository,
-        revision,
-        profile_id,
-        local_module_id,
-        local_symbols,
-        symbol_id,
-    )?;
     let symbol = symbol_for(
-        repository,
-        revision,
+        artifacts,
         profile_id,
         local_module_id,
         local_symbols,
         symbol_id,
     )?;
-    symbol.primary_declaration
+    symbol.declaration
 }
 
 /// Resolve one local initializer expression for a symbol when available.
 pub fn symbol_initializer_expression(
-    repository: &Repository,
-    revision: Revision,
+    artifacts: &ArtifactCache,
     profile_id: ProfileId,
     local_module_id: ModuleId,
     local_symbols: &dir::SymbolTable,
     tree: &dir::Tree,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
-    // resolve the primary declaration for this symbol
-    let declaration_id = symbol_primary_declaration_for(
-        repository,
-        revision,
+    // resolve the declaration for this symbol
+    let declaration_id = symbol_declaration_for(
+        artifacts,
         profile_id,
         local_module_id,
         local_symbols,
@@ -343,11 +238,11 @@ pub fn symbol_initializer_expression(
     }
 
     // resolve the declaration initializer in the local tree
-    primary_declaration_initializer_expression(tree, declaration_id, symbol_id.local_id)
+    declaration_initializer_expression(tree, declaration_id, symbol_id.local_id)
 }
 
-/// Resolve one initializer expression from a symbol primary declaration node.
-pub fn primary_declaration_initializer_expression(
+/// Resolve one initializer expression from a symbol declaration node.
+pub fn declaration_initializer_expression(
     tree: &dir::Tree,
     declaration_id: dir::GlobalNodeIdAny,
     symbol_id: dir::LocalSymbolId,
@@ -440,25 +335,14 @@ fn enclosing_declarator(
     }
 }
 
-/// Read the value type id for a symbol after canonicalization.
+/// Read the value type id for a symbol.
 pub fn symbol_value_type_id_for(
-    repository: &Repository,
-    revision: Revision,
+    artifacts: &ArtifactCache,
     profile_id: ProfileId,
     local_module_id: ModuleId,
-    local_symbols: &dir::SymbolTable,
     local_types: &dir::TypeTable,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<SymbolValueTypeId> {
-    let symbol_id = canonical_symbol_for(
-        repository,
-        revision,
-        profile_id,
-        local_module_id,
-        local_symbols,
-        symbol_id,
-    )?;
-
     if symbol_id.module_id == local_module_id {
         let type_id = local_types.get_value_type_id(symbol_id)?;
         return Some(SymbolValueTypeId {
@@ -467,7 +351,7 @@ pub fn symbol_value_type_id_for(
         });
     }
 
-    let dir = read_dir_checked(repository, revision, symbol_id.module_id, profile_id)?;
+    let dir = artifacts.dir_checked(symbol_id.module_id, profile_id)?;
     let type_id = dir.types.get_value_type_id(symbol_id)?;
     Some(SymbolValueTypeId {
         module_id: symbol_id.module_id,
@@ -477,117 +361,25 @@ pub fn symbol_value_type_id_for(
 
 /// Map one symbol value type from local or remote type tables.
 pub fn symbol_value_type_map_for<T>(
-    repository: &Repository,
-    revision: Revision,
+    artifacts: &ArtifactCache,
     profile_id: ProfileId,
     local_module_id: ModuleId,
-    local_symbols: &dir::SymbolTable,
     local_types: &dir::TypeTable,
     symbol_id: dir::GlobalSymbolId,
     map: impl FnOnce(&dir::TypeTable, dir::LocalTypeId) -> T,
 ) -> Option<T> {
-    let symbol_type_id = symbol_value_type_id_for(
-        repository,
-        revision,
+    let value_type_id = symbol_value_type_id_for(
+        artifacts,
         profile_id,
         local_module_id,
-        local_symbols,
         local_types,
         symbol_id,
     )?;
 
-    if symbol_type_id.module_id == local_module_id {
-        return Some(map(local_types, symbol_type_id.type_id));
+    if value_type_id.module_id == local_module_id {
+        return Some(map(local_types, value_type_id.type_id));
     }
 
-    let dir = read_dir_checked(repository, revision, symbol_type_id.module_id, profile_id)?;
-    Some(map(&dir.types, symbol_type_id.type_id))
-}
-
-/// Return true when one local symbol is merged with a class declaration in this module.
-pub fn local_symbol_has_other_declarations(
-    symbols: &dir::SymbolTable,
-    symbol_id: dir::LocalSymbolId,
-) -> bool {
-    let symbol = symbols.get_symbol(symbol_id);
-
-    if symbol
-        .secondary_declarations
-        .as_deref()
-        .is_some_and(|declarations| !declarations.is_empty())
-    {
-        return true;
-    }
-
-    let Some(merge_group_id) = symbol.merge_group else {
-        return false;
-    };
-
-    symbols
-        .merge_group_symbols(merge_group_id)
-        .iter()
-        .any(|merged_symbol_id| *merged_symbol_id != symbol_id)
-}
-
-/// Return true when one local symbol is merged with a class declaration in this module.
-pub fn local_symbol_has_class_merge(
-    tree: &dir::Tree,
-    symbols: &dir::SymbolTable,
-    symbol_id: dir::LocalSymbolId,
-) -> bool {
-    let symbol = symbols.get_symbol(symbol_id);
-    let Some(merge_group_id) = symbol.merge_group else {
-        return false;
-    };
-
-    for merged_symbol_id in symbols.merge_group_symbols(merge_group_id) {
-        if *merged_symbol_id == symbol_id {
-            continue;
-        }
-
-        if local_symbol_has_class_declaration(tree, symbols, *merged_symbol_id) {
-            return true;
-        }
-    }
-
-    false
-}
-
-/// Return true when one local symbol declares a class in this module.
-fn local_symbol_has_class_declaration(
-    tree: &dir::Tree,
-    symbols: &dir::SymbolTable,
-    symbol_id: dir::LocalSymbolId,
-) -> bool {
-    let symbol = symbols.get_symbol(symbol_id);
-
-    if local_node_is_class_declaration(tree, symbol.primary_declaration.map(|id| id.local_id)) {
-        return true;
-    }
-
-    let Some(secondary_declarations) = symbol.secondary_declarations.as_deref() else {
-        return false;
-    };
-
-    secondary_declarations
-        .iter()
-        .any(|declaration_id| local_node_is_class_declaration(tree, Some(declaration_id.local_id)))
-}
-
-/// Return true when one local node id points at a class declaration.
-fn local_node_is_class_declaration(
-    tree: &dir::Tree,
-    declaration_id: Option<dir::LocalNodeIdAny>,
-) -> bool {
-    let Some(declaration_id) = declaration_id else {
-        return false;
-    };
-    if declaration_id.ty != dir::NodeType::Declaration {
-        return false;
-    }
-
-    matches!(
-        tree.get(declaration_id.into_typed::<dir::Declaration>()),
-        dir::Declaration::Class(_)
-    )
+    let dir = artifacts.dir_checked(value_type_id.module_id, profile_id)?;
+    Some(map(&dir.types, value_type_id.type_id))
 }

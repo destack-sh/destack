@@ -3,7 +3,7 @@ use destack_workspace::LintSeverity;
 use {destack_ast as ast, destack_dir as dir};
 
 use crate::rules::common::{
-    expression_signature_for_tree, symbol_primary_declaration_for, trailing_argument_removal_span,
+    expression_signature_for_tree, symbol_declaration_for, trailing_argument_removal_span,
 };
 use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
@@ -113,21 +113,21 @@ impl LintRule for NoUnnecessaryTypeArguments {
 fn target_symbol_for_expression(
     ctx: &LintModuleDirContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
-    expression: &dir::Expression,
+    _expression: &dir::Expression,
 ) -> Option<dir::GlobalSymbolId> {
-    // direct expression target first
-    if let Some(symbol_id) = expression.target_symbol() {
+    // direct lexical target first
+    if let Some(symbol_id) = ctx.expression_target_symbol(expression_id) {
         return Some(symbol_id);
     }
 
-    // then resolution candidates
+    // then static dispatch targets
     let global_expression_id = expression_id.into_global_any(ctx.module_id());
-    let resolution_id = ctx.types.node_resolution_id(global_expression_id)?;
-    let resolution = ctx.types.get_resolution(resolution_id);
+    let resolution = ctx.types.resolution(global_expression_id)?;
 
-    // extract one target symbol from static resolution results
     match resolution {
-        dir::Resolution::Static { candidate, .. } => Some(candidate.target_symbol),
+        dir::Resolution::Dispatch(dir::DispatchResolution::Static { target, .. }) => {
+            Some(target.symbol)
+        }
         _ => None,
     }
 }
@@ -155,9 +155,8 @@ fn generic_parameter_defaults_for_symbol(
     ctx: &LintModuleDirContext<'_>,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<Vec<GenericParameterDefault>> {
-    let declaration_id = symbol_primary_declaration_for(
-        &ctx.repository,
-        ctx.revision,
+    let declaration_id = symbol_declaration_for(
+        ctx.artifacts.as_ref(),
         ctx.profile_id,
         ctx.module_id(),
         ctx.symbols,

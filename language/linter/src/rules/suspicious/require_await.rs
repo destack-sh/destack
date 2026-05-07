@@ -3,7 +3,7 @@ use destack_dir::{
     walk_expression,
 };
 use destack_source::{ModuleId, Span};
-use destack_workspace::{LintSeverity, ProfileId, Repository, Revision};
+use destack_workspace::{ArtifactCache, LintSeverity, ProfileId};
 use std::collections::HashSet;
 
 use crate::rules::common::{
@@ -115,7 +115,7 @@ fn resolve_promise_symbols(ctx: &LintModuleDirContext<'_>) -> Vec<dir::GlobalSym
     well_known_symbol_candidates(&well_known_symbols, WellKnownSymbol::Promise)
 }
 
-/// Collect async callable symbols for Promise call fallback checks.
+/// Collect async callable symbols for Promise call checks.
 fn collect_async_function_symbols(ctx: &LintModuleDirContext<'_>) -> HashSet<dir::GlobalSymbolId> {
     let mut symbols = HashSet::new();
 
@@ -183,12 +183,10 @@ fn check_async_callable<T: dir::Node>(
 
     // analyze await and Promise like return signals
     let analysis = analyze_async_callable_body(
-        ctx.repository.as_ref(),
-        ctx.revision,
+        ctx.artifacts.as_ref(),
         ctx.profile_id,
         ctx.module_id(),
         ctx.tree,
-        ctx.symbols,
         ctx.types,
         body_id,
         signature.is_generator,
@@ -243,12 +241,10 @@ fn function_body_is_empty(tree: &dir::Tree, body_id: dir::LocalNodeId<dir::Expre
 
 /// Analyze one async function body for await and Promise like return signals.
 fn analyze_async_callable_body(
-    repository: &Repository,
-    revision: Revision,
+    artifacts: &ArtifactCache,
     profile_id: ProfileId,
     module_id: ModuleId,
     tree: &dir::Tree,
-    symbols: &dir::SymbolTable,
     types: &dir::TypeTable,
     body_id: dir::LocalNodeId<dir::Expression>,
     is_generator: bool,
@@ -257,11 +253,9 @@ fn analyze_async_callable_body(
 ) -> RequireAwaitBodyAnalysis {
     // run body traversal analysis
     let mut visitor = RequireAwaitBodyVisitor::new(
-        repository,
-        revision,
+        artifacts,
         profile_id,
         module_id,
-        symbols,
         types,
         is_generator,
         promise_symbols,
@@ -272,12 +266,10 @@ fn analyze_async_callable_body(
     // treat expression bodies as implicit returns
     if !visitor.has_thenable_return
         && expression_is_implicit_thenable_return(
-            repository,
-            revision,
+            artifacts,
             profile_id,
             module_id,
             tree,
-            symbols,
             types,
             promise_symbols,
             async_function_symbols,
@@ -308,16 +300,12 @@ struct RequireAwaitBodyAnalysis {
 struct RequireAwaitBodyVisitor<'a> {
     /// Node visitor options.
     options: NodeVisitorOptions,
-    /// Program for symbol backed type lookups.
-    repository: &'a Repository,
-    /// Active revision for symbol backed type lookups.
-    revision: Revision,
+    /// Cached artifact reader for this revision.
+    artifacts: &'a ArtifactCache,
     /// Active profile id for symbol backed type lookups.
     profile_id: ProfileId,
     /// Current module id for type lookups.
     module_id: ModuleId,
-    /// Symbol table used for symbol backed type lookups.
-    symbols: &'a dir::SymbolTable,
     /// Type table used for Promise like checks.
     types: &'a dir::TypeTable,
     /// Whether this callable is a generator.
@@ -339,11 +327,9 @@ struct RequireAwaitBodyVisitor<'a> {
 impl<'a> RequireAwaitBodyVisitor<'a> {
     /// Build one body visitor.
     fn new(
-        repository: &'a Repository,
-        revision: Revision,
+        artifacts: &'a ArtifactCache,
         profile_id: ProfileId,
         module_id: ModuleId,
-        symbols: &'a dir::SymbolTable,
         types: &'a dir::TypeTable,
         is_generator: bool,
         promise_symbols: &'a [dir::GlobalSymbolId],
@@ -351,11 +337,9 @@ impl<'a> RequireAwaitBodyVisitor<'a> {
     ) -> Self {
         Self {
             options: NodeVisitorOptions::default(),
-            repository,
-            revision,
+            artifacts,
             profile_id,
             module_id,
-            symbols,
             types,
             is_generator,
             promise_symbols,
@@ -403,12 +387,10 @@ impl NodeVisitor for RequireAwaitBodyVisitor<'_> {
                     ..
                 } = expression
                 && expression_is_thenable_return_value(
-                    self.repository,
-                    self.revision,
+                    self.artifacts,
                     self.profile_id,
                     self.module_id,
                     tree,
-                    self.symbols,
                     self.types,
                     self.promise_symbols,
                     self.async_function_symbols,
@@ -422,12 +404,10 @@ impl NodeVisitor for RequireAwaitBodyVisitor<'_> {
                 value: Some(value_id),
             } = expression
                 && expression_is_thenable_return_value(
-                    self.repository,
-                    self.revision,
+                    self.artifacts,
                     self.profile_id,
                     self.module_id,
                     tree,
-                    self.symbols,
                     self.types,
                     self.promise_symbols,
                     self.async_function_symbols,
@@ -459,12 +439,10 @@ fn expression_has_await_signal(expression: &Expression) -> bool {
 
 /// Return true when one return value expression is Promise like.
 fn expression_is_thenable_return_value(
-    repository: &Repository,
-    revision: Revision,
+    artifacts: &ArtifactCache,
     profile_id: ProfileId,
     module_id: ModuleId,
     tree: &dir::Tree,
-    symbols: &dir::SymbolTable,
     types: &dir::TypeTable,
     promise_symbols: &[dir::GlobalSymbolId],
     async_function_symbols: &HashSet<dir::GlobalSymbolId>,
@@ -477,15 +455,13 @@ fn expression_is_thenable_return_value(
         return true;
     }
 
-    // keep symbol backed Promise checks for unresolved expression types
+    // keep symbol backed Promise checks for expression types
     let has_symbol_backed_promise_type = promise_symbols.iter().any(|promise_symbol| {
         expression_type_or_call_return_type_map(
-            repository,
-            revision,
+            artifacts,
             profile_id,
             module_id,
             tree,
-            symbols,
             types,
             expression_id,
             |types, type_id| is_promise_type(types, type_id, Some(*promise_symbol)),
@@ -496,18 +472,22 @@ fn expression_is_thenable_return_value(
         return true;
     }
 
-    // keep one declaration fallback for async calls
-    expression_is_async_symbol_call(tree, expression_id, async_function_symbols)
+    // inspect direct async calls
+    expression_is_async_symbol_call(
+        module_id,
+        tree,
+        types,
+        expression_id,
+        async_function_symbols,
+    )
 }
 
 /// Return true when a function body expression is an implicit Promise like return.
 fn expression_is_implicit_thenable_return(
-    repository: &Repository,
-    revision: Revision,
+    artifacts: &ArtifactCache,
     profile_id: ProfileId,
     module_id: ModuleId,
     tree: &dir::Tree,
-    symbols: &dir::SymbolTable,
     types: &dir::TypeTable,
     promise_symbols: &[dir::GlobalSymbolId],
     async_function_symbols: &HashSet<dir::GlobalSymbolId>,
@@ -519,12 +499,10 @@ fn expression_is_implicit_thenable_return(
     }
 
     expression_is_thenable_return_value(
-        repository,
-        revision,
+        artifacts,
         profile_id,
         module_id,
         tree,
-        symbols,
         types,
         promise_symbols,
         async_function_symbols,
@@ -534,7 +512,9 @@ fn expression_is_implicit_thenable_return(
 
 /// Return true when one expression is a direct call to one known async callable symbol.
 fn expression_is_async_symbol_call(
+    module_id: ModuleId,
     tree: &dir::Tree,
+    types: &dir::TypeTable,
     expression_id: dir::LocalNodeId<dir::Expression>,
     async_function_symbols: &HashSet<dir::GlobalSymbolId>,
 ) -> bool {
@@ -547,8 +527,13 @@ fn expression_is_async_symbol_call(
 
     // resolve one direct callee symbol
     let callee_id = expression_unwrap_parenthesized(tree, *left);
-    let callee = tree.get(callee_id);
-    let Some(symbol_id) = callee.target_symbol() else {
+    let Some(symbol_id) = types
+        .symbol_resolution(callee_id.into_global_any(module_id))
+        .and_then(|resolution| match resolution {
+            dir::SymbolResolution::Target(symbol) => Some(*symbol),
+            dir::SymbolResolution::Candidates(_) => None,
+        })
+    else {
         return false;
     };
 

@@ -215,9 +215,9 @@ fn build_adjacency(
     for module_id in module_ids {
         let mut dependencies = Vec::new();
 
-        // collect resolved module edges so binding targets stay visible
-        if let Some(resolved) = ctx.resolved_dir(module_id) {
-            collect_resolved_module_dependencies(&resolved, &mut dependencies);
+        // collect exported module edges so binding targets stay visible
+        if let Some(exported) = ctx.exported_dir(module_id) {
+            collect_exported_module_dependencies(&exported, &mut dependencies);
         }
 
         // filter to eligible modules
@@ -230,21 +230,21 @@ fn build_adjacency(
     adjacency
 }
 
-/// Extend one dependency list with direct resolved module edges.
-fn collect_resolved_module_dependencies(resolved: &DirExported, dependencies: &mut Vec<ModuleId>) {
+/// Extend one dependency list with direct exported module edges.
+fn collect_exported_module_dependencies(exported: &DirExported, dependencies: &mut Vec<ModuleId>) {
     // collect import edges for both value and type space
-    for resolution in resolved.import_resolutions.values() {
+    for resolution in exported.imports.resolution_by_key.values() {
         if let Some(module_id) = resolution.value.and_then(|target| target.module_id()) {
             dependencies.push(module_id);
         }
 
-        if let Some(module_id) = resolution.ty.and_then(|target| target.module_id()) {
+        if let Some(module_id) = resolution.type_target.and_then(|target| target.module_id()) {
             dependencies.push(module_id);
         }
     }
 
     // collect namespace re export edges
-    for export in resolved.namespace_exports.iter() {
+    for export in exported.exports.namespace_exports.iter() {
         if let Some(module_id) = export.module_id.module_id() {
             dependencies.push(module_id);
         }

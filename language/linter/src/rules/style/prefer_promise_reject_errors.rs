@@ -5,7 +5,7 @@ use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
     collect_local_symbol_direct_reference_expression_ids, expression_method_call,
     expression_target_symbol, expression_type_map, is_definitely_non_error_value_type,
-    parameter_binding_name_and_symbol, symbol_matches_or_canonical,
+    parameter_binding_name_and_symbol,
 };
 use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
@@ -104,7 +104,7 @@ impl<'a, 'b> PromiseRejectVisitor<'a, 'b> {
         if let dir::Expression::New {
             left, arguments, ..
         } = expression
-            && expression_target_symbol(self.ctx.tree, *left) == Some(self.promise_symbol)
+            && expression_target_symbol(self.ctx, *left) == Some(self.promise_symbol)
         {
             self.check_executor_reject_calls(arguments);
         }
@@ -162,6 +162,7 @@ impl<'a, 'b> PromiseRejectVisitor<'a, 'b> {
         let reject_references = collect_local_symbol_direct_reference_expression_ids(
             self.ctx.module.id,
             self.ctx.tree,
+            self.ctx.types,
             reject_symbol,
         );
         for reference_id in reject_references {
@@ -195,19 +196,11 @@ fn is_promise_receiver(
     receiver_id: dir::LocalNodeId<dir::Expression>,
     promise_symbol: dir::GlobalSymbolId,
 ) -> bool {
-    let Some(target_symbol) = expression_target_symbol(ctx.tree, receiver_id) else {
+    let Some(target_symbol) = expression_target_symbol(ctx, receiver_id) else {
         return false;
     };
 
-    symbol_matches_or_canonical(
-        &ctx.repository,
-        ctx.revision,
-        ctx.profile_id,
-        ctx.module_id(),
-        ctx.symbols,
-        target_symbol,
-        promise_symbol,
-    )
+    target_symbol == promise_symbol
 }
 
 /// Return true when the reject payload is clearly non-Error.
@@ -243,12 +236,10 @@ fn reject_payload_is_obviously_non_error(
 
     // typed primitive and nominal non-error cases
     expression_type_map(
-        &ctx.repository,
-        ctx.revision,
+        ctx.artifacts.as_ref(),
         ctx.profile_id,
         ctx.module_id(),
         ctx.tree,
-        ctx.symbols,
         ctx.types,
         value_id,
         |types, type_id| {
@@ -284,21 +275,21 @@ fn executor_declaration(
     }
 
     // local callable references
-    let target_symbol = expression_target_symbol(ctx.tree, expression_id)?;
+    let target_symbol = expression_target_symbol(ctx, expression_id)?;
     if target_symbol.module_id != ctx.module.id {
         return None;
     }
 
     let symbol_entry = ctx.symbols.get_symbol(target_symbol.local_id);
-    let primary_declaration = symbol_entry.primary_declaration?;
-    if primary_declaration.module_id != ctx.module.id {
+    let declaration = symbol_entry.declaration?;
+    if declaration.module_id != ctx.module.id {
         return None;
     }
-    if primary_declaration.local_id.ty != dir::NodeType::Declaration {
+    if declaration.local_id.ty != dir::NodeType::Declaration {
         return None;
     }
 
-    Some(primary_declaration.into_local_typed())
+    Some(declaration.into_local_typed())
 }
 
 /// Resolve the reject parameter symbol from one Promise executor declaration.
@@ -336,19 +327,11 @@ fn expression_is_result_constructor_call(
         return false;
     }
 
-    let Some(receiver_symbol) = expression_target_symbol(ctx.tree, method_call.receiver_id) else {
+    let Some(receiver_symbol) = expression_target_symbol(ctx, method_call.receiver_id) else {
         return false;
     };
 
-    symbol_matches_or_canonical(
-        &ctx.repository,
-        ctx.revision,
-        ctx.profile_id,
-        ctx.module_id(),
-        ctx.symbols,
-        receiver_symbol,
-        result_symbol,
-    )
+    receiver_symbol == result_symbol
 }
 
 /// Return true when one expression is a non-Error literal payload.

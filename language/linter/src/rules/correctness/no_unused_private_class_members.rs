@@ -4,9 +4,7 @@ use destack_core::StringId;
 use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{
-    collect_module_resolved_read_symbol_usage, collect_module_symbol_usage,
-};
+use crate::rules::common::{collect_module_read_symbol_usage, collect_module_symbol_usage};
 use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -39,8 +37,7 @@ impl LintRule for NoUnusedPrivateClassMembers {
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
         let usage = collect_module_symbol_usage(ctx.module_id(), ctx.tree, ctx.types);
-        let read_symbols =
-            collect_module_resolved_read_symbol_usage(ctx.module_id(), ctx.tree, ctx.types);
+        let read_symbols = collect_module_read_symbol_usage(ctx.module_id(), ctx.tree, ctx.types);
         let mut used_private_accessor_keys = HashSet::new();
         let mut reported_private_accessor_keys = HashSet::new();
 

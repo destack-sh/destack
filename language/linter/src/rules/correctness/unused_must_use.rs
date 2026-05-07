@@ -2,7 +2,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    expression_discarded_call_like_value, expression_has_decorator,
+    expression_discarded_call_like_value, expression_has_attribute,
     expression_is_standalone_statement, expression_unwrap_parenthesized,
 };
 use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
@@ -84,16 +84,14 @@ impl<'a, 'b> UnusedMustUseVisitor<'a, 'b> {
         };
         let expression = self.ctx.tree.get(expression_id);
 
-        let has_must_use = expression_has_decorator(
-            &self.ctx.repository,
-            self.ctx.revision,
+        let has_must_use = expression_has_attribute(
+            self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.symbols,
             self.ctx.types,
             expression_id,
-            expression,
-            |decorators| decorators.is_must_use,
+            |attributes| attributes.is_must_use(),
         ) || call_like_callee_has_must_use(self.ctx, expression);
         if !has_must_use {
             return;
@@ -135,18 +133,14 @@ fn call_like_callee_has_must_use(
         dir::Expression::Call { left, .. } | dir::Expression::New { left, .. } => *left,
         _ => return false,
     };
-    let callee_expression = ctx.tree.get(callee_id);
-
-    expression_has_decorator(
-        &ctx.repository,
-        ctx.revision,
+    expression_has_attribute(
+        ctx.artifacts.as_ref(),
         ctx.profile_id,
         ctx.module_id(),
         ctx.symbols,
         ctx.types,
         callee_id,
-        callee_expression,
-        |decorators| decorators.is_must_use,
+        |attributes| attributes.is_must_use(),
     )
 }
 

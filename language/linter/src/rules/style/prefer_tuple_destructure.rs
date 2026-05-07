@@ -180,7 +180,7 @@ fn tuple_indexed_access(
     let left_id = expression_unwrap_parenthesized(ctx.tree, *left);
 
     // resolve the direct tuple reference symbol and source text
-    let source_symbol = expression_target_symbol(ctx.tree, left_id)?;
+    let source_symbol = expression_target_symbol(ctx, left_id)?;
     let source_text = direct_reference_text(ctx, left_id)?;
 
     // resolve one fixed tuple type for the indexed source
@@ -210,20 +210,8 @@ fn direct_reference_text(
 
     // keep plain symbol references only
     match expression {
-        dir::Expression::LocalReference {
-            path: _,
-            target_symbol: _,
-            generic_arguments,
-        }
-        | dir::Expression::ModuleReference {
-            path: _,
-            target_symbol: _,
-            generic_arguments,
-        }
-        | dir::Expression::GlobalReference {
-            path: _,
-            target_symbol: _,
-            generic_arguments,
+        dir::Expression::Path {
+            generic_arguments, ..
         } if generic_arguments.is_empty() => {
             Some(ctx.get_span_text(ctx.get_span(expression_id)).to_string())
         }

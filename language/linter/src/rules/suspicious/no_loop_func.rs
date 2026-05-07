@@ -96,6 +96,7 @@ impl<'a, 'b> NoLoopFuncVisitor<'a, 'b> {
             self.ctx.module_id(),
             self.ctx.tree,
             self.ctx.symbols,
+            self.ctx.types,
             function_scope_id,
             self.active_loop_scopes.as_slice(),
         );
@@ -218,6 +219,8 @@ struct CapturedMutableSymbolCollector<'a> {
     tree: &'a dir::Tree,
     /// The symbol table.
     symbols: &'a dir::SymbolTable,
+    /// The type table carrying semantic resolutions.
+    types: &'a dir::TypeTable,
     /// The function scope id for local ownership checks.
     function_scope_id: dir::LocalScopeId,
     /// The active loop scopes for relation checks.
@@ -234,6 +237,7 @@ impl<'a> CapturedMutableSymbolCollector<'a> {
         module_id: destack_source::ModuleId,
         tree: &'a dir::Tree,
         symbols: &'a dir::SymbolTable,
+        types: &'a dir::TypeTable,
         function_scope_id: dir::LocalScopeId,
         active_loop_scopes: &'a [dir::LocalScopeId],
     ) -> Self {
@@ -241,6 +245,7 @@ impl<'a> CapturedMutableSymbolCollector<'a> {
             module_id,
             tree,
             symbols,
+            types,
             function_scope_id,
             active_loop_scopes,
             captured_symbols: HashMap::new(),
@@ -318,7 +323,14 @@ impl NodeVisitor for CapturedMutableSymbolCollector<'_> {
         }
 
         // collect symbol-backed references
-        if let Some(target_symbol) = expression.target_symbol() {
+        if let Some(target_symbol) = self
+            .types
+            .symbol_resolution(id.into_global_any(self.module_id))
+            .and_then(|resolution| match resolution {
+                dir::SymbolResolution::Target(symbol) => Some(*symbol),
+                dir::SymbolResolution::Candidates(_) => None,
+            })
+        {
             self.record_reference(id, target_symbol);
         }
 
