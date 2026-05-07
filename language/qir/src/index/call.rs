@@ -23,12 +23,6 @@ impl CallIndex {
         index
     }
 
-    /// Extend this index with another call index.
-    pub fn extend(&mut self, index: Self) {
-        self.by_callee.extend(index.by_callee);
-        self.by_caller.extend(index.by_caller);
-    }
-
     /// Sort and deduplicate this index.
     pub fn finish(&mut self) {
         self.by_callee.sort_by_key(call_callee_key);

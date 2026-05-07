@@ -25,25 +25,6 @@ pub struct QueryIndex {
 }
 
 impl QueryIndex {
-    /// Merge many query indexes into one deterministic index.
-    pub fn merge(indexes: impl IntoIterator<Item = Self>) -> Self {
-        let mut merged = Self::default();
-
-        for index in indexes {
-            merged.symbols.extend(index.symbols);
-            merged.imports.extend(index.imports);
-            merged.references.extend(index.references);
-            merged.calls.extend(index.calls);
-            merged.nominal.extend(index.nominal);
-            merged.extensions.extend(index.extensions);
-            merged.specifiers.extend(index.specifiers);
-        }
-
-        merged.finish();
-
-        merged
-    }
-
     /// Sort and deduplicate all index sections.
     pub fn finish(&mut self) {
         self.symbols.finish();

@@ -18,11 +18,6 @@ impl ReferenceIndex {
         index
     }
 
-    /// Extend this index with another reference index.
-    pub fn extend(&mut self, index: Self) {
-        self.by_target.extend(index.by_target);
-    }
-
     /// Sort and deduplicate this index.
     pub fn finish(&mut self) {
         self.by_target.sort();
