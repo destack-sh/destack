@@ -97,11 +97,13 @@ impl SymbolAttributes {
 
     /// Return whether a flag attribute exists.
     fn has_flag(&self, flag: SymbolAttributeFlag) -> bool {
-        self.0.iter().any(|attribute| match (attribute, flag) {
-            (SymbolAttribute::NoManaged, SymbolAttributeFlag::NoManaged)
-            | (SymbolAttribute::NoHeap, SymbolAttributeFlag::NoHeap)
-            | (SymbolAttribute::MustUse, SymbolAttributeFlag::MustUse) => true,
-            _ => false,
+        self.0.iter().any(|attribute| {
+            matches!(
+                (attribute, flag),
+                (SymbolAttribute::NoManaged, SymbolAttributeFlag::NoManaged)
+                    | (SymbolAttribute::NoHeap, SymbolAttributeFlag::NoHeap)
+                    | (SymbolAttribute::MustUse, SymbolAttributeFlag::MustUse)
+            )
         })
     }
 }

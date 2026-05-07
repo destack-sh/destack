@@ -943,8 +943,8 @@ impl Parser {
         }
 
         // keyword expressions and declaration starters
-        if let Some(keyword) = lookahead.keyword {
-            if let Some(expression_id) = self.eat_keyword_expression(
+        if let Some(keyword) = lookahead.keyword
+            && let Some(expression_id) = self.eat_keyword_expression(
                 start,
                 header,
                 keyword,
@@ -953,9 +953,9 @@ impl Parser {
                 lookahead.next_keyword,
                 lookahead.following_token_type,
                 lookahead.next_is_declaration_start,
-            )? {
-                return Ok(expression_id);
-            }
+            )?
+        {
+            return Ok(expression_id);
         }
 
         // contextual type literal
@@ -1033,8 +1033,8 @@ impl Parser {
         }
 
         // direct type keyword forms
-        if let Some(keyword) = lookahead.keyword {
-            if let Some(type_expression_id) = self.eat_type_keyword_expression(
+        if let Some(keyword) = lookahead.keyword
+            && let Some(type_expression_id) = self.eat_type_keyword_expression(
                 start,
                 header,
                 keyword,
@@ -1043,9 +1043,9 @@ impl Parser {
                 lookahead.next_keyword,
                 lookahead.following_token_type,
                 lookahead.next_is_declaration_start,
-            )? {
-                return Ok(type_expression_id);
-            }
+            )?
+        {
+            return Ok(type_expression_id);
         }
 
         // contextual type literal
@@ -1444,11 +1444,6 @@ impl Parser {
         let can_parse_plain_group_directly = !self.language.is_destack()
             && !self.flags.is_in_arrow_return_type()
             && group.follow_token_type.is_none();
-
-        // plain groups
-        if can_parse_plain_group_directly {
-        } else {
-        }
 
         if !can_parse_plain_group_directly
             && let Some(lambda_expression_id) =

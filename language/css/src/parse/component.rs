@@ -730,28 +730,28 @@ impl<'a> Lowerer<'a> {
             }
             lightning::UnresolvedColor::HSL { h, s, l, alpha } => {
                 let alpha_values = self.lower_component_value_token_list(alpha);
-                let mut arguments = Vec::new();
-
-                arguments.push(ComponentValue::Token(Token::Number(Number {
-                    has_sign: h.is_sign_negative(),
-                    value: *h,
-                    integer_value: None,
-                })));
-                arguments.push(ComponentValue::Token(Token::WhiteSpace(" ".to_string())));
-                arguments.push(ComponentValue::Token(Token::Percentage(Number {
-                    has_sign: s.is_sign_negative(),
-                    value: *s / 100.0,
-                    integer_value: None,
-                })));
-                arguments.push(ComponentValue::Token(Token::WhiteSpace(" ".to_string())));
-                arguments.push(ComponentValue::Token(Token::Percentage(Number {
-                    has_sign: l.is_sign_negative(),
-                    value: *l / 100.0,
-                    integer_value: None,
-                })));
-                arguments.push(ComponentValue::Token(Token::WhiteSpace(" ".to_string())));
-                arguments.push(ComponentValue::Token(Token::Delimiter('/')));
-                arguments.push(ComponentValue::Token(Token::WhiteSpace(" ".to_string())));
+                let mut arguments = vec![
+                    ComponentValue::Token(Token::Number(Number {
+                        has_sign: h.is_sign_negative(),
+                        value: *h,
+                        integer_value: None,
+                    })),
+                    ComponentValue::Token(Token::WhiteSpace(" ".to_string())),
+                    ComponentValue::Token(Token::Percentage(Number {
+                        has_sign: s.is_sign_negative(),
+                        value: *s / 100.0,
+                        integer_value: None,
+                    })),
+                    ComponentValue::Token(Token::WhiteSpace(" ".to_string())),
+                    ComponentValue::Token(Token::Percentage(Number {
+                        has_sign: l.is_sign_negative(),
+                        value: *l / 100.0,
+                        integer_value: None,
+                    })),
+                    ComponentValue::Token(Token::WhiteSpace(" ".to_string())),
+                    ComponentValue::Token(Token::Delimiter('/')),
+                    ComponentValue::Token(Token::WhiteSpace(" ".to_string())),
+                ];
                 arguments.extend(alpha_values.values);
 
                 ComponentValueList {

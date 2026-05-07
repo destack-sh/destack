@@ -434,7 +434,7 @@ impl<'a> BuilderInner<'a> {
                 let doctype_node = self.tree.get_mut(doctype);
 
                 doctype_node.name = if matched_doctype.name.is_empty() {
-                    doctype_node.name.clone()
+                    doctype_node.name
                 } else {
                     resolved_name.expect("expected resolved doctype name")
                 };
@@ -1309,7 +1309,7 @@ impl<'a> HtmlBuilder<'a> {
                 &state.tree,
                 &element_name,
                 &attrs,
-                &attribute,
+                attribute,
                 AttributeValueForm::DoubleQuoted,
             );
             let attribute_id = state.tree.insert(
@@ -1698,15 +1698,15 @@ impl BuilderInner<'_> {
 
 /// Return whether one attribute name is asset-bearing for one element.
 fn is_asset_attribute_name(tree: &Tree, element_name: &Name, attribute_name: LocalName) -> bool {
-    (element_name.local_eq(&tree.strings, "img") && attribute_name == local_name!("src"))
-        || (element_name.local_eq(&tree.strings, "source") && attribute_name == local_name!("src"))
-        || (element_name.local_eq(&tree.strings, "video")
-            && matches!(attribute_name, name if name == local_name!("src") || name == local_name!("poster")))
-        || (element_name.local_eq(&tree.strings, "audio") && attribute_name == local_name!("src"))
-        || (element_name.local_eq(&tree.strings, "object") && attribute_name == local_name!("data"))
-        || (element_name.local_eq(&tree.strings, "embed") && attribute_name == local_name!("src"))
-        || (element_name.local_eq(&tree.strings, "image") && attribute_name == local_name!("href"))
-        || (element_name.local_eq(&tree.strings, "use") && attribute_name == local_name!("href"))
+    let element_name = tree.strings.get(element_name.local);
+
+    match element_name.as_ref() {
+        "img" | "source" | "audio" | "embed" => attribute_name == local_name!("src"),
+        "video" => attribute_name == local_name!("src") || attribute_name == local_name!("poster"),
+        "object" => attribute_name == local_name!("data"),
+        "image" | "use" => attribute_name == local_name!("href"),
+        _ => false,
+    }
 }
 
 /// Return whether one attribute name is `srcset`-style for one element.

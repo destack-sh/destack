@@ -61,7 +61,7 @@ pub(super) static NOT_IN_TREE_BINARY_OPERATORS: [BinaryOperator; 9] = [
 pub(super) static NOT_IN_FOR_EACH_BINARY_OPERATORS: [BinaryOperator; 1] = [BinaryOperator::In];
 
 /// Parsed declaration prefix shared across declaration forms.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, Default, PartialEq)]
 pub(crate) struct DeclarationHeader {
     /// The export kind for the declaration.
     pub export: Option<ExportKind>,
@@ -71,17 +71,6 @@ pub(crate) struct DeclarationHeader {
     pub declare_span: Option<Span>,
     /// Whether the declaration is abstract.
     pub is_abstract: bool,
-}
-
-impl Default for DeclarationHeader {
-    fn default() -> Self {
-        Self {
-            export: None,
-            is_ambient: false,
-            declare_span: None,
-            is_abstract: false,
-        }
-    }
 }
 
 /// Result of parsing declaration modifiers.

@@ -39,27 +39,27 @@ impl Parser {
         let can_use_follow_token = !self.language.is_destack()
             && !self.flags.is_in_type()
             && !self.flags.is_in_arrow_return_type();
-        if can_use_follow_token {
-            if let Some(close_span) = self.find_matching_close_for_parenthesized_group() {
-                let follow_token_type = self.lookahead(|parser| {
-                    while parser.current_token().span.start <= close_span.start {
-                        parser.bump();
-                    }
+        if can_use_follow_token
+            && let Some(close_span) = self.find_matching_close_for_parenthesized_group()
+        {
+            let follow_token_type = self.lookahead(|parser| {
+                while parser.current_token().span.start <= close_span.start {
+                    parser.bump();
+                }
 
-                    parser.peek_token_type()
-                });
-                if follow_token_type != TokenType::End {
-                    if matches!(follow_token_type, TokenType::Arrow | TokenType::ArrowWide) {
-                        return Ok(ParenthesizedGroupShape {
-                            close_span: Some(close_span),
-                            follow_token_type: Some(follow_token_type),
-                            ..ParenthesizedGroupShape::default()
-                        });
-                    }
+                parser.peek_token_type()
+            });
+            if follow_token_type != TokenType::End {
+                if matches!(follow_token_type, TokenType::Arrow | TokenType::ArrowWide) {
+                    return Ok(ParenthesizedGroupShape {
+                        close_span: Some(close_span),
+                        follow_token_type: Some(follow_token_type),
+                        ..ParenthesizedGroupShape::default()
+                    });
+                }
 
-                    if follow_token_type != TokenType::Colon {
-                        return Ok(ParenthesizedGroupShape::default());
-                    }
+                if follow_token_type != TokenType::Colon {
+                    return Ok(ParenthesizedGroupShape::default());
                 }
             }
         }
