@@ -169,12 +169,17 @@ export {
 // module patches
 export {
     type Module,
-    type PatchContext,
-    type PatchAdd,
-    type PatchReplace,
-    type PatchRename,
-    type PatchRemove,
-    type Patch,
+    type ExpandContext,
+    type MaterializeContext,
+    type ExpandPatchAdd,
+    type ExpandPatchReplace,
+    type ExpandPatchRename,
+    type ExpandPatchRemove,
+    type ExpandPatch,
+    type MaterializePatchBody,
+    type MaterializePatchExpression,
+    type MaterializePatchRemove,
+    type MaterializePatch,
     type Patcher,
 } from "./core/module/patch.ds";
 
