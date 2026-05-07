@@ -1205,7 +1205,7 @@ b0:
 
     /// Stack pointer propagates through call with explicit param lifetime.
     ///
-    /// When a function has explicit lifetime annotation specifying param 0,
+    /// When a function has explicit return lifetime specifying param 0,
     /// stack pointer status from arg 0 propagates to the return value.
     #[test]
     fn test_explicit_param_lifetime_stack_propagation() {

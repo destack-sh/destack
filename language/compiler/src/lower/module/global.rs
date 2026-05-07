@@ -236,12 +236,11 @@ impl ModuleLowerer<'_> {
     ) -> CompilerResult<Option<mir::GlobalInitializer>> {
         // resolve the static symbol target for the member expression
         let node_id = expression_id.into_global_any(self.module_id);
-        let resolution_id = self.types.get_resolution_for_node(node_id);
-        let Some(resolution_id) = resolution_id else {
+        let Some(resolution) = self.types.resolution(node_id) else {
             return Ok(None);
         };
-        let resolution = self.types.get_resolution(resolution_id);
-        let dir::Resolution::Static { candidate, .. } = resolution else {
+        let dir::Resolution::Dispatch(dir::DispatchResolution::Static { target, .. }) = resolution
+        else {
             return Ok(None);
         };
 
@@ -252,7 +251,7 @@ impl ModuleLowerer<'_> {
             self.compiler,
             self.context,
             self.profile,
-            candidate.target_symbol,
+            target.symbol,
             anchor,
         )?
         else {

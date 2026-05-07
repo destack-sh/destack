@@ -3,7 +3,7 @@ use crate::common::ast::evaluate_numeric_literal;
 use destack_artifact::Ast;
 use destack_ast::{self as ast, StringId};
 use destack_dir::{
-    Key, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding, Name, SymbolSpaceOrder,
+    Key, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding, Name, SymbolSpace,
     SymbolTable, Tree, TypeTable,
 };
 use destack_workspace::Module;
@@ -68,7 +68,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    SymbolSpaceOrder::ValueOnly,
+                    SymbolSpace::Value,
                 );
                 Key::Expression(expression)
             }

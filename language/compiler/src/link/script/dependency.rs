@@ -1,5 +1,5 @@
 use destack_codegen_js::{
-    DependencyKind, Expression, LocalNodeId, Module, Node, NodeVisitor, NodeVisitorOptions,
+    DependencySpace, Expression, LocalNodeId, Module, Node, NodeVisitor, NodeVisitorOptions,
     ScalarLiteral, Statement, Tree, walk_expression, walk_statement,
 };
 use destack_source::ModuleId;
@@ -42,7 +42,7 @@ impl ScriptDependencyTarget {
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct StaticScriptDependency {
     /// The dependency kind.
-    pub(crate) kind: DependencyKind,
+    pub(crate) kind: DependencySpace,
     /// The dependency target.
     pub(crate) target: ScriptDependencyTarget,
 }
@@ -109,7 +109,7 @@ fn collect_static_statement_dependency(
 ) {
     match statement {
         Statement::Import {
-            kind,
+            space: kind,
             target,
             target_module,
             ..
@@ -123,7 +123,7 @@ fn collect_static_statement_dependency(
             });
         }
         Statement::Export {
-            kind,
+            space: kind,
             target: Some(target),
             target_module,
             ..

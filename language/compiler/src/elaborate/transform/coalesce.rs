@@ -1,9 +1,9 @@
 use destack_artifact::EmitFormat;
 use destack_dir as dir;
 use dir::{
-    Argument, BinaryOperator, Declarator, Expression, IfCondition, IfKind, LocalNodeId, Mutability,
-    NodeType, Property, ScopeKind, SymbolBinding, SymbolKind, SymbolSpace, SymbolType, Type,
-    TypeLiteral,
+    Argument, BinaryOperator, DeclarationForm, Declarator, Expression, IfCondition, IfForm,
+    LocalNodeId, Mutability, NodeType, Property, ScopeKind, SymbolBinding, SymbolKind, SymbolSpace,
+    Type, TypeLiteral,
 };
 
 use crate::elaborate::ElaborateState;
@@ -42,7 +42,7 @@ impl Compiler {
                     self.normalize_nested_coalesce_in_assign_pattern(state, scope, pattern)?;
                 modified |= self.normalize_nested_coalesce_in_expression(state, scope, value)?;
             }
-            dir::AssignPattern::Array { fields } | dir::AssignPattern::Object { fields } => {
+            dir::AssignPattern::Sequence { fields } | dir::AssignPattern::Object { fields } => {
                 for field_id in fields {
                     modified |= self.normalize_nested_coalesce_in_assign_pattern_field(
                         state, scope, field_id,
@@ -148,7 +148,7 @@ impl Compiler {
         let if_id: LocalNodeId<Expression> = state.tree.insert_as_owner(
             if_id,
             Expression::If {
-                kind: IfKind::If,
+                form: IfForm::If,
                 condition: IfCondition::Expression {
                     condition: binding.condition,
                 },
@@ -203,7 +203,7 @@ impl Compiler {
         state.tree.replace(
             original_return_id,
             Expression::If {
-                kind: IfKind::If,
+                form: IfForm::If,
                 condition: IfCondition::Expression {
                     condition: binding.condition,
                 },
@@ -241,10 +241,10 @@ impl Compiler {
             | Expression::Unary {
                 right: statement, ..
             }
-            | Expression::ValueOf {
+            | Expression::MoveOf {
                 right: statement, ..
             }
-            | Expression::ReferenceOf {
+            | Expression::BorrowOf {
                 right: statement, ..
             }
             | Expression::PointerOf {
@@ -479,7 +479,7 @@ impl Compiler {
         let if_id: LocalNodeId<Expression> = state.tree.insert_as_owner(
             if_id,
             Expression::If {
-                kind: IfKind::If,
+                form: IfForm::If,
                 condition: IfCondition::Expression {
                     condition: binding.condition,
                 },
@@ -500,7 +500,7 @@ impl Compiler {
             block_id,
             dir::Block {
                 context: dir::BlockContext::Expression,
-                format: dir::BlockFormat::Explicit,
+                form: dir::BlockForm::Explicit,
                 scope: block_scope_id,
                 leading_expressions: vec![binding.left_temp_let],
                 tail_expression: Some(if_id),
@@ -543,7 +543,7 @@ impl Compiler {
 
         let mut candidates = Vec::new();
         match state.types.get_type(left_type_id) {
-            Type::Union { elements } => candidates.extend(elements.iter().copied()),
+            Type::Union(union) => candidates.extend(union.elements.iter().copied()),
             _ => candidates.push(left_type_id),
         }
 
@@ -552,9 +552,9 @@ impl Compiler {
             let candidate = state.types.get_type(candidate_id);
             if matches!(
                 candidate,
-                Type::TypeLiteral {
+                Type::Literal(dir::LiteralType {
                     value: TypeLiteral::Null | TypeLiteral::Undefined,
-                }
+                })
             ) {
                 continue;
             }
@@ -577,7 +577,7 @@ impl Compiler {
         let scope_mark = state.symbols.get_scope_mark(scope.0);
         let (symbol_id, _) = state.symbols.insert_symbol(
             SymbolKind::Local,
-            SymbolType::Void,
+            DeclarationForm::Void,
             SymbolSpace::Value,
             SymbolBinding::Runtime,
             None,

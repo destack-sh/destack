@@ -68,7 +68,7 @@ impl Compiler {
         type_id: dir::LocalTypeId,
     ) -> ExecuteResult<dir::LocalNodeId<dir::TypeExpression>> {
         // materialize literal types directly when no reusable syntax node exists
-        if let dir::Type::TypeLiteral { value } = types.get_type(type_id) {
+        if let dir::Type::Literal(dir::LiteralType { value }) = types.get_type(type_id) {
             let expression_any = tree.reserve_from(
                 dir::NodeType::TypeExpression,
                 anchor_id,

@@ -78,7 +78,7 @@ impl ScriptLinker<'_> {
 
             match statement {
                 js::Statement::Import {
-                    kind,
+                    space: kind,
                     target: specifier,
                     target_module: Some(target_module),
                     items,
@@ -87,13 +87,13 @@ impl ScriptLinker<'_> {
                 } => (
                     module.strings.get(*specifier).to_string(),
                     *target_module,
-                    *kind == js::DependencyKind::Type,
+                    *kind == js::DependencySpace::Type,
                     items.clone().unwrap_or_default(),
                     attributes.is_some(),
                     true,
                 ),
                 js::Statement::Export {
-                    kind,
+                    space: kind,
                     target: Some(specifier),
                     target_module: Some(target_module),
                     items,
@@ -101,7 +101,7 @@ impl ScriptLinker<'_> {
                 } => (
                     module.strings.get(*specifier).to_string(),
                     *target_module,
-                    *kind == js::DependencyKind::Type,
+                    *kind == js::DependencySpace::Type,
                     items.clone(),
                     false,
                     false,

@@ -80,16 +80,18 @@ impl ModuleLowerer<'_> {
     ) -> CompilerResult<()> {
         // resolve the static call candidate
         let node_id = expression_id.into_global_any(self.module_id);
-        let Some(resolution_id) = self.types.get_resolution_for_node(node_id) else {
+        let Some(resolution) = self.types.resolution(node_id) else {
             return Ok(());
         };
-        let resolution = self.types.get_resolution(resolution_id);
-        let dir::Resolution::Static { candidate, .. } = resolution else {
+        let dir::Resolution::Dispatch(dir::DispatchResolution::Static {
+            target: candidate, ..
+        }) = resolution
+        else {
             return Ok(());
         };
 
         // skip local targets and already declared symbols
-        let target_symbol = candidate.target_symbol;
+        let target_symbol = candidate.symbol;
         if target_symbol.module_id == self.module_id {
             return Ok(());
         }
@@ -106,7 +108,7 @@ impl ModuleLowerer<'_> {
         }
 
         // require a resolved signature
-        let Some(signature) = candidate.resolved_signature.as_ref() else {
+        let Some(signature) = candidate.signature.as_ref() else {
             return Err(LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(
                     expression_id
@@ -129,7 +131,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         target_symbol: dir::GlobalSymbolId,
-        signature: &dir::ResolvedSignature,
+        signature: &dir::DispatchSignature,
     ) -> CompilerResult<mir::LocalNodeId<mir::Function>> {
         // return the existing declaration when present
         if let Some(function_id) = self.function_for_symbol(target_symbol) {
@@ -233,8 +235,8 @@ impl ModuleLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<BindingResolution>> {
-        // require analysis for the referenced module
-        self.require_analyzed_module(symbol.module_id)?;
+        // require checked symbols for the referenced module
+        self.require_checked_module(symbol.module_id)?;
 
         // read the symbol entry and binding metadata
         let dir = self
@@ -245,17 +247,13 @@ impl ModuleLowerer<'_> {
                 message: format!("missing declared DIR artifact for {:?}", symbol.module_id),
             })?;
         let symbol_entry = dir.symbols.get_symbol(symbol.local_id);
-        if let Some(binding) = symbol_entry.decorators.binding.as_ref()
-            && let Some(name) = binding.name
-        {
+        if let Some(name) = symbol_entry.attributes.binding_name().flatten() {
             return Ok(Some(BindingResolution {
                 name: self.strings.get(name).to_string(),
                 is_binding: true,
             }));
         }
-        if let Some(binding) = symbol_entry.decorators.extern_binding.as_ref()
-            && let Some(name) = binding.name
-        {
+        if let Some(name) = symbol_entry.attributes.extern_name().flatten() {
             return Ok(Some(BindingResolution {
                 name: self.strings.get(name).to_string(),
                 is_binding: false,
@@ -275,7 +273,7 @@ impl ModuleLowerer<'_> {
                 message: "extern symbol is missing a name".to_string(),
             })?;
 
-        let is_binding = symbol_entry.decorators.binding.is_some();
+        let is_binding = symbol_entry.attributes.binding_name().is_some();
 
         // return the resolved binding
         Ok(Some(BindingResolution {
@@ -284,9 +282,9 @@ impl ModuleLowerer<'_> {
         }))
     }
 
-    /// Ensure the module has been analyzed for this profile.
-    pub(crate) fn require_analyzed_module(&self, module_id: ModuleId) -> CompilerResult<()> {
-        // request analysis for the target module
+    /// Ensure the module has been checked for this profile.
+    pub(crate) fn require_checked_module(&self, module_id: ModuleId) -> CompilerResult<()> {
+        // request checked DIR for the target module
         let result = self
             .compiler
             .require_dir_checked(self.context, module_id, self.profile);

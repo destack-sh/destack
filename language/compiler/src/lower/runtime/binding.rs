@@ -33,7 +33,7 @@ impl ModuleLowerer<'_> {
     /// Resolve the binding result metadata for ABI lowering.
     pub(crate) fn binding_result_info(
         &mut self,
-        signature: &dir::ResolvedSignature,
+        signature: &dir::DispatchSignature,
         expression_id: dir::LocalNodeId<dir::Expression>,
         _target_symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<BindingResultInfo> {
@@ -240,7 +240,7 @@ impl ModuleLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<dir::GlobalSymbolId> {
         let symbol = self
-            .declared_ambient_symbol("takePlatformError", dir::SymbolSpaceOrder::ValueThenType)?
+            .declared_global_symbol("takePlatformError", dir::SymbolSpace::Value)?
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(
                     expression_id
@@ -257,7 +257,7 @@ impl ModuleLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<dir::GlobalSymbolId> {
         let symbol = self
-            .declared_ambient_symbol("PlatformError", dir::SymbolSpaceOrder::ValueThenType)?
+            .declared_global_symbol("PlatformError", dir::SymbolSpace::Value)?
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(
                     expression_id
@@ -289,12 +289,12 @@ impl ModuleLowerer<'_> {
         }
 
         match self.types.get_type(type_id) {
-            dir::Type::Reference { symbol, .. } => {
-                if *symbol == platform_error_symbol {
+            dir::Type::Reference(reference) => {
+                if reference.symbol == platform_error_symbol {
                     return true;
                 }
-                if symbol.ty() == dir::SymbolType::TypeAlias
-                    && let Some(target) = self.types.get_alias_target_type_id(*symbol)
+                if self.symbol_is(reference.symbol, dir::DeclarationForm::TypeAlias)
+                    && let Some(target) = self.types.get_alias_target_type_id(reference.symbol)
                 {
                     return self.is_platform_error_type_inner(
                         target,
@@ -302,7 +302,7 @@ impl ModuleLowerer<'_> {
                         visited,
                     );
                 }
-                if let Some(instance) = self.types.get_instance_type_id(*symbol) {
+                if let Some(instance) = self.types.get_instance_type_id(reference.symbol) {
                     return self.is_platform_error_type_inner(
                         instance,
                         platform_error_symbol,
@@ -311,8 +311,8 @@ impl ModuleLowerer<'_> {
                 }
                 false
             }
-            dir::Type::Value { value } => {
-                self.is_platform_error_type_inner(*value, platform_error_symbol, visited)
+            dir::Type::Value(value) => {
+                self.is_platform_error_type_inner(value.value, platform_error_symbol, visited)
             }
             _ => false,
         }

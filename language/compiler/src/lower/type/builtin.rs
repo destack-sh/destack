@@ -1,4 +1,4 @@
-use destack_artifact::{AmbientEnvironment, DiagnosticAnchor, DirDeclared};
+use destack_artifact::{DiagnosticAnchor, DirDeclared, GlobalEnvironment};
 use destack_core::StringPool;
 use destack_dir::{self as dir};
 use destack_mir as mir;
@@ -83,10 +83,8 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
         }
 
         // resolve the builtin string symbol
-        let Some(string_symbol) = self.resolve_well_known_symbol(
-            dir::WellKnownSymbol::String,
-            dir::SymbolSpaceOrder::TypeThenValue,
-        )?
+        let Some(string_symbol) =
+            self.resolve_well_known_symbol(dir::WellKnownSymbol::String, dir::SymbolSpace::Type)?
         else {
             return Ok(None);
         };
@@ -112,43 +110,44 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
     pub(crate) fn resolve_well_known_symbol(
         &self,
         symbol: dir::WellKnownSymbol,
-        order: dir::SymbolSpaceOrder,
+        order: dir::SymbolSpace,
     ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
-        let environment = self.ambient_environment()?;
+        let environment = self.global_environment()?;
         let resolved = self.well_known_symbol(symbol, order)?;
 
-        // fall back to declared lib symbols when not registered
+        // fall back to selected global symbols when not registered
         let Some(resolved) = resolved else {
-            return Ok(environment.declared_concrete_symbol_from(symbol.export_name(), order));
+            return Ok(environment.symbol_from(symbol.export_name(), order));
         };
 
         Ok(Some(resolved))
     }
 
-    /// Read the ambient environment used by builtin layout lowering.
-    fn ambient_environment(&self) -> CompilerResult<Arc<AmbientEnvironment>> {
+    /// Read the global environment used by builtin layout lowering.
+    fn global_environment(&self) -> CompilerResult<Arc<GlobalEnvironment>> {
         self.compiler
-            .ambient_environment(self.context, self.profile)
+            .global_environment(self.context, self.profile)
             .map_err(CompilerError::from)
     }
 
-    /// Resolve one well-known symbol from the ambient environment.
+    /// Resolve one well-known symbol from the global environment.
     fn well_known_symbol(
         &self,
         symbol: dir::WellKnownSymbol,
-        order: dir::SymbolSpaceOrder,
+        space: dir::SymbolSpace,
     ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
-        let environment = self.ambient_environment()?;
+        let environment = self.global_environment()?;
+        let pair = environment.well_known_symbols().get_pair(symbol);
 
-        Ok(environment
-            .well_known_symbols()
-            .get_group(symbol)
-            .and_then(|group| group.symbol_for_space_order(order)))
+        Ok(pair.and_then(|pair| match space {
+            dir::SymbolSpace::Type => pair.ty.or(pair.value),
+            dir::SymbolSpace::Value | dir::SymbolSpace::Label => pair.value.or(pair.ty),
+        }))
     }
 
-    /// Ensure the module has been analyzed for this profile.
-    fn require_analyzed_module(&self, module_id: ModuleId) -> CompilerResult<()> {
-        // request the analyzed module
+    /// Ensure the module has been checked for this profile.
+    fn require_checked_module(&self, module_id: ModuleId) -> CompilerResult<()> {
+        // request checked DIR for the target module
         let result = self
             .compiler
             .require_dir_checked(self.context, module_id, self.profile);
@@ -174,9 +173,9 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
         symbols: &dir::SymbolTable,
         tree: &dir::Tree,
     ) -> Option<Vec<dir::LocalNodeId<dir::Member>>> {
-        // resolve the primary declaration for the symbol
-        let primary_declaration = symbols.get_symbol(symbol.local_id).primary_declaration?;
-        let declaration_id = primary_declaration
+        // resolve the declaration for the symbol
+        let declaration = symbols.get_symbol(symbol.local_id).declaration?;
+        let declaration_id = declaration
             .local_id
             .try_into_typed::<dir::Declaration>()
             .ok()?;
@@ -204,10 +203,8 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
         let mut field_inputs = Vec::new();
         let pointer_bytes = self.type_lowerer.pointer_bytes();
 
-        let vector_symbol = self.well_known_symbol(
-            dir::WellKnownSymbol::Vector,
-            dir::SymbolSpaceOrder::TypeThenValue,
-        )?;
+        let vector_symbol =
+            self.well_known_symbol(dir::WellKnownSymbol::Vector, dir::SymbolSpace::Type)?;
         let mut field_lowerer = TypeLowerer::new(
             self.builder,
             pointer_bytes,
@@ -216,6 +213,7 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
             strings,
             self.profile,
             tree,
+            symbols,
             vector_symbol,
         );
 
@@ -277,8 +275,8 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
         anchor: dir::AnchoredGlobalNodeId,
         policy: LayoutPolicy,
     ) -> CompilerResult<Option<mir::LocalNodeId<mir::Type>>> {
-        // require analysis for the module
-        self.require_analyzed_module(symbol.module_id)?;
+        // require checked DIR for the module
+        self.require_checked_module(symbol.module_id)?;
 
         // load the declared structure and checked type store
         let declared = self.require_declared_dir_data(symbol.module_id)?;
@@ -355,21 +353,21 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
         type_id: dir::LocalTypeId,
     ) -> dir::LocalTypeId {
         // stop when the type is not a reference
-        let dir::Type::Reference { symbol, .. } = types.get_type(type_id) else {
+        let dir::Type::Reference(reference) = types.get_type(type_id) else {
             return type_id;
         };
 
         // ignore non alias symbols
-        let symbol_entry = symbols.get_symbol(symbol.local_id);
+        let symbol_entry = symbols.get_symbol(reference.symbol.local_id);
         if !matches!(
-            symbol_entry.ty,
-            dir::SymbolType::TypeAlias | dir::SymbolType::Newtype
+            symbol_entry.form,
+            dir::DeclarationForm::TypeAlias | dir::DeclarationForm::Newtype
         ) {
             return type_id;
         }
 
         // resolve the alias declaration
-        let Some(primary) = symbol_entry.primary_declaration else {
+        let Some(primary) = symbol_entry.declaration else {
             return type_id;
         };
         let Ok(declaration_id) = primary.local_id.try_into_typed::<dir::Declaration>() else {

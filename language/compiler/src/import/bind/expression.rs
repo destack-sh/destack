@@ -2,24 +2,24 @@ use crate::Compiler;
 use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
-    Ambientness, AssignPattern, AssignPatternField, BindingCategory, CastSource, Declarator,
-    ExportMode, Expression, ForEachBinding, ForEachDeclarationKind, ForEachKind, IfCondition,
-    IfKind, ImportSource, ImportTarget, LetKind, LocalNodeId, LocalNodeIdAny, LocalScopeId,
-    LocalScopeMark, LoopKind, MatchKind, MatchSource, ModuleBinding, Mutability, NodeType, Path,
-    ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
-    SymbolType, Tree, Type, TypeTable, YieldCardinality,
+    AssignPattern, AssignPatternField, BindingCategory, BindingKeyword, CastOrigin,
+    DeclarationForm, Declarator, ExportKind, Expression, ForEachBinding, ForEachOperator,
+    IfCondition, IfForm, ImportSource, ImportTarget, LetKind, LocalNodeId, LocalNodeIdAny,
+    LocalScopeId, LocalScopeMark, LoopKind, MatchForm, MatchOrigin, ModuleBinding, Mutability,
+    NodeType, Path, ScopeKind, StaticKey, SymbolBinding, SymbolKind, SymbolSpace, SymbolTable,
+    Tree, Type, TypeTable, UnevaluatedType, YieldCardinality,
 };
 use destack_workspace::Module;
 use smallvec::smallvec;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Bind if kind into a DIR if kind.
+    /// Bind if form into a DIR if form.
     #[inline]
-    pub(super) fn bind_if_kind(&self, kind: ast::IfKind) -> IfKind {
-        match kind {
-            ast::IfKind::If => IfKind::If,
-            ast::IfKind::Ternary => IfKind::Ternary,
+    pub(super) fn bind_if_form(&self, form: ast::IfForm) -> IfForm {
+        match form {
+            ast::IfForm::If => IfForm::If,
+            ast::IfForm::Ternary => IfForm::Ternary,
         }
     }
 
@@ -78,7 +78,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    SymbolSpaceOrder::ValueThenType,
+                    SymbolSpace::Value,
                 );
 
                 AssignPattern::Expression { value }
@@ -109,12 +109,12 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    SymbolSpaceOrder::ValueThenType,
+                    SymbolSpace::Value,
                 );
 
                 AssignPattern::Assign { pattern, value }
             }
-            ast::AssignPattern::Array { fields } => {
+            ast::AssignPattern::Sequence { fields } => {
                 let fields = fields
                     .iter()
                     .map(|field_id| {
@@ -134,7 +134,7 @@ impl Compiler {
                     })
                     .collect();
 
-                AssignPattern::Array { fields }
+                AssignPattern::Sequence { fields }
             }
             ast::AssignPattern::Object { fields } => {
                 let fields = fields
@@ -229,7 +229,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    SymbolSpaceOrder::ValueThenType,
+                    SymbolSpace::Value,
                 );
                 let pattern = self.bind_assign_pattern(
                     module,
@@ -320,42 +320,34 @@ impl Compiler {
                 tree,
                 symbols,
                 types,
-                SymbolSpaceOrder::ValueThenType,
+                SymbolSpace::Value,
             ),
             _ => unreachable!("compound assignment target must be one expression target"),
         }
     }
 
-    /// Bind an AST export mode into a DIR export mode.
-    pub(super) fn bind_export_mode(&self, export: ast::ExportMode) -> ExportMode {
+    /// Bind an AST export kind into a DIR export kind.
+    pub(super) fn bind_export_kind(&self, export: ast::ExportKind) -> ExportKind {
         match export {
-            ast::ExportMode::Named => ExportMode::Named,
-            ast::ExportMode::Default => ExportMode::Default,
+            ast::ExportKind::Named => ExportKind::Named,
+            ast::ExportKind::Default => ExportKind::Default,
         }
     }
 
-    /// Bind for each declaration kind into a DIR for each declaration kind.
-    fn bind_for_each_declaration_kind(
-        &self,
-        kind: ast::ForEachDeclarationKind,
-    ) -> ForEachDeclarationKind {
-        match kind {
-            ast::ForEachDeclarationKind::Var => ForEachDeclarationKind::Var,
-            ast::ForEachDeclarationKind::Let => ForEachDeclarationKind::Let,
-            ast::ForEachDeclarationKind::Const => ForEachDeclarationKind::Const,
+    /// Bind a for each binding keyword into a DIR binding keyword.
+    fn bind_binding_keyword(&self, keyword: ast::BindingKeyword) -> BindingKeyword {
+        match keyword {
+            ast::BindingKeyword::Var => BindingKeyword::Var,
+            ast::BindingKeyword::Let => BindingKeyword::Let,
+            ast::BindingKeyword::Const => BindingKeyword::Const,
         }
     }
 
-    /// Map for each declaration kind into duplicate-binding category.
-    fn binding_category_for_for_each_declaration_kind(
-        &self,
-        kind: ForEachDeclarationKind,
-    ) -> BindingCategory {
-        match kind {
-            ForEachDeclarationKind::Var => BindingCategory::FunctionScoped,
-            ForEachDeclarationKind::Let | ForEachDeclarationKind::Const => {
-                BindingCategory::BlockScoped
-            }
+    /// Map a for each binding keyword into duplicate-binding category.
+    fn binding_category_for_binding_keyword(&self, keyword: BindingKeyword) -> BindingCategory {
+        match keyword {
+            BindingKeyword::Var => BindingCategory::FunctionScoped,
+            BindingKeyword::Let | BindingKeyword::Const => BindingCategory::BlockScoped,
         }
     }
 
@@ -426,7 +418,7 @@ impl Compiler {
             tree: &mut Tree,
             symbols: &mut SymbolTable,
             types: &mut TypeTable,
-            space_order: SymbolSpaceOrder,
+            space: SymbolSpace,
         ) -> LocalNodeId<Expression> {
             let ast_expression = ast.tree.get(ast_expression_id);
 
@@ -483,7 +475,7 @@ impl Compiler {
                 let label = *label;
                 let (symbol_id, _) = symbols.insert_symbol(
                     SymbolKind::Local,
-                    SymbolType::Void,
+                    DeclarationForm::Void,
                     SymbolSpace::Label,
                     SymbolBinding::Runtime,
                     Some(StaticKey::Name(label)),
@@ -502,7 +494,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 Expression::Labelled {
                     label,
@@ -513,7 +505,7 @@ impl Compiler {
 
             ast::Expression::Import {
                 source,
-                kind,
+                space,
                 target,
                 items,
                 attributes,
@@ -537,7 +529,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                            space_order,
+                            SymbolSpace::Value,
                         );
                         (
                             ImportTarget::Expression { target },
@@ -560,7 +552,7 @@ impl Compiler {
                                 module_bindings,
                                 scope,
                                 source,
-                                *kind,
+                                *space,
                                 dependency_target,
                                 *item,
                                 Some(expression_id),
@@ -594,16 +586,15 @@ impl Compiler {
                                 tree,
                                 symbols,
                                 types,
-                                SymbolSpaceOrder::ValueThenType,
+                                SymbolSpace::Value,
                             )
                         })
                         .collect()
                 });
-                let kind = self.bind_dependency_kind(*kind);
-                // import
-                Expression::UnresolvedImport {
+                let space = self.bind_dependency_space(*space);
+                Expression::Import {
                     source,
-                    kind,
+                    space,
                     target,
                     items,
                     attributes,
@@ -611,7 +602,7 @@ impl Compiler {
                 }
             }
             ast::Expression::Export {
-                kind,
+                space,
                 target,
                 items,
                 attributes,
@@ -631,7 +622,7 @@ impl Compiler {
                                 module_bindings,
                                 scope,
                                 ImportSource::ExportStatement,
-                                *kind,
+                                *space,
                                 Some(target),
                                 *item,
                                 Some(expression_id),
@@ -647,11 +638,10 @@ impl Compiler {
                         .as_ref()
                         .map(|attributes| self.bind_import_attribute_clause(module, ast, attributes));
 
-                    let kind = self.bind_dependency_kind(*kind);
-                    // re-export
-                    Expression::UnresolvedReExport {
+                    let space = self.bind_dependency_space(*space);
+                    Expression::ReExport {
                         target,
-                        kind,
+                        space,
                         items,
                         attributes,
                     }
@@ -672,7 +662,7 @@ impl Compiler {
                                     module_bindings,
                                     scope,
                                     ImportSource::ValueExpression,
-                                    *kind,
+                                    *space,
                                     None,
                                     *item,
                                     Some(expression_id),
@@ -683,13 +673,13 @@ impl Compiler {
                             })
                             .collect()
                     };
-                    let kind = self.bind_dependency_kind(*kind);
+                    let space = self.bind_dependency_space(*space);
                     let attributes = attributes
                         .as_ref()
                         .map(|attributes| self.bind_import_attribute_clause(module, ast, attributes));
 
                     Expression::Export {
-                        kind,
+                        space,
                         items,
                         attributes,
                     }
@@ -702,19 +692,17 @@ impl Compiler {
             ast::Expression::Let {
                 kind,
                 export,
-                ambient,
+                                    is_ambient,
                 mutability,
                 declarators: ast_declarators,
             } => {
                 let binding_category = self.binding_category_for_let_kind(*kind);
-                let export = export.map(|export| self.bind_export_mode(export));
-                let ambient = match ambient {
-                    ast::Ambientness::Ambient => Ambientness::Ambient,
-                    ast::Ambientness::Concrete => Ambientness::Concrete,
-                };
-                let binding = match ambient {
-                    Ambientness::Ambient => SymbolBinding::Ambient,
-                    Ambientness::Concrete => SymbolBinding::Runtime,
+                let export = export.map(|export| self.bind_export_kind(export));
+                let is_ambient = *is_ambient;
+                let binding = if is_ambient {
+                    SymbolBinding::Ambient
+                } else {
+                    SymbolBinding::Runtime
                 };
                 let mutability = self.bind_mutability(*mutability);
                 let mut declarator_scope = scope;
@@ -748,7 +736,7 @@ impl Compiler {
                     expression_id,
                     Expression::Let {
                         export,
-                        ambient,
+                        is_ambient,
                         mutability,
                         declarators,
                     },
@@ -791,7 +779,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
 
                 return tree.insert(
@@ -807,17 +795,15 @@ impl Compiler {
             ast::Expression::Using {
                 asynchrony,
                 export,
-                ambient,
+                                    is_ambient,
                 declarators: ast_declarators,
             } => {
-                let export = export.map(|export| self.bind_export_mode(export));
-                let ambient = match ambient {
-                    ast::Ambientness::Ambient => Ambientness::Ambient,
-                    ast::Ambientness::Concrete => Ambientness::Concrete,
-                };
-                let binding = match ambient {
-                    Ambientness::Ambient => SymbolBinding::Ambient,
-                    Ambientness::Concrete => SymbolBinding::Runtime,
+                let export = export.map(|export| self.bind_export_kind(export));
+                let is_ambient = *is_ambient;
+                let binding = if is_ambient {
+                    SymbolBinding::Ambient
+                } else {
+                    SymbolBinding::Runtime
                 };
                 let asynchrony = self.bind_asynchrony(*asynchrony);
                 let mutability = Mutability::Immutable;
@@ -856,7 +842,7 @@ impl Compiler {
                     Expression::Using {
                         asynchrony,
                         export,
-                        ambient,
+                        is_ambient,
                         declarators,
                     },
                 );
@@ -874,7 +860,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 let operator = self.bind_unary_operator(*operator);
                 Expression::Unary { operator, right }
@@ -896,7 +882,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
 
                 let target_type = self.bind_type_expression(
@@ -911,12 +897,12 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
 
                 Expression::As {
                     operator: None,
-                    source: CastSource::Explicit,
+                    source: CastOrigin::Explicit,
                     expression,
                     target_type,
                 }
@@ -938,7 +924,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 let target_type = self.bind_type_expression(
                     module,
@@ -952,7 +938,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
 
                 Expression::Satisfies {
@@ -961,7 +947,7 @@ impl Compiler {
                 }
             }
 
-            ast::Expression::ValueOf {
+            ast::Expression::MoveOf {
                 mutability,
                 variance,
                 right,
@@ -980,15 +966,15 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
-                Expression::ValueOf {
+                Expression::MoveOf {
                     mutability,
                     variance,
                     right,
                 }
             }
-            ast::Expression::ReferenceOf {
+            ast::Expression::BorrowOf {
                 mutability,
                 variance,
                 right,
@@ -1007,9 +993,9 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
-                Expression::ReferenceOf {
+                Expression::BorrowOf {
                     mutability,
                     variance,
                     right,
@@ -1029,7 +1015,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 Expression::PointerOf { mutability, right }
             }
@@ -1046,7 +1032,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 let target_type = self.bind_type_expression(
                     module,
@@ -1060,7 +1046,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
 
                 Expression::Is { value, target_type }
@@ -1078,7 +1064,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 let target = self.bind_expression(
                     module,
@@ -1092,7 +1078,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
 
                 Expression::InstanceOf { value, target }
@@ -1114,7 +1100,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 let right = self.bind_expression(
                     module,
@@ -1128,7 +1114,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 let operator = self.bind_binary_operator(*operator);
                 Expression::Binary {
@@ -1154,7 +1140,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 let operator = self.bind_assign_operator(*operator);
 
@@ -1210,7 +1196,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 let name = name.map(|name| name);
 
@@ -1229,7 +1215,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 let name = name.map(|name| name);
 
@@ -1253,12 +1239,12 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 let generic_argument_space_order = if module.is_destack() {
-                    SymbolSpaceOrder::ValueThenType
+                    SymbolSpace::Value
                 } else {
-                    SymbolSpaceOrder::TypeThenValue
+                    SymbolSpace::Type
                 };
                 let generic_arguments = generic_arguments
                     .iter()
@@ -1294,7 +1280,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                            SymbolSpaceOrder::ValueThenType,
+                            SymbolSpace::Value,
                         )
                     })
                     .collect();
@@ -1321,7 +1307,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 let generic_arguments = generic_arguments
                     .iter()
@@ -1338,7 +1324,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                            SymbolSpaceOrder::TypeThenValue,
+                            SymbolSpace::Type,
                         )
                     })
                     .collect();
@@ -1357,7 +1343,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                            SymbolSpaceOrder::ValueThenType,
+                            SymbolSpace::Value,
                         )
                     })
                     .collect();
@@ -1380,7 +1366,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 Expression::Delete { value }
             }
@@ -1401,7 +1387,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 let index = index.map(|index| {
                     self.bind_expression(
@@ -1416,7 +1402,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        space_order,
+                        space,
                     )
                 });
                 Expression::Index { left, right: index }
@@ -1437,12 +1423,12 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 let generic_argument_space_order = if module.is_destack() {
-                    SymbolSpaceOrder::ValueThenType
+                    SymbolSpace::Value
                 } else {
-                    SymbolSpaceOrder::TypeThenValue
+                    SymbolSpace::Type
                 };
                 let generic_arguments = generic_arguments
                     .iter()
@@ -1481,7 +1467,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 Expression::Maybe { left }
             }
@@ -1498,7 +1484,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 Expression::Must { left }
             }
@@ -1507,10 +1493,10 @@ impl Compiler {
                 let path = Path {
                     segments: smallvec![*name],
                 };
-                Expression::UnresolvedPath {
+                Expression::Path {
                     path,
                     generic_arguments: Vec::new(),
-                    space_order,
+                    space,
                 }
             }
 
@@ -1534,14 +1520,14 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                            SymbolSpaceOrder::TypeThenValue,
+                            SymbolSpace::Type,
                         )
                     })
                     .collect();
-                Expression::UnresolvedPath {
+                Expression::Path {
                     path,
                     generic_arguments,
-                    space_order,
+                    space,
                 }
             }
             ast::Expression::PrivateIdentifier { name } => {
@@ -1585,12 +1571,12 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 let generic_argument_space_order = if module.is_destack() {
-                    SymbolSpaceOrder::ValueThenType
+                    SymbolSpace::Value
                 } else {
-                    SymbolSpaceOrder::TypeThenValue
+                    SymbolSpace::Type
                 };
                 let generic_arguments = generic_arguments
                     .iter()
@@ -1663,7 +1649,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        space_order,
+                        space,
                     );
                     Expression::TaggedObjectExpression { ty, properties }
                 } else {
@@ -1689,7 +1675,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                            SymbolSpaceOrder::ValueThenType,
+                            SymbolSpace::Value,
                         )
                     })
                     .collect();
@@ -1711,7 +1697,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                            space_order,
+                            space,
                         )
                     })
                     .collect();
@@ -1733,7 +1719,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                            SymbolSpaceOrder::ValueThenType,
+                            SymbolSpace::Value,
                         )
                     })
                     .collect();
@@ -1758,13 +1744,13 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        space_order,
+                        space,
                     )
                 });
                 let generic_argument_space_order = if module.is_destack() {
-                    SymbolSpaceOrder::ValueThenType
+                    SymbolSpace::Value
                 } else {
-                    SymbolSpaceOrder::TypeThenValue
+                    SymbolSpace::Type
                 };
                 let generic_arguments = generic_arguments
                     .iter()
@@ -1801,7 +1787,7 @@ impl Compiler {
                                 tree,
                                 symbols,
                                 types,
-                                SymbolSpaceOrder::ValueThenType,
+                                SymbolSpace::Value,
                             )
                         })
                         .collect()
@@ -1822,7 +1808,7 @@ impl Compiler {
                                 tree,
                                 symbols,
                                 types,
-                                SymbolSpaceOrder::ValueThenType,
+                                SymbolSpace::Value,
                             )
                         })
                         .collect()
@@ -1847,7 +1833,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 Expression::Parenthesized { expression }
             }
@@ -1864,23 +1850,20 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    SymbolSpaceOrder::TypeThenValue,
+                    SymbolSpace::Type,
                 );
-                let resolved_type = types.insert_type_from(Type::Unevaluated(value), value);
+                types.insert_type_from(Type::Unevaluated(UnevaluatedType { expression: value }), value);
 
-                Expression::Type {
-                    value,
-                    resolved_type,
-                }
+                Expression::Type { value }
             }
 
             ast::Expression::If {
-                kind,
+                form,
                 condition,
                 then_expression,
                 else_expression,
             } => {
-                let kind = self.bind_if_kind(*kind);
+                let form = self.bind_if_form(*form);
                 let (condition, then_expression, else_expression) = match condition {
                     ast::IfCondition::Expression { condition } => {
                         let condition = self.bind_expression(
@@ -1895,7 +1878,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                            space_order,
+                            space,
                         );
                         let then_expression = self.bind_expression(
                             module,
@@ -1909,7 +1892,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                            space_order,
+                            space,
                         );
                         let else_expression = else_expression.map(|else_expression| {
                             self.bind_expression(
@@ -1924,7 +1907,7 @@ impl Compiler {
                                 tree,
                                 symbols,
                                 types,
-                                space_order,
+                                space,
                             )
                         });
                         (
@@ -1974,7 +1957,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                            space_order,
+                            space,
                         );
                         let else_expression = else_expression.map(|else_expression| {
                             let else_scope_id =
@@ -1992,7 +1975,7 @@ impl Compiler {
                                 tree,
                                 symbols,
                                 types,
-                                space_order,
+                                space,
                             )
                         });
                         (
@@ -2007,20 +1990,20 @@ impl Compiler {
                     }
                 };
                 Expression::If {
-                    kind,
+                    form,
                     condition,
                     then_expression,
                     else_expression,
                 }
             }
             ast::Expression::While {
-                kind,
+                form,
                 condition,
                 body,
             } => {
-                let kind = match *kind {
-                    ast::WhileKind::While => LoopKind::PreTest,
-                    ast::WhileKind::DoWhile => LoopKind::PostTest,
+                let kind = match *form {
+                    ast::WhileForm::While => LoopKind::PreTest,
+                    ast::WhileForm::DoWhile => LoopKind::PostTest,
                 };
                 let condition = self.bind_expression(
                     module,
@@ -2034,7 +2017,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 let (symbol_id, scope_id) = self.bind_anonymous_item_with_scope(
                     module,
@@ -2067,15 +2050,15 @@ impl Compiler {
             }
             ast::Expression::ForEach {
                 asynchrony,
-                kind,
+                operator,
                 binding,
                 iterator,
                 body,
             } => {
                 let asynchrony = self.bind_asynchrony(*asynchrony);
-                let kind = match *kind {
-                    ast::ForEachKind::In => ForEachKind::In,
-                    ast::ForEachKind::Of => ForEachKind::Of,
+                let operator = match *operator {
+                    ast::ForEachOperator::In => ForEachOperator::In,
+                    ast::ForEachOperator::Of => ForEachOperator::Of,
                 };
                 let iterator = self.bind_expression(
                     module,
@@ -2089,7 +2072,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 let (symbol_id, scope_id) = self.bind_anonymous_item_with_scope(
                     module,
@@ -2102,12 +2085,12 @@ impl Compiler {
                 let binding = match binding {
                     ast::ForEachBinding::Pattern {
                         pattern,
-                        declaration_kind,
+                        keyword,
                     } => {
-                        let declaration_kind =
-                            declaration_kind.map(|kind| self.bind_for_each_declaration_kind(kind));
-                        let binding_category = declaration_kind
-                            .map(|kind| self.binding_category_for_for_each_declaration_kind(kind));
+                        let keyword =
+                            keyword.map(|keyword| self.bind_binding_keyword(keyword));
+                        let binding_category = keyword
+                            .map(|keyword| self.binding_category_for_binding_keyword(keyword));
                         let pattern = self.bind_pattern(
                             module,
                             ast,
@@ -2127,7 +2110,7 @@ impl Compiler {
                         );
                         ForEachBinding::Pattern {
                             pattern,
-                            declaration_kind,
+                            keyword,
                         }
                     }
                     ast::ForEachBinding::Using { asynchrony, pattern } => {
@@ -2169,7 +2152,7 @@ impl Compiler {
                 );
                 Expression::ForEach {
                     asynchrony,
-                    kind,
+                    operator,
                     binding,
                     iterator,
                     body,
@@ -2204,7 +2187,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        space_order,
+                        space,
                     )
                 });
                 let condition = condition.map(|condition| {
@@ -2220,7 +2203,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        space_order,
+                        space,
                     )
                 });
                 let increment = increment.map(|increment| {
@@ -2236,7 +2219,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        space_order,
+                        space,
                     )
                 });
                 let body = self.bind_block(
@@ -2318,7 +2301,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 let catch_pattern = catch_pattern.map(|catch_pattern| {
                     self.bind_pattern(
@@ -2352,7 +2335,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        SymbolSpaceOrder::TypeThenValue,
+                        SymbolSpace::Type,
                     )
                 });
                 let catch_expression = catch_expression.map(|catch_expression| {
@@ -2368,7 +2351,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        space_order,
+                        space,
                     )
                 });
                 let finally_expression = finally_expression.map(|finally_expression| {
@@ -2384,7 +2367,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        space_order,
+                        space,
                     )
                 });
                 Expression::Try {
@@ -2397,7 +2380,7 @@ impl Compiler {
                     symbol: symbol_id,
                 }
             }
-            ast::Expression::Match { kind, value, cases } => {
+            ast::Expression::Match { form, value, cases } => {
                 let value = self.bind_expression(
                     module,
                     ast,
@@ -2410,7 +2393,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 let (symbol_id, scope_id) = self.bind_anonymous_item_with_scope(
                     module,
@@ -2438,15 +2421,15 @@ impl Compiler {
                         )
                     })
                     .collect();
-                let kind = match *kind {
-                    ast::MatchKind::Match => MatchKind::Match,
-                    ast::MatchKind::Switch => MatchKind::Switch,
+                let form = match *form {
+                    ast::MatchForm::Match => MatchForm::Match,
+                    ast::MatchForm::Switch => MatchForm::Switch,
                 };
                 Expression::Match {
-                    kind,
+                    form,
                     value,
                     cases,
-                    source: MatchSource::Match,
+                    source: MatchOrigin::Match,
                     scope: scope_id,
                     symbol: symbol_id,
                 }
@@ -2468,18 +2451,17 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        space_order,
+                        space,
                     )
                 });
                 if let Some(label) = label {
-                    Expression::UnresolvedBreak {
-                        target: label,
+                    Expression::Break {
+                        target: Some(label),
                         value,
                     }
                 } else {
                     Expression::Break {
                         target: None,
-                        target_symbol: None,
                         value,
                     }
                 }
@@ -2488,12 +2470,11 @@ impl Compiler {
                 let label =
                     label.map(|label| label);
                 if let Some(label) = label {
-                    Expression::UnresolvedContinue { target: label }
-                } else {
                     Expression::Continue {
-                        target: None,
-                        target_symbol: None,
+                        target: Some(label),
                     }
+                } else {
+                    Expression::Continue { target: None }
                 }
             }
             ast::Expression::Return { value } => {
@@ -2510,7 +2491,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        space_order,
+                        space,
                     )
                 });
                 Expression::Return { value }
@@ -2528,7 +2509,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 Expression::Await { expression }
             }
@@ -2545,7 +2526,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 Expression::AwaitMaybe { expression }
             }
@@ -2562,7 +2543,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 Expression::Comptime { body }
             }
@@ -2584,7 +2565,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        space_order,
+                        space,
                     )
                 });
                 Expression::Yield { cardinality, value }
@@ -2602,7 +2583,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space_order,
+                    space,
                 );
                 Expression::Throw { value }
             }
@@ -2622,7 +2603,7 @@ impl Compiler {
             let expression_id = tree.insert(expression_id, expression);
             symbols
                 .get_symbol_mut(symbol_id)
-                .declare_primary(expression_id);
+                .declare(expression_id);
             expression_id
         } else {
             tree.insert(expression_id, expression)
@@ -2640,7 +2621,7 @@ impl Compiler {
         global_augmentation_scope: LocalScopeId,
         module_bindings: &mut Vec<ModuleBinding>,
         scope: (LocalScopeId, LocalScopeMark),
-        export: Option<ExportMode>,
+        export: Option<ExportKind>,
         binding: SymbolBinding,
         binding_mutability: Option<Mutability>,
         binding_category: Option<BindingCategory>,
@@ -2685,7 +2666,7 @@ impl Compiler {
                 tree,
                 symbols,
                 types,
-                SymbolSpaceOrder::TypeThenValue,
+                SymbolSpace::Type,
             )
         });
 
@@ -2708,12 +2689,15 @@ impl Compiler {
                 tree,
                 symbols,
                 types,
-                SymbolSpaceOrder::ValueThenType,
+                SymbolSpace::Value,
             )
         });
         // set declared type on declarator if type annotation is present
         if let Some(ty_id) = bound_ty {
-            let declared_ty = types.insert_type_from(Type::Unevaluated(ty_id), ty_id);
+            let declared_ty = types.insert_type_from(
+                Type::Unevaluated(UnevaluatedType { expression: ty_id }),
+                ty_id,
+            );
             types.set_declared_type(declarator_id.into_global(module.id), declared_ty);
         }
         let declarator = Declarator {
@@ -2730,8 +2714,7 @@ mod tests {
     use crate::tests::TestProgram;
     use crate::{assert_node, assert_path};
     use destack_dir::{
-        Declarator, Expression, StaticKey, SymbolSpace, SymbolSpaceOrder, SymbolTable,
-        TypeExpression,
+        Declarator, Expression, StaticKey, SymbolSpace, SymbolTable, TypeExpression,
     };
 
     // Test that infer type variables are visible in the then-branch of conditional types.
@@ -2860,23 +2843,23 @@ let Foo: Foo = Foo;
                             TypeExpression::Reference {
                                 path,
                                 generic_arguments: _,
-                                space_order,
+                                space,
                             } => {
                                 assert_path!(test.program, path, "Foo");
-                                assert_eq!(*space_order, SymbolSpaceOrder::TypeThenValue);
+                                assert_eq!(*space, SymbolSpace::Type);
                             }
                         );
 
                         assert_node!(
                             tree,
                             *value_id,
-                            Expression::UnresolvedPath {
+                            Expression::Path {
                                 path,
                                 generic_arguments: _,
-                                space_order,
+                                space,
                             } => {
                                 assert_path!(test.program, path, "Foo");
-                                assert_eq!(*space_order, SymbolSpaceOrder::ValueThenType);
+                                assert_eq!(*space, SymbolSpace::Value);
                             }
                         );
                     }
@@ -2900,19 +2883,17 @@ let Foo: Foo = Foo;
         let symbols = &dir.symbols;
         let name = test.program.strings.intern("Foo");
         let key = StaticKey::Name(name);
-        let (type_count, value_count, type_value_count) = count_symbol_spaces(symbols, key);
+        let (type_count, value_count) = count_symbol_spaces(symbols, key);
 
         assert_eq!(type_count, 1);
         assert_eq!(value_count, 0);
-        assert_eq!(type_value_count, 0);
     }
 
-    fn count_symbol_spaces(symbols: &SymbolTable, key: StaticKey) -> (usize, usize, usize) {
+    fn count_symbol_spaces(symbols: &SymbolTable, key: StaticKey) -> (usize, usize) {
         let mut type_count = 0;
         let mut value_count = 0;
-        let mut type_value_count = 0;
 
-        for local_id in symbols.active_symbol_ids() {
+        for local_id in symbols.symbol_ids() {
             let symbol = symbols.get_symbol(local_id);
             if symbol.key != Some(key) {
                 continue;
@@ -2921,11 +2902,10 @@ let Foo: Foo = Foo;
             match symbol.space {
                 SymbolSpace::Type => type_count += 1,
                 SymbolSpace::Value => value_count += 1,
-                SymbolSpace::TypeValue => type_value_count += 1,
                 SymbolSpace::Label => {}
             }
         }
 
-        (type_count, value_count, type_value_count)
+        (type_count, value_count)
     }
 }

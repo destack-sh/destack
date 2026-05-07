@@ -2,13 +2,13 @@ use crate::Compiler;
 use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
-    BindingCategory, ClassDeclaration, Declaration, DependencyItem, EnumDeclaration, EnumField,
-    EnumKind, ExportMode, Expression, ExtensionDeclaration, FunctionDeclaration, GlobalDeclaration,
-    ImportAliasDeclaration, ImportAliasTarget, ImportSource, InterfaceDeclaration,
-    InterfaceHeritage, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, LocalSymbolId,
-    ModuleBinding, Name, NamespaceDeclaration, NamespaceKind, NodeType, ProvenanceReason,
-    ScopeKind, StaticKey, StructDeclaration, SymbolBinding, SymbolKind, SymbolSpace,
-    SymbolSpaceOrder, SymbolTable, SymbolType, Tree, TypeDeclaration, TypeTable,
+    BindingCategory, ClassDeclaration, Declaration, DeclarationForm, DependencyItem,
+    EnumDeclaration, EnumField, EnumKind, ExportKind, Expression, ExtensionDeclaration,
+    FunctionDeclaration, GlobalDeclaration, ImportAliasDeclaration, ImportAliasTarget,
+    InterfaceDeclaration, InterfaceHeritage, LocalNodeId, LocalNodeIdAny, LocalScopeId,
+    LocalScopeMark, LocalSymbolId, ModuleBinding, ModuleDeclaration, Name, NamespaceDeclaration,
+    NamespaceForm, NodeType, ProvenanceReason, ScopeKind, StaticKey, StructDeclaration,
+    SymbolBinding, SymbolKind, SymbolSpace, SymbolTable, Tree, TypeDeclaration, TypeTable,
 };
 use destack_workspace::Module;
 
@@ -23,103 +23,62 @@ impl Compiler {
         }
     }
 
-    /// Bind namespace kind to DIR namespace kind.
+    /// Bind an AST namespace form to a DIR namespace form.
     #[inline]
-    pub(super) fn bind_namespace_kind(&self, kind: ast::NamespaceKind) -> NamespaceKind {
-        match kind {
-            ast::NamespaceKind::Namespace => NamespaceKind::Namespace,
-            ast::NamespaceKind::Module => NamespaceKind::Module,
+    pub(super) fn bind_namespace_form(&self, form: ast::NamespaceForm) -> NamespaceForm {
+        match form {
+            ast::NamespaceForm::Namespace => NamespaceForm::Namespace,
+            ast::NamespaceForm::Module => NamespaceForm::Module,
         }
     }
 
     /// Return the symbol binding used for one declaration header.
-    fn bind_declaration_binding(
-        &self,
-        module: &Module,
-        ambient: ast::Ambientness,
-    ) -> SymbolBinding {
-        if module.is_declaration() || ambient == ast::Ambientness::Ambient {
+    fn bind_declaration_binding(&self, module: &Module, is_ambient: bool) -> SymbolBinding {
+        if module.is_declaration() || is_ambient {
             SymbolBinding::Ambient
         } else {
             SymbolBinding::Runtime
         }
     }
 
-    /// Return the symbol space used for one declaration symbol type.
+    /// Return the symbol space used for one declaration form.
     fn bind_declaration_symbol_space(
         &self,
-        module: &Module,
-        symbol_type: SymbolType,
+        _module: &Module,
+        declaration_form: DeclarationForm,
     ) -> SymbolSpace {
-        match symbol_type {
-            SymbolType::TypeAlias | SymbolType::Interface => SymbolSpace::Type,
-            SymbolType::Class
-            | SymbolType::Enum
-            | SymbolType::Struct
-            | SymbolType::Newtype
-            | SymbolType::Extension => SymbolSpace::TypeValue,
-            SymbolType::Function => {
-                if module.is_destack() {
-                    SymbolSpace::TypeValue
-                } else {
-                    SymbolSpace::Value
-                }
-            }
-            SymbolType::Void => SymbolSpace::Value,
+        match declaration_form {
+            DeclarationForm::TypeAlias | DeclarationForm::Interface => SymbolSpace::Type,
+            DeclarationForm::Class
+            | DeclarationForm::Enum
+            | DeclarationForm::Struct
+            | DeclarationForm::Newtype
+            | DeclarationForm::Extension
+            | DeclarationForm::Function
+            | DeclarationForm::Void => SymbolSpace::Value,
         }
     }
 
     /// Bind one named or anonymous declaration symbol.
     fn bind_declaration_symbol(
         &self,
-        module: &Module,
+        _module: &Module,
         scope: (LocalScopeId, LocalScopeMark),
         name: Option<Name>,
-        export: Option<ExportMode>,
+        export: Option<ExportKind>,
         kind: SymbolKind,
-        symbol_type: SymbolType,
+        declaration_form: DeclarationForm,
         binding: SymbolBinding,
         space: SymbolSpace,
         symbols: &mut SymbolTable,
     ) -> LocalSymbolId {
-        // key and merge lookup
+        // declaration key
         let key = name.map(|name| StaticKey::Name(name.string()));
-        let (merge_symbol, merge_group) = key
-            .map(|key| {
-                self.select_merge_candidate(
-                    module,
-                    scope,
-                    key,
-                    kind,
-                    symbol_type,
-                    binding,
-                    space,
-                    symbols,
-                )
-            })
-            .unwrap_or((None, None));
 
-        // reuse or insert symbol
-        let symbol_id = if let Some(symbol_id) = merge_symbol {
-            if let Some(export) = export
-                && symbols.get_symbol(symbol_id).export.is_none()
-            {
-                symbols.get_symbol_mut(symbol_id).export = Some(export);
-            }
-
-            symbol_id
-        } else {
-            symbols
-                .insert_symbol(kind, symbol_type, space, binding, key, scope, export)
-                .0
-        };
-
-        // attach merge group metadata
-        if let Some(group_id) = merge_group
-            && symbols.get_symbol(symbol_id).merge_group != Some(group_id)
-        {
-            symbols.add_to_merge_group(group_id, symbol_id);
-        }
+        // insert a fresh declaration symbol
+        let symbol_id = symbols
+            .insert_symbol(kind, declaration_form, space, binding, key, scope, export)
+            .0;
 
         symbol_id
     }
@@ -130,53 +89,25 @@ impl Compiler {
         module: &Module,
         scope: (LocalScopeId, LocalScopeMark),
         name: Option<Name>,
-        export: Option<ExportMode>,
+        export: Option<ExportKind>,
         kind: SymbolKind,
-        symbol_type: SymbolType,
+        declaration_form: DeclarationForm,
         binding: SymbolBinding,
         symbols: &mut SymbolTable,
     ) -> (LocalSymbolId, LocalScopeId) {
-        // symbol and merge handling
-        let space = self.bind_declaration_symbol_space(module, symbol_type);
+        // symbol space
+        let space = self.bind_declaration_symbol_space(module, declaration_form);
+
+        // declaration key
         let key = name.map(|name| StaticKey::Name(name.string()));
-        let (merge_symbol, merge_group) = key
-            .map(|key| {
-                self.select_merge_candidate(
-                    module,
-                    scope,
-                    key,
-                    kind,
-                    symbol_type,
-                    binding,
-                    space,
-                    symbols,
-                )
-            })
-            .unwrap_or((None, None));
-        let symbol_id = if let Some(symbol_id) = merge_symbol {
-            if let Some(export) = export
-                && symbols.get_symbol(symbol_id).export.is_none()
-            {
-                symbols.get_symbol_mut(symbol_id).export = Some(export);
-            }
 
-            symbol_id
-        } else {
-            symbols
-                .insert_symbol(kind, symbol_type, space, binding, key, scope, export)
-                .0
-        };
+        // insert a fresh declaration symbol
+        let symbol_id = symbols
+            .insert_symbol(kind, declaration_form, space, binding, key, scope, export)
+            .0;
 
-        // namespace merges reuse their owned scope
-        let reuse_scope = kind == SymbolKind::Namespace
-            && merge_symbol.is_some_and(|symbol_id| {
-                symbols.get_symbol(symbol_id).kind == SymbolKind::Namespace
-            });
-        let scope_id = if reuse_scope {
-            symbols.get_symbol(symbol_id).scope.0
-        } else {
-            symbols.insert_scope(ScopeKind::Namespace, Some(scope), Some(symbol_id))
-        };
+        // namespace declarations own their namespace scope
+        let scope_id = symbols.insert_scope(ScopeKind::Namespace, Some(scope), Some(symbol_id));
 
         // namespace symbols own their namespace scope
         if kind == SymbolKind::Namespace {
@@ -184,13 +115,6 @@ impl Compiler {
             let symbol = symbols.get_symbol_mut(symbol_id);
             symbol.kind = SymbolKind::Namespace;
             symbol.scope = (scope_id, scope_mark);
-        }
-
-        // attach merge group metadata
-        if let Some(group_id) = merge_group
-            && symbols.get_symbol(symbol_id).merge_group != Some(group_id)
-        {
-            symbols.add_to_merge_group(group_id, symbol_id);
         }
 
         (symbol_id, scope_id)
@@ -205,7 +129,7 @@ impl Compiler {
         let scope = symbols.get_scope_by_id(scope_id);
 
         // named symbols
-        for (_, symbol_id) in symbols.active_named_symbols(scope) {
+        for (_, symbol_id) in symbols.named_symbols(scope) {
             let symbol = symbols.get_symbol(symbol_id);
             if symbol.binding == SymbolBinding::Runtime
                 && symbol.space.conflicts_with(SymbolSpace::Value)
@@ -215,7 +139,7 @@ impl Compiler {
         }
 
         // anonymous symbols
-        for symbol_id in symbols.active_anonymous_symbols(scope) {
+        for symbol_id in symbols.anonymous_symbols(scope) {
             let symbol = symbols.get_symbol(symbol_id);
             if symbol.binding == SymbolBinding::Runtime
                 && symbol.space.conflicts_with(SymbolSpace::Value)
@@ -231,14 +155,17 @@ impl Compiler {
     fn declaration_expression_name_is_self_scope_only(
         &self,
         name: Option<ast::Name>,
-        symbol_type: SymbolType,
+        declaration_form: DeclarationForm,
         is_statement_declaration: bool,
     ) -> bool {
         if is_statement_declaration || name.is_none() {
             return false;
         }
 
-        matches!(symbol_type, SymbolType::Class | SymbolType::Function)
+        matches!(
+            declaration_form,
+            DeclarationForm::Class | DeclarationForm::Function
+        )
     }
 
     /// Insert a self binding for one named declaration expression.
@@ -246,7 +173,7 @@ impl Compiler {
         &self,
         scope_id: LocalScopeId,
         name: Name,
-        symbol_type: SymbolType,
+        declaration_form: DeclarationForm,
         symbols: &mut SymbolTable,
     ) -> LocalSymbolId {
         let key = StaticKey::Name(name.string());
@@ -260,7 +187,7 @@ impl Compiler {
         symbols
             .insert_symbol(
                 SymbolKind::Local,
-                symbol_type,
+                declaration_form,
                 SymbolSpace::Value,
                 SymbolBinding::Runtime,
                 Some(key),
@@ -277,14 +204,14 @@ impl Compiler {
         ast: &Ast,
         scope: (LocalScopeId, LocalScopeMark),
         name: Option<ast::Name>,
-        export: Option<ast::ExportMode>,
-        ambient: ast::Ambientness,
-        symbol_type: SymbolType,
+        export: Option<ast::ExportKind>,
+        is_ambient: bool,
+        declaration_form: DeclarationForm,
         is_statement_declaration: bool,
         symbols: &mut SymbolTable,
     ) -> (
         Option<Name>,
-        Option<ExportMode>,
+        Option<ExportKind>,
         SymbolBinding,
         LocalSymbolId,
         LocalScopeId,
@@ -292,12 +219,12 @@ impl Compiler {
     ) {
         let name_is_self_scope_only = self.declaration_expression_name_is_self_scope_only(
             name,
-            symbol_type,
+            declaration_form,
             is_statement_declaration,
         );
         let name = name.map(|name| self.bind_name(ast, name));
-        let export = export.map(|export| self.bind_export_mode(export));
-        let binding = self.bind_declaration_binding(module, ambient);
+        let export = export.map(|export| self.bind_export_kind(export));
+        let binding = self.bind_declaration_binding(module, is_ambient);
 
         // named expressions do not publish an outer binding
         if name_is_self_scope_only {
@@ -307,12 +234,17 @@ impl Compiler {
                 None,
                 export,
                 SymbolKind::Item,
-                symbol_type,
+                declaration_form,
                 binding,
                 symbols,
             );
             let self_symbol = name.map(|name| {
-                self.bind_declaration_expression_self_name(scope_id, name, symbol_type, symbols)
+                self.bind_declaration_expression_self_name(
+                    scope_id,
+                    name,
+                    declaration_form,
+                    symbols,
+                )
             });
 
             return (name, export, binding, symbol_id, scope_id, self_symbol);
@@ -325,7 +257,7 @@ impl Compiler {
             name,
             export,
             SymbolKind::Item,
-            symbol_type,
+            declaration_form,
             binding,
             symbols,
         );
@@ -364,15 +296,15 @@ impl Compiler {
         let declaration = match ast_declaration {
             ast::Declaration::Global(declaration) => {
                 // symbol and declaration scope
-                let ambient = self.bind_ambientness(declaration.ambient);
-                let binding = self.bind_declaration_binding(module, declaration.ambient);
+                let is_ambient = self.bind_ambientness(declaration.is_ambient);
+                let binding = self.bind_declaration_binding(module, declaration.is_ambient);
                 let symbol = self.bind_declaration_symbol(
                     module,
                     scope,
                     None,
                     None,
                     SymbolKind::Item,
-                    SymbolType::Void,
+                    DeclarationForm::Void,
                     binding,
                     SymbolSpace::Value,
                     symbols,
@@ -399,15 +331,58 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                            SymbolSpaceOrder::ValueThenType,
+                            SymbolSpace::Value,
                         )
                     })
                     .collect();
 
                 Declaration::Global(GlobalDeclaration {
-                    ambient,
+                    is_ambient,
                     symbol,
                     scope: global_augmentation_scope,
+                    expressions,
+                })
+            }
+            ast::Declaration::Module(declaration) => {
+                // symbol
+                let symbol = self.bind_declaration_symbol(
+                    module,
+                    scope,
+                    None,
+                    None,
+                    SymbolKind::Item,
+                    DeclarationForm::Void,
+                    SymbolBinding::Runtime,
+                    SymbolSpace::Value,
+                    symbols,
+                );
+                let declaration_scope = (namespace_scope, symbols.get_scope_mark(namespace_scope));
+
+                // body
+                let expressions = declaration
+                    .expressions
+                    .iter()
+                    .map(|expression| {
+                        self.bind_expression(
+                            module,
+                            ast,
+                            namespace_scope,
+                            global_augmentation_scope,
+                            module_bindings,
+                            declaration_scope,
+                            *expression,
+                            Some(declaration_id),
+                            tree,
+                            symbols,
+                            types,
+                            SymbolSpace::Value,
+                        )
+                    })
+                    .collect();
+
+                Declaration::Module(ModuleDeclaration {
+                    symbol,
+                    scope: namespace_scope,
                     expressions,
                 })
             }
@@ -416,17 +391,17 @@ impl Compiler {
                 let name = self.bind_name(ast, declaration.name);
                 let export = declaration
                     .export
-                    .map(|export| self.bind_export_mode(export));
-                let ambient = self.bind_ambientness(declaration.ambient);
-                let binding = self.bind_declaration_binding(module, declaration.ambient);
-                let kind = self.bind_namespace_kind(declaration.kind);
+                    .map(|export| self.bind_export_kind(export));
+                let is_ambient = self.bind_ambientness(declaration.is_ambient);
+                let binding = self.bind_declaration_binding(module, declaration.is_ambient);
+                let form = self.bind_namespace_form(declaration.form);
                 let (symbol, scope_id) = self.bind_declaration_symbol_with_scope(
                     module,
                     scope,
                     Some(name),
                     export,
                     SymbolKind::Namespace,
-                    SymbolType::Void,
+                    DeclarationForm::Void,
                     binding,
                     symbols,
                 );
@@ -489,12 +464,12 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                            SymbolSpaceOrder::ValueThenType,
+                            SymbolSpace::Value,
                         )
                     })
                     .collect();
 
-                // runtime free namespaces degrade to ambient
+                // runtime free namespaces degrade to is_ambient
                 if binding == SymbolBinding::Runtime
                     && !self.namespace_scope_has_runtime_value_symbols(symbols, scope_id)
                 {
@@ -508,18 +483,18 @@ impl Compiler {
                     let default_symbol = symbols
                         .insert_symbol(
                             SymbolKind::Namespace,
-                            SymbolType::Void,
+                            DeclarationForm::Void,
                             SymbolSpace::Value,
                             binding,
                             None,
                             (scope_id, scope_mark),
-                            Some(ExportMode::Default),
+                            Some(ExportKind::Default),
                         )
                         .0;
                     let export_assignment_symbol = symbols
                         .insert_symbol(
                             SymbolKind::Namespace,
-                            SymbolType::Void,
+                            DeclarationForm::Void,
                             SymbolSpace::Value,
                             binding,
                             None,
@@ -540,9 +515,9 @@ impl Compiler {
                 Declaration::Namespace(NamespaceDeclaration {
                     name,
                     export,
-                    ambient,
+                    is_ambient,
                     symbol,
-                    kind,
+                    form,
                     generic_parameters,
                     where_clauses,
                     scope: scope_id,
@@ -554,18 +529,18 @@ impl Compiler {
                 let name = self.bind_name(ast, declaration.name);
                 let export = declaration
                     .export
-                    .map(|export| self.bind_export_mode(export));
-                let ambient = self.bind_ambientness(declaration.ambient);
-                let binding = self.bind_declaration_binding(module, declaration.ambient);
+                    .map(|export| self.bind_export_kind(export));
+                let is_ambient = self.bind_ambientness(declaration.is_ambient);
+                let binding = self.bind_declaration_binding(module, declaration.is_ambient);
                 let symbol_kind = if declaration.export.is_some() {
                     SymbolKind::Item
                 } else {
                     SymbolKind::Local
                 };
-                let symbol_type = if declaration.is_nominal {
-                    SymbolType::Newtype
+                let declaration_form = if declaration.is_nominal {
+                    DeclarationForm::Newtype
                 } else {
-                    SymbolType::TypeAlias
+                    DeclarationForm::TypeAlias
                 };
                 let (symbol, scope_id) = self.bind_declaration_symbol_with_scope(
                     module,
@@ -573,7 +548,7 @@ impl Compiler {
                     Some(name),
                     export,
                     symbol_kind,
-                    symbol_type,
+                    declaration_form,
                     binding,
                     symbols,
                 );
@@ -635,13 +610,13 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    SymbolSpaceOrder::TypeThenValue,
+                    SymbolSpace::Type,
                 );
 
                 Declaration::Type(TypeDeclaration {
                     name,
                     export,
-                    ambient,
+                    is_ambient,
                     symbol,
                     scope: scope_id,
                     is_nominal: declaration.is_nominal,
@@ -656,13 +631,13 @@ impl Compiler {
                 let name = self.bind_name(ast, declaration.name);
                 let export = declaration
                     .export
-                    .map(|export| self.bind_export_mode(export));
-                let ambient = self.bind_ambientness(declaration.ambient);
-                let binding = self.bind_declaration_binding(module, declaration.ambient);
-                let kind = self.bind_dependency_kind(declaration.kind);
-                let space = match declaration.kind {
-                    ast::DependencyKind::Type => SymbolSpace::Type,
-                    ast::DependencyKind::Value => SymbolSpace::TypeValue,
+                    .map(|export| self.bind_export_kind(export));
+                let is_ambient = self.bind_ambientness(declaration.is_ambient);
+                let binding = self.bind_declaration_binding(module, declaration.is_ambient);
+                let dependency_space = self.bind_dependency_space(declaration.space);
+                let space = match declaration.space {
+                    ast::DependencySpace::Type => SymbolSpace::Type,
+                    ast::DependencySpace::Value => SymbolSpace::Value,
                 };
                 let symbol = self.bind_declaration_symbol(
                     module,
@@ -670,7 +645,7 @@ impl Compiler {
                     Some(name),
                     export,
                     SymbolKind::Item,
-                    SymbolType::Void,
+                    DeclarationForm::Void,
                     binding,
                     space,
                     symbols,
@@ -699,14 +674,11 @@ impl Compiler {
                         Some(declaration_id),
                         Some(ProvenanceReason::Bound),
                     );
-                    let dependency = DependencyItem::UnresolvedRemote {
-                        source: ImportSource::ImportEquals,
-                        mode: destack_dir::DependencyMode::Namespace,
-                        kind,
+                    let dependency = DependencyItem::Item {
+                        binding: destack_dir::DependencyBinding::Namespace,
+                        space: dependency_space,
                         name: None,
                         alias: Some(alias),
-                        target,
-                        target_module: None,
                         symbol: Some(symbol),
                     };
                     tree.insert(dependency_id, dependency);
@@ -716,18 +688,18 @@ impl Compiler {
                     Declaration::ImportAlias(ImportAliasDeclaration {
                         name,
                         export,
-                        ambient,
+                        is_ambient,
                         symbol,
-                        kind,
+                        space: dependency_space,
                         target,
                     })
                 } else {
                     Declaration::ImportAlias(ImportAliasDeclaration {
                         name,
                         export,
-                        ambient,
+                        is_ambient,
                         symbol,
-                        kind,
+                        space: dependency_space,
                         target,
                     })
                 }
@@ -737,16 +709,16 @@ impl Compiler {
                 let name = self.bind_name(ast, declaration.name);
                 let export = declaration
                     .export
-                    .map(|export| self.bind_export_mode(export));
-                let ambient = self.bind_ambientness(declaration.ambient);
-                let binding = self.bind_declaration_binding(module, declaration.ambient);
+                    .map(|export| self.bind_export_kind(export));
+                let is_ambient = self.bind_ambientness(declaration.is_ambient);
+                let binding = self.bind_declaration_binding(module, declaration.is_ambient);
                 let (symbol, scope_id) = self.bind_declaration_symbol_with_scope(
                     module,
                     scope,
                     Some(name),
                     export,
                     SymbolKind::Item,
-                    SymbolType::Struct,
+                    DeclarationForm::Struct,
                     binding,
                     symbols,
                 );
@@ -809,7 +781,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                            SymbolSpaceOrder::TypeThenValue,
+                            SymbolSpace::Type,
                         )
                     })
                     .collect();
@@ -829,7 +801,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                            SymbolSpaceOrder::TypeThenValue,
+                            SymbolSpace::Type,
                         )
                     })
                     .collect();
@@ -856,7 +828,7 @@ impl Compiler {
                 Declaration::Struct(StructDeclaration {
                     name,
                     export,
-                    ambient,
+                    is_ambient,
                     symbol,
                     scope: scope_id,
                     generic_parameters,
@@ -875,12 +847,12 @@ impl Compiler {
                         scope,
                         declaration.name,
                         declaration.export,
-                        declaration.ambient,
-                        SymbolType::Class,
+                        declaration.is_ambient,
+                        DeclarationForm::Class,
                         is_statement_declaration,
                         symbols,
                     );
-                let ambient = self.bind_ambientness(declaration.ambient);
+                let is_ambient = self.bind_ambientness(declaration.is_ambient);
                 let declaration_scope = (scope_id, symbols.get_scope_mark(scope_id));
 
                 // polymorphism
@@ -937,7 +909,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        SymbolSpaceOrder::TypeThenValue,
+                        SymbolSpace::Type,
                     )
                 });
                 let extends_generic_arguments = declaration
@@ -956,7 +928,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                            SymbolSpaceOrder::TypeThenValue,
+                            SymbolSpace::Type,
                         )
                     })
                     .collect();
@@ -976,7 +948,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                            SymbolSpaceOrder::TypeThenValue,
+                            SymbolSpace::Type,
                         )
                     })
                     .collect();
@@ -1006,7 +978,7 @@ impl Compiler {
                 Declaration::Class(ClassDeclaration {
                     name,
                     export,
-                    ambient,
+                    is_ambient,
                     symbol,
                     self_symbol,
                     scope: scope_id,
@@ -1024,16 +996,16 @@ impl Compiler {
                 let name = declaration.name.map(|name| self.bind_name(ast, name));
                 let export = declaration
                     .export
-                    .map(|export| self.bind_export_mode(export));
-                let ambient = self.bind_ambientness(declaration.ambient);
-                let binding = self.bind_declaration_binding(module, declaration.ambient);
+                    .map(|export| self.bind_export_kind(export));
+                let is_ambient = self.bind_ambientness(declaration.is_ambient);
+                let binding = self.bind_declaration_binding(module, declaration.is_ambient);
                 let (symbol, scope_id) = self.bind_declaration_symbol_with_scope(
                     module,
                     scope,
                     name,
                     export,
                     SymbolKind::Item,
-                    SymbolType::Enum,
+                    DeclarationForm::Enum,
                     binding,
                     symbols,
                 );
@@ -1097,7 +1069,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                            SymbolSpaceOrder::TypeThenValue,
+                            SymbolSpace::Type,
                         )
                     })
                     .collect();
@@ -1143,7 +1115,7 @@ impl Compiler {
                 Declaration::Enum(EnumDeclaration {
                     name,
                     export,
-                    ambient,
+                    is_ambient,
                     symbol,
                     scope: scope_id,
                     kind,
@@ -1159,16 +1131,16 @@ impl Compiler {
                 let name = declaration.name.map(|name| self.bind_name(ast, name));
                 let export = declaration
                     .export
-                    .map(|export| self.bind_export_mode(export));
-                let ambient = self.bind_ambientness(declaration.ambient);
-                let binding = self.bind_declaration_binding(module, declaration.ambient);
+                    .map(|export| self.bind_export_kind(export));
+                let is_ambient = self.bind_ambientness(declaration.is_ambient);
+                let binding = self.bind_declaration_binding(module, declaration.is_ambient);
                 let (symbol, scope_id) = self.bind_declaration_symbol_with_scope(
                     module,
                     scope,
                     name,
                     export,
                     SymbolKind::Item,
-                    SymbolType::Interface,
+                    DeclarationForm::Interface,
                     binding,
                     symbols,
                 );
@@ -1231,7 +1203,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                            SymbolSpaceOrder::TypeThenValue,
+                            SymbolSpace::Type,
                         );
                         let generic_arguments = heritage
                             .generic_arguments
@@ -1249,7 +1221,7 @@ impl Compiler {
                                     tree,
                                     symbols,
                                     types,
-                                    SymbolSpaceOrder::TypeThenValue,
+                                    SymbolSpace::Type,
                                 )
                             })
                             .collect();
@@ -1276,7 +1248,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                            SymbolSpaceOrder::TypeThenValue,
+                            SymbolSpace::Type,
                         )
                     })
                     .collect();
@@ -1284,7 +1256,7 @@ impl Compiler {
                 Declaration::Interface(InterfaceDeclaration {
                     name,
                     export,
-                    ambient,
+                    is_ambient,
                     symbol,
                     scope: scope_id,
                     is_nominal: declaration.is_nominal,
@@ -1299,16 +1271,16 @@ impl Compiler {
                 let name = declaration.name.map(|name| self.bind_name(ast, name));
                 let export = declaration
                     .export
-                    .map(|export| self.bind_export_mode(export));
-                let ambient = self.bind_ambientness(declaration.ambient);
-                let binding = self.bind_declaration_binding(module, declaration.ambient);
+                    .map(|export| self.bind_export_kind(export));
+                let is_ambient = self.bind_ambientness(declaration.is_ambient);
+                let binding = self.bind_declaration_binding(module, declaration.is_ambient);
                 let (symbol, scope_id) = self.bind_declaration_symbol_with_scope(
                     module,
                     scope,
                     name,
                     export,
                     SymbolKind::Item,
-                    SymbolType::Extension,
+                    DeclarationForm::Extension,
                     binding,
                     symbols,
                 );
@@ -1367,7 +1339,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    SymbolSpaceOrder::TypeThenValue,
+                    SymbolSpace::Type,
                 );
                 let implements_types = declaration
                     .implements_types
@@ -1385,7 +1357,7 @@ impl Compiler {
                             tree,
                             symbols,
                             types,
-                            SymbolSpaceOrder::TypeThenValue,
+                            SymbolSpace::Type,
                         )
                     })
                     .collect();
@@ -1412,25 +1384,22 @@ impl Compiler {
                 Declaration::Extension(ExtensionDeclaration {
                     name,
                     export,
-                    ambient,
+                    is_ambient,
                     symbol,
                     scope: scope_id,
                     generic_parameters,
                     where_clauses,
                     target_type,
-                    target_symbol: None,
                     implements_types,
                     members,
                 })
             }
             ast::Declaration::Function(declaration) => {
                 // declaration header
-                let binding_ambient = if declaration.body.is_none()
-                    && (module.supports_declaration_merging() || module.is_destack())
-                {
-                    ast::Ambientness::Ambient
+                let binding_ambient = if declaration.body.is_none() && module.is_destack() {
+                    true
                 } else {
-                    declaration.ambient
+                    declaration.is_ambient
                 };
                 let (name, export, binding, symbol, scope_id, self_symbol) = self
                     .bind_expression_declaration_symbol_with_scope(
@@ -1440,11 +1409,11 @@ impl Compiler {
                         declaration.name,
                         declaration.export,
                         binding_ambient,
-                        SymbolType::Function,
+                        DeclarationForm::Function,
                         is_statement_declaration,
                         symbols,
                     );
-                let ambient = self.bind_ambientness(declaration.ambient);
+                let is_ambient = self.bind_ambientness(declaration.is_ambient);
                 let declaration_scope = (scope_id, symbols.get_scope_mark(scope_id));
 
                 // signature and body
@@ -1475,7 +1444,7 @@ impl Compiler {
                         tree,
                         symbols,
                         types,
-                        SymbolSpaceOrder::ValueThenType,
+                        SymbolSpace::Value,
                     )
                 });
 
@@ -1485,7 +1454,7 @@ impl Compiler {
                 Declaration::Function(FunctionDeclaration {
                     name,
                     export,
-                    ambient,
+                    is_ambient,
                     symbol,
                     self_symbol,
                     scope: scope_id,
@@ -1520,12 +1489,7 @@ impl Compiler {
         }
 
         // attach the declaration to the symbol
-        let symbol_entry = symbols.get_symbol_mut(symbol_id);
-        if symbol_entry.primary_declaration.is_some() {
-            symbol_entry.declare_secondary(declaration_id);
-        } else {
-            symbol_entry.declare_primary(declaration_id);
-        }
+        symbols.get_symbol_mut(symbol_id).declare(declaration_id);
 
         // apply declaration category
         if let Some(binding_category) = binding_category {
@@ -1559,9 +1523,9 @@ impl Compiler {
         let key = StaticKey::Name(name.string());
         let (symbol_id, _) = symbols.insert_symbol(
             SymbolKind::Item,
-            SymbolType::Void,
+            DeclarationForm::Void,
             SymbolSpace::Value,
-            self.bind_declaration_binding(module, ast::Ambientness::Concrete),
+            self.bind_declaration_binding(module, false),
             Some(key),
             scope,
             None,
@@ -1579,14 +1543,14 @@ impl Compiler {
                 tree,
                 symbols,
                 types,
-                SymbolSpaceOrder::ValueThenType,
+                SymbolSpace::Value,
             )
         });
 
         let enum_field = EnumField { name, value };
 
         let field_id = tree.insert(field_id, enum_field);
-        symbols.get_symbol_mut(symbol_id).declare_primary(field_id);
+        symbols.get_symbol_mut(symbol_id).declare(field_id);
 
         field_id
     }

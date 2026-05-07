@@ -31,16 +31,18 @@ impl TypeLowerer<'_> {
         for element_id in collected {
             let dir_type = types.get_type(element_id);
             match dir_type {
-                dir::Type::Reference { symbol, .. } => {
+                dir::Type::Reference(reference) => {
                     if matches!(
-                        symbol.ty(),
-                        dir::SymbolType::Struct
-                            | dir::SymbolType::Class
-                            | dir::SymbolType::Enum
-                            | dir::SymbolType::Newtype
+                        self.symbol_form(reference.symbol),
+                        Some(
+                            dir::DeclarationForm::Struct
+                                | dir::DeclarationForm::Class
+                                | dir::DeclarationForm::Enum
+                                | dir::DeclarationForm::Newtype
+                        )
                     ) {
                         if let Some(existing) = primary_nominal {
-                            if !dir::are_types_equal(existing, element_id, types) {
+                            if existing != element_id {
                                 return Err(LowerError::UnsupportedType {
                                     anchor: self.diagnostic_anchor(node),
                                     ty: element_id.into_global(module_id),
@@ -54,7 +56,7 @@ impl TypeLowerer<'_> {
                         }
                     }
                 }
-                dir::Type::Object { .. } => {
+                dir::Type::Object(_) => {
                     if primary_object.is_none() {
                         primary_object = Some(element_id);
                     }
@@ -104,8 +106,8 @@ impl TypeLowerer<'_> {
 
         // flatten nested intersections
         match types.get_type(type_id) {
-            dir::Type::Intersection { elements } => {
-                for element_id in elements {
+            dir::Type::Intersection(intersection) => {
+                for element_id in &intersection.elements {
                     self.collect_intersection_element(*element_id, types, visited, collected);
                 }
             }

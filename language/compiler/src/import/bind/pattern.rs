@@ -2,10 +2,10 @@ use crate::Compiler;
 use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
-    BindingCategory, ExportMode, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
-    LocalSymbolId, ModuleBinding, Mutability, NodeType, Pattern, PatternField, ScopeKind,
-    StaticKey, StringId, SymbolBinding, SymbolKind, SymbolSpace, SymbolSpaceOrder, SymbolTable,
-    SymbolType, Tree, TypeTable,
+    BindingCategory, DeclarationForm, ExportKind, LocalNodeId, LocalNodeIdAny, LocalScopeId,
+    LocalScopeMark, LocalSymbolId, ModuleBinding, Mutability, NodeType, Pattern, PatternField,
+    ScopeKind, StaticKey, StringId, SymbolBinding, SymbolKind, SymbolSpace, SymbolTable, Tree,
+    TypeTable,
 };
 use destack_workspace::Module;
 
@@ -25,10 +25,10 @@ impl Compiler {
             // function-scoped bindings live on the owning function scope
             let is_function_scope = scope.owner_id.is_some_and(|owner_symbol_id| {
                 let owner_symbol = symbols.get_symbol(owner_symbol_id);
-                owner_symbol.ty == SymbolType::Function
+                owner_symbol.form == DeclarationForm::Function
                     || (scope.kind == ScopeKind::Namespace
                         && owner_symbol.kind == SymbolKind::Item
-                        && owner_symbol.ty == SymbolType::Void
+                        && owner_symbol.form == DeclarationForm::Void
                         && owner_symbol.binding == SymbolBinding::Runtime)
             });
             if is_function_scope {
@@ -122,7 +122,7 @@ impl Compiler {
         global_augmentation_scope: LocalScopeId,
         module_bindings: &mut Vec<ModuleBinding>,
         scope: (LocalScopeId, LocalScopeMark),
-        export: Option<ExportMode>,
+        export: Option<ExportKind>,
         binding: SymbolBinding,
         binding_mutability: Option<Mutability>,
         binding_category: Option<BindingCategory>,
@@ -189,11 +189,11 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    SymbolSpaceOrder::ValueThenType,
+                    SymbolSpace::Value,
                 );
                 Pattern::Assign { pattern, value }
             }
-            ast::Pattern::ReferenceOf {
+            ast::Pattern::BorrowOf {
                 mutability,
                 right: right_id,
             } => {
@@ -215,9 +215,9 @@ impl Compiler {
                     symbols,
                     types,
                 );
-                Pattern::ReferenceOf { mutability, right }
+                Pattern::BorrowOf { mutability, right }
             }
-            ast::Pattern::ValueOf {
+            ast::Pattern::MoveOf {
                 mutability,
                 right: right_id,
             } => {
@@ -239,7 +239,7 @@ impl Compiler {
                     symbols,
                     types,
                 );
-                Pattern::ValueOf { mutability, right }
+                Pattern::MoveOf { mutability, right }
             }
             ast::Pattern::Binding {
                 mutability,
@@ -303,7 +303,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    SymbolSpaceOrder::ValueThenType,
+                    SymbolSpace::Value,
                 );
                 Pattern::Expression { value }
             }
@@ -320,7 +320,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    SymbolSpaceOrder::TypeThenValue,
+                    SymbolSpace::Type,
                 );
                 Pattern::TypeExpression { value }
             }
@@ -362,7 +362,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    SymbolSpaceOrder::TypeThenValue,
+                    SymbolSpace::Type,
                 );
                 let fields = fields
                     .iter()
@@ -388,7 +388,7 @@ impl Compiler {
                     .collect();
                 Pattern::TaggedTuple { ty, fields }
             }
-            ast::Pattern::Array { fields } => {
+            ast::Pattern::Sequence { fields } => {
                 let fields = fields
                     .iter()
                     .map(|field| {
@@ -411,7 +411,7 @@ impl Compiler {
                         )
                     })
                     .collect();
-                Pattern::Array { fields }
+                Pattern::Sequence { fields }
             }
             ast::Pattern::Object { fields } => {
                 let fields = fields
@@ -451,7 +451,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    SymbolSpaceOrder::TypeThenValue,
+                    SymbolSpace::Type,
                 );
                 let fields = fields
                     .iter()
@@ -507,9 +507,7 @@ impl Compiler {
         // pattern
         if let Some(symbol_id) = pattern.symbol() {
             let pattern_id = tree.insert(pattern_id, pattern);
-            symbols
-                .get_symbol_mut(symbol_id)
-                .declare_primary(pattern_id);
+            symbols.get_symbol_mut(symbol_id).declare(pattern_id);
             pattern_id
         } else {
             tree.insert(pattern_id, pattern)
@@ -521,7 +519,7 @@ impl Compiler {
         &self,
         module: &Module,
         ast: &Ast,
-        export: Option<ExportMode>,
+        export: Option<ExportKind>,
         binding: SymbolBinding,
         binding_scope: (LocalScopeId, LocalScopeMark),
         binding_mutability: Option<Mutability>,
@@ -563,14 +561,14 @@ impl Compiler {
             Pattern::Binding { symbol, .. } => Some(*symbol),
             Pattern::Assign { pattern, .. } => self.bound_pattern_symbol(tree, *pattern),
             Pattern::Must(pattern)
-            | Pattern::ReferenceOf { right: pattern, .. }
-            | Pattern::ValueOf { right: pattern, .. } => self.bound_pattern_symbol(tree, *pattern),
+            | Pattern::BorrowOf { right: pattern, .. }
+            | Pattern::MoveOf { right: pattern, .. } => self.bound_pattern_symbol(tree, *pattern),
             Pattern::Wildcard
             | Pattern::Expression { .. }
             | Pattern::TypeExpression { .. }
             | Pattern::Tuple { .. }
             | Pattern::TaggedTuple { .. }
-            | Pattern::Array { .. }
+            | Pattern::Sequence { .. }
             | Pattern::Object { .. }
             | Pattern::TaggedObject { .. }
             | Pattern::Union { .. } => None,
@@ -586,7 +584,7 @@ impl Compiler {
         global_augmentation_scope: LocalScopeId,
         module_bindings: &mut Vec<ModuleBinding>,
         scope: (LocalScopeId, LocalScopeMark),
-        export: Option<ExportMode>,
+        export: Option<ExportKind>,
         binding: SymbolBinding,
         binding_mutability: Option<Mutability>,
         binding_category: Option<BindingCategory>,
@@ -680,7 +678,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    SymbolSpaceOrder::ValueThenType,
+                    SymbolSpace::Value,
                 );
                 let pattern = self.bind_pattern(
                     module,
@@ -763,9 +761,7 @@ impl Compiler {
         // pattern field
         if let Some(symbol_id) = pattern_field.symbol() {
             let pattern_field_id = tree.insert(pattern_field_id, pattern_field);
-            symbols
-                .get_symbol_mut(symbol_id)
-                .declare_primary(pattern_field_id);
+            symbols.get_symbol_mut(symbol_id).declare(pattern_field_id);
             pattern_field_id
         } else {
             tree.insert(pattern_field_id, pattern_field)

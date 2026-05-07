@@ -5,31 +5,16 @@ use destack_source::ModuleId;
 use destack_workspace::{ProfileId, ProviderContext};
 
 impl Compiler {
-    /// Build the language environment for one profile.
-    pub(crate) fn provide_language_environment(
+    /// Build the global environment for one profile.
+    pub(crate) fn provide_global_environment(
         &self,
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
         let state = ResolveState::profile(profile, context);
 
-        panic!(
-            "language environment provider is not wired yet for {:?} profile {:?}",
-            state.context.artifact_key(),
-            state.profile,
-        )
-    }
-
-    /// Build the library environment for one profile.
-    pub(crate) fn provide_ambient_environment(
-        &self,
-        profile: ProfileId,
-        context: &dyn ProviderContext,
-    ) -> CompilerResult<ArtifactPayload> {
-        let state = ResolveState::profile(profile, context);
-
-        panic!(
-            "ambient environment provider is not wired yet for {:?} profile {:?}",
+        todo!(
+            "global environment provider is unavailable for {:?} profile {:?}",
             state.context.artifact_key(),
             state.profile,
         )
@@ -44,8 +29,8 @@ impl Compiler {
     ) -> CompilerResult<ArtifactPayload> {
         let state = ResolveState::module(module, profile, context);
 
-        panic!(
-            "DIR export provider is not wired yet for {:?} module {:?} profile {:?}",
+        todo!(
+            "DIR export provider is unavailable for {:?} module {:?} profile {:?}",
             state.context.artifact_key(),
             state.module,
             state.profile,

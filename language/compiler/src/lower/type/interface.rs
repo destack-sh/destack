@@ -41,7 +41,7 @@ impl TypeLowerer<'_> {
         }
 
         // load the dir type for validation
-        let dir::Type::Reference { symbol, .. } = types.get_type(type_id) else {
+        let dir::Type::Reference(reference) = types.get_type(type_id) else {
             return Err(LowerError::UnsupportedType {
                 anchor: self.diagnostic_anchor(node),
                 ty: type_id.into_global(module_id),
@@ -51,7 +51,7 @@ impl TypeLowerer<'_> {
         };
 
         // require an interface symbol
-        if symbol.ty() != dir::SymbolType::Interface {
+        if !self.symbol_is(reference.symbol, dir::DeclarationForm::Interface) {
             return Err(LowerError::UnsupportedType {
                 anchor: self.diagnostic_anchor(node),
                 ty: type_id.into_global(module_id),

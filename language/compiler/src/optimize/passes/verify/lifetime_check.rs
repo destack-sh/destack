@@ -14,15 +14,14 @@ use crate::optimize::{
 use crate::{OptimizeError, OptimizeWarning};
 
 declare_pass! {
-    /// Verify explicit return lifetime annotations.
+    /// Verify declared return lifetimes.
     ///
-    /// Validates that `@lifetime(...)` matches the borrow origins that flow to
-    /// return values. In strict borrow mode, mismatches are errors. In lenient
-    /// mode, mismatches are warnings. Annotations on non borrowed returns always
-    /// warn to flag redundant annotations.
+    /// Validates that declared return lifetimes match the borrow origins that flow to
+    /// return values. In strict borrow mode, mismatches are errors. In lenient mode,
+    /// mismatches are warnings. Declarations on non borrowed returns warn.
     #[pass(id = "lifetime-check")]
     pub LifetimeCheck,
-    "Verify lifetime annotations"
+    "Verify return lifetimes"
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -169,7 +168,7 @@ impl FunctionPass for LifetimeCheck {
         // resolve the declared return region
         let return_region = function.return_region.clone();
 
-        // warn on annotations for non borrowed returns
+        // warn on return lifetimes for non borrowed returns
         let Some(return_type) = function.return_type.ty() else {
             return AnalysisPreservation::all();
         };
@@ -178,7 +177,7 @@ impl FunctionPass for LifetimeCheck {
             if !matches!(return_region, mir::BorrowRegion::Inferred)
                 && let Some(block_id) = function.blocks.first()
             {
-                ctx.emit_warning(OptimizeWarning::LifetimeAnnotationIgnored {
+                ctx.emit_warning(OptimizeWarning::ReturnLifetimeIgnored {
                     anchor: ctx.anchor(tree, block_id.into_any()),
                 });
             }
@@ -281,12 +280,12 @@ impl FunctionPass for LifetimeCheck {
             };
 
             if strict_mode {
-                ctx.emit_error(OptimizeError::LifetimeAnnotationMismatch {
+                ctx.emit_error(OptimizeError::ReturnLifetimeMismatch {
                     anchor: ctx.anchor(tree, block_id.into_any()),
                     origin: disallowed,
                 });
             } else {
-                ctx.emit_warning(OptimizeWarning::PotentialLifetimeAnnotationMismatch {
+                ctx.emit_warning(OptimizeWarning::PotentialReturnLifetimeMismatch {
                     anchor: ctx.anchor(tree, block_id.into_any()),
                 });
             }
@@ -1256,7 +1255,7 @@ mod tests {
         }
     }
 
-    /// Returning a borrowed param matches lifetime annotations.
+    /// Returning a borrowed param matches return lifetimes.
     #[test]
     fn test_verify_return_borrowed_param() {
         let input = r#"
@@ -1273,7 +1272,7 @@ b0(v0: ref<int32, borrowed>):
         test.assert_no_errors();
     }
 
-    /// Returning a borrowed field matches lifetime annotations.
+    /// Returning a borrowed field matches return lifetimes.
     #[test]
     fn test_verify_return_borrowed_field() {
         let input = r#"
@@ -1307,7 +1306,7 @@ b0:
         let mut test = TestProgram::new(input);
         test.set_function_lifetime("test", mir::BorrowRegion::Parameters(vec![0]));
         test.run_pass_with_options(&LifetimeCheck, options);
-        test.assert_error(|e| matches!(e, OptimizeError::LifetimeAnnotationMismatch { .. }));
+        test.assert_error(|e| matches!(e, OptimizeError::ReturnLifetimeMismatch { .. }));
     }
 
     /// Returning a borrowed param is rejected by static lifetimes.
@@ -1324,7 +1323,7 @@ b0(v0: ref<int32, borrowed>):
         let mut test = TestProgram::new(input);
         test.set_function_lifetime("test", mir::BorrowRegion::Static);
         test.run_pass_with_options(&LifetimeCheck, options);
-        test.assert_error(|e| matches!(e, OptimizeError::LifetimeAnnotationMismatch { .. }));
+        test.assert_error(|e| matches!(e, OptimizeError::ReturnLifetimeMismatch { .. }));
     }
 
     /// Mismatched lifetimes warn in lenient mode.
@@ -1341,14 +1340,11 @@ b0(v0: ref<int32, borrowed>):
         test.run_pass(&LifetimeCheck);
         test.assert_no_errors();
         test.assert_warning(|w| {
-            matches!(
-                w,
-                OptimizeWarning::PotentialLifetimeAnnotationMismatch { .. }
-            )
+            matches!(w, OptimizeWarning::PotentialReturnLifetimeMismatch { .. })
         });
     }
 
-    /// Annotations on non borrowed returns are warned.
+    /// Return lifetimes on non borrowed returns are warned.
     #[test]
     fn test_verify_annotation_ignored_warns() {
         let input = r#"
@@ -1362,7 +1358,7 @@ b0:
         test.set_function_lifetime("test", mir::BorrowRegion::Static);
         test.run_pass(&LifetimeCheck);
         test.assert_no_errors();
-        test.assert_warning(|w| matches!(w, OptimizeWarning::LifetimeAnnotationIgnored { .. }));
+        test.assert_warning(|w| matches!(w, OptimizeWarning::ReturnLifetimeIgnored { .. }));
     }
 
     /// Indirect calls fall back to signature borrowing rules.

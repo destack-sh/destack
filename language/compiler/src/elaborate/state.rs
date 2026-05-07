@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use destack_dir::GuardTable;
 use destack_source::ModuleId;
 use destack_workspace::{Module, ProfileId, ProviderContext};
 
@@ -22,6 +23,8 @@ pub(crate) struct ElaborateState<'a> {
     pub(crate) symbols: &'a mut dir::SymbolTable,
     /// The local type table.
     pub(crate) types: &'a mut dir::TypeTable,
+    /// Elaborated type guard entries.
+    pub(crate) guards: &'a mut GuardTable,
 }
 
 impl<'a> ElaborateState<'a> {
@@ -36,6 +39,7 @@ impl<'a> ElaborateState<'a> {
         tree: &'a mut dir::Tree,
         symbols: &'a mut dir::SymbolTable,
         types: &'a mut dir::TypeTable,
+        guards: &'a mut GuardTable,
     ) -> Self {
         Self {
             provider,
@@ -46,6 +50,7 @@ impl<'a> ElaborateState<'a> {
             tree,
             symbols,
             types,
+            guards,
         }
     }
 }

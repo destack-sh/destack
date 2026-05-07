@@ -6,20 +6,20 @@ use crate::{LowerError, LowerResult};
 use crate::lower::ModuleLowerer;
 
 impl ModuleLowerer<'_> {
-    /// Resolve a dispatchable member name from a key and signature mode.
+    /// Resolve a dispatchable member name from a key and signature role.
     pub(crate) fn member_dispatch_name_or_error(
         &self,
         key: Option<&dir::Key>,
-        mode: Option<dir::FunctionMode>,
+        role: Option<dir::FunctionRole>,
         node: dir::LocalNodeIdAny,
     ) -> LowerResult<StringId> {
         if let Some(dir::Key::Name(name)) = key {
             return Ok(name.string());
         }
 
-        match mode {
-            Some(dir::FunctionMode::Call) => Ok(self.dispatch_call_name),
-            Some(dir::FunctionMode::Constructor | dir::FunctionMode::New) => {
+        match role {
+            Some(dir::FunctionRole::Call) => Ok(self.dispatch_call_name),
+            Some(dir::FunctionRole::Constructor | dir::FunctionRole::New) => {
                 Ok(self.dispatch_construct_name)
             }
             _ => Err(LowerError::UnsupportedConstruct {

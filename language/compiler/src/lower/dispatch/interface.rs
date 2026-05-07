@@ -20,7 +20,7 @@ impl ModuleLowerer<'_> {
         }
 
         let method_name =
-            self.member_dispatch_name_or_error(key, signature.mode, member_id.into_any())?;
+            self.member_dispatch_name_or_error(key, signature.role, member_id.into_any())?;
         let method_name = self.strings.get(method_name).to_string();
         let name_str = if let Some(owner_name) = self.symbol_path_name(interface_symbol) {
             format!("{owner_name}.{method_name}")
@@ -31,12 +31,12 @@ impl ModuleLowerer<'_> {
         // resolve return type for the interface method
         let signature_type_id =
             self.signature_type_id_for_node(member_id.into_global_any(self.module_id))?;
-        let dir::Type::Function { return_type, .. } = self.types.get_type(signature_type_id) else {
+        let dir::Type::Function(function) = self.types.get_type(signature_type_id) else {
             return Err(self.missing_type_error(member_id.into_global_any(self.module_id)));
         };
-        let return_type = if let Some(return_type_id) = return_type {
+        let return_type = if let Some(return_type_id) = function.return_type {
             self.lower_type(
-                *return_type_id,
+                return_type_id,
                 member_id
                     .into_global_any(self.module_id)
                     .into_anchored(Some(self.profile)),

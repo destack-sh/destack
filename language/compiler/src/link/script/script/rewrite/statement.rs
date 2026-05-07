@@ -271,9 +271,7 @@ impl Rewriter<'_, '_> {
                 continue;
             };
 
-            if signature.asynchrony == js::Asynchrony::Async
-                && signature.cardinality == js::FunctionCardinality::Generator
-            {
+            if signature.asynchrony == js::Asynchrony::Async && signature.is_generator {
                 continue;
             }
 
@@ -428,8 +426,8 @@ pub(super) trait DeclarationBindingAccess {
     /// Return the mutable declaration name.
     fn name_mut(&mut self) -> Option<&mut Option<js::Name>>;
 
-    /// Return the declaration export mode.
-    fn export(&self) -> Option<js::DependencyMode>;
+    /// Return the declaration export kind.
+    fn export(&self) -> Option<js::DependencyBinding>;
 }
 
 impl DeclarationBindingAccess for js::Declaration {
@@ -457,7 +455,7 @@ impl DeclarationBindingAccess for js::Declaration {
         }
     }
 
-    fn export(&self) -> Option<js::DependencyMode> {
+    fn export(&self) -> Option<js::DependencyBinding> {
         match self {
             js::Declaration::Global(_) => None,
             js::Declaration::Namespace(declaration) => declaration.export,

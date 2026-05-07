@@ -105,7 +105,7 @@ impl ModuleLowerer<'_> {
         }
 
         // visit base interface first
-        if let Some(lineage) = self.types.get_lineage_for_symbol(interface)
+        if let Some(lineage) = self.types.symbol_lineage(interface)
             && let Some(base) = lineage.extends
         {
             self.collect_interface_slots_inner(base, slots, seen_fields, seen_methods, visited)?;
@@ -221,7 +221,7 @@ impl ModuleLowerer<'_> {
                 // resolve the method name
                 let method_name = self.member_dispatch_name_or_error(
                     Some(key),
-                    signature.mode,
+                    signature.role,
                     member_id.into_any(),
                 )?;
 

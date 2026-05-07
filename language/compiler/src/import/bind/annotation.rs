@@ -3,7 +3,7 @@ use destack_artifact::Ast;
 use destack_ast::{self as ast, StringId};
 use destack_dir::{
     Decorator, DecoratorPosition, Documentation, LocalNodeId, LocalNodeIdAny, LocalScopeId,
-    LocalScopeMark, ModuleBinding, NodeType, SymbolSpaceOrder, SymbolTable, Tree, TypeTable,
+    LocalScopeMark, ModuleBinding, NodeType, SymbolSpace, SymbolTable, Tree, TypeTable,
 };
 use destack_source::File;
 use destack_workspace::{Module, ProviderContext};
@@ -140,7 +140,7 @@ impl Compiler {
             tree,
             symbols,
             types,
-            SymbolSpaceOrder::ValueThenType,
+            SymbolSpace::Value,
         );
         let annotation = Decorator {
             position,
@@ -212,7 +212,7 @@ function f() {}
             .expect("expected f symbol");
         let declaration = symbols
             .get_symbol(declaration_symbol.into_local())
-            .primary_declaration
+            .declaration
             .expect("expected f declaration");
         let documentation = tree
             .get_documentation(declaration.local_id.id)

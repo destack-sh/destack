@@ -3,8 +3,8 @@ use std::sync::Arc;
 #[cfg(feature = "native-codegen")]
 use destack_artifact::MirOptimized;
 use destack_artifact::{
-    AmbientEnvironment, ArtifactKey, ArtifactStore, ArtifactVersion, Ast, Data, DirChecked,
-    DirDeclared, DirExported, LanguageEnvironment, MirLowered, ModuleOutput,
+    ArtifactKey, ArtifactStore, ArtifactVersion, Ast, Data, DirChecked, DirDeclared, DirElaborated,
+    DirExported, GlobalEnvironment, MirLowered, ModuleOutput,
 };
 use destack_source::{ModuleId, ProfileId, TargetId};
 use destack_workspace::{ProviderContext, ProviderError};
@@ -63,52 +63,27 @@ impl Compiler {
         Ok(())
     }
 
-    /// Require one language environment artifact and return its payload.
-    pub(crate) fn language_environment(
+    /// Require one global environment artifact and return its payload.
+    pub(crate) fn global_environment(
         &self,
         context: &dyn ProviderContext,
         profile: ProfileId,
-    ) -> Result<Arc<LanguageEnvironment>, ProviderError> {
-        let artifact_key = ArtifactKey::language_environment(profile);
+    ) -> Result<Arc<GlobalEnvironment>, ProviderError> {
+        let artifact_key = ArtifactKey::global_environment(profile);
         let version = context.require(artifact_key)?;
 
         self.required_artifact(&version, |artifacts, version| {
-            artifacts.language_environment(version)
+            artifacts.global_environment(version)
         })
     }
 
-    /// Require one ambient environment artifact and return its payload.
-    pub(crate) fn ambient_environment(
-        &self,
-        context: &dyn ProviderContext,
-        profile: ProfileId,
-    ) -> Result<Arc<AmbientEnvironment>, ProviderError> {
-        let artifact_key = ArtifactKey::ambient_environment(profile);
-        let version = context.require(artifact_key)?;
-
-        self.required_artifact(&version, |artifacts, version| {
-            artifacts.ambient_environment(version)
-        })
-    }
-
-    /// Require one language environment artifact without loading its payload.
-    pub(crate) fn require_language_environment(
+    /// Require one global environment artifact without loading its payload.
+    pub(crate) fn require_global_environment(
         &self,
         context: &dyn ProviderContext,
         profile: ProfileId,
     ) -> Result<(), ProviderError> {
-        context.require(ArtifactKey::language_environment(profile))?;
-
-        Ok(())
-    }
-
-    /// Require one ambient environment artifact without loading its payload.
-    pub(crate) fn require_ambient_environment(
-        &self,
-        context: &dyn ProviderContext,
-        profile: ProfileId,
-    ) -> Result<(), ProviderError> {
-        context.require(ArtifactKey::ambient_environment(profile))?;
+        context.require(ArtifactKey::global_environment(profile))?;
 
         Ok(())
     }
@@ -159,6 +134,21 @@ impl Compiler {
 
         self.required_artifact(&version, |artifacts, version| {
             artifacts.dir_checked(version)
+        })
+    }
+
+    /// Return the elaborated DIR payload for one exact module output requirement.
+    pub(crate) fn dir_elaborated(
+        &self,
+        context: &dyn ProviderContext,
+        module: ModuleId,
+        profile: ProfileId,
+    ) -> Result<Arc<DirElaborated>, ProviderError> {
+        let artifact_key = ArtifactKey::dir_elaborated(module, profile);
+        let version = context.require(artifact_key)?;
+
+        self.required_artifact(&version, |artifacts, version| {
+            artifacts.dir_elaborated(version)
         })
     }
 

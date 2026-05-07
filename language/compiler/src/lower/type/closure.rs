@@ -36,7 +36,7 @@ pub(crate) struct FunctionEnvironmentField {
     /// The captured symbol stored in this field.
     pub(crate) symbol: dir::GlobalSymbolId,
     /// The capture mode for this field.
-    pub(crate) kind: dir::CaptureKind,
+    pub(crate) mode: dir::CaptureMode,
     /// The field index in the environment layout.
     pub(crate) index: u32,
     /// The MIR type of the field.
@@ -89,7 +89,7 @@ impl ModuleLowerer<'_> {
 
             fields.push(FunctionEnvironmentField {
                 symbol: capture.symbol,
-                kind: capture.kind,
+                mode: capture.mode,
                 index,
                 ty: field_type,
             });
@@ -147,9 +147,9 @@ impl ModuleLowerer<'_> {
         let type_id = self.type_id_for_symbol_or_error(capture.symbol, anchor)?;
         let value_type = self.lower_type(type_id, anchor)?;
 
-        // pick the field type based on capture kind
-        let field_type = match capture.kind {
-            dir::CaptureKind::ByReference => {
+        // pick the field type based on capture mode
+        let field_type = match capture.mode {
+            dir::CaptureMode::Borrow => {
                 let mutability = self.mutability_for_symbol(capture.symbol);
                 let mutability = mutability
                     .map(lower_mutability)
@@ -162,7 +162,7 @@ impl ModuleLowerer<'_> {
                     false,
                 )
             }
-            dir::CaptureKind::ByValue | dir::CaptureKind::ByMove => value_type,
+            dir::CaptureMode::Copy | dir::CaptureMode::Move => value_type,
         };
 
         // compute size and alignment for layout
@@ -256,7 +256,7 @@ impl ModuleLowerer<'_> {
     /// Resolve an anchored node id for a symbol.
     fn anchor_for_symbol(&self, symbol: dir::GlobalSymbolId) -> dir::AnchoredGlobalNodeId {
         let symbol_data = self.symbols.get_symbol(symbol.local_id);
-        if let Some(primary) = symbol_data.primary_declaration {
+        if let Some(primary) = symbol_data.declaration {
             return primary.into_anchored(Some(self.profile));
         }
 
@@ -268,22 +268,22 @@ impl ModuleLowerer<'_> {
 
     /// Resolve a mutability hint for a captured symbol.
     fn mutability_for_symbol(&self, symbol: dir::GlobalSymbolId) -> Option<dir::Mutability> {
-        // use the primary declaration when available
+        // use the declaration when available
         let symbol_data = self.symbols.get_symbol(symbol.local_id);
-        let primary_declaration = symbol_data.primary_declaration?;
+        let declaration = symbol_data.declaration?;
 
         // skip declarations from other modules
-        if primary_declaration.module_id != self.module_id {
+        if declaration.module_id != self.module_id {
             return None;
         }
 
         // parameters are treated as mutable by default
-        if primary_declaration.local_id.ty == dir::NodeType::Parameter {
+        if declaration.local_id.ty == dir::NodeType::Parameter {
             return None;
         }
 
         // walk up to find the owning let binding
-        let mut current = primary_declaration.local_id;
+        let mut current = declaration.local_id;
         loop {
             let parent_id = self.dir_tree.get_parent(current.id)?;
             if parent_id.ty == dir::NodeType::Expression {

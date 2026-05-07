@@ -64,6 +64,8 @@ impl dir::NodeVisitor for ExpressionTypeCollector {
 struct AddressTakenCollector<'a> {
     /// Provide access to inferred type information.
     types: &'a dir::TypeTable,
+    /// Provide access to declaration forms.
+    symbols: &'a dir::SymbolTable,
     /// Identify the module for expression lookups.
     module_id: destack_source::ModuleId,
     /// Symbols that require addressable locals.
@@ -76,9 +78,14 @@ struct AddressTakenCollector<'a> {
 
 impl<'a> AddressTakenCollector<'a> {
     /// Create a new address-taken collector.
-    fn new(types: &'a dir::TypeTable, module_id: destack_source::ModuleId) -> Self {
+    fn new(
+        types: &'a dir::TypeTable,
+        symbols: &'a dir::SymbolTable,
+        module_id: destack_source::ModuleId,
+    ) -> Self {
         Self {
             types,
+            symbols,
             module_id,
             locals: HashSet::new(),
             takes_this: false,
@@ -124,12 +131,13 @@ impl<'a> AddressTakenCollector<'a> {
                     self.record_reference_target(tree, *left);
                 }
             }
-            dir::Expression::LocalReference { target_symbol, .. } => {
-                self.locals.insert(*target_symbol);
-            }
-            dir::Expression::ModuleReference { target_symbol, .. }
-            | dir::Expression::GlobalReference { target_symbol, .. } => {
-                self.locals.insert(*target_symbol);
+            dir::Expression::Path { .. } => {
+                let node_id = expression_id.into_global_any(self.module_id);
+                if let Some(dir::SymbolResolution::Target(symbol)) =
+                    self.types.symbol_resolution(node_id)
+                {
+                    self.locals.insert(*symbol);
+                }
             }
             dir::Expression::This => {
                 self.takes_this = true;
@@ -163,16 +171,18 @@ impl<'a> AddressTakenCollector<'a> {
 
         let ty = self.types.get_type(type_id);
         match ty {
-            dir::Type::Value { value } => self.type_is_reference_like(*value, visited),
-            dir::Type::ReferenceOf { .. } | dir::Type::PointerOf { .. } => true,
-            dir::Type::Reference { symbol, .. } => match symbol.ty() {
-                dir::SymbolType::Class | dir::SymbolType::Interface => true,
-                dir::SymbolType::TypeAlias => self
-                    .types
-                    .get_alias_target_type_id(*symbol)
-                    .is_some_and(|target| self.type_is_reference_like(target, visited)),
-                _ => false,
-            },
+            dir::Type::Value(value) => self.type_is_reference_like(value.value, visited),
+            dir::Type::Form(form) => self.type_is_reference_like(form.base, visited),
+            dir::Type::Reference(reference) => {
+                match self.symbols.get_symbol(reference.symbol.local_id).form {
+                    dir::DeclarationForm::Class | dir::DeclarationForm::Interface => true,
+                    dir::DeclarationForm::TypeAlias => self
+                        .types
+                        .get_alias_target_type_id(reference.symbol)
+                        .is_some_and(|target| self.type_is_reference_like(target, visited)),
+                    _ => false,
+                }
+            }
             _ => false,
         }
     }
@@ -189,7 +199,7 @@ impl dir::NodeVisitor for AddressTakenCollector<'_> {
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
-        if let dir::Expression::ReferenceOf { right, .. } = expression {
+        if let dir::Expression::BorrowOf { right, .. } = expression {
             self.record_reference_target(tree, *right);
         }
         destack_core::ensure_sufficient_stack(|| dir::walk_expression(self, tree, id, expression));
@@ -208,7 +218,7 @@ impl ModuleLowerer<'_> {
             };
 
             // skip type-only lambda signatures
-            if declaration.body.is_none() && declaration.signature.kind == dir::FunctionKind::Lambda
+            if declaration.body.is_none() && declaration.signature.form == dir::FunctionForm::Lambda
             {
                 continue;
             }
@@ -308,9 +318,7 @@ impl ModuleLowerer<'_> {
         let return_type_id = self.resolve_function_return_type_id(declaration_id)?;
         let return_type = self.lower_function_return_type(declaration_id, return_type_id)?;
 
-        // extract return lifetime from @lifetime decorator
-        let return_region =
-            self.extract_lifetime_annotation(declaration.symbol, &declaration.signature);
+        let return_region = mir::BorrowRegion::Inferred;
 
         // build a MIR signature type aligned with the lowered parameters
         let mir_signature = self
@@ -375,26 +383,32 @@ impl ModuleLowerer<'_> {
                 let dir_type = self.types.get_type(type_id);
                 if matches!(
                     dir_type,
-                    dir::Type::TypeLiteral {
+                    dir::Type::Literal(dir::LiteralType {
                         value: dir::TypeLiteral::Never
-                    } | dir::Type::Value { .. }
+                    }) | dir::Type::Value(_)
                 ) {
                     continue;
                 }
                 type_sources.entry(type_id).or_insert(node_id);
             }
 
-            if let dir::Expression::Type { resolved_type, .. } = self.dir_tree.get(*expression_id) {
-                let dir_type = self.types.get_type(*resolved_type);
+            if let dir::Expression::Type { value } = self.dir_tree.get(*expression_id) {
+                let Some(resolved_type) = self
+                    .types
+                    .get_declared_or_inferred_type_id(value.into_global_any(self.module_id))
+                else {
+                    continue;
+                };
+                let dir_type = self.types.get_type(resolved_type);
                 if matches!(
                     dir_type,
-                    dir::Type::TypeLiteral {
+                    dir::Type::Literal(dir::LiteralType {
                         value: dir::TypeLiteral::Never
-                    } | dir::Type::Value { .. }
+                    }) | dir::Type::Value(_)
                 ) {
                     continue;
                 }
-                type_sources.entry(*resolved_type).or_insert(node_id);
+                type_sources.entry(resolved_type).or_insert(node_id);
             }
 
             // include local binding symbol types for uninitialized lets
@@ -415,9 +429,9 @@ impl ModuleLowerer<'_> {
                     let dir_type = self.types.get_type(type_id);
                     if matches!(
                         dir_type,
-                        dir::Type::TypeLiteral {
+                        dir::Type::Literal(dir::LiteralType {
                             value: dir::TypeLiteral::Never
-                        } | dir::Type::Value { .. }
+                        }) | dir::Type::Value(_)
                     ) {
                         continue;
                     }
@@ -445,7 +459,7 @@ impl ModuleLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> AddressTakenBindings {
         // walk the function body to find reference targets
-        let mut collector = AddressTakenCollector::new(self.types, self.module_id);
+        let mut collector = AddressTakenCollector::new(self.types, self.symbols, self.module_id);
         let expression = self.dir_tree.get(expression_id);
         dir::NodeVisitor::visit_expression(
             &mut collector,
@@ -463,7 +477,7 @@ impl ModuleLowerer<'_> {
     ) -> LowerResult<dir::LocalTypeId> {
         // resolve the signature type id
         self.types
-            .get_signature_type_for_node(node_id)
+            .signature_type_id(node_id)
             .ok_or_else(|| self.missing_type_error(node_id))
     }
 
@@ -510,9 +524,7 @@ impl ModuleLowerer<'_> {
         let return_type_id = self.resolve_function_return_type_id(declaration_id)?;
         let return_type = self.lower_function_return_type(declaration_id, return_type_id)?;
 
-        // extract return lifetime from @lifetime decorator
-        let return_region =
-            self.extract_lifetime_annotation(declaration.symbol, &declaration.signature);
+        let return_region = mir::BorrowRegion::Inferred;
 
         // build a MIR signature type aligned with the lowered parameters
         let mir_signature = self
@@ -585,6 +597,7 @@ impl ModuleLowerer<'_> {
             dir_tree: self.dir_tree,
             symbols: self.symbols,
             types: self.types,
+            guards: self.guards,
             captures: self.captures,
             strings: &self.strings,
             well_known_intrinsics: self.well_known_intrinsics.as_ref(),
@@ -724,14 +737,14 @@ impl ModuleLowerer<'_> {
         // resolve implicit this for member methods
         let symbol_data = self.symbols.get_symbol(symbol_id.local_id);
         let is_member = symbol_data
-            .primary_declaration
+            .declaration
             .is_some_and(|primary| primary.local_id.ty == dir::NodeType::Member);
         if is_member {
             let scope = self.symbols.get_scope_by_id(symbol_data.scope.0);
             let this_name = self.strings.intern("this");
             if let Some(symbol) = self
                 .symbols
-                .find_active_symbol(scope, dir::StaticKey::Name(this_name))
+                .find_symbol(scope, dir::StaticKey::Name(this_name))
             {
                 return Some(symbol.into_global(self.module_id));
             }
@@ -779,9 +792,9 @@ impl ModuleLowerer<'_> {
 
         // extract the return type id from the signature
         let return_type_id = match self.types.get_type(signature_type_id) {
-            dir::Type::Function { return_type, .. } => {
-                return_type.ok_or_else(|| self.missing_type_error(node_id))?
-            }
+            dir::Type::Function(function) => function
+                .return_type
+                .ok_or_else(|| self.missing_type_error(node_id))?,
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
                     anchor: self.diagnostic_anchor(node_id.into_anchored(Some(self.profile))),
@@ -826,8 +839,8 @@ impl ModuleLowerer<'_> {
             return Ok(());
         };
         let is_constructor = matches!(
-            signature.mode,
-            Some(dir::FunctionMode::Constructor) | Some(dir::FunctionMode::New)
+            signature.role,
+            Some(dir::FunctionRole::Constructor) | Some(dir::FunctionRole::New)
         );
         let is_static = *is_static;
 
@@ -889,7 +902,7 @@ impl ModuleLowerer<'_> {
             // resolve the static method key or dispatch name
             let method_name = self.member_dispatch_name_or_error(
                 key.as_ref(),
-                signature.mode,
+                signature.role,
                 member_id.into_any(),
             )?;
             let method_name = self.strings.get(method_name).to_string();
@@ -1034,6 +1047,7 @@ impl ModuleLowerer<'_> {
             dir_tree: self.dir_tree,
             symbols: self.symbols,
             types: self.types,
+            guards: self.guards,
             captures: self.captures,
             strings: &self.strings,
             well_known_intrinsics: self.well_known_intrinsics.as_ref(),
@@ -1097,8 +1111,11 @@ impl ModuleLowerer<'_> {
             let layout = self
                 .type_lowerer
                 .layout_for_type_or_error(layout_type, node)?;
-            let class_symbol =
-                constructor_symbol.filter(|symbol| symbol.ty() == dir::SymbolType::Class);
+            let class_symbol = constructor_symbol.filter(|symbol| {
+                function_lowerer
+                    .context
+                    .symbol_is(*symbol, dir::DeclarationForm::Class)
+            });
             function_lowerer.initialize_constructor(this_ty, layout.clone(), node, class_symbol)?;
         }
 
@@ -1194,7 +1211,7 @@ impl ModuleLowerer<'_> {
         let signature_type_id = self.signature_type_id_for_node(member_node)?;
 
         // extract return type from function signature
-        let dir::Type::Function { return_type, .. } = self.types.get_type(signature_type_id) else {
+        let dir::Type::Function(function) = self.types.get_type(signature_type_id) else {
             return Err(LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(
                     member_id
@@ -1207,11 +1224,11 @@ impl ModuleLowerer<'_> {
         };
 
         // lower return type or default to void
-        let Some(return_type_id) = return_type else {
+        let Some(return_type_id) = function.return_type else {
             return Ok(None);
         };
 
-        Ok(Some(*return_type_id))
+        Ok(Some(return_type_id))
     }
 
     /// Lower a resolved method return type.
@@ -1239,8 +1256,8 @@ impl ModuleLowerer<'_> {
     ) -> LowerResult<Vec<mir::LocalNodeId<mir::Type>>> {
         // decide whether this method is a constructor
         let is_constructor = matches!(
-            signature.mode,
-            Some(dir::FunctionMode::Constructor) | Some(dir::FunctionMode::New)
+            signature.role,
+            Some(dir::FunctionRole::Constructor) | Some(dir::FunctionRole::New)
         );
 
         // initialize parameter types

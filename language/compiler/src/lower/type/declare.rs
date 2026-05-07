@@ -57,8 +57,8 @@ impl ModuleLowerer<'_> {
         // predeclare nominal instance layouts
         if let Some(symbol) = self.types.symbol_for_instance_type(type_id)
             && matches!(
-                symbol.ty(),
-                dir::SymbolType::Struct | dir::SymbolType::Class
+                self.symbol_form(symbol),
+                Some(dir::DeclarationForm::Struct | dir::DeclarationForm::Class)
             )
         {
             self.lower_nominal_layout(symbol)?;
@@ -66,133 +66,116 @@ impl ModuleLowerer<'_> {
 
         // walk nested type references
         match self.types.get_type(type_id) {
-            dir::Type::Reference { symbol, .. } => {
+            dir::Type::Reference(reference) => {
                 if matches!(
-                    symbol.ty(),
-                    dir::SymbolType::Struct | dir::SymbolType::Class
+                    self.symbol_form(reference.symbol),
+                    Some(dir::DeclarationForm::Struct | dir::DeclarationForm::Class)
                 ) {
-                    self.lower_nominal_layout(*symbol)?;
+                    self.lower_nominal_layout(reference.symbol)?;
                 }
             }
-            dir::Type::Value { value } => {
-                self.declare_nominal_layouts_for_type(*value, visited)?;
+            dir::Type::Value(value) => {
+                self.declare_nominal_layouts_for_type(value.value, visited)?;
             }
-            dir::Type::Conditional {
-                left,
-                right,
-                then_type,
-                else_type,
-                ..
-            } => {
-                self.declare_nominal_layouts_for_type(*left, visited)?;
-                self.declare_nominal_layouts_for_type(*right, visited)?;
-                self.declare_nominal_layouts_for_type(*then_type, visited)?;
-                self.declare_nominal_layouts_for_type(*else_type, visited)?;
+            dir::Type::Conditional(conditional) => {
+                self.declare_nominal_layouts_for_type(conditional.left, visited)?;
+                self.declare_nominal_layouts_for_type(conditional.right, visited)?;
+                self.declare_nominal_layouts_for_type(conditional.then_type, visited)?;
+                self.declare_nominal_layouts_for_type(conditional.else_type, visited)?;
             }
-            dir::Type::Mapped {
-                parameter,
-                modifiers,
-                value,
-            } => {
-                // modifiers do not affect nominal layout
-                let _ = modifiers;
-                self.declare_nominal_layouts_for_type(parameter.constraint, visited)?;
-                if let Some(key_remap) = parameter.key_remap {
+            dir::Type::Mapped(mapped) => {
+                self.declare_nominal_layouts_for_type(mapped.parameter.constraint, visited)?;
+                if let Some(key_remap) = mapped.parameter.key_remap {
                     self.declare_nominal_layouts_for_type(key_remap, visited)?;
                 }
-                self.declare_nominal_layouts_for_type(*value, visited)?;
+                self.declare_nominal_layouts_for_type(mapped.value, visited)?;
             }
-            dir::Type::Index { left, index } => {
-                self.declare_nominal_layouts_for_type(*left, visited)?;
-                self.declare_nominal_layouts_for_type(*index, visited)?;
+            dir::Type::Index(index) => {
+                self.declare_nominal_layouts_for_type(index.left, visited)?;
+                self.declare_nominal_layouts_for_type(index.index, visited)?;
             }
-            dir::Type::TemplateLiteral { spans, .. } => {
-                for span in spans {
+            dir::Type::TemplateLiteral(template) => {
+                for span in &template.spans {
                     self.declare_nominal_layouts_for_type(*span, visited)?;
                 }
             }
-            dir::Type::Import { .. } => {}
-            dir::Type::Infer { constraint, .. } => {
-                if let Some(constraint) = constraint {
-                    self.declare_nominal_layouts_for_type(*constraint, visited)?;
+            dir::Type::Import(_) => {}
+            dir::Type::Infer(infer) => {
+                if let Some(constraint) = infer.constraint {
+                    self.declare_nominal_layouts_for_type(constraint, visited)?;
                 }
             }
-            dir::Type::Predicate { target, .. } => {
-                if let Some(target) = target {
-                    self.declare_nominal_layouts_for_type(*target, visited)?;
+            dir::Type::Predicate(predicate) => {
+                if let Some(target) = predicate.target {
+                    self.declare_nominal_layouts_for_type(target, visited)?;
                 }
             }
-            dir::Type::Readonly { target_type: right }
-            | dir::Type::KeyOf { target_type: right }
-            | dir::Type::Must { target_type: right }
-            | dir::Type::AsComptime { target_type: right }
-            | dir::Type::Not { target_type: right }
-            | dir::Type::ValueOf { right, .. }
-            | dir::Type::ReferenceOf { right, .. }
-            | dir::Type::PointerOf { right, .. } => {
-                self.declare_nominal_layouts_for_type(*right, visited)?;
+            dir::Type::KeyOf(unary)
+            | dir::Type::Must(unary)
+            | dir::Type::AsComptime(unary)
+            | dir::Type::Not(unary) => {
+                self.declare_nominal_layouts_for_type(unary.target_type, visited)?;
             }
-            dir::Type::In { left, right }
-            | dir::Type::Extends { left, right }
-            | dir::Type::Implements { left, right } => {
-                self.declare_nominal_layouts_for_type(*left, visited)?;
-                self.declare_nominal_layouts_for_type(*right, visited)?;
+            dir::Type::Form(form) => {
+                self.declare_nominal_layouts_for_type(form.base, visited)?;
+                self.declare_nominal_layouts_for_type(form.ownership, visited)?;
+                self.declare_nominal_layouts_for_type(form.place, visited)?;
+                self.declare_nominal_layouts_for_type(form.lifetime, visited)?;
+                self.declare_nominal_layouts_for_type(form.access, visited)?;
             }
-            dir::Type::ArraySized { element, .. } => {
-                self.declare_nominal_layouts_for_type(*element, visited)?;
+            dir::Type::In(binary) | dir::Type::Extends(binary) | dir::Type::Implements(binary) => {
+                self.declare_nominal_layouts_for_type(binary.left, visited)?;
+                self.declare_nominal_layouts_for_type(binary.right, visited)?;
             }
-            dir::Type::Array { element, .. } => {
-                if let Some(element) = element {
-                    self.declare_nominal_layouts_for_type(*element, visited)?;
+            dir::Type::FixedArray(array) => {
+                self.declare_nominal_layouts_for_type(array.element, visited)?;
+            }
+            dir::Type::Slice(slice) => {
+                if let Some(element) = slice.element {
+                    self.declare_nominal_layouts_for_type(element, visited)?;
                 }
             }
-            dir::Type::Tuple { elements, .. } => {
-                for element in elements {
+            dir::Type::Tuple(tuple) => {
+                for element in &tuple.elements {
                     self.declare_nominal_layouts_for_type(element.ty, visited)?;
                 }
             }
-            dir::Type::Object {
-                fields,
-                call_signatures,
-                construct_signatures,
-                index_signatures,
-            } => {
-                for field in fields {
+            dir::Type::Object(object) => {
+                for field in &object.fields {
                     self.declare_nominal_layouts_for_type(field.ty, visited)?;
                 }
-                for signature in call_signatures {
+                for signature in &object.call_signatures {
                     self.declare_nominal_layouts_for_type(*signature, visited)?;
                 }
-                for signature in construct_signatures {
+                for signature in &object.construct_signatures {
                     self.declare_nominal_layouts_for_type(*signature, visited)?;
                 }
-                for signature in index_signatures {
+                for signature in &object.index_signatures {
                     self.declare_nominal_layouts_for_type(signature.key_type, visited)?;
                     self.declare_nominal_layouts_for_type(signature.value_type, visited)?;
                 }
             }
-            dir::Type::Function {
-                generic_parameters,
-                this_parameter,
-                parameters,
-                return_type,
-                ..
-            } => {
-                for parameter in generic_parameters {
+            dir::Type::Function(function) => {
+                for parameter in &function.generic_parameters {
                     self.declare_nominal_layouts_for_type(*parameter, visited)?;
                 }
-                if let Some(this_parameter) = this_parameter {
-                    self.declare_nominal_layouts_for_type(*this_parameter, visited)?;
+                if let Some(this_parameter) = function.this_parameter {
+                    self.declare_nominal_layouts_for_type(this_parameter, visited)?;
                 }
-                for parameter in parameters {
+                for parameter in &function.parameters {
                     self.declare_nominal_layouts_for_type(*parameter, visited)?;
                 }
-                if let Some(return_type) = return_type {
-                    self.declare_nominal_layouts_for_type(*return_type, visited)?;
+                if let Some(return_type) = function.return_type {
+                    self.declare_nominal_layouts_for_type(return_type, visited)?;
                 }
             }
-            dir::Type::Union { elements } | dir::Type::Intersection { elements } => {
-                for element in elements {
+            dir::Type::Union(union) => {
+                for element in &union.elements {
+                    self.declare_nominal_layouts_for_type(*element, visited)?;
+                }
+            }
+            dir::Type::Intersection(intersection) => {
+                for element in &intersection.elements {
                     self.declare_nominal_layouts_for_type(*element, visited)?;
                 }
             }

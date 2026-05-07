@@ -1,8 +1,9 @@
 use destack_dir as dir;
+use destack_dir::GuardEntry;
 use destack_source::ModuleId;
 use dir::{
-    Block, Expression, GuardStrategy, LocalNodeId, LocalNodeIdAny, LocalTypeId, PrimitiveType,
-    ScalarLiteral, SymbolType, Type, TypeLiteral, TypeTable,
+    Block, Expression, LocalNodeId, LocalNodeIdAny, LocalTypeId, PrimitiveType, ScalarLiteral,
+    Type, TypeLiteral, TypeTable,
 };
 
 use crate::{Compiler, ElaborateError, ElaborateResult};
@@ -26,9 +27,9 @@ impl Compiler {
         module_id: ModuleId,
         expression_id: LocalNodeId<Expression>,
     ) {
-        let bool_type = Type::TypeLiteral {
+        let bool_type = Type::Literal(dir::LiteralType {
             value: TypeLiteral::Primitive(PrimitiveType::Boolean),
-        };
+        });
         let bool_type_id = types.insert_type_from(bool_type, expression_id);
         self.set_expression_type(types, module_id, expression_id, bool_type_id);
     }
@@ -41,9 +42,9 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         literal: ScalarLiteral,
     ) {
-        let literal_type = Type::TypeLiteral {
+        let literal_type = Type::Literal(dir::LiteralType {
             value: TypeLiteral::ScalarLiteral(literal),
-        };
+        });
         let literal_type_id = types.insert_type_from(literal_type, expression_id);
         self.set_expression_type(types, module_id, expression_id, literal_type_id);
     }
@@ -118,9 +119,9 @@ impl Compiler {
         types: &mut TypeTable,
         node_id: LocalNodeIdAny,
     ) -> LocalTypeId {
-        let ty = Type::TypeLiteral {
+        let ty = Type::Literal(dir::LiteralType {
             value: TypeLiteral::Void,
-        };
+        });
         types.insert_type_from_any(ty, node_id)
     }
 
@@ -130,9 +131,9 @@ impl Compiler {
         types: &mut TypeTable,
         node_id: LocalNodeIdAny,
     ) -> LocalTypeId {
-        let ty = Type::TypeLiteral {
+        let ty = Type::Literal(dir::LiteralType {
             value: TypeLiteral::Never,
-        };
+        });
         types.insert_type_from_any(ty, node_id)
     }
 
@@ -174,7 +175,7 @@ impl Compiler {
         let mut flattened = Vec::new();
         for element_id in elements {
             match types.get_type(element_id) {
-                Type::Union { elements } => flattened.extend(elements.iter().copied()),
+                Type::Union(union) => flattened.extend(union.elements.iter().copied()),
                 _ => flattened.push(element_id),
             }
         }
@@ -184,34 +185,34 @@ impl Compiler {
 
         match flattened.len() {
             0 => types.insert_type_from_any(
-                Type::TypeLiteral {
+                Type::Literal(dir::LiteralType {
                     value: TypeLiteral::Never,
-                },
+                }),
                 types.get_type_source(source_type_id),
             ),
             1 => flattened[0],
             _ => types.insert_type_from_any(
-                Type::Union {
+                Type::Union(dir::UnionType {
                     elements: flattened,
-                },
+                }),
                 types.get_type_source(source_type_id),
             ),
         }
     }
 
     /// Determine the runtime check kind for a type guard relation.
-    pub(crate) fn guard_strategy_for_relation(
+    pub(crate) fn guard_entry_for_relation(
         &self,
         types: &TypeTable,
         value_type_id: LocalTypeId,
         target_type_id: LocalTypeId,
-    ) -> Option<GuardStrategy> {
+    ) -> Option<GuardEntry> {
         let value_type_id = types.unwrap_value_type_id(value_type_id);
         let target_type_id = types.unwrap_value_type_id(target_type_id);
 
         // identical ids need no runtime check
         if value_type_id == target_type_id {
-            return Some(GuardStrategy::Constant(true));
+            return Some(GuardEntry::Constant(true));
         }
 
         // only runtime visible targets are currently checkable
@@ -219,41 +220,32 @@ impl Compiler {
             return None;
         }
 
-        guard_strategy_for_value(types, value_type_id)
+        guard_entry_for_value(types, value_type_id)
     }
 }
 
 /// Return whether one target type can be checked at runtime.
 fn is_runtime_checkable_target(types: &TypeTable, type_id: LocalTypeId) -> bool {
     match types.get_type(type_id) {
-        Type::Union { elements } => elements
-            .iter()
-            .copied()
-            .all(|element| is_runtime_checkable_target(types, types.unwrap_value_type_id(element))),
-        Type::Reference { symbol, .. } => matches!(
-            symbol.local_id.ty,
-            SymbolType::Class | SymbolType::Struct | SymbolType::Enum | SymbolType::Newtype
-        ),
+        Type::Union(union) => {
+            union.elements.iter().copied().all(|element| {
+                is_runtime_checkable_target(types, types.unwrap_value_type_id(element))
+            })
+        }
+        Type::Reference(_) => true,
         _ => false,
     }
 }
 
 /// Return the runtime identity carried by one value type.
-fn guard_strategy_for_value(types: &TypeTable, type_id: LocalTypeId) -> Option<GuardStrategy> {
+fn guard_entry_for_value(types: &TypeTable, type_id: LocalTypeId) -> Option<GuardEntry> {
     match types.get_type(type_id) {
-        Type::Union { .. } => Some(GuardStrategy::UnionTag),
-        Type::Reference { symbol, .. } => match symbol.local_id.ty {
-            SymbolType::Class | SymbolType::Struct | SymbolType::Enum | SymbolType::Newtype => {
-                Some(GuardStrategy::TypeDescriptor)
-            }
-            _ => None,
-        },
-        Type::TypeLiteral {
+        Type::Union(_) => Some(GuardEntry::UnionTag),
+        Type::Reference(_) => Some(GuardEntry::TypeDescriptor),
+        Type::Literal(dir::LiteralType {
             value: TypeLiteral::Unknown,
-        } => Some(GuardStrategy::TypeDescriptor),
-        Type::Value { value } => {
-            guard_strategy_for_value(types, types.unwrap_value_type_id(*value))
-        }
+        }) => Some(GuardEntry::TypeDescriptor),
+        Type::Value(value) => guard_entry_for_value(types, types.unwrap_value_type_id(value.value)),
         _ => None,
     }
 }

@@ -139,10 +139,10 @@ impl Compiler {
     /// Resolve pipeline options for a module and target.
     fn pipeline_options_for_module(
         &self,
-        module: &Module,
+        _module: &Module,
         target: &Target,
         level: OptimizationLevel,
-        context: &dyn ProviderContext,
+        _context: &dyn ProviderContext,
     ) -> PipelineOptions {
         // resolve pointer width from target configuration
         let pointer_width_bits = self.pointer_width_bits_for_target(target);

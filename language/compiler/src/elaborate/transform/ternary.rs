@@ -1,5 +1,5 @@
 use destack_dir as dir;
-use dir::{Expression, IfCondition, IfKind, LocalNodeId};
+use dir::{Expression, IfCondition, IfForm, LocalNodeId};
 
 use crate::elaborate::ElaborateState;
 use crate::{Compiler, ElaborateResult};
@@ -20,7 +20,7 @@ impl Compiler {
                 matches!(
                     state.tree.get(*id),
                     Expression::If {
-                        kind: IfKind::If,
+                        form: IfForm::If,
                         ..
                     }
                 )
@@ -29,7 +29,7 @@ impl Compiler {
 
         for if_id in if_ids {
             let Expression::If {
-                kind: IfKind::If,
+                form: IfForm::If,
                 condition,
                 then_expression,
                 else_expression: Some(else_expr),
@@ -54,7 +54,7 @@ impl Compiler {
             state.tree.replace(
                 if_id,
                 Expression::If {
-                    kind: IfKind::Ternary,
+                    form: IfForm::Ternary,
                     condition,
                     then_expression,
                     else_expression: Some(else_expr),
@@ -77,9 +77,7 @@ impl Compiler {
             // simple expressions
             Expression::ScalarLiteral { .. }
             | Expression::TypeLiteral { .. }
-            | Expression::LocalReference { .. }
-            | Expression::ModuleReference { .. }
-            | Expression::GlobalReference { .. }
+            | Expression::Path { .. }
             | Expression::Unary { .. }
             | Expression::Binary { .. }
             | Expression::Member { .. }
@@ -96,14 +94,14 @@ impl Compiler {
 
             // ternary is ok if nested ternaries are ok
             Expression::If {
-                kind: IfKind::Ternary,
+                form: IfForm::Ternary,
                 ..
             } => true,
 
             // not simple
             Expression::Block(..)
             | Expression::If {
-                kind: IfKind::If, ..
+                form: IfForm::If, ..
             }
             | Expression::Match { .. }
             | Expression::Loop { .. }

@@ -4,32 +4,12 @@ use std::str::FromStr;
 use destack_ast::Keyword;
 use destack_core::StringId;
 use destack_dir::{
-    Declaration, DependencyItem, DependencyKind, DependencyMode, ExportMode, Expression,
-    ImportSource, LocalNodeId, LocalNodeIdAny, NodeType, Pattern, PatternField, StaticKey,
-    SymbolTable, Tree,
+    Declaration, DependencyBinding, DependencyItem, DependencySpace, ExportKind, Expression,
+    ImportSource, LocalNodeId, LocalNodeIdAny, NodeType, Pattern, PatternField, StaticKey, Tree,
 };
 
-use crate::common::dir::{SymbolDescriptor, can_merge_declarations};
 use crate::import::ImportState;
 use crate::{Compiler, CompilerResult, ImportError};
-
-/// The export category used for duplicate export checks.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum ExportConflictKind {
-    /// A declaration export with merge metadata.
-    Declaration(SymbolDescriptor),
-    /// Any non-function export.
-    Other,
-}
-
-/// One exported binding name with its merge classification.
-#[derive(Clone, Copy)]
-struct BindingExport {
-    /// The exported name.
-    name: StringId,
-    /// The merge behavior for this binding.
-    conflict_kind: ExportConflictKind,
-}
 
 impl Compiler {
     /// Validate import and export declarations appear at the module root.
@@ -56,9 +36,7 @@ impl Compiler {
             }
 
             // import declarations
-            if let Expression::Import { source, .. } | Expression::UnresolvedImport { source, .. } =
-                expression
-            {
+            if let Expression::Import { source, .. } = expression {
                 if self.import_dependency_requires_top_level(*source) {
                     let node = expression_id.into_global_any(state.module.id);
                     let anchor = state.anchor(node);
@@ -72,7 +50,6 @@ impl Compiler {
                 expression,
                 Expression::Export { .. }
                     | Expression::ReExport { .. }
-                    | Expression::UnresolvedReExport { .. }
                     | Expression::ExportNamespace { .. }
             ) {
                 // namespace bodies are their own declaration roots
@@ -121,18 +98,18 @@ impl Compiler {
 
             for item_id in items {
                 let item = state.tree.get(*item_id);
-                let (mode, kind, name) = match item {
-                    DependencyItem::UnresolvedLocal {
-                        mode, kind, name, ..
-                    }
-                    | DependencyItem::Local {
-                        mode, kind, name, ..
-                    } => (mode, kind, name),
+                let (binding, space, name) = match item {
+                    DependencyItem::Item {
+                        binding,
+                        space,
+                        name,
+                        ..
+                    } => (binding, space, name),
                     _ => continue,
                 };
 
                 // item mode carries local names that must be binding-compatible
-                if *mode != DependencyMode::Item || *kind != DependencyKind::Value {
+                if *binding != DependencyBinding::Item || *space != DependencySpace::Value {
                     continue;
                 }
 
@@ -187,13 +164,10 @@ impl Compiler {
                     let export_name =
                         self.value_export_name_for_declaration(declaration, default_name);
                     if let Some(export_name) = export_name {
-                        let conflict_kind =
-                            self.export_conflict_kind_for_declaration(declaration, state.symbols);
                         self.report_conflicting_export_name_maybe(
                             state,
                             export_name,
                             declaration_id.into_any(),
-                            conflict_kind,
                             &mut exported_names,
                             default_name,
                         )?;
@@ -205,7 +179,7 @@ impl Compiler {
                     ..
                 } => {
                     // only exported declarations participate
-                    if *export != Some(ExportMode::Named) {
+                    if *export != Some(ExportKind::Named) {
                         continue;
                     }
 
@@ -214,7 +188,6 @@ impl Compiler {
                         let mut bindings = Vec::new();
                         self.collect_binding_exports_from_pattern(
                             state.tree,
-                            state.symbols,
                             declarator.pattern,
                             &mut bindings,
                         );
@@ -222,9 +195,8 @@ impl Compiler {
                         for binding in bindings {
                             self.report_conflicting_export_name_maybe(
                                 state,
-                                binding.name,
+                                binding,
                                 declarator_id.into_any(),
-                                binding.conflict_kind,
                                 &mut exported_names,
                                 default_name,
                             )?;
@@ -237,7 +209,7 @@ impl Compiler {
                     ..
                 } => {
                     // only exported declarations participate
-                    if *export != Some(ExportMode::Named) {
+                    if *export != Some(ExportKind::Named) {
                         continue;
                     }
 
@@ -246,7 +218,6 @@ impl Compiler {
                         let mut bindings = Vec::new();
                         self.collect_binding_exports_from_pattern(
                             state.tree,
-                            state.symbols,
                             declarator.pattern,
                             &mut bindings,
                         );
@@ -254,18 +225,15 @@ impl Compiler {
                         for binding in bindings {
                             self.report_conflicting_export_name_maybe(
                                 state,
-                                binding.name,
+                                binding,
                                 declarator_id.into_any(),
-                                binding.conflict_kind,
                                 &mut exported_names,
                                 default_name,
                             )?;
                         }
                     }
                 }
-                Expression::Export { items, .. }
-                | Expression::ReExport { items, .. }
-                | Expression::UnresolvedReExport { items, .. } => {
+                Expression::Export { items, .. } | Expression::ReExport { items, .. } => {
                     for item_id in items {
                         let export_name = self.value_export_name_for_dependency_item(
                             state.tree,
@@ -277,7 +245,6 @@ impl Compiler {
                                 state,
                                 export_name,
                                 item_id.into_any(),
-                                ExportConflictKind::Other,
                                 &mut exported_names,
                                 default_name,
                             )?;
@@ -354,37 +321,38 @@ impl Compiler {
     ) -> Option<StringId> {
         match declaration {
             Declaration::Namespace(declaration) => match declaration.export {
-                Some(ExportMode::Default) => Some(default_name),
-                Some(ExportMode::Named) => Some(declaration.name.string()),
+                Some(ExportKind::Default) => Some(default_name),
+                Some(ExportKind::Named) => Some(declaration.name.string()),
                 None => None,
             },
             Declaration::Struct(declaration) => match declaration.export {
-                Some(ExportMode::Default) => Some(default_name),
-                Some(ExportMode::Named) => Some(declaration.name.string()),
+                Some(ExportKind::Default) => Some(default_name),
+                Some(ExportKind::Named) => Some(declaration.name.string()),
                 None => None,
             },
             Declaration::Class(declaration) => match declaration.export {
-                Some(ExportMode::Default) => Some(default_name),
-                Some(ExportMode::Named) => declaration.name.map(|name| name.string()),
+                Some(ExportKind::Default) => Some(default_name),
+                Some(ExportKind::Named) => declaration.name.map(|name| name.string()),
                 None => None,
             },
             Declaration::Enum(declaration) => match declaration.export {
-                Some(ExportMode::Default) => Some(default_name),
-                Some(ExportMode::Named) => declaration.name.map(|name| name.string()),
+                Some(ExportKind::Default) => Some(default_name),
+                Some(ExportKind::Named) => declaration.name.map(|name| name.string()),
                 None => None,
             },
             Declaration::Function(declaration) => match declaration.export {
-                Some(ExportMode::Default) => Some(default_name),
-                Some(ExportMode::Named) => declaration.name.map(|name| name.string()),
+                Some(ExportKind::Default) => Some(default_name),
+                Some(ExportKind::Named) => declaration.name.map(|name| name.string()),
                 None => None,
             },
             Declaration::Extension(declaration) => match declaration.export {
-                Some(ExportMode::Default) => Some(default_name),
-                Some(ExportMode::Named) => declaration.name.map(|name| name.string()),
+                Some(ExportKind::Default) => Some(default_name),
+                Some(ExportKind::Named) => declaration.name.map(|name| name.string()),
                 None => None,
             },
             Declaration::Type(_)
             | Declaration::Global(_)
+            | Declaration::Module(_)
             | Declaration::ImportAlias(_)
             | Declaration::Interface(_) => None,
         }
@@ -401,40 +369,19 @@ impl Compiler {
 
         // collect value-space export names from dependency items
         match item {
-            DependencyItem::Value { mode, .. } => match mode {
-                DependencyMode::Default => Some(default_name),
-                DependencyMode::Item | DependencyMode::Namespace => None,
+            DependencyItem::Value { binding, .. } => match binding {
+                DependencyBinding::Default => Some(default_name),
+                DependencyBinding::Item | DependencyBinding::Namespace => None,
             },
-            DependencyItem::Local {
-                mode,
-                kind,
-                name,
-                alias,
-                ..
-            }
-            | DependencyItem::UnresolvedLocal {
-                mode,
-                kind,
-                name,
-                alias,
-                ..
-            }
-            | DependencyItem::UnresolvedRemote {
-                mode,
-                kind,
-                name,
-                alias,
-                ..
-            }
-            | DependencyItem::Remote {
-                mode,
-                kind,
+            DependencyItem::Item {
+                binding,
+                space,
                 name,
                 alias,
                 ..
             } => {
                 // type-only exports do not conflict with value-space exports
-                if *kind != DependencyKind::Value {
+                if *space != DependencySpace::Value {
                     return None;
                 }
 
@@ -444,7 +391,7 @@ impl Compiler {
                 }
 
                 // default exports may omit explicit names
-                if *mode == DependencyMode::Default {
+                if *binding == DependencyBinding::Default {
                     return Some(default_name);
                 }
 
@@ -461,27 +408,18 @@ impl Compiler {
         state: &ImportState<'_>,
         export_name: StringId,
         local_node: LocalNodeIdAny,
-        conflict_kind: ExportConflictKind,
-        exported_names: &mut HashMap<StringId, (LocalNodeIdAny, ExportConflictKind)>,
+        exported_names: &mut HashMap<StringId, LocalNodeIdAny>,
         default_name: StringId,
     ) -> CompilerResult<()> {
-        // keep the first site as the primary declaration
-        let Some((first_node, first_kind)) = exported_names.get(&export_name).copied() else {
-            exported_names.insert(export_name, (local_node, conflict_kind));
+        // keep the first export site
+        let Some(first_node) = exported_names.get(&export_name).copied() else {
+            exported_names.insert(export_name, local_node);
             return Ok(());
         };
 
         // convert local ids to anchored diagnostics
         let node = local_node.into_global(state.module.id);
         let other_node = first_node.into_global(state.module.id);
-
-        // allow mergeable declaration exports to share one exported name
-        if let (ExportConflictKind::Declaration(first), ExportConflictKind::Declaration(next)) =
-            (first_kind, conflict_kind)
-            && can_merge_declarations(state.module.code_language_type(), first, next)
-        {
-            return Ok(());
-        }
 
         // report default export conflicts separately
         if export_name == default_name {
@@ -505,74 +443,47 @@ impl Compiler {
         Ok(())
     }
 
-    /// Resolve the conflict category for a declaration export.
-    fn export_conflict_kind_for_declaration(
-        &self,
-        declaration: &Declaration,
-        symbols: &SymbolTable,
-    ) -> ExportConflictKind {
-        let symbol_id = declaration.symbol();
-        let symbol = symbols.get_symbol(symbol_id);
-        ExportConflictKind::Declaration(SymbolDescriptor::from(symbol))
-    }
-
-    /// Resolve the conflict category for a local symbol.
-    fn export_conflict_kind_for_symbol(
-        &self,
-        symbols: &SymbolTable,
-        symbol_id: destack_dir::LocalSymbolId,
-    ) -> ExportConflictKind {
-        let symbol = symbols.get_symbol(symbol_id);
-        ExportConflictKind::Declaration(SymbolDescriptor::from(symbol))
-    }
-
     /// Collect all exported bindings declared by a pattern.
     fn collect_binding_exports_from_pattern(
         &self,
         tree: &destack_dir::Tree,
-        symbols: &SymbolTable,
         pattern_id: LocalNodeId<Pattern>,
-        bindings: &mut Vec<BindingExport>,
+        bindings: &mut Vec<StringId>,
     ) {
         match tree.get(pattern_id) {
             Pattern::Assign { pattern, .. } => {
-                self.collect_binding_exports_from_pattern(tree, symbols, *pattern, bindings);
+                self.collect_binding_exports_from_pattern(tree, *pattern, bindings);
             }
             Pattern::Wildcard | Pattern::Expression { .. } | Pattern::TypeExpression { .. } => {}
             Pattern::Must(right)
-            | Pattern::ReferenceOf { right, .. }
-            | Pattern::ValueOf { right, .. } => {
-                self.collect_binding_exports_from_pattern(tree, symbols, *right, bindings);
+            | Pattern::BorrowOf { right, .. }
+            | Pattern::MoveOf { right, .. } => {
+                self.collect_binding_exports_from_pattern(tree, *right, bindings);
             }
             Pattern::Binding {
                 name,
-                symbol,
+                symbol: _,
                 pattern,
                 ..
             } => {
-                bindings.push(BindingExport {
-                    name: *name,
-                    conflict_kind: self.export_conflict_kind_for_symbol(symbols, *symbol),
-                });
+                bindings.push(*name);
 
                 if let Some(inner) = pattern {
-                    self.collect_binding_exports_from_pattern(tree, symbols, *inner, bindings);
+                    self.collect_binding_exports_from_pattern(tree, *inner, bindings);
                 }
             }
             Pattern::Tuple { fields }
             | Pattern::TaggedTuple { fields, .. }
-            | Pattern::Array { fields }
+            | Pattern::Sequence { fields }
             | Pattern::Object { fields }
             | Pattern::TaggedObject { fields, .. } => {
                 for field_id in fields {
-                    self.collect_binding_exports_from_pattern_field(
-                        tree, symbols, *field_id, bindings,
-                    );
+                    self.collect_binding_exports_from_pattern_field(tree, *field_id, bindings);
                 }
             }
             Pattern::Union { patterns } => {
                 for pattern_id in patterns {
-                    self.collect_binding_exports_from_pattern(tree, symbols, *pattern_id, bindings);
+                    self.collect_binding_exports_from_pattern(tree, *pattern_id, bindings);
                 }
             }
         }
@@ -582,37 +493,31 @@ impl Compiler {
     fn collect_binding_exports_from_pattern_field(
         &self,
         tree: &destack_dir::Tree,
-        symbols: &SymbolTable,
         field_id: LocalNodeId<PatternField>,
-        bindings: &mut Vec<BindingExport>,
+        bindings: &mut Vec<StringId>,
     ) {
         match tree.get(field_id) {
             PatternField::Named {
                 name,
-                symbol,
+                symbol: _,
                 pattern,
                 ..
             } => {
                 if let Some(pattern) = pattern {
-                    self.collect_binding_exports_from_pattern(tree, symbols, *pattern, bindings);
+                    self.collect_binding_exports_from_pattern(tree, *pattern, bindings);
                 } else {
-                    bindings.push(BindingExport {
-                        name: *name,
-                        conflict_kind: symbol.map_or(ExportConflictKind::Other, |symbol| {
-                            self.export_conflict_kind_for_symbol(symbols, symbol)
-                        }),
-                    });
+                    bindings.push(*name);
                 }
             }
             PatternField::Computed { pattern, .. } => {
-                self.collect_binding_exports_from_pattern(tree, symbols, *pattern, bindings);
+                self.collect_binding_exports_from_pattern(tree, *pattern, bindings);
             }
             PatternField::Positional { pattern, .. } => {
-                self.collect_binding_exports_from_pattern(tree, symbols, *pattern, bindings);
+                self.collect_binding_exports_from_pattern(tree, *pattern, bindings);
             }
             PatternField::Spread { pattern, .. } => {
                 if let Some(pattern) = pattern {
-                    self.collect_binding_exports_from_pattern(tree, symbols, *pattern, bindings);
+                    self.collect_binding_exports_from_pattern(tree, *pattern, bindings);
                 }
             }
             PatternField::Elision => {}

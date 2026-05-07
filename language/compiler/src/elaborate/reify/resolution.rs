@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use dir::{
-    Expression, IfCondition, IfKind, LocalNodeId, LocalTypeId, NodeType, Resolution,
-    ResolutionCandidate,
+    DispatchResolution, DispatchTarget, Expression, IfCondition, IfForm, LocalNodeId, LocalTypeId,
+    NodeType, Resolution,
 };
 
 use crate::elaborate::ElaborateState;
@@ -103,7 +103,7 @@ impl Compiler {
             Some(dir::ProvenanceReason::Reified),
         );
         let cloned_id = state.tree.insert_as_owner(cloned_id, cloned_expression);
-        state.types.copy_node_analysis(
+        state.types.copy_node_relations(
             expression_id.into_global_any(state.module_id),
             cloned_id.into_global_any(state.module_id),
         );
@@ -140,7 +140,7 @@ impl Compiler {
         };
 
         let cloned_id = state.tree.insert_as_owner(cloned_id, cloned_argument);
-        state.types.copy_node_analysis(
+        state.types.copy_node_relations(
             argument_id.into_global_any(state.module_id),
             cloned_id.into_global_any(state.module_id),
         );
@@ -159,19 +159,19 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
     ) -> ElaborateResult<()> {
         // get the resolution for this expression
-        let Some(resolution_id) = state
+        let Some(resolution) = state
             .types
-            .get_resolution_for_node(expression_id.into_global_any(state.module_id))
+            .resolution(expression_id.into_global_any(state.module_id))
+            .cloned()
         else {
             return Ok(());
         };
-        let resolution = state.types.get_resolution(resolution_id).clone();
 
         // only transform Dynamic resolutions
-        let Resolution::Dynamic {
+        let Resolution::Dispatch(DispatchResolution::Dynamic {
             receiver,
-            candidates,
-        } = resolution
+            targets: candidates,
+        }) = resolution
         else {
             return Ok(());
         };
@@ -241,7 +241,7 @@ impl Compiler {
             else_branch = state.tree.insert_as_owner(
                 if_id,
                 Expression::If {
-                    kind: IfKind::If,
+                    form: IfForm::If,
                     condition: IfCondition::Expression {
                         condition: is_check,
                     },
@@ -305,7 +305,7 @@ impl Compiler {
     }
 
     /// Get the type to check from a resolution candidate's dispatch key.
-    fn type_for_dispatch_candidate(&self, candidate: &ResolutionCandidate) -> Option<LocalTypeId> {
+    fn type_for_dispatch_candidate(&self, candidate: &DispatchTarget) -> Option<LocalTypeId> {
         // the dispatch key contains the type(s) for runtime selection
         let key = candidate.key.as_ref()?;
 
@@ -321,7 +321,7 @@ impl Compiler {
         state: &mut ElaborateState<'_>,
         origin_id: LocalNodeId<Expression>,
         expression: &Expression,
-        candidate: &ResolutionCandidate,
+        candidate: &DispatchTarget,
         scope: dir::LocalScope,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
         // clone the original expression
@@ -331,14 +331,14 @@ impl Compiler {
         let receiver_type = self.type_for_dispatch_candidate(candidate);
 
         // create a static resolution for this branch
-        let static_resolution = Resolution::Static {
+        let static_resolution = Resolution::Dispatch(DispatchResolution::Static {
             receiver: receiver_type,
-            candidate: candidate.clone(),
-        };
-        let resolution_id = state.types.insert_resolution(static_resolution);
-        state
-            .types
-            .set_resolution_for_node(cloned_id.into_global_any(state.module_id), resolution_id);
+            target: candidate.clone(),
+        });
+        state.types.set_resolution(
+            cloned_id.into_global_any(state.module_id),
+            static_resolution,
+        );
 
         // reify overloaded operators inside each static branch clone
         self.reify_operator_expression(state, cloned_id)?;

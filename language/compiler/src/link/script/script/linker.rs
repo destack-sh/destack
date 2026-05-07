@@ -30,13 +30,13 @@ impl<'a> ScriptLinker<'a> {
                 module.strings.get(name).to_string()
             }
         });
-        let local_binding = match item.mode {
-            js::DependencyMode::Default | js::DependencyMode::Namespace => {
+        let local_binding = match item.binding {
+            js::DependencyBinding::Default | js::DependencyBinding::Namespace => {
                 let alias = item.alias?;
 
                 module.strings.get(alias).to_string()
             }
-            js::DependencyMode::Item => {
+            js::DependencyBinding::Item => {
                 let alias = item
                     .alias
                     .map(|alias| module.strings.get(alias).to_string());
@@ -47,28 +47,28 @@ impl<'a> ScriptLinker<'a> {
         };
         let source = (
             specifier.to_string(),
-            Self::import_mode_tag(item.mode),
+            Self::import_mode_tag(item.binding),
             imported_name,
-            item.kind.map(Self::import_kind_tag),
+            item.space.map(Self::import_kind_tag),
         );
 
         Some((local_binding, source))
     }
 
     /// Return one stable hashable tag for one import mode.
-    fn import_mode_tag(mode: js::DependencyMode) -> u8 {
-        match mode {
-            js::DependencyMode::Item => 0,
-            js::DependencyMode::Default => 1,
-            js::DependencyMode::Namespace => 2,
+    fn import_mode_tag(binding: js::DependencyBinding) -> u8 {
+        match binding {
+            js::DependencyBinding::Item => 0,
+            js::DependencyBinding::Default => 1,
+            js::DependencyBinding::Namespace => 2,
         }
     }
 
     /// Return one stable hashable tag for one import kind.
-    fn import_kind_tag(kind: js::DependencyKind) -> u8 {
-        match kind {
-            js::DependencyKind::Type => 0,
-            js::DependencyKind::Value => 1,
+    fn import_kind_tag(space: js::DependencySpace) -> u8 {
+        match space {
+            js::DependencySpace::Type => 0,
+            js::DependencySpace::Value => 1,
         }
     }
 
@@ -97,7 +97,7 @@ impl<'a> ScriptLinker<'a> {
                 let statement = module.tree.get(statement_id).clone();
 
                 let js::Statement::Import {
-                    kind,
+                    space: kind,
                     target,
                     items,
                     attributes,
@@ -110,7 +110,7 @@ impl<'a> ScriptLinker<'a> {
                 let items = items.unwrap_or_default();
 
                 // keep type imports and attributed imports untouched here
-                if kind == js::DependencyKind::Type || attributes.is_some() {
+                if kind == js::DependencySpace::Type || attributes.is_some() {
                     let specifier = module.strings.get(target).to_string();
                     imported_specifiers.insert(specifier);
                     normalized_roots.push(root);
@@ -347,7 +347,7 @@ impl Compiler {
         items.iter().all(|item_id| {
             let item = module.tree.get(*item_id);
 
-            item.mode == js::DependencyMode::Item && item.value.is_none()
+            item.binding == js::DependencyBinding::Item && item.value.is_none()
         })
     }
 

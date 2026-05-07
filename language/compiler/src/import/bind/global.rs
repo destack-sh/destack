@@ -16,10 +16,10 @@ impl Compiler {
         global_augmentation_scope: LocalScopeId,
     ) {
         let symbol_ids = symbols
-            .active_symbol_ids()
+            .symbol_ids()
             .filter(|symbol_id| {
                 symbol_is_within_scope(symbols, *symbol_id, global_augmentation_scope)
-                    || symbol_primary_declaration_is_within_global(tree, symbols, *symbol_id)
+                    || symbol_declaration_is_within_global(tree, symbols, *symbol_id)
             })
             .collect::<Vec<_>>();
 
@@ -30,18 +30,18 @@ impl Compiler {
     }
 }
 
-/// Return true when a symbol primary declaration is nested under `declare global`.
-fn symbol_primary_declaration_is_within_global(
+/// Return true when a symbol declaration is nested under `declare global`.
+fn symbol_declaration_is_within_global(
     tree: &Tree,
     symbols: &SymbolTable,
     symbol_id: LocalSymbolId,
 ) -> bool {
     let symbol = symbols.get_symbol(symbol_id);
-    let Some(primary_declaration) = symbol.primary_declaration else {
+    let Some(declaration) = symbol.declaration else {
         return false;
     };
 
-    node_is_within_global(tree, primary_declaration.local_id)
+    node_is_within_global(tree, declaration.local_id)
 }
 
 /// Return true when a node is nested under `declare global`.

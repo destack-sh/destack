@@ -8,6 +8,19 @@ use super::FunctionLowerer;
 use crate::lower::{BreakContext, LocalBinding, LoopContext, Terminates};
 
 impl FunctionLowerer<'_> {
+    /// Resolve an explicit control transfer target.
+    fn control_target_symbol(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<dir::GlobalSymbolId> {
+        let node_id = expression_id.into_global_any(self.context.module_id);
+
+        match self.context.types.control_resolution(node_id) {
+            Some(dir::ControlResolution::Label(symbol)) => Some(symbol),
+            _ => None,
+        }
+    }
+
     /// Lower a statement expression.
     pub(crate) fn lower_statement_expression(
         &mut self,
@@ -130,21 +143,25 @@ impl FunctionLowerer<'_> {
                 None,
             ),
 
-            dir::Expression::Break { target_symbol, .. } => {
-                self.lower_break_statement(expression_id, *target_symbol)
+            dir::Expression::Break { .. } => {
+                let target_symbol = self.control_target_symbol(expression_id);
+
+                self.lower_break_statement(expression_id, target_symbol)
             }
 
-            dir::Expression::Continue { target_symbol, .. } => {
-                self.lower_continue_statement(expression_id, *target_symbol)
+            dir::Expression::Continue { .. } => {
+                let target_symbol = self.control_target_symbol(expression_id);
+
+                self.lower_continue_statement(expression_id, target_symbol)
             }
 
             dir::Expression::Match {
-                kind,
+                form,
                 value,
                 cases,
                 symbol,
                 ..
-            } => self.lower_match_statement(expression_id, *kind, *value, cases, *symbol),
+            } => self.lower_match_statement(expression_id, *form, *value, cases, *symbol),
 
             dir::Expression::Call {
                 left,
@@ -639,13 +656,13 @@ impl FunctionLowerer<'_> {
     fn lower_match_statement(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        kind: dir::MatchKind,
+        form: dir::MatchForm,
         value_id: dir::LocalNodeId<dir::Expression>,
         cases: &[dir::LocalNodeId<dir::MatchCase>],
         _symbol: dir::LocalSymbolId,
     ) -> CompilerResult<Terminates> {
         // match expressions must be elaborated before lowering
-        if kind == dir::MatchKind::Match {
+        if form == dir::MatchForm::Match {
             return Err(LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(
                     expression_id
@@ -777,7 +794,7 @@ impl FunctionLowerer<'_> {
 
             if !terminated.is_yes() {
                 let fallthrough_target =
-                    if kind == dir::MatchKind::Switch && i + 1 < case_blocks.len() {
+                    if form == dir::MatchForm::Switch && i + 1 < case_blocks.len() {
                         case_blocks[i + 1]
                     } else {
                         exit_block
@@ -969,9 +986,9 @@ impl FunctionLowerer<'_> {
         }
         if matches!(
             dir_type,
-            dir::Type::TypeLiteral {
+            dir::Type::Literal(dir::LiteralType {
                 value: dir::TypeLiteral::Primitive(dir::PrimitiveType::String)
-            }
+            })
         ) && let Some(string_type) = self.context.type_lowerer.string_type()
         {
             return Ok(string_type);

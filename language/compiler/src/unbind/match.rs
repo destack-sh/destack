@@ -58,7 +58,7 @@ impl Compiler {
         &self,
         module: &Module,
         case_id: dir::LocalNodeId<dir::MatchCase>,
-        match_kind: ast::MatchKind,
+        match_form: ast::MatchForm,
         tree: &dir::Tree,
         symbols: &dir::SymbolTable,
         types: &dir::TypeTable,
@@ -103,9 +103,9 @@ impl Compiler {
                     ast_strings,
                     context,
                 );
-                let body_context = match match_kind {
-                    ast::MatchKind::Match => ast::BlockContext::Expression,
-                    ast::MatchKind::Switch => ast::BlockContext::Statement,
+                let body_context = match match_form {
+                    ast::MatchForm::Match => ast::BlockContext::Expression,
+                    ast::MatchForm::Switch => ast::BlockContext::Statement,
                 };
                 let body = self.unbind_block(
                     module,

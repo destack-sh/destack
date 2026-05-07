@@ -53,7 +53,7 @@ impl Compiler {
         });
         let ast_block = ast::Block {
             context: block_context,
-            format: ast::BlockFormat::Explicit,
+            form: ast::BlockForm::Explicit,
             leading_expressions,
             tail_expression,
         };

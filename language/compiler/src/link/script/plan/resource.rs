@@ -72,8 +72,8 @@ fn insert_default_export_statement(
     let default_name_id = strings.intern(DEFAULT_EXPORT_NAME);
     let export_item = tree.insert_from_source_any(
         js::DependencyItem {
-            mode: js::DependencyMode::Item,
-            kind: Some(js::DependencyKind::Value),
+            binding: js::DependencyBinding::Item,
+            space: Some(js::DependencySpace::Value),
             name: Some(js::Name::Identifier(binding_name_id)),
             alias: Some(default_name_id),
             value: None,
@@ -85,7 +85,7 @@ fn insert_default_export_statement(
 
     tree.insert_from_source_any(
         js::Statement::Export {
-            kind: js::DependencyKind::Value,
+            space: js::DependencySpace::Value,
             target: None,
             target_module: None,
             items: vec![export_item],
@@ -267,8 +267,9 @@ impl<'a> ScriptLinker<'a> {
                     anchor: module.id.into(),
                     package: self.package_id,
                     target: self.target_id.clone(),
-                    message: "assets.mode = \"reference\" is not supported for code file imports"
-                        .to_string(),
+                    message:
+                        "assets.binding = \"reference\" is not supported for code file imports"
+                            .to_string(),
                 });
             }
         };

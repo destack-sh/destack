@@ -1,8 +1,8 @@
 use destack_dir as dir;
 use dir::{
-    Block, Expression, IfCondition, LocalNodeId, LocalScope, LocalScopeId, MatchCase, MatchKind,
-    MatchSelector, MatchSource, NodeType, Pattern, SymbolBinding, SymbolKind, SymbolSpace,
-    SymbolType, Type, TypeLiteral,
+    Block, DeclarationForm, Expression, IfCondition, LocalNodeId, LocalScope, LocalScopeId,
+    MatchCase, MatchForm, MatchOrigin, MatchSelector, NodeType, Pattern, SymbolBinding, SymbolKind,
+    SymbolSpace, Type, TypeLiteral,
 };
 
 use crate::elaborate::ElaborateState;
@@ -81,10 +81,10 @@ impl Compiler {
 
             // replace the if let with a match expression
             let match_expression = Expression::Match {
-                kind: MatchKind::Match,
+                form: MatchForm::Match,
                 value: value_id,
                 cases: vec![then_case, else_case],
-                source: MatchSource::Match,
+                source: MatchOrigin::Match,
                 scope: match_scope.0,
                 symbol: match_symbol,
             };
@@ -134,7 +134,7 @@ impl Compiler {
         let scope_mark = state.symbols.get_scope_mark(scope_id);
         let (symbol_id, _) = state.symbols.insert_symbol(
             SymbolKind::Item,
-            SymbolType::Void,
+            DeclarationForm::Void,
             SymbolSpace::Value,
             SymbolBinding::Runtime,
             None,
@@ -212,7 +212,7 @@ impl Compiler {
             block_id,
             Block {
                 context: dir::BlockContext::Expression,
-                format: dir::BlockFormat::Explicit,
+                form: dir::BlockForm::Explicit,
                 scope: scope.0,
                 leading_expressions: Vec::new(),
                 tail_expression: None,
@@ -232,9 +232,9 @@ impl Compiler {
             .insert_as_owner(block_expr_id, Expression::Block(block));
 
         // record void types for the synthesized block
-        let void_type = Type::TypeLiteral {
+        let void_type = Type::Literal(dir::LiteralType {
             value: TypeLiteral::Void,
-        };
+        });
         let void_type_id = state.types.insert_type_from(void_type, block);
         let module_id = state.types.module_id;
         state

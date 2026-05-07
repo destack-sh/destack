@@ -7,11 +7,11 @@ use super::UnbindContext;
 use crate::Compiler;
 
 impl Compiler {
-    /// Unbind a DIR export mode to an AST export mode.
-    pub(super) fn unbind_export_mode(&self, export: dir::ExportMode) -> ast::ExportMode {
+    /// Unbind a DIR export kind to an AST export kind.
+    pub(super) fn unbind_export_kind(&self, export: dir::ExportKind) -> ast::ExportKind {
         match export {
-            dir::ExportMode::Named => ast::ExportMode::Named,
-            dir::ExportMode::Default => ast::ExportMode::Default,
+            dir::ExportKind::Named => ast::ExportKind::Named,
+            dir::ExportKind::Default => ast::ExportKind::Default,
         }
     }
 
@@ -123,7 +123,7 @@ impl Compiler {
 
                 ast::AssignPattern::Assign { pattern, value }
             }
-            dir::AssignPattern::Array { fields } => {
+            dir::AssignPattern::Sequence { fields } => {
                 let fields = fields
                     .iter()
                     .map(|field_id| {
@@ -140,7 +140,7 @@ impl Compiler {
                     })
                     .collect();
 
-                ast::AssignPattern::Array { fields }
+                ast::AssignPattern::Sequence { fields }
             }
             dir::AssignPattern::Object { fields } => {
                 let fields = fields
@@ -368,22 +368,19 @@ impl Compiler {
                     ast::Expression::Labelled { label, body }
                 }
 
-                dir::Expression::UnresolvedImport {
+                dir::Expression::Import {
                     source,
-                    kind,
+                    space,
                     target,
                     items,
                     attributes,
                     arguments,
+                    ..
                 } => {
                     let source = self.unbind_import_source(*source);
-                    let kind = self.unbind_dependency_kind(context, *kind);
+                    let space = self.unbind_dependency_space(context, *space);
                     let target = match target {
-                        dir::ImportTarget::String(target) => {
-                            ast::ImportTarget::String(
-                                *target,
-                            )
-                        }
+                        dir::ImportTarget::String(target) => ast::ImportTarget::String(*target),
                         dir::ImportTarget::Expression { target } => {
                             let target = self.unbind_expression(
                                 module,
@@ -425,7 +422,7 @@ impl Compiler {
                     });
                     ast::Expression::Import {
                         source,
-                        kind,
+                        space,
                         target,
                         items,
                         attributes,
@@ -433,69 +430,14 @@ impl Compiler {
                     }
                 }
 
-                dir::Expression::Import {
-                    source,
-                    kind,
+                dir::Expression::ReExport {
                     target,
-                    items,
-                    attributes,
-                    arguments,
-                    ..
-                } => {
-                    let source = self.unbind_import_source(*source);
-                    let kind = self.unbind_dependency_kind(context, *kind);
-                    let target = ast::ImportTarget::String(
-                        *target,
-                    );
-                    let items = items.as_ref().map(|items| {
-                        items
-                            .iter()
-                            .map(|item| {
-                                self.unbind_dependency_item(
-                                    module,
-                                    *item,
-                                    tree,
-                                    symbols,
-                                    types,
-                                    ast_tree,
-                                    ast_strings,
-                                    context,
-                                )
-                            })
-                            .collect()
-                    });
-                    let attributes = attributes.as_ref().map(|attributes| {
-                        self.unbind_import_attribute_clause(attributes, ast_strings, context)
-                    });
-                    let arguments = arguments.as_ref().map(|args| {
-                        args.iter().map(|arg| {
-                            self.unbind_argument(module, *arg, tree, symbols, types, ast_tree, ast_strings, context)
-                        }).collect()
-                    });
-                    ast::Expression::Import {
-                        source,
-                        kind,
-                        target,
-                        items,
-                        attributes,
-                        arguments,
-                    }
-                }
-
-                dir::Expression::UnresolvedReExport {
-                    target,
-                    kind,
-                    items,
-                    attributes,
-                }
-                | dir::Expression::ReExport {
-                    target,
-                    kind,
+                    space,
                     items,
                     attributes,
                     ..
                 } => {
-                    let kind = self.unbind_dependency_kind(context, *kind);
+                    let space = self.unbind_dependency_space(context, *space);
                     let target = *target;
                     let items = items.iter().map(|item| {
                         self.unbind_dependency_item(module, *item, tree, symbols, types, ast_tree, ast_strings, context)
@@ -504,7 +446,7 @@ impl Compiler {
                         self.unbind_import_attribute_clause(attributes, ast_strings, context)
                     });
                     ast::Expression::Export {
-                        kind,
+                        space,
                         target: Some(target),
                         items,
                         attributes,
@@ -512,11 +454,11 @@ impl Compiler {
                 }
 
                 dir::Expression::Export {
-                    kind,
+                    space,
                     items,
                     attributes,
                 } => {
-                    let kind = self.unbind_dependency_kind(context, *kind);
+                    let space = self.unbind_dependency_space(context, *space);
                     let items = items.iter().map(|item| {
                         self.unbind_dependency_item(module, *item, tree, symbols, types, ast_tree, ast_strings, context)
                     }).collect();
@@ -524,7 +466,7 @@ impl Compiler {
                         self.unbind_import_attribute_clause(attributes, ast_strings, context)
                     });
                     ast::Expression::Export {
-                        kind,
+                        space,
                         target: None,
                         items,
                         attributes,
@@ -537,7 +479,7 @@ impl Compiler {
 
                 dir::Expression::Let {
                     export,
-                    ambient,
+                    is_ambient,
                     mutability,
                     declarators,
                 } => {
@@ -547,15 +489,15 @@ impl Compiler {
                         dir::Mutability::Immutable => ast::LetKind::Const,
                         dir::Mutability::Mutable => ast::LetKind::Let,
                     };
-                    let export = export.map(|export| self.unbind_export_mode(export));
-                    let ambient = self.unbind_ambientness(*ambient, context);
+                    let export = export.map(|export| self.unbind_export_kind(export));
+                    let is_ambient = self.unbind_ambientness(*is_ambient, context);
                     let declarators = declarators.iter().map(|decl| {
                         self.unbind_declarator(module, *decl, tree, symbols, types, ast_tree, ast_strings, context)
                     }).collect();
                     ast::Expression::Let {
                         kind,
                         export,
-                        ambient,
+                        is_ambient,
                         mutability: ast_mutability,
                         declarators,
                     }
@@ -603,12 +545,12 @@ impl Compiler {
                 dir::Expression::Using {
                     asynchrony,
                     export,
-                    ambient,
+                    is_ambient,
                     declarators,
                 } => {
                     let asynchrony = self.unbind_asynchrony(context, *asynchrony);
-                    let export = export.map(|export| self.unbind_export_mode(export));
-                    let ambient = self.unbind_ambientness(*ambient, context);
+                    let export = export.map(|export| self.unbind_export_kind(export));
+                    let is_ambient = self.unbind_ambientness(*is_ambient, context);
                     let declarators = declarators
                         .iter()
                         .map(|decl| {
@@ -627,7 +569,7 @@ impl Compiler {
                     ast::Expression::Using {
                         asynchrony,
                         export,
-                        ambient,
+                        is_ambient,
                         declarators,
                     }
                 }
@@ -702,18 +644,18 @@ impl Compiler {
                     ast::Expression::Unary { operator, right }
                 }
 
-                dir::Expression::ValueOf { mutability, variance, right } => {
+                dir::Expression::MoveOf { mutability, variance, right } => {
                     let mutability = mutability.map(|m| self.unbind_mutability(context, m));
                     let variance = variance.map(|v| self.unbind_variance_bound(context, v));
                     let right = self.unbind_expression(module, *right, tree, symbols, types, ast_tree, ast_strings, context);
-                    ast::Expression::ValueOf { mutability, variance, right }
+                    ast::Expression::MoveOf { mutability, variance, right }
                 }
 
-                dir::Expression::ReferenceOf { mutability, variance, right } => {
+                dir::Expression::BorrowOf { mutability, variance, right } => {
                     let mutability = mutability.map(|m| self.unbind_mutability(context, m));
                     let variance = variance.map(|v| self.unbind_variance_bound(context, v));
                     let right = self.unbind_expression(module, *right, tree, symbols, types, ast_tree, ast_strings, context);
-                    ast::Expression::ReferenceOf { mutability, variance, right }
+                    ast::Expression::BorrowOf { mutability, variance, right }
                 }
                 dir::Expression::PointerOf { mutability, right } => {
                     let mutability = mutability.map(|m| self.unbind_mutability(context, m));
@@ -901,14 +843,11 @@ impl Compiler {
                     ast::Expression::Delete { value }
                 }
 
-                dir::Expression::UnresolvedPath {
+                dir::Expression::Path {
                     path,
                     generic_arguments,
-                    space_order: _,
-                }
-                | dir::Expression::LocalReference { path, generic_arguments, .. }
-                | dir::Expression::ModuleReference { path, generic_arguments, .. }
-                | dir::Expression::GlobalReference { path, generic_arguments, .. } => {
+                    ..
+                } => {
                     let path = self.unbind_path(path, ast_strings, context);
                     let generic_arguments = generic_arguments.iter().map(|argument| {
                         self.unbind_generic_argument(
@@ -957,10 +896,7 @@ impl Compiler {
                     ast::Expression::Type { value }
                 }
 
-                dir::Expression::Type {
-                    value,
-                    resolved_type: _,
-                } => {
+                dir::Expression::Type { value } => {
                     let value = self.unbind_type_expression(
                         module,
                         *value,
@@ -1177,8 +1113,8 @@ impl Compiler {
                     ast::Expression::Parenthesized { expression }
                 }
 
-                dir::Expression::If { kind, condition, then_expression, else_expression } => {
-                    let kind = self.unbind_if_kind(context, *kind);
+                dir::Expression::If { form, condition, then_expression, else_expression } => {
+                    let form = self.unbind_if_form(context, *form);
                     let condition = match condition {
                         dir::IfCondition::Expression { condition } => {
                             let condition = self.unbind_expression(
@@ -1234,7 +1170,7 @@ impl Compiler {
                     let else_expression = else_expression.map(|e| {
                         self.unbind_expression(module, e, tree, symbols, types, ast_tree, ast_strings, context)
                     });
-                    ast::Expression::If { kind, condition, then_expression, else_expression }
+                    ast::Expression::If { form, condition, then_expression, else_expression }
                 }
 
                 dir::Expression::Loop { kind, condition, body, .. } => {
@@ -1257,7 +1193,7 @@ impl Compiler {
                             }).unwrap_or_else(|| {
                                 ast_tree.insert(ast::Expression::ScalarLiteral(ast::ScalarLiteral::Boolean(true)), span)
                             });
-                            ast::Expression::While { kind: ast::WhileKind::While, condition, body }
+                            ast::Expression::While { form: ast::WhileForm::While, condition, body }
                         }
                         dir::LoopKind::PostTest => {
                             let condition = condition.map(|c| {
@@ -1265,25 +1201,25 @@ impl Compiler {
                             }).unwrap_or_else(|| {
                                 ast_tree.insert(ast::Expression::ScalarLiteral(ast::ScalarLiteral::Boolean(true)), span)
                             });
-                            ast::Expression::While { kind: ast::WhileKind::DoWhile, condition, body }
+                            ast::Expression::While { form: ast::WhileForm::DoWhile, condition, body }
                         }
                     }
                 }
 
                 dir::Expression::ForEach {
                     asynchrony,
-                    kind,
+                    operator,
                     binding,
                     iterator,
                     body,
                     ..
                 } => {
                     let asynchrony = self.unbind_asynchrony(context, *asynchrony);
-                    let kind = self.unbind_for_each_kind(context, *kind);
+                    let operator = self.unbind_for_each_operator(context, *operator);
                     let binding = match binding {
                         dir::ForEachBinding::Pattern {
                             pattern,
-                            declaration_kind,
+                            keyword,
                         } => {
                             let pattern = self.unbind_pattern(
                                 module,
@@ -1295,11 +1231,11 @@ impl Compiler {
                                 ast_strings,
                                 context,
                             );
-                            let declaration_kind = declaration_kind
-                                .map(|kind| self.unbind_for_each_declaration_kind(context, kind));
+                            let keyword = keyword
+                                .map(|keyword| self.unbind_binding_keyword(context, keyword));
                             ast::ForEachBinding::Pattern {
                                 pattern,
-                                declaration_kind,
+                                keyword,
                             }
                         }
                         dir::ForEachBinding::Using { asynchrony, pattern } => {
@@ -1333,7 +1269,7 @@ impl Compiler {
                     );
                     ast::Expression::ForEach {
                         asynchrony,
-                        kind,
+                        operator,
                         binding,
                         iterator,
                         body,
@@ -1381,17 +1317,17 @@ impl Compiler {
                     ast::Expression::Try { try_expression, catch_pattern, catch_ty, catch_expression, finally_expression }
                 }
 
-                dir::Expression::Match { kind, value, cases, .. } => {
-                    let kind = match kind {
-                        dir::MatchKind::Match => ast::MatchKind::Match,
-                        dir::MatchKind::Switch => ast::MatchKind::Switch,
+                dir::Expression::Match { form, value, cases, .. } => {
+                    let form = match form {
+                        dir::MatchForm::Match => ast::MatchForm::Match,
+                        dir::MatchForm::Switch => ast::MatchForm::Switch,
                     };
                     let value = self.unbind_expression(module, *value, tree, symbols, types, ast_tree, ast_strings, context);
                     let cases = cases.iter().map(|case| {
                         self.unbind_match_case(
                             module,
                             *case,
-                            kind,
+                            form,
                             tree,
                             symbols,
                             types,
@@ -1400,24 +1336,13 @@ impl Compiler {
                             context,
                         )
                     }).collect();
-                    ast::Expression::Match { kind, value, cases }
-                }
-
-                dir::Expression::UnresolvedBreak { target, value } => {
-                    let label = Some(*target);
-                    let value = value.map(|v| self.unbind_expression(module, v, tree, symbols, types, ast_tree, ast_strings, context));
-                    ast::Expression::Break { label, value }
+                    ast::Expression::Match { form, value, cases }
                 }
 
                 dir::Expression::Break { target, value, .. } => {
                     let label = target.map(|t| t);
                     let value = value.map(|v| self.unbind_expression(module, v, tree, symbols, types, ast_tree, ast_strings, context));
                     ast::Expression::Break { label, value }
-                }
-
-                dir::Expression::UnresolvedContinue { target } => {
-                    let label = Some(*target);
-                    ast::Expression::Continue { label }
                 }
 
                 dir::Expression::Continue { target, .. } => {
@@ -1487,12 +1412,12 @@ impl Compiler {
         }
     }
 
-    /// Unbind if kind to AST if kind.
+    /// Unbind if form to AST if form.
     #[inline]
-    fn unbind_if_kind(&self, _context: &mut UnbindContext, kind: dir::IfKind) -> ast::IfKind {
-        match kind {
-            dir::IfKind::If => ast::IfKind::If,
-            dir::IfKind::Ternary => ast::IfKind::Ternary,
+    fn unbind_if_form(&self, _context: &mut UnbindContext, form: dir::IfForm) -> ast::IfForm {
+        match form {
+            dir::IfForm::If => ast::IfForm::If,
+            dir::IfForm::Ternary => ast::IfForm::Ternary,
         }
     }
 
@@ -1509,30 +1434,30 @@ impl Compiler {
         }
     }
 
-    /// Unbind for each kind to AST for each kind.
+    /// Unbind for each operator to AST for each operator.
     #[inline]
-    fn unbind_for_each_kind(
+    fn unbind_for_each_operator(
         &self,
         _context: &mut UnbindContext,
-        kind: dir::ForEachKind,
-    ) -> ast::ForEachKind {
-        match kind {
-            dir::ForEachKind::In => ast::ForEachKind::In,
-            dir::ForEachKind::Of => ast::ForEachKind::Of,
+        operator: dir::ForEachOperator,
+    ) -> ast::ForEachOperator {
+        match operator {
+            dir::ForEachOperator::In => ast::ForEachOperator::In,
+            dir::ForEachOperator::Of => ast::ForEachOperator::Of,
         }
     }
 
-    /// Unbind for each declaration kind to AST for each declaration kind.
+    /// Unbind a for each binding keyword to AST binding keyword.
     #[inline]
-    fn unbind_for_each_declaration_kind(
+    fn unbind_binding_keyword(
         &self,
         _context: &mut UnbindContext,
-        kind: dir::ForEachDeclarationKind,
-    ) -> ast::ForEachDeclarationKind {
-        match kind {
-            dir::ForEachDeclarationKind::Var => ast::ForEachDeclarationKind::Var,
-            dir::ForEachDeclarationKind::Let => ast::ForEachDeclarationKind::Let,
-            dir::ForEachDeclarationKind::Const => ast::ForEachDeclarationKind::Const,
+        keyword: dir::BindingKeyword,
+    ) -> ast::BindingKeyword {
+        match keyword {
+            dir::BindingKeyword::Var => ast::BindingKeyword::Var,
+            dir::BindingKeyword::Let => ast::BindingKeyword::Let,
+            dir::BindingKeyword::Const => ast::BindingKeyword::Const,
         }
     }
 

@@ -59,8 +59,8 @@ impl FunctionLowerer<'_> {
         // lower getter access into function call
         if let Some(target_symbol) = self.resolved_member_symbol(expression_id)
             && matches!(
-                self.member_mode_for_symbol(target_symbol),
-                Some(dir::FunctionMode::Getter)
+                self.member_role_for_symbol(target_symbol),
+                Some(dir::FunctionRole::Getter)
             )
         {
             return self.lower_getter_call(expression_id, left_id, target_symbol);
@@ -162,7 +162,9 @@ impl FunctionLowerer<'_> {
         let resolution = self.get_resolution(expression_id)?;
 
         match resolution {
-            dir::Resolution::Static { candidate, .. } => Some(candidate.target_symbol),
+            dir::Resolution::Dispatch(dir::DispatchResolution::Static { target, .. }) => {
+                Some(target.symbol)
+            }
             _ => None,
         }
     }
@@ -172,14 +174,14 @@ impl FunctionLowerer<'_> {
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> Option<StaticMemberKind> {
-        // load the analyzed dir artifact for this symbol
+        // load checked dir data for this symbol
         let dir = self.artifact_dir_data_if_present(symbol.module_id)?;
         let tree = &dir.tree;
         let symbols = &dir.symbols;
 
-        // resolve the primary declaration node
+        // resolve the declaration node
         let symbol_entry = symbols.get_symbol(symbol.local_id);
-        let primary = symbol_entry.primary_declaration?;
+        let primary = symbol_entry.declaration?;
         if primary.module_id != symbol.module_id {
             return None;
         }
@@ -221,19 +223,19 @@ impl FunctionLowerer<'_> {
         )
     }
 
-    /// Resolve the function mode for a member symbol when available.
-    pub(crate) fn member_mode_for_symbol(
+    /// Resolve the function role for a member symbol when available.
+    pub(crate) fn member_role_for_symbol(
         &self,
         symbol: dir::GlobalSymbolId,
-    ) -> Option<dir::FunctionMode> {
-        // load the analyzed dir artifact for this symbol
+    ) -> Option<dir::FunctionRole> {
+        // load checked dir data for this symbol
         let dir = self.artifact_dir_data_if_present(symbol.module_id)?;
         let tree = &dir.tree;
         let symbols = &dir.symbols;
 
-        // resolve the primary declaration node
+        // resolve the declaration node
         let symbol_entry = symbols.get_symbol(symbol.local_id);
-        let primary = symbol_entry.primary_declaration?;
+        let primary = symbol_entry.declaration?;
         if primary.module_id != symbol.module_id {
             return None;
         }
@@ -242,7 +244,7 @@ impl FunctionLowerer<'_> {
         if let Ok(member_id) = primary.local_id.try_into_typed::<dir::Member>() {
             let member = tree.get(member_id);
             if let dir::Member::Method { signature, .. } = member {
-                return signature.mode;
+                return signature.role;
             }
         }
 
@@ -250,7 +252,7 @@ impl FunctionLowerer<'_> {
         if let Ok(property_id) = primary.local_id.try_into_typed::<dir::Property>() {
             let property = tree.get(property_id);
             if let dir::Property::Method { signature, .. } = property {
-                return signature.mode;
+                return signature.role;
             }
         }
 
@@ -560,7 +562,7 @@ impl FunctionLowerer<'_> {
         // handle array indexing
         if matches!(
             self.context.types.get_type(left_type_id),
-            dir::Type::Array { .. } | dir::Type::ArraySized { .. }
+            dir::Type::Slice(_) | dir::Type::FixedArray(_)
         ) {
             // lower the array value and index
             let (array_value, _array_type) = self.lower_value_expression(left_id)?;

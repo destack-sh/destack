@@ -1,12 +1,12 @@
 use destack_dir as dir;
-use destack_dir::LanguageSymbol;
+use destack_dir::LanguageItem;
 use dir::{
-    Argument, BinaryOperator, Expression, LocalNodeId, LocalTypeId, NodeType, Resolution,
-    ResolutionCandidate, UnaryOperator,
+    Argument, BinaryOperator, DispatchResolution, DispatchTarget, Expression, LocalNodeId,
+    LocalTypeId, NodeType, Resolution, UnaryOperator,
 };
 
 use crate::elaborate::ElaborateState;
-use crate::{Compiler, ElaborateError, ElaborateResult, OperatorLanguageSymbolExt};
+use crate::{Compiler, ElaborateError, ElaborateResult, OperatorLanguageItemExt};
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -20,17 +20,17 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
     ) -> ElaborateResult<()> {
         // load the operator resolution for this node
-        let Some(resolution_id) = state
+        let Some(resolution) = state
             .types
-            .get_resolution_for_node(expression_id.into_global_any(state.module_id))
+            .resolution(expression_id.into_global_any(state.module_id))
+            .cloned()
         else {
             return Ok(());
         };
-        let resolution = state.types.get_resolution(resolution_id).clone();
-        let Resolution::Static {
+        let Resolution::Dispatch(DispatchResolution::Static {
             receiver,
-            candidate,
-        } = resolution
+            target: candidate,
+        }) = resolution
         else {
             return Ok(());
         };
@@ -69,7 +69,7 @@ impl Compiler {
         operator: BinaryOperator,
         right: LocalNodeId<Expression>,
         receiver: Option<LocalTypeId>,
-        candidate: ResolutionCandidate,
+        candidate: DispatchTarget,
     ) -> ElaborateResult<()> {
         // rewrite `a != b` into `!a.equal(b)` with the static call nested inside
         if operator == BinaryOperator::NotEqual {
@@ -78,7 +78,7 @@ impl Compiler {
                 expression_id,
                 left,
                 &[right],
-                LanguageSymbol::Equal,
+                LanguageItem::Equal,
                 receiver,
                 candidate.clone(),
             );
@@ -107,13 +107,13 @@ impl Compiler {
                 expression_id,
                 left,
                 &[right],
-                LanguageSymbol::Compare,
+                LanguageItem::Compare,
                 receiver,
                 candidate.clone(),
             );
 
             let compare_type_id = candidate
-                .resolved_signature
+                .signature
                 .as_ref()
                 .and_then(|signature| signature.return_type)
                 .ok_or(ElaborateError::UnsupportedConstruct {
@@ -140,7 +140,7 @@ impl Compiler {
         }
 
         // rewrite normal overloadable operators into direct method calls
-        let Some(operator_symbol) = operator.language_symbol() else {
+        let Some(operator_symbol) = operator.language_item() else {
             return Ok(());
         };
         let call = self.operator_call_expression(
@@ -149,7 +149,7 @@ impl Compiler {
             left,
             &[right],
             operator_symbol,
-            candidate.target_symbol,
+            candidate.symbol,
         );
         state.tree.replace(expression_id, call);
 
@@ -163,9 +163,9 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         operator: UnaryOperator,
         right: LocalNodeId<Expression>,
-        candidate: ResolutionCandidate,
+        candidate: DispatchTarget,
     ) -> ElaborateResult<()> {
-        let Some(operator_symbol) = operator.language_symbol() else {
+        let Some(operator_symbol) = operator.language_item() else {
             return Ok(());
         };
 
@@ -175,7 +175,7 @@ impl Compiler {
             right,
             &[],
             operator_symbol,
-            candidate.target_symbol,
+            candidate.symbol,
         );
         state.tree.replace(expression_id, call);
 
@@ -189,9 +189,9 @@ impl Compiler {
         origin_id: LocalNodeId<Expression>,
         receiver: LocalNodeId<Expression>,
         arguments: &[LocalNodeId<Expression>],
-        operator_symbol: LanguageSymbol,
+        operator_symbol: LanguageItem,
         resolution_receiver: Option<LocalTypeId>,
-        candidate: ResolutionCandidate,
+        candidate: DispatchTarget,
     ) -> LocalNodeId<Expression> {
         // create the call expression in the current scope
         let call_id = state.tree.reserve_from(
@@ -207,13 +207,13 @@ impl Compiler {
             receiver,
             arguments,
             operator_symbol,
-            candidate.target_symbol,
+            candidate.symbol,
         );
         let call_id = state.tree.insert_as_owner(call_id, call);
 
         // copy the inferred return type when available
         if let Some(return_type) = candidate
-            .resolved_signature
+            .signature
             .as_ref()
             .and_then(|signature| signature.return_type)
         {
@@ -223,13 +223,13 @@ impl Compiler {
         }
 
         // attach static resolution for lower call emission
-        let resolution_id = state.types.insert_resolution(Resolution::Static {
-            receiver: resolution_receiver,
-            candidate,
-        });
-        state
-            .types
-            .set_resolution_for_node(call_id.into_global_any(state.module_id), resolution_id);
+        state.types.set_resolution(
+            call_id.into_global_any(state.module_id),
+            Resolution::Dispatch(DispatchResolution::Static {
+                receiver: resolution_receiver,
+                target: candidate,
+            }),
+        );
 
         call_id
     }
@@ -241,7 +241,7 @@ impl Compiler {
         origin_id: LocalNodeId<Expression>,
         receiver: LocalNodeId<Expression>,
         arguments: &[LocalNodeId<Expression>],
-        operator_symbol: LanguageSymbol,
+        operator_symbol: LanguageItem,
         target_symbol: dir::GlobalSymbolId,
     ) -> Expression {
         // create the member expression
@@ -313,17 +313,14 @@ impl Compiler {
         expression_id: LocalNodeId<Expression>,
         receiver: Option<LocalTypeId>,
     ) {
-        let resolution_id = state
-            .types
-            .insert_resolution(Resolution::Builtin { receiver });
-        state.types.set_resolution_for_node(
+        state.types.set_resolution(
             expression_id.into_global_any(state.module_id),
-            resolution_id,
+            Resolution::Dispatch(DispatchResolution::Builtin { receiver }),
         );
     }
 
     /// Return the operator member name for a language symbol.
-    fn operator_member_name(&self, operator_symbol: LanguageSymbol) -> dir::StringId {
+    fn operator_member_name(&self, operator_symbol: LanguageItem) -> dir::StringId {
         // match analyze operator key lowering: `Add` -> `add`
         let export_name = operator_symbol.export_name();
         let mut chars = export_name.chars();

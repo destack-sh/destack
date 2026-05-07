@@ -1,6 +1,6 @@
 use crate::DiagnosticAnchor;
 use destack_artifact_macros::Diagnostic;
-use destack_dir::{GlobalScopeId, GlobalSymbolId, LanguageSymbol};
+use destack_dir::{GlobalScopeId, GlobalSymbolId, LanguageItem};
 use destack_source::{ModuleId, PackageId, TargetId};
 
 /// Errors during the resolve phase.
@@ -135,9 +135,9 @@ pub enum ResolveError {
     // -------------------------------------------------------------------------
     /// Missing language item.
     #[diagnostic(code = "ER400", message = "missing language item '{item}'")]
-    MissingLanguageSymbol {
+    MissingLanguageItem {
         anchor: DiagnosticAnchor,
-        item: LanguageSymbol,
+        item: LanguageItem,
     },
 
     /// Missing library package.

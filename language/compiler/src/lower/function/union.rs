@@ -148,7 +148,7 @@ impl FunctionLowerer<'_> {
         let tag_index = layout
             .element_types
             .iter()
-            .position(|element| dir::are_types_equal(*element, variant_type_id, self.context.types))
+            .position(|element| *element == variant_type_id)
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(node),
                 message: "union variant is not a member of the union type".to_string(),
@@ -548,12 +548,12 @@ impl FunctionLowerer<'_> {
             dir::Expression::Type { .. } => {
                 let type_id = self.type_for_expression(expression_id)?;
                 match self.context.types.get_type(type_id) {
-                    dir::Type::TypeLiteral {
+                    dir::Type::Literal(dir::LiteralType {
                         value: dir::TypeLiteral::Null,
-                    } => Some(UnionLiteralValue::Null),
-                    dir::Type::TypeLiteral {
+                    }) => Some(UnionLiteralValue::Null),
+                    dir::Type::Literal(dir::LiteralType {
                         value: dir::TypeLiteral::Undefined,
-                    } => Some(UnionLiteralValue::Undefined),
+                    }) => Some(UnionLiteralValue::Undefined),
                     _ => None,
                 }
             }
@@ -574,21 +574,21 @@ impl FunctionLowerer<'_> {
             .position(
                 |element| match (self.context.types.get_type(*element), literal) {
                     (
-                        dir::Type::TypeLiteral {
+                        dir::Type::Literal(dir::LiteralType {
                             value: dir::TypeLiteral::ScalarLiteral(value),
-                        },
+                        }),
                         UnionLiteralValue::Scalar(literal),
                     ) => value == literal,
                     (
-                        dir::Type::TypeLiteral {
+                        dir::Type::Literal(dir::LiteralType {
                             value: dir::TypeLiteral::Null,
-                        },
+                        }),
                         UnionLiteralValue::Null,
                     ) => true,
                     (
-                        dir::Type::TypeLiteral {
+                        dir::Type::Literal(dir::LiteralType {
                             value: dir::TypeLiteral::Undefined,
-                        },
+                        }),
                         UnionLiteralValue::Undefined,
                     ) => true,
                     _ => false,

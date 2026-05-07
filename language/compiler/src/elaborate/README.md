@@ -7,7 +7,7 @@ We try to keep most reifications / transforms the same across targets to reduce 
 
 ## Pipeline
 
-Elaborate is part of the front-end that runs per profile on analyzed DIR (before Execute patches comptime results in).
+Elaborate is part of the front-end that runs per profile on checked DIR, before Execute patches comptime results in.
 For the most part, we can think of Elaborate as "transformation", which "simplify" the DIR, and "reification", which makes some implicit logic explicit.
 
 ## Transform

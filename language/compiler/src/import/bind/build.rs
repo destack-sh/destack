@@ -1,6 +1,6 @@
 use destack_dir::{
-    Expression, LocalNodeId, LocalScopeId, LocalScopeMark, ModuleBinding, SymbolSpaceOrder,
-    SymbolTable, Tree, TypeTable,
+    Expression, LocalNodeId, LocalScopeId, LocalScopeMark, ModuleBinding, SymbolSpace, SymbolTable,
+    Tree, TypeTable,
 };
 
 use destack_artifact::Ast;
@@ -37,7 +37,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    SymbolSpaceOrder::ValueThenType,
+                    SymbolSpace::Value,
                 )
             })
             .collect()

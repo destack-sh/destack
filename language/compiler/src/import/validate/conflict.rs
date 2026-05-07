@@ -1,12 +1,10 @@
-use crate::common::dir::{SymbolDescriptor, can_merge_declarations};
 use crate::import::ImportState;
 use crate::{Compiler, CompilerResult, ImportError};
 use destack_core::StringId;
 use destack_dir::{
-    BindingCategory, Declaration, DependencyItem, DependencyKind, EnumKind, Expression,
-    GlobalNodeIdAny, LocalScopeId, LocalSymbolId, MatchCase, MatchKind, Member, NodeType, Pattern,
-    Property, StaticKey, Symbol, SymbolBinding, SymbolKind, SymbolSpace, SymbolTable, SymbolType,
-    Tree,
+    BindingCategory, Declaration, DeclarationForm, DependencyItem, DependencySpace, Expression,
+    GlobalNodeIdAny, LocalScopeId, LocalSymbolId, MatchCase, MatchForm, Member, NodeType, Pattern,
+    Property, StaticKey, Symbol, SymbolBinding, SymbolKind, SymbolSpace, SymbolTable, Tree,
 };
 use destack_workspace::Module;
 use std::collections::{HashMap, HashSet};
@@ -24,26 +22,12 @@ impl Compiler {
                 // group symbols by name and category to avoid O(n^2) scans
                 let mut buckets: HashMap<StaticKey, HashMap<SymbolCategory, LocalSymbolId>> =
                     HashMap::new();
-                for (key, symbol_id) in state.symbols.active_named_symbols(scope) {
+                for (key, symbol_id) in state.symbols.named_symbols(scope) {
                     let normalized_key = self.normalize_conflict_key(key);
                     let symbol = state.symbols.get_symbol(symbol_id);
-                    let Some(primary_declaration) = symbol.primary_declaration else {
+                    let Some(declaration) = symbol.declaration else {
                         continue;
                     };
-
-                    // detect enum kind mismatches within a single symbol
-                    if let Some((node, other_node)) =
-                        self.enum_kind_mismatch_nodes(state.tree, symbol)
-                    {
-                        let error = ImportError::ConflictingBinding {
-                            anchor: state.anchor(node),
-                            other: state.anchor(other_node),
-                            scope: symbol.scope.0.into_global(state.module.id),
-                            name: state.static_key(key),
-                            is_local: false,
-                        };
-                        state.emit(error)?;
-                    }
 
                     // compare against previously seen symbols with the same name
                     let entry = buckets.entry(normalized_key).or_default();
@@ -68,17 +52,6 @@ impl Compiler {
                         {
                             continue;
                         }
-                        let enum_kind_mismatch =
-                            self.is_const_enum_mismatch(state.tree, symbol, other_symbol);
-                        let can_merge = self.can_symbols_merge_declarations(
-                            state.module.code_language_type(),
-                            symbol,
-                            other_symbol,
-                        ) && !enum_kind_mismatch;
-                        if can_merge {
-                            continue;
-                        }
-
                         // local conflicts are allowed unless configured otherwise
                         let is_local_pair = symbol.kind == SymbolKind::Local
                             && other_symbol.kind == SymbolKind::Local;
@@ -101,31 +74,28 @@ impl Compiler {
                         }
 
                         // error on conflicting bindings
-                        let Some(other_primary_declaration) = other_symbol.primary_declaration
-                        else {
+                        let Some(other_declaration) = other_symbol.declaration else {
                             continue;
                         };
                         let error = if symbol.export.is_some() && other_symbol.export.is_some() {
                             ImportError::ConflictingExport {
-                                anchor: state.anchor(primary_declaration),
-                                other: state.anchor(other_primary_declaration),
+                                anchor: state.anchor(declaration),
+                                other: state.anchor(other_declaration),
                                 module: state.module.id,
                                 name: state.static_key(key),
                             }
                         } else {
                             ImportError::ConflictingBinding {
-                                anchor: state.anchor(primary_declaration),
-                                other: state.anchor(other_primary_declaration),
+                                anchor: state.anchor(declaration),
+                                other: state.anchor(other_declaration),
                                 scope: symbol.scope.0.into_global(state.module.id),
                                 name: state.static_key(key),
                                 is_local: is_local_pair,
                             }
                         };
                         state.emit(error)?;
-                        reported_conflicts.insert(Self::conflict_pair(
-                            primary_declaration,
-                            other_primary_declaration,
-                        ));
+                        reported_conflicts
+                            .insert(Self::conflict_pair(declaration, other_declaration));
                         break;
                     }
                     entry.entry(category).or_insert(symbol_id);
@@ -149,8 +119,13 @@ impl Compiler {
     }
     /// Check if the symbols are a strict local conflict.
     fn is_strict_local_conflict(&self, left: &Symbol, right: &Symbol) -> bool {
-        matches!(left.ty, SymbolType::TypeAlias | SymbolType::Newtype)
-            || matches!(right.ty, SymbolType::TypeAlias | SymbolType::Newtype)
+        matches!(
+            left.form,
+            DeclarationForm::TypeAlias | DeclarationForm::Newtype
+        ) || matches!(
+            right.form,
+            DeclarationForm::TypeAlias | DeclarationForm::Newtype
+        )
     }
     /// Return true when duplicate runtime `var` declarations are allowed.
     fn allow_runtime_var_redeclaration(
@@ -171,105 +146,27 @@ impl Compiler {
         symbol.kind == SymbolKind::Local
             && symbol.binding == SymbolBinding::Runtime
             && symbol.binding_category == BindingCategory::FunctionScoped
-            && symbol.ty == SymbolType::Void
-    }
-    /// Check whether two symbols can merge using declaration order.
-    fn can_symbols_merge_declarations(
-        &self,
-        language_type: destack_source::LanguageType,
-        left: &Symbol,
-        right: &Symbol,
-    ) -> bool {
-        let left_descriptor = SymbolDescriptor::from(left);
-        let right_descriptor = SymbolDescriptor::from(right);
-        let Some(left_declaration) = left.primary_declaration else {
-            return can_merge_declarations(language_type, left_descriptor, right_descriptor);
-        };
-        let Some(right_declaration) = right.primary_declaration else {
-            return can_merge_declarations(language_type, left_descriptor, right_descriptor);
-        };
-        if left_declaration.local_id.id <= right_declaration.local_id.id {
-            can_merge_declarations(language_type, left_descriptor, right_descriptor)
-        } else {
-            can_merge_declarations(language_type, right_descriptor, left_descriptor)
-        }
-    }
-    /// Check if the symbols are a const enum mismatch.
-    fn is_const_enum_mismatch(&self, tree: &Tree, left: &Symbol, right: &Symbol) -> bool {
-        let Some(left_kind) = self.enum_kind_for_symbol(tree, left) else {
-            return false;
-        };
-        let Some(right_kind) = self.enum_kind_for_symbol(tree, right) else {
-            return false;
-        };
-        left_kind != right_kind
-    }
-    /// Get the enum kind for a symbol.
-    fn enum_kind_for_symbol(&self, tree: &Tree, symbol: &Symbol) -> Option<EnumKind> {
-        let primary = symbol.primary_declaration?;
-        if primary.local_id.ty != NodeType::Declaration {
-            return None;
-        }
-        let declaration_id = primary.local_id.into_typed::<Declaration>();
-        match tree.get(declaration_id) {
-            Declaration::Enum(declaration) => Some(declaration.kind),
-            _ => None,
-        }
-    }
-    /// Get the enum kind for a declaration.
-    fn enum_kind_for_declaration(&self, tree: &Tree, node: GlobalNodeIdAny) -> Option<EnumKind> {
-        if node.local_id.ty != NodeType::Declaration {
-            return None;
-        }
-        let declaration_id = node.local_id.into_typed::<Declaration>();
-        match tree.get(declaration_id) {
-            Declaration::Enum(declaration) => Some(declaration.kind),
-            _ => None,
-        }
-    }
-    /// Check if the nodes are a enum kind mismatch.
-    fn enum_kind_mismatch_nodes(
-        &self,
-        tree: &Tree,
-        symbol: &Symbol,
-    ) -> Option<(GlobalNodeIdAny, GlobalNodeIdAny)> {
-        if symbol.ty != SymbolType::Enum {
-            return None;
-        }
-        let primary = symbol.primary_declaration?;
-        let primary_kind = self.enum_kind_for_declaration(tree, primary)?;
-        let secondaries = symbol.secondary_declarations.as_deref()?;
-        for secondary in secondaries {
-            let Some(kind) = self.enum_kind_for_declaration(tree, *secondary) else {
-                continue;
-            };
-            if kind != primary_kind {
-                return Some((primary, *secondary));
-            }
-        }
-        None
+            && symbol.form == DeclarationForm::Void
     }
     /// Check if the symbols are a type value import conflict.
     fn is_type_value_import_conflict(&self, tree: &Tree, left: &Symbol, right: &Symbol) -> bool {
-        let Some(left_kind) = self.dependency_kind_for_symbol(tree, left) else {
+        let Some(left_space) = self.dependency_space_for_symbol(tree, left) else {
             return false;
         };
-        let Some(right_kind) = self.dependency_kind_for_symbol(tree, right) else {
+        let Some(right_space) = self.dependency_space_for_symbol(tree, right) else {
             return false;
         };
-        left_kind != right_kind
+        left_space != right_space
     }
     /// Get the dependency kind for a symbol.
-    fn dependency_kind_for_symbol(&self, tree: &Tree, symbol: &Symbol) -> Option<DependencyKind> {
-        let primary = symbol.primary_declaration?;
+    fn dependency_space_for_symbol(&self, tree: &Tree, symbol: &Symbol) -> Option<DependencySpace> {
+        let primary = symbol.declaration?;
         if primary.local_id.ty != NodeType::DependencyItem {
             return None;
         }
         let item_id = primary.local_id.into_typed::<DependencyItem>();
         match tree.get(item_id) {
-            DependencyItem::UnresolvedRemote { kind, .. }
-            | DependencyItem::UnresolvedLocal { kind, .. }
-            | DependencyItem::Local { kind, .. } => Some(*kind),
+            DependencyItem::Item { space, .. } => Some(*space),
             _ => None,
         }
     }
@@ -281,7 +178,7 @@ impl Compiler {
     ) -> CompilerResult<()> {
         for (_expression_id, expression) in state.tree.iter_nodes_of_type::<Expression>() {
             let Expression::Match {
-                kind: MatchKind::Switch,
+                form: MatchForm::Switch,
                 cases,
                 ..
             } = expression
@@ -296,11 +193,11 @@ impl Compiler {
                     MatchCase::Expression { scope, .. } | MatchCase::Block { scope, .. } => *scope,
                 };
                 let scope = state.symbols.get_scope_by_id(case_scope);
-                for (key, symbol_id) in state.symbols.active_named_symbols(scope) {
+                for (key, symbol_id) in state.symbols.named_symbols(scope) {
                     let normalized_key = self.normalize_conflict_key(key);
                     let symbol = state.symbols.get_symbol(symbol_id);
                     let binding_category = self.symbol_binding_category(symbol);
-                    let Some(primary_declaration) = symbol.primary_declaration else {
+                    let Some(declaration) = symbol.declaration else {
                         continue;
                     };
                     // lexical declarations conflict with lexical declarations across cases
@@ -311,7 +208,7 @@ impl Compiler {
                             state,
                             case_scope,
                             key,
-                            primary_declaration,
+                            declaration,
                             *other_declaration,
                             reported_conflicts,
                         )?;
@@ -325,7 +222,7 @@ impl Compiler {
                             state,
                             case_scope,
                             key,
-                            primary_declaration,
+                            declaration,
                             *other_declaration,
                             reported_conflicts,
                         )?;
@@ -339,7 +236,7 @@ impl Compiler {
                             state,
                             case_scope,
                             key,
-                            primary_declaration,
+                            declaration,
                             *other_declaration,
                             reported_conflicts,
                         )?;
@@ -347,14 +244,10 @@ impl Compiler {
 
                     // keep the first declaration for each key
                     if binding_category == BindingCategory::BlockScoped {
-                        lexical_by_name
-                            .entry(normalized_key)
-                            .or_insert(primary_declaration);
+                        lexical_by_name.entry(normalized_key).or_insert(declaration);
                     }
                     if binding_category == BindingCategory::FunctionScoped {
-                        var_by_name
-                            .entry(normalized_key)
-                            .or_insert(primary_declaration);
+                        var_by_name.entry(normalized_key).or_insert(declaration);
                     }
                 }
             }
@@ -457,13 +350,13 @@ impl Compiler {
     }
     /// Return true when a symbol is the catch parameter of a try expression.
     fn symbol_is_catch_parameter(&self, tree: &Tree, symbol: &Symbol) -> bool {
-        let Some(primary_declaration) = symbol.primary_declaration else {
+        let Some(declaration) = symbol.declaration else {
             return false;
         };
-        if primary_declaration.local_id.ty != NodeType::Pattern {
+        if declaration.local_id.ty != NodeType::Pattern {
             return false;
         }
-        let pattern_id = primary_declaration.local_id.into_typed::<Pattern>();
+        let pattern_id = declaration.local_id.into_typed::<Pattern>();
         let Some(parent_id) = tree.get_parent(pattern_id.id) else {
             return false;
         };
@@ -499,21 +392,20 @@ impl Compiler {
             return false;
         };
         let owner_symbol = symbols.get_symbol(owner_symbol_id);
-        let Some(primary_declaration) = owner_symbol.primary_declaration else {
+        let Some(declaration) = owner_symbol.declaration else {
             return false;
         };
-        match primary_declaration.local_id.ty {
+        match declaration.local_id.ty {
             NodeType::Declaration => {
-                let declaration =
-                    tree.get(primary_declaration.local_id.into_typed::<Declaration>());
+                let declaration = tree.get(declaration.local_id.into_typed::<Declaration>());
                 matches!(declaration, Declaration::Function(..))
             }
             NodeType::Member => {
-                let member = tree.get(primary_declaration.local_id.into_typed::<Member>());
+                let member = tree.get(declaration.local_id.into_typed::<Member>());
                 matches!(member, Member::Method { .. })
             }
             NodeType::Property => {
-                let property = tree.get(primary_declaration.local_id.into_typed::<Property>());
+                let property = tree.get(declaration.local_id.into_typed::<Property>());
                 matches!(property, Property::Method { .. })
             }
             _ => false,
@@ -626,7 +518,7 @@ struct ConflictContext<'a> {
     state: &'a ImportState<'a>,
     /// The conflicts already reported for this module.
     reported_conflicts: HashSet<(u32, u32)>,
-    /// The normalized active symbols by scope.
+    /// The normalized symbols by scope.
     normalized_scope_symbols: HashMap<LocalScopeId, HashMap<StaticKey, Vec<LocalSymbolId>>>,
     /// The cached global augmentation ancestry facts.
     scope_global_augmentations: HashMap<LocalScopeId, bool>,
@@ -654,7 +546,7 @@ impl<'a> ConflictContext<'a> {
     /// Validate conflicts between declarations in ancestor scope chains.
     fn validate_ancestor_binding_conflicts(&mut self) -> CompilerResult<()> {
         for scope in self.state.symbols.scopes() {
-            for (key, symbol_id) in self.state.symbols.active_named_symbols(scope) {
+            for (key, symbol_id) in self.state.symbols.named_symbols(scope) {
                 let normalized_key = self.state.compiler.normalize_conflict_key(key);
                 let symbol = self.state.symbols.get_symbol(symbol_id);
                 let scope_id = symbol.scope.0;
@@ -670,7 +562,7 @@ impl<'a> ConflictContext<'a> {
                 }
 
                 // only real declarations can participate in a reported conflict
-                let Some(primary_declaration) = symbol.primary_declaration else {
+                let Some(declaration) = symbol.declaration else {
                     continue;
                 };
 
@@ -688,7 +580,7 @@ impl<'a> ConflictContext<'a> {
                     }
                     // inspect only same-name candidates in the ancestor scope
                     let ancestor_symbol_ids = self
-                        .normalized_active_named_symbols_for_scope(ancestor_scope_id)
+                        .normalized_named_symbols_for_scope(ancestor_scope_id)
                         .get(&normalized_key)
                         .cloned();
                     if let Some(ancestor_symbol_ids) = ancestor_symbol_ids {
@@ -713,14 +605,13 @@ impl<'a> ConflictContext<'a> {
                             }
 
                             // only real declarations can be reported
-                            let Some(ancestor_declaration) = ancestor_symbol.primary_declaration
-                            else {
+                            let Some(ancestor_declaration) = ancestor_symbol.declaration else {
                                 continue;
                             };
                             self.report_conflicting_binding(
                                 scope_id,
                                 key,
-                                primary_declaration,
+                                declaration,
                                 ancestor_declaration,
                             )?;
                         }
@@ -738,8 +629,8 @@ impl<'a> ConflictContext<'a> {
         Ok(())
     }
 
-    /// Return the normalized active named symbols for a scope.
-    fn normalized_active_named_symbols_for_scope(
+    /// Return the normalized named symbols for a scope.
+    fn normalized_named_symbols_for_scope(
         &mut self,
         scope_id: LocalScopeId,
     ) -> &HashMap<StaticKey, Vec<LocalSymbolId>> {
@@ -749,8 +640,8 @@ impl<'a> ConflictContext<'a> {
                 let scope = self.state.symbols.get_scope_by_id(scope_id);
                 let mut normalized_symbols = HashMap::new();
 
-                // group active symbols by normalized name
-                for (key, symbol_id) in self.state.symbols.active_named_symbols(scope) {
+                // group symbols by normalized name
+                for (key, symbol_id) in self.state.symbols.named_symbols(scope) {
                     let normalized_key = self.state.compiler.normalize_conflict_key(key);
                     normalized_symbols
                         .entry(normalized_key)
@@ -819,7 +710,7 @@ struct SymbolCategory {
     /// Symbol space for conflict grouping.
     space: SymbolSpace,
     /// Symbol type for conflict grouping.
-    ty: SymbolType,
+    ty: DeclarationForm,
     /// Symbol binding for conflict grouping.
     binding: SymbolBinding,
     /// Symbol kind for conflict grouping.
@@ -830,7 +721,7 @@ impl From<&Symbol> for SymbolCategory {
     fn from(symbol: &Symbol) -> Self {
         Self {
             space: symbol.space,
-            ty: symbol.ty,
+            ty: symbol.form,
             binding: symbol.binding,
             kind: symbol.kind,
         }

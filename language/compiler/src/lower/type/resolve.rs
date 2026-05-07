@@ -95,9 +95,9 @@ impl FunctionLowerer<'_> {
         // resolve primitive string directly
         if matches!(
             dir_type,
-            dir::Type::TypeLiteral {
+            dir::Type::Literal(dir::LiteralType {
                 value: dir::TypeLiteral::Primitive(dir::PrimitiveType::String)
-            }
+            })
         ) {
             return self
                 .context
@@ -154,7 +154,7 @@ impl FunctionLowerer<'_> {
     ) -> LowerResult<dir::LocalTypeId> {
         self.context
             .types
-            .get_signature_type_for_node(node_id)
+            .signature_type_id(node_id)
             .ok_or_else(|| self.missing_type_error_for_node(node_id))
     }
 
@@ -175,11 +175,15 @@ impl FunctionLowerer<'_> {
         // read the type expression node
         let expression = self.context.dir_tree.get(expression_id);
 
-        // resolve reference nodes directly through symbol metadata
-        if let dir::TypeExpression::LocalReference { target_symbol, .. }
-        | dir::TypeExpression::ModuleReference { target_symbol, .. }
-        | dir::TypeExpression::GlobalReference { target_symbol, .. } = expression
-        {
+        // resolve reference nodes directly through semantic resolution
+        if matches!(expression, dir::TypeExpression::Reference { .. }) {
+            let node_id = expression_id.into_global_any(self.context.module_id);
+            let Some(dir::SymbolResolution::Target(target_symbol)) =
+                self.context.types.symbol_resolution(node_id)
+            else {
+                return None;
+            };
+
             if let Some(instance_type_id) = self.context.types.get_instance_type_id(*target_symbol)
             {
                 return Some(instance_type_id);
@@ -188,7 +192,7 @@ impl FunctionLowerer<'_> {
             if let Some(type_id) = self
                 .context
                 .types
-                .get_type_id_for_symbol(self.context.symbols, *target_symbol)
+                .declaration_form_id(self.context.symbols, *target_symbol)
             {
                 return Some(type_id);
             }
@@ -199,11 +203,11 @@ impl FunctionLowerer<'_> {
             expression_id.into_global_any(self.context.module_id),
         )?;
         match self.context.types.get_type(type_id) {
-            dir::Type::Value { value } => Some(*value),
-            dir::Type::Reference { symbol, .. } => self
+            dir::Type::Value(value) => Some(value.value),
+            dir::Type::Reference(reference) => self
                 .context
                 .types
-                .get_instance_type_id(*symbol)
+                .get_instance_type_id(reference.symbol)
                 .or(Some(type_id)),
             _ => Some(type_id),
         }
@@ -217,13 +221,18 @@ impl FunctionLowerer<'_> {
         // match the dir type to find a class symbol
         match self.context.types.get_type(type_id) {
             // accept direct class references
-            dir::Type::Reference { symbol, .. } if symbol.ty() == dir::SymbolType::Class => {
-                Some(*symbol)
+            dir::Type::Reference(reference)
+                if self
+                    .context
+                    .symbol_is(reference.symbol, dir::DeclarationForm::Class) =>
+            {
+                Some(reference.symbol)
             }
             // unwrap value types
-            dir::Type::Value { value } => self.class_symbol_for_type(*value),
+            dir::Type::Value(value) => self.class_symbol_for_type(value.value),
             // search intersection elements
-            dir::Type::Intersection { elements } => elements
+            dir::Type::Intersection(intersection) => intersection
+                .elements
                 .iter()
                 .find_map(|element| self.class_symbol_for_type(*element)),
             // reject non class types
@@ -236,7 +245,7 @@ impl FunctionLowerer<'_> {
         // unwrap value type nodes until a concrete type is reached
         let dir_type = self.context.types.get_type(type_id);
         match dir_type {
-            dir::Type::Value { value } => self.unwrap_value_type_id(*value),
+            dir::Type::Value(value) => self.unwrap_value_type_id(value.value),
             _ => type_id,
         }
     }
@@ -252,28 +261,32 @@ impl FunctionLowerer<'_> {
         let right_type_id = self.unwrap_value_type_id(right_type_id);
 
         // fast path: structural or nominal equivalence
-        if dir::are_types_equal(left_type_id, right_type_id, self.context.types) {
+        if left_type_id == right_type_id {
             return true;
         }
 
         // match nominal references against their instance types
         let left_instance = match self.context.types.get_type(left_type_id) {
-            dir::Type::Reference { symbol, .. } => self.context.types.get_instance_type_id(*symbol),
+            dir::Type::Reference(reference) => {
+                self.context.types.get_instance_type_id(reference.symbol)
+            }
             _ => None,
         };
         if let Some(left_instance) = left_instance
-            && dir::are_types_equal(left_instance, right_type_id, self.context.types)
+            && left_instance == right_type_id
         {
             return true;
         }
 
         // match instance types against nominal references
         let right_instance = match self.context.types.get_type(right_type_id) {
-            dir::Type::Reference { symbol, .. } => self.context.types.get_instance_type_id(*symbol),
+            dir::Type::Reference(reference) => {
+                self.context.types.get_instance_type_id(reference.symbol)
+            }
             _ => None,
         };
         if let Some(right_instance) = right_instance
-            && dir::are_types_equal(left_type_id, right_instance, self.context.types)
+            && left_type_id == right_instance
         {
             return true;
         }
@@ -287,15 +300,17 @@ impl FunctionLowerer<'_> {
         type_id: dir::LocalTypeId,
     ) -> Option<dir::EnumBackingType> {
         // accept direct enum references
-        if let dir::Type::Reference { symbol, .. } = self.context.types.get_type(type_id)
-            && symbol.ty() == dir::SymbolType::Enum
+        if let dir::Type::Reference(reference) = self.context.types.get_type(type_id)
+            && self
+                .context
+                .symbol_is(reference.symbol, dir::DeclarationForm::Enum)
         {
-            return self.context.types.get_enum_backing_type(*symbol);
+            return self.context.types.get_enum_backing_type(reference.symbol);
         }
 
         // accept enum instance types
         let symbol = self.context.types.symbol_for_instance_type(type_id)?;
-        if symbol.ty() != dir::SymbolType::Enum {
+        if !self.context.symbol_is(symbol, dir::DeclarationForm::Enum) {
             return None;
         }
 
@@ -355,7 +370,6 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<&dir::Resolution> {
         let node_id = expression_id.into_global_any(self.context.module_id);
-        let resolution_id = self.context.types.get_resolution_for_node(node_id)?;
-        Some(self.context.types.get_resolution(resolution_id))
+        self.context.types.resolution(node_id)
     }
 }

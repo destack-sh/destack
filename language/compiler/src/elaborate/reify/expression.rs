@@ -2,8 +2,9 @@ use destack_workspace::ProviderContext;
 use std::collections::HashSet;
 
 use destack_dir as dir;
+use destack_dir::GuardTable;
 use destack_workspace::{Module, ProfileId};
-use dir::{Expression, IfCondition, IfKind, LocalNodeId, MatchKind};
+use dir::{Expression, IfCondition, IfForm, LocalNodeId, MatchForm};
 
 use crate::elaborate::ElaborateState;
 use crate::{Compiler, ElaborateResult};
@@ -23,6 +24,7 @@ impl Compiler {
         tree: &mut dir::Tree,
         symbols: &mut dir::SymbolTable,
         types: &mut dir::TypeTable,
+        guards: &mut GuardTable,
     ) -> ElaborateResult<()> {
         // skip non-code modules
         if !self.is_code_module(context.revision(), module.id) {
@@ -31,7 +33,7 @@ impl Compiler {
 
         let options = self.elaborate_options(context, module);
         let mut state = ElaborateState::new(
-            context, module.id, module, profile, options, tree, symbols, types,
+            context, module.id, module, profile, options, tree, symbols, types, guards,
         );
 
         // collect member expressions used as call or new callees
@@ -106,10 +108,14 @@ impl Compiler {
                 self.reify_must_expression(state, expression_id, left)?;
             }
 
-            Expression::LocalReference { target_symbol, .. }
-            | Expression::ModuleReference { target_symbol, .. }
-            | Expression::GlobalReference { target_symbol, .. } => {
-                self.reify_implicit_casts_in_reference(state, expression_id, target_symbol)?;
+            Expression::Path { .. } => {
+                let node = expression_id.into_global_any(state.module_id);
+                let Some(dir::SymbolResolution::Target(target_symbol)) =
+                    state.types.symbol_resolution(node)
+                else {
+                    return Ok(());
+                };
+                self.reify_implicit_casts_in_reference(state, expression_id, *target_symbol)?;
             }
 
             Expression::Let { declarators, .. } | Expression::Using { declarators, .. } => {
@@ -125,7 +131,7 @@ impl Compiler {
             }
 
             Expression::If {
-                kind: IfKind::Ternary,
+                form: IfForm::Ternary,
                 condition,
                 then_expression,
                 else_expression,
@@ -141,8 +147,8 @@ impl Compiler {
                 }
             }
 
-            Expression::Match { kind, cases, .. } => {
-                if kind == MatchKind::Match {
+            Expression::Match { form, cases, .. } => {
+                if form == MatchForm::Match {
                     self.reify_implicit_casts_in_match(state, expression_id, &cases)?;
                 }
             }

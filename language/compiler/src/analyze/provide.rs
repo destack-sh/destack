@@ -15,11 +15,10 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
         let state = AnalyzeState::new(module, profile, context);
-        let declared = self
-            .require_dir_declared(state.context, state.module, state.profile)
+        self.require_dir_declared(state.context, state.module, state.profile)
             .map_err(CompilerError::from)?;
         let payload = DirChecked {
-            types: TypeTable::segment(state.module, declared.types.type_count()),
+            types: TypeTable::new(state.module),
             captures: CaptureTable::new(),
         };
 

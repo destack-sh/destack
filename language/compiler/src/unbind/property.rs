@@ -8,16 +8,13 @@ use crate::Compiler;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Unbind a DIR ambientness to an AST ambientness.
+    /// Unbind whether a DIR declaration is ambient.
     pub(super) fn unbind_ambientness(
         &self,
-        ambient: dir::Ambientness,
+        is_ambient: bool,
         _context: &mut UnbindContext,
-    ) -> ast::Ambientness {
-        match ambient {
-            dir::Ambientness::Ambient => ast::Ambientness::Ambient,
-            dir::Ambientness::Concrete => ast::Ambientness::Concrete,
-        }
+    ) -> bool {
+        is_ambient
     }
 
     /// Unbind a DIR property to an AST property.
@@ -161,7 +158,7 @@ impl Compiler {
                 constraint,
                 value,
                 visibility,
-                ambient,
+                is_ambient,
                 is_abstract,
                 is_override,
                 is_static,
@@ -231,7 +228,7 @@ impl Compiler {
                     value,
                     visibility: visibility
                         .map(|visibility| self.unbind_visibility(visibility, context)),
-                    ambient: self.unbind_ambientness(*ambient, context),
+                    is_ambient: self.unbind_ambientness(*is_ambient, context),
                     is_abstract: *is_abstract,
                     is_override: *is_override,
                     is_static: *is_static,
@@ -242,7 +239,7 @@ impl Compiler {
                 declared_type,
                 value,
                 visibility,
-                ambient,
+                is_ambient,
                 is_static,
                 ..
             } => {
@@ -278,7 +275,7 @@ impl Compiler {
                     value,
                     visibility: visibility
                         .map(|visibility| self.unbind_visibility(visibility, context)),
-                    ambient: self.unbind_ambientness(*ambient, context),
+                    is_ambient: self.unbind_ambientness(*is_ambient, context),
                     is_static: *is_static,
                 }
             }
@@ -290,7 +287,7 @@ impl Compiler {
                 is_readonly,
                 mutability,
                 visibility,
-                ambient,
+                is_ambient,
                 is_abstract,
                 is_override,
                 is_static,
@@ -344,7 +341,7 @@ impl Compiler {
                         .map(|mutability| self.unbind_mutability(context, mutability)),
                     visibility: visibility
                         .map(|visibility| self.unbind_visibility(visibility, context)),
-                    ambient: self.unbind_ambientness(*ambient, context),
+                    is_ambient: self.unbind_ambientness(*is_ambient, context),
                     is_abstract: *is_abstract,
                     is_override: *is_override,
                     is_static: *is_static,
@@ -359,7 +356,7 @@ impl Compiler {
                 body,
                 is_optional,
                 visibility,
-                ambient,
+                is_ambient,
                 is_abstract,
                 is_override,
                 is_static,
@@ -409,7 +406,7 @@ impl Compiler {
                     is_optional: *is_optional,
                     visibility: visibility
                         .map(|visibility| self.unbind_visibility(visibility, context)),
-                    ambient: self.unbind_ambientness(*ambient, context),
+                    is_ambient: self.unbind_ambientness(*is_ambient, context),
                     is_abstract: *is_abstract,
                     is_override: *is_override,
                     is_static: *is_static,
@@ -420,7 +417,7 @@ impl Compiler {
             dir::Member::Embed {
                 value,
                 visibility,
-                ambient,
+                is_ambient,
                 is_static,
                 ..
             } => {
@@ -439,7 +436,7 @@ impl Compiler {
                     value,
                     visibility: visibility
                         .map(|visibility| self.unbind_visibility(visibility, context)),
-                    ambient: self.unbind_ambientness(*ambient, context),
+                    is_ambient: self.unbind_ambientness(*is_ambient, context),
                     is_static: *is_static,
                 }
             }

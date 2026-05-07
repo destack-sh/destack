@@ -163,9 +163,9 @@ impl TypeLowerer<'_> {
         for element_id in &ordered_elements {
             // null and undefined are tag-only variants
             let element_type = match types.get_type(*element_id) {
-                dir::Type::TypeLiteral {
+                dir::Type::Literal(dir::LiteralType {
                     value: dir::TypeLiteral::Null | dir::TypeLiteral::Undefined,
-                } => self.ty_void,
+                }) => self.ty_void,
                 _ => self.lower_type(types, *element_id, module_id, node, builder)?,
             };
 
@@ -359,9 +359,9 @@ impl TypeLowerer<'_> {
 
         for element_id in elements {
             match types.get_type(*element_id) {
-                dir::Type::TypeLiteral {
+                dir::Type::Literal(dir::LiteralType {
                     value: dir::TypeLiteral::Null,
-                } => {
+                }) => {
                     has_null = true;
                 }
                 _ => {
@@ -525,15 +525,13 @@ impl TypeLowerer<'_> {
 
         // expand nested unions or record distinct types
         match types.get_type(type_id) {
-            dir::Type::Union { elements } => {
-                for element_id in elements {
+            dir::Type::Union(union) => {
+                for element_id in &union.elements {
                     self.collect_union_element(*element_id, types, visited, collected);
                 }
             }
             _ => {
-                let is_duplicate = collected
-                    .iter()
-                    .any(|existing| dir::are_types_equal(*existing, type_id, types));
+                let is_duplicate = collected.iter().any(|existing| *existing == type_id);
                 if !is_duplicate {
                     collected.push(type_id);
                 }
@@ -691,14 +689,14 @@ impl TypeLowerer<'_> {
         // unwrap alias references before inspecting shape
         let dir_type = types.get_type(type_id);
         match dir_type {
-            dir::Type::Reference { symbol, .. } => {
-                if symbol.ty() == dir::SymbolType::TypeAlias
-                    && let Some(target) = types.get_alias_target_type_id(*symbol)
+            dir::Type::Reference(reference) => {
+                if self.symbol_is(reference.symbol, dir::DeclarationForm::TypeAlias)
+                    && let Some(target) = types.get_alias_target_type_id(reference.symbol)
                 {
                     return self.discriminant_fields_for_type_inner(types, target, node, visited);
                 }
 
-                if let Some(instance_id) = types.get_instance_type_id(*symbol) {
+                if let Some(instance_id) = types.get_instance_type_id(reference.symbol) {
                     return self.discriminant_fields_for_type_inner(
                         types,
                         instance_id,
@@ -709,9 +707,9 @@ impl TypeLowerer<'_> {
 
                 Ok(None)
             }
-            dir::Type::Object { fields, .. } => {
+            dir::Type::Object(object) => {
                 let mut map = HashMap::new();
-                for field in fields {
+                for field in &object.fields {
                     if field.is_optional {
                         continue;
                     }
@@ -725,9 +723,9 @@ impl TypeLowerer<'_> {
 
                 Ok(Some(map))
             }
-            dir::Type::Intersection { elements } => {
-                let mut maps = Vec::with_capacity(elements.len());
-                for element_id in elements {
+            dir::Type::Intersection(intersection) => {
+                let mut maps = Vec::with_capacity(intersection.elements.len());
+                for element_id in &intersection.elements {
                     let Some(map) =
                         self.discriminant_fields_for_type_inner(types, *element_id, node, visited)?
                     else {
@@ -748,8 +746,8 @@ impl TypeLowerer<'_> {
 
                 Ok(Some(merged))
             }
-            dir::Type::Value { value } => {
-                self.discriminant_fields_for_type_inner(types, *value, node, visited)
+            dir::Type::Value(value) => {
+                self.discriminant_fields_for_type_inner(types, value.value, node, visited)
             }
             _ => Ok(None),
         }
@@ -783,16 +781,16 @@ impl TypeLowerer<'_> {
         // unwrap alias references
         let dir_type = types.get_type(type_id);
         match dir_type {
-            dir::Type::Reference { symbol, .. } => {
-                if symbol.ty() == dir::SymbolType::TypeAlias
-                    && let Some(target) = types.get_alias_target_type_id(*symbol)
+            dir::Type::Reference(reference) => {
+                if self.symbol_is(reference.symbol, dir::DeclarationForm::TypeAlias)
+                    && let Some(target) = types.get_alias_target_type_id(reference.symbol)
                 {
                     return self.discriminant_literal_for_type_inner(types, target, node, visited);
                 }
 
                 Ok(None)
             }
-            dir::Type::TypeLiteral { value } => {
+            dir::Type::Literal(dir::LiteralType { value }) => {
                 let literal = match value {
                     dir::TypeLiteral::Null => DiscriminantValue::Null,
                     dir::TypeLiteral::Undefined => DiscriminantValue::Undefined,
@@ -841,8 +839,8 @@ impl TypeLowerer<'_> {
                     key,
                 }))
             }
-            dir::Type::Value { value } => {
-                self.discriminant_literal_for_type_inner(types, *value, node, visited)
+            dir::Type::Value(value) => {
+                self.discriminant_literal_for_type_inner(types, value.value, node, visited)
             }
             _ => Ok(None),
         }

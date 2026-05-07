@@ -61,7 +61,7 @@ impl Compiler {
                 );
                 ast::Pattern::Assign { pattern, value }
             }
-            dir::Pattern::ReferenceOf { mutability, right } => {
+            dir::Pattern::BorrowOf { mutability, right } => {
                 let mutability = mutability.map(|m| self.unbind_mutability(context, m));
                 let right = self.unbind_pattern(
                     module,
@@ -73,9 +73,9 @@ impl Compiler {
                     ast_strings,
                     context,
                 );
-                ast::Pattern::ReferenceOf { mutability, right }
+                ast::Pattern::BorrowOf { mutability, right }
             }
-            dir::Pattern::ValueOf { mutability, right } => {
+            dir::Pattern::MoveOf { mutability, right } => {
                 let mutability = mutability.map(|m| self.unbind_mutability(context, m));
                 let right = self.unbind_pattern(
                     module,
@@ -87,7 +87,7 @@ impl Compiler {
                     ast_strings,
                     context,
                 );
-                ast::Pattern::ValueOf { mutability, right }
+                ast::Pattern::MoveOf { mutability, right }
             }
             dir::Pattern::Binding {
                 mutability,
@@ -187,7 +187,7 @@ impl Compiler {
                     .collect();
                 ast::Pattern::TaggedTuple { ty, fields }
             }
-            dir::Pattern::Array { fields } => {
+            dir::Pattern::Sequence { fields } => {
                 let fields = fields
                     .iter()
                     .map(|field| {
@@ -203,7 +203,7 @@ impl Compiler {
                         )
                     })
                     .collect();
-                ast::Pattern::Array { fields }
+                ast::Pattern::Sequence { fields }
             }
             dir::Pattern::Object { fields } => {
                 let fields = fields

@@ -561,7 +561,7 @@ impl FunctionLowerer<'_> {
         // get the result type from the constructor target when syntax is nominal
         let constructor_target = self.constructor_target_symbol_for_expression(expression_id)?;
         let result_type = if let Some(symbol) = constructor_target
-            && symbol.ty() == dir::SymbolType::Class
+            && self.context.symbol_is(symbol, dir::DeclarationForm::Class)
             && let Some(reference_type_id) = self.nominal_reference_type_id_for_symbol(symbol)
         {
             let node = expression_id.into_global_any(self.context.module_id);
@@ -667,7 +667,7 @@ impl FunctionLowerer<'_> {
 
         // resolve class symbols for vtable header defaults
         let class_symbol = constructor_target
-            .filter(|symbol| symbol.ty() == dir::SymbolType::Class)
+            .filter(|symbol| self.context.symbol_is(*symbol, dir::DeclarationForm::Class))
             .or_else(|| {
                 self.type_for_expression(expression_id)
                     .and_then(|type_id| self.class_symbol_for_type(type_id))
@@ -858,7 +858,7 @@ impl FunctionLowerer<'_> {
 
         // require a nominal reference type
         let symbol = match self.context.types.get_type(type_id) {
-            dir::Type::Reference { symbol, .. } => *symbol,
+            dir::Type::Reference(reference) => reference.symbol,
             _ => return Ok(None),
         };
 
@@ -880,11 +880,9 @@ impl FunctionLowerer<'_> {
         };
 
         let symbol = match self.context.dir_tree.get(*left) {
-            dir::Expression::LocalReference { target_symbol, .. }
-            | dir::Expression::ModuleReference { target_symbol, .. }
-            | dir::Expression::GlobalReference { target_symbol, .. } => Some(*target_symbol),
-            dir::Expression::UnresolvedPath { path, .. } => {
-                Some(self.resolve_local_path_symbol(*left, path)?)
+            dir::Expression::Path { .. } => {
+                let symbol = self.resolve_expression_symbol(*left)?;
+                Some(symbol)
             }
             _ => None,
         };
@@ -902,11 +900,8 @@ impl FunctionLowerer<'_> {
         for index in 0..type_count {
             let type_id = dir::LocalTypeId::new(index);
             let dir_type = self.context.types.get_type(type_id);
-            if let dir::Type::Reference {
-                symbol: target_symbol,
-                ..
-            } = dir_type
-                && *target_symbol == symbol
+            if let dir::Type::Reference(reference) = dir_type
+                && reference.symbol == symbol
             {
                 return Some(type_id);
             }
@@ -940,8 +935,8 @@ impl FunctionLowerer<'_> {
                 // constructors are nameless methods with constructor or new mode
                 if key.is_none()
                     && matches!(
-                        signature.mode,
-                        Some(dir::FunctionMode::Constructor | dir::FunctionMode::New)
+                        signature.role,
+                        Some(dir::FunctionRole::Constructor | dir::FunctionRole::New)
                     )
                 {
                     return Some(*member_id);
@@ -961,24 +956,12 @@ impl FunctionLowerer<'_> {
         let symbol_entry = self.context.symbols.get_symbol(symbol.local_id);
         let mut declaration_ids = Vec::new();
 
-        // add the primary declaration first
-        if let Some(primary) = symbol_entry.primary_declaration
+        // add the declaration first
+        if let Some(primary) = symbol_entry.declaration
             && primary.module_id == self.context.module_id
             && let Ok(local_id) = primary.local_id.try_into_typed::<dir::Declaration>()
         {
             declaration_ids.push(local_id);
-        }
-
-        // add secondary declarations in order
-        if let Some(secondary) = symbol_entry.secondary_declarations.as_deref() {
-            for declaration_id in secondary {
-                if declaration_id.module_id != self.context.module_id {
-                    continue;
-                }
-                if let Ok(local_id) = declaration_id.local_id.try_into_typed::<dir::Declaration>() {
-                    declaration_ids.push(local_id);
-                }
-            }
         }
 
         declaration_ids

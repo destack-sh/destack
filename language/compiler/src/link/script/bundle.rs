@@ -1,6 +1,6 @@
 use destack_artifact::ScriptOutput;
 use destack_codegen_js::{
-    DependencyItem, DependencyKind, Expression, LocalNodeId, LocalNodeIdAny, NodeType,
+    DependencyItem, DependencySpace, Expression, LocalNodeId, LocalNodeIdAny, NodeType,
     Module, Statement,
 };
 use destack_source::{ModuleId, PackageId, TargetId};
@@ -48,7 +48,7 @@ impl<'a> ScriptLinker<'a> {
         module_id: ModuleId,
         module: &mut Module,
         statement_id: LocalNodeId<Statement>,
-        kind: DependencyKind,
+        kind: DependencySpace,
         specifier: &str,
         target_module: Option<ModuleId>,
         items: &[LocalNodeId<DependencyItem>],
@@ -72,7 +72,7 @@ impl<'a> ScriptLinker<'a> {
         }
 
         // erase bundled type-only imports
-        if kind == DependencyKind::Type {
+        if kind == DependencySpace::Type {
             return Ok(ScriptStatementAction::Drop);
         }
 
@@ -137,7 +137,7 @@ impl<'a> ScriptLinker<'a> {
         &self,
         module_id: ModuleId,
         module: &Module,
-        kind: DependencyKind,
+        kind: DependencySpace,
         specifier: Option<String>,
         target_module: Option<ModuleId>,
         items: &[LocalNodeId<DependencyItem>],
@@ -169,7 +169,7 @@ impl<'a> ScriptLinker<'a> {
         }
 
         // erase bundled type-only re-exports
-        if kind == DependencyKind::Type {
+        if kind == DependencySpace::Type {
             return Ok(ScriptStatementAction::Drop);
         }
 
@@ -209,7 +209,7 @@ impl<'a> ScriptLinker<'a> {
 
         match statement {
             Statement::Import {
-                kind,
+                space: kind,
                 target: specifier,
                 target_module,
                 items,
@@ -228,7 +228,7 @@ impl<'a> ScriptLinker<'a> {
                 package_id,
             ),
             Statement::Export {
-                kind,
+                space: kind,
                 target: export_target,
                 target_module,
                 items,
