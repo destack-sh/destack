@@ -1,11 +1,11 @@
 use destack_dir as dir;
 use destack_dir::{Expression, GlobalSymbolId};
 
-use super::resolve_expression_symbol;
+use super::expression_symbol_target;
 use crate::core::DirQueryContext;
 
-/// Resolve the namespace receiver symbol for a member access.
-pub(crate) fn resolve_namespace_receiver_symbol(
+/// Return the recorded namespace receiver symbol for a member access.
+pub(crate) fn namespace_receiver_symbol_target(
     dir: DirQueryContext<'_>,
     expression_id: dir::LocalNodeId<Expression>,
 ) -> Option<GlobalSymbolId> {
@@ -14,20 +14,20 @@ pub(crate) fn resolve_namespace_receiver_symbol(
 
     match expression {
         Expression::Parenthesized { expression } => {
-            resolve_namespace_receiver_symbol(dir, *expression)
+            namespace_receiver_symbol_target(dir, *expression)
         }
-        _ => resolve_expression_symbol(dir, expression_id),
+        _ => expression_symbol_target(dir, expression_id),
     }
 }
 
-/// Resolve one plain path segment symbol for a qualified path expression.
-pub(crate) fn resolve_path_segment_symbol(
+/// Return the recorded symbol target for one plain path segment.
+pub(crate) fn path_segment_symbol_target(
     dir: DirQueryContext<'_>,
     expression_id: dir::LocalNodeId<Expression>,
     segment_index: u16,
 ) -> Option<GlobalSymbolId> {
     if segment_index == 0 {
-        return resolve_expression_symbol(dir, expression_id);
+        return expression_symbol_target(dir, expression_id);
     }
 
     None

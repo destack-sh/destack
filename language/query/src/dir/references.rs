@@ -9,11 +9,12 @@ use destack_source::{FileId, ModuleId, NodeSpanRegion, NodeSpanType, ProfileId, 
 use destack_workspace::{Repository, Revision};
 
 use super::import::is_dependency_alias_for_target;
-use super::namespace::resolve_path_segment_symbol;
-use super::nominal::resolve_member_access_symbol;
+use super::namespace::path_segment_symbol_target;
+use super::nominal::member_access_symbol_target;
 use super::{
+    dependency_local_symbol, dependency_symbol_target, expression_symbol_target,
     get_canonical_symbol, get_member_access_name_span, get_path_segment_span,
-    resolve_expression_symbol, resolve_namespace_receiver_symbol, symbol_matches_reference_target,
+    namespace_receiver_symbol_target, symbol_matches_reference_target,
 };
 use crate::ast::{get_node_tree_main_span, get_node_tree_span};
 use crate::core::{AstQueryContext, DirQueryContext, query_context_for_profile};
@@ -58,64 +59,60 @@ pub(crate) fn build_reference_targets_for_module(
 
     // expressions
     for (expression_id, expression) in dir_tree.iter_nodes_of_type::<Expression>() {
-        if let Some(target_symbol) =
-            resolve_expression_target_symbol(dir, expression_id, expression)
-        {
+        if let Some(target_symbol) = expression_reference_target(dir, expression_id) {
             insert_reference_target_keys(repository, dir.revision(), &mut targets, target_symbol);
         }
 
         if let Expression::Member { left, .. } = expression
-            && let Some(receiver_symbol) = resolve_namespace_receiver_symbol(dir, *left)
+            && let Some(receiver_symbol) = namespace_receiver_symbol_target(dir, *left)
         {
             insert_reference_target_keys(repository, dir.revision(), &mut targets, receiver_symbol);
         }
 
         if let Expression::Member { .. } = expression
-            && let Some(member_symbol) = resolve_member_access_symbol(dir, expression_id)
+            && let Some(member_symbol) = member_access_symbol_target(dir, expression_id)
         {
             insert_reference_target_keys(repository, dir.revision(), &mut targets, member_symbol);
         }
 
-        let resolution_id = dir
+        let resolution = dir
             .types()
-            .node_resolution_id(expression_id.into_global_any(dir.module_id()));
-        if let Some(resolution_id) = resolution_id {
-            let resolution = dir.types().get_resolution(resolution_id);
+            .resolution(expression_id.into_global_any(dir.module_id()));
+        if let Some(resolution) = resolution {
             match resolution {
-                Resolution::Static { candidate, .. } => {
+                Resolution::Dispatch(dir::DispatchResolution::Static { target, .. }) => {
                     insert_reference_target_keys(
                         repository,
                         dir.revision(),
                         &mut targets,
-                        candidate.target_symbol,
+                        target.symbol,
                     );
                 }
-                Resolution::Dynamic { candidates, .. }
-                | Resolution::Unresolved { candidates, .. } => {
-                    for candidate in candidates {
+                Resolution::Dispatch(dir::DispatchResolution::Dynamic {
+                    targets: dispatch_targets,
+                    ..
+                }) => {
+                    for target in dispatch_targets {
                         insert_reference_target_keys(
                             repository,
                             dir.revision(),
                             &mut targets,
-                            candidate.target_symbol,
+                            target.symbol,
                         );
                     }
                 }
-                Resolution::Builtin { .. } => {}
+                _ => {}
             }
         }
 
         match expression {
-            Expression::UnresolvedPath { path, .. }
-            | Expression::LocalReference { path, .. }
-            | Expression::ModuleReference { path, .. }
-            | Expression::GlobalReference { path, .. } => {
+            Expression::Path { path, .. } => {
                 for segment_index in 0..path.segments.len() {
                     let segment_index =
                         u16::try_from(segment_index).expect("path segment index overflow");
 
                     if let Some(segment_symbol) =
-                        resolve_path_segment_symbol(dir, expression_id, segment_index)
+                        path_segment_symbol_target(dir, expression_id, segment_index)
                     {
                         insert_reference_target_keys(
                             repository,
@@ -131,13 +128,12 @@ pub(crate) fn build_reference_targets_for_module(
     }
 
     // dependency items
-    for (_item_id, item) in dir_tree.iter_nodes_of_type::<DependencyItem>() {
-        if let Some(local_symbol) = item.symbol() {
-            let symbol_id = GlobalSymbolId::new(dir.module_id(), local_symbol);
+    for (item_id, item) in dir_tree.iter_nodes_of_type::<DependencyItem>() {
+        if let Some(symbol_id) = dependency_local_symbol(dir, item) {
             insert_reference_target_keys(repository, dir.revision(), &mut targets, symbol_id);
         }
 
-        if let Some(target_symbol) = item.target_symbol() {
+        if let Some(target_symbol) = dependency_symbol_target(dir, item_id) {
             insert_reference_target_keys(repository, dir.revision(), &mut targets, target_symbol);
         }
     }
@@ -219,8 +215,7 @@ fn collect_expression_reference_spans(
         dir_tree
             .iter_nodes_of_type::<Expression>()
             .filter_map(|(expression_id, expression)| {
-                let resolved_target_symbol =
-                    resolve_expression_target_symbol(dir, expression_id, expression);
+                let resolved_target_symbol = expression_reference_target(dir, expression_id);
 
                 // skip member expressions when member references are enabled
                 if options.include_members && matches!(expression, Expression::Member { .. }) {
@@ -292,10 +287,7 @@ fn collect_expression_reference_spans(
     // capture plain path segments from multi segment path expressions
     for (expression_id, expression) in dir_tree.iter_nodes_of_type::<Expression>() {
         let path = match expression {
-            Expression::UnresolvedPath { path, .. }
-            | Expression::LocalReference { path, .. }
-            | Expression::ModuleReference { path, .. }
-            | Expression::GlobalReference { path, .. } => path,
+            Expression::Path { path, .. } => path,
             _ => continue,
         };
         if path.segments.len() < 2 {
@@ -307,7 +299,7 @@ fn collect_expression_reference_spans(
                 u16::try_from(segment_index).expect("path reference segment index overflow");
 
             let Some(segment_symbol) =
-                resolve_path_segment_symbol(dir, expression_id, segment_index)
+                path_segment_symbol_target(dir, expression_id, segment_index)
             else {
                 continue;
             };
@@ -421,29 +413,24 @@ fn member_receiver_matches_target(
     canonical_id: GlobalSymbolId,
     _target_name: Option<&str>,
 ) -> bool {
-    let resolved_symbol = resolve_namespace_receiver_symbol(dir, receiver_expression_id);
-    let Some(target_symbol) = resolved_symbol else {
+    let receiver_symbol = namespace_receiver_symbol_target(dir, receiver_expression_id);
+    let Some(target_symbol) = receiver_symbol else {
         return false;
     };
 
     symbol_matches_reference_target(repository, dir.revision(), target_symbol, canonical_id)
 }
 
-/// Resolve the target symbol for an expression reference.
-fn resolve_expression_target_symbol(
+/// Return the target symbol for an expression reference.
+fn expression_reference_target(
     dir: DirQueryContext<'_>,
     expression_id: dir::LocalNodeId<Expression>,
-    expression: &Expression,
 ) -> Option<GlobalSymbolId> {
     if expression_is_member_receiver_expression(dir.tree(), expression_id) {
-        return resolve_namespace_receiver_symbol(dir, expression_id);
+        return namespace_receiver_symbol_target(dir, expression_id);
     }
 
-    if expression.target_symbol().is_some() {
-        return expression.target_symbol();
-    }
-
-    resolve_expression_symbol(dir, expression_id)
+    expression_symbol_target(dir, expression_id)
 }
 
 /// Check whether an expression is used as the receiver of a member access.
@@ -653,8 +640,8 @@ fn collect_member_reference_spans(
             continue;
         };
 
-        // resolve the member symbol through normal resolution first
-        if let Some(member_symbol) = resolve_member_access_symbol(dir, expression_id) {
+        // use the recorded member target first
+        if let Some(member_symbol) = member_access_symbol_target(dir, expression_id) {
             if !symbol_matches_reference_target(
                 repository,
                 dir.revision(),
@@ -706,8 +693,8 @@ fn collect_member_reference_spans(
             continue;
         };
 
-        // resolve the receiver symbol and require it to be a namespace alias
-        let Some(receiver_symbol) = resolve_namespace_receiver_symbol(dir, *left) else {
+        // use the recorded receiver target and require it to be a namespace alias
+        let Some(receiver_symbol) = namespace_receiver_symbol_target(dir, *left) else {
             continue;
         };
         if !namespace_aliases.contains(&receiver_symbol) {
@@ -746,25 +733,15 @@ fn member_resolution_matches_reference_target(
     canonical_id: GlobalSymbolId,
 ) -> bool {
     let types = dir.types();
-    let resolution_id = types.node_resolution_id(expression_id.into_global_any(dir.module_id()));
-    let Some(resolution_id) = resolution_id else {
-        return false;
-    };
-
-    let resolution = types.get_resolution(resolution_id);
-
     // only genuinely dynamic accesses should reach this path
-    let Resolution::Dynamic { candidates, .. } = resolution else {
+    let Some(Resolution::Dispatch(dir::DispatchResolution::Dynamic { targets, .. })) =
+        types.resolution(expression_id.into_global_any(dir.module_id()))
+    else {
         return false;
     };
 
-    candidates.iter().any(|candidate| {
-        symbol_matches_reference_target(
-            repository,
-            dir.revision(),
-            candidate.target_symbol,
-            canonical_id,
-        )
+    targets.iter().any(|target| {
+        symbol_matches_reference_target(repository, dir.revision(), target.symbol, canonical_id)
     })
 }
 
@@ -781,8 +758,8 @@ fn collect_dependency_reference_spans(
         let dir_tree = dir.tree();
         dir_tree
             .iter_nodes_of_type::<DependencyItem>()
-            .filter_map(|(item_id, item)| {
-                let target = item.target_symbol()?;
+            .filter_map(|(item_id, _)| {
+                let target = dependency_symbol_target(dir, item_id)?;
                 symbol_matches_reference_target(repository, dir.revision(), target, canonical_id)
                     .then_some(item_id)
             })
@@ -838,12 +815,7 @@ fn dependency_item_name_span(
     let dir_tree = dir.tree();
     let item = dir_tree.get::<DependencyItem>(item_id);
     let (name_id, alias_id) = match item {
-        DependencyItem::Remote { name, alias, .. }
-        | DependencyItem::Local { name, alias, .. }
-        | DependencyItem::UnresolvedRemote { name, alias, .. }
-        | DependencyItem::UnresolvedLocal { name, alias, .. } => {
-            (name.map(|name| name.string()), *alias)
-        }
+        DependencyItem::Item { name, alias, .. } => (name.map(|name| name.string()), *alias),
         DependencyItem::Value { .. } => (None, None),
         DependencyItem::Error => return None,
     };
@@ -883,12 +855,11 @@ fn namespace_import_aliases_for_module(
     let dir_tree = dir.tree();
     dir_tree
         .iter_nodes_of_type::<DependencyItem>()
-        .filter_map(|(_item_id, item)| {
-            let DependencyItem::Remote {
+        .filter_map(|(item_id, item)| {
+            let DependencyItem::Item {
                 binding,
                 space,
                 symbol,
-                target_module,
                 ..
             } = item
             else {
@@ -901,8 +872,14 @@ fn namespace_import_aliases_for_module(
             }
 
             let local_symbol = symbol.as_ref()?;
-            let target_module_id = target_module
-                .for_space(*space)
+            let node_id = item_id.into_global_any(dir.module_id());
+            let target_module_id = dir
+                .types()
+                .dependency_resolution(node_id)
+                .and_then(|resolution| match resolution {
+                    dir::DependencyResolution::Module(resolution) => resolution.for_space(*space),
+                    dir::DependencyResolution::Binding(_) => None,
+                })
                 .and_then(|target| target.module_id())?;
             if target_module_id != module_id {
                 return None;

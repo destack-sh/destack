@@ -481,7 +481,7 @@ pub fn format_symbol_signature(
     let declaration_ref = {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(symbol_id.into_local());
-        symbol.primary_declaration?
+        symbol.declaration?
     };
 
     // read the declaration from the tree

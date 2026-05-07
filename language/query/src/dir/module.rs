@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use destack_dir::{GlobalSymbolId, StaticKey, SymbolSpace, SymbolType};
+use destack_dir::{DeclarationForm, GlobalSymbolId, StaticKey, SymbolSpace};
 use destack_source::{ModuleId, PathExt, ProfileId};
 use destack_workspace::{Repository, Revision};
 
@@ -16,7 +16,7 @@ pub(crate) struct ExportedSymbol {
     /// The name of the exported symbol.
     pub name: String,
     /// The kind of symbol.
-    pub kind: SymbolType,
+    pub kind: DeclarationForm,
     /// The symbol space.
     pub space: dir::SymbolSpace,
     /// The module that exports this symbol.
@@ -45,18 +45,18 @@ fn module_path_for_import(module: &destack_workspace::Module) -> Option<String> 
     Some(path.to_string())
 }
 
-/// Resolve the symbol shape for an export entry.
-fn resolve_export_symbol_info(
+/// Return the symbol shape for an export entry.
+fn export_symbol_shape(
     repository: &Repository,
     revision: Revision,
     symbol_id: GlobalSymbolId,
     profile_id: ProfileId,
-) -> Option<(SymbolType, SymbolSpace)> {
+) -> Option<(DeclarationForm, SymbolSpace)> {
     let ctx = query_context_for_profile(repository, revision, symbol_id.module_id, profile_id)?;
     let symbols = ctx.dir().symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
 
-    Some((symbol.ty, symbol.space))
+    Some((symbol.form, symbol.space))
 }
 
 /// Search for importable symbols across the current workspace root.
@@ -71,7 +71,7 @@ pub(crate) fn search_importable_symbols(
     let entries = search_import_candidates(repository, revision, query, exclude_module);
     exports.extend(entries.into_iter().map(|entry| ExportedSymbol {
         name: entry.name,
-        kind: entry.kind,
+        kind: entry.form,
         space: entry.space,
         module_id: entry.module_id,
         local_id: entry.local_id,
@@ -97,7 +97,7 @@ pub(crate) fn build_import_candidates_for_module(
         .into_iter()
         .map(|export| ImportEntry {
             name: export.name,
-            kind: export.kind,
+            form: export.kind,
             space: export.space,
             module_id: export.module_id,
             local_id: export.local_id,
@@ -119,17 +119,15 @@ pub(crate) fn get_module_exports_maybe(
 
     let mut exports = Vec::new();
 
-    for ((_, key), export) in ctx.dir().exported().export_by_symbol_key.iter() {
+    for ((_, key), export) in ctx.dir().exported().exports.export_by_key.iter() {
         let StaticKey::Name(string_id) = *key else {
             continue;
         };
 
-        let Some(target_symbol) = export.target.resolved() else {
-            continue;
-        };
+        let target_symbol = export.target;
 
         let Some((kind, space)) =
-            resolve_export_symbol_info(repository, revision, target_symbol, profile_id)
+            export_symbol_shape(repository, revision, target_symbol, profile_id)
         else {
             continue;
         };
@@ -163,8 +161,19 @@ pub(crate) fn build_specifier_candidates_for_module(
             let dir_tree = ctx.dir().tree();
             for (expression_id, expression) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
                 let target_module = match expression {
-                    dir::Expression::Import { target_module, .. }
-                    | dir::Expression::ReExport { target_module, .. } => Some(*target_module),
+                    dir::Expression::Import { space, .. }
+                    | dir::Expression::ReExport { space, .. } => {
+                        let node_id = expression_id.into_global_any(ctx.module_id());
+                        ctx.dir()
+                            .types()
+                            .dependency_resolution(node_id)
+                            .and_then(|resolution| match resolution {
+                                dir::DependencyResolution::Module(resolution) => {
+                                    resolution.for_space(*space)
+                                }
+                                dir::DependencyResolution::Binding(_) => None,
+                            })
+                    }
                     _ => None,
                 };
                 let Some(target_module) = target_module else {

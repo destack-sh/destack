@@ -115,12 +115,14 @@ fn resolved_import_target_module(
         ModuleEdgeRelation::Import,
         None,
     );
-    let targets = dir.exported().import_resolutions.get(&cache_key).copied()?;
+    let targets = dir
+        .exported()
+        .imports
+        .resolution_by_key
+        .get(&cache_key)
+        .copied()?;
 
-    targets
-        .value
-        .or(targets.ty)
-        .and_then(|target| target.module_id())
+    targets.value.and_then(|target| target.module_id())
 }
 
 /// Parsed import clause info for completion.

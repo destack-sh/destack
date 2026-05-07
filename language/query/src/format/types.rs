@@ -55,49 +55,44 @@ pub fn format_type(
     strings: &StringPool,
 ) -> String {
     match ty {
-        dir::Type::TypeLiteral { value } => format_type_literal(value, strings),
-        dir::Type::Value { value } => {
+        dir::Type::Literal(literal) => format_type_literal(&literal.value, strings),
+        dir::Type::Value(value) => {
             format!(
                 "type {}",
-                format_local_type(*value, types, repository, revision, strings)
+                format_local_type(value.value, types, repository, revision, strings)
             )
         }
         dir::Type::This => "this".to_string(),
-        dir::Type::Reference {
-            symbol,
-            generic_arguments,
-        } => format_type_reference(
-            *symbol,
-            generic_arguments.as_deref(),
+        dir::Type::Reference(reference) => format_type_reference(
+            reference.symbol,
+            reference.generic_arguments.as_deref(),
             types,
             repository,
             revision,
             strings,
         ),
         dir::Type::Unevaluated(_) => "<unevaluated>".to_string(),
-        dir::Type::InferVar { id } => format!("<infer {}>", id.0),
-        dir::Type::Conditional {
-            distributive_symbol: _,
-            left,
-            right,
-            then_type,
-            else_type,
-        } => {
-            let left = format_local_type(*left, types, repository, revision, strings);
-            let right = format_local_type(*right, types, repository, revision, strings);
-            let then_type = format_local_type(*then_type, types, repository, revision, strings);
-            let else_type = format_local_type(*else_type, types, repository, revision, strings);
+        dir::Type::InferVariable(infer) => format!("<infer {}>", infer.id.0),
+        dir::Type::Conditional(conditional) => {
+            let left = format_local_type(conditional.left, types, repository, revision, strings);
+            let right = format_local_type(conditional.right, types, repository, revision, strings);
+            let then_type =
+                format_local_type(conditional.then_type, types, repository, revision, strings);
+            let else_type =
+                format_local_type(conditional.else_type, types, repository, revision, strings);
             format!("{left} extends {right} ? {then_type} : {else_type}")
         }
-        dir::Type::Mapped {
-            parameter,
-            modifiers,
-            value,
-        } => {
-            let name = strings.get(parameter.name).to_string();
-            let constraint =
-                format_local_type(parameter.constraint, types, repository, revision, strings);
-            let key_remap = parameter
+        dir::Type::Mapped(mapped) => {
+            let name = strings.get(mapped.parameter.name).to_string();
+            let constraint = format_local_type(
+                mapped.parameter.constraint,
+                types,
+                repository,
+                revision,
+                strings,
+            );
+            let key_remap = mapped
+                .parameter
                 .key_remap
                 .map(|key_remap| {
                     format!(
@@ -106,24 +101,21 @@ pub fn format_type(
                     )
                 })
                 .unwrap_or_default();
-            let readonly = format_type_mapped_modifier_prefix(modifiers.readonly);
-            let optional = format_type_mapped_modifier_suffix(modifiers.optional);
-            let value = format_local_type(*value, types, repository, revision, strings);
+            let readonly = format_type_mapped_modifier_prefix(mapped.modifiers.readonly);
+            let optional = format_type_mapped_modifier_suffix(mapped.modifiers.optional);
+            let value = format_local_type(mapped.value, types, repository, revision, strings);
             format!("{{ {readonly}[{name} in {constraint}{key_remap}]{optional}: {value} }}")
         }
-        dir::Type::Index { left, index } => {
-            let left = format_local_type(*left, types, repository, revision, strings);
-            let index = format_local_type(*index, types, repository, revision, strings);
+        dir::Type::Index(index_type) => {
+            let left = format_local_type(index_type.left, types, repository, revision, strings);
+            let index = format_local_type(index_type.index, types, repository, revision, strings);
             format!("{left}[{index}]")
         }
-        dir::Type::TemplateLiteral {
-            strings: template_strings,
-            spans,
-        } => {
+        dir::Type::TemplateLiteral(template) => {
             let mut result = String::from("`");
-            for (index, string_id) in template_strings.iter().enumerate() {
+            for (index, string_id) in template.strings.iter().enumerate() {
                 result.push_str(&strings.get(*string_id));
-                if let Some(span_id) = spans.get(index) {
+                if let Some(span_id) = template.spans.get(index) {
                     let span = format_local_type(*span_id, types, repository, revision, strings);
                     result.push_str("${");
                     result.push_str(&span);
@@ -133,19 +125,15 @@ pub fn format_type(
             result.push('`');
             result
         }
-        dir::Type::Import {
-            target,
-            qualifier,
-            generic_arguments,
-        } => {
-            let target = strings.get(*target);
+        dir::Type::Import(import) => {
+            let target = strings.get(import.target);
             let mut result = format!("import(\"{}\")", target.as_ref());
-            if let Some(qualifier) = qualifier {
+            if let Some(qualifier) = &import.qualifier {
                 let path = format_path(qualifier, strings);
                 result.push('.');
                 result.push_str(&path);
             }
-            if let Some(generic_arguments) = generic_arguments {
+            if let Some(generic_arguments) = &import.generic_arguments {
                 let formatted_arguments = generic_arguments
                     .iter()
                     .map(|argument| {
@@ -159,9 +147,9 @@ pub fn format_type(
             }
             result
         }
-        dir::Type::Infer { name, constraint } => {
-            let name = strings.get(*name);
-            let constraint = constraint.map(|constraint| {
+        dir::Type::Infer(infer) => {
+            let name = strings.get(infer.name);
+            let constraint = infer.constraint.map(|constraint| {
                 format!(
                     " extends {}",
                     format_local_type(constraint, types, repository, revision, strings)
@@ -169,128 +157,77 @@ pub fn format_type(
             });
             format!("infer {}{}", name.as_ref(), constraint.unwrap_or_default())
         }
-        dir::Type::Predicate {
-            asserts,
-            subject,
-            target,
-        } => {
-            let subject = format_type_predicate_subject(*subject, repository, revision, strings);
-            let target = target
+        dir::Type::Predicate(predicate) => {
+            let subject =
+                format_type_predicate_subject(predicate.subject, repository, revision, strings);
+            let target = predicate
+                .target
                 .map(|target| format_local_type(target, types, repository, revision, strings));
-            match (asserts, target) {
+            match (predicate.asserts, target) {
                 (true, Some(target)) => format!("asserts {subject} is {target}"),
                 (true, None) => format!("asserts {subject}"),
                 (false, Some(target)) => format!("{subject} is {target}"),
                 (false, None) => subject,
             }
         }
-        dir::Type::Readonly { target_type } => {
-            let target_type = format_local_type(*target_type, types, repository, revision, strings);
-            format!("readonly {target_type}")
+        dir::Type::Form(form) => {
+            let base = format_local_type(form.base, types, repository, revision, strings);
+            let ownership = format_local_type(form.ownership, types, repository, revision, strings);
+            let place = format_local_type(form.place, types, repository, revision, strings);
+            let lifetime = format_local_type(form.lifetime, types, repository, revision, strings);
+            let access = format_local_type(form.access, types, repository, revision, strings);
+            format!("Form<{base}, {ownership}, {place}, {lifetime}, {access}>")
         }
-        dir::Type::KeyOf { target_type } => {
-            let target_type = format_local_type(*target_type, types, repository, revision, strings);
+        dir::Type::KeyOf(unary) => {
+            let target_type =
+                format_local_type(unary.target_type, types, repository, revision, strings);
             format!("keyof {target_type}")
         }
-        dir::Type::Must { target_type } => {
-            let target_type = format_local_type(*target_type, types, repository, revision, strings);
+        dir::Type::Must(unary) => {
+            let target_type =
+                format_local_type(unary.target_type, types, repository, revision, strings);
             format!("{target_type}!")
         }
-        dir::Type::AsComptime { target_type } => {
-            let target_type = format_local_type(*target_type, types, repository, revision, strings);
+        dir::Type::AsComptime(unary) => {
+            let target_type =
+                format_local_type(unary.target_type, types, repository, revision, strings);
             format!("{target_type} as comptime")
         }
-        dir::Type::Not { target_type } => {
-            let target_type = format_local_type(*target_type, types, repository, revision, strings);
+        dir::Type::Not(unary) => {
+            let target_type =
+                format_local_type(unary.target_type, types, repository, revision, strings);
             format!("!{target_type}")
         }
-        dir::Type::ValueOf {
-            mutability,
-            variance,
-            right,
-        } => {
-            let right_str = format_local_type(*right, types, repository, revision, strings);
-            let mut result = String::from("^");
-            if let Some(m) = mutability {
-                result.push_str(match m {
-                    dir::Mutability::Mutable => "mut ",
-                    dir::Mutability::Immutable => "const ",
-                });
-            }
-            if let Some(v) = variance {
-                result.push_str(&format!("{v:?} ").to_lowercase());
-            }
-            result.push_str(&right_str);
-            result
-        }
-        dir::Type::ReferenceOf {
-            mutability,
-            variance,
-            right,
-        } => {
-            let right_str = format_local_type(*right, types, repository, revision, strings);
-            let mut result = String::from("&");
-            if let Some(m) = mutability {
-                result.push_str(match m {
-                    dir::Mutability::Mutable => "mut ",
-                    dir::Mutability::Immutable => "const ",
-                });
-            }
-            if let Some(v) = variance {
-                result.push_str(&format!("{v:?} ").to_lowercase());
-            }
-            result.push_str(&right_str);
-            result
-        }
-        dir::Type::PointerOf { mutability, right } => {
-            let right_str = format_local_type(*right, types, repository, revision, strings);
-            let mut result = String::from("*");
-            if let Some(m) = mutability {
-                result.push_str(match m {
-                    dir::Mutability::Mutable => "mut ",
-                    dir::Mutability::Immutable => "const ",
-                });
-            }
-            result.push_str(&right_str);
-            result
-        }
-        dir::Type::In { left, right } => {
-            let left = format_local_type(*left, types, repository, revision, strings);
-            let right = format_local_type(*right, types, repository, revision, strings);
+        dir::Type::In(binary) => {
+            let left = format_local_type(binary.left, types, repository, revision, strings);
+            let right = format_local_type(binary.right, types, repository, revision, strings);
             format!("{left} in {right}")
         }
-        dir::Type::Extends { left, right } => {
-            let left = format_local_type(*left, types, repository, revision, strings);
-            let right = format_local_type(*right, types, repository, revision, strings);
+        dir::Type::Extends(binary) => {
+            let left = format_local_type(binary.left, types, repository, revision, strings);
+            let right = format_local_type(binary.right, types, repository, revision, strings);
             format!("{left} extends {right}")
         }
-        dir::Type::Implements { left, right } => {
-            let left = format_local_type(*left, types, repository, revision, strings);
-            let right = format_local_type(*right, types, repository, revision, strings);
+        dir::Type::Implements(binary) => {
+            let left = format_local_type(binary.left, types, repository, revision, strings);
+            let right = format_local_type(binary.right, types, repository, revision, strings);
             format!("{left} implements {right}")
         }
-        dir::Type::ArraySized {
-            element,
-            count: _,
-            is_readonly,
-        } => {
-            let elem_str = format_local_type(*element, types, repository, revision, strings);
-            let needs_parens = matches!(types.get_type(*element), dir::Type::Union { .. });
-            let readonly_prefix = if *is_readonly { "readonly " } else { "" };
+        dir::Type::FixedArray(array) => {
+            let elem_str = format_local_type(array.element, types, repository, revision, strings);
+            let needs_parens = matches!(types.get_type(array.element), dir::Type::Union(_));
+            let readonly_prefix = if array.is_readonly { "readonly " } else { "" };
             if needs_parens {
                 format!("{readonly_prefix}({elem_str})[]")
             } else {
                 format!("{readonly_prefix}{elem_str}[]")
             }
         }
-        dir::Type::Array {
-            element,
-            is_readonly,
-        } => {
-            let readonly_prefix = if *is_readonly { "readonly " } else { "" };
-            if let Some(elem) = element {
-                let elem_str = format_local_type(*elem, types, repository, revision, strings);
-                let needs_parens = matches!(types.get_type(*elem), dir::Type::Union { .. });
+        dir::Type::Slice(slice) => {
+            let readonly_prefix = if slice.is_readonly { "readonly " } else { "" };
+            if let Some(elem) = slice.element {
+                let elem_str = format_local_type(elem, types, repository, revision, strings);
+                let needs_parens = matches!(types.get_type(elem), dir::Type::Union(_));
                 if needs_parens {
                     format!("{readonly_prefix}({elem_str})[]")
                 } else {
@@ -300,28 +237,21 @@ pub fn format_type(
                 format!("{readonly_prefix}[]")
             }
         }
-        dir::Type::Tuple {
-            elements,
-            is_readonly,
-        } => {
-            let elements: Vec<_> = elements
+        dir::Type::Tuple(tuple) => {
+            let elements: Vec<_> = tuple
+                .elements
                 .iter()
                 .map(|element| {
                     format_type_tuple_element(element, types, repository, revision, strings)
                 })
                 .collect();
-            let readonly_prefix = if *is_readonly { "readonly " } else { "" };
+            let readonly_prefix = if tuple.is_readonly { "readonly " } else { "" };
             format!("{readonly_prefix}({})", elements.join(", "))
         }
-        dir::Type::Object {
-            fields,
-            call_signatures,
-            construct_signatures,
-            index_signatures,
-        } => {
+        dir::Type::Object(object) => {
             let mut items: Vec<String> = Vec::new();
 
-            for field in fields {
+            for field in &object.fields {
                 let key = format_static_key(&field.key, strings);
                 let ty = format_local_type(field.ty, types, repository, revision, strings);
                 let opt = if field.is_optional { "?" } else { "" };
@@ -329,17 +259,17 @@ pub fn format_type(
                 items.push(format!("{readonly}{key}{opt}: {ty}"));
             }
 
-            for signature in call_signatures {
+            for signature in &object.call_signatures {
                 let signature = format_local_type(*signature, types, repository, revision, strings);
                 items.push(signature);
             }
 
-            for signature in construct_signatures {
+            for signature in &object.construct_signatures {
                 let signature = format_local_type(*signature, types, repository, revision, strings);
                 items.push(format!("new {signature}"));
             }
 
-            for signature in index_signatures {
+            for signature in &object.index_signatures {
                 let name = strings.get(signature.name).to_string();
                 let key_type =
                     format_local_type(signature.key_type, types, repository, revision, strings);
@@ -359,43 +289,38 @@ pub fn format_type(
                 format!("{{ {} }}", items.join(", "))
             }
         }
-        dir::Type::Function {
-            asynchrony,
-            is_generator: _,
-            generic_parameters,
-            this_parameter,
-            parameters,
-            return_type,
-        } => {
-            let async_str = if *asynchrony == dir::Asynchrony::Async {
+        dir::Type::Function(function) => {
+            let async_str = if function.asynchrony == dir::Asynchrony::Async {
                 "async "
             } else {
                 ""
             };
-            let static_params_str = if generic_parameters.is_empty() {
+            let static_params_str = if function.generic_parameters.is_empty() {
                 String::new()
             } else {
-                let params: Vec<_> = generic_parameters
+                let params: Vec<_> = function
+                    .generic_parameters
                     .iter()
                     .map(|p| format_local_type(*p, types, repository, revision, strings))
                     .collect();
                 format!("<{}>", params.join(", "))
             };
             let mut formatted_parameters: Vec<String> = Vec::new();
-            if let Some(this_parameter) = this_parameter {
+            if let Some(this_parameter) = function.this_parameter {
                 let this_type =
-                    format_local_type(*this_parameter, types, repository, revision, strings);
+                    format_local_type(this_parameter, types, repository, revision, strings);
                 formatted_parameters.push(format!("this: {this_type}"));
             }
             formatted_parameters.extend(
-                parameters
+                function
+                    .parameters
                     .iter()
                     .map(|p| format_local_type(*p, types, repository, revision, strings)),
             );
-            let ret = if let Some(ret_ty) = return_type {
+            let ret = if let Some(ret_ty) = function.return_type {
                 format!(
                     ": {}",
-                    format_local_type(*ret_ty, types, repository, revision, strings)
+                    format_local_type(ret_ty, types, repository, revision, strings)
                 )
             } else {
                 String::new()
@@ -405,10 +330,10 @@ pub fn format_type(
                 formatted_parameters.join(", ")
             )
         }
-        dir::Type::Union { elements } => {
+        dir::Type::Union(union) => {
             let mut seen = HashSet::new();
             let mut formatted = Vec::new();
-            for element_id in elements {
+            for element_id in &union.elements {
                 if !seen.insert(*element_id) {
                     continue;
                 }
@@ -422,10 +347,10 @@ pub fn format_type(
             }
             formatted.join(" | ")
         }
-        dir::Type::Intersection { elements } => {
+        dir::Type::Intersection(intersection) => {
             let mut seen = HashSet::new();
             let mut formatted = Vec::new();
-            for element_id in elements {
+            for element_id in &intersection.elements {
                 if !seen.insert(*element_id) {
                     continue;
                 }
@@ -517,9 +442,9 @@ pub fn format_type_for_inlay_hint(
     strings: &StringPool,
 ) -> String {
     // widen scalar literal types to their default primitive display types
-    if let dir::Type::TypeLiteral {
+    if let dir::Type::Literal(dir::LiteralType {
         value: dir::TypeLiteral::ScalarLiteral(value),
-    } = ty
+    }) = ty
     {
         let widened = widened_scalar_literal_name(value);
         return widened.to_string();
@@ -884,7 +809,6 @@ fn format_type_predicate_subject(
 ) -> String {
     match subject {
         dir::PredicateSubject::This => "this".to_string(),
-        dir::PredicateSubject::Unresolved(name) => strings.get(name).to_string(),
         dir::PredicateSubject::Symbol(symbol_id) => {
             format_symbol_name(symbol_id, repository, revision, strings)
         }

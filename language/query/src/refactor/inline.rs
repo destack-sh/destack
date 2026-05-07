@@ -12,9 +12,9 @@ use crate::ast::{
 };
 use crate::core::{QueryContext, modules_referencing_symbol, query_context};
 use crate::dir::{
-    ReferenceCollectionOptions, collect_symbol_references_in_context, find_symbol_at_offset,
-    get_canonical_symbol, get_member_access_name_span, get_symbol_definition_span, member_key_name,
-    resolve_symbol_name,
+    ReferenceCollectionOptions, collect_symbol_references_in_context, expression_symbol_target,
+    find_symbol_at_offset, get_canonical_symbol, get_member_access_name_span,
+    get_symbol_definition_span, member_key_name, resolve_symbol_name,
 };
 
 /// Request payload for inline refactor queries.
@@ -80,11 +80,11 @@ pub fn inline_symbol(
         return None;
     }
 
-    // resolve the symbol metadata
+    // read the symbol metadata
     let declaration = {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(canonical_id.local_id);
-        let declaration = symbol.primary_declaration?;
+        let declaration = symbol.declaration?;
 
         // avoid inlining symbols that are exported from the module
         if symbol.export.is_some() {
@@ -174,7 +174,7 @@ pub fn inline_symbol(
     }
 
     // ensure the symbol is not reassigned
-    if symbol_is_assigned(dir_tree, canonical_id) {
+    if symbol_is_assigned(&ctx, canonical_id) {
         return None;
     }
 
@@ -283,7 +283,7 @@ fn collect_inline_reference_entries(
             continue;
         }
 
-        let Some(target_symbol) = expression.target_symbol() else {
+        let Some(target_symbol) = expression_symbol_target(ctx.dir(), expr_id) else {
             continue;
         };
         let target_canonical = get_canonical_symbol(repository, ctx.revision(), target_symbol);
@@ -324,8 +324,7 @@ fn collect_inline_reference_entries(
         if key_name != reference_name {
             continue;
         }
-        let value = dir_tree.get::<dir::Expression>(*value);
-        let Some(target_symbol) = value.target_symbol() else {
+        let Some(target_symbol) = expression_symbol_target(ctx.dir(), *value) else {
             continue;
         };
         let target_symbol = get_canonical_symbol(repository, ctx.revision(), target_symbol);
@@ -403,8 +402,8 @@ fn collect_pattern_bindings(
             }
         }
         dir::Pattern::Must(inner)
-        | dir::Pattern::ReferenceOf { right: inner, .. }
-        | dir::Pattern::ValueOf { right: inner, .. } => {
+        | dir::Pattern::BorrowOf { right: inner, .. }
+        | dir::Pattern::MoveOf { right: inner, .. } => {
             collect_pattern_bindings(dir_tree, *inner, bindings);
         }
         dir::Pattern::Tuple { fields }
@@ -485,8 +484,8 @@ fn pattern_access_path(
             None
         }
         dir::Pattern::Must(inner)
-        | dir::Pattern::ReferenceOf { right: inner, .. }
-        | dir::Pattern::ValueOf { right: inner, .. } => {
+        | dir::Pattern::BorrowOf { right: inner, .. }
+        | dir::Pattern::MoveOf { right: inner, .. } => {
             pattern_access_path(strings, dir_tree, *inner, target_symbol)
         }
         dir::Pattern::Object { fields } | dir::Pattern::TaggedObject { fields, .. } => {
@@ -759,6 +758,7 @@ fn collect_captured_symbols(
     let mut visitor = CapturedSymbolVisitor::new(
         repository,
         ctx.revision(),
+        ctx.dir().types(),
         symbols,
         ctx.module_id(),
         inline_symbol,
@@ -1016,9 +1016,7 @@ fn should_parenthesize(value: &str, expression: &dir::Expression) -> bool {
 fn expression_is_simple(expression: &dir::Expression) -> bool {
     matches!(
         expression,
-        dir::Expression::LocalReference { .. }
-            | dir::Expression::ModuleReference { .. }
-            | dir::Expression::GlobalReference { .. }
+        dir::Expression::Path { .. }
             | dir::Expression::Member { .. }
             | dir::Expression::PrivateMember { .. }
             | dir::Expression::Index { .. }
@@ -1044,12 +1042,13 @@ fn expression_has_side_effects(
 }
 
 /// Detect whether a symbol is assigned within a scope.
-fn symbol_is_assigned(dir_tree: &dir::Tree, symbol_id: dir::GlobalSymbolId) -> bool {
+fn symbol_is_assigned(ctx: &QueryContext, symbol_id: dir::GlobalSymbolId) -> bool {
     // scan for assignments to this symbol
+    let dir_tree = ctx.dir().tree();
     for (_expr_id, expr) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
         let target_symbol = match expr {
-            dir::Expression::Assign { left, .. } => assign_pattern_target_symbol(dir_tree, *left),
-            dir::Expression::AssignBinary { left, .. } => expression_target_symbol(dir_tree, *left),
+            dir::Expression::Assign { left, .. } => assign_pattern_target_symbol(ctx, *left),
+            dir::Expression::AssignBinary { left, .. } => expression_target_symbol(ctx, *left),
             _ => None,
         };
 
@@ -1063,31 +1062,23 @@ fn symbol_is_assigned(dir_tree: &dir::Tree, symbol_id: dir::GlobalSymbolId) -> b
 
 /// Return the target symbol for one direct expression assignment target.
 fn expression_target_symbol(
-    dir_tree: &dir::Tree,
+    ctx: &QueryContext,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::GlobalSymbolId> {
-    let expression = dir_tree.get::<dir::Expression>(expression_id);
-
-    match expression {
-        dir::Expression::LocalReference { target_symbol, .. }
-        | dir::Expression::ModuleReference { target_symbol, .. }
-        | dir::Expression::GlobalReference { target_symbol, .. } => Some(*target_symbol),
-        _ => None,
-    }
+    expression_symbol_target(ctx.dir(), expression_id)
 }
 
 /// Return the target symbol for one assign pattern when it is a simple reference.
 fn assign_pattern_target_symbol(
-    dir_tree: &dir::Tree,
+    ctx: &QueryContext,
     assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
 ) -> Option<dir::GlobalSymbolId> {
+    let dir_tree = ctx.dir().tree();
     let assign_pattern = dir_tree.get(assign_pattern_id);
 
     match assign_pattern {
-        dir::AssignPattern::Expression { value } => expression_target_symbol(dir_tree, *value),
-        dir::AssignPattern::Assign { pattern, .. } => {
-            assign_pattern_target_symbol(dir_tree, *pattern)
-        }
+        dir::AssignPattern::Expression { value } => expression_target_symbol(ctx, *value),
+        dir::AssignPattern::Assign { pattern, .. } => assign_pattern_target_symbol(ctx, *pattern),
         dir::AssignPattern::Sequence { .. } | dir::AssignPattern::Object { .. } => None,
     }
 }
@@ -1098,9 +1089,11 @@ struct CapturedSymbolVisitor<'a> {
     repository: &'a Repository,
     /// The revision for semantic lookups.
     revision: Revision,
+    /// The checked type table.
+    types: &'a dir::TypeTable,
     /// The symbol table for the current module.
     symbols: &'a dir::SymbolTable,
-    /// The module id for symbol resolution.
+    /// The module that owns visited nodes.
     module_id: destack_source::ModuleId,
     /// The symbol being inlined.
     inline_symbol: dir::GlobalSymbolId,
@@ -1117,6 +1110,7 @@ impl<'a> CapturedSymbolVisitor<'a> {
     fn new(
         repository: &'a Repository,
         revision: Revision,
+        types: &'a dir::TypeTable,
         symbols: &'a dir::SymbolTable,
         module_id: ModuleId,
         inline_symbol: dir::GlobalSymbolId,
@@ -1126,6 +1120,7 @@ impl<'a> CapturedSymbolVisitor<'a> {
         Self {
             repository,
             revision,
+            types,
             symbols,
             module_id,
             inline_symbol,
@@ -1153,7 +1148,16 @@ impl dir::NodeVisitor for CapturedSymbolVisitor<'_> {
             return;
         }
 
-        if let Some(target_symbol) = expression.target_symbol() {
+        let node_id = id.into_global_any(self.module_id);
+        let target_symbol = self
+            .types
+            .symbol_resolution(node_id)
+            .and_then(|resolution| match resolution {
+                dir::SymbolResolution::Target(symbol_id) => Some(*symbol_id),
+                dir::SymbolResolution::Candidates(_) => None,
+            });
+
+        if let Some(target_symbol) = target_symbol {
             let canonical = get_canonical_symbol(self.repository, self.revision, target_symbol);
             if canonical != self.inline_symbol {
                 if target_symbol.module_id != self.module_id {

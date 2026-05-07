@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use destack_core::StringPool;
 use destack_source::{BatchEdit, Edit, FileEdit, FileId, Span, Uri};
-use destack_workspace::Revision;
+use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 use {destack_ast as ast, destack_dir as dir};
 
@@ -13,11 +13,10 @@ use crate::core::{
 };
 use crate::dir::{
     ReferenceCollectionOptions, SymbolAtOffset, collect_default_import_alias_symbols_for_export,
-    collect_symbol_references_in_context, find_symbol_at_offset, get_canonical_symbol,
-    get_symbol_definition_span, get_symbol_local_definition_span, member_key_name,
-    resolve_local_import_alias_name, resolve_symbol_name,
+    collect_symbol_references_in_context, declaration_name, find_symbol_at_offset,
+    get_canonical_symbol, get_symbol_definition_span, get_symbol_local_definition_span,
+    member_key_name, resolve_local_import_alias_name, resolve_symbol_name,
 };
-use destack_workspace::Repository;
 
 /// Result of a prepare rename query.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -362,11 +361,11 @@ fn resolve_rename_name(
     }
 
     // fall back to declaration based name extraction
-    resolve_name_from_primary_declaration(repository, revision, canonical_id)
+    resolve_name_from_declaration(repository, revision, canonical_id)
 }
 
-/// Resolve a symbol name from its primary declaration when symbol metadata has no name.
-fn resolve_name_from_primary_declaration(
+/// Resolve a symbol name from its declaration when symbol metadata has no name.
+fn resolve_name_from_declaration(
     repository: &Repository,
     revision: Revision,
     canonical_id: dir::GlobalSymbolId,
@@ -374,11 +373,11 @@ fn resolve_name_from_primary_declaration(
     // resolve query context for the symbol module
     let ctx = query_context(repository, revision, canonical_id.module_id)?;
 
-    // resolve the primary declaration node id
+    // resolve the declaration node id
     let declaration = {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(canonical_id.local_id);
-        symbol.primary_declaration?
+        symbol.declaration?
     };
 
     let dir_tree = ctx.dir().tree();
@@ -397,7 +396,7 @@ fn resolve_name_from_primary_declaration(
         dir::NodeType::Declaration => {
             let declaration_id = declaration.local_id.try_into().ok()?;
             let declaration = dir_tree.get::<dir::Declaration>(declaration_id);
-            crate::dir::declaration_name(declaration)
+            declaration_name(declaration)
                 .map(|name| ctx.dir().strings().get(name.string()).to_string())
         }
         dir::NodeType::Parameter => {
@@ -481,8 +480,8 @@ fn rename_pattern_binding_name(
         }
         dir::Pattern::Assign { pattern, .. }
         | dir::Pattern::Must(pattern)
-        | dir::Pattern::ReferenceOf { right: pattern, .. }
-        | dir::Pattern::ValueOf { right: pattern, .. } => {
+        | dir::Pattern::BorrowOf { right: pattern, .. }
+        | dir::Pattern::MoveOf { right: pattern, .. } => {
             rename_pattern_binding_name(strings, dir_tree, *pattern, target_symbol)
         }
         dir::Pattern::Tuple { .. }
@@ -530,7 +529,7 @@ fn resolve_interface_member_target(
     let declaration = {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(canonical_id.local_id);
-        symbol.primary_declaration?
+        symbol.declaration?
     };
 
     if declaration.local_id.ty != dir::NodeType::Member {

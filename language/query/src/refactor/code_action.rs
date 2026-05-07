@@ -440,9 +440,6 @@ fn collect_auto_import_actions_for_symbol(
     let Some(current_module) = get_module_by_file_id(repository, revision, file) else {
         return;
     };
-    let Some(current_language_type) = current_module.language_type else {
-        return;
-    };
     let current_package_id = Some(current_module.package_id);
     let mut candidates =
         search_importable_symbols(repository, revision, symbol_name, exclude_module_id);
@@ -498,8 +495,7 @@ fn collect_auto_import_actions_for_symbol(
     });
 
     for (_, export, display_path) in ranked_candidates {
-        let import_space =
-            ImportEditSpace::for_auto_import(space_filter, export.space, current_language_type);
+        let import_space = ImportEditSpace::for_auto_import(space_filter, export.space);
 
         // build import edits and skip already imported symbols
         let import_edits = build_import_edits(

@@ -2,13 +2,15 @@ use std::collections::HashSet;
 
 use destack_core::StringPool;
 use destack_dir::{
-    self as dir, DependencyItem, GlobalSymbolId, LocalNodeIdAny, LocalSymbolId, Member, NodeType,
-    SymbolSpace,
+    self as dir, GlobalSymbolId, LocalNodeIdAny, LocalSymbolId, Member, NodeType, SymbolSpace,
 };
 use destack_source::{ModuleId, ProfileId, Span};
 use destack_workspace::{Repository, Revision};
 
-use super::{container_name_for_node, declaration_display_name, matches_symbol_space_filter};
+use super::{
+    container_name_for_node, declaration_display_name, dependency_symbol_target,
+    matches_symbol_space_filter,
+};
 use crate::ast::{get_node_tree_main_span, get_node_tree_span, try_span_for_dir_node};
 use crate::core::{
     AstQueryContext, DirQueryContext, QueryContext, SymbolEntry, SymbolEntryKind, query_context,
@@ -23,7 +25,7 @@ pub(crate) fn global_symbol(module_id: ModuleId, local_id: LocalSymbolId) -> Glo
     }
 }
 
-/// Resolve a typed global symbol id from one module-local symbol id.
+/// Resolve a global symbol id from one module-local symbol id.
 pub fn resolve_global_symbol_id(
     repository: &Repository,
     revision: Revision,
@@ -31,11 +33,14 @@ pub fn resolve_global_symbol_id(
     local_symbol_id: u32,
 ) -> Option<GlobalSymbolId> {
     let ctx = query_context(repository, revision, module_id)?;
-    let symbol_entry = ctx.dir().symbols().get_symbol_by_id(local_symbol_id);
+    let symbols = ctx.dir().symbols();
+    if local_symbol_id >= symbols.symbol_count() {
+        return None;
+    }
 
     Some(GlobalSymbolId {
         module_id,
-        local_id: LocalSymbolId::new_typed(local_symbol_id, symbol_entry.ty),
+        local_id: LocalSymbolId::new(local_symbol_id),
     })
 }
 
@@ -45,19 +50,38 @@ pub(crate) fn get_canonical_symbol(
     revision: Revision,
     symbol_id: GlobalSymbolId,
 ) -> GlobalSymbolId {
-    let Some(ctx) = query_context(repository, revision, symbol_id.module_id) else {
-        return symbol_id;
-    };
+    let mut symbol_id = symbol_id;
+    let mut seen = HashSet::new();
 
-    let canonical = {
+    // follow import bindings through recorded dependency resolutions
+    while seen.insert(symbol_id) {
+        let Some(ctx) = query_context(repository, revision, symbol_id.module_id) else {
+            return symbol_id;
+        };
+
         let symbols = ctx.dir().symbols();
+        if symbol_id.local_id.id >= symbols.symbol_count() {
+            return symbol_id;
+        }
+
         let symbol = symbols.get_symbol(symbol_id.local_id);
-        symbol.canonical_symbol
-    };
-    if let Some(canonical) = canonical
-        && canonical != symbol_id
-    {
-        return get_canonical_symbol(repository, revision, canonical);
+        let Some(declaration) = symbol.declaration else {
+            return symbol_id;
+        };
+
+        if declaration.local_id.ty != NodeType::DependencyItem {
+            return symbol_id;
+        }
+
+        let Ok(item_id) = declaration.local_id.try_into() else {
+            return symbol_id;
+        };
+
+        let Some(target_symbol) = dependency_symbol_target(ctx.dir(), item_id) else {
+            return symbol_id;
+        };
+
+        symbol_id = target_symbol;
     }
 
     symbol_id
@@ -76,30 +100,6 @@ pub(crate) fn symbol_matches_reference_target(
 
     if get_canonical_symbol(repository, revision, symbol_id) == target_symbol_id {
         return true;
-    }
-
-    let mut current_symbol = symbol_id;
-    let mut visited = HashSet::new();
-    while visited.insert(current_symbol) {
-        let Some(ctx) = query_context(repository, revision, current_symbol.module_id) else {
-            return false;
-        };
-
-        let symbols = ctx.dir().symbols();
-        let symbol = symbols.get_symbol(current_symbol.local_id);
-        let Some(target_symbol) = symbol.target_symbol else {
-            return false;
-        };
-
-        if target_symbol == target_symbol_id {
-            return true;
-        }
-
-        if get_canonical_symbol(repository, revision, target_symbol) == target_symbol_id {
-            return true;
-        }
-
-        current_symbol = target_symbol;
     }
 
     false
@@ -234,11 +234,11 @@ pub(crate) fn get_symbol_local_definition_span(
     revision: Revision,
     symbol_id: GlobalSymbolId,
 ) -> Option<Span> {
-    with_resolved_symbol_context(repository, revision, symbol_id.module_id, |ctx| {
+    with_symbol_context(repository, revision, symbol_id.module_id, |ctx| {
         let declaration = {
             let symbols = ctx.dir().symbols();
             let symbol = symbols.get_symbol(symbol_id.local_id);
-            symbol.primary_declaration
+            symbol.declaration
         };
 
         if let Some(declaration) = declaration {
@@ -259,7 +259,7 @@ pub(crate) fn type_definition_span_for_symbol(
     revision: Revision,
     symbol_id: GlobalSymbolId,
 ) -> Option<Span> {
-    with_resolved_symbol_context(repository, revision, symbol_id.module_id, |ctx| {
+    with_symbol_context(repository, revision, symbol_id.module_id, |ctx| {
         if symbol_id.local_id.id >= ctx.dir().symbols().symbol_count() {
             return None;
         }
@@ -268,8 +268,8 @@ pub(crate) fn type_definition_span_for_symbol(
             let symbols = ctx.dir().symbols();
             let symbol = symbols.get_symbol(symbol_id.local_id);
             (
-                matches_symbol_space_filter(symbol.ty, symbol.space, Some(SymbolSpace::Type)),
-                symbol.primary_declaration,
+                matches_symbol_space_filter(symbol.form, symbol.space, Some(SymbolSpace::Type)),
+                symbol.declaration,
             )
         };
 
@@ -445,21 +445,16 @@ fn get_symbol_span_with(
     symbol_id: GlobalSymbolId,
     span_for_declaration: impl Fn(AstQueryContext<'_>, &dir::Tree, LocalNodeIdAny) -> Span + Copy,
 ) -> Option<Span> {
-    with_resolved_symbol_context(repository, revision, symbol_id.module_id, |ctx| {
-        let (canonical_id, declaration, target_symbol) = {
+    with_symbol_context(repository, revision, symbol_id.module_id, |ctx| {
+        let (canonical_id, declaration) = {
             let symbols = ctx.dir().symbols();
-            let symbol = symbols.get_symbol(symbol_id.local_id);
-            let canonical_id = symbol.canonical_symbol.unwrap_or(symbol_id);
+            let canonical_id = get_canonical_symbol(repository, revision, symbol_id);
 
             if canonical_id.module_id != symbol_id.module_id {
-                (canonical_id, None, None)
+                (canonical_id, None)
             } else {
                 let canonical_symbol = symbols.get_symbol(canonical_id.local_id);
-                (
-                    canonical_id,
-                    canonical_symbol.primary_declaration,
-                    canonical_symbol.target_symbol,
-                )
+                (canonical_id, canonical_symbol.declaration)
             }
         };
         if canonical_id.module_id != symbol_id.module_id {
@@ -474,16 +469,12 @@ fn get_symbol_span_with(
             ));
         }
 
-        if let Some(target) = target_symbol {
-            return get_symbol_span_with(repository, revision, target, span_for_declaration);
-        }
-
         None
     })?
 }
 
 /// Execute a closure with one query context for a symbol module.
-fn with_resolved_symbol_context<T>(
+fn with_symbol_context<T>(
     repository: &Repository,
     revision: Revision,
     module_id: ModuleId,
@@ -494,7 +485,7 @@ fn with_resolved_symbol_context<T>(
     Some(f(ctx))
 }
 
-/// Resolve the imported target symbol for a dependency-item binding.
+/// Return the imported target symbol for a dependency-item binding.
 fn dependency_item_target_symbol(
     dir: DirQueryContext<'_>,
     symbol_id: GlobalSymbolId,
@@ -502,13 +493,12 @@ fn dependency_item_target_symbol(
     let declaration = {
         let symbols = dir.symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
-        symbol.primary_declaration?
+        symbol.declaration?
     };
     if declaration.local_id.ty != NodeType::DependencyItem {
         return None;
     }
 
     let item_id = declaration.local_id.try_into().ok()?;
-    let resolved_item = dir.tree().get::<DependencyItem>(item_id);
-    resolved_item.target_symbol()
+    dependency_symbol_target(dir, item_id)
 }

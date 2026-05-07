@@ -5,7 +5,7 @@ use crate::ast::{
     sorted_enclosing_spans, token_span_at_cursor_offset,
 };
 use crate::core::{AstQueryContext, DirQueryContext};
-use crate::dir::resolve_expression_symbol;
+use crate::dir::expression_symbol_target;
 
 use super::{CompletionContext, CursorToken};
 
@@ -101,7 +101,7 @@ fn get_expression_symbol(
     dir: DirQueryContext<'_>,
     expr_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::GlobalSymbolId> {
-    resolve_expression_symbol(dir, expr_id)
+    expression_symbol_target(dir, expr_id)
 }
 
 /// Keep one concrete type id and skip unevaluated placeholders.
@@ -127,15 +127,15 @@ fn get_receiver_type(
     receiver_symbol: Option<dir::GlobalSymbolId>,
 ) -> Option<dir::LocalTypeId> {
     let types = dir.types();
-    let symbol_type_id = receiver_symbol
-        .and_then(|receiver_symbol| types.symbol_type_id(dir.symbols(), receiver_symbol));
+    let declaration_form_id = receiver_symbol
+        .and_then(|receiver_symbol| types.declaration_form_id(dir.symbols(), receiver_symbol));
 
     concrete_type_id(
         types,
         types
             .member_receiver_type_id(receiver_global)
             .or_else(|| types.get_declared_or_inferred_type_id(receiver_global))
-            .or(symbol_type_id),
+            .or(declaration_form_id),
     )
 }
 
@@ -189,7 +189,7 @@ fn member_access_context_at_offset(
         }
 
         // otherwise treat the expression itself as the receiver
-        let receiver_symbol = expr.target_symbol();
+        let receiver_symbol = expression_symbol_target(dir, expr_id);
         if receiver_symbol.is_none() {
             if partial_context.is_none() {
                 partial_context = Some(CompletionContext::MemberAccess {

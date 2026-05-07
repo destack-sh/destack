@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use destack_dir::{self as dir, NodeVisitor};
-use destack_source::{BatchEdit, Edit, FileEdit, FileId, Span, Uri};
+use destack_source::{BatchEdit, Edit, FileEdit, FileId, ModuleId, Span, Uri};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
 
@@ -13,7 +13,9 @@ use crate::ast::{
     get_module_by_file_id, is_simple_identifier, span_contains_span, span_for_dir_node,
 };
 use crate::core::{QueryContext, query_context};
-use crate::dir::{get_canonical_symbol, get_symbol_definition_span, resolve_symbol_name};
+use crate::dir::{
+    expression_symbol_target, get_canonical_symbol, get_symbol_definition_span, resolve_symbol_name,
+};
 use crate::format::{format_local_type, format_type_for_inlay_hint};
 
 /// Request payload for extract function queries.
@@ -449,7 +451,8 @@ fn collect_output_symbols(
     if let Some(last_index) = selection.selected_range.clone().last() {
         for expr_id in selection.container_expressions.iter().skip(last_index + 1) {
             let expression = dir_tree.get::<dir::Expression>(*expr_id);
-            let mut visitor = ReferenceCollector::new(&mut referenced_after);
+            let mut visitor =
+                ReferenceCollector::new(ctx.module_id(), ctx.dir().types(), &mut referenced_after);
             visitor.visit_expression(dir_tree, *expr_id, expression);
         }
     }
@@ -492,7 +495,7 @@ fn collect_output_symbols(
                 )
             })
             .filter(|ty| !ty.is_empty())
-            .or_else(|| symbol_type_text(repository, ctx, canonical));
+            .or_else(|| declaration_form_text(repository, ctx, canonical));
         outputs.push(OutputSymbol {
             name,
             ty_text,
@@ -641,18 +644,13 @@ fn collect_free_variables(
     let mut seen = HashSet::new();
     let mut vars: Vec<(u32, FreeVariable)> = Vec::new();
 
-    for (expr_id, expr) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
+    for (expr_id, _) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
         let span = span_for_dir_node(ctx.ast(), dir_tree, expr_id.into());
         if !span_contains_span(selection, span) {
             continue;
         }
 
-        let target_symbol = match expr {
-            dir::Expression::LocalReference { target_symbol, .. }
-            | dir::Expression::ModuleReference { target_symbol, .. }
-            | dir::Expression::GlobalReference { target_symbol, .. } => Some(*target_symbol),
-            _ => None,
-        };
+        let target_symbol = expression_symbol_target(ctx.dir(), expr_id);
         let Some(target_symbol) = target_symbol else {
             continue;
         };
@@ -697,7 +695,7 @@ fn collect_free_variables(
                 )
             })
             .filter(|ty| !ty.is_empty())
-            .or_else(|| symbol_type_text(repository, ctx, canonical));
+            .or_else(|| declaration_form_text(repository, ctx, canonical));
         vars.push((span.start, FreeVariable { name, ty_text }));
     }
 
@@ -719,7 +717,7 @@ fn symbol_mutability(
 }
 
 /// Resolve type text for a symbol when possible.
-fn symbol_type_text(
+fn declaration_form_text(
     repository: &Repository,
     ctx: &QueryContext,
     symbol_id: dir::GlobalSymbolId,
@@ -729,7 +727,7 @@ fn symbol_type_text(
         let declaration = {
             let symbols = ctx.dir().symbols();
             let symbol = symbols.get_symbol(symbol_id.local_id);
-            symbol.primary_declaration?
+            symbol.declaration?
         };
 
         let type_id = ctx.dir().node_type_id(declaration.local_id)?;
@@ -752,7 +750,7 @@ fn symbol_type_text(
     let declaration = {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
-        symbol.primary_declaration?
+        symbol.declaration?
     };
 
     let type_id = ctx.dir().node_type_id(declaration.local_id)?;
@@ -892,6 +890,10 @@ impl dir::NodeVisitor for AwaitVisitor {
 
 /// Visitor that collects symbol references.
 struct ReferenceCollector<'a> {
+    /// The module that owns visited nodes.
+    module_id: ModuleId,
+    /// The checked type table.
+    types: &'a dir::TypeTable,
     /// Collected references keyed by symbol id.
     references: &'a mut HashMap<dir::GlobalSymbolId, dir::LocalNodeId<dir::Expression>>,
     /// The visitor options for traversal.
@@ -901,9 +903,13 @@ struct ReferenceCollector<'a> {
 impl<'a> ReferenceCollector<'a> {
     /// Create a reference collector.
     fn new(
+        module_id: ModuleId,
+        types: &'a dir::TypeTable,
         references: &'a mut HashMap<dir::GlobalSymbolId, dir::LocalNodeId<dir::Expression>>,
     ) -> Self {
         Self {
+            module_id,
+            types,
             references,
             options: dir::NodeVisitorOptions::default(),
         }
@@ -923,7 +929,16 @@ impl dir::NodeVisitor for ReferenceCollector<'_> {
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
-        if let Some(target_symbol) = expression.target_symbol() {
+        let node_id = id.into_global_any(self.module_id);
+        let target_symbol = self
+            .types
+            .symbol_resolution(node_id)
+            .and_then(|resolution| match resolution {
+                dir::SymbolResolution::Target(symbol_id) => Some(*symbol_id),
+                dir::SymbolResolution::Candidates(_) => None,
+            });
+
+        if let Some(target_symbol) = target_symbol {
             self.references.entry(target_symbol).or_insert(id);
         }
 

@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 use crate::ast::{get_module_by_file_id, get_node_tree_main_span};
 use crate::core::{QueryContext, query_context};
 use crate::dir::{
-    SymbolAtOffset, binding_symbol_at_offset, find_symbol_at_offset, get_canonical_symbol,
-    get_symbol_definition_span, get_symbol_local_definition_span, semantic_target_symbol_at_offset,
-    type_definition_span_for_symbol,
+    SymbolAtOffset, binding_symbol_at_offset, dependency_symbol_target, find_symbol_at_offset,
+    get_canonical_symbol, get_symbol_definition_span, get_symbol_local_definition_span,
+    semantic_target_symbol_at_offset, type_definition_span_for_symbol,
 };
 use destack_dir::{self as dir, DependencyItem, Expression, GlobalNodeIdAny, NodeType, Resolution};
 /// Result of a goto definition query.
@@ -136,8 +136,6 @@ fn resolve_import_definition_at_offset(
 
     // scan dependency items and select the one at the cursor
     for item_id in dir_tree.iter_node_ids_of_type::<DependencyItem>() {
-        let item = dir_tree.get::<DependencyItem>(item_id);
-
         // resolve the main declaration span for coarse overlap checks
         let fallback_span = get_node_tree_main_span(ctx.ast(), ctx.dir().tree(), item_id.into());
 
@@ -164,7 +162,7 @@ fn resolve_import_definition_at_offset(
             continue;
         }
 
-        let target_symbol = item.target_symbol()?;
+        let target_symbol = dependency_symbol_target(ctx.dir(), item_id)?;
 
         return get_symbol_definition_span(repository, revision, target_symbol);
     }
@@ -249,32 +247,32 @@ fn resolve_nominal_type_symbol(
     type_id: dir::LocalTypeId,
 ) -> Option<dir::GlobalSymbolId> {
     match types.get_type(type_id) {
-        dir::Type::Reference { symbol, .. } => Some(*symbol),
-        dir::Type::Value { value }
-        | dir::Type::ValueOf { right: value, .. }
-        | dir::Type::ReferenceOf { right: value, .. }
-        | dir::Type::PointerOf { right: value, .. }
-        | dir::Type::Readonly { target_type: value }
-        | dir::Type::KeyOf { target_type: value }
-        | dir::Type::Must { target_type: value }
-        | dir::Type::AsComptime { target_type: value }
-        | dir::Type::Not { target_type: value } => resolve_nominal_type_symbol(types, *value),
-        dir::Type::In { left, right }
-        | dir::Type::Extends { left, right }
-        | dir::Type::Implements { left, right } => resolve_nominal_type_symbol(types, *left)
-            .or_else(|| resolve_nominal_type_symbol(types, *right)),
-        dir::Type::Conditional {
-            left,
-            right,
-            then_type,
-            else_type,
-            ..
-        } => resolve_nominal_type_symbol(types, *left)
-            .or_else(|| resolve_nominal_type_symbol(types, *right))
-            .or_else(|| resolve_nominal_type_symbol(types, *then_type))
-            .or_else(|| resolve_nominal_type_symbol(types, *else_type)),
-        dir::Type::Union { elements } | dir::Type::Intersection { elements } => {
-            for element in elements {
+        dir::Type::Reference(reference) => Some(reference.symbol),
+        dir::Type::Value(value) => resolve_nominal_type_symbol(types, value.value),
+        dir::Type::KeyOf(unary)
+        | dir::Type::Must(unary)
+        | dir::Type::AsComptime(unary)
+        | dir::Type::Not(unary) => resolve_nominal_type_symbol(types, unary.target_type),
+        dir::Type::Form(form) => resolve_nominal_type_symbol(types, form.base),
+        dir::Type::In(binary) | dir::Type::Extends(binary) | dir::Type::Implements(binary) => {
+            resolve_nominal_type_symbol(types, binary.left)
+                .or_else(|| resolve_nominal_type_symbol(types, binary.right))
+        }
+        dir::Type::Conditional(conditional) => resolve_nominal_type_symbol(types, conditional.left)
+            .or_else(|| resolve_nominal_type_symbol(types, conditional.right))
+            .or_else(|| resolve_nominal_type_symbol(types, conditional.then_type))
+            .or_else(|| resolve_nominal_type_symbol(types, conditional.else_type)),
+        dir::Type::Union(union) => {
+            for element in &union.elements {
+                if let Some(symbol_id) = resolve_nominal_type_symbol(types, *element) {
+                    return Some(symbol_id);
+                }
+            }
+
+            None
+        }
+        dir::Type::Intersection(intersection) => {
+            for element in &intersection.elements {
                 if let Some(symbol_id) = resolve_nominal_type_symbol(types, *element) {
                     return Some(symbol_id);
                 }
@@ -327,12 +325,11 @@ fn overload_definition_span_for_call_site(
             module_id: ctx.module_id(),
             local_id: parent_expression_id.into(),
         };
-        let resolution_id = types.node_resolution_id(node_id)?;
-        let resolution = types.get_resolution(resolution_id);
+        let resolution = types.resolution(node_id)?;
         match resolution {
-            Resolution::Static { candidate, .. } => Some((
-                get_canonical_symbol(repository, revision, candidate.target_symbol),
-                candidate.resolved_signature.as_ref()?.parameters.clone(),
+            Resolution::Dispatch(dir::DispatchResolution::Static { target, .. }) => Some((
+                get_canonical_symbol(repository, revision, target.symbol),
+                target.signature.as_ref()?.parameters.clone(),
             )),
             _ => None,
         }
@@ -353,23 +350,17 @@ fn overload_declaration_span_for_signature(
     symbol_id: dir::GlobalSymbolId,
     parameter_types: &[dir::LocalTypeId],
 ) -> Option<Span> {
-    // resolve the symbol context and declarations
+    // read the symbol context and declaration
     let ctx = query_context(repository, revision, symbol_id.module_id)?;
-    let (primary_declaration, secondary_declarations) = {
+    let declaration = {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
-        (
-            symbol.primary_declaration,
-            symbol.secondary_declarations.clone(),
-        )
+        symbol.declaration
     };
 
     let mut declarations = Vec::new();
-    if let Some(primary_declaration) = primary_declaration {
-        declarations.push(primary_declaration);
-    }
-    if let Some(secondary_declarations) = secondary_declarations {
-        declarations.extend(secondary_declarations.iter().copied());
+    if let Some(declaration) = declaration {
+        declarations.push(declaration);
     }
 
     // find the declaration whose parameter type ids match the resolved signature

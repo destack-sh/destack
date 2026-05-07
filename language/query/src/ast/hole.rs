@@ -416,10 +416,10 @@ fn expression_slot_position_in_expression(
         | ast::Expression::Unary {
             right: expression, ..
         }
-        | ast::Expression::ValueOf {
+        | ast::Expression::MoveOf {
             right: expression, ..
         }
-        | ast::Expression::ReferenceOf {
+        | ast::Expression::BorrowOf {
             right: expression, ..
         }
         | ast::Expression::PointerOf {
@@ -607,8 +607,8 @@ fn collect_pattern_binding_names(
             }
         }
         ast::Pattern::Must(right)
-        | ast::Pattern::ReferenceOf { right, .. }
-        | ast::Pattern::ValueOf { right, .. } => {
+        | ast::Pattern::BorrowOf { right, .. }
+        | ast::Pattern::MoveOf { right, .. } => {
             collect_pattern_binding_names(ast_tree, *right, names);
         }
         ast::Pattern::Tuple { fields }

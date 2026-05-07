@@ -16,8 +16,6 @@ pub(crate) fn is_extractable_expression(expression: &dir::Expression) -> bool {
             | dir::Expression::Import { .. }
             | dir::Expression::ReExport { .. }
             | dir::Expression::Export { .. }
-            | dir::Expression::UnresolvedImport { .. }
-            | dir::Expression::UnresolvedReExport { .. }
             | dir::Expression::ExportNamespace { .. }
     )
 }

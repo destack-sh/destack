@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 use crate::ast::{get_module_by_file_id, span_for_dir_node};
 use crate::core::{QueryContext, call_candidates_for_callee, query_context};
 use crate::dir::{
-    find_symbol_at_offset, get_canonical_symbol, resolve_expression_symbol,
-    resolve_member_access_symbol,
+    expression_symbol_target, find_symbol_at_offset, get_canonical_symbol,
+    member_access_symbol_target,
 };
 use destack_workspace::Repository;
 
@@ -198,7 +198,7 @@ fn constructor_owner_symbol(
     let declaration = {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
-        symbol.primary_declaration?
+        symbol.declaration?
     };
 
     if declaration.local_id.ty != dir::NodeType::Member {
@@ -238,7 +238,7 @@ fn constructor_owner_symbol(
     ))
 }
 
-/// Resolve the symbol referenced by a call target expression.
+/// Return the symbol targeted by a call target expression.
 fn call_target_symbol(
     ctx: &QueryContext,
     dir_tree: &dir::Tree,
@@ -267,29 +267,29 @@ fn call_target_symbol(
     let expression = dir_tree.get::<dir::Expression>(current);
     if let dir::Expression::Member { name, .. } = expression {
         let Some(_name) = *name else {
-            return resolve_expression_symbol(ctx.dir(), current);
+            return expression_symbol_target(ctx.dir(), current);
         };
-        return resolve_member_access_symbol(ctx.dir(), current)
-            .or_else(|| resolve_expression_symbol(ctx.dir(), current));
+        return member_access_symbol_target(ctx.dir(), current)
+            .or_else(|| expression_symbol_target(ctx.dir(), current));
     }
 
-    resolve_expression_symbol(ctx.dir(), current)
+    expression_symbol_target(ctx.dir(), current)
 }
 
-/// Resolve the parameter span for the primary declaration of a symbol.
+/// Return the parameter span for a symbol declaration.
 fn function_parameter_span(
     repository: &Repository,
     revision: Revision,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<Span> {
-    // resolve the module and query context
+    // read the module query context
     let ctx = query_context(repository, revision, symbol_id.module_id)?;
 
     // resolve the declaration node
     let declaration = {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
-        symbol.primary_declaration?
+        symbol.declaration?
     };
 
     let dir_tree = ctx.dir().tree();
@@ -323,7 +323,7 @@ fn function_parameter_span(
     find_parenthesis_inner_span(&ctx, full_span)
 }
 
-/// Resolve parameter spans for a symbol and its overloads.
+/// Return parameter spans for a symbol.
 fn function_parameter_spans(
     repository: &Repository,
     revision: Revision,
@@ -331,30 +331,9 @@ fn function_parameter_spans(
 ) -> Vec<Span> {
     let mut spans = Vec::new();
 
-    // resolve primary declaration span
+    // collect the declaration span
     if let Some(span) = function_parameter_span(repository, revision, symbol_id) {
         spans.push(span);
-    }
-
-    // resolve secondary declarations (overloads)
-    let Some(ctx) = query_context(repository, revision, symbol_id.module_id) else {
-        return spans;
-    };
-    let secondary = {
-        let symbols = ctx.dir().symbols();
-        let symbol = symbols.get_symbol(symbol_id.local_id);
-        symbol.secondary_declarations.clone()
-    };
-
-    let Some(secondary) = secondary else {
-        return spans;
-    };
-
-    for declaration in secondary.iter() {
-        let span = parameter_span_for_node(repository, revision, *declaration);
-        if let Some(span) = span {
-            spans.push(span);
-        }
     }
 
     spans.sort_by_key(|span| (span.file.0, span.start, span.end));
@@ -373,11 +352,11 @@ fn function_parameter_name_positions(
         return HashMap::new();
     };
 
-    // resolve the primary declaration node
+    // read the declaration node
     let declaration = {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
-        symbol.primary_declaration
+        symbol.declaration
     };
 
     let Some(declaration) = declaration else {
@@ -408,47 +387,6 @@ fn function_parameter_name_positions(
     }
 
     positions
-}
-
-/// Resolve the parameter span for a declaration node.
-fn parameter_span_for_node(
-    repository: &Repository,
-    revision: Revision,
-    node_id: dir::GlobalNodeIdAny,
-) -> Option<Span> {
-    let ctx = query_context(repository, revision, node_id.module_id)?;
-    let dir_tree = ctx.dir().tree();
-
-    match node_id.local_id.ty {
-        dir::NodeType::Declaration => {
-            let Ok(decl_id) = node_id.local_id.try_into_typed::<dir::Declaration>() else {
-                return None;
-            };
-            function_signature_for_node(dir_tree, node_id.local_id)?;
-            let source_id = dir_tree.get_source(decl_id.id);
-            let ast_span = ctx.ast().tree().source_map.get(source_id);
-            let full_span = Span::new(ctx.file_id(), ast_span.start, ast_span.end);
-            find_parenthesis_inner_span(&ctx, full_span)
-        }
-        dir::NodeType::Member => {
-            let Ok(member_id) = node_id.local_id.try_into_typed::<dir::Member>() else {
-                return None;
-            };
-            function_signature_for_node(dir_tree, node_id.local_id)?;
-            let source_id = dir_tree.get_source(member_id.id);
-            let ast_span = ctx.ast().tree().source_map.get(source_id);
-            let full_span = Span::new(ctx.file_id(), ast_span.start, ast_span.end);
-            find_parenthesis_inner_span(&ctx, full_span)
-        }
-        dir::NodeType::Declarator | dir::NodeType::Pattern => {
-            let decl_id = function_declaration_from_binding(dir_tree, node_id.local_id)?;
-            let source_id = dir_tree.get_source(decl_id.id);
-            let ast_span = ctx.ast().tree().source_map.get(source_id);
-            let full_span = Span::new(ctx.file_id(), ast_span.start, ast_span.end);
-            find_parenthesis_inner_span(&ctx, full_span)
-        }
-        _ => None,
-    }
 }
 
 /// Resolve a function signature for a declaration, member, or binding node.

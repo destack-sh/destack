@@ -81,22 +81,8 @@ impl Query {
 
         // require module indexes together so the executor can fan them out
         let versions = context.require_all(&keys)?;
-        let mut indexes = Vec::with_capacity(versions.len());
-
-        // load exact module index payloads
-        for version in versions {
-            let index = repository
-                .artifact_store()
-                .module_query_index(&version)
-                .ok_or(ProviderError::Corrupt { version })?;
-
-            indexes.push(index.index.clone());
-        }
-
-        // merge module indexes into the workspace index
-        let payload = WorkspaceQueryIndex {
-            index: QueryIndex::merge(indexes),
-        };
+        // retain exact module index versions without duplicating index payloads
+        let payload = WorkspaceQueryIndex { modules: versions };
 
         Ok(ArtifactPayload::WorkspaceQueryIndex(payload))
     }

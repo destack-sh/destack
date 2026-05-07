@@ -103,14 +103,14 @@ pub(crate) fn doc_text_for_symbol(
     revision: Revision,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<String> {
-    // resolve the module query context
+    // read the module query context
     let ctx = query_context(repository, revision, symbol_id.module_id)?;
 
-    // resolve the symbol declaration
+    // read the symbol declaration
     let declaration = {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
-        symbol.primary_declaration?
+        symbol.declaration?
     };
 
     // prefer semantic documentation attached to the dir declaration

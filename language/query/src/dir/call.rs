@@ -1,5 +1,6 @@
 use destack_dir::{
-    self as dir, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, Resolution, SymbolType,
+    self as dir, DeclarationForm, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId,
+    Resolution,
 };
 use destack_source::{ModuleId, ProfileId};
 use destack_workspace::{Repository, Revision};
@@ -10,15 +11,15 @@ use crate::core::{
 };
 
 use super::{
-    get_canonical_symbol, resolve_expression_symbol, resolve_member_access_symbol,
+    expression_symbol_target, get_canonical_symbol, member_access_symbol_target,
     resolve_symbol_name,
 };
-/// Information about a resolved call target.
+/// Information about a call target.
 #[derive(Debug, Clone)]
 pub(crate) struct CallTarget {
-    /// The resolved name of the target.
+    /// The name of the target.
     pub name: Option<String>,
-    /// The resolved symbol id of the target.
+    /// The symbol id of the target.
     pub symbol: Option<GlobalSymbolId>,
 }
 
@@ -29,70 +30,53 @@ impl CallTarget {
     }
 }
 
-/// Resolve the call target name and symbol for a call expression.
-pub(crate) fn resolve_call_target(
+/// Return the call target name and symbol for a call expression.
+pub(crate) fn call_target(
     repository: &Repository,
     dir: DirQueryContext<'_>,
     left_expression_id: LocalNodeId<Expression>,
 ) -> CallTarget {
-    // resolve the left expression node
+    // read the left expression node
     let dir_tree = dir.tree();
     let left_expression = dir_tree.get::<Expression>(left_expression_id);
 
-    // resolve the target name and symbol based on expression kind
+    // inspect the target expression shape
     match left_expression {
-        Expression::GlobalReference {
-            target_symbol,
-            path,
-            ..
-        }
-        | Expression::LocalReference {
-            target_symbol,
-            path,
-            ..
-        }
-        | Expression::ModuleReference {
-            target_symbol,
-            path,
-            ..
-        } => {
-            // resolve the referenced symbol and name
-            let symbol = *target_symbol;
-            let name = resolve_symbol_name(repository, dir.revision(), symbol).or_else(|| {
-                path.last_segment()
-                    .map(|name_id| dir.strings().get(name_id).to_string())
-            });
-
-            // prefer the canonical function symbol when possible
-            let canonical_symbol = get_canonical_symbol(repository, dir.revision(), symbol);
-            let resolved_symbol = symbol_is_function(repository, dir.revision(), canonical_symbol)
-                .then_some(canonical_symbol)
+        Expression::Path { path, .. } => {
+            // read the referenced symbol and name
+            let symbol = expression_symbol_target(dir, left_expression_id);
+            let name = symbol
+                .and_then(|symbol| resolve_symbol_name(repository, dir.revision(), symbol))
                 .or_else(|| {
-                    symbol_is_function(repository, dir.revision(), symbol).then_some(symbol)
+                    path.last_segment()
+                        .map(|name_id| dir.strings().get(name_id).to_string())
                 });
 
-            CallTarget::new(name, resolved_symbol)
+            // prefer the canonical function symbol when possible
+            let function_symbol = symbol.and_then(|symbol| {
+                let canonical_symbol = get_canonical_symbol(repository, dir.revision(), symbol);
+
+                symbol_is_function(repository, dir.revision(), canonical_symbol)
+                    .then_some(canonical_symbol)
+                    .or_else(|| {
+                        symbol_is_function(repository, dir.revision(), symbol).then_some(symbol)
+                    })
+            });
+
+            CallTarget::new(name, function_symbol)
         }
         Expression::Member { name, .. } => {
             let Some(name) = *name else {
                 return CallTarget::new(None, None);
             };
 
-            // resolve the member name string
+            // read the member name string
             let member_name = dir.strings().get(name).to_string();
 
-            // resolve the member symbol when possible
-            let member_symbol = resolve_member_access_symbol(dir, left_expression_id);
+            // read the member symbol when possible
+            let member_symbol = member_access_symbol_target(dir, left_expression_id);
 
-            // return the member name and symbol
             CallTarget::new(Some(member_name), member_symbol)
-        }
-        Expression::UnresolvedPath { path, .. } => {
-            // resolve the unresolved path name
-            let name = path
-                .last_segment()
-                .map(|name_id| dir.strings().get(name_id).to_string());
-            CallTarget::new(name, None)
         }
         _ => CallTarget::new(None, None),
     }
@@ -110,7 +94,7 @@ fn symbol_is_function(
 
     let symbols = ctx.dir().symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
-    symbol.ty == SymbolType::Function
+    symbol.form == DeclarationForm::Function
 }
 
 /// Build call index entries for one module.
@@ -149,7 +133,7 @@ pub(crate) fn build_call_candidates_for_module(
     entries
 }
 
-/// Resolve the canonical function symbols targeted by one call.
+/// Return the canonical function symbols targeted by one call.
 fn call_target_symbols(
     repository: &Repository,
     ctx: &QueryContext,
@@ -158,7 +142,7 @@ fn call_target_symbols(
 ) -> Vec<GlobalSymbolId> {
     let mut targets = Vec::new();
 
-    if let Some(target_symbol) = resolve_expression_symbol(ctx.dir(), left_expression_id) {
+    if let Some(target_symbol) = expression_symbol_target(ctx.dir(), left_expression_id) {
         targets.push(target_symbol);
         targets.push(get_canonical_symbol(
             repository,
@@ -171,23 +155,26 @@ fn call_target_symbols(
         module_id: ctx.module_id(),
         local_id: expression_id.into(),
     };
-    let Some(resolution_id) = ctx.dir().types().node_resolution_id(node_id) else {
+    let Some(resolution) = ctx.dir().types().resolution(node_id) else {
         return targets;
     };
 
-    let resolution = ctx.dir().types().get_resolution(resolution_id);
     let candidates = match resolution {
-        Resolution::Static { candidate, .. } => std::slice::from_ref(candidate),
-        Resolution::Dynamic { candidates, .. } => candidates.as_slice(),
+        Resolution::Dispatch(dir::DispatchResolution::Static { target, .. }) => {
+            std::slice::from_ref(target)
+        }
+        Resolution::Dispatch(dir::DispatchResolution::Dynamic { targets, .. }) => {
+            targets.as_slice()
+        }
         _ => return targets,
     };
 
     for candidate in candidates {
-        targets.push(candidate.target_symbol);
+        targets.push(candidate.symbol);
         targets.push(get_canonical_symbol(
             repository,
             ctx.revision(),
-            candidate.target_symbol,
+            candidate.symbol,
         ));
     }
 

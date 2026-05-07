@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactKey, WorkspaceQueryIndex};
+use destack_artifact::{ArtifactKey, ModuleQueryIndex, WorkspaceQueryIndex};
 use destack_dir::GlobalSymbolId;
 use destack_qir::{
     CallEntry, ExtensionEntry, ImportEntry, NominalEntry, SpecifierEntry, SymbolEntry,
@@ -19,16 +19,21 @@ pub(crate) fn search_import_candidates(
 ) -> Vec<ImportEntry> {
     let mut entries = Vec::new();
 
-    if let Some(index) = workspace_query_index_for_module(repository, revision, exclude_module) {
-        entries.extend(index.index.imports.search(query, exclude_module));
+    let indexes = if let Some(index) =
+        workspace_query_index_for_module(repository, revision, exclude_module)
+    {
+        module_query_indexes(repository, &index)
     } else {
-        for index in workspace_query_indexes(repository, revision) {
-            extend_unique(
-                &mut entries,
-                index.index.imports.search(query, exclude_module),
-            );
-        }
+        all_module_query_indexes(repository, revision)
+    };
+
+    for index in indexes {
+        extend_unique(
+            &mut entries,
+            index.index.imports.search(query, exclude_module),
+        );
     }
+    sort_import_entries(&mut entries);
 
     entries
 }
@@ -41,7 +46,7 @@ pub(crate) fn search_workspace_symbol_candidates(
 ) -> Vec<SymbolEntry> {
     let mut entries = Vec::new();
 
-    for index in workspace_query_indexes(repository, revision) {
+    for index in all_module_query_indexes(repository, revision) {
         entries.extend(index.index.symbols.search(query));
     }
 
@@ -59,9 +64,11 @@ pub(crate) fn nominal_relations_for_target(
 ) -> Vec<NominalEntry> {
     let mut entries = Vec::new();
 
-    for index in workspace_query_indexes(repository, revision) {
+    for index in all_module_query_indexes(repository, revision) {
         extend_unique(&mut entries, index.index.nominal.to(target_symbol));
     }
+    entries.sort();
+    entries.dedup();
 
     entries
 }
@@ -74,9 +81,11 @@ pub(crate) fn extension_candidates_for_target(
 ) -> Vec<ExtensionEntry> {
     let mut entries = Vec::new();
 
-    for index in workspace_query_indexes(repository, revision) {
+    for index in all_module_query_indexes(repository, revision) {
         extend_unique(&mut entries, index.index.extensions.to(target_symbol));
     }
+    entries.sort();
+    entries.dedup();
 
     entries
 }
@@ -89,7 +98,7 @@ pub(crate) fn modules_referencing_symbol(
 ) -> Vec<ModuleId> {
     let mut module_ids = Vec::new();
 
-    for index in workspace_query_indexes(repository, revision) {
+    for index in all_module_query_indexes(repository, revision) {
         module_ids.extend(index.index.references.modules(target_symbol));
     }
 
@@ -107,9 +116,10 @@ pub(crate) fn call_candidates_for_callee(
 ) -> Vec<CallEntry> {
     let mut entries = Vec::new();
 
-    for index in workspace_query_indexes(repository, revision) {
+    for index in all_module_query_indexes(repository, revision) {
         extend_unique(&mut entries, index.index.calls.to(callee_symbol));
     }
+    sort_call_entries(&mut entries);
 
     entries
 }
@@ -122,9 +132,10 @@ pub(crate) fn call_candidates_for_caller(
 ) -> Vec<CallEntry> {
     let mut entries = Vec::new();
 
-    for index in workspace_query_indexes(repository, revision) {
+    for index in all_module_query_indexes(repository, revision) {
         extend_unique(&mut entries, index.index.calls.from(caller_symbol));
     }
+    sort_call_entries(&mut entries);
 
     entries
 }
@@ -141,12 +152,13 @@ where
     let old_paths = old_paths.into_iter().collect::<HashSet<_>>();
     let mut entries = Vec::new();
 
-    for index in workspace_query_indexes(repository, revision) {
+    for index in all_module_query_indexes(repository, revision) {
         extend_unique(
             &mut entries,
             index.index.specifiers.renaming(&old_paths).cloned(),
         );
     }
+    sort_specifier_entries(&mut entries);
 
     entries
 }
@@ -173,6 +185,38 @@ fn workspace_query_index(
     let version = repository.artifact_version(revision, &key).ok().flatten()?;
 
     repository.artifact_store().workspace_query_index(&version)
+}
+
+/// Return all module query indexes referenced by all ready workspace indexes.
+fn all_module_query_indexes(
+    repository: &Repository,
+    revision: Revision,
+) -> Vec<Arc<ModuleQueryIndex>> {
+    let mut indexes = Vec::new();
+
+    for workspace in workspace_query_indexes(repository, revision) {
+        indexes.extend(module_query_indexes(repository, &workspace));
+    }
+
+    indexes
+}
+
+/// Return all module query indexes referenced by one workspace index.
+fn module_query_indexes(
+    repository: &Repository,
+    workspace: &WorkspaceQueryIndex,
+) -> Vec<Arc<ModuleQueryIndex>> {
+    let mut indexes = Vec::with_capacity(workspace.modules.len());
+
+    for version in &workspace.modules {
+        let Some(index) = repository.artifact_store().module_query_index(version) else {
+            continue;
+        };
+
+        indexes.push(index);
+    }
+
+    indexes
 }
 
 /// Return all ready workspace query index artifacts.
@@ -216,5 +260,47 @@ fn symbol_entry_key(entry: &SymbolEntry) -> (&str, ModuleId, u128, u32, u32) {
         entry.file_id.0,
         entry.range.start,
         entry.range.end,
+    )
+}
+
+/// Sort and deduplicate import entries.
+fn sort_import_entries(entries: &mut Vec<ImportEntry>) {
+    entries.sort_by(|left, right| import_entry_key(left).cmp(&import_entry_key(right)));
+    entries.dedup();
+}
+
+/// Return the stable ordering key for one import entry.
+fn import_entry_key(entry: &ImportEntry) -> (&str, ModuleId, u32) {
+    (entry.name.as_str(), entry.module_id, entry.local_id.id)
+}
+
+/// Sort and deduplicate call entries.
+fn sort_call_entries(entries: &mut Vec<CallEntry>) {
+    entries.sort_by_key(|entry| {
+        (
+            entry.module_id,
+            entry.caller_symbol,
+            entry.callee_symbol,
+            entry.span.file,
+            entry.span.start,
+            entry.span.end,
+        )
+    });
+    entries.dedup();
+}
+
+/// Sort and deduplicate specifier entries.
+fn sort_specifier_entries(entries: &mut Vec<SpecifierEntry>) {
+    entries.sort_by(|left, right| specifier_entry_key(left).cmp(&specifier_entry_key(right)));
+    entries.dedup();
+}
+
+/// Return the stable ordering key for one specifier entry.
+fn specifier_entry_key(entry: &SpecifierEntry) -> (ModuleId, u128, u32, &str) {
+    (
+        entry.module_id,
+        entry.file_id.0,
+        entry.ast_node_id,
+        entry.specifier.as_str(),
     )
 }
