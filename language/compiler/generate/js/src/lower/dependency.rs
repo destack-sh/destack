@@ -1,31 +1,55 @@
 use crate::{
-    CodegenJsError, CodegenJsResult, CodegenJsResultExt, DependencyItem, DependencyKind,
-    DependencyMode, Expression, LocalNodeId, ModuleLowerer,
+    CodegenJsError, CodegenJsResult, CodegenJsResultExt, DependencyBinding, DependencyItem,
+    DependencySpace, Expression, LocalNodeId, ModuleLowerer,
 };
 use destack_dir as dir;
+use destack_source::ModuleId;
 
 impl ModuleLowerer<'_> {
-    /// Lower a dependency kind from DIR into JS AST.
-    pub fn lower_dependency_kind(&self, kind: dir::DependencyKind) -> DependencyKind {
-        match kind {
-            dir::DependencyKind::Type => DependencyKind::Type,
-            dir::DependencyKind::Value => DependencyKind::Value,
+    /// Return the concrete module target for one dependency node.
+    pub(crate) fn dependency_target_module(
+        &self,
+        source_id: dir::LocalNodeIdAny,
+        space: dir::DependencySpace,
+    ) -> Option<ModuleId> {
+        let resolution = self
+            .types
+            .dependency_resolution(source_id.into_global(self.module.id))?;
+
+        // dependency bindings are tracked on individual import or export items
+        let dir::DependencyResolution::Module(resolution) = resolution else {
+            return None;
+        };
+
+        // external targets are preserved as bare specifiers for the linker
+        let dir::ModuleTarget::Module(module_id) = resolution.for_space(space)? else {
+            return None;
+        };
+
+        Some(module_id)
+    }
+
+    /// Lower a dependency space from DIR into JS AST.
+    pub fn lower_dependency_space(&self, space: dir::DependencySpace) -> DependencySpace {
+        match space {
+            dir::DependencySpace::Type => DependencySpace::Type,
+            dir::DependencySpace::Value => DependencySpace::Value,
         }
     }
 
-    /// Lower a dependency mode from DIR into JS AST.
-    pub fn lower_dependency_mode(&self, mode: dir::DependencyMode) -> DependencyMode {
-        match mode {
-            dir::DependencyMode::Item => DependencyMode::Item,
-            dir::DependencyMode::Default => DependencyMode::Default,
-            dir::DependencyMode::Namespace => DependencyMode::Namespace,
+    /// Lower a dependency binding from DIR into JS AST.
+    pub fn lower_dependency_binding(&self, binding: dir::DependencyBinding) -> DependencyBinding {
+        match binding {
+            dir::DependencyBinding::Item => DependencyBinding::Item,
+            dir::DependencyBinding::Default => DependencyBinding::Default,
+            dir::DependencyBinding::Namespace => DependencyBinding::Namespace,
         }
     }
 
     /// Lower dependency items from DIR into JS AST.
     pub fn lower_dependency_items(
         &mut self,
-        kind: dir::DependencyKind,
+        space: dir::DependencySpace,
         item_ids: &[dir::LocalNodeId<dir::DependencyItem>],
     ) -> CodegenJsResult<Vec<LocalNodeId<DependencyItem>>> {
         let mut lowered_item_ids: Vec<LocalNodeId<DependencyItem>> = Vec::new();
@@ -38,23 +62,21 @@ impl ModuleLowerer<'_> {
                         message: Some("dependency error slots are not lowered to JS".to_string()),
                     });
                 }
-                dir::DependencyItem::UnresolvedRemote {
-                    mode,
-                    source: _,
-                    kind: item_kind,
+                dir::DependencyItem::Item {
+                    binding,
+                    space: item_kind,
                     name,
                     alias,
-                    target: _,
-                    target_module: _,
                     symbol,
                 } => {
-                    let mode = self.lower_dependency_mode(*mode);
+                    let source_id = *item_id;
+                    let binding = self.lower_dependency_binding(*binding);
                     let name = name.map(|name| self.lower_name(name));
-                    let alias = alias.map(|alias| alias);
+                    let alias = *alias;
                     let item = DependencyItem {
-                        mode,
-                        kind: if *item_kind != kind {
-                            Some(self.lower_dependency_kind(*item_kind))
+                        binding,
+                        space: if *item_kind != space {
+                            Some(self.lower_dependency_space(*item_kind))
                         } else {
                             None
                         },
@@ -62,111 +84,37 @@ impl ModuleLowerer<'_> {
                         alias,
                         value: None,
                     };
-                    let item_id = self.tree.insert_from_source(item, self.module.id, *item_id);
-                    if let Some(symbol) = symbol {
+                    let item_id = self
+                        .tree
+                        .insert_from_source(item, self.module.id, source_id);
+
+                    // resolved imported/exported bindings use the target symbol
+                    let resolution = self
+                        .types
+                        .dependency_resolution(source_id.into_global_any(self.module.id));
+                    if let Some(dir::DependencyResolution::Binding(target_symbol)) = resolution {
+                        self.set_global_node_symbol(item_id, *target_symbol);
+                    }
+                    // local declaration items keep their source symbol
+                    else if let Some(symbol) = symbol {
                         self.set_source_node_symbol(item_id, *symbol);
                     }
+
                     lowered_item_ids.push(item_id);
                     continue;
                 }
-                dir::DependencyItem::UnresolvedLocal {
-                    mode,
-                    kind: item_kind,
-                    name,
-                    alias,
-                    symbol,
-                } => {
-                    let mode = self.lower_dependency_mode(*mode);
-                    let name = name.map(|name| self.lower_name(name));
-                    let alias = alias.map(|alias| alias);
-                    let item = DependencyItem {
-                        mode,
-                        kind: if *item_kind != kind {
-                            Some(self.lower_dependency_kind(*item_kind))
-                        } else {
-                            None
-                        },
-                        name,
-                        alias,
-                        value: None,
-                    };
-                    let item_id = self.tree.insert_from_source(item, self.module.id, *item_id);
-                    if let Some(symbol) = symbol {
-                        self.set_source_node_symbol(item_id, *symbol);
-                    }
-                    lowered_item_ids.push(item_id);
-                    continue;
-                }
-                dir::DependencyItem::Value { mode, value } => {
-                    let mode = self.lower_dependency_mode(*mode);
+                dir::DependencyItem::Value { binding, value } => {
+                    let binding = self.lower_dependency_binding(*binding);
                     let value_id = self
                         .lower_expression(*value)
                         .expect_node::<Expression>(value.into_global_any(self.module.id), self)?;
                     DependencyItem {
-                        mode,
-                        kind: None,
+                        binding,
+                        space: None,
                         name: None,
                         alias: None,
                         value: Some(value_id),
                     }
-                }
-                dir::DependencyItem::Local {
-                    mode,
-                    kind: item_kind,
-                    name,
-                    alias,
-                    symbol: _,
-                    target_symbol,
-                } => {
-                    let mode = self.lower_dependency_mode(*mode);
-                    let name = name.map(|name| self.lower_name(name));
-                    let alias = alias.map(|alias| alias);
-                    let item = DependencyItem {
-                        mode,
-                        kind: if *item_kind != kind {
-                            Some(self.lower_dependency_kind(*item_kind))
-                        } else {
-                            None
-                        },
-                        name,
-                        alias,
-                        value: None,
-                    };
-                    let item_id = self.tree.insert_from_source(item, self.module.id, *item_id);
-                    self.set_global_node_symbol(item_id, *target_symbol);
-                    lowered_item_ids.push(item_id);
-                    continue;
-                }
-                dir::DependencyItem::Remote {
-                    mode,
-                    kind: item_kind,
-                    name,
-                    alias,
-                    target: _,
-                    target_module: _,
-                    symbol,
-                    target_symbol: _,
-                } => {
-                    let mode = self.lower_dependency_mode(*mode);
-                    let name = name.map(|name| self.lower_name(name));
-                    let alias = alias.map(|alias| alias);
-                    let item = DependencyItem {
-                        mode,
-                        kind: if *item_kind != kind {
-                            Some(self.lower_dependency_kind(*item_kind))
-                        } else {
-                            None
-                        },
-                        name,
-                        alias,
-                        value: None,
-                    };
-                    let item_id = self.tree.insert_from_source(item, self.module.id, *item_id);
-                    if let Some(symbol) = symbol {
-                        self.set_source_node_symbol(item_id, *symbol);
-                    }
-                    lowered_item_ids.push(item_id);
-                    continue;
                 }
             };
             let item_id = self

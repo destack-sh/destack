@@ -445,10 +445,10 @@ impl Dump for js::FunctionSignature {
             .object("js::FunctionSignature")
             .field("is_abstract", &self.is_abstract)
             .field("is_override", &self.is_override)
+            .field("is_generator", &self.is_generator)
             .field("asynchrony", &self.asynchrony)
-            .field("cardinality", &self.cardinality)
-            .field_optional("mode", &self.mode)
-            .field("kind", &self.kind)
+            .field_optional("role", &self.role)
+            .field("form", &self.form)
             .end();
     }
 }
@@ -494,11 +494,10 @@ impl_dump_display! {
     js::BindingKind,
     js::BindingOperator,
     js::BindingAnchor,
-    js::DependencyKind,
-    js::DependencyMode,
-    js::FunctionCardinality,
-    js::FunctionKind,
-    js::FunctionMode,
+    js::DependencySpace,
+    js::DependencyBinding,
+    js::FunctionForm,
+    js::FunctionRole,
     js::Mutability,
     js::PostfixPosition,
     js::PrimitiveType,
@@ -680,14 +679,14 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
     ) {
         match statement {
             js::Statement::Import {
-                kind,
+                space,
                 target,
                 target_module,
                 items: _,
                 attributes: _,
             } => {
                 self.node("js::Statement::Import", id.id)
-                    .field("kind", kind)
+                    .field("space", space)
                     .field("target", target)
                     .field_optional(
                         "target_module",
@@ -696,14 +695,14 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
                     .end();
             }
             js::Statement::Export {
-                kind,
+                space,
                 target,
                 target_module,
                 items: _,
                 attributes: _,
             } => {
                 self.node("js::Statement::Export", id.id)
-                    .field("kind", kind)
+                    .field("space", space)
                     .field_optional("target", target)
                     .field_optional(
                         "target_module",
@@ -806,7 +805,7 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
                 pattern: _,
                 iterator: _,
                 body: _,
-                declaration_kind: _,
+                keyword: _,
             } => {
                 self.node("js::Statement::ForOf", id.id)
                     .field("asynchrony", asynchrony)
@@ -1288,8 +1287,8 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
         dependency_item: &js::DependencyItem,
     ) {
         self.node("js::DependencyItem", id.id)
-            .field("mode", &dependency_item.mode)
-            .field_optional("kind", &dependency_item.kind)
+            .field("binding", &dependency_item.binding)
+            .field_optional("space", &dependency_item.space)
             .field_optional("name", &dependency_item.name)
             .field_optional("alias", &dependency_item.alias)
             .end();

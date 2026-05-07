@@ -12,11 +12,11 @@ impl ModuleLowerer<'_> {
         }
     }
 
-    /// Lower an export type from DIR into JS AST.
-    pub fn lower_export_type(&self, export_type: dir::ExportMode) -> js::DependencyMode {
-        match export_type {
-            dir::ExportMode::Named => js::DependencyMode::Item,
-            dir::ExportMode::Default => js::DependencyMode::Default,
+    /// Lower an export kind from DIR into JS AST.
+    pub fn lower_export_kind(&self, export: dir::ExportKind) -> js::DependencyBinding {
+        match export {
+            dir::ExportKind::Named => js::DependencyBinding::Item,
+            dir::ExportKind::Default => js::DependencyBinding::Default,
         }
     }
 
@@ -62,7 +62,7 @@ impl ModuleLowerer<'_> {
                     .collect::<Result<Vec<_>, CodegenJsError>>()?;
 
                 let declaration = js::GlobalDeclaration {
-                    is_ambient: declaration.ambient.is_ambient(),
+                    is_ambient: declaration.is_ambient,
                     statements,
                 };
 
@@ -86,8 +86,8 @@ impl ModuleLowerer<'_> {
                     name: Some(self.lower_name(declaration.name)),
                     export: declaration
                         .export
-                        .map(|export| self.lower_export_type(export)),
-                    is_ambient: declaration.ambient.is_ambient(),
+                        .map(|export| self.lower_export_kind(export)),
+                    is_ambient: declaration.is_ambient,
                     statements,
                 };
 
@@ -116,8 +116,8 @@ impl ModuleLowerer<'_> {
                     name: Some(self.lower_name(declaration.name)),
                     export: declaration
                         .export
-                        .map(|export| self.lower_export_type(export)),
-                    is_ambient: declaration.ambient.is_ambient(),
+                        .map(|export| self.lower_export_kind(export)),
+                    is_ambient: declaration.is_ambient,
                     generic_parameters,
                     value,
                 };
@@ -146,8 +146,8 @@ impl ModuleLowerer<'_> {
                     name: Some(self.lower_name(declaration.name)),
                     export: declaration
                         .export
-                        .map(|export| self.lower_export_type(export)),
-                    is_ambient: declaration.ambient.is_ambient(),
+                        .map(|export| self.lower_export_kind(export)),
+                    is_ambient: declaration.is_ambient,
                     is_abstract: false,
                     generic_parameters,
                     extends_expression: None,
@@ -192,8 +192,8 @@ impl ModuleLowerer<'_> {
                     name: declaration.name.map(|name| self.lower_name(name)),
                     export: declaration
                         .export
-                        .map(|export| self.lower_export_type(export)),
-                    is_ambient: declaration.ambient.is_ambient(),
+                        .map(|export| self.lower_export_kind(export)),
+                    is_ambient: declaration.is_ambient,
                     is_abstract: declaration.is_abstract,
                     generic_parameters,
                     extends_expression,
@@ -227,8 +227,8 @@ impl ModuleLowerer<'_> {
                     name: declaration.name.map(|name| self.lower_name(name)),
                     export: declaration
                         .export
-                        .map(|export| self.lower_export_type(export)),
-                    is_ambient: declaration.ambient.is_ambient(),
+                        .map(|export| self.lower_export_kind(export)),
+                    is_ambient: declaration.is_ambient,
                     generic_parameters,
                     extends,
                     members,
@@ -248,8 +248,8 @@ impl ModuleLowerer<'_> {
                     name: declaration.name.map(|name| self.lower_name(name)),
                     export: declaration
                         .export
-                        .map(|export| self.lower_export_type(export)),
-                    is_ambient: declaration.ambient.is_ambient(),
+                        .map(|export| self.lower_export_kind(export)),
+                    is_ambient: declaration.is_ambient,
                     fields,
                 };
 
@@ -269,8 +269,8 @@ impl ModuleLowerer<'_> {
                     name: declaration.name.map(|name| self.lower_name(name)),
                     export: declaration
                         .export
-                        .map(|export| self.lower_export_type(export)),
-                    is_ambient: declaration.ambient.is_ambient(),
+                        .map(|export| self.lower_export_kind(export)),
+                    is_ambient: declaration.is_ambient,
                     is_abstract: declaration.signature.is_abstract,
                     signature,
                     body,

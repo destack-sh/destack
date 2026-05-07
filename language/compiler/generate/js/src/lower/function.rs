@@ -12,34 +12,23 @@ impl ModuleLowerer<'_> {
         }
     }
 
-    /// Lower function cardinality from DIR into JS AST.
-    pub fn lower_function_cardinality(
-        &self,
-        cardinality: dir::FunctionCardinality,
-    ) -> js::FunctionCardinality {
-        match cardinality {
-            dir::FunctionCardinality::Scalar => js::FunctionCardinality::Scalar,
-            dir::FunctionCardinality::Generator => js::FunctionCardinality::Generator,
-        }
-    }
-
-    /// Lower function mode from DIR into JS AST.
-    pub fn lower_function_mode(&self, mode: dir::FunctionMode) -> js::FunctionMode {
-        match mode {
-            dir::FunctionMode::Getter => js::FunctionMode::Getter,
-            dir::FunctionMode::Setter => js::FunctionMode::Setter,
-            dir::FunctionMode::Constructor => js::FunctionMode::Constructor,
-            dir::FunctionMode::New | dir::FunctionMode::Call => {
+    /// Lower function role from DIR into JS AST.
+    pub fn lower_function_role(&self, role: dir::FunctionRole) -> js::FunctionRole {
+        match role {
+            dir::FunctionRole::Getter => js::FunctionRole::Getter,
+            dir::FunctionRole::Setter => js::FunctionRole::Setter,
+            dir::FunctionRole::Constructor => js::FunctionRole::Constructor,
+            dir::FunctionRole::New | dir::FunctionRole::Call => {
                 panic!("type-space function modes must lower through js type nodes")
             }
         }
     }
 
-    /// Lower function kind from DIR into JS AST.
-    pub fn lower_function_kind(&self, kind: dir::FunctionKind) -> js::FunctionKind {
-        match kind {
-            dir::FunctionKind::Function => js::FunctionKind::Function,
-            dir::FunctionKind::Lambda => js::FunctionKind::Lambda,
+    /// Lower function form from DIR into JS AST.
+    pub fn lower_function_form(&self, form: dir::FunctionForm) -> js::FunctionForm {
+        match form {
+            dir::FunctionForm::Function => js::FunctionForm::Function,
+            dir::FunctionForm::Lambda => js::FunctionForm::Lambda,
         }
     }
 
@@ -49,11 +38,10 @@ impl ModuleLowerer<'_> {
         function_signature: &dir::FunctionSignature,
     ) -> CodegenJsResult<js::FunctionSignature> {
         let asynchrony = self.lower_asynchrony(function_signature.asynchrony);
-        let cardinality = self.lower_function_cardinality(function_signature.cardinality);
-        let mode = function_signature
-            .mode
-            .map(|mode| self.lower_function_mode(mode));
-        let kind = self.lower_function_kind(function_signature.kind);
+        let role = function_signature
+            .role
+            .map(|role| self.lower_function_role(role));
+        let form = self.lower_function_form(function_signature.form);
         let generic_parameters =
             self.lower_generic_parameters(&function_signature.generic_parameters)?;
         let this_parameter = function_signature
@@ -71,16 +59,16 @@ impl ModuleLowerer<'_> {
             .transpose()?;
 
         Ok(js::FunctionSignature {
-            is_abstract: function_signature.is_abstract,
-            is_override: function_signature.is_override,
             asynchrony,
-            cardinality,
-            mode,
-            kind,
+            role,
+            form,
             generic_parameters,
             this_parameter,
             parameters,
             return_type,
+            is_abstract: function_signature.is_abstract,
+            is_override: function_signature.is_override,
+            is_generator: function_signature.is_generator,
         })
     }
 }

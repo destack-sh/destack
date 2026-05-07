@@ -1,4 +1,3 @@
-use dir::Node;
 use {destack_dir as dir, destack_js as js};
 
 use crate::{CodegenJsError, CodegenJsResult, CodegenJsResultExt, ModuleLowerer};
@@ -105,11 +104,6 @@ impl ModuleLowerer<'_> {
         } else {
             js::PostfixPosition::Direct
         }
-    }
-
-    /// Return whether one unresolved expression is still intentionally lowerable.
-    fn allows_unresolved_runtime_expression(&self, expression: &dir::Expression) -> bool {
-        matches!(expression, dir::Expression::NewTarget)
     }
 
     /// Lower one lambda body into one normalized arrow body.
@@ -228,13 +222,13 @@ impl ModuleLowerer<'_> {
         match expression {
             dir::Expression::Let {
                 export: _,
-                ambient: _,
+                is_ambient: _,
                 mutability,
                 declarators,
             } => {
-                let declaration_kind = match mutability {
-                    dir::Mutability::Mutable => js::ForEachDeclarationKind::Let,
-                    dir::Mutability::Immutable => js::ForEachDeclarationKind::Const,
+                let keyword = match mutability {
+                    dir::Mutability::Mutable => js::BindingKeyword::Let,
+                    dir::Mutability::Immutable => js::BindingKeyword::Const,
                 };
                 let mut lowered_declarators = Vec::with_capacity(declarators.len());
 
@@ -264,7 +258,7 @@ impl ModuleLowerer<'_> {
                 }
 
                 Ok(js::ForInitialization::Declaration {
-                    declaration_kind,
+                    keyword,
                     declarators: lowered_declarators,
                 })
             }
@@ -350,27 +344,16 @@ impl ModuleLowerer<'_> {
     ) -> CodegenJsResult<js::LocalNodeIdAny> {
         let expression = self.dir_tree.get(expression_id);
 
-        // report unresolved nodes unless the target intentionally keeps them external
-        if !expression.is_resolved()
-            && !self.allows_unresolved_external_dependency_expression(expression)
-            && !self.allows_unresolved_runtime_expression(expression)
-        {
-            self.error(CodegenJsError::UnresolvedNode {
-                node: expression_id.into_global_any(self.module.id),
-                message: Some(expression.kind_name().to_string()),
-            });
-        }
-
         let lowered_id = match expression {
             dir::Expression::Declaration(declaration) => {
                 let declaration_value = self.dir_tree.get(*declaration);
 
                 // lambda declaration expressions
                 if let dir::Declaration::Function(declaration) = declaration_value
-                    && declaration.signature.kind == dir::FunctionKind::Lambda
+                    && declaration.signature.form == dir::FunctionForm::Lambda
                     && declaration.name.is_none()
                     && declaration.export.is_none()
-                    && !declaration.ambient.is_ambient()
+                    && !declaration.is_ambient
                 {
                     let signature = self.lower_function_signature(&declaration.signature)?;
                     let Some(body) = declaration.body else {
@@ -401,26 +384,29 @@ impl ModuleLowerer<'_> {
                 block_id.into_any()
             }
 
-            dir::Expression::UnresolvedImport {
+            dir::Expression::Import {
                 source,
-                kind,
+                space,
                 target,
                 items,
                 attributes,
                 arguments,
             } => {
-                // lower dynamic import calls as expression calls
                 if *source == dir::ImportSource::ImportCall {
-                    let target_expression = match target {
+                    let (target_expression, target_module) = match target {
                         dir::ImportTarget::String(target) => {
                             let target = *target;
-                            self.tree.insert_from_source(
+                            let target_expression = self.tree.insert_from_source(
                                 js::Expression::ScalarLiteral {
                                     value: js::ScalarLiteral::String(target),
                                 },
                                 self.module.id,
                                 expression_id,
-                            )
+                            );
+                            let target_module =
+                                self.dependency_target_module(expression_id.into_any(), *space);
+
+                            (target_expression, target_module)
                         }
                         dir::ImportTarget::Expression { target } => {
                             let lowered = self.lower_expression(*target)?;
@@ -433,10 +419,10 @@ impl ModuleLowerer<'_> {
                                     )),
                                 });
                             }
-                            lowered.try_into().unwrap()
+
+                            (lowered.try_into().unwrap(), None)
                         }
                     };
-
                     let arguments = if let Some(arguments) = arguments {
                         arguments
                             .iter()
@@ -445,12 +431,13 @@ impl ModuleLowerer<'_> {
                     } else {
                         Vec::new()
                     };
+
                     self.tree
                         .insert_from_source(
                             js::Expression::ImportCall {
                                 target: target_expression,
-                                target_module: None,
-                                arguments: arguments,
+                                target_module,
+                                arguments,
                             },
                             self.module.id,
                             expression_id,
@@ -471,7 +458,7 @@ impl ModuleLowerer<'_> {
                     };
                     let items = items
                         .as_ref()
-                        .map(|items| self.lower_dependency_items(*kind, items.as_slice()))
+                        .map(|items| self.lower_dependency_items(*space, items.as_slice()))
                         .transpose()?;
                     let attributes = attributes
                         .as_ref()
@@ -479,11 +466,13 @@ impl ModuleLowerer<'_> {
                             self.lower_import_attributes(expression_id.into_any(), attributes)
                         })
                         .transpose()?;
-                    let kind = self.lower_dependency_kind(*kind);
+                    let target_module =
+                        self.dependency_target_module(expression_id.into_any(), *space);
+                    let space = self.lower_dependency_space(*space);
                     let statement = js::Statement::Import {
-                        kind,
+                        space,
                         target,
-                        target_module: None,
+                        target_module,
                         items,
                         attributes,
                     };
@@ -491,117 +480,27 @@ impl ModuleLowerer<'_> {
                         .insert_from_source(statement, self.module.id, expression_id)
                         .into_any()
                 }
-            }
-            dir::Expression::Import {
-                source,
-                kind,
-                target,
-                target_module,
-                items,
-                attributes,
-                arguments,
-            } => {
-                // resolved import calls keep expression semantics
-                if *source == dir::ImportSource::ImportCall {
-                    let target = *target;
-                    let target_expression = self.tree.insert_from_source(
-                        js::Expression::ScalarLiteral {
-                            value: js::ScalarLiteral::String(target),
-                        },
-                        self.module.id,
-                        expression_id,
-                    );
-                    let arguments = if let Some(arguments) = arguments {
-                        arguments
-                            .iter()
-                            .map(|argument| self.lower_argument(*argument))
-                            .collect::<Result<Vec<_>, CodegenJsError>>()?
-                    } else {
-                        Vec::new()
-                    };
-
-                    self.tree
-                        .insert_from_source(
-                            js::Expression::ImportCall {
-                                target: target_expression,
-                                target_module: target_module.module_id(),
-                                arguments: arguments,
-                            },
-                            self.module.id,
-                            expression_id,
-                        )
-                        .into_any()
-                } else {
-                    let target = *target;
-                    let items = items
-                        .as_ref()
-                        .map(|items| self.lower_dependency_items(*kind, items.as_slice()))
-                        .transpose()?;
-                    let attributes = attributes
-                        .as_ref()
-                        .map(|attributes| {
-                            self.lower_import_attributes(expression_id.into_any(), attributes)
-                        })
-                        .transpose()?;
-                    let kind = self.lower_dependency_kind(*kind);
-                    let statement = js::Statement::Import {
-                        kind,
-                        target,
-                        target_module: target_module.module_id(),
-                        items,
-                        attributes,
-                    };
-                    self.tree
-                        .insert_from_source(statement, self.module.id, expression_id)
-                        .into_any()
-                }
-            }
-            dir::Expression::UnresolvedReExport {
-                kind,
-                target,
-                items,
-                attributes,
-            } => {
-                let target = *target;
-                let items = self.lower_dependency_items(*kind, items.as_slice())?;
-                let attributes = attributes
-                    .as_ref()
-                    .map(|attributes| {
-                        self.lower_import_attributes(expression_id.into_any(), attributes)
-                    })
-                    .transpose()?;
-                let kind = self.lower_dependency_kind(*kind);
-                let statement = js::Statement::Export {
-                    kind,
-                    target: Some(target),
-                    target_module: None,
-                    items,
-                    attributes,
-                };
-                self.tree
-                    .insert_from_source(statement, self.module.id, expression_id)
-                    .into_any()
             }
             dir::Expression::ReExport {
-                kind,
+                space,
                 target,
-                target_module,
                 items,
                 attributes,
             } => {
                 let target = *target;
-                let items = self.lower_dependency_items(*kind, items.as_slice())?;
+                let items = self.lower_dependency_items(*space, items.as_slice())?;
                 let attributes = attributes
                     .as_ref()
                     .map(|attributes| {
                         self.lower_import_attributes(expression_id.into_any(), attributes)
                     })
                     .transpose()?;
-                let kind = self.lower_dependency_kind(*kind);
+                let target_module = self.dependency_target_module(expression_id.into_any(), *space);
+                let space = self.lower_dependency_space(*space);
                 let statement = js::Statement::Export {
-                    kind,
+                    space,
                     target: Some(target),
-                    target_module: target_module.module_id(),
+                    target_module,
                     items,
                     attributes,
                 };
@@ -610,20 +509,20 @@ impl ModuleLowerer<'_> {
                     .into_any()
             }
             dir::Expression::Export {
-                kind,
+                space,
                 items,
                 attributes,
             } => {
-                let items = self.lower_dependency_items(*kind, items.as_slice())?;
+                let items = self.lower_dependency_items(*space, items.as_slice())?;
                 let attributes = attributes
                     .as_ref()
                     .map(|attributes| {
                         self.lower_import_attributes(expression_id.into_any(), attributes)
                     })
                     .transpose()?;
-                let kind = self.lower_dependency_kind(*kind);
+                let space = self.lower_dependency_space(*space);
                 let statement = js::Statement::Export {
-                    kind,
+                    space,
                     target: None,
                     target_module: None,
                     items,
@@ -636,7 +535,7 @@ impl ModuleLowerer<'_> {
 
             dir::Expression::Let {
                 export,
-                ambient,
+                is_ambient,
                 mutability,
                 declarators: dir_declarators,
             } => {
@@ -670,8 +569,8 @@ impl ModuleLowerer<'_> {
                 }
 
                 let statement = js::Statement::Let {
-                    export: export.map(|export| self.lower_export_type(export)),
-                    is_ambient: ambient.is_ambient(),
+                    export: export.map(|export| self.lower_export_kind(export)),
+                    is_ambient: *is_ambient,
                     mutability,
                     declarators,
                 };
@@ -682,7 +581,7 @@ impl ModuleLowerer<'_> {
             dir::Expression::Using {
                 asynchrony,
                 export,
-                ambient,
+                is_ambient,
                 declarators: dir_declarators,
             } => {
                 let asynchrony = self.lower_asynchrony(*asynchrony);
@@ -716,8 +615,8 @@ impl ModuleLowerer<'_> {
 
                 let statement = js::Statement::Using {
                     asynchrony,
-                    export: export.map(|export| self.lower_export_type(export)),
-                    is_ambient: ambient.is_ambient(),
+                    export: export.map(|export| self.lower_export_kind(export)),
+                    is_ambient: *is_ambient,
                     declarators,
                 };
                 self.tree
@@ -725,36 +624,12 @@ impl ModuleLowerer<'_> {
                     .into_any()
             }
 
-            dir::Expression::UnresolvedPath {
+            dir::Expression::Path {
                 path,
                 generic_arguments,
                 ..
             } => {
-                let path = self.lower_path(expression_id.into_any(), path)?;
-                let generic_arguments = self.lower_static_type_arguments(generic_arguments)?;
-                let expression = js::Expression::Path {
-                    path,
-                    generic_arguments,
-                };
-                self.tree
-                    .insert_from_source(expression, self.module.id, expression_id)
-                    .into_any()
-            }
-            dir::Expression::LocalReference {
-                path,
-                generic_arguments,
-                target_symbol,
-            }
-            | dir::Expression::ModuleReference {
-                path,
-                generic_arguments,
-                target_symbol,
-            }
-            | dir::Expression::GlobalReference {
-                path,
-                generic_arguments,
-                target_symbol,
-            } => {
+                let source_id = expression_id.into_global_any(self.module.id);
                 let path = self.lower_path(expression_id.into_any(), path)?;
                 let generic_arguments = self.lower_static_type_arguments(generic_arguments)?;
                 let expression = js::Expression::Path {
@@ -765,7 +640,12 @@ impl ModuleLowerer<'_> {
                     self.tree
                         .insert_from_source(expression, self.module.id, expression_id);
 
-                self.set_global_node_symbol(expression_id, *target_symbol);
+                // lexical binding targets live in the type table
+                if let Some(dir::SymbolResolution::Target(target_symbol)) =
+                    self.types.symbol_resolution(source_id)
+                {
+                    self.set_global_node_symbol(expression_id, *target_symbol);
+                }
 
                 expression_id.into_any()
             }
@@ -1169,12 +1049,12 @@ impl ModuleLowerer<'_> {
                     .into_any()
             }
             dir::Expression::If {
-                kind,
+                form,
                 condition,
                 then_expression,
                 else_expression,
-            } => match kind {
-                dir::IfKind::Ternary => {
+            } => match form {
+                dir::IfForm::Ternary => {
                     let condition = match condition {
                         dir::IfCondition::Expression { condition } => self
                             .lower_expression(*condition)
@@ -1216,7 +1096,7 @@ impl ModuleLowerer<'_> {
                         .insert_from_source(expression, self.module.id, expression_id)
                         .into_any()
                 }
-                dir::IfKind::If => {
+                dir::IfForm::If => {
                     let condition = match condition {
                         dir::IfCondition::Expression { condition } => self
                             .lower_expression(*condition)
@@ -1302,7 +1182,7 @@ impl ModuleLowerer<'_> {
             }
             dir::Expression::ForEach {
                 asynchrony,
-                kind,
+                operator,
                 binding,
                 iterator,
                 body,
@@ -1316,19 +1196,15 @@ impl ModuleLowerer<'_> {
                         self,
                     )?;
                 let body = self.lower_block(*body)?;
-                let statement = match kind {
-                    dir::ForEachKind::Of => {
-                        let (pattern, declaration_kind) = match binding {
-                            dir::ForEachBinding::Pattern {
-                                pattern,
-                                declaration_kind,
-                            } => (
-                                match declaration_kind {
+                let statement = match operator {
+                    dir::ForEachOperator::Of => {
+                        let (pattern, keyword) = match binding {
+                            dir::ForEachBinding::Pattern { pattern, keyword } => (
+                                match keyword {
                                     Some(_) => self.lower_declaration_pattern(*pattern)?,
                                     None => self.lower_pattern(*pattern)?,
                                 },
-                                declaration_kind
-                                    .map(|kind| self.lower_for_each_declaration_kind(kind)),
+                                keyword.map(|keyword| self.lower_for_each_keyword(keyword)),
                             ),
                             dir::ForEachBinding::Using { .. } => {
                                 return Err(CodegenJsError::UnsupportedConstruct {
@@ -1342,24 +1218,20 @@ impl ModuleLowerer<'_> {
                         };
                         js::Statement::ForOf {
                             asynchrony: self.lower_asynchrony(*asynchrony),
-                            declaration_kind,
+                            keyword,
                             pattern,
                             iterator,
                             body,
                         }
                     }
-                    dir::ForEachKind::In => {
-                        let (pattern, declaration_kind) = match binding {
-                            dir::ForEachBinding::Pattern {
-                                pattern,
-                                declaration_kind,
-                            } => (
-                                match declaration_kind {
+                    dir::ForEachOperator::In => {
+                        let (pattern, keyword) = match binding {
+                            dir::ForEachBinding::Pattern { pattern, keyword } => (
+                                match keyword {
                                     Some(_) => self.lower_declaration_pattern(*pattern)?,
                                     None => self.lower_pattern(*pattern)?,
                                 },
-                                declaration_kind
-                                    .map(|kind| self.lower_for_each_declaration_kind(kind)),
+                                keyword.map(|keyword| self.lower_for_each_keyword(keyword)),
                             ),
                             dir::ForEachBinding::Using { .. } => {
                                 return Err(CodegenJsError::UnsupportedConstruct {
@@ -1372,7 +1244,7 @@ impl ModuleLowerer<'_> {
                             }
                         };
                         js::Statement::ForIn {
-                            declaration_kind,
+                            keyword,
                             pattern,
                             iterator,
                             body,
@@ -1424,14 +1296,14 @@ impl ModuleLowerer<'_> {
                     .into_any()
             }
             dir::Expression::Match {
-                kind,
+                form,
                 value,
                 cases,
                 source: _,
                 scope: _,
                 symbol: _,
             } => {
-                if *kind != dir::MatchKind::Switch {
+                if *form != dir::MatchForm::Switch {
                     return Err(CodegenJsError::UnsupportedConstruct {
                         node: expression_id.into_global_any(self.module.id),
                         message: Some(
@@ -1490,11 +1362,7 @@ impl ModuleLowerer<'_> {
                     .insert_from_source(statement, self.module.id, expression_id)
                     .into_any()
             }
-            dir::Expression::Break {
-                target,
-                value,
-                target_symbol: _,
-            } => {
+            dir::Expression::Break { target, value } => {
                 if value.is_some() {
                     return Err(CodegenJsError::UnsupportedConstruct {
                         node: expression_id.into_global_any(self.module.id),
@@ -1508,10 +1376,7 @@ impl ModuleLowerer<'_> {
                     .insert_from_source(statement, self.module.id, expression_id)
                     .into_any()
             }
-            dir::Expression::Continue {
-                target,
-                target_symbol: _,
-            } => {
+            dir::Expression::Continue { target } => {
                 let label = target.map(|target| target);
                 let statement = js::Statement::Continue { label };
                 self.tree
