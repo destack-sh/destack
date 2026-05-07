@@ -1,26 +1,28 @@
 use crate::{
-    AmbientEnvironment, Ast, Data, DirChecked, DirDeclared, DirElaborated, DirExported,
-    LanguageEnvironment, MirLowered, MirOptimized, ModuleLinted, ModuleOutput, ModuleQueryIndex,
+    Ast, Data, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported, DirMaterialized,
+    GlobalEnvironment, MirLowered, MirOptimized, ModuleLinted, ModuleOutput, ModuleQueryIndex,
     PackageLinted, PackageOutput, WorkspaceLinted, WorkspaceQueryIndex,
 };
 
 /// One typed artifact payload.
 #[derive(Debug, Clone)]
 pub enum ArtifactPayload {
-    /// Language semantic environment for one profile.
-    LanguageEnvironment(LanguageEnvironment),
-    /// Ambient semantic environment for one profile.
-    AmbientEnvironment(AmbientEnvironment),
     /// Parsed module syntax tree.
     Ast(Ast),
     /// Parsed non-code module data.
     Data(Data),
+    /// Explicit global environment for one profile.
+    GlobalEnvironment(GlobalEnvironment),
     /// Declared DIR.
     DirDeclared(DirDeclared),
     /// Exported DIR.
     DirExported(DirExported),
+    /// Expanded DIR.
+    DirExpanded(DirExpanded),
     /// Checked DIR.
     DirChecked(DirChecked),
+    /// Materialized DIR.
+    DirMaterialized(DirMaterialized),
     /// Elaborated DIR.
     DirElaborated(DirElaborated),
     /// Lowered MIR before optimization.
@@ -43,20 +45,6 @@ pub enum ArtifactPayload {
     WorkspaceLinted(WorkspaceLinted),
 }
 
-impl From<LanguageEnvironment> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: LanguageEnvironment) -> Self {
-        Self::LanguageEnvironment(payload)
-    }
-}
-
-impl From<AmbientEnvironment> for ArtifactPayload {
-    /// Convert a typed artifact into an artifact payload.
-    fn from(payload: AmbientEnvironment) -> Self {
-        Self::AmbientEnvironment(payload)
-    }
-}
-
 impl From<Ast> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: Ast) -> Self {
@@ -68,6 +56,13 @@ impl From<Data> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: Data) -> Self {
         Self::Data(payload)
+    }
+}
+
+impl From<GlobalEnvironment> for ArtifactPayload {
+    /// Convert a typed artifact into an artifact payload.
+    fn from(payload: GlobalEnvironment) -> Self {
+        Self::GlobalEnvironment(payload)
     }
 }
 
@@ -85,10 +80,24 @@ impl From<DirExported> for ArtifactPayload {
     }
 }
 
+impl From<DirExpanded> for ArtifactPayload {
+    /// Convert a typed artifact into an artifact payload.
+    fn from(payload: DirExpanded) -> Self {
+        Self::DirExpanded(payload)
+    }
+}
+
 impl From<DirChecked> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: DirChecked) -> Self {
         Self::DirChecked(payload)
+    }
+}
+
+impl From<DirMaterialized> for ArtifactPayload {
+    /// Convert a typed artifact into an artifact payload.
+    fn from(payload: DirMaterialized) -> Self {
+        Self::DirMaterialized(payload)
     }
 }
 

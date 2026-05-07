@@ -1,30 +1,27 @@
-use destack_dir::{
-    GlobalSymbolId, StaticKey, SymbolSpace, SymbolSpaceOrder, WellKnownSymbol, WellKnownSymbolKey,
-};
+use destack_dir::{GlobalSymbolId, StaticKey, SymbolSpace, WellKnownSymbol, WellKnownSymbolKey};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-/// A symbol group containing type and value space entries.
-/// Used to track both spaces for dual-space symbols like interfaces with constructors.
+/// Type and value symbols for one well-known surface name.
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
-pub struct SymbolGroup {
+pub struct SymbolPair {
     /// The type-space symbol, if any.
     pub ty: Option<GlobalSymbolId>,
     /// The value-space symbol, if any.
     pub value: Option<GlobalSymbolId>,
 }
 
-/// A lookup key for selected ambient symbols.
+/// A lookup key for selected global environment symbols.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct AmbientLookupKey {
+pub struct GlobalEnvironmentKey {
     /// The static symbol key.
     pub key: StaticKey,
     /// The symbol space.
     pub space: SymbolSpace,
 }
 
-impl SymbolGroup {
-    /// Create a new SymbolGroup from a type symbol.
+impl SymbolPair {
+    /// Create a new symbol pair from a type symbol.
     pub fn from_type(symbol: GlobalSymbolId) -> Self {
         Self {
             ty: Some(symbol),
@@ -32,7 +29,7 @@ impl SymbolGroup {
         }
     }
 
-    /// Create a new SymbolGroup from a value symbol.
+    /// Create a new symbol pair from a value symbol.
     pub fn from_value(symbol: GlobalSymbolId) -> Self {
         Self {
             ty: None,
@@ -40,7 +37,7 @@ impl SymbolGroup {
         }
     }
 
-    /// Create a new SymbolGroup from a type-value symbol.
+    /// Create a new symbol pair from one type and value symbol.
     pub fn from_type_value(symbol: GlobalSymbolId) -> Self {
         Self {
             ty: Some(symbol),
@@ -51,27 +48,6 @@ impl SymbolGroup {
     /// Check if the group is empty.
     pub fn is_empty(&self) -> bool {
         self.ty.is_none() && self.value.is_none()
-    }
-
-    /// Get the symbol for the given space order preference.
-    pub fn symbol_for_space_order(&self, order: SymbolSpaceOrder) -> Option<GlobalSymbolId> {
-        match order {
-            SymbolSpaceOrder::None => None,
-            SymbolSpaceOrder::TypeOnly => self.ty,
-            SymbolSpaceOrder::ValueOnly => self.value,
-            SymbolSpaceOrder::TypeThenValue => self.ty.or(self.value),
-            SymbolSpaceOrder::ValueThenType => self.value.or(self.ty),
-        }
-    }
-
-    /// Merge another group into this one, overwriting none values.
-    pub fn merge(&mut self, other: SymbolGroup) {
-        if other.ty.is_some() {
-            self.ty = other.ty;
-        }
-        if other.value.is_some() {
-            self.value = other.value;
-        }
     }
 }
 
@@ -90,14 +66,14 @@ pub struct WellKnownKey {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct WellKnownSymbols {
     /// Top-level builtin symbols by well-known id.
-    pub symbols: IndexMap<WellKnownSymbol, SymbolGroup>,
+    pub symbols: IndexMap<WellKnownSymbol, SymbolPair>,
     /// Well-known symbol keys by id.
     pub keys: IndexMap<WellKnownSymbolKey, WellKnownKey>,
 }
 
 impl WellKnownSymbols {
-    /// Get the symbol group for a well-known symbol.
-    pub fn get_group(&self, item: WellKnownSymbol) -> Option<SymbolGroup> {
+    /// Get the symbol pair for a well-known symbol.
+    pub fn get_pair(&self, item: WellKnownSymbol) -> Option<SymbolPair> {
         self.symbols.get(&item).copied()
     }
 

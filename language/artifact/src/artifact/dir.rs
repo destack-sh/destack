@@ -1,6 +1,5 @@
 use destack_core::StringPool;
 use destack_dir as dir;
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 /// Local declaration DIR for one module.
@@ -35,36 +34,58 @@ pub struct DirDeclared {
     pub module_bindings: Vec<dir::ModuleBinding>,
 }
 
-/// Exported module surface for one profile-scoped module.
+/// Exported name surface for one profile-scoped module.
+///
+/// This resolves import and export names, but does not carry checked type inference.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirExported {
-    /// Export assignment item when present.
-    pub export_assignment: Option<dir::LocalNodeId<dir::DependencyItem>>,
-    /// Namespace exports declared in the module.
-    pub namespace_exports: Vec<dir::NamespaceExport>,
-    /// Resolved import targets by import key.
-    pub import_resolutions: IndexMap<dir::ImportResolutionKey, dir::ModuleResolution>,
-    /// Export data by exported symbol key.
-    pub export_by_symbol_key: IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>,
+    /// Resolved module imports.
+    pub imports: dir::ImportTable,
+    /// Resolved module exports.
+    pub exports: dir::ExportTable,
 }
 
-/// Checked local body semantics for one profile-scoped module.
+/// Expanded declaration graph for one profile-scoped module.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DirExpanded {
+    /// Expansion patch applied to the declared DIR.
+    pub patch: dir::ExpansionPatch,
+    /// The strings referenced by nodes introduced in the expansion patch.
+    pub strings: StringPool,
+    /// The symbols introduced in the expansion patch.
+    pub symbols: dir::SymbolTable,
+}
+
+/// Checked semantic state for one profile-scoped module.
+///
+/// This carries inferred and declared semantic attachments, including exported inferred types.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirChecked {
-    /// Checked type table segment.
+    /// Checked type table.
     pub types: dir::TypeTable,
     /// Capture side table.
     pub captures: dir::CaptureTable,
 }
 
+/// Materialized local body semantics for one profile-scoped module.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DirMaterialized {
+    /// Materialization patch produced by comptime materialization.
+    pub patch: dir::MaterializationPatch,
+    /// The strings referenced by nodes introduced in the patch.
+    pub strings: StringPool,
+    /// Semantic type state for nodes introduced or replaced by the patch.
+    pub types: dir::TypeTable,
+}
+
 /// Elaborated local body semantics for one profile-scoped module.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirElaborated {
-    /// Durable structural patch applied after checking.
-    pub patch: dir::Patch,
+    /// Materialization patch produced by elaboration.
+    pub patch: dir::MaterializationPatch,
     /// The strings referenced by nodes introduced in the patch.
     pub strings: StringPool,
-    /// Elaborated type table segment.
+    /// Semantic type state for nodes introduced or replaced by the patch.
     pub types: dir::TypeTable,
     /// Elaborated type guard strategies.
     pub guards: dir::GuardTable,

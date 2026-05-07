@@ -18,15 +18,13 @@ pub enum ArtifactProvider {
 /// Semantic artifact identity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum ArtifactKey {
-    /// Language semantic environment for one profile.
-    LanguageEnvironment { profile: ProfileId },
-    /// Ambient semantic environment for one profile.
-    AmbientEnvironment { profile: ProfileId },
-
     /// Parsed module syntax tree.
     Ast { module: ModuleId },
     /// Parsed non-code module data.
     Data { module: ModuleId },
+
+    /// Explicit global environment for one profile.
+    GlobalEnvironment { profile: ProfileId },
 
     /// Declared DIR.
     DirDeclared {
@@ -38,8 +36,18 @@ pub enum ArtifactKey {
         module: ModuleId,
         profile: ProfileId,
     },
+    /// Expanded DIR.
+    DirExpanded {
+        module: ModuleId,
+        profile: ProfileId,
+    },
     /// Checked DIR.
     DirChecked {
+        module: ModuleId,
+        profile: ProfileId,
+    },
+    /// Materialized DIR.
+    DirMaterialized {
         module: ModuleId,
         profile: ProfileId,
     },
@@ -94,11 +102,12 @@ impl ArtifactKey {
     pub fn provider(self) -> ArtifactProvider {
         match self {
             Self::Ast { .. } | Self::Data { .. } => ArtifactProvider::Source,
-            Self::LanguageEnvironment { .. }
-            | Self::AmbientEnvironment { .. }
+            Self::GlobalEnvironment { .. }
             | Self::DirDeclared { .. }
             | Self::DirExported { .. }
+            | Self::DirExpanded { .. }
             | Self::DirChecked { .. }
+            | Self::DirMaterialized { .. }
             | Self::DirElaborated { .. }
             | Self::MirLowered { .. }
             | Self::MirOptimized { .. }
@@ -121,14 +130,9 @@ impl ArtifactKey {
         }
     }
 
-    /// Build one language environment artifact key.
-    pub fn language_environment(profile: ProfileId) -> Self {
-        Self::LanguageEnvironment { profile }
-    }
-
-    /// Build one ambient environment artifact key.
-    pub fn ambient_environment(profile: ProfileId) -> Self {
-        Self::AmbientEnvironment { profile }
+    /// Build one global environment artifact key.
+    pub fn global_environment(profile: ProfileId) -> Self {
+        Self::GlobalEnvironment { profile }
     }
 
     /// Build one AST artifact key.
@@ -151,9 +155,19 @@ impl ArtifactKey {
         Self::DirExported { module, profile }
     }
 
+    /// Build one expanded DIR artifact key.
+    pub fn dir_expanded(module: ModuleId, profile: ProfileId) -> Self {
+        Self::DirExpanded { module, profile }
+    }
+
     /// Build one checked DIR artifact key.
     pub fn dir_checked(module: ModuleId, profile: ProfileId) -> Self {
         Self::DirChecked { module, profile }
+    }
+
+    /// Build one materialized DIR artifact key.
+    pub fn dir_materialized(module: ModuleId, profile: ProfileId) -> Self {
+        Self::DirMaterialized { module, profile }
     }
 
     /// Build one elaborated DIR artifact key.
@@ -217,13 +231,14 @@ impl ArtifactKey {
     /// Return the stable short name for this key.
     pub fn name(&self) -> &'static str {
         match self {
-            Self::LanguageEnvironment { .. } => "language_environment",
-            Self::AmbientEnvironment { .. } => "ambient_environment",
+            Self::GlobalEnvironment { .. } => "global_environment",
             Self::Ast { .. } => "ast",
             Self::Data { .. } => "data",
             Self::DirDeclared { .. } => "dir_declared",
             Self::DirExported { .. } => "dir_exported",
+            Self::DirExpanded { .. } => "dir_expanded",
             Self::DirChecked { .. } => "dir_checked",
+            Self::DirMaterialized { .. } => "dir_materialized",
             Self::DirElaborated { .. } => "dir_elaborated",
             Self::MirLowered { .. } => "mir_lowered",
             Self::MirOptimized { .. } => "mir_optimized",
@@ -244,15 +259,16 @@ impl ArtifactKey {
             | Self::Data { module }
             | Self::DirDeclared { module, .. }
             | Self::DirExported { module, .. }
+            | Self::DirExpanded { module, .. }
             | Self::DirChecked { module, .. }
+            | Self::DirMaterialized { module, .. }
             | Self::DirElaborated { module, .. }
             | Self::MirLowered { module, .. }
             | Self::MirOptimized { module, .. }
             | Self::ModuleQueryIndex { module, .. }
             | Self::ModuleOutput { module, .. }
             | Self::ModuleLinted { module, .. } => Some(*module),
-            Self::LanguageEnvironment { .. }
-            | Self::AmbientEnvironment { .. }
+            Self::GlobalEnvironment { .. }
             | Self::WorkspaceQueryIndex { .. }
             | Self::PackageOutput { .. }
             | Self::PackageLinted { .. }
@@ -265,11 +281,12 @@ impl ArtifactKey {
     /// Return the profile id encoded in this key when one exists.
     pub fn profile_id(&self) -> Option<ProfileId> {
         match self {
-            Self::LanguageEnvironment { profile }
-            | Self::AmbientEnvironment { profile }
+            Self::GlobalEnvironment { profile }
             | Self::DirDeclared { profile, .. }
             | Self::DirExported { profile, .. }
+            | Self::DirExpanded { profile, .. }
             | Self::DirChecked { profile, .. }
+            | Self::DirMaterialized { profile, .. }
             | Self::DirElaborated { profile, .. }
             | Self::MirLowered { profile, .. }
             | Self::MirOptimized { profile, .. }
