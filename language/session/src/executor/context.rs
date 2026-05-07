@@ -163,9 +163,9 @@ impl SessionProviderContext {
                 "diagnostic package is not tracked in revision: {package_id:?}"
             )));
         };
-        let Some(file) = package.destack_file_id.or(package.package_file_id) else {
+        let Some(file) = package.destack_file_id else {
             return Err(Self::invalid_anchor(format!(
-                "diagnostic package has no manifest file: {package_id:?}"
+                "diagnostic package has no destack config file: {package_id:?}"
             )));
         };
 

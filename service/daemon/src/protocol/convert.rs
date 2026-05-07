@@ -20,9 +20,7 @@ use super::{
 impl From<FileUpdateKind> for ProtocolUpdateChangeKind {
     fn from(kind: FileUpdateKind) -> Self {
         match kind {
-            FileUpdateKind::Package => ProtocolUpdateChangeKind::Package,
             FileUpdateKind::Destack => ProtocolUpdateChangeKind::Destack,
-            FileUpdateKind::TsConfig => ProtocolUpdateChangeKind::TsConfig,
             FileUpdateKind::Unknown => ProtocolUpdateChangeKind::Unknown,
         }
     }
