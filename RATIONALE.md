@@ -19,12 +19,12 @@ there is great promise in turning more things _into_ correct, optimal, integrate
 
 ## Why You Should Not Use Destack
 
-Destack has been in development [for years](https://github.com/destack-sh/destack/graphs/commit-activity) and went through a _lot_ of iteration, and Destack intentionally follows good standards like TypeScript, TSX, Node and Web-shaped APIs.
+Destack has been in development [for years](https://github.com/destack-sh/destack/graphs/commit-activity) and went through a _lot_ of iteration, and Destack intentionally follows good standards like TypeScript, TSX, Node-shaped APIs, and Web-shaped APIs.
 However, it is still rather early, it is definitely quite radical, and there are sound arguments against the Destack-shaped "universal software engine" way:
 
 1. **Maybe the existing stack is already good enough**: The existing "stack", its layers, and its components exist for a good reason and have withstood significant evolutionary pressure; therefore, trying to combine or even rearrange them in a substantially different way may very well turn out net negative.
 
-2. **Maybe Destack is hard to adopt properly**: Destack is compatible with JS/TS, yes, and runs modern TS/Node/Web*, yes, but many of the most interesting features only work with "modern" TS, and especially when integrating with Destacks-specific features, which require a larger shift of production processes.
+2. **Maybe Destack is hard to adopt properly**: Destack is compatible with strict TypeScript-shaped source, yes, and targets modern TS/Node/Web-shaped systems, yes, but many of the most interesting features only work with "modern" TS, and especially when integrating with Destack-specific features, which require a larger shift of production processes.
 
 3. **Maybe any ecosystem split is too expensive now**: The web ecosystem fork implied by any new language and paradigm is costly, and while transforming code is now significantly cheaper than it used to be, transforming understanding and habits and the "hard" ecosystem bits still has high friction.
 
@@ -47,7 +47,7 @@ If you have gotten this far through reading the README, you probably have some, 
 
 1. **What even _is_ Destack? Is it a TypeScript dialect (like TSX), a JS family language (like Rescript), a JavaScript runtime (like V8), a Node runtime (like Deno), an NPM library (like vitest), a service (like Antithesis), ...?** 
 All of it, none of it.
-Mechanically, Destack _is_ a TSX-family language and toolchain with a VM, AOT compiler, Node-like runtime, formatter, linter, rich standard libraries, and a set of common services and apps. 
+Mechanically, Destack _is_ a TSX-family language and toolchain with a VM, AOT compiler, Web/Node-shaped platform libraries, formatter, linter, rich standard libraries, and a set of common services and apps.
 Conceptually, Destack is a new kind of thing: a fully integrated computing stack, a software toolkit, the building blocks you need to build your own stack.
 
 2. **Why is Destack built on TypeScript and not some other language like Python or Rust?**
@@ -61,10 +61,10 @@ Destack is a TypeScript engine, not a JavaScript engine.
 However, Destack is intentionally not strictly ECMAScript compliant because dynamic runtime features like `prototype`, `eval` / `Function`, dynamic `class`, and dynamic protocols like `[[Call]]` / "thenables" are forbidden (their typed forms are supported).
 
 4. **How does Destack interact with the existing JavaScript/TypeScript/Node/web ecosystem?**
-Destack runs TS directly, and "TS++" (`.ds` files) can transpile into `.js`/`.ts` for browsers and other JS-only runtimes. 
+Destack runs "strict modern" TS directly, and "TS++" (`.ds` files) can transpile into `.js`/`.ts` for browsers and other JS-only runtimes. 
 Destack is not a browser, and has no renderer (yet).
-On the backend, Destack supports Node APIs, similar to other Node-derived runtimes like Bun or Deno.
-Just like Destack does not intend to fully support arbitrary JS/TS code, we also do not intend to fully support _all_ web standards.
+On the backend, Destack supports selected Node-shaped APIs, similar to other Node-derived runtimes like Bun or Deno.
+Just like Destack does not intend to fully support arbitrary JS code, we also do not intend to fully support _all_ web standards.
 
 5. **Why not support both a JavaScript "slow mode" and a TypeScript "fast mode"?**
 Running "regular" Javascript _well_ is complex as it's essentially a whole second lane alongside the strict TypeScript AOT model (see [Static Hermes](https://github.com/facebook/hermes/)). 
