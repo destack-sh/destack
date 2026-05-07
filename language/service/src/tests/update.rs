@@ -117,24 +117,17 @@ fn test_apply_file_emits_removed_update() {
 #[test]
 fn test_apply_config_update_stays_direct() {
     let test = TestLanguageService::new("service_config_fanout");
-    let _package_path = test.write_text(
-        "package.json",
-        "{ \"name\": \"fanout\", \"version\": \"0.1.0\" }\n",
-    );
-    let config_path = test.write_text("destack.json", "{ \"compilerOptions\": {} }\n");
+    let config_path = test.write_text("destack.json", "{ \"compiler\": {} }\n");
     let module_a = test.write_text("a.ds", "export const a = ;\n");
     let module_b = test.write_text("b.ds", "export const b = ;\n");
 
     // load the modules and config into the live program first
     let _ = test.apply_text(&module_a, "export const a = ;\n");
     let _ = test.apply_text(&module_b, "export const b = ;\n");
-    let _ = test.apply_text(&config_path, "{ \"compilerOptions\": {} }\n");
+    let _ = test.apply_text(&config_path, "{ \"compiler\": {} }\n");
 
     // change the config and expect only the config publish
-    let updated = test.apply_text(
-        &config_path,
-        "{ \"compilerOptions\": { \"noImplicitAny\": true } }\n",
-    );
+    let updated = test.apply_text(&config_path, "{ \"compiler\": { \"noThrow\": true } }\n");
     let updated_paths: Vec<_> = updated
         .updates
         .iter()

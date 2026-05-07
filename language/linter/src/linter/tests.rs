@@ -326,9 +326,9 @@ impl DiagnosticContext for TestProviderContext {
                         "diagnostic package is not tracked in revision: {package_id:?}"
                     )));
                 };
-                let Some(file_id) = package.destack_file_id.or(package.package_file_id) else {
+                let Some(file_id) = package.destack_file_id else {
                     return Err(Self::invalid_anchor(format!(
-                        "diagnostic package has no manifest file: {package_id:?}"
+                        "diagnostic package has no destack config file: {package_id:?}"
                     )));
                 };
                 self.file_content_id(file_id)?;
@@ -1614,9 +1614,9 @@ impl DiagnosticContext for LintResult<'_> {
                         message: format!("diagnostic package is not tracked: {package:?}"),
                     });
                 };
-                let Some(file_id) = package.destack_file_id.or(package.package_file_id) else {
+                let Some(file_id) = package.destack_file_id else {
                     return Err(DiagnosticError::InvalidAnchor {
-                        message: "diagnostic package has no manifest file".to_string(),
+                        message: "diagnostic package has no destack config file".to_string(),
                     });
                 };
 

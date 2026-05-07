@@ -19,7 +19,7 @@ use destack_workspace::{FormatterOptions, Repository, Revision};
 use {destack_lsp_types as lsp, destack_query as query};
 
 /// Globs for config files tracked by the LSP.
-pub(super) const CONFIG_GLOBS: [&str; 2] = ["**/destack.json", "**/tsconfig*.json"];
+pub(super) const CONFIG_GLOBS: [&str; 1] = ["**/destack.json"];
 
 /// Build a standalone file from an image without mutating the repository.
 pub(super) fn file_from_image_for_diagnostics(image: &FileImage) -> Option<Arc<File>> {
