@@ -1,7 +1,7 @@
 use crate::build::ModuleBuilder;
 use crate::{
-    AddressSpace, AtomicAccess, AtomicScope, Copy, MemoryFlags, MemoryOrdering, MemoryScope,
-    MirFormatOptions, Mutability, ReferenceKind, Type, format_mir,
+    AddressSpace, Copy, FenceAccess, MemoryFlags, MemoryOrdering, MemoryScope, MirFormatOptions,
+    Mutability, ReferenceKind, SyncScope, Type, format_mir,
 };
 
 /// Empty function with void return.
@@ -987,9 +987,9 @@ fn test_build_void_intrinsic() {
     let mut builder = module.function("fenceTest", &[], void_type);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
-    let access = AtomicAccess::new(
+    let access = FenceAccess::new(
         MemoryOrdering::SequentiallyConsistent,
-        AtomicScope::Device,
+        SyncScope::Device,
         MemoryScope::Device,
         MemoryFlags::default(),
     );

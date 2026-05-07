@@ -3,10 +3,11 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use crate::{
-    AtomicAccess, AtomicScope, FormatMirNode, FunctionReference, GlobalReference, Instruction,
-    LocalNodeId, MemoryFlags, MemoryScope, MemorySpaceSet, MirFormatter,
-    TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
-    TensorGatherDimensionNumbers, TensorScatterDimensionNumbers, TypeReference, ValueReference,
+    AtomicAccess, CompareExchangeAccess, FenceAccess, FormatMirNode, FunctionReference,
+    GlobalReference, Instruction, LocalNodeId, MemoryFlags, MemoryScope, MemorySpaceSet,
+    MirFormatter, SyncScope, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
+    TensorDotDimensionNumbers, TensorGatherDimensionNumbers, TensorScatterDimensionNumbers,
+    TypeReference, ValueReference,
 };
 
 impl<'a> FormatMirNode<'a, Instruction> for Instruction {
@@ -1480,7 +1481,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         new_value
                     ]
                 )?;
-                format_atomic_access(*access, f)
+                format_atomic_compare_exchange_access(*access, f)
             }
 
             Instruction::AtomicRmw {
@@ -1508,7 +1509,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
 
             Instruction::AtomicFence { access } => {
                 write!(f, [token("atomic.fence")])?;
-                format_atomic_fence_access(*access, f)
+                format_fence_access(*access, f)
             }
 
             Instruction::Intrinsic {
@@ -1933,24 +1934,69 @@ fn format_atomic_access<'a>(
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [token(","), space(), token(access.ordering.to_str())])?;
+
     format_atomic_context(access, f)
 }
 
-/// Format one atomic fence access suffix.
-fn format_atomic_fence_access<'a>(
-    access: AtomicAccess,
+/// Format one compare exchange access suffix.
+fn format_atomic_compare_exchange_access<'a>(
+    access: CompareExchangeAccess,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
-    write!(f, [space(), token(access.ordering.to_str())])?;
-    format_atomic_context(access, f)
+    format_atomic_access(access.success, f)?;
+
+    if access.failure_ordering != access.success.ordering {
+        write!(
+            f,
+            [
+                token(","),
+                space(),
+                token("failure"),
+                token("("),
+                token(access.failure_ordering.to_str()),
+                token(")")
+            ]
+        )?;
+    }
+
+    Ok(())
 }
 
-/// Format non-default atomic scope and flag context.
+/// Format one fence access suffix.
+fn format_fence_access<'a>(access: FenceAccess, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+    write!(f, [space(), token(access.ordering.to_str())])?;
+    format_fence_context(access, f)
+}
+
+/// Format non-default synchronization scope.
 fn format_atomic_context<'a>(
     access: AtomicAccess,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
-    if access.scope != AtomicScope::default() {
+    if access.scope != SyncScope::default() {
+        write!(
+            f,
+            [
+                token(","),
+                space(),
+                token("scope"),
+                token("("),
+                token(access.scope.to_str()),
+                token(")")
+            ]
+        )?;
+    }
+
+    if access.is_volatile {
+        write!(f, [token(","), space(), token("volatile")])?;
+    }
+
+    Ok(())
+}
+
+/// Format non-default fence scope and flag context.
+fn format_fence_context<'a>(access: FenceAccess, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+    if access.scope != SyncScope::default() {
         write!(
             f,
             [
@@ -1986,7 +2032,7 @@ fn format_atomic_context<'a>(
     Ok(())
 }
 
-/// Format memory flags for atomics and barriers.
+/// Format memory flags for fences.
 fn format_memory_flags<'a>(flags: MemoryFlags, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
     // collect formatted names
     let names = collect_memory_flag_names(flags);
@@ -2006,9 +2052,6 @@ fn collect_memory_flag_names(flags: MemoryFlags) -> Vec<&'static str> {
     let mut names = collect_effect_space_names(flags.spaces);
 
     // append predicates
-    if flags.is_volatile {
-        names.push("volatile");
-    }
     if flags.makes_available {
         names.push("makeAvailable");
     }

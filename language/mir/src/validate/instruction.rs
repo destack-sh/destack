@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 
 use crate::{
-    AddressSpace, AllocationMode, ArgumentSlice, CastOperator, Constant, Function, Instruction,
-    Intrinsic, Local, LocalNodeId, Mutability, NodeType, ReferenceKind, TensorDimension,
-    TensorLayout, Type, TypeReference, Value, ValueReference, compute_type_layout,
-    function_signature_parts,
+    AddressSpace, AllocationMode, ArgumentSlice, AtomicRmwOperator, CastOperator, Constant,
+    Function, Instruction, Intrinsic, Local, LocalNodeId, MemoryOrdering, Mutability, NodeType,
+    ReferenceKind, TensorDimension, TensorLayout, Type, TypeReference, Value, ValueReference,
+    compute_type_layout, function_signature_parts,
 };
 
 use super::{ValidateAnchor, ValidateError, ValidateResult, Validator};
@@ -456,12 +456,12 @@ impl<'a> Validator<'a> {
     ) -> ValidateResult<()> {
         let is_scalar = match self.tree.get(value_type) {
             Type::Boolean
-            | Type::Int { .. }
             | Type::Isize
             | Type::Usize
-            | Type::Float { .. }
             | Type::TypeId
             | Type::FunctionPointer { .. } => true,
+            Type::Int { width, .. } => is_native_atomic_width(*width),
+            Type::Float { width } => matches!(width, 32 | 64),
             Type::Reference { kind, .. } => matches!(kind, ReferenceKind::Raw),
             _ => false,
         };
@@ -469,6 +469,165 @@ impl<'a> Validator<'a> {
         if !is_scalar {
             return Err(ValidateError::MetadataInvariantViolation {
                 message: format!("{operation} atomic value must be scalar storage"),
+                anchor,
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Validate one atomic read-modify-write operator against its payload type.
+    fn validate_atomic_read_modify_write_operator(
+        &self,
+        operator: AtomicRmwOperator,
+        value_type: LocalNodeId<Type>,
+        anchor: ValidateAnchor,
+    ) -> ValidateResult<()> {
+        let is_valid = match operator {
+            AtomicRmwOperator::Exchange => true,
+            AtomicRmwOperator::Add | AtomicRmwOperator::Sub => self.is_atomic_integer(value_type),
+            AtomicRmwOperator::And | AtomicRmwOperator::Or | AtomicRmwOperator::Xor => {
+                self.is_atomic_bits(value_type)
+            }
+            AtomicRmwOperator::Min | AtomicRmwOperator::Max => {
+                self.is_atomic_signed_integer(value_type)
+            }
+            AtomicRmwOperator::Umin | AtomicRmwOperator::Umax => {
+                self.is_atomic_unsigned_integer(value_type)
+            }
+            AtomicRmwOperator::Fadd | AtomicRmwOperator::Fmin | AtomicRmwOperator::Fmax => {
+                self.is_atomic_float(value_type)
+            }
+        };
+
+        if !is_valid {
+            return Err(ValidateError::MetadataInvariantViolation {
+                message: "atomic.rmw operator is not valid for the atomic value type".to_string(),
+                anchor,
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Check whether one atomic payload supports integer arithmetic.
+    fn is_atomic_integer(&self, value_type: LocalNodeId<Type>) -> bool {
+        matches!(
+            self.tree.get(value_type),
+            Type::Int { .. } | Type::Isize | Type::Usize
+        )
+    }
+
+    /// Check whether one atomic payload supports bitwise updates.
+    fn is_atomic_bits(&self, value_type: LocalNodeId<Type>) -> bool {
+        matches!(
+            self.tree.get(value_type),
+            Type::Boolean | Type::Int { .. } | Type::Isize | Type::Usize
+        )
+    }
+
+    /// Check whether one atomic payload supports signed min and max.
+    fn is_atomic_signed_integer(&self, value_type: LocalNodeId<Type>) -> bool {
+        matches!(
+            self.tree.get(value_type),
+            Type::Int {
+                is_signed: true,
+                ..
+            } | Type::Isize
+        )
+    }
+
+    /// Check whether one atomic payload supports unsigned min and max.
+    fn is_atomic_unsigned_integer(&self, value_type: LocalNodeId<Type>) -> bool {
+        matches!(
+            self.tree.get(value_type),
+            Type::Int {
+                is_signed: false,
+                ..
+            } | Type::Usize
+        )
+    }
+
+    /// Check whether one atomic payload supports floating CAS-loop updates.
+    fn is_atomic_float(&self, value_type: LocalNodeId<Type>) -> bool {
+        matches!(self.tree.get(value_type), Type::Float { width: 32 | 64 })
+    }
+
+    /// Validate ordering for one atomic load.
+    fn validate_atomic_load_ordering(
+        &self,
+        ordering: MemoryOrdering,
+        anchor: ValidateAnchor,
+    ) -> ValidateResult<()> {
+        if matches!(
+            ordering,
+            MemoryOrdering::Release | MemoryOrdering::AcquireRelease
+        ) {
+            return Err(ValidateError::MetadataInvariantViolation {
+                message: "atomic.load cannot use release ordering".to_string(),
+                anchor,
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Validate ordering for one atomic store.
+    fn validate_atomic_store_ordering(
+        &self,
+        ordering: MemoryOrdering,
+        anchor: ValidateAnchor,
+    ) -> ValidateResult<()> {
+        if matches!(
+            ordering,
+            MemoryOrdering::Acquire | MemoryOrdering::AcquireRelease
+        ) {
+            return Err(ValidateError::MetadataInvariantViolation {
+                message: "atomic.store cannot use acquire ordering".to_string(),
+                anchor,
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Validate ordering for one compare exchange failure load.
+    fn validate_atomic_compare_exchange_ordering(
+        &self,
+        success: MemoryOrdering,
+        failure: MemoryOrdering,
+        anchor: ValidateAnchor,
+    ) -> ValidateResult<()> {
+        if matches!(
+            failure,
+            MemoryOrdering::Release | MemoryOrdering::AcquireRelease
+        ) {
+            return Err(ValidateError::MetadataInvariantViolation {
+                message: "atomic.cas failure cannot use release ordering".to_string(),
+                anchor,
+            });
+        }
+
+        if ordering_strength(failure) > ordering_strength(success) {
+            return Err(ValidateError::MetadataInvariantViolation {
+                message: "atomic.cas failure ordering cannot be stronger than success ordering"
+                    .to_string(),
+                anchor,
+            });
+        }
+
+        Ok(())
+    }
+
+    /// Validate ordering for one atomic fence.
+    fn validate_atomic_fence_ordering(
+        &self,
+        ordering: MemoryOrdering,
+        anchor: ValidateAnchor,
+    ) -> ValidateResult<()> {
+        if matches!(ordering, MemoryOrdering::Relaxed) {
+            return Err(ValidateError::MetadataInvariantViolation {
+                message: "atomic.fence cannot use relaxed ordering".to_string(),
                 anchor,
             });
         }
@@ -1689,8 +1848,10 @@ impl<'a> Validator<'a> {
                 destination,
                 pointer,
                 result_type,
-                ..
+                access,
             } => {
+                self.validate_atomic_load_ordering(access.ordering, anchor)?;
+
                 let pointer_type =
                     self.value_type_or_error(function, *pointer, anchor, "atomic.load pointer")?;
                 let destination_type =
@@ -1711,7 +1872,13 @@ impl<'a> Validator<'a> {
                     });
                 }
             }
-            Instruction::AtomicStore { pointer, value, .. } => {
+            Instruction::AtomicStore {
+                pointer,
+                value,
+                access,
+            } => {
+                self.validate_atomic_store_ordering(access.ordering, anchor)?;
+
                 let pointer_type =
                     self.value_type_or_error(function, *pointer, anchor, "atomic.store pointer")?;
                 let value_type =
@@ -1732,8 +1899,15 @@ impl<'a> Validator<'a> {
                 pointer,
                 expected,
                 new_value,
+                access,
                 ..
             } => {
+                self.validate_atomic_compare_exchange_ordering(
+                    access.success.ordering,
+                    access.failure_ordering,
+                    anchor,
+                )?;
+
                 let pointer_type = self.value_type_or_error(
                     function,
                     *pointer,
@@ -1821,6 +1995,7 @@ impl<'a> Validator<'a> {
                 destination,
                 pointer,
                 value,
+                operator,
                 ..
             } => {
                 let pointer_type =
@@ -1832,6 +2007,11 @@ impl<'a> Validator<'a> {
 
                 let value_type_expected =
                     self.atomic_value_type_or_error(pointer_type, anchor, "atomic.rmw")?;
+                self.validate_atomic_read_modify_write_operator(
+                    *operator,
+                    value_type_expected,
+                    anchor,
+                )?;
 
                 if !self.types_equivalent(value_type, value_type_expected)
                     || !self.types_equivalent(destination_type, value_type_expected)
@@ -1843,7 +2023,9 @@ impl<'a> Validator<'a> {
                     });
                 }
             }
-            Instruction::AtomicFence { .. } => {}
+            Instruction::AtomicFence { access } => {
+                self.validate_atomic_fence_ordering(access.ordering, anchor)?;
+            }
             Instruction::BarrierWrite {
                 object,
                 offset,
@@ -3247,4 +3429,19 @@ impl<'a> Validator<'a> {
             } | Type::FunctionPointer { .. }
         )
     }
+}
+
+/// Return the conservative strength rank for one ordering.
+fn ordering_strength(ordering: MemoryOrdering) -> u8 {
+    match ordering {
+        MemoryOrdering::Relaxed => 0,
+        MemoryOrdering::Acquire | MemoryOrdering::Release => 1,
+        MemoryOrdering::AcquireRelease => 2,
+        MemoryOrdering::SequentiallyConsistent => 3,
+    }
+}
+
+/// Return whether one bit width is supported by portable atomic storage.
+fn is_native_atomic_width(width: u16) -> bool {
+    matches!(width, 8 | 16 | 32 | 64)
 }

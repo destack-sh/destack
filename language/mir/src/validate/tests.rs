@@ -7,9 +7,9 @@ use crate::{
     AttributeIdentifier, AttributeValue, Block, Call, CallBehavior, Constant, Copy,
     DebugBindingKind, DebugLocation, DebugValueLocation, DispatchSlot, EffectClass, Field,
     Function, FunctionReference, Instruction, Layout, LayoutField, LayoutKind, Local, LocalNodeId,
-    LocalReference, Mutability, Ownership, ProvenanceAnchor, ProvenanceKey, ReferenceKind,
-    ReferenceMap, SuspendBehavior, Terminator, Tree, Type, TypeReference, UnwindBehavior, Value,
-    ValueReference,
+    LocalReference, Mutability, Ownership, Parameter, ProvenanceAnchor, ProvenanceKey,
+    ReferenceKind, ReferenceMap, SuspendBehavior, Terminator, Tree, Type, TypeReference,
+    UnwindBehavior, Value, ValueReference,
 };
 
 use super::Validator;
@@ -1461,6 +1461,147 @@ entry0(value0: ref<atomic<int32>, raw>):
     assert_eq!(
         error.to_string(),
         "parse error at 105: metadata invariant violation: load cannot read atomic storage"
+    );
+}
+
+/// Reject plain store on atomic storage.
+#[test]
+fn test_reject_store_with_atomic_storage() {
+    let error = assert_validate_error(
+        r#"
+function storeBad(value0: ref<atomic<int32>, raw>, value1: int32): void {
+entry0(value0: ref<atomic<int32>, raw>, value1: int32):
+    store value0, value1
+    return
+}
+"#,
+    );
+
+    assert_eq!(
+        error.to_string(),
+        "parse error at 135: metadata invariant violation: store cannot write atomic storage"
+    );
+}
+
+/// Reject atomic storage as an SSA value.
+#[test]
+fn test_reject_atomic_storage_value() {
+    let mut tree = Tree::new();
+    let pool = StringPool::new();
+    let name = pool.intern("atomicValue");
+
+    let value_ty = tree.insert_type(Type::Int {
+        width: 32,
+        is_signed: true,
+    });
+    let void_ty = tree.insert_type(Type::Void);
+    let atomic_ty = tree.insert_type(Type::Atomic {
+        value: type_reference(value_ty),
+    });
+    let value = Value::new(0);
+    let parameter = Parameter {
+        value: value_reference(value),
+        ty: type_reference(atomic_ty),
+    };
+    let block = Block {
+        name: None,
+        parameters: vec![parameter],
+        instructions: Vec::new(),
+        terminator: tree.insert(Terminator::Return { value: None }),
+    };
+    let block_id = tree.insert(block);
+
+    let mut function = Function::local(name, vec![parameter], type_reference(void_ty), block_id);
+    function.set_value_type(value, atomic_ty);
+    function.blocks = vec![block_id];
+    function.entry = Some(block_id);
+    let function_id = tree.insert(function);
+
+    let validator = Validator::new(&tree);
+    let error = validator
+        .validate_function(function_id)
+        .expect_err("expected validation failure");
+    assert_eq!(
+        error.to_string(),
+        "metadata invariant violation: atomic storage type cannot be used as a value type"
+    );
+}
+
+/// Reject invalid atomic operation orderings.
+#[test]
+fn test_reject_atomic_operation_orderings() {
+    let load_error = assert_validate_error(
+        r#"
+function loadBad(value0: ref<atomic<int32>, raw>): int32 {
+entry0(value0: ref<atomic<int32>, raw>):
+    value1: int32 = atomic.load value0, release
+    return value1
+}
+"#,
+    );
+    assert_eq!(
+        load_error.to_string(),
+        "parse error at 105: metadata invariant violation: atomic.load cannot use release ordering"
+    );
+
+    let store_error = assert_validate_error(
+        r#"
+function storeBad(value0: ref<atomic<int32>, raw>, value1: int32): void {
+entry0(value0: ref<atomic<int32>, raw>, value1: int32):
+    atomic.store value0, value1, acquire
+    return
+}
+"#,
+    );
+    assert_eq!(
+        store_error.to_string(),
+        "parse error at 135: metadata invariant violation: atomic.store cannot use acquire ordering"
+    );
+
+    let compare_error = assert_validate_error(
+        r#"
+function casBad(value0: ref<atomic<int32>, raw>, value1: int32, value2: int32): (int32, boolean) {
+entry0(value0: ref<atomic<int32>, raw>, value1: int32, value2: int32):
+    value3: (int32, boolean) = atomic.cas value0, value1, value2, acquire, failure(release)
+    return value3
+}
+"#,
+    );
+    assert_eq!(
+        compare_error.to_string(),
+        "parse error at 175: metadata invariant violation: atomic.cas failure cannot use release ordering"
+    );
+}
+
+/// Reject atomic payloads and update operators that are not portable atomic storage.
+#[test]
+fn test_reject_invalid_atomic_value_shapes() {
+    let width_error = assert_validate_error(
+        r#"
+function wideBad(value0: ref<atomic<int128>, raw>): int128 {
+entry0(value0: ref<atomic<int128>, raw>):
+    value1: int128 = atomic.load value0, acquire
+    return value1
+}
+"#,
+    );
+    assert_eq!(
+        width_error.to_string(),
+        "parse error at 108: metadata invariant violation: atomic.load atomic value must be scalar storage"
+    );
+
+    let operator_error = assert_validate_error(
+        r#"
+function operatorBad(value0: ref<atomic<float32>, raw>, value1: float32): float32 {
+entry0(value0: ref<atomic<float32>, raw>, value1: float32):
+    value2: float32 = atomic.rmw.add value0, value1, acquire
+    return value2
+}
+"#,
+    );
+    assert_eq!(
+        operator_error.to_string(),
+        "parse error at 149: metadata invariant violation: atomic.rmw operator is not valid for the atomic value type"
     );
 }
 
