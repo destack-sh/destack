@@ -211,17 +211,9 @@ pub struct Symbol {
 
     /// Semantic attributes attached to the symbol.
     pub attributes: SymbolAttributes,
-    /// Whether the symbol is active for the current profile.
-    pub is_active: bool,
 }
 
 impl Symbol {
-    /// Check whether the symbol is active.
-    #[inline]
-    pub fn is_active(&self) -> bool {
-        self.is_active
-    }
-
     /// Get the name of the symbol.
     #[inline]
     pub fn name(&self) -> Option<StringId> {

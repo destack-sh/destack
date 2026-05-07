@@ -44,15 +44,9 @@ impl SymbolTable {
         self.symbols.get(symbol_id)
     }
 
-    /// Iterate active symbol ids.
-    pub fn active_symbol_ids(&self) -> impl Iterator<Item = LocalSymbolId> + '_ {
-        (0..self.symbol_count()).filter_map(|symbol_id| {
-            let symbol = self.get_symbol_by_id(symbol_id);
-            if !symbol.is_active {
-                return None;
-            }
-            Some(LocalSymbolId::new(symbol_id))
-        })
+    /// Iterate symbol ids.
+    pub fn symbol_ids(&self) -> impl Iterator<Item = LocalSymbolId> + '_ {
+        (0..self.symbol_count()).map(LocalSymbolId::new)
     }
 
     /// Get the number of symbols.
@@ -93,7 +87,6 @@ impl SymbolTable {
             export,
             declaration: None,
             attributes: SymbolAttributes::default(),
-            is_active: true,
         };
         self.symbols.allocate(symbol);
         let mark = self.scopes.get_mut(scope.0.0).append(key, symbol_id);
@@ -128,15 +121,6 @@ impl SymbolTable {
     #[inline]
     pub fn get_symbol(&self, symbol_id: LocalSymbolId) -> &Symbol {
         self.symbols.get(symbol_id.id)
-    }
-
-    /// Get an active symbol by its id.
-    pub fn get_active_symbol(&self, symbol_id: LocalSymbolId) -> Option<&Symbol> {
-        let symbol = self.get_symbol(symbol_id);
-        if symbol.is_active {
-            return Some(symbol);
-        }
-        None
     }
 
     /// Get the symbol mutable by its id.
@@ -182,61 +166,45 @@ impl SymbolTable {
         self.scopes.get_mut(scope_id.0)
     }
 
-    /// Iterate active named symbols in a scope.
-    pub fn active_named_symbols<'a>(
+    /// Iterate named symbols in a scope.
+    pub fn named_symbols<'a>(
         &'a self,
         scope: &'a Scope,
     ) -> impl Iterator<Item = (StaticKey, LocalSymbolId)> + 'a {
-        scope
-            .named_symbols
-            .iter()
-            .copied()
-            .filter(move |(_, symbol_id)| self.get_symbol(*symbol_id).is_active)
+        scope.named_symbols.iter().copied()
     }
 
-    /// Iterate active named symbols in a scope up to a mark.
-    pub fn active_named_symbols_up_to<'a>(
+    /// Iterate named symbols in a scope up to a mark.
+    pub fn named_symbols_up_to<'a>(
         &'a self,
         scope: &'a Scope,
         mark: LocalScopeMark,
     ) -> impl Iterator<Item = (StaticKey, LocalSymbolId)> + 'a {
         let limit = mark.0 as usize;
-        scope
-            .named_symbols
-            .iter()
-            .take(limit)
-            .copied()
-            .filter(move |(_, symbol_id)| self.get_symbol(*symbol_id).is_active)
+        scope.named_symbols.iter().take(limit).copied()
     }
 
-    /// Iterate active anonymous symbols in a scope.
-    pub fn active_anonymous_symbols<'a>(
+    /// Iterate anonymous symbols in a scope.
+    pub fn anonymous_symbols<'a>(
         &'a self,
         scope: &'a Scope,
     ) -> impl Iterator<Item = LocalSymbolId> + 'a {
-        scope
-            .anonymous_symbols
-            .iter()
-            .copied()
-            .filter(move |symbol_id| self.get_symbol(*symbol_id).is_active)
+        scope.anonymous_symbols.iter().copied()
     }
 
-    /// Find an active symbol in a scope by key.
-    pub fn find_active_symbol(&self, scope: &Scope, key: StaticKey) -> Option<LocalSymbolId> {
+    /// Find a symbol in a scope by key.
+    pub fn find_symbol(&self, scope: &Scope, key: StaticKey) -> Option<LocalSymbolId> {
         for (candidate_key, symbol_id) in scope.named_symbols.iter().rev() {
             if *candidate_key != key {
                 continue;
             }
-            let symbol = self.get_symbol(*symbol_id);
-            if symbol.is_active {
-                return Some(*symbol_id);
-            }
+            return Some(*symbol_id);
         }
         None
     }
 
-    /// Find an active symbol in a scope by key up to a mark.
-    pub fn find_active_symbol_up_to(
+    /// Find a symbol in a scope by key up to a mark.
+    pub fn find_symbol_up_to(
         &self,
         scope: &Scope,
         key: StaticKey,
@@ -247,10 +215,7 @@ impl SymbolTable {
             if *candidate_key != key {
                 continue;
             }
-            let symbol = self.get_symbol(*symbol_id);
-            if symbol.is_active {
-                return Some(*symbol_id);
-            }
+            return Some(*symbol_id);
         }
         None
     }
