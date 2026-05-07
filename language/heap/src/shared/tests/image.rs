@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    Allocator, HeapOptions, PageRun, Payload, SharedHeapSpace, SharedRawSpace, SizeClassTable,
-    test_allocator, test_layouts,
+    Allocator, HeapOptions, PageRun, Payload, RawAllocationShape, SharedHeapSpace, SharedRawSpace,
+    SizeClassTable, test_allocator, test_layouts,
 };
 use destack_mir::ReferenceMap;
 
@@ -31,10 +31,16 @@ fn test_roundtrip_shared_memory_image_and_fork() {
 
     // capture two allocations so only one changes later
     let first = shared
-        .allocate(6, Payload::Bytes(&[1, 2, 3, 4, 5, 6]))
+        .allocate(
+            RawAllocationShape::bytes(6),
+            Payload::Bytes(&[1, 2, 3, 4, 5, 6]),
+        )
         .expect("shared allocation should succeed");
     let second = shared
-        .allocate(6, Payload::Bytes(&[7, 8, 9, 10, 11, 12]))
+        .allocate(
+            RawAllocationShape::bytes(6),
+            Payload::Bytes(&[7, 8, 9, 10, 11, 12]),
+        )
         .expect("shared allocation should succeed");
     let image = shared.image().expect("shared raw image should capture");
     let forked = shared.fork().expect("shared fork should retain live pages");

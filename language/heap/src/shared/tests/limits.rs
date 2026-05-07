@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use crate::{
-    AccountingRegion, Allocator, HeapError, Payload, SharedHeap, SharedHeapLimits,
-    SharedHeapSpaceLimits, SharedRawLimits, SizeClassTable, test_aligned_layout, test_layout,
+    AccountingRegion, Allocator, HeapError, Payload, RawAllocationShape, SharedHeap,
+    SharedHeapLimits, SharedHeapSpaceLimits, SharedRawLimits, SizeClassTable, test_aligned_layout,
+    test_layout,
 };
 use destack_mir::ReferenceMap;
 
@@ -222,7 +223,10 @@ fn test_reject_shared_raw_replace_when_limit_exceeded() {
     )
     .expect("shared heap should build");
     let pointer = shared
-        .allocate_raw(4097, Payload::Bytes(&vec![0xAA; 4097]))
+        .allocate_raw(
+            RawAllocationShape::bytes(4097),
+            Payload::Bytes(&vec![0xAA; 4097]),
+        )
         .expect("shared raw allocation should succeed");
     let baseline = shared.usage().raw.retained_bytes;
     let image = shared.image().expect("shared image should capture");

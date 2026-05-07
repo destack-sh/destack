@@ -3,20 +3,20 @@ use super::{
     SmallSpan,
 };
 use crate::allocator::{PageRun, SpanSlot};
-use crate::{Bitmap, HeapError, HeapResult, Payload, RawPointer};
+use crate::{Bitmap, HeapError, HeapResult, Payload, RawAllocationShape, RawPointer};
 
 impl RawSpace {
     /// Return the projected retained-byte delta for one raw allocation.
-    pub(crate) fn alloc_retained_byte_delta(&self, byte_len: usize) -> i64 {
-        if let Some(class) = self.small_span_class(byte_len) {
-            return if self.has_available_small_slot(byte_len) {
+    pub(crate) fn alloc_retained_byte_delta(&self, shape: RawAllocationShape) -> i64 {
+        if let Some(class) = self.small_span_class(shape) {
+            return if self.has_available_small_slot(&class) {
                 0
             } else {
                 class.span_bytes as i64
             };
         }
 
-        self.round_up_large_allocation_bytes(byte_len) as i64
+        self.round_up_large_allocation_bytes(shape.byte_len) as i64
     }
 
     /// Return the projected retained-byte delta for one raw replacement.
@@ -40,12 +40,25 @@ impl RawSpace {
     }
 
     /// Allocate one raw allocation.
-    pub fn allocate(&mut self, byte_len: usize, payload: Payload<'_>) -> HeapResult<RawPointer> {
-        let place = self.allocate_place(byte_len, payload)?;
+    pub fn allocate(
+        &mut self,
+        shape: RawAllocationShape,
+        payload: Payload<'_>,
+    ) -> HeapResult<RawPointer> {
+        if let Some(actual) = payload.byte_len()
+            && actual != shape.byte_len
+        {
+            return Err(HeapError::InvalidAllocationBytes {
+                expected: shape.byte_len,
+                actual,
+            });
+        }
+
+        let place = self.allocate_place(shape, payload)?;
         let pointer = self.base_pointer(place)?;
 
         // charge the live raw allocation counters
-        self.usage.allocate(byte_len);
+        self.usage.allocate(shape.byte_len);
 
         Ok(pointer)
     }
@@ -108,16 +121,17 @@ impl RawSpace {
     /// Allocate one raw place for the given payload.
     pub(super) fn allocate_place(
         &mut self,
-        byte_len: usize,
+        shape: RawAllocationShape,
         payload: Payload<'_>,
     ) -> HeapResult<RawPlace> {
-        if let Some((class, span_index, slot_index)) = self.reserve_small_slot(byte_len)? {
+        if let Some((class, span_index, slot_index)) = self.reserve_small_slot(shape)? {
             let slot = self.initialize_small_slot(&class, span_index, slot_index, payload)?;
 
             Ok(RawPlace::Small(slot))
         } else {
-            let pages = self.allocate_large_pages(byte_len)?;
-            let allocation_id = self.insert_large_allocation(byte_len, pages)?;
+            let pages = self.allocate_large_pages(shape.byte_len)?;
+            let allocation_id =
+                self.insert_large_allocation(shape.byte_len, shape.alignment, pages)?;
             let Some(large_allocation) = self.large_allocation(allocation_id) else {
                 return Err(HeapError::MissingLargeAllocation {
                     allocation_id: allocation_id.id(),
@@ -134,7 +148,7 @@ impl RawSpace {
                     std::ptr::write_bytes(
                         (self.mapping.base_address() + first_offset) as *mut u8,
                         0,
-                        byte_len,
+                        shape.byte_len,
                     );
                 },
             }
@@ -147,6 +161,7 @@ impl RawSpace {
     pub(super) fn insert_large_allocation(
         &mut self,
         len: usize,
+        alignment: usize,
         pages: PageRun,
     ) -> HeapResult<LargeAllocationId> {
         // reuse one freed large allocation id when possible
@@ -176,7 +191,8 @@ impl RawSpace {
         let allocation_id = LargeAllocationId::new(allocation_id);
         let index = allocation_id.index()?;
 
-        let first_offset = self.reserve_space_range(pages.len() * self.allocator.page_bytes())?;
+        let first_offset =
+            self.reserve_space_range_aligned(pages.len() * self.allocator.page_bytes(), alignment)?;
 
         // materialize the full large allocation before publishing it
         self.mapping
@@ -216,7 +232,8 @@ impl RawSpace {
 
     /// Allocate one raw small slot from one byte slice.
     pub(super) fn allocate_small_bytes(&mut self, bytes: &[u8]) -> HeapResult<Option<SpanSlot>> {
-        let Some((class, span_index, slot_index)) = self.reserve_small_slot(bytes.len())? else {
+        let shape = RawAllocationShape::bytes(bytes.len());
+        let Some((class, span_index, slot_index)) = self.reserve_small_slot(shape)? else {
             return Ok(None);
         };
 
@@ -227,12 +244,7 @@ impl RawSpace {
     /// Allocate or reuse one non-full raw span for the given size class.
     fn allocate_small_span(&mut self, class: &RawSmallSpanClass) -> HeapResult<usize> {
         // reuse one non-full span when possible
-        while let Some(span_index) = self
-            .small
-            .partial_spans
-            .get_mut(&class.byte_len)
-            .and_then(Vec::pop)
-        {
+        while let Some(span_index) = self.small.partial_spans.get_mut(class).and_then(Vec::pop) {
             let Some(span) = self.small.spans.get(span_index) else {
                 return Err(HeapError::MissingSpan { span_index });
             };
@@ -269,7 +281,7 @@ impl RawSpace {
         // otherwise allocate one fresh span for the size class
         let slot_count = (class.span_bytes / class.size_class).max(1);
         let pages = self.allocate_page_run_zeroed(class.span_bytes)?;
-        let first_offset = self.reserve_space_range(class.span_bytes)?;
+        let first_offset = self.reserve_space_range_aligned(class.span_bytes, class.size_class)?;
 
         // materialize the full span before handing out slots
         self.mapping.materialize(first_offset, class.span_bytes)?;
@@ -299,9 +311,9 @@ impl RawSpace {
     /// Reserve one raw small-span payload for the given byte length.
     fn reserve_small_slot(
         &mut self,
-        byte_len: usize,
+        shape: RawAllocationShape,
     ) -> HeapResult<Option<(RawSmallSpanClass, usize, usize)>> {
-        let Some(class) = self.small_span_class(byte_len) else {
+        let Some(class) = self.small_span_class(shape) else {
             return Ok(None);
         };
         let span_index = self.allocate_small_span(&class)?;
@@ -357,7 +369,7 @@ impl RawSpace {
         if span.occupied_count < span.slot_count {
             self.small
                 .partial_spans
-                .entry(class.byte_len)
+                .entry(class.clone())
                 .or_default()
                 .push(span_index);
         }
@@ -413,7 +425,7 @@ impl RawSpace {
                 if should_requeue {
                     self.small
                         .partial_spans
-                        .entry(class.byte_len)
+                        .entry(class)
                         .or_default()
                         .push(slot.span_index());
                 }
@@ -431,22 +443,25 @@ impl RawSpace {
     }
 
     /// Return whether one size class still has one live reusable slot.
-    fn has_available_small_slot(&self, byte_len: usize) -> bool {
+    fn has_available_small_slot(&self, class: &RawSmallSpanClass) -> bool {
         self.small
             .partial_spans
-            .get(&byte_len)
+            .get(class)
             .is_some_and(|spans| !spans.is_empty())
     }
 
-    /// Return one homogeneous raw span class for the given byte length when it fits.
-    fn small_span_class(&self, byte_len: usize) -> Option<RawSmallSpanClass> {
-        let class_index = self.small.size_classes.class_index_for(byte_len)?;
+    /// Return one homogeneous raw span class for the given shape when it fits.
+    fn small_span_class(&self, shape: RawAllocationShape) -> Option<RawSmallSpanClass> {
+        let class_index = self
+            .small
+            .size_classes
+            .class_index_for_layout(shape.byte_len, shape.alignment)?;
         let size_class = self.small.size_classes.classes[class_index];
 
         Some(RawSmallSpanClass {
             size_class: size_class.bytes,
             span_bytes: size_class.span_bytes(self.allocator.page_bytes(), self.small.span_bytes),
-            byte_len,
+            byte_len: shape.byte_len,
         })
     }
 
@@ -469,7 +484,7 @@ impl RawSpace {
         }
 
         // otherwise use the same retained-byte delta model as fresh allocation
-        self.alloc_retained_byte_delta(next_byte_len) as u64
+        self.alloc_retained_byte_delta(RawAllocationShape::bytes(next_byte_len)) as u64
     }
 
     /// Return the page-rounded retained bytes for one raw large allocation.

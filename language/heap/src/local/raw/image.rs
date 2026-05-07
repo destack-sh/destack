@@ -6,7 +6,7 @@ use super::{
     LargeAllocation, LargeAllocationId, LargeAllocationImage, RawPageMapEntry, RawSpace, SmallSpan,
     SmallSpanImage,
 };
-use crate::allocator::{AddressSpace, Allocator, PageRunCache, SizeClassTable};
+use crate::allocator::{AddressSpace, Allocator, PageRun, PageRunCache, SizeClassTable};
 use crate::{AllocationUsage, CowTable, HeapError, HeapResult};
 
 /// One frozen raw-space image.
@@ -253,13 +253,16 @@ impl RawSpace {
                 continue;
             }
 
-            let Some(class_index) = small.size_classes.class_index_for(span.class.byte_len) else {
+            let Some(class_index) = small.size_classes.class_index_for(span.class.size_class)
+            else {
                 return Err(HeapError::InvalidSizeClass {
-                    class_bytes: span.class.byte_len,
+                    class_bytes: span.class.size_class,
                 });
             };
             let configured_size_class = small.size_classes.classes[class_index].bytes;
-            if configured_size_class != span.class.size_class {
+            if configured_size_class != span.class.size_class
+                || span.class.byte_len > span.class.size_class
+            {
                 return Err(HeapError::InvalidSizeClass {
                     class_bytes: span.class.size_class,
                 });
@@ -267,7 +270,7 @@ impl RawSpace {
 
             small
                 .partial_spans
-                .entry(span.class.byte_len)
+                .entry(span.class.clone())
                 .or_default()
                 .push(span_index);
         }
@@ -302,7 +305,7 @@ impl RawSpace {
 
             self.allocate_page_run_zeroed(allocation.bytes.len())?
         } else {
-            crate::allocator::PageRun::empty()
+            PageRun::empty()
         };
 
         Ok(LargeAllocation {
@@ -341,7 +344,7 @@ impl RawSpace {
                 let pages = if allocation.is_live {
                     self.allocator.share_page_run(allocation.pages)?
                 } else {
-                    crate::allocator::PageRun::empty()
+                    PageRun::empty()
                 };
 
                 Ok(LargeAllocation {

@@ -12,7 +12,7 @@ use super::{
 use crate::{
     AllocationLayout, AllocationShape, Allocator, AllocatorImage, GcPacer, GcPressure, GcProgress,
     GcState, GcStats, HeapError, HeapOptions, HeapResult, PageId, PageRun, Payload,
-    SharedHeapReference, SharedRawPointer, apply_byte_delta,
+    RawAllocationShape, SharedHeapReference, SharedRawPointer, apply_byte_delta,
 };
 
 /// One live world-shared heap.
@@ -297,8 +297,8 @@ impl SharedHeap {
     }
 
     /// Return the projected retained-byte delta for one shared raw allocation.
-    pub fn raw_alloc_retained_byte_delta(&self, byte_len: usize) -> i64 {
-        self.raw.alloc_retained_byte_delta(byte_len)
+    pub fn raw_alloc_retained_byte_delta(&self, shape: RawAllocationShape) -> i64 {
+        self.raw.alloc_retained_byte_delta(shape)
     }
 
     /// Return the projected retained-byte delta for one shared raw replacement.
@@ -313,12 +313,12 @@ impl SharedHeap {
     /// Allocate one shared raw allocation.
     pub fn allocate_raw(
         &self,
-        byte_len: usize,
+        shape: RawAllocationShape,
         allocation: Payload<'_>,
     ) -> HeapResult<SharedRawPointer> {
-        self.check_raw_retained_byte_delta(self.raw.alloc_retained_byte_delta(byte_len))?;
+        self.check_raw_retained_byte_delta(self.raw.alloc_retained_byte_delta(shape))?;
 
-        self.raw.allocate(byte_len, allocation)
+        self.raw.allocate(shape, allocation)
     }
 
     /// Replace one shared raw allocation payload.
