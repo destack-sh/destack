@@ -210,23 +210,6 @@ pub enum Asynchrony {
     Async,
 }
 
-/// Whether syntax is ambient or concrete.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Ambientness {
-    /// Ambient syntax declared with `declare`.
-    Ambient,
-    /// Concrete syntax with a body or emitted value.
-    Concrete,
-}
-
-impl Ambientness {
-    /// Return whether the syntax is ambient.
-    #[inline]
-    pub fn is_ambient(self) -> bool {
-        matches!(self, Self::Ambient)
-    }
-}
-
 /// The reference type of a binding.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ReferenceType {

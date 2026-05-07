@@ -61,8 +61,8 @@ pub enum Pattern {
         ty: LocalNodeId<TypeExpression>,
         fields: Vec<LocalNodeId<PatternField>>,
     },
-    /// Array pattern (like `[1, 2, x]` or `[1, y, ..]`).
-    Array {
+    /// Sequence pattern like `[1, 2, x]` or `[1, y, ..]`.
+    Sequence {
         fields: Vec<LocalNodeId<PatternField>>,
     },
     /// Object pattern (like `{ x, y }`).
@@ -104,8 +104,8 @@ pub enum PatternField {
     Named {
         mutability: Option<Mutability>,
         name: Name,
-        is_shorthand: bool,
         pattern: Option<LocalNodeId<Pattern>>,
+        is_shorthand: bool,
     },
     /// Computed field (like `[key]: value`).
     Computed {
@@ -120,7 +120,7 @@ pub enum PatternField {
         mutability: Option<Mutability>,
         pattern: Option<LocalNodeId<Pattern>>,
     },
-    /// Elision (hole) in an array pattern (like `[,a]` or `[,,b]`).
+    /// Elision in a sequence pattern like `[,a]` or `[,,b]`.
     Elision,
 }
 
@@ -138,8 +138,8 @@ pub enum AssignPattern {
         pattern: LocalNodeId<AssignPattern>,
         value: LocalNodeId<Expression>,
     },
-    /// Array destructuring target like `[a, , ...rest]`.
-    Array {
+    /// Sequence destructuring target like `[a, , ...rest]`.
+    Sequence {
         fields: Vec<LocalNodeId<AssignPatternField>>,
     },
     /// Object destructuring target like `{ x, y: z }`.
@@ -158,8 +158,8 @@ pub enum AssignPatternField {
     /// Named field like `{ x }` or `{ x: y }`.
     Named {
         name: Name,
-        is_shorthand: bool,
         pattern: Option<LocalNodeId<AssignPattern>>,
+        is_shorthand: bool,
     },
     /// Computed field like `{ [key]: value }`.
     Computed {

@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Expression, LocalNodeId, Name, Node, NodeType};
 
-/// The mode of a dependency item.
+/// How one dependency item binds into the local module.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum DependencyMode {
+pub enum DependencyBinding {
     /// Regular item (`import { foo } from "foo"` or `export { foo } from "foo"`)
     Item,
     /// Default item (`export default foo`)
@@ -14,18 +14,18 @@ pub enum DependencyMode {
     Namespace,
 }
 
-/// The export mode of a declaration or binding.
+/// The export kind of a declaration or binding.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum ExportMode {
+pub enum ExportKind {
     /// Named export (`export const foo = 1`).
     Named,
     /// Default export (`export default foo`).
     Default,
 }
 
-/// The type of a dependency item.
+/// The symbol space one dependency item imports or exports.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum DependencyKind {
+pub enum DependencySpace {
     /// Type dependency (`import type foo` or `export type foo`).
     Type,
     /// Value dependency (`import foo` or `export foo`).
@@ -45,10 +45,10 @@ pub enum DependencyItem {
     /// default as bar
     /// ```
     Item {
-        /// The type of the item.
-        mode: DependencyMode,
-        /// The type of the item (if specified).
-        kind: Option<DependencyKind>,
+        /// How the item binds into the local module.
+        binding: DependencyBinding,
+        /// The symbol space of the item, when specified.
+        space: Option<DependencySpace>,
         /// The name of the item (like `foo` in `foo as bar`, None if default).
         name: Option<Name>,
         /// The alias to use for the item (like `bar` in `foo as bar`)

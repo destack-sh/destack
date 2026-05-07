@@ -2,9 +2,9 @@ use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Ambientness, Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block,
-    Declaration, Declarator, DependencyItem, DependencyKind, ExportMode, GenericArgument,
-    ImportAttributeClause, ImportSource, ImportTarget, Keyword, LocalNodeId, MatchCase, MatchKind,
+    Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block, Declaration,
+    Declarator, DependencyItem, DependencySpace, ExportKind, GenericArgument,
+    ImportAttributeClause, ImportSource, ImportTarget, Keyword, LocalNodeId, MatchCase, MatchForm,
     Mutability, Node, NodeType, Path, Pattern, Property, ScalarLiteral, TemplateLiteral,
     TypeExpression, UnaryOperator,
 };
@@ -47,7 +47,7 @@ pub enum Expression {
     ///
     Import {
         source: ImportSource,
-        kind: DependencyKind,
+        space: DependencySpace,
         target: ImportTarget,
         items: Option<Vec<LocalNodeId<DependencyItem>>>,
         attributes: Option<ImportAttributeClause>,
@@ -70,7 +70,7 @@ pub enum Expression {
     /// export = foo
     /// ```
     Export {
-        kind: DependencyKind,
+        space: DependencySpace,
         target: Option<StringId>,
         items: Vec<LocalNodeId<DependencyItem>>,
         attributes: Option<ImportAttributeClause>,
@@ -107,10 +107,10 @@ pub enum Expression {
     /// }
     Let {
         kind: LetKind,
-        export: Option<ExportMode>,
-        ambient: Ambientness,
+        export: Option<ExportKind>,
         mutability: Mutability,
         declarators: Vec<LocalNodeId<Declarator>>,
+        is_ambient: bool,
     },
 
     /// Let-else binding with an early-exit branch.
@@ -142,9 +142,9 @@ pub enum Expression {
     /// ```
     Using {
         asynchrony: Asynchrony,
-        export: Option<ExportMode>,
-        ambient: Ambientness,
+        export: Option<ExportKind>,
         declarators: Vec<LocalNodeId<Declarator>>,
+        is_ambient: bool,
     },
 
     /// If/then/else expression.
@@ -177,7 +177,7 @@ pub enum Expression {
     /// }
     /// ```
     If {
-        kind: IfKind,
+        form: IfForm,
         condition: IfCondition,
         then_expression: LocalNodeId<Expression>,
         else_expression: Option<LocalNodeId<Expression>>,
@@ -192,7 +192,7 @@ pub enum Expression {
     /// }
     /// ```
     While {
-        kind: WhileKind,
+        form: WhileForm,
         condition: LocalNodeId<Expression>,
         body: LocalNodeId<Block>,
     },
@@ -218,7 +218,7 @@ pub enum Expression {
     /// ```
     ForEach {
         asynchrony: Asynchrony,
-        kind: ForEachKind,
+        operator: ForEachOperator,
         binding: ForEachBinding,
         iterator: LocalNodeId<Expression>,
         body: LocalNodeId<Block>,
@@ -303,7 +303,7 @@ pub enum Expression {
     /// }
     /// ```
     Match {
-        kind: MatchKind,
+        form: MatchForm,
         value: LocalNodeId<Expression>,
         cases: Vec<LocalNodeId<MatchCase>>,
     },
@@ -537,7 +537,7 @@ pub enum Expression {
     /// ```
     Parenthesized { expression: LocalNodeId<Expression> },
 
-    /// Type syntax used as a runtime type value.
+    /// Type expression used as a runtime type value.
     Type { value: LocalNodeId<TypeExpression> },
 
     /// Compile time evaluated expression.
@@ -806,7 +806,7 @@ impl Expression {
             Expression::Block(_) => true,
             Expression::Declaration(_) => true,
             Expression::Labelled { .. } => true,
-            Expression::If { kind, .. } => *kind == IfKind::If,
+            Expression::If { form, .. } => *form == IfForm::If,
             Expression::While { .. } => true,
             Expression::ForEach { .. } => true,
             Expression::For { .. } => true,
@@ -843,7 +843,7 @@ impl Expression {
             self,
             Expression::Block(_)
                 | Expression::If {
-                    kind: IfKind::If,
+                    form: IfForm::If,
                     else_expression: Some(_),
                     ..
                 }
@@ -983,7 +983,7 @@ pub enum LetKind {
 
 /// The style of if expression.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum IfKind {
+pub enum IfForm {
     /// Regular if expression (like `if <condition> <then_expr> else <else_expr>`)
     If,
     /// Ternary if expression (like `<condition> ? <then_expr> : <else_expr>`)
@@ -1008,7 +1008,7 @@ pub enum IfCondition {
 
 /// The kind of a while expression.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum WhileKind {
+pub enum WhileForm {
     /// Regular while expression (like `while <condition> <body>`)
     While,
     /// Do-while expression (like `do <body> while <condition>`)
@@ -1017,7 +1017,7 @@ pub enum WhileKind {
 
 /// The kind of a for each expression.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum ForEachKind {
+pub enum ForEachOperator {
     /// Of expression.
     Of,
     /// In expression.
@@ -1026,7 +1026,7 @@ pub enum ForEachKind {
 
 /// The declaration keyword used by a for each pattern binding.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum ForEachDeclarationKind {
+pub enum BindingKeyword {
     /// `var` declaration keyword.
     Var,
     /// `let` declaration keyword.
@@ -1041,7 +1041,7 @@ pub enum ForEachBinding {
     /// Regular pattern binding.
     Pattern {
         pattern: LocalNodeId<Pattern>,
-        declaration_kind: Option<ForEachDeclarationKind>,
+        keyword: Option<BindingKeyword>,
     },
     /// Using binding with optional async disposal.
     Using {
