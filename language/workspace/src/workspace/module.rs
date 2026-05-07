@@ -4,7 +4,7 @@ use std::sync::Arc;
 use destack_source::{FileId, LanguageType, Loader, ModuleId, PackageId, Uri};
 use im::OrdMap;
 
-use crate::config::{ModuleTarget, SourceType};
+use crate::config::SourceType;
 
 /// The runtime module system format.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
@@ -22,8 +22,6 @@ impl ModuleFormat {
         path: Option<&Path>,
         language_type: Option<LanguageType>,
         source_type: SourceType,
-        package_type: Option<&str>,
-        tsconfig_format: Option<Self>,
     ) -> Self {
         // destack modules always use esm semantics
         if language_type.is_some_and(|language_type| language_type.is_destack()) {
@@ -34,16 +32,6 @@ impl ModuleFormat {
         if let Some(path) = path
             && let Some(format) = Self::from_extension(path)
         {
-            return format;
-        }
-
-        // tsconfig module targets can force commonjs or esm semantics
-        if let Some(format) = tsconfig_format {
-            return format;
-        }
-
-        // package json type defines js or ts module format defaults
-        if let Some(format) = Self::from_package_type(package_type) {
             return format;
         }
 
@@ -70,28 +58,6 @@ impl ModuleFormat {
         }
     }
 
-    /// Detect a module format from one package type value.
-    pub fn from_package_type(package_type: Option<&str>) -> Option<Self> {
-        match package_type {
-            Some("module") => Some(Self::Esm),
-            Some("commonjs") => Some(Self::CommonJs),
-            _ => None,
-        }
-    }
-
-    /// Detect a module format from one tsconfig module target.
-    pub fn from_tsconfig_target(target: ModuleTarget) -> Option<Self> {
-        match target {
-            ModuleTarget::CommonJs => Some(Self::CommonJs),
-            ModuleTarget::Es2015
-            | ModuleTarget::Es2020
-            | ModuleTarget::Es2022
-            | ModuleTarget::EsNext
-            | ModuleTarget::Preserve => Some(Self::Esm),
-            ModuleTarget::Node16 | ModuleTarget::NodeNext | ModuleTarget::None => None,
-        }
-    }
-
     /// Return true when this module format is CommonJS.
     pub fn is_commonjs(self) -> bool {
         matches!(self, Self::CommonJs)
@@ -111,8 +77,6 @@ pub struct Module {
     pub path: Option<PathBuf>,
     /// The owning package id.
     pub package_id: PackageId,
-    /// The active tsconfig file id when one applies.
-    pub tsconfig_file_id: Option<FileId>,
     /// The source language type for code modules.
     pub language_type: Option<LanguageType>,
     /// The active source type.
@@ -140,7 +104,6 @@ impl Module {
             uri,
             path,
             package_id,
-            tsconfig_file_id: None,
             language_type,
             source_type: SourceType::default(),
             module_format: ModuleFormat::default(),

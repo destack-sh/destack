@@ -92,6 +92,6 @@ pub fn profile_flags_for_compiler_options(options: &CompilerOptions) -> ProfileF
         no_runtime: !options.no_runtime.is_allow(),
         no_internal_import: !options.no_internal_import.is_allow(),
         no_implicit_dynamic_dispatch: !options.no_implicit_dynamic_dispatch.is_allow(),
-        no_exceptions: !options.no_exceptions.is_allow(),
+        no_throw: !options.no_throw.is_allow(),
     }
 }

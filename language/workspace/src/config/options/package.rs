@@ -26,24 +26,6 @@ pub struct PackageOptions {
     pub homepage: Option<String>,
     /// Package keywords.
     pub keywords: Vec<String>,
-    /// Preferred package manager string.
-    pub package_manager: Option<String>,
-    /// Package module type.
-    pub module_type: Option<String>,
-    /// Package engines.
-    pub engines: IndexMap<String, String>,
-    /// Package exports map.
-    pub exports: Option<Value>,
-    /// Package imports map.
-    pub imports: IndexMap<String, Value>,
-    /// Runtime dependencies.
-    pub dependencies: IndexMap<String, String>,
-    /// Development dependencies.
-    pub dev_dependencies: IndexMap<String, String>,
-    /// Peer dependencies.
-    pub peer_dependencies: IndexMap<String, String>,
-    /// Optional dependencies.
-    pub optional_dependencies: IndexMap<String, String>,
     /// Specific files to include in the project.
     pub files: Vec<String>,
     /// Glob patterns for files to include.
@@ -113,15 +95,6 @@ impl From<&DestackJson> for PackageOptions {
             repository: json.repository.clone(),
             homepage: json.homepage.clone(),
             keywords: json.keywords.clone().unwrap_or_default(),
-            package_manager: json.package_manager.clone(),
-            module_type: json.module_type.clone(),
-            engines: json.engines.clone().unwrap_or_default(),
-            exports: json.exports.clone(),
-            imports: json.imports.clone().unwrap_or_default(),
-            dependencies: json.dependencies.clone().unwrap_or_default(),
-            dev_dependencies: json.dev_dependencies.clone().unwrap_or_default(),
-            peer_dependencies: json.peer_dependencies.clone().unwrap_or_default(),
-            optional_dependencies: json.optional_dependencies.clone().unwrap_or_default(),
             files: json.files.clone().unwrap_or_default(),
             include: json.include.clone().unwrap_or_default(),
             exclude: json.exclude.clone().unwrap_or_default(),

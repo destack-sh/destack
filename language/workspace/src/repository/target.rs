@@ -1,7 +1,7 @@
-use destack_source::{FileId, PackageId, TargetId};
+use destack_source::{PackageId, TargetId};
 
+use crate::Target;
 use crate::repository::{Repository, RepositoryError, Revision};
-use crate::{ModuleDetection, ModuleFormat, Target};
 
 impl Repository {
     /// Return one exact revision-scoped target by id when present.
@@ -84,41 +84,5 @@ impl Repository {
 
         // otherwise the package is ambiguous
         Ok(None)
-    }
-
-    /// Return the module detection mode from one tsconfig file.
-    pub(crate) fn tsconfig_module_detection(
-        &self,
-        revision: Revision,
-        tsconfig_file_id: Option<FileId>,
-    ) -> Result<ModuleDetection, RepositoryError> {
-        let Some(tsconfig_file_id) = tsconfig_file_id else {
-            return Ok(ModuleDetection::default());
-        };
-
-        let Some(tsconfig) = self.tsconfig_declaration_for_file(revision, tsconfig_file_id)? else {
-            return Ok(ModuleDetection::default());
-        };
-        let options = tsconfig.options();
-
-        Ok(options.compiler.module_detection)
-    }
-
-    /// Return the module format override from one tsconfig file.
-    pub(crate) fn tsconfig_module_format(
-        &self,
-        revision: Revision,
-        tsconfig_file_id: Option<FileId>,
-    ) -> Result<Option<ModuleFormat>, RepositoryError> {
-        let Some(tsconfig_file_id) = tsconfig_file_id else {
-            return Ok(None);
-        };
-
-        let Some(tsconfig) = self.tsconfig_declaration_for_file(revision, tsconfig_file_id)? else {
-            return Ok(None);
-        };
-        let module_target = tsconfig.options().compiler.module;
-
-        Ok(ModuleFormat::from_tsconfig_target(module_target))
     }
 }

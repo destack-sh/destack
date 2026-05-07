@@ -4,42 +4,9 @@ use std::sync::Arc;
 use destack_source::{FileId, PackageId};
 
 use crate::repository::{Repository, RepositoryError, Revision};
-use crate::{DestackDeclaration, Package, PackageDeclaration, PackageOptions, WorkspaceOptions};
+use crate::{DestackDeclaration, Package, PackageOptions, WorkspaceOptions};
 
 impl Repository {
-    /// Return one parsed package declaration by file id.
-    pub fn package_declaration_for_file(
-        &self,
-        revision: Revision,
-        file_id: FileId,
-    ) -> Result<Option<Arc<PackageDeclaration>>, RepositoryError> {
-        // read file
-        let Some(content_id) = self.file_content_id(revision, file_id)? else {
-            return Ok(None);
-        };
-
-        // already cached
-        if let Some(declaration) = self.file_cache.package_declarations.get(&content_id) {
-            return Ok(declaration.value().as_ref().ok().cloned());
-        }
-
-        // parse from source
-        let Some(file) = self.file(revision, file_id)? else {
-            return Ok(None);
-        };
-        let declaration = PackageDeclaration::parse(&file)
-            .map(Arc::new)
-            .map_err(|error| error.to_string());
-        let package_declaration = declaration.as_ref().ok().cloned();
-
-        // populate cache
-        self.file_cache
-            .package_declarations
-            .insert(content_id, declaration);
-
-        Ok(package_declaration)
-    }
-
     /// Return one parsed destack declaration by file id.
     pub fn destack_declaration_for_file(
         &self,
@@ -122,24 +89,6 @@ impl Repository {
         Ok(package_roots)
     }
 
-    /// Return the parsed package declaration for one package.
-    pub fn package_declaration_for_package(
-        &self,
-        revision: Revision,
-        package: &Package,
-    ) -> Result<Option<Arc<PackageDeclaration>>, RepositoryError> {
-        if let Some(package_file_id) = package.package_file_id {
-            return self.package_declaration_for_file(revision, package_file_id);
-        }
-
-        let Some(package_path) = package.path.as_ref() else {
-            return Ok(None);
-        };
-
-        let file_id = self.file_id(&package_path.join("package.json"));
-        self.package_declaration_for_file(revision, file_id)
-    }
-
     /// Return the parsed `destack.json` declaration for one package.
     pub fn destack_declaration_for_package(
         &self,
@@ -171,24 +120,5 @@ impl Repository {
         Ok(self
             .destack_declaration_for_package(revision, package.as_ref())?
             .map(|declaration| declaration.package_options()))
-    }
-
-    /// Return the package module type for one package.
-    pub(crate) fn package_module_type(
-        &self,
-        revision: Revision,
-        package: &Package,
-    ) -> Result<Option<String>, RepositoryError> {
-        if let Some(declaration) = self.destack_declaration_for_package(revision, package)?
-            && let Some(module_type) = declaration.package_options().module_type
-        {
-            return Ok(Some(module_type));
-        }
-
-        if let Some(declaration) = self.package_declaration_for_package(revision, package)? {
-            return Ok(declaration.module_type().map(str::to_string));
-        }
-
-        Ok(None)
     }
 }

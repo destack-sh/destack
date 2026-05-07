@@ -59,81 +59,6 @@
         "type": "string"
       }
     },
-    "packageManager": {
-      "description": "Preferred package manager string.",
-      "type": [
-        "string",
-        "null"
-      ]
-    },
-    "type": {
-      "description": "Package module type.",
-      "type": [
-        "string",
-        "null"
-      ]
-    },
-    "engines": {
-      "description": "Package engines.",
-      "type": [
-        "object",
-        "null"
-      ],
-      "additionalProperties": {
-        "type": "string"
-      }
-    },
-    "exports": {
-      "description": "Package exports map."
-    },
-    "imports": {
-      "description": "Package imports map.",
-      "type": [
-        "object",
-        "null"
-      ],
-      "additionalProperties": true
-    },
-    "dependencies": {
-      "description": "Runtime dependencies.",
-      "type": [
-        "object",
-        "null"
-      ],
-      "additionalProperties": {
-        "type": "string"
-      }
-    },
-    "devDependencies": {
-      "description": "Development dependencies.",
-      "type": [
-        "object",
-        "null"
-      ],
-      "additionalProperties": {
-        "type": "string"
-      }
-    },
-    "peerDependencies": {
-      "description": "Peer dependencies.",
-      "type": [
-        "object",
-        "null"
-      ],
-      "additionalProperties": {
-        "type": "string"
-      }
-    },
-    "optionalDependencies": {
-      "description": "Optional dependencies.",
-      "type": [
-        "object",
-        "null"
-      ],
-      "additionalProperties": {
-        "type": "string"
-      }
-    },
     "workspace": {
       "description": "Repository wide workspace membership.",
       "anyOf": [
@@ -146,7 +71,7 @@
       ]
     },
     "extends": {
-      "description": "Extends other Destack configs or tsconfig files by path.",
+      "description": "Extends other Destack configs by path.",
       "anyOf": [
         {
           "$ref": "#/$defs/ExtendsFieldJson"
@@ -346,26 +271,6 @@
       "description": "Destack configuration compiler options.",
       "type": "object",
       "properties": {
-        "baseUrl": {
-          "description": "Base URL for resolving non-relative module names.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "paths": {
-          "description": "Path alias mappings (resolved relative to baseUrl, like tsconfig paths).",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
         "module": {
           "description": "Module format for output (e.g., \"esnext\", \"commonjs\").",
           "type": [
@@ -375,51 +280,6 @@
         },
         "target": {
           "description": "ECMAScript target version (e.g., \"es2022\", \"esnext\").",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "moduleResolution": {
-          "description": "Module resolution strategy (e.g., \"bundler\", \"node16\", \"nodenext\").",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "resolvePackageJsonExports": {
-          "description": "Use package.json exports field during module resolution.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "resolvePackageJsonImports": {
-          "description": "Use package.json imports field during module resolution.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "customConditions": {
-          "description": "Custom package export conditions for module resolution.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
-        },
-        "nodeLinker": {
-          "description": "Package linker strategy for bare module resolution (`auto`, `node-modules`, `pnp`).",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "moduleDetection": {
-          "description": "How to detect modules versus scripts (e.g., \"auto\", \"force\", \"legacy\").",
           "type": [
             "string",
             "null"
@@ -538,8 +398,8 @@
             }
           ]
         },
-        "noExceptions": {
-          "description": "Policy for `throw` and `try`/`catch` (use Result types instead).",
+        "noThrow": {
+          "description": "Policy for `throw`.",
           "anyOf": [
             {
               "$ref": "#/$defs/DiagnosticPolicyJson"
@@ -579,34 +439,6 @@
         },
         "noEmit": {
           "description": "Do not emit output files.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "tsconfig": {
-          "description": "Path to tsconfig.json to inherit settings from.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "allowArbitraryExtensions": {
-          "description": "Allow arbitrary file extensions in import specifiers.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "allowImportingTsExtensions": {
-          "description": "Allow TypeScript file extensions in import specifiers.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "skipLibCheck": {
-          "description": "Skip type checking of declaration files (.d.ts, .d.ds).",
           "type": [
             "boolean",
             "null"
@@ -5931,25 +5763,9 @@
       ]
     },
     "TargetDependencyOptionsJson": {
-      "description": "Bundler dependency and resolution options in `destack.json`.",
+      "description": "Bundler dependency options in `destack.json`.",
       "type": "object",
       "properties": {
-        "packages": {
-          "description": "Package policy for node_modules style imports.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/BundlePackageMode"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "skipNodeModulesBundle": {
-          "description": "Whether to skip resolving and bundling node_modules entries entirely.",
-          "type": "boolean",
-          "default": false
-        },
         "external": {
           "description": "Module specifiers to leave external.",
           "type": [
@@ -5989,58 +5805,8 @@
           "items": {
             "type": "string"
           }
-        },
-        "alias": {
-          "description": "Module specifier aliases.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "conditions": {
-          "description": "Resolution conditions to prefer.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
-        },
-        "mainFields": {
-          "description": "Package.json fields to prefer during resolution.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
         }
       }
-    },
-    "BundlePackageMode": {
-      "description": "Package handling policy for node_modules style imports.",
-      "oneOf": [
-        {
-          "description": "Use the tool default package policy.",
-          "type": "string",
-          "const": "auto"
-        },
-        {
-          "description": "Prefer bundling package dependencies.",
-          "type": "string",
-          "const": "bundle"
-        },
-        {
-          "description": "Prefer leaving package dependencies external.",
-          "type": "string",
-          "const": "external"
-        }
-      ]
     },
     "TargetAssetOptionsJson": {
       "description": "Bundler asset handling options in `destack.json`.",

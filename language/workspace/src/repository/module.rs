@@ -5,12 +5,10 @@ use destack_source::{FileId, FileType, LanguageType, Loader, ModuleId, PackageId
 use im::OrdMap;
 
 use crate::repository::{FileEntry, Repository, RepositoryError, Revision};
-use crate::{
-    Module, ModuleDetection, ModuleFormat, ModuleIndex, Package, PackageIndex, SourceType,
-};
+use crate::{Module, ModuleFormat, ModuleIndex, Package, PackageIndex, SourceType};
 
 impl Repository {
-    /// Build one shared module with package and tsconfig configuration applied.
+    /// Build one shared module with package configuration applied.
     fn build_module(
         &self,
         revision: Revision,
@@ -24,15 +22,9 @@ impl Repository {
                 .ok_or(RepositoryError::MissingPackage {
                     package: module.package_id,
                 })?;
-        let tsconfig_file_id = match module.path.as_deref() {
-            Some(path) => self.tsconfig_file_id_for_path(revision, path)?,
-            None => None,
-        };
         let source_type = self.detect_module_source_type_for_package(
-            revision,
             module.path.as_deref(),
             package.as_ref(),
-            tsconfig_file_id,
             false,
         )?;
         let module_format = self.detect_module_format_for_package(
@@ -41,10 +33,8 @@ impl Repository {
             module.language_type,
             source_type,
             package.as_ref(),
-            tsconfig_file_id,
         )?;
 
-        module.tsconfig_file_id = tsconfig_file_id;
         module.source_type = source_type;
         module.module_format = module_format;
 
@@ -230,36 +220,12 @@ impl Repository {
     /// Detect source type for one module file in one revision.
     fn detect_module_source_type_for_package(
         &self,
-        revision: Revision,
         path: Option<&Path>,
-        package: &Package,
-        tsconfig_file_id: Option<FileId>,
+        _package: &Package,
         has_import_export: bool,
     ) -> Result<SourceType, RepositoryError> {
-        let package_type = self.package_module_type(revision, package)?;
-        let module_detection = self.tsconfig_module_detection(revision, tsconfig_file_id)?;
-
         if let Some(path) = path {
-            return Ok(SourceType::detect(
-                path,
-                has_import_export,
-                module_detection,
-                package_type.as_deref(),
-            ));
-        }
-
-        if module_detection == ModuleDetection::Force {
-            return Ok(SourceType::Module);
-        }
-
-        if let Some(package_type) = package_type.as_deref() {
-            if package_type == "module" {
-                return Ok(SourceType::Module);
-            }
-
-            if package_type == "commonjs" {
-                return Ok(SourceType::Script);
-            }
+            return Ok(SourceType::detect(path, has_import_export));
         }
 
         if has_import_export {
@@ -272,23 +238,13 @@ impl Repository {
     /// Detect module format for one module file in one revision.
     fn detect_module_format_for_package(
         &self,
-        revision: Revision,
+        _revision: Revision,
         path: Option<&Path>,
         language_type: Option<LanguageType>,
         source_type: SourceType,
-        package: &Package,
-        tsconfig_file_id: Option<FileId>,
+        _package: &Package,
     ) -> Result<ModuleFormat, RepositoryError> {
-        let package_type = self.package_module_type(revision, package)?;
-        let tsconfig_format = self.tsconfig_module_format(revision, tsconfig_file_id)?;
-
-        Ok(ModuleFormat::detect(
-            path,
-            language_type,
-            source_type,
-            package_type.as_deref(),
-            tsconfig_format,
-        ))
+        Ok(ModuleFormat::detect(path, language_type, source_type))
     }
 
     /// Return whether one workspace file should materialize as a module.
@@ -297,7 +253,7 @@ impl Repository {
             return false;
         };
 
-        if matches!(file_name, "package.json" | "destack.json" | "tsconfig.json") {
+        if file_name == "destack.json" {
             return false;
         }
 

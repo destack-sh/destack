@@ -5,17 +5,6 @@ use destack_source::{ModuleId, PackageId, TargetId, matches as glob_matches};
 use crate::repository::{Repository, Revision};
 use crate::{Target, TargetDiscovery};
 
-/// Select the source of entry points for entry discovery.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EntrySource {
-    /// Use only target entry paths.
-    Target,
-    /// Use only package manifest entry targets.
-    Manifest,
-    /// Use target entries first, then manifest entry targets.
-    Auto,
-}
-
 /// Select how entry paths are resolved against package and repository paths.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EntryResolutionMode {
@@ -27,22 +16,16 @@ pub enum EntryResolutionMode {
 
 /// Options for entry discovery behavior.
 #[derive(Debug, Clone)]
-pub struct TargetDiscoveryOptions<'a> {
-    /// Source policy for entry paths.
-    pub entry_source: EntrySource,
+pub struct TargetDiscoveryOptions {
     /// Resolution policy for selected entry paths.
     pub entry_resolution: EntryResolutionMode,
-    /// Manifest entry targets from package.json fields.
-    pub manifest_entry_targets: &'a [String],
 }
 
-impl<'a> Default for TargetDiscoveryOptions<'a> {
+impl Default for TargetDiscoveryOptions {
     /// Return the default target discovery options.
     fn default() -> Self {
         Self {
-            entry_source: EntrySource::Target,
             entry_resolution: EntryResolutionMode::Strict,
-            manifest_entry_targets: &[],
         }
     }
 }
@@ -98,105 +81,15 @@ impl Repository {
     /// Select effective entry paths for one target.
     fn select_target_entry_paths(
         &self,
-        revision: Revision,
         package_id: PackageId,
         target_id: TargetId,
-        package_path: &Option<PathBuf>,
         target: &Target,
-        options: &TargetDiscoveryOptions<'_>,
+        _options: &TargetDiscoveryOptions,
     ) -> Result<Vec<PathBuf>, TargetDiscoveryError> {
-        // target entries
-        if matches!(options.entry_source, EntrySource::Target) {
-            return Ok(target.entry.clone());
-        }
+        let _ = package_id;
+        let _ = target_id;
 
-        // target first auto mode
-        if matches!(options.entry_source, EntrySource::Auto) && !target.entry.is_empty() {
-            return Ok(target.entry.clone());
-        }
-
-        // manifest entries need a package directory
-        let package_directory =
-            package_path
-                .as_ref()
-                .ok_or(TargetDiscoveryError::MissingPackagePath {
-                    package: package_id,
-                    target: target_id,
-                })?;
-
-        // no manifest entries
-        if options.manifest_entry_targets.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        let module_paths = self.package_module_paths(revision, package_id, target_id)?;
-
-        Ok(Self::select_manifest_entry_paths(
-            package_directory,
-            &module_paths,
-            options.manifest_entry_targets,
-        ))
-    }
-
-    /// Select package entry paths from manifest target names.
-    fn select_manifest_entry_paths(
-        package_directory: &Path,
-        candidates: &[PathBuf],
-        manifest_entry_targets: &[String],
-    ) -> Vec<PathBuf> {
-        let mut selected_paths = Vec::new();
-
-        // manifest targets are package relative names
-        for manifest_entry_target in manifest_entry_targets {
-            let manifest_entry_path = package_directory.join(manifest_entry_target);
-
-            if candidates.contains(&manifest_entry_path) {
-                selected_paths.push(manifest_entry_path);
-            }
-        }
-
-        selected_paths
-    }
-
-    /// Return module paths for one package in one revision.
-    fn package_module_paths(
-        &self,
-        revision: Revision,
-        package_id: PackageId,
-        target_id: TargetId,
-    ) -> Result<Vec<PathBuf>, TargetDiscoveryError> {
-        let mut module_paths = Vec::new();
-        let module_ids = self
-            .package_module_ids(revision, package_id)
-            .map_err(|error| TargetDiscoveryError::Repository {
-                package: package_id,
-                target: target_id,
-                message: error.to_string(),
-            })?;
-
-        // package modules in the revision
-        for module_id in module_ids {
-            let module = self.module(revision, module_id).map_err(|error| {
-                TargetDiscoveryError::Repository {
-                    package: package_id,
-                    target: target_id,
-                    message: error.to_string(),
-                }
-            })?;
-            let Some(module) = module else {
-                continue;
-            };
-            let Some(module_path) = module.path.clone() else {
-                continue;
-            };
-
-            module_paths.push(module_path);
-        }
-
-        module_paths.sort();
-        module_paths.dedup();
-
-        Ok(module_paths)
+        Ok(target.entry.clone())
     }
 
     /// Resolve selected target paths to package-local module ids.
@@ -340,17 +233,10 @@ impl Repository {
         target_id: TargetId,
         package_path: &Option<PathBuf>,
         target: &Target,
-        options: &TargetDiscoveryOptions<'_>,
+        options: &TargetDiscoveryOptions,
     ) -> Result<Vec<ModuleId>, TargetDiscoveryError> {
         // entry paths
-        let entry_paths = self.select_target_entry_paths(
-            revision,
-            package_id,
-            target_id,
-            package_path,
-            target,
-            options,
-        )?;
+        let entry_paths = self.select_target_entry_paths(package_id, target_id, target, options)?;
 
         // repository modules
         self.resolve_target_paths(
@@ -371,7 +257,7 @@ impl Repository {
         target_id: TargetId,
         package_path: &Option<PathBuf>,
         target: &Target,
-        options: &TargetDiscoveryOptions<'_>,
+        options: &TargetDiscoveryOptions,
     ) -> Result<Vec<ModuleId>, TargetDiscoveryError> {
         self.resolve_target_paths(
             revision,
@@ -455,7 +341,7 @@ impl Repository {
         &self,
         revision: Revision,
         target_id: TargetId,
-        options: &TargetDiscoveryOptions<'_>,
+        options: &TargetDiscoveryOptions,
     ) -> Result<Vec<ModuleId>, TargetDiscoveryError> {
         // package and target
         let package_id = target_id.package_id();

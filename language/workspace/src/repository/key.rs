@@ -1,7 +1,7 @@
 use destack_artifact::ProfileKey;
 
 use crate::{
-    CompilerOptions, HostEnvironment, ProfileEnvironment, ProfileOptions, Target, TsConfigOptions,
+    CompilerOptions, HostEnvironment, ProfileEnvironment, ProfileOptions, Target,
     profile_flags_for_compiler_options,
 };
 
@@ -10,7 +10,6 @@ pub(crate) fn profile_key_for_target(
     target: &Target,
     compiler_options: &CompilerOptions,
     profile_config: Option<&ProfileOptions>,
-    _tsconfig_options: Option<&TsConfigOptions>,
     environment: &HostEnvironment,
 ) -> ProfileKey {
     let mut compiler_options = compiler_options.clone();
@@ -70,7 +69,6 @@ pub(crate) fn profile_key_for_target(
         derive,
         debug,
         test,
-        compiler_options.skip_lib_check,
         env,
         flags,
     )

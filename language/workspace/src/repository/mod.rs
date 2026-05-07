@@ -15,7 +15,6 @@ mod publish;
 mod repository;
 mod revision;
 mod target;
-mod tsconfig;
 
 pub use artifact::*;
 pub(crate) use cache::*;

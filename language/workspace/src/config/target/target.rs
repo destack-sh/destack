@@ -5,7 +5,7 @@ use destack_source::TargetId;
 use indexmap::IndexMap;
 use serde::Deserialize;
 
-use crate::CompilerOptions;
+use crate::{CompilerOptions, EsTarget, JsModuleFormat};
 
 use super::super::policy::{
     BoundsCheckPolicy, BoundsCheckPolicyJson, CheckFailurePolicy, CheckFailurePolicyJson,
@@ -18,8 +18,6 @@ use super::super::policy::{
 use super::super::runtime::{
     RuntimeAppDeclaration, RuntimeConfigJson, RuntimeOptions, runtime_options_with_base,
 };
-use super::super::tsconfig::{EsTarget, ModuleTarget};
-
 use super::app::*;
 use super::bundle::*;
 use super::execution::*;
@@ -56,8 +54,8 @@ pub struct Target {
     pub exclude: Vec<String>,
 
     // output generation
-    /// Module format (esnext, commonjs, etc.).
-    pub module: ModuleTarget,
+    /// JavaScript module format.
+    pub module: JsModuleFormat,
     /// ECMAScript target version.
     pub es_target: EsTarget,
     /// Explicit profile name for this target.
@@ -688,7 +686,7 @@ impl Target {
     }
 
     /// Set the module format.
-    pub fn with_module(mut self, module: ModuleTarget) -> Self {
+    pub fn with_module(mut self, module: JsModuleFormat) -> Self {
         self.module = module;
         self
     }
@@ -1129,8 +1127,8 @@ pub struct TargetOptions {
     pub declaration_dir: Option<PathBuf>,
 
     // JS/TS specific
-    /// Module format for this target.
-    pub module: ModuleTarget,
+    /// JavaScript module format for this target.
+    pub module: JsModuleFormat,
     /// ECMAScript target for this target.
     pub es_target: EsTarget,
     /// Explicit profile name for this target.
@@ -1272,7 +1270,7 @@ impl Default for TargetOptions {
             out_dir: PathBuf::from(DEFAULT_TARGET_OUT_DIR),
             out_file: None,
             declaration_dir: None,
-            module: ModuleTarget::default(),
+            module: JsModuleFormat::default(),
             es_target: EsTarget::default(),
             profile: None,
             mode: None,
@@ -1621,7 +1619,7 @@ impl TargetOptions {
             module: json
                 .module
                 .as_deref()
-                .and_then(ModuleTarget::parse)
+                .and_then(JsModuleFormat::parse)
                 .unwrap_or_default(),
             es_target: json
                 .target

@@ -31,12 +31,8 @@ pub struct Package {
     pub name: Option<String>,
     /// The package version.
     pub version: Option<String>,
-    /// The package.json declaration file id when present.
-    pub package_file_id: Option<FileId>,
     /// The destack.json declaration file id when present.
     pub destack_file_id: Option<FileId>,
-    /// The root tsconfig file for the package when present.
-    pub tsconfig_file_id: Option<FileId>,
     /// The package targets.
     pub targets: IndexMap<TargetId, Target>,
 }

@@ -24,23 +24,10 @@ impl Repository {
         files: &OrdMap<FileId, FileEntry>,
         package: &Package,
     ) -> Result<Arc<Package>, RepositoryError> {
-        let package_file_id = package
-            .path
-            .as_ref()
-            .and_then(|path| self.tracked_file_id(files, &path.join("package.json")));
         let destack_file_id = package
             .path
             .as_ref()
             .and_then(|path| self.tracked_file_id(files, &path.join("destack.json")));
-        let tsconfig_file_id = package
-            .path
-            .as_ref()
-            .and_then(|path| self.tracked_file_id(files, &path.join("tsconfig.json")));
-
-        let package_declaration = match package_file_id {
-            Some(file_id) => self.package_declaration_for_file(revision, file_id)?,
-            None => None,
-        };
         let destack_declaration = match destack_file_id {
             Some(file_id) => self.destack_declaration_for_file(revision, file_id)?,
             None => None,
@@ -67,23 +54,11 @@ impl Repository {
             path: package.path.clone(),
             name: package_options
                 .as_ref()
-                .and_then(|options| options.name.clone())
-                .or_else(|| {
-                    package_declaration
-                        .as_ref()
-                        .and_then(|declaration| declaration.name().map(ToOwned::to_owned))
-                }),
+                .and_then(|options| options.name.clone()),
             version: package_options
                 .as_ref()
-                .and_then(|options| options.version.clone())
-                .or_else(|| {
-                    package_declaration
-                        .as_ref()
-                        .and_then(|declaration| declaration.version().map(ToOwned::to_owned))
-                }),
-            package_file_id,
+                .and_then(|options| options.version.clone()),
             destack_file_id,
-            tsconfig_file_id,
             targets,
         };
 
@@ -106,7 +81,7 @@ impl Repository {
                 continue;
             };
 
-            if matches!(file_name, "package.json" | "destack.json") {
+            if file_name == "destack.json" {
                 let package_root = path.parent().unwrap_or(self.root.as_path()).to_path_buf();
                 physical_roots.insert(package_root);
             }
@@ -237,9 +212,7 @@ impl Repository {
             path: Some(package_root),
             name: None,
             version: None,
-            package_file_id: None,
             destack_file_id: None,
-            tsconfig_file_id: None,
             targets: IndexMap::new(),
         }
     }
