@@ -1,21 +1,12 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Asynchrony, FunctionMode, GenericParameter, LocalNodeId, Parameter, TypeExpression, WhereClause,
+    Asynchrony, FunctionRole, GenericParameter, LocalNodeId, Parameter, TypeExpression, WhereClause,
 };
 
-/// The cardinality of a function.
+/// The source form of a function.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-pub enum FunctionCardinality {
-    /// Scalar function.
-    Scalar,
-    /// Generator function.
-    Generator,
-}
-
-/// The style of a function.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-pub enum FunctionKind {
+pub enum FunctionForm {
     /// A normal function.
     Function,
     /// A lambda function.
@@ -25,18 +16,12 @@ pub enum FunctionKind {
 /// The signature of a function.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FunctionSignature {
-    /// Whether the function is abstract.
-    pub is_abstract: bool,
-    /// Whether the function is an override.
-    pub is_override: bool,
     /// The asynchrony of the function.
     pub asynchrony: Asynchrony,
-    /// The cardinality of the function.
-    pub cardinality: FunctionCardinality,
-    /// The mode of the function.
-    pub mode: Option<FunctionMode>,
-    /// The kind of the function.
-    pub kind: FunctionKind,
+    /// The special role of the function.
+    pub role: Option<FunctionRole>,
+    /// The source form of the function.
+    pub form: FunctionForm,
     /// The generic parameters of the function.
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The where clauses of the function.
@@ -47,4 +32,10 @@ pub struct FunctionSignature {
     pub parameters: Vec<LocalNodeId<Parameter>>,
     /// The return type of the function.
     pub return_type: Option<LocalNodeId<TypeExpression>>,
+    /// Whether the function is abstract.
+    pub is_abstract: bool,
+    /// Whether the function is an override.
+    pub is_override: bool,
+    /// Whether the function is a generator.
+    pub is_generator: bool,
 }

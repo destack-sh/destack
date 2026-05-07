@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Ambientness, Expression, FunctionSignature, GenericParameter, Key, Keyword, LocalNodeId,
-    Mutability, Node, NodeType, StringId, TypeExpression, Visibility, WhereClause,
+    Expression, FunctionSignature, GenericParameter, Key, Keyword, LocalNodeId, Mutability, Node,
+    NodeType, StringId, TypeExpression, Visibility, WhereClause,
 };
 
 /// Variance annotation for generic parameters.
@@ -27,9 +27,9 @@ impl VarianceModifier {
     }
 }
 
-/// The mode of a function.
+/// The special role of a function.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-pub enum FunctionMode {
+pub enum FunctionRole {
     /// Getter function.
     Getter,
     /// Setter function.
@@ -42,16 +42,16 @@ pub enum FunctionMode {
     Call,
 }
 
-impl FunctionMode {
+impl FunctionRole {
     /// Get the keyword for the function accessor.
     #[inline]
     pub fn to_keyword(&self) -> Option<Keyword> {
         match self {
-            FunctionMode::Getter => Some(Keyword::Get),
-            FunctionMode::Setter => Some(Keyword::Set),
-            FunctionMode::Constructor => Some(Keyword::Constructor),
-            FunctionMode::New => Some(Keyword::New),
-            FunctionMode::Call => None,
+            FunctionRole::Getter => Some(Keyword::Get),
+            FunctionRole::Setter => Some(Keyword::Set),
+            FunctionRole::Constructor => Some(Keyword::Constructor),
+            FunctionRole::New => Some(Keyword::New),
+            FunctionRole::Call => None,
         }
     }
 }
@@ -111,7 +111,7 @@ pub enum Member {
         constraint: Option<LocalNodeId<TypeExpression>>,
         value: Option<LocalNodeId<TypeExpression>>,
         visibility: Option<Visibility>,
-        ambient: Ambientness,
+        is_ambient: bool,
         is_abstract: bool,
         is_override: bool,
         is_static: bool,
@@ -122,7 +122,7 @@ pub enum Member {
         declared_type: Option<LocalNodeId<TypeExpression>>,
         value: Option<LocalNodeId<Expression>>,
         visibility: Option<Visibility>,
-        ambient: Ambientness,
+        is_ambient: bool,
         is_static: bool,
     },
     /// Named field.
@@ -130,11 +130,11 @@ pub enum Member {
         key: Key,
         declared_type: Option<LocalNodeId<TypeExpression>>,
         default: Option<LocalNodeId<Expression>>,
-        is_optional: bool,
-        is_readonly: bool,
         mutability: Option<Mutability>,
         visibility: Option<Visibility>,
-        ambient: Ambientness,
+        is_optional: bool,
+        is_readonly: bool,
+        is_ambient: bool,
         is_abstract: bool,
         is_override: bool,
         is_static: bool,
@@ -148,8 +148,8 @@ pub enum Member {
         signature: FunctionSignature,
         body: Option<LocalNodeId<Expression>>,
         visibility: Option<Visibility>,
-        ambient: Ambientness,
         is_optional: bool,
+        is_ambient: bool,
         is_abstract: bool,
         is_override: bool,
         is_static: bool,
@@ -160,7 +160,7 @@ pub enum Member {
     Embed {
         value: LocalNodeId<TypeExpression>,
         visibility: Option<Visibility>,
-        ambient: Ambientness,
+        is_ambient: bool,
         is_static: bool,
     },
     /// Static initialization block.

@@ -11,19 +11,19 @@ use crate::{
 pub enum TypeMember {
     /// Named field.
     Field {
+        key: Key,
+        declared_type: Option<LocalNodeId<TypeExpression>>,
         is_static: bool,
         is_optional: bool,
         is_readonly: bool,
-        key: Key,
-        declared_type: Option<LocalNodeId<TypeExpression>>,
     },
     /// Named method.
     Method {
-        is_static: bool,
-        is_optional: bool,
         key: Key,
         signature: FunctionSignature,
         body: Option<LocalNodeId<Expression>>,
+        is_static: bool,
+        is_optional: bool,
     },
     /// Call signature declaration.
     CallSignature { signature: FunctionTypeDeclaration },
@@ -33,11 +33,11 @@ pub enum TypeMember {
     },
     /// Index signature.
     IndexSignature {
-        is_optional: bool,
-        is_readonly: bool,
         name: StringId,
         key_type: LocalNodeId<TypeExpression>,
         value_type: LocalNodeId<TypeExpression>,
+        is_optional: bool,
+        is_readonly: bool,
     },
     /// Type embedding.
     Embed { value: LocalNodeId<TypeExpression> },
@@ -105,7 +105,7 @@ pub struct TypeMappedParameter {
 
 /// A mapped-type modifier sign.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum TypeModifier {
+pub enum MappedTypeModifier {
     /// The plain modifier without an explicit sign.
     Present,
     /// Add a modifier with an explicit `+` sign.
@@ -143,8 +143,6 @@ pub struct FunctionTypeDeclaration {
 /// One constructor type declaration in type space.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ConstructorTypeDeclaration {
-    /// Whether the constructor type is abstract.
-    pub is_abstract: bool,
     /// The generic parameters of the constructor type.
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The where clauses of the constructor type.
@@ -153,54 +151,148 @@ pub struct ConstructorTypeDeclaration {
     pub parameters: Vec<LocalNodeId<Parameter>>,
     /// The return type of the constructor type.
     pub return_type: Option<LocalNodeId<TypeExpression>>,
+    /// Whether the constructor type is abstract.
+    pub is_abstract: bool,
 }
 
-/// A type-space syntax node.
+/// A type-space expression.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TypeExpression {
     /// Parenthesized type expression.
+    ///
+    /// Examples:
+    /// ```
+    /// (T)
+    /// (string | number)
+    /// ```
     Parenthesized {
         expression: LocalNodeId<TypeExpression>,
     },
 
-    /// Scalar literal type syntax.
+    /// Scalar literal type.
+    ///
+    /// Examples:
+    /// ```
+    /// "ok"
+    /// 42
+    /// true
+    /// ```
     ScalarLiteral { value: ScalarLiteral },
 
-    /// Literal type syntax.
+    /// Literal type.
+    ///
+    /// Examples:
+    /// ```
+    /// null
+    /// undefined
+    /// ```
     Literal { value: TypeLiteral },
 
-    /// Bare `intrinsic` marker syntax in type space.
+    /// Bare `intrinsic` marker in type space.
+    ///
+    /// Examples:
+    /// ```
+    /// intrinsic
+    /// ```
     Intrinsic,
 
-    /// Parenthesized tuple type syntax.
+    /// Parenthesized tuple type.
+    ///
+    /// Examples:
+    /// ```
+    /// (A, B)
+    /// (name: string, age: number)
+    /// ```
     Tuple {
         elements: Vec<LocalNodeId<TupleElement>>,
     },
 
-    /// Bracket tuple type syntax.
+    /// Bracket tuple type.
+    ///
+    /// Examples:
+    /// ```
+    /// [A, B]
+    /// [name: string, age: number]
+    /// ```
     ArrayTuple {
         elements: Vec<LocalNodeId<TupleElement>>,
     },
 
-    /// Array type syntax.
+    /// Homogeneous array type.
+    ///
+    /// Examples:
+    /// ```
+    /// T[]
+    /// string[]
+    /// ```
     Array {
         element: LocalNodeId<TypeExpression>,
     },
 
-    /// Object type syntax.
+    /// Runtime-length homogeneous view type.
+    ///
+    /// Examples:
+    /// ```
+    /// [T]
+    /// [byte]
+    /// ```
+    Slice {
+        /// The element type.
+        element: LocalNodeId<TypeExpression>,
+    },
+
+    /// Fixed-length array type.
+    ///
+    /// Examples:
+    /// ```
+    /// [T; N]
+    /// [byte; 32]
+    /// ```
+    FixedArray {
+        /// The element type.
+        element: LocalNodeId<TypeExpression>,
+        /// The length expression.
+        length: LocalNodeId<TypeExpression>,
+    },
+
+    /// Object type.
+    ///
+    /// Examples:
+    /// ```
+    /// { name: string }
+    /// { readonly id: string; age?: number }
+    /// ```
     Object {
         members: Vec<LocalNodeId<TypeMember>>,
     },
 
-    /// Embedded declaration type syntax.
+    /// Embedded declaration type.
+    ///
+    /// Examples:
+    /// ```
+    /// struct User { name: string }
+    /// interface Named { name: string }
+    /// ```
     Declaration {
         declaration: LocalNodeId<Declaration>,
     },
 
-    /// Function type declaration syntax.
+    /// Function type declaration.
+    ///
+    /// Examples:
+    /// ```
+    /// (value: T) => U
+    /// <T>(value: T): T
+    /// ```
     FunctionTypeDeclaration(FunctionTypeDeclaration),
 
-    /// Constructor type declaration syntax.
+    /// Constructor type declaration.
+    ///
+    /// Examples:
+    /// ```
+    /// new (value: string) => User
+    /// abstract new <T>(value: T): Box<T>
+    /// ```
     ConstructorTypeDeclaration(ConstructorTypeDeclaration),
 
     /// Qualified type reference with optional generic arguments.
@@ -230,9 +322,19 @@ pub enum TypeExpression {
     },
 
     /// `const` in type space.
+    ///
+    /// Examples:
+    /// ```
+    /// const
+    /// ```
     Const,
 
     /// `this` in type space.
+    ///
+    /// Examples:
+    /// ```
+    /// this
+    /// ```
     This,
 
     /// Type import expression.
@@ -251,34 +353,76 @@ pub enum TypeExpression {
     },
 
     /// `readonly T`.
+    ///
+    /// Examples:
+    /// ```
+    /// readonly string[]
+    /// readonly [T]
+    /// ```
     Readonly {
         target_type: LocalNodeId<TypeExpression>,
     },
 
     /// `keyof T`.
+    ///
+    /// Examples:
+    /// ```
+    /// keyof T
+    /// keyof User
+    /// ```
     KeyOf {
         target_type: LocalNodeId<TypeExpression>,
     },
 
     /// `typeof value`.
+    ///
+    /// Examples:
+    /// ```
+    /// typeof value
+    /// typeof namespace.Member
+    /// ```
     TypeOfValue { value: LocalNodeId<Expression> },
 
     /// `T!`.
+    ///
+    /// Examples:
+    /// ```
+    /// T!
+    /// string!
+    /// ```
     Must {
         target_type: LocalNodeId<TypeExpression>,
     },
 
     /// `T as comptime`.
+    ///
+    /// Examples:
+    /// ```
+    /// T as comptime
+    /// typeof value as comptime
+    /// ```
     AsComptime {
         target_type: LocalNodeId<TypeExpression>,
     },
 
     /// `!T`.
+    ///
+    /// Examples:
+    /// ```
+    /// !T
+    /// !false
+    /// ```
     Not {
         target_type: LocalNodeId<TypeExpression>,
     },
 
     /// `^T`.
+    ///
+    /// Examples:
+    /// ```
+    /// ^T
+    /// ^mut T
+    /// ```
     ValueOf {
         mutability: Option<Mutability>,
         variance: Option<VarianceBound>,
@@ -286,6 +430,12 @@ pub enum TypeExpression {
     },
 
     /// `&T`.
+    ///
+    /// Examples:
+    /// ```
+    /// &T
+    /// &mut T
+    /// ```
     ReferenceOf {
         mutability: Option<Mutability>,
         variance: Option<VarianceBound>,
@@ -293,6 +443,12 @@ pub enum TypeExpression {
     },
 
     /// `*T`.
+    ///
+    /// Examples:
+    /// ```
+    /// *T
+    /// *mut T
+    /// ```
     PointerOf {
         mutability: Option<Mutability>,
         target_type: LocalNodeId<TypeExpression>,
@@ -342,8 +498,8 @@ pub enum TypeExpression {
     /// ```
     Mapped {
         parameter: TypeMappedParameter,
-        readonly: TypeModifier,
-        optional: TypeModifier,
+        readonly: MappedTypeModifier,
+        optional: MappedTypeModifier,
         value: LocalNodeId<TypeExpression>,
     },
 
@@ -372,6 +528,12 @@ pub enum TypeExpression {
     },
 
     /// Infer binding.
+    ///
+    /// Examples:
+    /// ```
+    /// infer T
+    /// infer Item extends string
+    /// ```
     Infer {
         name: StringId,
         constraint: Option<LocalNodeId<TypeExpression>>,

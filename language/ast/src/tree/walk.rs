@@ -265,9 +265,16 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_tuple_element(tree, *element_id, element);
             }
         }
-        TypeExpression::Array { element } => {
+        TypeExpression::Array { element } | TypeExpression::Slice { element } => {
             let element_node = tree.get(*element);
             visitor.visit_type_expression(tree, *element, element_node);
+        }
+        TypeExpression::FixedArray { element, length } => {
+            let element_node = tree.get(*element);
+            visitor.visit_type_expression(tree, *element, element_node);
+
+            let length_node = tree.get(*length);
+            visitor.visit_type_expression(tree, *length, length_node);
         }
         TypeExpression::Object { members } => {
             for member_id in members {
@@ -708,7 +715,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 
         Expression::Import {
             source: _,
-            kind: _,
+            space: _,
             target,
             items,
             attributes: _,
@@ -733,7 +740,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
 
         Expression::Export {
-            kind: _,
+            space: _,
             target: _,
             items,
             attributes: _,
@@ -749,7 +756,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             kind: _,
             mutability: _,
             export: _,
-            ambient: _,
+            is_ambient: _,
             declarators,
         } => {
             for declarator_id in declarators {
@@ -772,7 +779,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::Using {
             asynchrony: _,
             export: _,
-            ambient: _,
+            is_ambient: _,
             declarators,
         } => {
             for declarator_id in declarators {
@@ -782,7 +789,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
 
         Expression::If {
-            kind: _,
+            form: _,
             condition,
             then_expression,
             else_expression,
@@ -806,7 +813,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
 
         Expression::While {
-            kind: _,
+            form: _,
             condition,
             body,
         } => {
@@ -818,7 +825,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 
         Expression::ForEach {
             asynchrony: _,
-            kind: _,
+            operator: _,
             binding,
             iterator,
             body,
@@ -897,7 +904,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
 
         Expression::Match {
-            kind: _,
+            form: _,
             value,
             cases,
         } => {
@@ -1365,6 +1372,12 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *expression_id, expression);
             }
         }
+        Declaration::Module(declaration) => {
+            for expression_id in &declaration.expressions {
+                let expression = tree.get(*expression_id);
+                visitor.visit_expression(tree, *expression_id, expression);
+            }
+        }
         Declaration::Namespace(declaration) => {
             for parameter_id in &declaration.generic_parameters {
                 let parameter = tree.get(*parameter_id);
@@ -1589,7 +1602,7 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
             constraint,
             value,
             visibility: _,
-            ambient: _,
+            is_ambient: _,
             is_abstract: _,
             is_override: _,
             is_static: _,
@@ -1616,7 +1629,7 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
             declared_type,
             value,
             visibility: _,
-            ambient: _,
+            is_ambient: _,
             is_static: _,
         } => {
             if let Some(declared_type) = declared_type {
@@ -1636,7 +1649,7 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
             is_readonly: _,
             mutability: _,
             visibility: _,
-            ambient: _,
+            is_ambient: _,
             is_abstract: _,
             is_override: _,
             is_static: _,
@@ -1660,7 +1673,7 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
             body,
             is_optional: _,
             visibility: _,
-            ambient: _,
+            is_ambient: _,
             is_abstract: _,
             is_override: _,
             is_static: _,
@@ -1898,7 +1911,7 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
                 visitor.visit_pattern_field(tree, *field_id, field);
             }
         }
-        Pattern::Array { fields } => {
+        Pattern::Sequence { fields } => {
             for field_id in fields {
                 let field = tree.get(*field_id);
                 visitor.visit_pattern_field(tree, *field_id, field);
@@ -1997,7 +2010,7 @@ pub fn walk_assign_pattern<V: NodeVisitor + ?Sized>(
             let value_expression = tree.get(*value);
             visitor.visit_expression(tree, *value, value_expression);
         }
-        AssignPattern::Array { fields } | AssignPattern::Object { fields } => {
+        AssignPattern::Sequence { fields } | AssignPattern::Object { fields } => {
             for field_id in fields {
                 let field = tree.get(*field_id);
                 visitor.visit_assign_pattern_field(tree, *field_id, field);

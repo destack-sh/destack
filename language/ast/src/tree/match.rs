@@ -4,7 +4,7 @@ use crate::{Block, Expression, LocalNodeId, Node, NodeType, Pattern};
 
 /// The style of a match expression.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum MatchKind {
+pub enum MatchForm {
     /// Regular match expression (like `match <expr> { ... }`).
     Match,
     /// Switch expression with cases (like `switch <expr> { ... }`).

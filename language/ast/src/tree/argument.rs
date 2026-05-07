@@ -37,25 +37,25 @@ pub enum Parameter {
     /// Named scalar parameter.
     Named {
         name: StringId,
+        declared_type: Option<LocalNodeId<TypeExpression>>,
+        default: Option<LocalNodeId<Expression>>,
         visibility: Option<Visibility>,
         is_readonly: bool,
         is_optional: bool,
-        declared_type: Option<LocalNodeId<TypeExpression>>,
-        default: Option<LocalNodeId<Expression>>,
     },
     /// Pattern parameter.
     Pattern {
         pattern: LocalNodeId<Pattern>,
-        is_optional: bool,
         declared_type: Option<LocalNodeId<TypeExpression>>,
         default: Option<LocalNodeId<Expression>>,
+        is_optional: bool,
     },
     /// Variadic named parameter.
     VariadicNamed {
         name: StringId,
+        declared_type: Option<LocalNodeId<TypeExpression>>,
         visibility: Option<Visibility>,
         is_readonly: bool,
-        declared_type: Option<LocalNodeId<TypeExpression>>,
     },
     /// Variadic pattern parameter.
     VariadicPattern {

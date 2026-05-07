@@ -2,9 +2,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Expression, LocalNodeId, Node, NodeType};
 
-/// How a block is defined.
+/// The structural form of a block.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-pub enum BlockFormat {
+pub enum BlockForm {
     /// Explicit blocks with { ... }
     Explicit,
     /// Implicit blocks like in file modules.
@@ -33,8 +33,8 @@ pub enum BlockContext {
 pub struct Block {
     /// The block context.
     pub context: BlockContext,
-    /// The format of the block.
-    pub format: BlockFormat,
+    /// The structural form of the block.
+    pub form: BlockForm,
     /// The leading expressions whose values are discarded.
     pub leading_expressions: Vec<LocalNodeId<Expression>>,
     /// The optional tail expression whose value becomes the block value.

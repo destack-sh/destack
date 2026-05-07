@@ -19,7 +19,7 @@ pub enum DecoratorPosition {
     LinePostfixBoundary,
 }
 
-/// A decorator attached to a syntax node.
+/// A decorator attached to an owner node.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Decorator {
     /// The decorator expression.
