@@ -19,12 +19,8 @@ pub enum FileChange {
 pub enum FileUpdateKind {
     /// One unknown or ordinary source change.
     Unknown,
-    /// One `package.json` change.
-    Package,
     /// One `destack.json` change.
     Destack,
-    /// One `tsconfig*.json` change.
-    TsConfig,
 }
 
 impl FileUpdateKind {
@@ -34,17 +30,9 @@ impl FileUpdateKind {
             return Self::Unknown;
         };
 
-        // package manifest
-        if file_name == "package.json" {
-            Self::Package
-        }
         // destack manifest
-        else if file_name == "destack.json" {
+        if file_name == "destack.json" {
             Self::Destack
-        }
-        // typescript config
-        else if file_name.starts_with("tsconfig") && file_name.ends_with(".json") {
-            Self::TsConfig
         }
         // ordinary source
         else {
@@ -54,7 +42,7 @@ impl FileUpdateKind {
 
     /// Return true when this kind is one config change.
     pub(crate) fn is_config_change(&self) -> bool {
-        matches!(self, Self::Package | Self::Destack | Self::TsConfig)
+        matches!(self, Self::Destack)
     }
 }
 

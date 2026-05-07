@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use destack_compiler::Compiler;
 use destack_linter::Linter;
+use destack_query::Query;
 use destack_resolver::{CachePolicy, Resolver, ResolverContext, ResolverOptions};
 use destack_session::{FileChange, Session};
 use destack_source::{FileType, ModuleId, ProfileId, TargetId, glob};
@@ -63,6 +64,7 @@ impl<'a> CommandContext<'a> {
 
         // private command session
         let linter = Arc::new(Linter::new(repository.clone()));
+        let query = Arc::new(Query::new(repository.clone()));
         let cwd = common.cwd.clone().unwrap_or_else(|| root.clone());
         let head = daemon.next_command_ref(&root);
         let session = Session::fork(
@@ -73,6 +75,7 @@ impl<'a> CommandContext<'a> {
             revision,
             compiler.clone(),
             linter,
+            query,
             daemon.worker_limit,
             None,
         )

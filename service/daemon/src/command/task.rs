@@ -275,7 +275,7 @@ struct TaskProject {
     package_name: Option<String>,
     /// Project directory.
     project_dir: PathBuf,
-    /// Available tasks and scripts.
+    /// Available tasks.
     tasks: Vec<TaskSpec>,
 }
 
@@ -284,8 +284,6 @@ struct TaskProject {
 enum TaskSpecSource {
     /// Task came from destack.json.
     Destack,
-    /// Task came from package.json scripts.
-    PackageJson,
 }
 
 impl TaskSpecSource {
@@ -293,7 +291,6 @@ impl TaskSpecSource {
     fn as_str(self) -> &'static str {
         match self {
             Self::Destack => "destack",
-            Self::PackageJson => "package.json",
         }
     }
 }
@@ -313,28 +310,17 @@ struct TaskSpec {
     source: TaskSpecSource,
 }
 
-/// Load task and script specifications for one project path.
+/// Load task specifications for one project path.
 fn load_tasks(
     repository: &Repository,
     revision: Revision,
-    project_path: &Path,
     destack_config_path: Option<&Path>,
 ) -> CommandResult<Vec<TaskSpec>> {
-    let mut tasks = if let Some(destack_config_path) = destack_config_path {
+    let tasks = if let Some(destack_config_path) = destack_config_path {
         load_destack_tasks(repository, revision, destack_config_path)?
     } else {
         Vec::new()
     };
-
-    // merge package scripts after destack tasks
-    let package_scripts = load_package_scripts(repository, revision, project_path)?;
-    for script in package_scripts {
-        if tasks.iter().any(|task| task.name == script.name) {
-            continue;
-        }
-
-        tasks.push(script);
-    }
 
     Ok(tasks)
 }
@@ -378,12 +364,7 @@ fn load_task_project(
     } else {
         load_package_name(repository, revision, project_path)?
     };
-    let tasks = load_tasks(
-        repository,
-        revision,
-        project_path,
-        destack_config_path.as_deref(),
-    )?;
+    let tasks = load_tasks(repository, revision, destack_config_path.as_deref())?;
 
     Ok(TaskProject {
         project,
@@ -490,50 +471,7 @@ fn load_destack_tasks(
     Ok(tasks)
 }
 
-/// Load package.json scripts adjacent to one config path.
-fn load_package_scripts(
-    repository: &Repository,
-    revision: Revision,
-    project_path: &Path,
-) -> CommandResult<Vec<TaskSpec>> {
-    let package = repository
-        .nearest_package(revision, project_path)
-        .map_err(|error| error.to_string())?;
-    let Some(package) = package else {
-        return Ok(Vec::new());
-    };
-
-    let declaration = repository
-        .package_declaration_for_package(revision, package.as_ref())
-        .map_err(|error| error.to_string())?;
-    let Some(declaration) = declaration else {
-        return Ok(Vec::new());
-    };
-
-    let Some(scripts) = declaration.manifest.scripts.as_ref() else {
-        return Ok(Vec::new());
-    };
-    let package_dir = declaration
-        .path
-        .parent()
-        .map(PathBuf::from)
-        .unwrap_or_else(|| project_path.to_path_buf());
-
-    let mut tasks = Vec::new();
-    for (name, command) in scripts {
-        tasks.push(TaskSpec {
-            name: name.clone(),
-            command: command.clone(),
-            description: None,
-            cwd: Some(package_dir.clone()),
-            source: TaskSpecSource::PackageJson,
-        });
-    }
-
-    Ok(tasks)
-}
-
-/// Load the package name from one exact package.json path.
+/// Load the package name for one project path.
 fn load_package_name(
     repository: &Repository,
     revision: Revision,
@@ -546,11 +484,7 @@ fn load_package_name(
         return Ok(None);
     };
 
-    let declaration = repository
-        .package_declaration_for_package(revision, package.as_ref())
-        .map_err(|error| error.to_string())?;
-
-    Ok(declaration.and_then(|declaration| declaration.name().map(ToOwned::to_owned)))
+    Ok(package.name.clone())
 }
 
 /// Build one normalized project path relative to the root.
@@ -660,11 +594,11 @@ fn task_missing_from_projects_error(
 
     if let Some(suggestion) = suggestion {
         return format!(
-            "task or script '{name}' not found in projects: {project_names}, did you mean '{suggestion}'?"
+            "task '{name}' not found in projects: {project_names}, did you mean '{suggestion}'?"
         );
     }
 
-    format!("task or script '{name}' not found in projects: {project_names}")
+    format!("task '{name}' not found in projects: {project_names}")
 }
 
 /// Build one unknown project error with suggestions.

@@ -37,7 +37,6 @@ _run-destack-test test_binary *args:
 # install language test fixtures
 install:
     just install-conformance
-    just fetch-ecosystem
 
 # install conformance suites
 install-conformance:
@@ -57,10 +56,6 @@ install-conformance-formatter:
     python3 ./test/fixtures/conformance/fetch-suite.py \
         ./test/fixtures/conformance/formatter/prettier \
         ./test/fixtures/conformance/formatter/oxfmt
-
-# fetch ecosystem packages
-fetch-ecosystem:
-    bash ./test/fixtures/ecosystem/ecosystem-fetch.sh
 
 # --- build ---
 
@@ -275,8 +270,6 @@ quick:
 # run the language full gate
 full:
     just quick
-    just fetch-ecosystem
-    just test-ecosystem
     just generate-stress
     just test-stress
 
@@ -335,7 +328,7 @@ snapshot-formatter-corpus root="test/fixtures/conformance/formatter/oxfmt/tests"
     bash ./formatter/scripts/corpus_snapshot.sh "{{root}}" "{{out}}"
 
 # bench formatter parse and print throughput on a corpus
-bench-formatter-corpus root="test/fixtures/ecosystem" runs="5":
+bench-formatter-corpus root="test/fixtures/conformance/formatter/oxfmt/tests" runs="5":
     bash ./formatter/scripts/corpus_bench.sh "{{root}}" "{{runs}}"
 
 # run formatter bench stats
@@ -345,10 +338,6 @@ bench-formatter-stats args="--help":
 # diff two formatter corpus snapshots
 compare-formatter-corpus baseline candidate:
     bash ./formatter/scripts/corpus_diff.sh "{{baseline}}" "{{candidate}}"
-
-# run ecosystem tests
-test-ecosystem:
-    just _run-destack-test ecosystem
 
 # run resolver tests
 test-resolver:

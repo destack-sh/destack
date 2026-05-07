@@ -16,12 +16,8 @@ pub struct UpdateChangeSummary {
 /// File change kind classification.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum UpdateChangeKind {
-    /// Package config change.
-    Package,
     /// Destack config change.
     Destack,
-    /// Tsconfig change.
-    TsConfig,
     /// Unknown change.
     Unknown,
 }
