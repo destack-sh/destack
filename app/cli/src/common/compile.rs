@@ -6,6 +6,7 @@ use std::sync::Arc;
 use destack_artifact::ArtifactKey;
 use destack_compiler::Compiler;
 use destack_linter::Linter;
+use destack_query::Query;
 use destack_session::{FileChange, Session, SessionEventHandler};
 use destack_source::{DiagnosticCollection, FileType, ModuleId, ProfileId, TargetId};
 use destack_workspace::{Ref, Repository, Revision};
@@ -143,6 +144,7 @@ impl CompilerContext {
             revision,
             compiler.clone(),
             Arc::new(Linter::new(repository.clone())),
+            Arc::new(Query::new(repository.clone())),
             program_args.workers as usize,
             event_handler,
         )
