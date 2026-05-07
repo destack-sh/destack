@@ -78,8 +78,8 @@ fn write_expression_trailing_annotations<'ast>(
         | Expression::Satisfies { .. }
         | Expression::Is { .. }
         | Expression::InstanceOf { .. }
-        | Expression::ValueOf { .. }
-        | Expression::ReferenceOf { .. }
+        | Expression::MoveOf { .. }
+        | Expression::BorrowOf { .. }
         | Expression::PointerOf { .. }
         | Expression::Await { .. }
         | Expression::AwaitMaybe { .. }
@@ -245,8 +245,8 @@ fn format_expression_body<'ast>(
         | Expression::Satisfies { .. }
         | Expression::Is { .. }
         | Expression::InstanceOf { .. }
-        | Expression::ValueOf { .. }
-        | Expression::ReferenceOf { .. }
+        | Expression::MoveOf { .. }
+        | Expression::BorrowOf { .. }
         | Expression::PointerOf { .. }
         | Expression::Await { .. }
         | Expression::AwaitMaybe { .. }

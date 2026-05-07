@@ -342,8 +342,8 @@ fn pattern_is_direct_object_or_array_like(tree: &Tree, pattern_id: LocalNodeId<P
 
         // transparent wrappers
         Pattern::Must(pattern)
-        | Pattern::ReferenceOf { right: pattern, .. }
-        | Pattern::ValueOf { right: pattern, .. } => {
+        | Pattern::BorrowOf { right: pattern, .. }
+        | Pattern::MoveOf { right: pattern, .. } => {
             pattern_is_direct_object_or_array_like(tree, *pattern)
         }
 
@@ -774,11 +774,11 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
 
             Pattern::Assign { .. } => unreachable!("assignment pattern is formatted above"),
 
-            Pattern::ReferenceOf { right, mutability } => {
+            Pattern::BorrowOf { right, mutability } => {
                 format_prefixed_pattern(f, "&", *right, *mutability)?;
             }
 
-            Pattern::ValueOf { right, mutability } => {
+            Pattern::MoveOf { right, mutability } => {
                 format_prefixed_pattern(f, "^", *right, *mutability)?;
             }
 
