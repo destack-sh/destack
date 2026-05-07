@@ -19,7 +19,7 @@ Embracing TypeScript and "the web ecosystem" lets us build a new toolchain that 
 
 **Destack is a superset of "modern strict" TypeScript**.
 The intended use case is for TS-shaped code that can be type checked, optimized, and compiled ahead of time without pretending every value might turn into a different shape at runtime; in other words, Destack is based on the sound subset of TypeScript.
-More specifically, Destack excludes legacy syntax and all sorts of dynamic shapes and protocols that are not statically fixed / knowable.
+Accordingly, Destack excludes legacy syntax and all sorts of dynamic shapes and protocols that are not statically fixed / knowable.
 
 ### Syntax
 
@@ -47,10 +47,12 @@ In `.ds`, values have statically known shape, and classes have a fixed static ob
 
 - **Declaration expressions**: Declaration expressions like `const C = class { }` require runtime type generation, which is incompatible with proper AOT compilation.
 - **Dynamic code generation**: Dynamic _runtime_ `eval` / `new Function` / class generation are in conflict with a strict AOT model and unsupported, **but** Destack supports explicit `comptime eval` / `new Function`.
+- **Dynamic module loading**: Runtime `import(expr)` is not general module loading in source code.
+  JS output may still use dynamic imports for chunk loading when the target requires it.
 - **Prototype objects**: `.prototype`, `.__proto__`, `.constructor`, `Object.getPrototypeOf`, `Object.setPrototypeOf`, and `Object.create(proto)` all rely on the prototype-based object model and are not supported.
 - **Shape mutation**: `delete`, `Object.defineProperty`, `Object.defineProperties`, `Reflect.defineProperty`, `Reflect.deleteProperty`, and shape-changing `Object.assign` are forbidden.
 - **Metaobject dispatch**: `Proxy` and most `Reflect.*` APIs exist to intercept or emulate dynamic object behavior, so they are also unsupported.
-- **CommonJS mutation**: `require`, `module.exports`, and require-cache monkeypatching are dynamic module-shape features, and are also (mostly) unsupported.
+- **CommonJS**: Destack source does not support `require`, `module.exports`, mutable `exports`, require-cache monkeypatching, `export =`, or `import x = require("x")`.
 - **Circular inference**: Destack does not support circular inference _across_ modules. Modules may export types they can establish from local declarations _and_ imports, and downstream modules may build on those exports, but downstream uses do not refine upstream declarations.
 
 ### Protocols
@@ -317,7 +319,8 @@ let x: Point = Point { x, y };  // OK
 let x: Point = { x, y };        // ERROR: plain object is not Point
 ```
 
-For composition, structs support embedding other structs directly in line:
+For composition, structs support embedding other structs directly in line, akin to the existing `...T` spread operator for regular interface-like types.
+The embedded type has the same size, alignment and field layout as a standalone type.
 
 ```ds
 struct Transform {
@@ -1354,14 +1357,15 @@ module {
 }
 ```
 
+
 ### Annotations and Decorators
 
-Like TypeScript, Destack uses `@` for decorator-like constructs, but Destack supports both "annotations" and "decorators", and many more constructs can be targeted by decorators.
+Like TypeScript, Destack uses `@` for decorator-like macro-ish constructs, but Destack distinguishes between "annotations" and "decorators", and also many more constructs can be targeted by decorators.
 The syntax for both data annotations and behavior decorators is unified, the target - the thing pointed to in `@<expr>` - decides:
  - **Annotations** are _values_ like `newtype`s. They add typed metadata to the target, but don't directly change the target's behavior.
  - **Decorators** are _logic_ following some protocol that contribute code or change the analyzed shape in some bounded way.
 
-Annotations are "inert" by default, that is, they don't do anything until either some userland construct or the toolchain give them special meaning (like with `@capture`).
+Annotations are "inert" by default, that is, they don't do anything until either some userland construct or the toolchain give them special meaning or implements the `Patcher` protocol.
 
 ```ds
 newtype deprecated = () | (string,);
@@ -1378,62 +1382,6 @@ struct User {
     name: string;
 }
 ```
-
-#### Patch
-
-Decorators are just nominal values, like annotations, but they implement the `Patcher` protocol for the target they are applied to to produce `Patch`es that can rewrite the target's declaration and surrounding scope.
-Conveniently, this also means that decorator configuration is just regular values:
-
-```ds
-newtype memoize = {
-    capacity?: uint;
-};
-
-@memoize({ capacity: 1024 })
-function load(id: UserId): Result<User, Error> {
-    ...
-}
-```
-
-Patchers edit the visible declaration set with four basic operations: add, replace, rename, remove:
-
-| Operation | Example | Meaning |
-|-----------|---------|---------|
-| `add` | `Patch.add({ scope, declaration })` | add a generated declaration to a scope |
-| `replace` | `Patch.replace({ symbol, declaration })` | redirect a symbol to a generated declaration |
-| `rename` | `Patch.rename({ symbol, name })` | keep a declaration but change its visible name |
-| `remove` | `Patch.remove({ symbol })` | remove a symbol from the visible declaration set |
-
-Most basic wrapper-shaped decorators are just `rename` plus `add`:
-
-```ds
-extension<F: FunctionDeclaration> of memoize implements Patcher<F>
-{
-    static patch(target: F, context: PatchContext, config: this): Patch[] {
-        const innerName = `${context.name}Inner`;
-        const wrapper = comptime eval<Declaration>(ds`
-            function ${context.name}(id: UserId): Result<User, Error> {
-                const cached = cache.get(id);
-                if (cached != undefined) {
-                    return cached;
-                }
-
-                const user = ${context.symbol}(id)?;
-                cache.set(id, user, config.capacity ?? 256);
-                return Result.ok(user);
-            }
-        `);
-
-        return [
-            Patch.rename({ symbol: context.symbol, name: innerName }),
-            Patch.add({ scope: context.scope, declaration: wrapper }),
-        ];
-    }
-}
-```
-
-Patch expansion is not recursive.
-Declarations that implement `Patcher` are analyzed before patching, and cannot themselves be changed by patchers or derive.
 
 #### Derive
 
@@ -1453,23 +1401,7 @@ newtype Shape =
     | { kind: "circle"; radius: int32 };
 ```
 
-At the library level, a derive provider is just a nominal provider value returning patches:
-
-```ds
-newtype interface Patcher<Target> {
-    static patch(target: Target, context: PatchContext, config: this): Patch[];
-}
-
-newtype Tagged = () | {
-    case?: TaggedCase;
-    names?: TaggedNames;
-};
-
-extension<Target> of Tagged implements Patcher<Target> {
-    @intrinsic
-    static patch(target: Target, context: PatchContext, config: this): Patch[];
-}
-```
+At the library level, a derive provider is just a nominal provider value returning `Patch`es.
 
 #### Static If
 
@@ -1515,7 +1447,7 @@ module {
     derive: [Debug, Clone];
 
     noHeap: true;
-    noExceptions: true;
+    noThrow: true;
 }
 ```
 
@@ -1651,6 +1583,74 @@ const makeRoute = comptime new Function("request", "context", routeSource);
 
 The source passed to `eval` or `new Function` must itself be available to comptime evaluation.
 Generated code is parsed and typechecked as `.ds`, attached to the same module graph as a virtual source file, and tracked for diagnostics and artifact caching.
+
+### Macros
+
+Detack is statically typed and compiled, but supports decorators and macro like behavior via `comptime` execution and restricted "patching" of modules during compilation.
+As an example, consider a `memoize` decorator that turns a function into a cached ("memoized") version of itself that stores results in a cache to avoid recomputation on equal arguments.
+
+```ds
+newtype memoize = {
+    capacity?: uint;
+};
+
+@memoize({ capacity: 1024 })
+function load(id: UserId): Result<User, Error> {
+    ...
+}
+```
+
+As explained in the annotations and decorator piece, `memoize` by itself is just an inert annotation. 
+An annotation receives behavior by implementing the `Patcher` protocol.
+The `Patcher` protocol is based on three rules:
+ 1. Patchers must not generate or implement other `Patcher`s to avoid recursion nightmares.
+ 2. Patchers are run in two phases during compilation: `expand` may contribute new (externally visible) symbols, but lacks final type information, while `patch` may modify existing ones and "fill them in", but has final type information.
+ 3. Patchers edit their containing module and any symbols within their scope they are responsible for with four well defined operations (`add`, `replace`, `rename`, `remove`).
+
+| Operation | Example | Meaning |
+|-----------|---------|---------|
+| `add` | `Patch.add({ scope, declaration })` | add a generated declaration to a scope |
+| `replace` | `Patch.replace({ symbol, declaration })` | redirect a symbol to a generated declaration |
+| `rename` | `Patch.rename({ symbol, name })` | keep a declaration but change its visible name |
+| `remove` | `Patch.remove({ symbol })` | remove a symbol from the visible declaration set |
+
+Most basic wrapper-shaped decorators are just `rename` plus `add`.
+
+```ds
+extension<F: FunctionDeclaration> of memoize implements Patcher<F>
+{
+    static expand(target: F, context: PatchContext, config: this): Patch[] {
+        const innerName = `${context.name}Inner`;
+        const wrapper = comptime eval<Declaration>(ds`
+            function ${context.name}(id: UserId): Result<User, Error>;
+        `);
+
+        return [
+            Patch.rename({ symbol: context.symbol, name: innerName }),
+            Patch.add({ scope: context.scope, declaration: wrapper }),
+        ];
+    }
+
+    static materialize(target: F, context: PatchContext, config: this): Patch[] {
+        const body = comptime eval<Expression>(ds`
+            {
+                const cached = cache.get(id);
+                if (cached != undefined) {
+                    return cached;
+                }
+
+                const user = ${target}(id)?;
+                cache.set(id, user, config.capacity ?? 256);
+                return Result.ok(user);
+            }
+        `);
+
+        return [
+            Patch.body({ symbol: context.symbol, body }),
+        ];
+    }
+}
+```
 
 ## Memory
 
@@ -2074,7 +2074,7 @@ type Lock<T> =
 
 ## Modules
 
-Like many JS/TS runtimes, Destack supports importing additional file types beyond code modules.
+Like many JS/TS-adjacent runtimes, Destack supports importing additional file types beyond code modules.
 
 ### Import Meta
 
