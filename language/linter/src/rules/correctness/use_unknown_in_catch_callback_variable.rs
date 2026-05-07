@@ -205,7 +205,7 @@ fn collect_rejection_callback_candidates_inner(
 
     // ternary expressions can choose either arm
     if let dir::Expression::If {
-        kind: dir::IfKind::Ternary,
+        form: dir::IfForm::Ternary,
         then_expression,
         else_expression: Some(else_expression),
         ..

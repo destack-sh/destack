@@ -319,6 +319,7 @@ fn type_argument_needs_parentheses(expression: &ast::TypeExpression) -> bool {
             | ast::TypeExpression::Intrinsic
             | ast::TypeExpression::Tuple { .. }
             | ast::TypeExpression::Array { .. }
+            | ast::TypeExpression::Slice { .. }
             | ast::TypeExpression::Object { .. }
             | ast::TypeExpression::Declaration { .. }
             | ast::TypeExpression::FunctionTypeDeclaration(_)

@@ -216,7 +216,7 @@ impl NodeVisitor for IteratorInvalidationVisitor<'_, '_> {
     ) {
         // check for for of loops
         if let dir::Expression::ForEach {
-            kind: dir::ForEachKind::Of,
+            operator: dir::ForEachOperator::Of,
             iterator,
             body,
             ..

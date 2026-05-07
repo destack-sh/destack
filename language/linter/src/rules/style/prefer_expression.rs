@@ -1,6 +1,6 @@
 use crate::LintMeta;
 use destack_ast::{
-    self as ast, AssignOperator, Block, Declarator, Expression, IfCondition, IfKind, LetKind,
+    self as ast, AssignOperator, Block, Declarator, Expression, IfCondition, IfForm, LetKind,
     LocalNodeId, Pattern, Tree,
 };
 use destack_core::StringId;
@@ -216,7 +216,7 @@ fn if_assignment_pattern(
     let expression_id = unwrap_statement_expression(tree, expression_id);
     let expression = tree.get(expression_id);
     let Expression::If {
-        kind: IfKind::If,
+        form: IfForm::If,
         condition,
         then_expression,
         else_expression: Some(else_expression),

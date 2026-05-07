@@ -67,7 +67,7 @@ pub fn assign_pattern_contains_expression(
             assign_pattern_contains_expression(tree, *pattern, expression_id)
                 || *value == expression_id
         }
-        dir::AssignPattern::Array { fields } | dir::AssignPattern::Object { fields } => {
+        dir::AssignPattern::Sequence { fields } | dir::AssignPattern::Object { fields } => {
             fields.iter().copied().any(|field_id| {
                 assign_pattern_field_contains_expression(tree, field_id, expression_id)
             })
@@ -130,7 +130,7 @@ pub fn expression_import_target_static_specifier(expression: &dir::Expression) -
     match expression {
         dir::Expression::Import {
             source: _,
-            kind: _,
+            space: _,
             target,
             target_module: _,
             items: _,
@@ -140,19 +140,19 @@ pub fn expression_import_target_static_specifier(expression: &dir::Expression) -
         | dir::Expression::ReExport {
             target,
             target_module: _,
-            kind: _,
+            space: _,
             items: _,
             attributes: _,
         }
         | dir::Expression::UnresolvedReExport {
             target,
-            kind: _,
+            space: _,
             items: _,
             attributes: _,
         } => Some(*target),
         dir::Expression::UnresolvedImport {
             source: _,
-            kind: _,
+            space: _,
             target: dir::ImportTarget::String(target),
             items: _,
             attributes: _,
@@ -160,7 +160,7 @@ pub fn expression_import_target_static_specifier(expression: &dir::Expression) -
         } => Some(*target),
         dir::Expression::UnresolvedImport {
             source: _,
-            kind: _,
+            space: _,
             target: dir::ImportTarget::Expression { .. },
             items: _,
             attributes: _,

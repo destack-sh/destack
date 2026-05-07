@@ -252,7 +252,7 @@ impl NodeVisitor for PreferNullishCoalescingVisitor<'_, '_> {
 
         // check ternary null-check expressions
         if let dir::Expression::If {
-            kind: dir::IfKind::Ternary,
+            form: dir::IfForm::Ternary,
             condition,
             then_expression,
             else_expression: Some(else_expression),

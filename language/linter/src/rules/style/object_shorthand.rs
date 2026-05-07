@@ -1,5 +1,5 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, Declaration, FunctionKind, FunctionMode, Key, Name};
+use destack_ast::{self as ast, Declaration, FunctionForm, FunctionRole, Key, Name};
 use destack_workspace::{LintSeverity, ObjectShorthandMode};
 use regex::Regex;
 
@@ -393,8 +393,8 @@ fn shorthand_name(
             signature,
             ..
         } if !matches!(
-            signature.mode,
-            Some(FunctionMode::Getter | FunctionMode::Setter)
+            signature.role,
+            Some(FunctionRole::Getter | FunctionRole::Setter)
         ) =>
         {
             property_key_shorthand_name(ctx, key)
@@ -467,8 +467,8 @@ fn redundant_method_name(
         return None;
     }
     if matches!(
-        declaration.signature.mode,
-        Some(FunctionMode::Getter | FunctionMode::Setter)
+        declaration.signature.role,
+        Some(FunctionRole::Getter | FunctionRole::Setter)
     ) {
         return None;
     }
@@ -476,7 +476,7 @@ fn redundant_method_name(
         .options
         .style
         .object_shorthand_avoid_explicit_return_arrows
-        && declaration.signature.kind == FunctionKind::Lambda
+        && declaration.signature.form == FunctionForm::Lambda
         && declaration
             .body
             .is_some_and(|body_id| !matches!(ctx.tree.get(body_id), ast::Expression::Block(..)))

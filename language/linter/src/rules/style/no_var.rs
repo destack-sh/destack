@@ -1,5 +1,5 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, ForEachBinding, ForEachDeclarationKind, LetKind};
+use destack_ast::{self as ast, BindingKeyword, ForEachBinding, LetKind};
 use destack_workspace::LintSeverity;
 
 use crate::{LintAstContext, LintFix, LintReport, LintRule, declare_lint};
@@ -73,7 +73,7 @@ impl LintRule for NoVar {
             };
 
             let ForEachBinding::Pattern {
-                declaration_kind: Some(ForEachDeclarationKind::Var),
+                keyword: Some(BindingKeyword::Var),
                 ..
             } = binding
             else {

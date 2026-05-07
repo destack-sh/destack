@@ -99,8 +99,8 @@ impl SymbolReferenceContextUsage {
 struct ImportClause {
     /// The import expression node.
     expression_id: dir::LocalNodeId<dir::Expression>,
-    /// The top level import kind.
-    import_kind: dir::DependencyKind,
+    /// The top level import space.
+    import_space: dir::DependencySpace,
     /// Whether the import carries trailing arguments or attributes.
     has_arguments: bool,
     /// Import items in source order.
@@ -133,7 +133,7 @@ fn collect_import_clauses(ctx: &LintModuleDirContext<'_>) -> Vec<ImportClause> {
     for expression_id in ctx.tree.iter_node_ids_of_type::<dir::Expression>() {
         let expression = ctx.tree.get(expression_id);
         let dir::Expression::Import {
-            kind,
+            space,
             items,
             arguments,
             ..
@@ -144,7 +144,7 @@ fn collect_import_clauses(ctx: &LintModuleDirContext<'_>) -> Vec<ImportClause> {
 
         clauses.push(ImportClause {
             expression_id,
-            import_kind: *kind,
+            import_space: *space,
             has_arguments: arguments.is_some(),
             items: items.clone().unwrap_or_default(),
         });
@@ -243,7 +243,7 @@ fn report_import_style(
     let has_top_level_type_keyword =
         import_declaration_has_top_level_type_keyword(ctx, clause.expression_id);
 
-    // enforce value import mode without any type modifiers
+    // enforce value imports without type modifiers
     if !options.prefer_type_imports {
         if !has_top_level_type_keyword && inline_type_item_ids.is_empty() {
             return;
@@ -264,12 +264,8 @@ fn report_import_style(
         )
         .label("remove type import modifiers");
         if ctx.include_fixes
-            && let Some(fix) = consistent_type_import_no_type_fix(
-                ctx,
-                clause.expression_id,
-                clause.import_kind,
-                &inline_type_item_ids,
-            )
+            && let Some(fix) =
+                consistent_type_import_no_type_fix(ctx, clause.expression_id, &inline_type_item_ids)
         {
             diagnostic = diagnostic.fix(fix);
         }
@@ -299,12 +295,8 @@ fn report_import_style(
             )
             .label("prefer inline `type` modifiers");
             if ctx.include_fixes
-                && let Some(fix) = consistent_type_import_inline_fix(
-                    ctx,
-                    clause.expression_id,
-                    clause.import_kind,
-                    &clause.items,
-                )
+                && let Some(fix) =
+                    consistent_type_import_inline_fix(ctx, clause.expression_id, &clause.items)
             {
                 diagnostic = diagnostic.fix(fix);
             }
@@ -325,18 +317,13 @@ fn report_import_style(
             clause,
             &selected_item_ids,
             "prefer inline `type` modifiers",
-            consistent_type_import_inline_fix(
-                ctx,
-                clause.expression_id,
-                clause.import_kind,
-                &selected_item_ids,
-            ),
+            consistent_type_import_inline_fix(ctx, clause.expression_id, &selected_item_ids),
         );
         return;
     }
 
     // canonicalize all inline `type` imports into one top level `import type`
-    if clause.import_kind != dir::DependencyKind::Type
+    if clause.import_space != dir::DependencySpace::Type
         && clause_all_items_are_inline_type(ctx, clause)
     {
         let severity = ctx.get_effective_severity(meta, clause.expression_id);
@@ -365,7 +352,7 @@ fn report_import_style(
     }
 
     // convert whole declarations when every binding is type only
-    if clause.import_kind != dir::DependencyKind::Type
+    if clause.import_space != dir::DependencySpace::Type
         && semantic_type_only_item_ids.len() == clause.items.len()
         && !semantic_type_only_item_ids.is_empty()
     {
@@ -396,7 +383,7 @@ fn report_import_style(
     }
 
     // accept declarations that already use top level `import type`
-    if clause.import_kind == dir::DependencyKind::Type {
+    if clause.import_space == dir::DependencySpace::Type {
         return;
     }
 
@@ -413,12 +400,7 @@ fn report_import_style(
         clause,
         &selected_item_ids,
         "mark these bindings with inline `type`",
-        consistent_type_import_inline_fix(
-            ctx,
-            clause.expression_id,
-            clause.import_kind,
-            &selected_item_ids,
-        ),
+        consistent_type_import_inline_fix(ctx, clause.expression_id, &selected_item_ids),
     );
 }
 
@@ -496,12 +478,12 @@ fn clause_missing_inline_type_only_item_ids(
         .iter()
         .copied()
         .filter(|item_id| {
-            if clause.import_kind == dir::DependencyKind::Type {
+            if clause.import_space == dir::DependencySpace::Type {
                 return true;
             }
 
             let item = ctx.tree.get(*item_id);
-            item_kind(item) != Some(dir::DependencyKind::Type)
+            item_space(item) != Some(dir::DependencySpace::Type)
         })
         .collect()
 }
@@ -511,7 +493,7 @@ fn clause_all_items_are_inline_type(ctx: &LintModuleDirContext<'_>, clause: &Imp
     !clause.items.is_empty()
         && clause.items.iter().all(|item_id| {
             let item = ctx.tree.get(*item_id);
-            item_kind(item) == Some(dir::DependencyKind::Type)
+            item_space(item) == Some(dir::DependencySpace::Type)
         })
 }
 
@@ -528,7 +510,7 @@ fn item_ids_support_inline_style(
     !item_ids.is_empty()
         && item_ids.iter().all(|item_id| {
             let item = ctx.tree.get(*item_id);
-            item_mode(item) == Some(dir::DependencyMode::Item)
+            item_binding(item) == Some(dir::DependencyBinding::Item)
         })
 }
 
@@ -552,24 +534,24 @@ fn import_item_is_semantic_type_only(
 }
 
 /// Return the dependency item kind when present.
-fn item_kind(item: &dir::DependencyItem) -> Option<dir::DependencyKind> {
+fn item_space(item: &dir::DependencyItem) -> Option<dir::DependencySpace> {
     match item {
-        dir::DependencyItem::UnresolvedRemote { kind, .. }
-        | dir::DependencyItem::UnresolvedLocal { kind, .. }
-        | dir::DependencyItem::Local { kind, .. }
-        | dir::DependencyItem::Remote { kind, .. } => Some(*kind),
+        dir::DependencyItem::UnresolvedRemote { space, .. }
+        | dir::DependencyItem::UnresolvedLocal { space, .. }
+        | dir::DependencyItem::Local { space, .. }
+        | dir::DependencyItem::Remote { space, .. } => Some(*space),
         dir::DependencyItem::Value { .. } | dir::DependencyItem::Error => None,
     }
 }
 
-/// Return the dependency item mode.
-fn item_mode(item: &dir::DependencyItem) -> Option<dir::DependencyMode> {
+/// Return the dependency item binding.
+fn item_binding(item: &dir::DependencyItem) -> Option<dir::DependencyBinding> {
     match item {
-        dir::DependencyItem::UnresolvedRemote { mode, .. }
-        | dir::DependencyItem::UnresolvedLocal { mode, .. }
-        | dir::DependencyItem::Value { mode, .. }
-        | dir::DependencyItem::Local { mode, .. }
-        | dir::DependencyItem::Remote { mode, .. } => Some(*mode),
+        dir::DependencyItem::UnresolvedRemote { binding, .. }
+        | dir::DependencyItem::UnresolvedLocal { binding, .. }
+        | dir::DependencyItem::Value { binding, .. }
+        | dir::DependencyItem::Local { binding, .. }
+        | dir::DependencyItem::Remote { binding, .. } => Some(*binding),
         dir::DependencyItem::Error => None,
     }
 }
@@ -624,7 +606,7 @@ fn consistent_type_import_top_level_fix(
     // strip inline `type` prefixes from each import item
     for item_id in items {
         let item = ctx.tree.get(*item_id);
-        if item_kind(item) != Some(dir::DependencyKind::Type) {
+        if item_space(item) != Some(dir::DependencySpace::Type) {
             continue;
         }
 
@@ -642,7 +624,6 @@ fn consistent_type_import_top_level_fix(
 fn consistent_type_import_inline_fix(
     ctx: &LintModuleDirContext<'_>,
     import_id: dir::LocalNodeId<dir::Expression>,
-    _import_kind: dir::DependencyKind,
     item_ids: &[dir::LocalNodeId<dir::DependencyItem>],
 ) -> Option<LintFix> {
     let mut builder = ctx.edit_builder();
@@ -657,7 +638,7 @@ fn consistent_type_import_inline_fix(
     // add inline `type` to each selected item
     for item_id in item_ids {
         let item = ctx.tree.get(*item_id);
-        if item_mode(item) != Some(dir::DependencyMode::Item) {
+        if item_binding(item) != Some(dir::DependencyBinding::Item) {
             return None;
         }
 
@@ -675,7 +656,6 @@ fn consistent_type_import_inline_fix(
 fn consistent_type_import_no_type_fix(
     ctx: &LintModuleDirContext<'_>,
     import_id: dir::LocalNodeId<dir::Expression>,
-    _import_kind: dir::DependencyKind,
     inline_type_item_ids: &[dir::LocalNodeId<dir::DependencyItem>],
 ) -> Option<LintFix> {
     let import_span = ctx.get_span(import_id);

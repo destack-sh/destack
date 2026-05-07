@@ -92,7 +92,7 @@ fn class_is_struct_candidate(
     };
 
     // keep ambient and abstract declarations out of this style rule
-    if class_declaration.ambient.is_ambient() || class_declaration.is_abstract {
+    if class_declaration.is_ambient || class_declaration.is_abstract {
         return false;
     }
 

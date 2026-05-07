@@ -50,7 +50,7 @@ impl LintRule for NoUselessConstructor {
             };
 
             // keep non-constructors out of this rule
-            if signature.mode != Some(dir::FunctionMode::Constructor) {
+            if signature.role != Some(dir::FunctionRole::Constructor) {
                 continue;
             }
 

@@ -271,7 +271,7 @@ fn prefer_tuple_destructure_fix(
     let parent_expression = ctx.tree.get(parent_expression_id);
     let dir::Expression::Let {
         export: _,
-        ambient: _,
+        is_ambient: _,
         mutability: _,
         declarators,
     } = parent_expression
@@ -327,7 +327,7 @@ fn prefer_tuple_destructure_fix(
     let ast::Expression::Let {
         kind,
         export: _,
-        ambient: _,
+        is_ambient: _,
         mutability: _,
         declarators: _,
     } = source_expression

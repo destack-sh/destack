@@ -32,7 +32,7 @@ pub fn callable_return_usage(
 
     // treat concise lambda bodies as implicit value returns
     let body_expression = tree.get(body_expression_id);
-    if signature.kind == dir::FunctionKind::Lambda
+    if signature.form == dir::FunctionForm::Lambda
         && !matches!(body_expression, dir::Expression::Block(..))
     {
         return CallableReturnUsage {

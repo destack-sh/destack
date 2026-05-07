@@ -41,7 +41,7 @@ impl LintRule for NoRedundantPattern {
             let is_destructuring = matches!(
                 pattern,
                 ast::Pattern::Object { .. }
-                    | ast::Pattern::Array { .. }
+                    | ast::Pattern::Sequence { .. }
                     | ast::Pattern::Tuple { .. }
                     | ast::Pattern::TaggedObject { .. }
                     | ast::Pattern::TaggedTuple { .. }
@@ -93,7 +93,7 @@ fn binds_anything(ctx: &LintAstContext<'_>, pattern_id: ast::LocalNodeId<ast::Pa
 
         // check nested patterns
         ast::Pattern::Object { fields }
-        | ast::Pattern::Array { fields }
+        | ast::Pattern::Sequence { fields }
         | ast::Pattern::Tuple { fields } => fields
             .iter()
             .any(|field_id| field_binds_anything(ctx, *field_id)),

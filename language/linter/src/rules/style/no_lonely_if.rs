@@ -36,7 +36,7 @@ impl LintRule for NoLonelyIf {
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expr = ctx.tree.get(node_id);
             let ast::Expression::If {
-                kind: ast::IfKind::If,
+                form: ast::IfForm::If,
                 else_expression: Some(else_id),
                 ..
             } = expr
@@ -55,7 +55,7 @@ impl LintRule for NoLonelyIf {
                         if matches!(
                             single_expr,
                             ast::Expression::If {
-                                kind: ast::IfKind::If,
+                                form: ast::IfForm::If,
                                 ..
                             }
                         ) {
@@ -68,7 +68,7 @@ impl LintRule for NoLonelyIf {
                     }
                 }
                 ast::Expression::If {
-                    kind: ast::IfKind::If,
+                    form: ast::IfForm::If,
                     ..
                 } => {
                     // else expression is already an if (else if), this is fine

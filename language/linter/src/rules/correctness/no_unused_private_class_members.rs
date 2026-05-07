@@ -162,7 +162,7 @@ fn unused_private_member_fix(
     };
 
     // keep non constructor methods only
-    if signature.mode == Some(dir::FunctionMode::Constructor) {
+    if signature.role == Some(dir::FunctionRole::Constructor) {
         return None;
     }
 
@@ -181,7 +181,7 @@ fn candidate_member_symbol(member: &dir::Member) -> Option<dir::LocalSymbolId> {
             signature, symbol, ..
         } => {
             // constructors are invoked by allocation and should not be linted here
-            if signature.mode == Some(dir::FunctionMode::Constructor) {
+            if signature.role == Some(dir::FunctionRole::Constructor) {
                 return None;
             }
 
@@ -217,8 +217,8 @@ fn member_is_accessor(member: &dir::Member) -> bool {
     match member {
         dir::Member::Method { signature, .. } => {
             matches!(
-                signature.mode,
-                Some(dir::FunctionMode::Getter | dir::FunctionMode::Setter)
+                signature.role,
+                Some(dir::FunctionRole::Getter | dir::FunctionRole::Setter)
             )
         }
         _ => false,

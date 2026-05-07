@@ -46,7 +46,7 @@ impl LintRule for RequireYield {
             };
 
             // check if this is a generator function
-            if declaration.signature.cardinality != ast::FunctionCardinality::Generator {
+            if !declaration.signature.is_generator {
                 continue;
             }
             report_missing_generator_yield(
@@ -71,7 +71,7 @@ impl LintRule for RequireYield {
                 continue;
             };
 
-            if signature.cardinality != ast::FunctionCardinality::Generator {
+            if !signature.is_generator {
                 continue;
             }
             report_missing_generator_yield(
@@ -95,7 +95,7 @@ impl LintRule for RequireYield {
                 continue;
             };
 
-            if signature.cardinality != ast::FunctionCardinality::Generator {
+            if !signature.is_generator {
                 continue;
             }
 

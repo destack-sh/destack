@@ -5,7 +5,7 @@ use destack_artifact::{
     WellKnownSymbols,
 };
 use destack_ast::{StringId, StringPool};
-use destack_dir::{LanguageSymbol, WellKnownSymbol};
+use destack_dir::{LanguageItem, WellKnownSymbol};
 use destack_source::{EditBuilder, File, FileId, ModuleId, PackageId, Span};
 use destack_workspace::{
     LintSeverity, LinterOptions, Module, Package, Profile, ProfileId, Repository, Revision,
@@ -266,14 +266,14 @@ impl<'a> LintModuleDirContext<'a> {
     }
 
     /// Get a language item from the cache, returning None if not found.
-    pub fn get_language_symbol(&self, item: LanguageSymbol) -> Option<dir::GlobalSymbolId> {
+    pub fn get_language_item(&self, item: LanguageItem) -> Option<dir::GlobalSymbolId> {
         let environment = self.language_environment()?;
         environment.item(item)
     }
 
     /// Get a language item from the cache, panicking if not found.
-    pub fn language_symbol(&self, item: LanguageSymbol) -> dir::GlobalSymbolId {
-        self.get_language_symbol(item)
+    pub fn language_item(&self, item: LanguageItem) -> dir::GlobalSymbolId {
+        self.get_language_item(item)
             .unwrap_or_else(|| panic!("language item {item:?} not available"))
     }
 

@@ -1,5 +1,5 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, DependencyMode, Expression};
+use destack_ast::{self as ast, DependencyBinding, Expression};
 use destack_workspace::LintSeverity;
 
 use crate::{LintAstContext, LintReport, LintRule, declare_lint};
@@ -38,7 +38,7 @@ impl LintRule for NoReExportAll {
 
             // check export expressions
             let Expression::Export {
-                kind,
+                space,
                 target: Some(_target),
                 items,
                 ..
@@ -50,7 +50,7 @@ impl LintRule for NoReExportAll {
             // check if any item is a namespace re-export (export *)
             for item_id in items {
                 let item = ctx.tree.get(*item_id);
-                if dependency_item_is_value_namespace_re_export(*kind, item) {
+                if dependency_item_is_value_namespace_re_export(*space, item) {
                     let severity = ctx.get_effective_severity(meta, node_id);
                     if !severity.is_enabled() {
                         break;
@@ -77,23 +77,23 @@ impl LintRule for NoReExportAll {
 
 /// Return true when one dependency item re-exports the full value namespace.
 fn dependency_item_is_value_namespace_re_export(
-    export_kind: ast::DependencyKind,
+    export_kind: ast::DependencySpace,
     item: &ast::DependencyItem,
 ) -> bool {
     let ast::DependencyItem::Item {
-        mode,
-        kind,
+        binding,
+        space,
         alias: _,
         ..
     } = item
     else {
         return false;
     };
-    if *mode != DependencyMode::Namespace {
+    if *binding != DependencyBinding::Namespace {
         return false;
     }
 
-    (*kind).unwrap_or(export_kind) != ast::DependencyKind::Type
+    (*space).unwrap_or(export_kind) != ast::DependencySpace::Type
 }
 
 #[cfg(test)]

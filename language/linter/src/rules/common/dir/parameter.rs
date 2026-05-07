@@ -127,7 +127,7 @@ pub fn collect_pattern_value_binding_symbols(
         }
         dir::Pattern::Tuple { fields }
         | dir::Pattern::TaggedTuple { fields, .. }
-        | dir::Pattern::Array { fields }
+        | dir::Pattern::Sequence { fields }
         | dir::Pattern::Object { fields }
         | dir::Pattern::TaggedObject { fields, .. } => {
             for field_id in fields {

@@ -275,7 +275,7 @@ impl NodeVisitor for CognitiveComplexityVisitor<'_> {
                 if matches!(
                     else_expression,
                     Expression::If {
-                        kind: ast::IfKind::If,
+                        form: ast::IfForm::If,
                         ..
                     }
                 ) {

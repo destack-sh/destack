@@ -71,7 +71,7 @@ pub fn collect_module_symbol_usage(
         }
 
         let global_expression_id = expression_id.into_global_any(module_id);
-        let Some(resolution_id) = types.get_resolution_for_node(global_expression_id) else {
+        let Some(resolution_id) = types.node_resolution_id(global_expression_id) else {
             continue;
         };
 
@@ -161,7 +161,7 @@ pub fn collect_module_resolved_read_symbol_usage(
         }
 
         let global_expression_id = expression_id.into_global_any(module_id);
-        let Some(resolution_id) = types.get_resolution_for_node(global_expression_id) else {
+        let Some(resolution_id) = types.node_resolution_id(global_expression_id) else {
             continue;
         };
         let resolution = types.get_resolution(resolution_id);
@@ -249,7 +249,7 @@ impl NodeVisitor for ReadSymbolCollector {
         // let declarator patterns are writes, only visit initializers
         if let dir::Expression::Let {
             export: _,
-            ambient: _,
+            is_ambient: _,
             mutability: _,
             declarators,
         } = expression

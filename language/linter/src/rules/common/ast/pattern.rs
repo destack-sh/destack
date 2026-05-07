@@ -68,7 +68,7 @@ fn pattern_assignment_value_expression_id(
         | ast::Pattern::TypeExpression { .. }
         | ast::Pattern::Tuple { .. }
         | ast::Pattern::TaggedTuple { .. }
-        | ast::Pattern::Array { .. }
+        | ast::Pattern::Sequence { .. }
         | ast::Pattern::Object { .. }
         | ast::Pattern::TaggedObject { .. }
         | ast::Pattern::Union { .. } => None,

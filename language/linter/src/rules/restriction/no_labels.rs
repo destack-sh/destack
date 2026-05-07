@@ -111,7 +111,7 @@ fn label_target_kind(
         | ast::Expression::For { .. }
         | ast::Expression::Loop { .. } => LabelTargetKind::Loop,
         ast::Expression::Match {
-            kind: ast::MatchKind::Switch,
+            form: ast::MatchForm::Switch,
             ..
         } => LabelTargetKind::Switch,
         _ => LabelTargetKind::Other,

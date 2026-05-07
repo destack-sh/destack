@@ -37,7 +37,7 @@ impl LintRule for NoElseReturn {
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expr = ctx.tree.get(node_id);
             let ast::Expression::If {
-                kind: ast::IfKind::If,
+                form: ast::IfForm::If,
                 then_expression,
                 else_expression: Some(else_id),
                 ..
@@ -99,7 +99,7 @@ fn expression_is_else_if(
     matches!(
         ctx.tree.get(expression_id),
         ast::Expression::If {
-            kind: ast::IfKind::If,
+            form: ast::IfForm::If,
             ..
         }
     )

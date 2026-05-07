@@ -49,7 +49,7 @@ impl LintRule for NoWildcardImports {
                 if matches!(
                     item,
                     ast::DependencyItem::Item {
-                        mode: ast::DependencyMode::Namespace,
+                        binding: ast::DependencyBinding::Namespace,
                         ..
                     }
                 ) {

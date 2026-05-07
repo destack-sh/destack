@@ -81,6 +81,11 @@ fn collect_statement_expression_ids(
                     statement_expression_ids.push(*statement_expression_id);
                 }
             }
+            ast::Declaration::Module(declaration) => {
+                for statement_expression_id in &declaration.expressions {
+                    statement_expression_ids.push(*statement_expression_id);
+                }
+            }
             ast::Declaration::Namespace(declaration) => {
                 for statement_expression_id in &declaration.expressions {
                     statement_expression_ids.push(*statement_expression_id);
@@ -255,6 +260,7 @@ fn statement_list_owner_expressions(
             let declaration = ctx.tree.get(declaration_id);
             match declaration {
                 ast::Declaration::Global(declaration) => declaration.expressions.clone(),
+                ast::Declaration::Module(declaration) => declaration.expressions.clone(),
                 ast::Declaration::Namespace(declaration) => declaration.expressions.clone(),
                 _ => Vec::new(),
             }
@@ -309,6 +315,7 @@ fn declaration_statement_list_index(
     let declaration = ctx.tree.get(declaration_id);
     let expressions = match declaration {
         ast::Declaration::Global(declaration) => declaration.expressions.as_slice(),
+        ast::Declaration::Module(declaration) => declaration.expressions.as_slice(),
         ast::Declaration::Namespace(declaration) => declaration.expressions.as_slice(),
         _ => return None,
     };
@@ -457,7 +464,7 @@ fn expression_disallowed_by_rule_options(
             Some(ctx.options.complexity.no_unused_expressions_enforce_for_jsx)
         }
         ast::Expression::If {
-            kind: ast::IfKind::Ternary,
+            form: ast::IfForm::Ternary,
             then_expression,
             else_expression: Some(else_expression),
             ..
