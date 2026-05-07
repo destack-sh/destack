@@ -310,7 +310,7 @@ pub(crate) fn encode_word_bytes(
     })
 }
 
-/// Get the runtime value layout for a MIR type.
+/// Return the runtime value layout for a MIR type.
 pub(crate) fn value_layout_from_type(
     tree: &mir::Tree,
     ty: mir::LocalNodeId<mir::Type>,
@@ -417,7 +417,7 @@ pub(crate) fn value_layout_from_type(
     }
 }
 
-/// Get the native word layout for a MIR type.
+/// Return the native word layout for a MIR type.
 pub(crate) fn word_layout_from_type(
     tree: &mir::Tree,
     ty: mir::LocalNodeId<mir::Type>,

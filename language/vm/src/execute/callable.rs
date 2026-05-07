@@ -12,7 +12,7 @@ fn decode_callable_object(
     machine: &mut Machine<'_, '_>,
     reference: HeapReference,
 ) -> Result<(Word, Word), Error> {
-    let layout = machine.program.callable_object_layout;
+    let layout = machine.program.callable_object_layout();
     let base_address = machine.heap().heap_base_address() + reference.offset();
 
     // split the two pointer fields
@@ -28,7 +28,7 @@ fn decode_callable_object(
     let environment_layout = machine
         .program
         .functions
-        .environment_layout(function_id)
+        .environment_layout(machine.tree(), function_id)
         .ok_or(Error::InvalidInstruction)?;
     let environment_value =
         access::load_scalar_by_layout_at_address(environment_address, environment_layout);
@@ -42,7 +42,7 @@ fn encode_callable_word_environment(
     layout: WordLayout,
     environment_offset: u32,
 ) -> u64 {
-    let environment = machine.get_word_at(environment_offset);
+    let environment = machine.load_word_at(environment_offset);
 
     layout.encode(environment)
 }
