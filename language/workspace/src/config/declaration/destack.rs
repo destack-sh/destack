@@ -211,49 +211,10 @@ impl DestackDeclaration {
             compiler.no_runtime = parent_compiler.no_runtime;
         }
         if parent_compiler
-            .no_referential_equality
-            .is_stricter_than(compiler.no_referential_equality)
-        {
-            compiler.no_referential_equality = parent_compiler.no_referential_equality;
-        }
-        if parent_compiler
-            .no_dynamic_evaluation
-            .is_stricter_than(compiler.no_dynamic_evaluation)
-        {
-            compiler.no_dynamic_evaluation = parent_compiler.no_dynamic_evaluation;
-        }
-        if parent_compiler
-            .no_global_this
-            .is_stricter_than(compiler.no_global_this)
-        {
-            compiler.no_global_this = parent_compiler.no_global_this;
-        }
-        if parent_compiler
-            .no_dynamic_import
-            .is_stricter_than(compiler.no_dynamic_import)
-        {
-            compiler.no_dynamic_import = parent_compiler.no_dynamic_import;
-        }
-        if parent_compiler
             .no_internal_import
             .is_stricter_than(compiler.no_internal_import)
         {
             compiler.no_internal_import = parent_compiler.no_internal_import;
-        }
-        if parent_compiler
-            .no_dynamic_shapes
-            .is_stricter_than(compiler.no_dynamic_shapes)
-        {
-            compiler.no_dynamic_shapes = parent_compiler.no_dynamic_shapes;
-        }
-        if parent_compiler
-            .no_computed_property_access
-            .is_stricter_than(compiler.no_computed_property_access)
-        {
-            compiler.no_computed_property_access = parent_compiler.no_computed_property_access;
-        }
-        if parent_compiler.no_proxy.is_stricter_than(compiler.no_proxy) {
-            compiler.no_proxy = parent_compiler.no_proxy;
         }
         if parent_compiler
             .no_implicit_dynamic_dispatch

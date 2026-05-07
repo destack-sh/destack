@@ -9,7 +9,7 @@ export newtype noManaged = ();
 /// Forbid managed values and raw heap allocations in a function.
 ///
 /// ```
-/// @stackOnly
+/// @noHeap
 /// function processFrame() { }
 /// ```
-export newtype stackOnly = ();
+export newtype noHeap = ();
