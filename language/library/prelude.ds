@@ -166,20 +166,12 @@ export {
     tag,
 } from "./core/decorator/index.ds";
 
-// module patches
+// macros
 export {
     type Module,
-    type ExpandContext,
-    type MaterializeContext,
-    type ExpandPatchAdd,
-    type ExpandPatchReplace,
-    type ExpandPatchRename,
-    type ExpandPatchRemove,
-    type ExpandPatch,
-    type MaterializePatchBody,
-    type MaterializePatchExpression,
-    type MaterializePatchRemove,
-    type MaterializePatch,
+    type PatchContext,
+    type ExpansionContext,
+    type MaterializationContext,
     type Patcher,
 } from "./core/module/patch.ds";
 

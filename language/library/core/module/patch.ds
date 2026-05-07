@@ -1,119 +1,51 @@
 import {
     type Declaration,
-    type Expression,
-    type Node,
+    type Member,
     type Scope,
     type Symbol,
 } from "../../reflect/dir/index.ds";
 
-/// Context passed to patch providers.
-export struct PatchContext {
+/// Shared context passed to macro providers.
+export interface PatchContext {
     /// The decorated target symbol.
-    symbol: Symbol;
+    readonly symbol: Symbol;
 
     /// The containing scope.
-    scope: Scope;
+    readonly scope: Scope;
 
     /// The local name of the decorated target when one exists.
-    name?: string;
+    readonly name?: string;
 }
 
-/// Patch that adds a generated declaration.
-export newtype PatchAdd = {
-    kind: "add";
-    scope: Scope;
-    declaration: Declaration;
-};
+/// Context for declaration expansion.
+export interface ExpansionContext extends PatchContext {
+    /// Add a generated declaration to the current scope.
+    add(declaration: Declaration): void;
 
-/// Patch that replaces one symbol with a generated declaration.
-export newtype PatchReplace = {
-    kind: "replace";
-    symbol: Symbol;
-    declaration: Declaration;
-};
+    /// Add a generated child to the decorated declaration.
+    addChild(child: Member): void;
 
-/// Patch that renames one symbol.
-export newtype PatchRename = {
-    kind: "rename";
-    symbol: Symbol;
-    name: string;
-};
+    /// Replace the decorated symbol with a generated declaration.
+    replace(declaration: Declaration): void;
 
-/// Patch that removes one symbol.
-export newtype PatchRemove = {
-    kind: "remove";
-    symbol: Symbol;
-};
+    /// Rename the decorated symbol.
+    rename(name: string): void;
 
-/// Patch that replaces a function or method body.
-export newtype PatchBody = {
-    kind: "body";
-    symbol: Symbol;
-    body: Expression;
-};
-
-/// Patch that replaces one expression.
-export newtype PatchExpression = {
-    kind: "expression";
-    target: Expression;
-    value: Expression;
-};
-
-/// Patch that removes an already declared node from a checked shape.
-export newtype PatchRemoveNode = {
-    kind: "remove-node";
-    target: Node;
-};
-
-/// One declaration expansion patch operation.
-export newtype ExpandPatch =
-    | PatchAdd
-    | PatchReplace
-    | PatchRename
-    | PatchRemove;
-
-extension of Patch {
-    /// Create an expansion add patch.
-    static add(input: { scope: Scope; declaration: Declaration }): ExpandPatch {
-        ExpandPatch(PatchAdd({
-            kind: "add",
-            scope: input.scope,
-            declaration: input.declaration,
-        }))
-    }
-
-    /// Create an expansion replace patch.
-    static replace(input: { symbol: Symbol; declaration: Declaration }): ExpandPatch {
-        ExpandPatch(PatchReplace({
-            kind: "replace",
-            symbol: input.symbol,
-            declaration: input.declaration,
-        }))
-    }
-
-    /// Create an expansion rename patch.
-    static rename(input: { symbol: Symbol; name: string }): ExpandPatch {
-        ExpandPatch(PatchRename({
-            kind: "rename",
-            symbol: input.symbol,
-            name: input.name,
-        }))
-    }
-
-    /// Create an expansion remove patch.
-    static remove(input: { symbol: Symbol }): ExpandPatch {
-        ExpandPatch(PatchRemove({
-            kind: "remove",
-            symbol: input.symbol,
-        }))
-    }
+    /// Remove the decorated symbol from the visible declaration set.
+    remove(): void;
 }
 
-/// Protocol for decorator values that provide static patches.
+/// Context for checked implementation materialization.
+export interface MaterializationContext extends PatchContext {
+    /// Replace the decorated declaration with a checked generated declaration.
+    replace(declaration: Declaration): void;
+}
+
+/// Protocol for decorator values that provide macro behavior.
 export newtype interface Patcher<Target> {
-    /// Return declaration expansion patches for the decorated target.
-    static expand(target: Target, context: PatchContext, config: this): Patch[];
+    /// Expand declarations for the decorated target.
+    static expand(target: Target, context: ExpansionContext, config: this): void;
 
-    /// Return checked materialization patches for the decorated target.
-    static materialize(target: Target, context: PatchContext, config: this): Patch[];
+    /// Materialize checked implementation details for the decorated target.
+    static materialize(target: Target, context: MaterializationContext, config: this): void;
 }
