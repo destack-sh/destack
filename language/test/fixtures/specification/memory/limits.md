@@ -35,22 +35,37 @@ function run(): void {
 }
 ```
 
-### stackOnly rejects managed allocations
+### noHeap rejects managed allocations
 
-`@stackOnly` forbids managed allocations inside the annotated body.
+`@noHeap` forbids managed allocations inside the annotated body.
 
 ```ds:main.ds
 class Box {
     value: number = 0;
 }
 
-@stackOnly
+@noHeap
 function run(): void {
     let value = new Box();
 }
 ```
 
 - contains: managed memory is disabled
+
+### noHeap rejects raw heap allocations
+
+`@noHeap` forbids raw allocator use inside the annotated body.
+
+```ds:main.ds
+@noHeap
+function run(): void {
+    let allocator = defaultAllocator();
+    let layout = AllocationLayout { size: 64, align: 8 };
+    let value = allocator.allocate(layout)?;
+}
+```
+
+- contains: noHeap forbids heap allocations
 
 ### noManaged rejects managed parameters
 
