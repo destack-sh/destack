@@ -109,7 +109,7 @@ impl Parser {
                 Declaration::Interface(InterfaceDeclaration {
                     name,
                     export: header.export,
-                    ambient: header.ambient,
+                    is_ambient: header.is_ambient,
                     is_nominal: kind == TypeKind::Nominal,
                     generic_parameters: generic_parameters.unwrap_or_default(),
                     where_clauses: where_clauses.unwrap_or_default(),
@@ -713,7 +713,7 @@ interface Iterator<T, TReturn = any, TNext = any> {
                 assert_string!(parser, *name, "next");
                 assert_eq!(signature.parameters.len(), 1);
                 assert_node!(parser.tree, signature.parameters[0], Parameter::VariadicPattern { pattern, declared_type } => {
-                    assert_node!(parser.tree, *pattern, Pattern::Array { fields } => {
+                    assert_node!(parser.tree, *pattern, Pattern::Sequence { fields } => {
                         assert_eq!(fields.len(), 1);
                         assert_node!(parser.tree, fields[0], PatternField::Named { name, .. } => {
                             assert_name!(parser, *name, "value");

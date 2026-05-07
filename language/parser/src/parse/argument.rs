@@ -2020,8 +2020,8 @@ impl Parser {
 mod tests {
     use destack_ast::{
         Argument, Asynchrony, ClassDeclaration, CommentKind, Declaration, Decorator,
-        DecoratorPosition, Expression, FunctionDeclaration, FunctionMode, GenericArgument,
-        GenericParameter, IfKind, IntType, Keyword, Member, Name, NodeType, Parameter, Pattern,
+        DecoratorPosition, Expression, FunctionDeclaration, FunctionRole, GenericArgument,
+        GenericParameter, IfForm, IntType, Keyword, Member, Name, NodeType, Parameter, Pattern,
         PatternField, ScalarLiteral, TokenType, TupleElement, TypeExpression, TypeLiteral,
         Visibility,
     };
@@ -2177,7 +2177,7 @@ mod tests {
         let parameter_id = parser.eat_parameter().unwrap();
         assert_node!(parser.tree, parameter_id, Parameter::Pattern { pattern, is_optional, .. } => {
             assert!(*is_optional);
-            assert_node!(parser.tree, *pattern, Pattern::Array { .. } => {});
+            assert_node!(parser.tree, *pattern, Pattern::Sequence { .. } => {});
         });
     }
 
@@ -2229,7 +2229,7 @@ mod tests {
         });
     }
 
-    /// Parse bracketed rest parameters in type position as array patterns.
+    /// Parse bracketed rest parameters in type position as sequence patterns.
     #[test]
     fn test_parse_parameter_variadic_tuple_name() {
         let mut test = TestParser::new("...[value]: [] | [TNext]");
@@ -2237,7 +2237,7 @@ mod tests {
         parser.flags.set_in_type(true);
         let parameter_id = parser.eat_parameter().unwrap();
         assert_node!(parser.tree, parameter_id, Parameter::VariadicPattern { pattern, declared_type } => {
-            assert_node!(parser.tree, *pattern, Pattern::Array { fields } => {
+            assert_node!(parser.tree, *pattern, Pattern::Sequence { fields } => {
                 assert_eq!(fields.len(), 1);
                 assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: None, .. } => {
                     assert_name!(parser, *name, "value");
@@ -2259,7 +2259,7 @@ mod tests {
         let parameter_id = parser.eat_parameter().unwrap();
         assert_node!(parser.tree, parameter_id, Parameter::VariadicPattern { pattern, declared_type, .. } => {
             assert!(declared_type.is_none());
-            assert_node!(parser.tree, *pattern, Pattern::Array { fields, .. } => {
+            assert_node!(parser.tree, *pattern, Pattern::Sequence { fields, .. } => {
                 assert_eq!(fields.len(), 2);
             });
         });
@@ -2276,7 +2276,7 @@ mod tests {
         let parameter_id = parser.eat_parameter().unwrap();
         assert_node!(parser.tree, parameter_id, Parameter::VariadicPattern { pattern, declared_type, .. } => {
             // [body, init]
-            assert_node!(parser.tree, *pattern, Pattern::Array { fields, .. } => {
+            assert_node!(parser.tree, *pattern, Pattern::Sequence { fields, .. } => {
                 assert_eq!(fields.len(), 2);
 
                 assert_node!(parser.tree, fields[0], PatternField::Named { name, pattern: None, .. } => {
@@ -2317,7 +2317,7 @@ mod tests {
         let parameter_id = parser.eat_parameter().unwrap();
         assert_node!(parser.tree, parameter_id, Parameter::VariadicPattern { pattern, declared_type: Some(declared_type), .. } => {
             // [src, { ... } = {} as any]
-            assert_node!(parser.tree, *pattern, Pattern::Array { fields } => {
+            assert_node!(parser.tree, *pattern, Pattern::Sequence { fields } => {
                 assert_eq!(fields.len(), 2);
 
                 // src
@@ -2680,7 +2680,7 @@ mod tests {
                 assert_eq!(members.len(), 1);
 
                 assert_node!(parser.tree, members[0], Member::Method { signature, .. } => {
-                    assert_eq!(signature.mode, Some(FunctionMode::Constructor));
+                    assert_eq!(signature.role, Some(FunctionRole::Constructor));
                     assert_eq!(signature.parameters.len(), 1);
 
                     assert_node!(parser.tree, signature.parameters[0], Parameter::Named { visibility, is_readonly, name, declared_type: Some(declared_type), default: None, .. } => {
@@ -2780,7 +2780,7 @@ class Test {
 
                 // constructor(@p1 t1, @p2 t2, @p3 ...t3)
                 assert_node!(parser.tree, members[0], Member::Method { signature, .. } => {
-                    assert_eq!(signature.mode, Some(FunctionMode::Constructor));
+                    assert_eq!(signature.role, Some(FunctionRole::Constructor));
                     assert_eq!(signature.parameters.len(), 3);
 
                     // @p1 t1
@@ -2820,7 +2820,7 @@ class Test {
 
                 // method(@p1 t1, @p2 ...t2)
                 assert_node!(parser.tree, members[1], Member::Method { signature, .. } => {
-                    assert_eq!(signature.mode, None);
+                    assert_eq!(signature.role, None);
                     assert_eq!(signature.parameters.len(), 2);
 
                     // @p1 t1
@@ -2944,8 +2944,8 @@ class Test {
         let argument_id = parser.eat_tree_literal_argument().unwrap();
         assert_node!(parser.tree, argument_id, Argument::Named { name: Name::Identifier(name), value } => {
             assert_string!(parser, *name, "dataNextjsContainerErrorsPseudoHtmlDiff");
-            assert_node!(parser.tree, *value, Expression::If { kind, .. } => {
-                assert_eq!(*kind, IfKind::Ternary);
+            assert_node!(parser.tree, *value, Expression::If { form, .. } => {
+                assert_eq!(*form, IfForm::Ternary);
             });
         });
     }

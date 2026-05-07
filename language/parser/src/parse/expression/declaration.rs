@@ -1,8 +1,7 @@
 use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 
 use destack_ast::{
-    Ambientness, Asynchrony, DependencyMode, ExportMode, Expression, Keyword, LiteralType,
-    TokenType,
+    Asynchrony, DependencyBinding, ExportKind, Expression, Keyword, LiteralType, TokenType,
 };
 
 use super::super::PendingDecorators;
@@ -263,12 +262,12 @@ impl Parser {
             self.bump(); // eat export
             let export_mode = if self.is_keyword(Keyword::Default) {
                 self.bump(); // eat default
-                Some(DependencyMode::Default)
+                Some(DependencyBinding::Default)
             } else if self.peek_is(TokenType::Assign) {
                 self.bump(); // eat assign
-                Some(DependencyMode::Namespace)
+                Some(DependencyBinding::Namespace)
             } else {
-                Some(DependencyMode::Item)
+                Some(DependencyBinding::Item)
             };
 
             // export namespace handled by export statement parsing
@@ -284,14 +283,14 @@ impl Parser {
             let current_keyword = self.current_keyword();
             let current_token_type = self.peek_token_type();
             let has_module_identifier_declaration = self.is_module_identifier();
-            let has_decorator_declaration_head =
-                current_token_type == TokenType::At && export_mode != Some(DependencyMode::Default);
+            let has_decorator_declaration_head = current_token_type == TokenType::At
+                && export_mode != Some(DependencyBinding::Default);
             let has_declaration_keyword = current_keyword.is_some_and(is_declaration_keyword)
                 || has_decorator_declaration_head
                 || has_module_identifier_declaration;
 
             // reject export default enum declarations
-            if export_mode == Some(DependencyMode::Default) && self.is_keyword(Keyword::Enum) {
+            if export_mode == Some(DependencyBinding::Default) && self.is_keyword(Keyword::Enum) {
                 return Err(ParseError::unexpected(self.peek()?.span));
             }
 
@@ -316,10 +315,10 @@ impl Parser {
                 && !self.peek_is(TokenType::At)
                 && !self.peek_dependency_binding_is()
                 && !self.is_keyword(Keyword::Import);
-            let is_export_dependency = export_mode == Some(DependencyMode::Namespace)
+            let is_export_dependency = export_mode == Some(DependencyBinding::Namespace)
                 || is_export_type_binding
                 || (!has_declaration_keyword && self.peek_dependency_binding_is())
-                || (export_mode == Some(DependencyMode::Default) && !has_declaration_keyword)
+                || (export_mode == Some(DependencyBinding::Default) && !has_declaration_keyword)
                 || is_invalid_export_form;
             if is_export_dependency {
                 self.rewind(descriptor_start.clone());
@@ -328,9 +327,9 @@ impl Parser {
             }
 
             header.export = match export_mode {
-                Some(DependencyMode::Default) => Some(ExportMode::Default),
-                Some(DependencyMode::Item) => Some(ExportMode::Named),
-                Some(DependencyMode::Namespace) | None => None,
+                Some(DependencyBinding::Default) => Some(ExportKind::Default),
+                Some(DependencyBinding::Item) => Some(ExportKind::Named),
+                Some(DependencyBinding::Namespace) | None => None,
             };
 
             // parse decorators after export so descriptor modifiers still parse correctly
@@ -407,12 +406,12 @@ impl Parser {
             self.error(&error);
         }
 
-        (header.ambient, header.declare_span) = if is_declare && declare_has_target {
+        (header.is_ambient, header.declare_span) = if is_declare && declare_has_target {
             let declare_span = self.peek()?.span;
             self.bump(); // eat declare
-            (Ambientness::Ambient, Some(declare_span))
+            (true, Some(declare_span))
         } else {
-            (Ambientness::Concrete, None)
+            (false, None)
         };
 
         // abstraction modifier
@@ -430,14 +429,14 @@ impl Parser {
         }
 
         // global declaration
-        if (header.ambient == Ambientness::Ambient
+        if (header.is_ambient
             || self.language.is_declaration()
             || self.flags.is_in_declare_context())
             && self.is_global_identifier()
             && self.next_token_type() == TokenType::OpenBrace
         {
             let mut global_header = header;
-            global_header.ambient = Ambientness::Ambient;
+            global_header.is_ambient = true;
             let global_id = self.eat_global(start, global_header)?;
             let expression_id = self.insert_node(
                 Expression::Declaration(global_id),
@@ -466,17 +465,17 @@ impl Parser {
         let is_declaration_start = DECLARATION_START_TOKENS.contains(&next_token_type);
 
         match keyword {
-            // ambient async heads only exist for `async function`
+            // is_ambient async heads only exist for `async function`
             Keyword::Async => {
                 !next_has_line_break
                     && next_token_type == TokenType::Identifier
                     && next_keyword == Some(Keyword::Function)
             }
 
-            // ambient const, let, and var declarations commit immediately
+            // is_ambient const, let, and var declarations commit immediately
             Keyword::Const | Keyword::Let | Keyword::Var => true,
 
-            // ambient nominal and structural declarations keep their existing heads
+            // is_ambient nominal and structural declarations keep their existing heads
             Keyword::Class
             | Keyword::Function
             | Keyword::Interface
@@ -498,7 +497,7 @@ impl Parser {
             // type aliases require a contiguous identifier name
             Keyword::Type => !next_has_line_break && next_token_type == TokenType::Identifier,
 
-            // the remaining declaration keywords are contextual modifiers, not ambient heads
+            // the remaining declaration keywords are contextual modifiers, not is_ambient heads
             _ => false,
         }
     }

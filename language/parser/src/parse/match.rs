@@ -3,7 +3,7 @@ use crate::parse::prelude::*;
 use crate::{ParseResult, Parser};
 
 use destack_ast::{
-    Block, BlockContext, BlockFormat, Expression, Keyword, LocalNodeId, MatchCase, MatchKind,
+    Block, BlockContext, BlockForm, Expression, Keyword, LocalNodeId, MatchCase, MatchForm,
     MatchSelector, NodeType, Pattern, TokenType,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
@@ -50,18 +50,18 @@ impl Parser {
     pub fn eat_match(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         // keyword
         let keyword = self.eat_keyword_in(&[Keyword::Match, Keyword::Switch])?;
-        let kind = if keyword == Keyword::Switch {
-            MatchKind::Switch
+        let form = if keyword == Keyword::Switch {
+            MatchForm::Switch
         } else {
-            MatchKind::Match
+            MatchForm::Match
         };
 
         // body
-        self.eat_match_body(kind)
+        self.eat_match_body(form)
     }
 
     /// Eat a match body (without the match keyword)
-    pub fn eat_match_body(&mut self, kind: MatchKind) -> ParseResult<LocalNodeId<Expression>> {
+    pub fn eat_match_body(&mut self, form: MatchForm) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.span_start();
 
         // value
@@ -76,13 +76,13 @@ impl Parser {
         // cases
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::MatchCase)?;
-        let cases_id = self.eat_match_cases(kind)?;
+        let cases_id = self.eat_match_cases(form)?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::MatchCase)?;
 
         // match
         let match_id = self.insert_node(
             Expression::Match {
-                kind,
+                form,
                 value: value_id,
                 cases: cases_id,
             },
@@ -102,7 +102,7 @@ impl Parser {
     /// ```
     pub(crate) fn eat_match_cases(
         &mut self,
-        kind: MatchKind,
+        form: MatchForm,
     ) -> ParseResult<Vec<LocalNodeId<MatchCase>>> {
         let mut cases: Vec<LocalNodeId<MatchCase>> = Vec::new();
         let mut has_default_case = false;
@@ -121,7 +121,7 @@ impl Parser {
             // case
             else {
                 // reject duplicate default selectors in switch blocks
-                if kind == MatchKind::Switch
+                if form == MatchForm::Switch
                     && has_default_case
                     && self.is_keyword(Keyword::Default)
                 {
@@ -129,11 +129,11 @@ impl Parser {
                 }
 
                 let case = self
-                    .eat_match_case(kind)
+                    .eat_match_case(form)
                     .for_node_type(NodeType::MatchCase)?;
 
                 // track default selectors for duplicate checks
-                if kind == MatchKind::Switch {
+                if form == MatchForm::Switch {
                     let selector = match self.tree.get(case) {
                         MatchCase::Expression { selector, .. }
                         | MatchCase::Block { selector, .. } => selector,
@@ -159,7 +159,7 @@ impl Parser {
     ///     ...
     /// }
     /// ```
-    fn eat_match_case(&mut self, kind: MatchKind) -> ParseResult<LocalNodeId<MatchCase>> {
+    fn eat_match_case(&mut self, form: MatchForm) -> ParseResult<LocalNodeId<MatchCase>> {
         // decorators before match arms
         let mut pending_case_decorators = if self.peek_is(TokenType::At) {
             self.eat_decorators_maybe()?
@@ -170,8 +170,8 @@ impl Parser {
         let start = self.span_start();
         let mut guard_clause_span = None;
 
-        let selector = match kind {
-            MatchKind::Switch => {
+        let selector = match form {
+            MatchForm::Switch => {
                 // default case
                 if self.is_keyword(Keyword::Default) {
                     self.bump();
@@ -222,8 +222,8 @@ impl Parser {
                     MatchSelector::Pattern { pattern, guard }
                 }
             }
-            // match-kind
-            MatchKind::Match => {
+            // match form
+            MatchForm::Match => {
                 // pattern
                 let (pattern_ambient_context, pattern_expression_context) =
                     self.match_pattern_contexts();
@@ -260,7 +260,7 @@ impl Parser {
         };
 
         // switch case body: consume statements until break or next case boundary
-        if kind == MatchKind::Switch {
+        if form == MatchForm::Switch {
             // eat expressions until we hit a break (inclusive) or case / default (exclusive)
 
             // empty case body before the next case, default, or closing brace
@@ -271,7 +271,7 @@ impl Parser {
                 let block_id = self.insert_node(
                     Block {
                         context: BlockContext::Statement,
-                        format: BlockFormat::Implicit,
+                        form: BlockForm::Implicit,
                         leading_expressions: Vec::new(),
                         tail_expression: None,
                     },
@@ -341,7 +341,7 @@ impl Parser {
                 let block_id = self.insert_node(
                     Block {
                         context: BlockContext::Statement,
-                        format: BlockFormat::Implicit,
+                        form: BlockForm::Implicit,
                         leading_expressions: expressions,
                         tail_expression: None,
                     },
@@ -423,7 +423,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Block, CommentKind, Expression, MatchCase, MatchKind, MatchSelector, Pattern, ScalarLiteral,
+        Block, CommentKind, Expression, MatchCase, MatchForm, MatchSelector, Pattern, ScalarLiteral,
     };
     use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
@@ -448,7 +448,7 @@ match (x) {
 
         let match_id = parser.eat_match().unwrap();
 
-        assert_node!(parser.tree, match_id, Expression::Match { kind: MatchKind::Match, value, cases } => {
+        assert_node!(parser.tree, match_id, Expression::Match { form: MatchForm::Match, value, cases } => {
             // value: path x
             assert_expression_path!(parser, parser.tree.get(*value), "x");
 
@@ -501,7 +501,7 @@ match (x) {
         let mut parser = test.prepare();
 
         let match_id = parser.eat_match().unwrap();
-        assert_node!(parser.tree, match_id, Expression::Match { kind: MatchKind::Match, value: _, cases } => {
+        assert_node!(parser.tree, match_id, Expression::Match { form: MatchForm::Match, value: _, cases } => {
             assert_eq!(cases.len(), 1);
 
             // case: 2 if (true) => 20
@@ -543,7 +543,7 @@ match (self) {
         let match_id = parser.eat_match().unwrap();
 
         // match (self) { ... }
-        assert_node!(parser.tree, match_id, Expression::Match { kind: MatchKind::Match, value, cases } => {
+        assert_node!(parser.tree, match_id, Expression::Match { form: MatchForm::Match, value, cases } => {
             // self
             assert_expression_path!(parser, parser.tree.get(*value), "self");
 
@@ -671,7 +671,7 @@ switch (left.type) {
         let mut parser = test.prepare();
 
         let switch_id = parser.eat_match().unwrap();
-        assert_node!(parser.tree, switch_id, Expression::Match { kind: MatchKind::Switch, value: _, cases } => {
+        assert_node!(parser.tree, switch_id, Expression::Match { form: MatchForm::Switch, value: _, cases } => {
             assert_eq!(cases.len(), 4);
 
             // case 'static' (block)
@@ -684,7 +684,7 @@ switch (left.type) {
                     });
                 });
                 // body
-                assert_node!(parser.tree, *body, Block { format: _, .. } => {
+                assert_node!(parser.tree, *body, Block { .. } => {
                     let expressions = block_expression_ids(parser.tree.get(*body));
                     assert_eq!(expressions.len(), 2);
                 });
@@ -700,7 +700,7 @@ switch (left.type) {
                     });
                 });
                 // body
-                assert_node!(parser.tree, *body, Block { format: _, .. } => {
+                assert_node!(parser.tree, *body, Block { .. } => {
                     let expressions = block_expression_ids(parser.tree.get(*body));
                     assert_eq!(expressions.len(), 2);
                 });
@@ -724,7 +724,7 @@ switch (left.type) {
             // case default (block)
             assert_node!(parser.tree, cases[3], MatchCase::Block { selector: MatchSelector::Default, body } => {
                 // body
-                assert_node!(parser.tree, *body, Block { format: _, .. } => {
+                assert_node!(parser.tree, *body, Block { .. } => {
                     let expressions = block_expression_ids(parser.tree.get(*body));
                     assert_eq!(expressions.len(), 2);
                 });
@@ -745,10 +745,10 @@ switch(a) { case 1: {}
 
         // switch(a) { case 1: {} /foo/ }
         let switch_id = parser.eat_match().unwrap();
-        assert_node!(parser.tree, switch_id, Expression::Match { kind: MatchKind::Switch, cases, .. } => {
+        assert_node!(parser.tree, switch_id, Expression::Match { form: MatchForm::Switch, cases, .. } => {
             assert_eq!(cases.len(), 1);
             assert_node!(parser.tree, cases[0], MatchCase::Block { body, .. } => {
-                assert_node!(parser.tree, *body, Block { format: _, .. } => {
+                assert_node!(parser.tree, *body, Block { .. } => {
                     let expressions = block_expression_ids(parser.tree.get(*body));
                     assert_eq!(expressions.len(), 2);
                     assert_node!(parser.tree, expressions[0], Expression::Block(_));
@@ -773,7 +773,7 @@ switch (tag.injectTo) {
         let mut parser = test.prepare();
 
         let switch_id = parser.eat_match().unwrap();
-        assert_node!(parser.tree, switch_id, Expression::Match { kind: MatchKind::Switch, cases, .. } => {
+        assert_node!(parser.tree, switch_id, Expression::Match { form: MatchForm::Switch, cases, .. } => {
             assert_eq!(cases.len(), 1);
             assert_node!(parser.tree, cases[0], MatchCase::Block { body, .. } => {
                 assert_node!(parser.tree, *body, Block { .. } => {
@@ -826,7 +826,7 @@ switch (tag) {
         let mut parser = test.prepare();
 
         let switch_id = parser.eat_match().unwrap();
-        assert_node!(parser.tree, switch_id, Expression::Match { kind: MatchKind::Switch, cases, .. } => {
+        assert_node!(parser.tree, switch_id, Expression::Match { form: MatchForm::Switch, cases, .. } => {
             assert_eq!(cases.len(), 2);
 
             // first case body
@@ -883,7 +883,7 @@ switch (value) {
         let mut parser = test.prepare();
 
         let switch_id = parser.eat_match().unwrap();
-        assert_node!(parser.tree, switch_id, Expression::Match { kind: MatchKind::Switch, cases, .. } => {
+        assert_node!(parser.tree, switch_id, Expression::Match { form: MatchForm::Switch, cases, .. } => {
             assert_eq!(cases.len(), 1);
             assert_node!(parser.tree, cases[0], MatchCase::Block { body, .. } => {
                 assert_node!(parser.tree, *body, Block { .. } => {
@@ -907,7 +907,7 @@ switch (value) {
         let switch_id = parser.eat_match().unwrap();
 
         // switch(op[0]) { default: if (...) { _ = 0; continue } if (...) { _.label = op[1]; break } }
-        assert_node!(parser.tree, switch_id, Expression::Match { kind: MatchKind::Switch, cases, .. } => {
+        assert_node!(parser.tree, switch_id, Expression::Match { form: MatchForm::Switch, cases, .. } => {
             assert_eq!(cases.len(), 1);
 
             // default case body keeps both if statements
@@ -947,8 +947,8 @@ switch (value) {
         assert_eq!(expressions.len(), 1);
 
         let expression_id = parser.unwrap_labelled_expression(expressions[0]);
-        assert_node!(parser.tree, expression_id, Expression::Match { kind, cases, .. } => {
-            assert_eq!(*kind, MatchKind::Switch);
+        assert_node!(parser.tree, expression_id, Expression::Match { form, cases, .. } => {
+            assert_eq!(*form, MatchForm::Switch);
             assert_eq!(cases.len(), 2);
 
             let first_case_annotations = parser.tree.get_decorators(cases[0].id);

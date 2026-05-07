@@ -129,7 +129,7 @@ impl Parser {
             let declaration = Declaration::Type(TypeDeclaration {
                 name,
                 export: header.export,
-                ambient: header.ambient,
+                is_ambient: header.is_ambient,
                 is_nominal: kind == TypeKind::Nominal,
                 mutability,
                 generic_parameters,

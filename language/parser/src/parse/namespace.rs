@@ -2,8 +2,8 @@ use crate::parse::prelude::*;
 use crate::{ParseResult, Parser, ParserSpanStart};
 
 use destack_ast::{
-    Ambientness, BlockContext, BlockFormat, Declaration, Expression, GlobalDeclaration, Keyword,
-    LocalNodeId, Name, NamespaceDeclaration, NamespaceKind, NodeType, TokenType,
+    BlockContext, BlockForm, Declaration, Expression, GlobalDeclaration, Keyword, LocalNodeId,
+    Name, NamespaceDeclaration, NamespaceForm, NodeType, TokenType,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
@@ -20,16 +20,12 @@ impl Parser {
 
         self.eat_token(TokenType::OpenBrace)?;
         let expressions = self
-            .eat_block_body_in_context(BlockFormat::Explicit, BlockContext::Statement)
+            .eat_block_body_in_context(BlockForm::Explicit, BlockContext::Statement)
             .for_node_type(NodeType::Block)?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Declaration)?;
 
         let global = Declaration::Global(GlobalDeclaration {
-            ambient: if header.ambient == Ambientness::Ambient {
-                Ambientness::Ambient
-            } else {
-                Ambientness::Concrete
-            },
+            is_ambient: header.is_ambient,
             expressions,
         });
         let global_id = self.insert_node(global, self.get_span_from(start));
@@ -52,17 +48,17 @@ impl Parser {
         header: DeclarationHeader,
     ) -> ParseResult<LocalNodeId<Declaration>> {
         // keyword
-        let namespace_kind = if self.is_keyword(Keyword::Namespace) {
+        let namespace_form = if self.is_keyword(Keyword::Namespace) {
             self.bump(); // eat namespace
-            NamespaceKind::Namespace
+            NamespaceForm::Namespace
         } else {
             self.eat_identifier_str("module")?;
-            NamespaceKind::Module
+            NamespaceForm::Module
         };
 
         // name
         let (names, name_span) =
-            if namespace_kind == NamespaceKind::Module && self.peek_string_literal_is() {
+            if namespace_form == NamespaceForm::Module && self.peek_string_literal_is() {
                 let (name_id, span) = self.eat_string_literal_with_span()?;
                 (vec![(Name::String(name_id), span)], Some(span))
             } else if let Some((name, span)) = self.eat_name_maybe_with_span()? {
@@ -87,7 +83,7 @@ impl Parser {
 
         // body
         // propagate ambient declaration contexts into module bodies
-        let body_flags = if header.ambient == Ambientness::Ambient {
+        let body_flags = if header.is_ambient {
             self.flags.in_declare_context()
         } else {
             self.flags
@@ -97,7 +93,7 @@ impl Parser {
         let expressions = if has_body {
             self.eat_token(TokenType::OpenBrace)?; // eat open brace
             let expressions_result = self.with_flags(body_flags, |parser| {
-                parser.eat_block_body_in_context(BlockFormat::Explicit, BlockContext::Statement)
+                parser.eat_block_body_in_context(BlockForm::Explicit, BlockContext::Statement)
             })?;
             let expressions = expressions_result;
             self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Declaration)?;
@@ -107,7 +103,7 @@ impl Parser {
         };
 
         // reject missing bodies for identifier modules
-        if namespace_kind == NamespaceKind::Module
+        if namespace_form == NamespaceForm::Module
             && !has_body
             && names
                 .first()
@@ -137,8 +133,8 @@ impl Parser {
             let namespace = Declaration::Namespace(NamespaceDeclaration {
                 name,
                 export: local_header.export,
-                ambient: local_header.ambient,
-                kind: namespace_kind,
+                is_ambient: local_header.is_ambient,
+                form: namespace_form,
                 generic_parameters: vec![],
                 where_clauses: where_clauses.clone().unwrap_or_default(),
                 expressions: nested_expressions,
@@ -167,8 +163,8 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Ambientness, Declaration, ExportMode, Expression, GlobalDeclaration, Name,
-        NamespaceDeclaration, NamespaceKind, TypeExpression, WhereClause,
+        Declaration, ExportKind, Expression, GlobalDeclaration, Name, NamespaceDeclaration,
+        NamespaceForm, TypeExpression, WhereClause,
     };
     use destack_source::LanguageType;
 
@@ -190,8 +186,8 @@ declare global {
 
         let expr_id = parser.eat_expression(parser.flags).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
-            assert_node!(parser.tree, *decl_id, Declaration::Global(GlobalDeclaration { ambient, expressions, .. }) => {
-                assert_eq!(*ambient, Ambientness::Ambient);
+            assert_node!(parser.tree, *decl_id, Declaration::Global(GlobalDeclaration { is_ambient, expressions, .. }) => {
+                assert_eq!(*is_ambient, true);
                 assert_eq!(expressions.len(), 1);
             });
         });
@@ -211,8 +207,8 @@ global {
 
         let expr_id = parser.eat_expression(parser.flags).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
-            assert_node!(parser.tree, *decl_id, Declaration::Global(GlobalDeclaration { ambient, expressions, .. }) => {
-                assert_eq!(*ambient, Ambientness::Ambient);
+            assert_node!(parser.tree, *decl_id, Declaration::Global(GlobalDeclaration { is_ambient, expressions, .. }) => {
+                assert_eq!(*is_ambient, true);
                 assert_eq!(expressions.len(), 1);
             });
         });
@@ -232,9 +228,9 @@ declare module "foo" {
 
         let expr_id = parser.eat_expression(parser.flags).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
-            assert_node!(parser.tree, *decl_id, Declaration::Namespace(NamespaceDeclaration { name, ambient, kind, expressions, .. }) => {
-                assert_eq!(*ambient, Ambientness::Ambient);
-                assert_eq!(*kind, NamespaceKind::Module);
+            assert_node!(parser.tree, *decl_id, Declaration::Namespace(NamespaceDeclaration { name, is_ambient, form, expressions, .. }) => {
+                assert_eq!(*is_ambient, true);
+                assert_eq!(*form, NamespaceForm::Module);
                 assert_eq!(expressions.len(), 1);
                 assert_node!(name, Name::String(name_id) => {
                     assert_string!(parser, *name_id, "foo");
@@ -350,8 +346,8 @@ declare module "buffer" {
 
         let expr_id = parser.eat_expression(parser.flags).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
-            assert_node!(parser.tree, *decl_id, Declaration::Namespace(NamespaceDeclaration { name, ambient, expressions, .. }) => {
-                assert_eq!(*ambient, Ambientness::Ambient);
+            assert_node!(parser.tree, *decl_id, Declaration::Namespace(NamespaceDeclaration { name, is_ambient, expressions, .. }) => {
+                assert_eq!(*is_ambient, true);
                 assert_node!(name, Name::String(name_id) => {
                     assert_string!(parser, *name_id, "buffer");
                 });
@@ -359,8 +355,8 @@ declare module "buffer" {
 
                 let nested_id = expressions[0];
                 assert_node!(parser.tree, nested_id, Expression::Declaration(global_id) => {
-                    assert_node!(parser.tree, *global_id, Declaration::Global(GlobalDeclaration { ambient, expressions, .. }) => {
-                        assert_eq!(*ambient, Ambientness::Ambient);
+                    assert_node!(parser.tree, *global_id, Declaration::Global(GlobalDeclaration { is_ambient, expressions, .. }) => {
+                        assert_eq!(*is_ambient, true);
                         assert_eq!(expressions.len(), 1);
                     });
                 });
@@ -384,8 +380,8 @@ declare module "m" {
 
         let expr_id = parser.eat_expression(parser.flags).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
-            assert_node!(parser.tree, *decl_id, Declaration::Namespace(NamespaceDeclaration { name, ambient, expressions, .. }) => {
-                assert_eq!(*ambient, Ambientness::Ambient);
+            assert_node!(parser.tree, *decl_id, Declaration::Namespace(NamespaceDeclaration { name, is_ambient, expressions, .. }) => {
+                assert_eq!(*is_ambient, true);
                 assert_node!(name, Name::String(name_id) => {
                     assert_string!(parser, *name_id, "m");
                 });
@@ -393,8 +389,8 @@ declare module "m" {
 
                 let nested_id = expressions[0];
                 assert_node!(parser.tree, nested_id, Expression::Declaration(global_id) => {
-                    assert_node!(parser.tree, *global_id, Declaration::Global(GlobalDeclaration { ambient, expressions, .. }) => {
-                        assert_eq!(*ambient, Ambientness::Ambient);
+                    assert_node!(parser.tree, *global_id, Declaration::Global(GlobalDeclaration { is_ambient, expressions, .. }) => {
+                        assert_eq!(*is_ambient, true);
                         assert_eq!(expressions.len(), 1);
                     });
                 });
@@ -416,9 +412,9 @@ module "foo" {
 
         let expr_id = parser.eat_expression(parser.flags).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
-            assert_node!(parser.tree, *decl_id, Declaration::Namespace(NamespaceDeclaration { name, ambient, kind, expressions, .. }) => {
-                assert_eq!(*ambient, Ambientness::Concrete);
-                assert_eq!(*kind, NamespaceKind::Module);
+            assert_node!(parser.tree, *decl_id, Declaration::Namespace(NamespaceDeclaration { name, is_ambient, form, expressions, .. }) => {
+                assert_eq!(*is_ambient, false);
+                assert_eq!(*form, NamespaceForm::Module);
                 assert_eq!(expressions.len(), 1);
                 assert_node!(name, Name::String(name_id) => {
                     assert_string!(parser, *name_id, "foo");
@@ -441,8 +437,8 @@ module "foo" {
 
         let expr_id = parser.eat_expression(parser.flags).unwrap();
         assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
-            assert_node!(parser.tree, *decl_id, Declaration::Namespace(NamespaceDeclaration { name, ambient, expressions, .. }) => {
-                assert_eq!(*ambient, Ambientness::Concrete);
+            assert_node!(parser.tree, *decl_id, Declaration::Namespace(NamespaceDeclaration { name, is_ambient, expressions, .. }) => {
+                assert_eq!(*is_ambient, false);
                 assert_eq!(expressions.len(), 1);
                 assert_node!(name, Name::String(name_id) => {
                     assert_string!(parser, *name_id, "foo");
@@ -482,9 +478,9 @@ namespace Foo where Guard: Limit {
         let namespace_id = parser
             .eat_namespace(&start, DeclarationHeader::default())
             .unwrap();
-        assert_node!(parser.tree, namespace_id, Declaration::Namespace(NamespaceDeclaration { name, export, ambient, kind, expressions, where_clauses, .. }) => {
-            assert_eq!(*ambient, Ambientness::Concrete);
-            assert_eq!(*kind, NamespaceKind::Namespace);
+        assert_node!(parser.tree, namespace_id, Declaration::Namespace(NamespaceDeclaration { name, export, is_ambient, form, expressions, where_clauses, .. }) => {
+            assert_eq!(*is_ambient, false);
+            assert_eq!(*form, NamespaceForm::Namespace);
             assert_string!(parser, name.string(), "Foo");
             assert!(export.is_none());
             assert!(expressions.is_empty());
@@ -507,9 +503,9 @@ namespace Foo where Guard: Limit {
             .eat_namespace(&start, DeclarationHeader::default())
             .unwrap();
 
-        assert_node!(parser.tree, namespace_id, Declaration::Namespace(NamespaceDeclaration { name, export, ambient, kind, expressions, where_clauses, .. }) => {
-            assert_eq!(*ambient, Ambientness::Concrete);
-            assert_eq!(*kind, NamespaceKind::Namespace);
+        assert_node!(parser.tree, namespace_id, Declaration::Namespace(NamespaceDeclaration { name, export, is_ambient, form, expressions, where_clauses, .. }) => {
+            assert_eq!(*is_ambient, false);
+            assert_eq!(*form, NamespaceForm::Namespace);
             assert_string!(parser, name.string(), "Foo");
             assert!(export.is_none());
             assert!(expressions.is_empty());
@@ -545,7 +541,7 @@ namespace M {
                 assert_eq!(expressions.len(), 2);
                 assert_node!(parser.tree, expressions[0], Expression::ScalarLiteral(_) => {});
                 assert_node!(parser.tree, expressions[1], Expression::Let { export, .. } => {
-                    assert_eq!(*export, Some(ExportMode::Named));
+                    assert_eq!(*export, Some(ExportKind::Named));
                 });
             });
         });

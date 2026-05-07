@@ -22,7 +22,7 @@ fn test_parse_async_generic_arrow_assignment_with_extends_default() {
         assert_node!(parser.tree, *right, Expression::Declaration(declaration_id) => {
             assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
                 assert_eq!(signature.asynchrony, Asynchrony::Async);
-                assert_eq!(signature.kind, FunctionKind::Lambda);
+                assert_eq!(signature.form, FunctionForm::Lambda);
                 assert!(signature.parameters.is_empty());
 
                 let generic_parameters = &signature.generic_parameters;
@@ -98,7 +98,7 @@ fn test_parse_async_generic_arrow_asi() {
     assert_node!(parser.tree, expressions[1], Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
             assert_eq!(signature.asynchrony, Asynchrony::Async);
-            assert_eq!(signature.kind, FunctionKind::Lambda);
+            assert_eq!(signature.form, FunctionForm::Lambda);
             assert!(signature.parameters.is_empty());
             assert!(!signature.generic_parameters.is_empty());
             assert!(body.is_some());

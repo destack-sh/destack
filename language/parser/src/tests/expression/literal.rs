@@ -427,14 +427,14 @@ fn test_parse_object_boolean_identifier_name_keys() {
             assert_node!(key, Some(Key::Name(Name::Identifier(name))) => {
                 assert_string!(parser, *name, "true");
             });
-            assert_eq!(signature.mode, Some(FunctionMode::Getter));
+            assert_eq!(signature.role, Some(FunctionRole::Getter));
         });
 
         assert_node!(parser.tree, properties[3], Property::Method { key, signature, .. } => {
             assert_node!(key, Some(Key::Name(Name::Identifier(name))) => {
                 assert_string!(parser, *name, "false");
             });
-            assert_eq!(signature.mode, Some(FunctionMode::Setter));
+            assert_eq!(signature.role, Some(FunctionRole::Setter));
         });
     });
 }
@@ -456,7 +456,7 @@ fn test_parse_object_literal_with_typed_arrow_value() {
             assert_string!(parser, *name, "reproFunc");
             assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
                 assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(_), .. }) => {
-                    assert_eq!(signature.kind, FunctionKind::Lambda);
+                    assert_eq!(signature.form, FunctionForm::Lambda);
                     assert_eq!(signature.parameters.len(), 1);
                 });
             });

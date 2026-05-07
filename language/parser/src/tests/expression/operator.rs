@@ -885,7 +885,7 @@ fn test_parse_precedence_assignment_rhs_conditional() {
                 parser.tree,
                 *right,
                 Expression::If {
-                    kind: IfKind::Ternary,
+                    form: IfForm::Ternary,
                     condition: IfCondition::Expression { condition },
                     then_expression,
                     else_expression,

@@ -1,5 +1,5 @@
 use destack_ast::{
-    Block, BlockContext, BlockFormat, Declaration, Expression, FunctionDeclaration, FunctionKind,
+    Block, BlockContext, BlockForm, Declaration, Expression, FunctionDeclaration, FunctionForm,
     Keyword, LetKind, LocalNodeId, NodeType, TokenType, YieldCardinality,
 };
 use destack_core::StringId;
@@ -81,18 +81,18 @@ impl Parser {
 
     /// Return true when a token ends the current block body.
     #[inline]
-    fn is_block_body_terminator_token(&self, token_type: TokenType, format: BlockFormat) -> bool {
+    fn is_block_body_terminator_token(&self, token_type: TokenType, form: BlockForm) -> bool {
         token_type == TokenType::End
-            || (token_type == TokenType::CloseBrace && format != BlockFormat::Implicit)
+            || (token_type == TokenType::CloseBrace && form != BlockForm::Implicit)
     }
 
     /// Try to consume one stray closing delimiter in an implicit statement body.
     fn try_consume_stray_close_delimiter_in_implicit_block_body(
         &mut self,
-        format: BlockFormat,
+        form: BlockForm,
         statements: &mut Vec<LocalNodeId<Expression>>,
     ) -> ParseResult<bool> {
-        if format != BlockFormat::Implicit {
+        if form != BlockForm::Implicit {
             return Ok(false);
         }
 
@@ -170,7 +170,7 @@ impl Parser {
             let block_id = self.insert_node(
                 Block {
                     context: BlockContext::Statement,
-                    format: BlockFormat::Implicit,
+                    form: BlockForm::Implicit,
                     leading_expressions: Vec::new(),
                     tail_expression: None,
                 },
@@ -406,7 +406,7 @@ impl Parser {
             let block_id = self.insert_node(
                 Block {
                     context: BlockContext::Statement,
-                    format: BlockFormat::Implicit,
+                    form: BlockForm::Implicit,
                     leading_expressions: vec![],
                     tail_expression: None,
                 },
@@ -438,7 +438,7 @@ impl Parser {
         let block_id = self.insert_node(
             Block {
                 context: BlockContext::Statement,
-                format: BlockFormat::Implicit,
+                form: BlockForm::Implicit,
                 leading_expressions: vec![expression_id],
                 tail_expression: None,
             },
@@ -460,7 +460,7 @@ impl Parser {
             Expression::Declaration(declaration_id) => !matches!(
                 self.tree.get(*declaration_id),
                 Declaration::Function(FunctionDeclaration { signature, .. })
-                    if signature.kind == FunctionKind::Lambda
+                    if signature.form == FunctionForm::Lambda
             ),
             Expression::LetElse { .. }
             | Expression::Using { .. }
@@ -510,7 +510,7 @@ impl Parser {
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::Block)?;
         let (leading_expressions, tail_expression) = self
-            .eat_block_body_parts_in_context(BlockFormat::Explicit, block_context)
+            .eat_block_body_parts_in_context(BlockForm::Explicit, block_context)
             .for_node_type(NodeType::Block)?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Block)?;
 
@@ -518,7 +518,7 @@ impl Parser {
         let block_id = self.insert_node(
             Block {
                 context: block_context,
-                format: BlockFormat::Explicit,
+                form: BlockForm::Explicit,
                 leading_expressions,
                 tail_expression,
             },
@@ -530,26 +530,23 @@ impl Parser {
 
     /// Eat a block of expressions (without the label, `{`, and `}`).
     /// ASI rules apply such that expressions are automatically coerced into statements in relevant positions.
-    pub fn eat_block_body(
-        &mut self,
-        format: BlockFormat,
-    ) -> ParseResult<Vec<LocalNodeId<Expression>>> {
-        let block_context = if format == BlockFormat::Explicit {
+    pub fn eat_block_body(&mut self, form: BlockForm) -> ParseResult<Vec<LocalNodeId<Expression>>> {
+        let block_context = if form == BlockForm::Explicit {
             BlockContext::Expression
         } else {
             BlockContext::Statement
         };
-        self.eat_block_body_in_context(format, block_context)
+        self.eat_block_body_in_context(form, block_context)
     }
 
     /// Eat a block body with an explicit block context.
     pub fn eat_block_body_in_context(
         &mut self,
-        format: BlockFormat,
+        form: BlockForm,
         block_context: BlockContext,
     ) -> ParseResult<Vec<LocalNodeId<Expression>>> {
         let (mut leading_expressions, tail_expression) =
-            self.eat_block_body_parts_in_context(format, block_context)?;
+            self.eat_block_body_parts_in_context(form, block_context)?;
         if let Some(tail_expression) = tail_expression {
             leading_expressions.push(tail_expression);
         }
@@ -560,7 +557,7 @@ impl Parser {
     /// Eat a block body with an explicit block context, preserving the tail split.
     fn eat_block_body_parts_in_context(
         &mut self,
-        format: BlockFormat,
+        form: BlockForm,
         block_context: BlockContext,
     ) -> ParseResult<(
         Vec<LocalNodeId<Expression>>,
@@ -569,20 +566,20 @@ impl Parser {
         // keep statement flags for the whole body to avoid per statement flag churn
         let (ambient_context, expression_context) = self.statement_position_contexts();
         if self.flags == ambient_context && self.flags == expression_context {
-            return self.eat_block_body_parts_in_statement_position(format, block_context);
+            return self.eat_block_body_parts_in_statement_position(form, block_context);
         }
         self.with_flags(
             self.flags
                 .with_ambient_context(ambient_context)
                 .with_expression_context(expression_context),
-            |parser| parser.eat_block_body_parts_in_statement_position(format, block_context),
+            |parser| parser.eat_block_body_parts_in_statement_position(form, block_context),
         )
     }
 
     /// Eat a block body while already in statement position.
     fn eat_block_body_parts_in_statement_position(
         &mut self,
-        format: BlockFormat,
+        form: BlockForm,
         block_context: BlockContext,
     ) -> ParseResult<(
         Vec<LocalNodeId<Expression>>,
@@ -597,7 +594,7 @@ impl Parser {
             let token_type = self.peek_token_type();
 
             // stop at block terminators
-            if self.is_block_body_terminator_token(token_type, format) {
+            if self.is_block_body_terminator_token(token_type, form) {
                 break;
             }
 
@@ -609,7 +606,7 @@ impl Parser {
 
             // stray close delimiters in implicit bodies should recover once and advance
             if self
-                .try_consume_stray_close_delimiter_in_implicit_block_body(format, &mut statements)?
+                .try_consume_stray_close_delimiter_in_implicit_block_body(form, &mut statements)?
             {
                 continue;
             }
@@ -625,7 +622,7 @@ impl Parser {
                 .eat_statement_expression_from_token_kind_with_recovery(
                     &start,
                     token_type,
-                    Some((format, block_context)),
+                    Some((form, block_context)),
                 )?;
 
             // keep at most one tail candidate, emit statements directly
@@ -639,7 +636,7 @@ impl Parser {
         // finalize the remaining tail expression
         let tail_expression = if let Some(expression_id) = pending_tail_expression {
             // explicit expression blocks can preserve one trailing value
-            if format == BlockFormat::Explicit
+            if form == BlockForm::Explicit
                 && self.language.is_destack()
                 && block_context == BlockContext::Expression
             {
@@ -686,7 +683,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         token_type: TokenType,
-        block_context: Option<(BlockFormat, BlockContext)>,
+        block_context: Option<(BlockForm, BlockContext)>,
     ) -> ParseResult<(LocalNodeId<Expression>, bool)> {
         let parsed_expression = self
             .eat_statement_expression_from_token_kind(token_type)
@@ -712,7 +709,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
         expression_id: LocalNodeId<Expression>,
-        block_context: Option<(BlockFormat, BlockContext)>,
+        block_context: Option<(BlockForm, BlockContext)>,
     ) -> ParseResult<(LocalNodeId<Expression>, bool)> {
         // semicolon terminated expressions always become statement expressions
         if self.peek_token_type() == TokenType::Semicolon {
@@ -734,15 +731,14 @@ impl Parser {
             || matches!(next_token_type, TokenType::Semicolon | TokenType::End);
 
         // explicit expression blocks can keep value-capable control tails
-        let keeps_value_tail = block_context.is_some_and(|(format, block_context)| {
-            format == BlockFormat::Explicit
+        let keeps_value_tail = block_context.is_some_and(|(form, block_context)| {
+            form == BlockForm::Explicit
                 && block_context == BlockContext::Expression
                 && self.language.is_destack()
                 && preserves_value_tail
         });
-        let stops_at_block_terminator = block_context.is_some_and(|(format, _)| {
-            self.is_block_body_terminator_token(next_token_type, format)
-        });
+        let stops_at_block_terminator = block_context
+            .is_some_and(|(form, _)| self.is_block_body_terminator_token(next_token_type, form));
 
         // recover trailing statement junk after a committed expression
         //
@@ -1010,7 +1006,7 @@ impl Parser {
             return Ok(yield_id);
         }
 
-        // cardinality: `yield*` or `yield *` (space before *, but no newline)
+        // generator: `yield*` or `yield *` (space before *, but no newline)
         let cardinality = if self.peek_is(TokenType::Multiply) {
             self.bump(); // eat *
             operand_is_omitted = self.yield_operand_is_omitted();
@@ -1125,8 +1121,8 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        BlockContext, CommentKind, Declaration, Expression, FunctionDeclaration, FunctionKind,
-        IfKind, LetKind, NodeType, ScalarLiteral, TokenType, YieldCardinality,
+        BlockContext, CommentKind, Declaration, Expression, FunctionDeclaration, FunctionForm,
+        IfForm, LetKind, NodeType, ScalarLiteral, TokenType, YieldCardinality,
     };
     use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
@@ -1717,8 +1713,8 @@ const value = 1
 
         assert_node!(parser.tree, return_id, Expression::Return { value } => {
             let value = value.expect("expected return value");
-            assert_node!(parser.tree, value, Expression::If { kind, .. } => {
-                assert_eq!(*kind, IfKind::Ternary);
+            assert_node!(parser.tree, value, Expression::If { form, .. } => {
+                assert_eq!(*form, IfForm::Ternary);
             });
         });
     }
@@ -1760,7 +1756,7 @@ const value = 1
             assert!(arguments.is_empty());
             assert_node!(parser.tree, *left, Expression::Declaration(declaration_id) => {
                 assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-                    assert_eq!(signature.kind, FunctionKind::Lambda);
+                    assert_eq!(signature.form, FunctionForm::Lambda);
                 });
             });
         });

@@ -698,7 +698,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{Expression, IfCondition, IfKind, Key, ScalarLiteral};
+    use destack_ast::{Expression, IfCondition, IfForm, Key, ScalarLiteral};
     use destack_source::LanguageType;
 
     use crate::tests::TestParser;
@@ -767,8 +767,8 @@ string
 
         assert!(parser.errors.is_empty(), "{:#?}", parser.errors);
         assert!(matches!(key, Key::Expression(_)));
-        assert_node!(parser.tree, match key { Key::Expression(key) => key, _ => unreachable!() }, Expression::If { kind, condition, then_expression, else_expression } => {
-            assert_eq!(*kind, IfKind::Ternary);
+        assert_node!(parser.tree, match key { Key::Expression(key) => key, _ => unreachable!() }, Expression::If { form, condition, then_expression, else_expression } => {
+            assert_eq!(*form, IfForm::Ternary);
             assert_node!(condition, IfCondition::Expression { condition } => {
                 assert_expression_path!(parser, parser.tree.get(*condition), "hasCjsFormat");
             });

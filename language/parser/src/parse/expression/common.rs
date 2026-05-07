@@ -1,8 +1,8 @@
 use crate::Parser;
 
 use destack_ast::{
-    Ambientness, BinaryOperator, Declaration, ExportMode, Expression, FunctionDeclaration,
-    FunctionKind, GenericArgument, Keyword, LocalNodeId, TokenType,
+    BinaryOperator, Declaration, ExportKind, Expression, FunctionDeclaration, FunctionForm,
+    GenericArgument, Keyword, LocalNodeId, TokenType,
 };
 use destack_source::Span;
 
@@ -63,10 +63,10 @@ pub(super) static NOT_IN_FOR_EACH_BINARY_OPERATORS: [BinaryOperator; 1] = [Binar
 /// Parsed declaration prefix shared across declaration forms.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub(crate) struct DeclarationHeader {
-    /// The export mode for the declaration.
-    pub export: Option<ExportMode>,
+    /// The export kind for the declaration.
+    pub export: Option<ExportKind>,
     /// Whether the declaration is ambient.
-    pub ambient: Ambientness,
+    pub is_ambient: bool,
     /// The explicit `declare` modifier span.
     pub declare_span: Option<Span>,
     /// Whether the declaration is abstract.
@@ -77,7 +77,7 @@ impl Default for DeclarationHeader {
     fn default() -> Self {
         Self {
             export: None,
-            ambient: Ambientness::Concrete,
+            is_ambient: false,
             declare_span: None,
             is_abstract: false,
         }
@@ -188,7 +188,7 @@ impl Parser {
                 if matches!(
                     self.tree.get(*declaration_id),
                     Declaration::Function(FunctionDeclaration { signature, .. })
-                        if signature.kind == FunctionKind::Lambda
+                        if signature.form == FunctionForm::Lambda
                 )
         )
     }

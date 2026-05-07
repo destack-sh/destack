@@ -310,7 +310,7 @@ fn test_parse_export_const_type_identifier_with_struct_value() {
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     assert_node!(parser.tree, expression_id, Expression::Let { export, declarators, .. } => {
-        assert_eq!(*export, Some(ExportMode::Named));
+        assert_eq!(*export, Some(ExportKind::Named));
         assert_eq!(declarators.len(), 1);
         assert_node!(parser.tree, declarators[0], Declarator { pattern, value, .. } => {
             assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {

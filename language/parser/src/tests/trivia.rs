@@ -1,5 +1,5 @@
 use destack_ast::{
-    Argument, Block, BlockContext, BlockFormat, ClassDeclaration, Comment, CommentContent,
+    Argument, Block, BlockContext, BlockForm, ClassDeclaration, Comment, CommentContent,
     CommentKind, CommentPosition, Declaration, Declarator, Decorator, DecoratorPosition,
     Expression, FunctionDeclaration, LocalNodeId, Member, Parameter, Property, StructDeclaration,
     TokenType, TypeDeclaration, TypeExpression, normalize_comment_payload,
@@ -163,7 +163,7 @@ fn test_attach_comments_on_direct_entrypoint_emits_output() {
     let mut parser = test.prepare();
 
     // `value`, `next`
-    let expressions = parser.eat_block_body(BlockFormat::Implicit).unwrap();
+    let expressions = parser.eat_block_body(BlockForm::Implicit).unwrap();
     assert_eq!(expressions.len(), 2);
 
     // `// lead`
