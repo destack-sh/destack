@@ -1,6 +1,119 @@
 use crate::tests::*;
 use crate::{assert_name, assert_node, assert_path, assert_string};
 use destack_ast::*;
+use destack_source::LanguageType;
+
+#[test]
+fn test_parse_slice_type() {
+    let mut test = TestParser::new("type T = [EventTarget]");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // type T = [EventTarget]
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Slice { element } => {
+                assert_node!(parser.tree, *element, TypeExpression::Reference { path, generic_arguments } => {
+                    assert!(generic_arguments.is_empty());
+                    assert_path!(parser, *path, "EventTarget");
+                });
+            });
+        });
+    });
+}
+
+#[test]
+fn test_parse_readonly_slice_type() {
+    let mut test = TestParser::new("type T = [readonly EventTarget]");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // type T = [readonly EventTarget]
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Slice { element } => {
+                assert_node!(parser.tree, *element, TypeExpression::Readonly { target_type } => {
+                    assert_node!(parser.tree, *target_type, TypeExpression::Reference { path, generic_arguments } => {
+                        assert!(generic_arguments.is_empty());
+                        assert_path!(parser, *path, "EventTarget");
+                    });
+                });
+            });
+        });
+    });
+}
+
+#[test]
+fn test_parse_fixed_array_type() {
+    let mut test = TestParser::new("type T = [EventTarget; 32]");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // type T = [EventTarget; 32]
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::FixedArray { element, length } => {
+                assert_node!(parser.tree, *element, TypeExpression::Reference { path, generic_arguments } => {
+                    assert!(generic_arguments.is_empty());
+                    assert_path!(parser, *path, "EventTarget");
+                });
+                assert_node!(parser.tree, *length, TypeExpression::ScalarLiteral { value } => {
+                    assert_eq!(*value, ScalarLiteral::Integer(32));
+                });
+            });
+        });
+    });
+}
+
+#[test]
+fn test_parse_single_element_tuple_type() {
+    let mut test = TestParser::new("type T = [EventTarget,]");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // type T = [EventTarget,]
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::ArrayTuple { elements } => {
+                assert_eq!(elements.len(), 1);
+                assert_node!(parser.tree, elements[0], TupleElement::Element { label, value, is_optional, is_readonly } => {
+                    assert!(label.is_none());
+                    assert!(!*is_optional);
+                    assert!(!*is_readonly);
+                    assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
+                        assert!(generic_arguments.is_empty());
+                        assert_path!(parser, *path, "EventTarget");
+                    });
+                });
+            });
+        });
+    });
+}
+
+#[test]
+fn test_parse_typescript_single_element_tuple_type() {
+    let mut test = TestParser::new_with_options("type T = [EventTarget]", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // type T = [EventTarget]
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::ArrayTuple { elements } => {
+                assert_eq!(elements.len(), 1);
+                assert_node!(parser.tree, elements[0], TupleElement::Element { label, value, is_optional, is_readonly } => {
+                    assert!(label.is_none());
+                    assert!(!*is_optional);
+                    assert!(!*is_readonly);
+                    assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
+                        assert!(generic_arguments.is_empty());
+                        assert_path!(parser, *path, "EventTarget");
+                    });
+                });
+            });
+        });
+    });
+}
 
 #[test]
 fn test_parse_tuple_type_with_spread() {
@@ -146,7 +259,7 @@ fn test_parse_optional_labeled_tuple_element() {
 }
 
 #[test]
-fn test_parse_optional_readonly_tuple_element() {
+fn test_parse_optional_tuple_element_with_readonly_type() {
     let mut test = TestParser::new("type T = [readonly EventTarget?]");
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
@@ -158,6 +271,33 @@ fn test_parse_optional_readonly_tuple_element() {
                 assert_eq!(elements.len(), 1);
                 assert_node!(parser.tree, elements[0], TupleElement::Element { value, is_optional, is_readonly, .. } => {
                     assert!(*is_optional);
+                    assert!(!*is_readonly);
+                    assert_node!(parser.tree, *value, TypeExpression::Readonly { target_type } => {
+                        assert_node!(parser.tree, *target_type, TypeExpression::Reference { path, generic_arguments } => {
+                            assert!(generic_arguments.is_empty());
+                            assert_path!(parser, *path, "EventTarget");
+                        });
+                    });
+                });
+            });
+        });
+    });
+}
+
+#[test]
+fn test_parse_typescript_readonly_tuple_element() {
+    let mut test =
+        TestParser::new_with_options("type T = [readonly EventTarget]", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // type T = [readonly EventTarget]
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::ArrayTuple { elements } => {
+                assert_eq!(elements.len(), 1);
+                assert_node!(parser.tree, elements[0], TupleElement::Element { value, is_optional, is_readonly, .. } => {
+                    assert!(!*is_optional);
                     assert!(*is_readonly);
                     assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
                         assert!(generic_arguments.is_empty());
@@ -188,6 +328,31 @@ fn test_parse_tuple_type() {
                 assert_node!(parser.tree, elements[1], TupleElement::Element { value, .. } => {
                     assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
                         assert_eq!(*value, TypeLiteral::Number);
+                    });
+                });
+            });
+        });
+    });
+}
+
+#[test]
+fn test_parse_tuple_type_with_readonly_type_element() {
+    let mut test = TestParser::new("type T = [string, readonly EventTarget]");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    // type T = [string, readonly EventTarget]
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::ArrayTuple { elements } => {
+                assert_eq!(elements.len(), 2);
+                assert_node!(parser.tree, elements[1], TupleElement::Element { value, is_readonly, .. } => {
+                    assert!(!*is_readonly);
+                    assert_node!(parser.tree, *value, TypeExpression::Readonly { target_type } => {
+                        assert_node!(parser.tree, *target_type, TypeExpression::Reference { path, generic_arguments } => {
+                            assert!(generic_arguments.is_empty());
+                            assert_path!(parser, *path, "EventTarget");
+                        });
                     });
                 });
             });
@@ -257,11 +422,32 @@ fn test_parse_tuple_type_missing_close_bracket() {
     // type T = [string
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Slice { element } => {
+                assert_node!(parser.tree, *element, TypeExpression::Literal { value } => {
+                    assert_eq!(*value, TypeLiteral::String);
+                });
+            });
+        });
+    });
+}
+
+#[test]
+fn test_parse_tuple_type_missing_first_element() {
+    let mut test = TestParser::new("type T = [, string]");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.options).unwrap();
+
+    test.assert_error_leaves(&parser, &[(Some(NodeType::TypeExpression), None, ",")]);
+
+    // type T = [, string]
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::ArrayTuple { elements } => {
-                assert_eq!(elements.len(), 1);
-                assert_node!(parser.tree, elements[0], TupleElement::Element { value, is_optional, is_readonly, .. } => {
-                    assert!(!is_optional);
-                    assert!(!is_readonly);
+                assert_eq!(elements.len(), 2);
+                assert_node!(parser.tree, elements[0], TupleElement::Element { value, .. } => {
+                    assert_node!(parser.tree, *value, TypeExpression::Missing);
+                });
+                assert_node!(parser.tree, elements[1], TupleElement::Element { value, .. } => {
                     assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
                         assert_eq!(*value, TypeLiteral::String);
                     });

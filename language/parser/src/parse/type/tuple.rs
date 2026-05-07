@@ -1,10 +1,20 @@
-use crate::{ParseError, ParseResult, Parser};
+use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 
-use destack_ast::{LocalNodeId, StringId, TokenType, TupleElement};
+use destack_ast::{Keyword, LocalNodeId, StringId, TokenType, TupleElement, TypeExpression};
 
 impl Parser {
+    /// Return whether the current token starts a type tuple head.
+    pub(crate) fn starts_type_tuple_head(&mut self) -> bool {
+        // readonly is a tuple modifier only where bracket singles stay tuples
+        let is_readonly_element = !self.language.is_destack() && self.is_keyword(Keyword::Readonly);
+
+        self.peek_is(TokenType::Spread)
+            || is_readonly_element
+            || self.starts_labeled_type_tuple_head()
+    }
+
     /// Return whether the current token starts a labeled type tuple head.
-    fn starts_labeled_type_tuple_head(&mut self) -> bool {
+    pub(crate) fn starts_labeled_type_tuple_head(&mut self) -> bool {
         self.peek_is(TokenType::Identifier)
             && (self.lookahead(|parser| {
                 parser.bump();
@@ -20,7 +30,7 @@ impl Parser {
     }
 
     /// Return whether one trailing `?` belongs to the surrounding type tuple element.
-    fn current_type_tuple_element_is_optional(&mut self, terminator: TokenType) -> bool {
+    pub(crate) fn current_type_tuple_element_is_optional(&mut self, terminator: TokenType) -> bool {
         if !self.peek_is(TokenType::Maybe) {
             return false;
         }
@@ -55,7 +65,8 @@ impl Parser {
 
         // readonly element modifier
         let next = *self.peek()?;
-        let is_readonly = if next.token.ty == TokenType::Identifier
+        let is_readonly = if !self.language.is_destack()
+            && next.token.ty == TokenType::Identifier
             && self.get_span_str(next.span) == "readonly"
         {
             self.bump(); // eat readonly
@@ -144,6 +155,63 @@ impl Parser {
         );
 
         Ok(element_id)
+    }
+
+    /// Recover one failed type tuple head and continue the tuple body.
+    pub(crate) fn recover_type_tuple_head(
+        &mut self,
+        start: &ParserSpanStart,
+        terminator: TokenType,
+        error: ParseError,
+    ) -> ParseResult<Vec<LocalNodeId<TupleElement>>> {
+        // recover to the next item boundary
+        self.try_recover_in_item_list(start, terminator, Some(error))?;
+        let first_element = self.insert_node(TupleElement::Error, self.get_span_from(start));
+
+        // continue after a recovered head when the tuple list has more elements
+        let mut elements = vec![first_element];
+        if self.peek_is(TokenType::Comma) {
+            self.eat_item_stop()?;
+            elements.extend(self.eat_type_tuple_elements_body(terminator)?);
+        }
+
+        Ok(elements)
+    }
+
+    /// Eat the rest of a type tuple after one unlabeled value head.
+    pub(crate) fn eat_type_tuple_tail(
+        &mut self,
+        start: &ParserSpanStart,
+        terminator: TokenType,
+        value: LocalNodeId<TypeExpression>,
+    ) -> ParseResult<Vec<LocalNodeId<TupleElement>>> {
+        // optional marker on an unlabeled tuple element
+        let is_optional = if self.current_type_tuple_element_is_optional(terminator) {
+            self.bump(); // eat ?
+            true
+        } else {
+            false
+        };
+
+        // head element
+        let first_element = self.insert_node(
+            TupleElement::Element {
+                label: None,
+                value,
+                is_optional,
+                is_readonly: false,
+            },
+            self.get_span_from(start),
+        );
+
+        // remaining elements
+        let mut elements = vec![first_element];
+        if self.peek_is(TokenType::Comma) {
+            self.eat_item_stop()?;
+            elements.extend(self.eat_type_tuple_elements_body(terminator)?);
+        }
+
+        Ok(elements)
     }
 
     /// Eat type tuple elements until one closing token.

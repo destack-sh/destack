@@ -2005,7 +2005,94 @@ impl Parser {
         start: &ParserSpanStart,
     ) -> ParseResult<LocalNodeId<TypeExpression>> {
         self.eat_token(TokenType::OpenBracket)?;
-        let elements = self.eat_type_tuple_elements_body(TokenType::CloseBracket)?;
+
+        // empty bracket tuple
+        if self.peek_is(TokenType::CloseBracket) {
+            self.eat_close_token_or_recover_missing(
+                TokenType::CloseBracket,
+                NodeType::TypeExpression,
+            )?;
+
+            return Ok(self.insert_node(
+                TypeExpression::ArrayTuple { elements: vec![] },
+                self.get_span_from(start),
+            ));
+        }
+
+        // tuple-only heads
+        if self.starts_type_tuple_head() {
+            let elements = self.eat_type_tuple_elements_body(TokenType::CloseBracket)?;
+            self.eat_close_token_or_recover_missing(
+                TokenType::CloseBracket,
+                NodeType::TypeExpression,
+            )?;
+
+            return Ok(self.insert_node(
+                TypeExpression::ArrayTuple { elements },
+                self.get_span_from(start),
+            ));
+        }
+
+        // first bracket element
+        let element_start = self.span_start();
+        let element = match self.eat_type_expression_or_recover_missing(
+            self.options.not_in_position().in_type(),
+            NodeType::TypeExpression,
+        ) {
+            Ok(element) => element,
+            Err(error) => {
+                let elements =
+                    self.recover_type_tuple_head(&element_start, TokenType::CloseBracket, error)?;
+                self.eat_close_token_or_recover_missing(
+                    TokenType::CloseBracket,
+                    NodeType::TypeExpression,
+                )?;
+
+                return Ok(self.insert_node(
+                    TypeExpression::ArrayTuple { elements },
+                    self.get_span_from(start),
+                ));
+            }
+        };
+
+        // fixed array: `[T; N]`
+        if self.language.is_destack() && self.peek_is(TokenType::Semicolon) {
+            self.bump(); // eat ;
+            let length = self.eat_type_expression_or_recover_missing(
+                self.options.not_in_position().in_type(),
+                NodeType::TypeExpression,
+            )?;
+            self.eat_close_token_or_recover_missing(
+                TokenType::CloseBracket,
+                NodeType::TypeExpression,
+            )?;
+
+            return Ok(self.insert_node(
+                TypeExpression::FixedArray { element, length },
+                self.get_span_from(start),
+            ));
+        }
+
+        // slice: `[T]`
+        let is_slice_close = self.peek_is(TokenType::CloseBracket);
+        let is_slice_missing_close = self.language.is_destack()
+            && !self.peek_is(TokenType::Comma)
+            && !self.peek_is(TokenType::Maybe)
+            && self.is_type_expression_boundary();
+        if self.language.is_destack() && (is_slice_close || is_slice_missing_close) {
+            self.eat_close_token_or_recover_missing(
+                TokenType::CloseBracket,
+                NodeType::TypeExpression,
+            )?;
+
+            return Ok(
+                self.insert_node(TypeExpression::Slice { element }, self.get_span_from(start))
+            );
+        }
+
+        // tuple continuation after a first unlabeled element
+        let elements =
+            self.eat_type_tuple_tail(&element_start, TokenType::CloseBracket, element)?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBracket, NodeType::TypeExpression)?;
 
         Ok(self.insert_node(
