@@ -19,9 +19,9 @@ const ATOMIC_METADATA_SLOTS: [AtomicMetadataSlot; 7] = [
 enum AtomicMetadataSlot {
     /// The memory ordering.
     Ordering,
-    /// The atomic scope.
+    /// The synchronization scope.
     Scope,
-    /// The memory scope.
+    /// The fence memory scope.
     MemoryScope,
     /// The memory space set.
     Spaces,
@@ -35,14 +35,10 @@ enum AtomicMetadataSlot {
 
 /// Parsed metadata values for atomic intrinsics.
 struct AtomicMetadata {
-    /// The memory ordering.
-    ordering: mir::MemoryOrdering,
-    /// The atomic scope.
-    scope: mir::AtomicScope,
-    /// The memory scope.
-    memory_scope: mir::MemoryScope,
-    /// The memory flags.
-    flags: mir::MemoryFlags,
+    /// Access used by atomic memory operations.
+    atomic: mir::AtomicAccess,
+    /// Access used by memory fences.
+    fence: mir::FenceAccess,
 }
 
 /// The atomic instruction to emit for one intrinsic binding.
@@ -140,7 +136,7 @@ impl FunctionLowerer<'_> {
         };
         let name = self.context.strings.get(name_id);
 
-        // intrinsics are free functions for now
+        // intrinsic bindings are free functions
         if resolution_receiver.is_some() {
             return Err(self.error(expression_id, "intrinsic calls cannot use a receiver"));
         }
@@ -491,7 +487,7 @@ impl FunctionLowerer<'_> {
         if arguments.len() != base_args + metadata_args {
             return Err(self.error(
                 expression_id,
-                "atomic intrinsic arguments must include explicit ordering and flags",
+                "atomic intrinsic arguments must include explicit synchronization metadata",
             ));
         }
 
@@ -505,28 +501,20 @@ impl FunctionLowerer<'_> {
                     return Err(self.error(expression_id, "atomic.load expects one pointer"));
                 };
 
-                Some(self.state.builder.atomic_load(
-                    *pointer,
-                    metadata.ordering,
-                    metadata.scope,
-                    metadata.memory_scope,
-                    metadata.flags,
-                    result_type,
-                ))
+                Some(
+                    self.state
+                        .builder
+                        .atomic_load(*pointer, metadata.atomic, result_type),
+                )
             }
             AtomicIntrinsicKind::Store => {
                 let [pointer, value] = arguments.as_slice() else {
                     return Err(self.error(expression_id, "atomic.store expects pointer and value"));
                 };
 
-                self.state.builder.atomic_store(
-                    *pointer,
-                    *value,
-                    metadata.ordering,
-                    metadata.scope,
-                    metadata.memory_scope,
-                    metadata.flags,
-                );
+                self.state
+                    .builder
+                    .atomic_store(*pointer, *value, metadata.atomic);
                 None
             }
             AtomicIntrinsicKind::CompareExchange { is_weak } => {
@@ -542,10 +530,7 @@ impl FunctionLowerer<'_> {
                     *expected,
                     *new_value,
                     is_weak,
-                    metadata.ordering,
-                    metadata.scope,
-                    metadata.memory_scope,
-                    metadata.flags,
+                    mir::CompareExchangeAccess::with_success(metadata.atomic),
                     result_type,
                 ))
             }
@@ -558,20 +543,12 @@ impl FunctionLowerer<'_> {
                     operator,
                     *pointer,
                     *value,
-                    metadata.ordering,
-                    metadata.scope,
-                    metadata.memory_scope,
-                    metadata.flags,
+                    metadata.atomic,
                     result_type,
                 ))
             }
             AtomicIntrinsicKind::Fence => {
-                self.state.builder.atomic_fence(
-                    metadata.ordering,
-                    metadata.scope,
-                    metadata.memory_scope,
-                    metadata.flags,
-                );
+                self.state.builder.atomic_fence(metadata.fence);
                 None
             }
         };
@@ -621,7 +598,7 @@ impl FunctionLowerer<'_> {
                     ordering = Some(self.parse_memory_ordering(expression_id, expression)?);
                 }
                 AtomicMetadataSlot::Scope => {
-                    scope = Some(self.parse_atomic_scope(expression_id, expression)?);
+                    scope = Some(self.parse_sync_scope(expression_id, expression)?);
                 }
                 AtomicMetadataSlot::MemoryScope => {
                     memory_scope = Some(self.parse_memory_scope(expression_id, expression)?);
@@ -662,15 +639,11 @@ impl FunctionLowerer<'_> {
             self.error(expression_id, "atomic intrinsic missing make-visible flag")
         })?;
 
-        let flags =
-            mir::MemoryFlags::with_flags(spaces, is_volatile, makes_available, makes_visible);
+        let atomic = mir::AtomicAccess::new(ordering, scope, is_volatile);
+        let flags = mir::MemoryFlags::with_flags(spaces, makes_available, makes_visible);
+        let fence = mir::FenceAccess::new(ordering, scope, memory_scope, flags);
 
-        Ok(AtomicMetadata {
-            ordering,
-            scope,
-            memory_scope,
-            flags,
-        })
+        Ok(AtomicMetadata { atomic, fence })
     }
 
     /// Parse a MemoryOrdering constant from an expression.
@@ -688,17 +661,17 @@ impl FunctionLowerer<'_> {
         })
     }
 
-    /// Parse an AtomicScope constant from an expression.
-    fn parse_atomic_scope(
+    /// Parse a synchronization scope constant from an expression.
+    fn parse_sync_scope(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         argument_id: dir::LocalNodeId<dir::Expression>,
-    ) -> LowerResult<mir::AtomicScope> {
+    ) -> LowerResult<mir::SyncScope> {
         let name = self.enum_member_name(expression_id, argument_id)?;
-        mir::AtomicScope::try_from(name.as_ref()).map_err(|_| {
+        mir::SyncScope::try_from(name.as_ref()).map_err(|_| {
             self.error(
                 expression_id,
-                "unsupported atomic scope for atomic intrinsic",
+                "unsupported synchronization scope for atomic intrinsic",
             )
         })
     }

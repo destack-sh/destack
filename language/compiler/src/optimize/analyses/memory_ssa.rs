@@ -2441,9 +2441,9 @@ b0:
         assert_eq!(clobber, store_access);
     }
 
-    /// Memory flags metadata marks effects as volatile and barrier when needed.
+    /// Memory metadata marks scoped effects as volatile barriers.
     #[test]
-    fn test_memory_ssa_flags_mark_effects() {
+    fn test_memory_ssa_metadata_marks_effects() {
         let mut test = TestProgram::new(
             r#"
 function test(): int32 {
@@ -2458,7 +2458,7 @@ b0:
         let instructions = test.entry_instructions(function_id);
         let load_inst = instructions[1];
 
-        let flags = mir::MemoryFlags::with_flags(mir::MemorySpaceSet::ANY, true, true, false);
+        let flags = mir::MemoryFlags::with_flags(mir::MemorySpaceSet::ANY, true, false);
         let access = mir::MemoryAccessMetadata {
             kind: mir::MemoryAccessKind::Read,
             target: mir::MemoryAccessTarget::Pointer(mir::Value::new(0)),
@@ -2467,7 +2467,7 @@ b0:
             is_volatile: false,
             is_load_invariant: false,
             ordering: None,
-            scope: Some(mir::AtomicScope::Device),
+            scope: Some(mir::SyncScope::Device),
             memory_scope: Some(mir::MemoryScope::Device),
             flags: Some(flags),
             address_space: Some(mir::AddressSpace::Stack),

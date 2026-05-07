@@ -389,6 +389,8 @@ impl OwnershipAnalysis {
             | Type::Float { .. }
             | Type::TypeDescriptor
             | Type::TypeId => true,
+            // atomic storage is storage-only, not a copyable SSA value
+            Type::Atomic { .. } => false,
             // callable metadata and values are copy
             Type::FunctionSignature { .. }
             | Type::FunctionPointer { .. }
@@ -1274,6 +1276,7 @@ fn value_is_copy(
         | Type::Float { .. }
         | Type::TypeDescriptor
         | Type::TypeId => true,
+        Type::Atomic { .. } => false,
         Type::FunctionSignature { .. } | Type::FunctionPointer { .. } | Type::Callable { .. } => {
             true
         }

@@ -167,6 +167,11 @@ enum SignatureType {
     TypeDescriptor,
     /// Compact runtime type id signature.
     TypeId,
+    /// Atomic storage type signature.
+    Atomic {
+        /// Stored value type signature.
+        value: Box<SignatureType>,
+    },
     /// Reference type signature.
     Reference {
         /// Reference kind for the pointer.
@@ -299,6 +304,9 @@ impl SignatureType {
             mir::Type::Float { width } => SignatureType::Float { width: *width },
             mir::Type::TypeDescriptor => SignatureType::TypeDescriptor,
             mir::Type::TypeId => SignatureType::TypeId,
+            mir::Type::Atomic { value } => SignatureType::Atomic {
+                value: Box::new(SignatureType::from_type(tree, value.ty()?)?),
+            },
             mir::Type::Reference {
                 kind,
                 address_space,

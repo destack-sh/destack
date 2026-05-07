@@ -64,6 +64,12 @@ impl FunctionLowerer<'_> {
                 let signed = matches!(mir_type, mir::Type::Isize);
                 self.state.builder.iconst(0, pointer_bits, signed)
             }
+            mir::Type::Atomic { .. } => {
+                return Err(LowerError::UnsupportedConstruct {
+                    node,
+                    message: "constructor cannot initialize atomic storage values".to_string(),
+                });
+            }
             mir::Type::Reference { .. } => {
                 let pointer_bits = self.context.type_lowerer.pointer_bytes() * 8;
                 let zero = self.state.builder.iconst(0, u16::from(pointer_bits), false);
