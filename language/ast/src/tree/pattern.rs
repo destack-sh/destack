@@ -32,13 +32,13 @@ pub enum Pattern {
         pattern: LocalNodeId<Pattern>,
         value: LocalNodeId<Expression>,
     },
-    /// Reference of pattern (like `&x`).
-    ReferenceOf {
+    /// Borrow pattern (like `&x`).
+    BorrowOf {
         mutability: Option<Mutability>,
         right: LocalNodeId<Pattern>,
     },
-    /// Value of pattern (like `^x`).
-    ValueOf {
+    /// Move pattern (like `^x`).
+    MoveOf {
         mutability: Option<Mutability>,
         right: LocalNodeId<Pattern>,
     },
