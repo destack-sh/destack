@@ -24,13 +24,11 @@ pub struct Program {
     /// Side table referenced by compact side records.
     pub(crate) side_table: SideTable,
     /// Lookup table for function ids by name.
-    pub(crate) function_id_by_name: HashMap<String, mir::LocalNodeId<mir::Function>>,
+    function_id_by_name: HashMap<String, mir::LocalNodeId<mir::Function>>,
     /// Layout metadata for types, heap allocation, and binding views.
     layout_index: LayoutIndex,
     /// Immutable program static data.
     pub(crate) statics: engine::StaticSpace,
-    /// Callable heap object field layout.
-    pub(crate) callable_object_layout: CallableObjectLayout,
 
     /// Logical frame layouts by dense layout id.
     pub(crate) frame_layouts: Vec<engine::FrameLayout>,
@@ -68,6 +66,15 @@ impl Program {
         mir::LocalNodeId::new(entry.index())
     }
 
+    /// Resolve one function id by source name.
+    #[inline]
+    pub(crate) fn function_id_by_name(
+        &self,
+        name: &str,
+    ) -> Option<mir::LocalNodeId<mir::Function>> {
+        self.function_id_by_name.get(name).copied()
+    }
+
     /// Convert one current frame location into one lowered program point.
     #[inline]
     pub(crate) fn point(
@@ -91,6 +98,12 @@ impl Program {
         LayoutIndex::type_for_layout(layout)
     }
 
+    /// Return the callable heap object layout for this program.
+    #[inline]
+    pub(crate) fn callable_object_layout(&self) -> CallableObjectLayout {
+        callable_object_layout(self.tree.pointer_bytes() as usize)
+    }
+
     /// Convert one MIR global id into one worker static id.
     #[inline]
     pub(crate) fn static_id(&self, global: mir::LocalNodeId<mir::Global>) -> engine::StaticId {
@@ -102,7 +115,7 @@ impl Program {
         &self,
         function: mir::LocalNodeId<mir::Function>,
     ) -> Option<&engine::FrameLayout> {
-        let function = self.functions.function_for(function)?;
+        let function = self.functions.function_by_id(function)?;
 
         self.frame_layout_by_id(function.frame_layout)
     }
@@ -120,13 +133,15 @@ impl Program {
         &self,
         frame_state: engine::FrameStateId,
     ) -> Option<ProgramPoint> {
-        self.frame_states.get(frame_state).map(|state| state.point)
+        self.frame_states
+            .state(frame_state)
+            .map(|state| state.point)
     }
 
     /// Return the entry data for one frame state.
     pub(crate) fn frame_entry(&self, frame_state: engine::FrameStateId) -> Option<&FrameEntry> {
         self.frame_states
-            .get(frame_state)
+            .state(frame_state)
             .and_then(|state| state.entry.as_ref())
     }
 
@@ -136,7 +151,7 @@ impl Program {
         frame_state: engine::FrameStateId,
     ) -> Option<&engine::FrameMaterialization> {
         self.frame_states
-            .get(frame_state)
+            .state(frame_state)
             .map(|state| &state.materialization)
     }
 
@@ -146,8 +161,8 @@ impl Program {
     }
 
     /// Return the compiled layout for one program layout id.
-    pub(crate) fn layout_for_layout(&self, layout: engine::LayoutId) -> Option<&Layout> {
-        self.layout_index.layout_for_layout(layout)
+    pub(crate) fn layout_for_id(&self, layout: engine::LayoutId) -> Option<&Layout> {
+        self.layout_index.layout_for_id(layout)
     }
 
     /// Encode one global initializer into its declared bytes.
@@ -211,17 +226,17 @@ impl Program {
 
     /// Return one frame state id for one lowered program point.
     pub(crate) fn frame_state_at(&self, point: ProgramPoint) -> Option<engine::FrameStateId> {
-        self.frame_states.state_at(point)
+        self.frame_states.state_id_at(point)
     }
 
     /// Return the caller return destination implied by one lowered program point.
     pub(crate) fn return_destination_at(&self, point: ProgramPoint) -> Result<Option<mir::Value>> {
-        let Some(frame_state) = self.frame_states.state_at(point) else {
+        let Some(frame_state) = self.frame_states.state_id_at(point) else {
             return Ok(None);
         };
         let destination = self
             .frame_states
-            .get(frame_state)
+            .state(frame_state)
             .and_then(|state| state.return_destination);
 
         Ok(destination)
@@ -236,7 +251,7 @@ impl fmt::Debug for Program {
                 &format!("<{} functions>", self.function_id_by_name.len()),
             )
             .field("frame_layouts", &self.frame_layouts.len())
-            .field("frame_states", &self.frame_states.states.len())
+            .field("frame_states", &self.frame_states.len())
             .field("statics", &self.statics.len())
             .finish_non_exhaustive()
     }
@@ -588,7 +603,6 @@ impl ProgramBuilder {
         let type_layouts = build_layouts(&self.tree)?;
         let layout_id_by_type = self.build_layout_id_map(&type_layouts)?;
         let layouts = self.build_layout_table(&type_layouts, &layout_id_by_type)?;
-        let callable_object_layout = callable_object_layout(self.tree.pointer_bytes() as usize);
         let layout_index = LayoutIndex::new(layouts, type_layouts, layout_id_by_type);
         let statics = self.build_statics(layout_index.type_layouts())?;
         let mut side_table = SideTableBuilder::default();
@@ -600,14 +614,13 @@ impl ProgramBuilder {
             &mut side_table,
         )?;
         let side_table = side_table.finish();
-        let functions = FunctionTable::new(&self.tree, functions, target_by_id);
+        let functions = FunctionTable::new(functions, target_by_id);
 
         Ok(Program {
             tree: self.tree,
             strings: self.strings,
             function_id_by_name,
             statics,
-            callable_object_layout,
             layout_index,
             frame_layouts: self.frame_layouts,
             frame_states: self.frame_states,
@@ -1352,7 +1365,6 @@ impl ProgramBuilder {
 
         let materialization = engine::FrameMaterialization {
             frame_layout: frame_layout.id,
-            frame_state,
             sources,
         };
         self.frame_states.push(

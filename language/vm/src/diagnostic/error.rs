@@ -175,14 +175,56 @@ pub enum Error {
 }
 
 impl Error {
-    /// Get the numeric sub-code of the error.
+    /// Return the numeric error code.
     #[inline]
     pub fn sub_code(&self) -> u8 {
-        // safety: repr(u8) stores the discriminant in the first byte
-        unsafe { *(self as *const Self as *const u8) }
+        match self {
+            Self::UndefinedFunction { .. } => 0,
+            Self::UndefinedValue { .. } => 1,
+            Self::UndefinedBlock { .. } => 2,
+            Self::TypeMismatch { .. } => 3,
+            Self::DivisionByZero => 4,
+            Self::IntegerOverflow => 5,
+            Self::NullPointerDereference => 6,
+            Self::IndexOutOfBounds { .. } => 7,
+            Self::StackOverflow => 8,
+            Self::Unreachable => 9,
+            Self::BindingFunctionNotFound { .. } => 10,
+            Self::InvalidInstruction => 11,
+            Self::AllocationFailed => 12,
+            Self::HeapLimitExceeded { .. } => 13,
+            Self::InvalidCast => 14,
+            Self::StepLimitExceeded => 15,
+            Self::UndefinedLocal { .. } => 16,
+            Self::InvalidFieldAccess { .. } => 17,
+            Self::InvalidArrayAccess { .. } => 18,
+            Self::InvalidHeapReference => 19,
+            Self::UnsupportedInstruction { .. } => 20,
+            Self::InvalidPointerType { .. } => 21,
+            Self::UndefinedGlobal { .. } => 22,
+            Self::ImmutableGlobalWrite { .. } => 23,
+            Self::Abort => 24,
+            Self::InvalidIntrinsicArguments { .. } => 25,
+            Self::ImmutableReferenceWrite { .. } => 26,
+            Self::UnexpectedYield => 28,
+            Self::ResumeWithoutYield => 29,
+            Self::InvalidContinuation => 30,
+            Self::BindingCallForbidden { .. } => 32,
+            Self::InvalidAddressSpace { .. } => 33,
+            Self::UnsupportedZeroValue { .. } => 34,
+            Self::Panic { .. } => 35,
+            Self::BadConversionToInteger => 36,
+            Self::SuspendWithFrameLocalState => 37,
+            Self::MissingRepresentation { .. } => 38,
+            Self::InvariantViolation { .. } => 39,
+            Self::IncompatiblePointerWidth { .. } => 40,
+            Self::InvalidRawPointer => 41,
+            Self::InvalidSharedRawPointer => 42,
+            Self::InvalidSharedHeapReference => 43,
+        }
     }
 
-    /// Get the message of the error.
+    /// Return the message of the error.
     pub fn message(&self) -> String {
         match self {
             Self::UndefinedFunction { function } => {

@@ -6,12 +6,17 @@ use {destack_engine as engine, destack_mir as mir};
 #[derive(Default)]
 pub(crate) struct FrameStateTable {
     /// Frame states by dense frame state id.
-    pub(crate) states: Vec<FrameState>,
+    states: Vec<FrameState>,
     /// Frame state id by lowered program point.
     state_by_point: HashMap<ProgramPoint, engine::FrameStateId>,
 }
 
 impl FrameStateTable {
+    /// Return the number of frame states.
+    pub(crate) fn len(&self) -> usize {
+        self.states.len()
+    }
+
     /// Return the next frame state id.
     pub(crate) fn next_id(&self) -> engine::FrameStateId {
         engine::FrameStateId(self.states.len() as u32)
@@ -25,12 +30,12 @@ impl FrameStateTable {
     }
 
     /// Return one frame state.
-    pub(crate) fn get(&self, id: engine::FrameStateId) -> Option<&FrameState> {
+    pub(crate) fn state(&self, id: engine::FrameStateId) -> Option<&FrameState> {
         self.states.get(id.0 as usize)
     }
 
-    /// Return one frame state by lowered program point.
-    pub(crate) fn state_at(&self, point: ProgramPoint) -> Option<engine::FrameStateId> {
+    /// Return one frame state id by lowered program point.
+    pub(crate) fn state_id_at(&self, point: ProgramPoint) -> Option<engine::FrameStateId> {
         self.state_by_point.get(&point).copied()
     }
 }

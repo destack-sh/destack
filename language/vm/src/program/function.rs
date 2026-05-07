@@ -44,67 +44,56 @@ pub(crate) struct FunctionTable {
     functions: Vec<Function>,
     /// Callable target by function id.
     target_by_id: HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
-    /// Callable environment word layout by function id.
-    environment_layout_by_id: HashMap<mir::LocalNodeId<mir::Function>, WordLayout>,
-    /// Call signature by function id.
-    signature_by_function_id: HashMap<mir::LocalNodeId<mir::Function>, FunctionSignature>,
-    /// Bare signature type by type id.
-    signature_by_type_id: HashMap<mir::LocalNodeId<mir::Type>, FunctionSignature>,
 }
 
 impl FunctionTable {
     /// Build a lowered function table from lowered functions and callable targets.
     pub(super) fn new(
-        tree: &mir::Tree,
         functions: Vec<Function>,
         target_by_id: HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
     ) -> Self {
-        let environment_layout_by_id = environment_layouts(tree, &target_by_id);
-        let signature_by_function_id = function_signatures(tree, &target_by_id);
-        let signature_by_type_id = signature_types(tree);
-
         Self {
             functions,
             target_by_id,
-            environment_layout_by_id,
-            signature_by_function_id,
-            signature_by_type_id,
         }
     }
 
-    /// Resolve the callable target for the given function id.
-    pub(crate) fn resolve(&self, func_id: mir::LocalNodeId<mir::Function>) -> Option<CallTarget> {
+    /// Return the callable target for the given function id.
+    pub(crate) fn call_target(
+        &self,
+        func_id: mir::LocalNodeId<mir::Function>,
+    ) -> Option<CallTarget> {
         self.target_by_id.get(&func_id).copied()
     }
 
-    /// Resolve a lowered function index for the given id.
-    pub(crate) fn index_for(&self, func_id: mir::LocalNodeId<mir::Function>) -> Option<u32> {
-        match self.resolve(func_id)? {
+    /// Return a lowered local function index for the given function id.
+    pub(crate) fn local_index(&self, func_id: mir::LocalNodeId<mir::Function>) -> Option<u32> {
+        match self.call_target(func_id)? {
             CallTarget::Local(index) => Some(index),
             CallTarget::Import => None,
         }
     }
 
     /// Return a lowered function pointer by dense index.
-    pub(crate) fn pointer(&self, index: u32) -> Option<NonNull<Function>> {
+    pub(crate) fn pointer_by_index(&self, index: u32) -> Option<NonNull<Function>> {
         self.functions.get(index as usize).map(NonNull::from)
     }
 
-    /// Resolve one lowered function pointer by function id.
-    pub(crate) fn pointer_for(
+    /// Return one lowered function pointer by function id.
+    pub(crate) fn pointer_for_function(
         &self,
         func_id: mir::LocalNodeId<mir::Function>,
     ) -> Option<NonNull<Function>> {
-        let index = self.index_for(func_id)?;
-        self.pointer(index)
+        let index = self.local_index(func_id)?;
+        self.pointer_by_index(index)
     }
 
     /// Return one lowered function by function id.
-    pub(crate) fn function_for(
+    pub(crate) fn function_by_id(
         &self,
         func_id: mir::LocalNodeId<mir::Function>,
     ) -> Option<&Function> {
-        let index = self.index_for(func_id)?;
+        let index = self.local_index(func_id)?;
 
         self.functions.get(index as usize)
     }
@@ -112,29 +101,30 @@ impl FunctionTable {
     /// Return the callable environment word layout for one function id.
     pub(crate) fn environment_layout(
         &self,
+        tree: &mir::Tree,
         func_id: mir::LocalNodeId<mir::Function>,
     ) -> Option<WordLayout> {
-        self.environment_layout_by_id.get(&func_id).copied()
+        if !self.target_by_id.contains_key(&func_id) {
+            return None;
+        }
+
+        environment_layout(tree, func_id)
     }
 
     /// Require one function to match one bare signature type.
     pub(crate) fn validate_signature(
         &self,
+        tree: &mir::Tree,
         function_id: mir::LocalNodeId<mir::Function>,
         signature: mir::LocalNodeId<mir::Type>,
     ) -> Result<(), Error> {
-        let expected = self
-            .signature_by_type_id
-            .get(&signature)
-            .ok_or(Error::InvalidInstruction)?;
-        let actual =
-            self.signature_by_function_id
-                .get(&function_id)
-                .ok_or(Error::UndefinedFunction {
-                    function: function_id,
-                })?;
+        if !self.target_by_id.contains_key(&function_id) {
+            return Err(Error::UndefinedFunction {
+                function: function_id,
+            });
+        }
 
-        if actual == expected {
+        if function_signature_matches(tree, function_id, signature)? {
             return Ok(());
         }
 
@@ -145,89 +135,43 @@ impl FunctionTable {
     }
 }
 
-/// One compiled function call signature.
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct FunctionSignature {
-    /// The parameter types.
-    parameters: Box<[mir::TypeReference]>,
-    /// The result type.
-    result: mir::TypeReference,
-}
-
-/// Build callable environment layouts for all callable function ids.
-fn environment_layouts(
+/// Return one callable environment word layout.
+fn environment_layout(
     tree: &mir::Tree,
-    target_by_id: &HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
-) -> HashMap<mir::LocalNodeId<mir::Function>, WordLayout> {
-    let mut layouts = HashMap::new();
+    function_id: mir::LocalNodeId<mir::Function>,
+) -> Option<WordLayout> {
+    let function = tree.get(function_id);
+    let environment = function.environment?;
+    let environment_type = environment.ty()?;
+    let layout = word_layout_from_type(tree, environment_type).unwrap_or(WordLayout::HeapReference);
 
-    for function_id in target_by_id.keys().copied() {
-        let function = tree.get(function_id);
-        let Some(environment) = function.environment else {
-            continue;
-        };
-        let Some(environment_type) = environment.ty() else {
-            continue;
-        };
-
-        let layout = match word_layout_from_type(tree, environment_type) {
-            Some(layout) => layout,
-            None => WordLayout::HeapReference,
-        };
-        layouts.insert(function_id, layout);
-    }
-
-    layouts
+    Some(layout)
 }
 
-/// Build function signatures for callable function ids.
-fn function_signatures(
+/// Return whether one function matches one bare signature type.
+fn function_signature_matches(
     tree: &mir::Tree,
-    target_by_id: &HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
-) -> HashMap<mir::LocalNodeId<mir::Function>, FunctionSignature> {
-    let mut signatures = HashMap::new();
+    function_id: mir::LocalNodeId<mir::Function>,
+    signature: mir::LocalNodeId<mir::Type>,
+) -> Result<bool, Error> {
+    let mir::Type::FunctionSignature { parameters, result } = tree.get(signature) else {
+        return Err(Error::InvalidInstruction);
+    };
+    let function = tree.get(function_id);
 
-    for function_id in target_by_id.keys().copied() {
-        let function = tree.get(function_id);
-        let parameters = function
-            .parameters
-            .iter()
-            .map(|parameter| parameter.ty)
-            .collect::<Vec<_>>()
-            .into_boxed_slice();
-
-        signatures.insert(
-            function_id,
-            FunctionSignature {
-                parameters,
-                result: function.return_type,
-            },
-        );
+    if function.parameters.len() != parameters.len() {
+        return Ok(false);
     }
 
-    signatures
-}
+    // compare parameter and result types directly from immutable MIR
+    let parameters_match = function
+        .parameters
+        .iter()
+        .zip(parameters.iter())
+        .all(|(actual, expected)| actual.ty == *expected);
+    let result_matches = function.return_type == *result;
 
-/// Build bare signature type metadata.
-fn signature_types(tree: &mir::Tree) -> HashMap<mir::LocalNodeId<mir::Type>, FunctionSignature> {
-    let mut signatures = HashMap::new();
-
-    for (type_id, ty) in tree.iter_nodes::<mir::Type>() {
-        let mir::Type::FunctionSignature { parameters, result } = ty else {
-            continue;
-        };
-        let parameters = parameters.clone().into_boxed_slice();
-
-        signatures.insert(
-            type_id,
-            FunctionSignature {
-                parameters,
-                result: *result,
-            },
-        );
-    }
-
-    signatures
+    Ok(parameters_match && result_matches)
 }
 
 /// Program call target for one function id.

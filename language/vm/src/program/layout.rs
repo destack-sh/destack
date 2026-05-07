@@ -210,7 +210,7 @@ impl LayoutIndex {
     }
 
     /// Return one compiled layout by engine layout id.
-    pub(crate) fn layout_for_layout(&self, layout: engine::LayoutId) -> Option<&Layout> {
+    pub(crate) fn layout_for_id(&self, layout: engine::LayoutId) -> Option<&Layout> {
         self.layout(Self::type_for_layout(layout))
     }
 
