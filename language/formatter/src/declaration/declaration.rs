@@ -26,11 +26,11 @@ use crate::operator::{
 };
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    Ambientness, Asynchrony, Comment, Declaration, Declarator, DependencyKind, ExportMode,
-    Expression, ExtensionDeclaration, FunctionDeclaration, FunctionKind, GenericParameter,
-    GlobalDeclaration, ImportAliasDeclaration, ImportAliasTarget, Keyword, LetKind, LocalNodeId,
-    Member, Mutability, Name, NamespaceDeclaration, NamespaceKind, NodeType, ScalarLiteral,
-    TokenSpan, TokenType, TypeDeclaration, TypeExpression, WhereClause,
+    Asynchrony, Comment, Declaration, Declarator, DependencySpace, ExportKind, Expression,
+    ExtensionDeclaration, FunctionDeclaration, FunctionForm, GenericParameter, GlobalDeclaration,
+    ImportAliasDeclaration, ImportAliasTarget, Keyword, LetKind, LocalNodeId, Member, Mutability,
+    Name, NamespaceDeclaration, NamespaceForm, NodeType, ScalarLiteral, TokenSpan, TokenType,
+    TypeDeclaration, TypeExpression, WhereClause,
 };
 use destack_fir::format::{
     FormatError, FormatNode as FirNode, FormatNodes, FormatResult, Formatter as FirFormatter,
@@ -86,7 +86,7 @@ pub(crate) fn declaration_export_token(
 fn declaration_export_head_comments(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Declaration>,
-    export: ExportMode,
+    export: ExportKind,
 ) -> Vec<Comment> {
     let declaration_span = context.span(node_id);
     let export_token = declaration_export_token(context, node_id);
@@ -107,7 +107,7 @@ fn declaration_export_head_comments(
     }
 
     // default separator
-    if export == ExportMode::Default {
+    if export == ExportKind::Default {
         let default_token = context
             .tokens
             .iter()
@@ -143,7 +143,7 @@ fn declaration_export_head_comments(
 pub(crate) fn write_declaration_export_head_comments<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
-    export: ExportMode,
+    export: ExportKind,
 ) -> FormatResult<()> {
     let comment_ids = declaration_export_head_comments(f.context(), node_id, export);
 
@@ -180,17 +180,17 @@ pub(crate) fn write_declaration_export_head_comments<'ast>(
 pub(crate) fn format_declaration_export_modifier<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
-    export: Option<ExportMode>,
+    export: Option<ExportKind>,
 ) -> FormatResult<()> {
     // export
     match export {
-        Some(ExportMode::Named) => {
+        Some(ExportKind::Named) => {
             write!(f, [Keyword::Export, space()])?;
-            write_declaration_export_head_comments(f, node_id, ExportMode::Named)?;
+            write_declaration_export_head_comments(f, node_id, ExportKind::Named)?;
         }
-        Some(ExportMode::Default) => {
+        Some(ExportKind::Default) => {
             write!(f, [Keyword::Export, space(), Keyword::Default, space()])?;
-            write_declaration_export_head_comments(f, node_id, ExportMode::Default)?;
+            write_declaration_export_head_comments(f, node_id, ExportKind::Default)?;
         }
         None => {}
     }
@@ -198,13 +198,13 @@ pub(crate) fn format_declaration_export_modifier<'ast>(
     Ok(())
 }
 
-/// Write one ambient prefix.
+/// Write one is_ambient prefix.
 fn write_ambient_prefix<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    ambient: Ambientness,
+    is_ambient: bool,
 ) -> FormatResult<()> {
-    // ambient
-    if ambient.is_ambient() {
+    // is_ambient
+    if is_ambient {
         write!(f, [Keyword::Declare, space()])?;
     }
 
@@ -252,7 +252,7 @@ fn buffer_type_declaration_left<'ast>(
 
     // prefixes
     format_declaration_export_modifier(formatter, node_id, declaration.export)?;
-    write_ambient_prefix(formatter, declaration.ambient)?;
+    write_ambient_prefix(formatter, declaration.is_ambient)?;
 
     // modifiers
     if declaration.is_nominal {
@@ -566,8 +566,8 @@ pub(crate) fn format_super_type_clause_with_expand<'ast>(
 pub(crate) fn format_let_statement_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     kind: LetKind,
-    export: Option<ExportMode>,
-    ambient: Ambientness,
+    export: Option<ExportKind>,
+    is_ambient: bool,
     declarators: &[LocalNodeId<Declarator>],
 ) -> FormatResult<()> {
     let tree = f.context().tree;
@@ -606,14 +606,14 @@ pub(crate) fn format_let_statement_expression<'ast>(
         [group(&format_with(|f| {
             // prefixes
             match export {
-                Some(ExportMode::Named) => write!(f, [Keyword::Export, space()])?,
-                Some(ExportMode::Default) => {
+                Some(ExportKind::Named) => write!(f, [Keyword::Export, space()])?,
+                Some(ExportKind::Default) => {
                     write!(f, [Keyword::Export, space(), Keyword::Default, space()])?;
                 }
                 None => {}
             }
 
-            write_ambient_prefix(f, ambient)?;
+            write_ambient_prefix(f, is_ambient)?;
 
             // binding keyword
             match kind {
@@ -722,8 +722,8 @@ pub(crate) fn format_let_else_statement_expression<'ast>(
 pub(crate) fn format_using_statement_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     asynchrony: Asynchrony,
-    export: Option<ExportMode>,
-    ambient: Ambientness,
+    export: Option<ExportKind>,
+    is_ambient: bool,
     declarators: &[LocalNodeId<Declarator>],
 ) -> FormatResult<()> {
     let tree = f.context().tree;
@@ -746,14 +746,14 @@ pub(crate) fn format_using_statement_expression<'ast>(
         [group(&format_with(|f| {
             // prefixes
             match export {
-                Some(ExportMode::Named) => write!(f, [Keyword::Export, space()])?,
-                Some(ExportMode::Default) => {
+                Some(ExportKind::Named) => write!(f, [Keyword::Export, space()])?,
+                Some(ExportKind::Default) => {
                     write!(f, [Keyword::Export, space(), Keyword::Default, space()])?;
                 }
                 None => {}
             }
 
-            write_ambient_prefix(f, ambient)?;
+            write_ambient_prefix(f, is_ambient)?;
 
             if asynchrony == Asynchrony::Async {
                 write!(f, [Keyword::Await, space()])?;
@@ -778,7 +778,7 @@ fn format_global_declaration<'ast>(
         .get_side_span(node_id, NodeSpanType::Region(NodeSpanRegion::Prelude))
         .is_some()
     {
-        write_ambient_prefix(f, declaration.ambient)?;
+        write_ambient_prefix(f, declaration.is_ambient)?;
     }
 
     // head
@@ -799,12 +799,12 @@ fn format_namespace_declaration<'ast>(
 ) -> FormatResult<()> {
     // prefixes
     format_declaration_export_modifier(f, node_id, declaration.export)?;
-    write_ambient_prefix(f, declaration.ambient)?;
+    write_ambient_prefix(f, declaration.is_ambient)?;
 
     // keyword
-    match declaration.kind {
-        NamespaceKind::Namespace => write!(f, [Keyword::Namespace])?,
-        NamespaceKind::Module => write!(f, [token("module")])?,
+    match declaration.form {
+        NamespaceForm::Namespace => write!(f, [Keyword::Namespace])?,
+        NamespaceForm::Module => write!(f, [token("module")])?,
     }
 
     // name
@@ -890,11 +890,11 @@ fn format_import_alias_declaration<'ast>(
 ) -> FormatResult<()> {
     // prefixes
     format_declaration_export_modifier(f, node_id, declaration.export)?;
-    write_ambient_prefix(f, declaration.ambient)?;
+    write_ambient_prefix(f, declaration.is_ambient)?;
 
     // head
     write!(f, [Keyword::Import, space()])?;
-    if declaration.kind == DependencyKind::Type {
+    if declaration.space == DependencySpace::Type {
         write!(f, [Keyword::Type, space()])?;
     }
 
@@ -935,7 +935,7 @@ fn format_extension_declaration<'ast>(
 ) -> FormatResult<()> {
     // prefixes
     format_declaration_export_modifier(f, node_id, declaration.export)?;
-    write_ambient_prefix(f, declaration.ambient)?;
+    write_ambient_prefix(f, declaration.is_ambient)?;
 
     // head
     write!(f, [Keyword::Extension])?;
@@ -977,6 +977,9 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
             Declaration::Global(declaration) => {
                 format_global_declaration(f, node_id, declaration)?;
             }
+            Declaration::Module(declaration) => {
+                write_expression_declaration_body(f, node_id, &declaration.expressions)?;
+            }
             Declaration::Namespace(declaration) => {
                 format_namespace_declaration(f, node_id, declaration)?;
             }
@@ -1005,20 +1008,26 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
             Declaration::Function(FunctionDeclaration {
                 name,
                 export,
-                ambient,
+                is_ambient,
                 signature,
                 body,
             }) => {
-                if signature.kind == FunctionKind::Lambda {
+                if signature.form == FunctionForm::Lambda {
                     format_lambda_declaration(
-                        f, node_id, *export, *ambient, *name, signature, body,
+                        f,
+                        node_id,
+                        *export,
+                        *is_ambient,
+                        *name,
+                        signature,
+                        body,
                     )?;
                 } else {
                     format_function_declaration(
                         f,
                         node_id,
                         *export,
-                        *ambient,
+                        *is_ambient,
                         *name,
                         signature,
                         body,

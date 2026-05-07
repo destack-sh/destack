@@ -24,11 +24,11 @@ use crate::operator::{
 };
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    Comment, ConstructorTypeDeclaration, Declaration, Expression, FunctionKind, FunctionSignature,
-    FunctionTypeDeclaration, GenericArgument, GenericParameter, Key, Keyword, LocalNodeId, Member,
-    Mutability, Node, NodeType, Parameter, Property, TokenType, Tree, TreeImpl, TupleElement,
-    TypeExpression, TypeLiteral, TypeMember, TypeModifier, TypePredicateSubject, VarianceBound,
-    WhereClause,
+    Comment, ConstructorTypeDeclaration, Declaration, Expression, FunctionForm, FunctionSignature,
+    FunctionTypeDeclaration, GenericArgument, GenericParameter, Key, Keyword, LocalNodeId,
+    MappedTypeModifier, Member, Mutability, Node, NodeType, Parameter, Property, TokenType, Tree,
+    TreeImpl, TupleElement, TypeExpression, TypeLiteral, TypeMember, TypePredicateSubject,
+    VarianceBound, WhereClause,
 };
 use destack_fir::format::{Buffer, FormatError, FormatResult};
 use destack_fir::prelude::{space, token, *};
@@ -1620,7 +1620,7 @@ fn function_like_type_needs_parentheses_in_declaration_parent(
         return false;
     }
 
-    !function_like.is_constructor && parent_function.signature.kind == FunctionKind::Lambda
+    !function_like.is_constructor && parent_function.signature.form == FunctionForm::Lambda
 }
 
 /// Return whether one type expression needs derived parentheses in its effective parent.
@@ -2179,29 +2179,29 @@ fn write_construct_signature<'ast>(
 /// Write one mapped-type modifier prefix.
 fn write_mapped_modifier_prefix<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    modifier: TypeModifier,
+    modifier: MappedTypeModifier,
     keyword: &'static str,
 ) -> FormatResult<()> {
     // modifier
     match modifier {
-        TypeModifier::Present => write!(f, [token(keyword), space()]),
-        TypeModifier::Add => write!(f, [token("+"), token(keyword), space()]),
-        TypeModifier::Remove => write!(f, [token("-"), token(keyword), space()]),
-        TypeModifier::None => Ok(()),
+        MappedTypeModifier::Present => write!(f, [token(keyword), space()]),
+        MappedTypeModifier::Add => write!(f, [token("+"), token(keyword), space()]),
+        MappedTypeModifier::Remove => write!(f, [token("-"), token(keyword), space()]),
+        MappedTypeModifier::None => Ok(()),
     }
 }
 
 /// Write one mapped-type modifier suffix.
 fn write_mapped_modifier_suffix<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    modifier: TypeModifier,
+    modifier: MappedTypeModifier,
 ) -> FormatResult<()> {
     // modifier
     match modifier {
-        TypeModifier::Present => write!(f, [token("?")]),
-        TypeModifier::Add => write!(f, [token("+?")]),
-        TypeModifier::Remove => write!(f, [token("-?")]),
-        TypeModifier::None => Ok(()),
+        MappedTypeModifier::Present => write!(f, [token("?")]),
+        MappedTypeModifier::Add => write!(f, [token("+?")]),
+        MappedTypeModifier::Remove => write!(f, [token("-?")]),
+        MappedTypeModifier::None => Ok(()),
     }
 }
 
@@ -2433,6 +2433,15 @@ pub(crate) fn write_type_expression_body<'ast>(
         TypeExpression::Array { element } => {
             write_postfix_type_operand(f, *element)?;
             write!(f, [token("[]")])?;
+        }
+        TypeExpression::Slice { element } => {
+            write!(f, [token("["), element, token("]")])?;
+        }
+        TypeExpression::FixedArray { element, length } => {
+            write!(
+                f,
+                [token("["), element, token(";"), space(), length, token("]")]
+            )?;
         }
         TypeExpression::Object { members } => {
             // empty body

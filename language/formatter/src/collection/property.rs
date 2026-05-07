@@ -21,9 +21,9 @@ use crate::operator::{
 };
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    Ambientness, BinaryOperator, Comment, Expression, FunctionSignature, Key, Keyword, LocalNodeId,
-    Mutability, Name, Node, NodeType, Parameter, Property, ScalarLiteral, Tree, TreeImpl,
-    TypeExpression, Visibility, is_identifier_compat,
+    BinaryOperator, Comment, Expression, FunctionSignature, Key, Keyword, LocalNodeId, Mutability,
+    Name, Node, NodeType, Parameter, Property, ScalarLiteral, Tree, TreeImpl, TypeExpression,
+    Visibility, is_identifier_compat,
 };
 use destack_core::StringId;
 use destack_fir::format::{FormatNodes, FormatResult, Formatter as FirFormatter, VecBuffer, text};
@@ -284,13 +284,13 @@ fn write_visibility_prefix<'ast>(
     Ok(())
 }
 
-/// Write one ambient prefix.
+/// Write one is_ambient prefix.
 fn write_ambient_prefix<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    ambient: Ambientness,
+    is_ambient: bool,
 ) -> FormatResult<()> {
-    // ambient
-    if ambient.is_ambient() {
+    // is_ambient
+    if is_ambient {
         write!(f, [Keyword::Declare, space()])?;
     }
 
@@ -442,7 +442,7 @@ fn format_object_property_value<'ast>(
         key,
         None,
         None,
-        Ambientness::Concrete,
+        false,
         false,
         false,
         false,
@@ -512,7 +512,7 @@ fn write_field_like_left<'ast, T>(
     key: Key,
     value: Option<LocalNodeId<TypeExpression>>,
     visibility: Option<Visibility>,
-    ambient: Ambientness,
+    is_ambient: bool,
     is_static: bool,
     is_abstract: bool,
     is_override: bool,
@@ -531,7 +531,7 @@ where
         force_quote_keys || should_preserve_class_field_quote(f.context(), node_id, key);
 
     // prefixes
-    write_ambient_prefix(f, ambient)?;
+    write_ambient_prefix(f, is_ambient)?;
     write_visibility_prefix(f, visibility)?;
     write_static_prefix(f, is_static)?;
 
@@ -598,7 +598,7 @@ pub(crate) fn format_field_like<'ast, T>(
     key: Key,
     value: Option<LocalNodeId<TypeExpression>>,
     visibility: Option<Visibility>,
-    ambient: Ambientness,
+    is_ambient: bool,
     is_static: bool,
     is_abstract: bool,
     is_override: bool,
@@ -622,7 +622,7 @@ where
             key,
             value,
             visibility,
-            ambient,
+            is_ambient,
             is_static,
             is_abstract,
             is_override,
@@ -644,7 +644,7 @@ where
         key,
         value,
         visibility,
-        ambient,
+        is_ambient,
         is_static,
         is_abstract,
         is_override,
@@ -712,7 +712,7 @@ pub(crate) fn format_method_like<'ast, N>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<N>,
     visibility: Option<Visibility>,
-    ambient: Ambientness,
+    is_ambient: bool,
     is_static: bool,
     is_accessor: bool,
     is_comptime: bool,
@@ -729,7 +729,7 @@ where
     let parameters = method_parameters(signature);
 
     // prefixes
-    write_ambient_prefix(f, ambient)?;
+    write_ambient_prefix(f, is_ambient)?;
     write_visibility_prefix(f, visibility)?;
     write_static_prefix(f, is_static)?;
     write_comptime_prefix(f, is_comptime)?;
@@ -1003,7 +1003,7 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                     f,
                     node_id,
                     None,
-                    Ambientness::Concrete,
+                    false,
                     false,
                     false,
                     false,

@@ -16,8 +16,8 @@ use crate::expression::{ExpressionLeftSide, write_expression_without_prefix_anno
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
     Argument, AssignOperator, AssignPattern, AssignPatternField, BinaryOperator, Comment,
-    Declaration, Declarator, DecoratorPosition, Expression, FunctionDeclaration, FunctionKind,
-    GenericArgument, IfCondition, IfKind, LocalNodeId, NodeType, Pattern, PatternField,
+    Declaration, Declarator, DecoratorPosition, Expression, FunctionDeclaration, FunctionForm,
+    GenericArgument, IfCondition, IfForm, LocalNodeId, NodeType, Pattern, PatternField,
     ScalarLiteral, TemplateLiteral, TokenType, TypeExpression,
 };
 use destack_fir::format::{
@@ -489,7 +489,7 @@ pub(crate) fn assign_pattern_target_expression(
         }
 
         // destructuring targets
-        AssignPattern::Array { .. } | AssignPattern::Object { .. } => None,
+        AssignPattern::Sequence { .. } | AssignPattern::Object { .. } => None,
     }
 }
 
@@ -510,7 +510,7 @@ pub(crate) fn assign_pattern_contains_expression(
         }
 
         // destructuring fields
-        AssignPattern::Array { fields } | AssignPattern::Object { fields } => {
+        AssignPattern::Sequence { fields } | AssignPattern::Object { fields } => {
             fields.iter().copied().any(|field_id| {
                 assign_pattern_field_contains_expression(context, field_id, expression_id)
             })
@@ -668,7 +668,7 @@ fn declarator_pattern_has_default_assignment(
         // field collections
         Pattern::Tuple { fields }
         | Pattern::TaggedTuple { fields, .. }
-        | Pattern::Array { fields }
+        | Pattern::Sequence { fields }
         | Pattern::Object { fields }
         | Pattern::TaggedObject { fields, .. } => fields
             .iter()
@@ -778,7 +778,7 @@ fn declarator_value_is_lambda_like(
     match context.tree.get(expression_id) {
         Expression::Declaration(declaration_id) => matches!(
             context.tree.get(*declaration_id),
-            Declaration::Function(function) if function.signature.kind == FunctionKind::Lambda
+            Declaration::Function(function) if function.signature.form == FunctionForm::Lambda
         ),
         _ => false,
     }
@@ -1032,7 +1032,7 @@ fn write_expression_with_assignment_layout<'ast>(
     let Declaration::Function(FunctionDeclaration {
         name,
         export,
-        ambient,
+        is_ambient,
         signature,
         body,
     }) = f.context().tree.get(*declaration_id)
@@ -1044,7 +1044,7 @@ fn write_expression_with_assignment_layout<'ast>(
         return write!(f, [expression_id]);
     };
 
-    if signature.kind != FunctionKind::Lambda {
+    if signature.form != FunctionForm::Lambda {
         if without_prefix_annotations {
             return write_expression_without_prefix_annotations(f, expression_id);
         }
@@ -1060,7 +1060,7 @@ fn write_expression_with_assignment_layout<'ast>(
         f,
         *declaration_id,
         *export,
-        *ambient,
+        *is_ambient,
         *name,
         signature,
         body,
@@ -1661,7 +1661,7 @@ pub(crate) fn assignment_rhs_prefers_break_after_operator<'ast>(
 
         // ternary rhs values only break after `=` when the test is binary-like
         Expression::If {
-            kind: IfKind::Ternary,
+            form: IfForm::Ternary,
             condition,
             ..
         } => match condition {
@@ -1745,7 +1745,7 @@ fn assignment_target_is_complex_destructuring(
         AssignPattern::Object { fields } => fields,
 
         // non-object targets
-        AssignPattern::Expression { .. } | AssignPattern::Array { .. } => {
+        AssignPattern::Expression { .. } | AssignPattern::Sequence { .. } => {
             return false;
         }
     };

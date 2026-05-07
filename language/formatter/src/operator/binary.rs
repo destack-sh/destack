@@ -1,7 +1,7 @@
 use crate::context::with_following_span_start;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Argument, BinaryOperator, Expression, IfCondition, IfKind, LocalNodeId, MatchKind, Member,
+    Argument, BinaryOperator, Expression, IfCondition, IfForm, LocalNodeId, MatchForm, Member,
     NodeType, OperatorPrecedence, Property, TokenType,
 };
 use destack_fir::format::{Buffer, Format, FormatResult, Formatter as FirFormatter};
@@ -238,7 +238,7 @@ pub(crate) fn expression_precedence(expr: &Expression) -> u16 {
 
         // ternary
         Expression::If {
-            kind: IfKind::Ternary,
+            form: IfForm::Ternary,
             ..
         } => OperatorPrecedence::AssignmentBoolean as u16 - 1,
 
@@ -322,7 +322,7 @@ impl BinaryLikeExpression {
 
         match context.tree.get(parent_id) {
             Expression::If {
-                kind: IfKind::If,
+                form: IfForm::If,
                 condition,
                 ..
             } => matches!(
@@ -333,8 +333,8 @@ impl BinaryLikeExpression {
             Expression::For { condition, .. } => {
                 condition.is_some_and(|condition| condition == self.node_id)
             }
-            Expression::Match { value, kind, .. } => {
-                *value == self.node_id && matches!(kind, MatchKind::Switch)
+            Expression::Match { value, form, .. } => {
+                *value == self.node_id && matches!(form, MatchForm::Switch)
             }
             _ => false,
         }
@@ -455,7 +455,7 @@ impl BinaryLikeExpression {
                         ))
             }
             Expression::If {
-                kind: IfKind::Ternary,
+                form: IfForm::Ternary,
                 ..
             } => Self::ternary_parent_owns_indentation(context, parent_id),
             _ => false,

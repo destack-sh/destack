@@ -2036,7 +2036,7 @@ impl Parser {
         // first bracket element
         let element_start = self.span_start();
         let element = match self.eat_type_expression_or_recover_missing(
-            self.options.not_in_position().in_type(),
+            self.flags.not_in_position().in_type(),
             NodeType::TypeExpression,
         ) {
             Ok(element) => element,
@@ -2059,7 +2059,7 @@ impl Parser {
         if self.language.is_destack() && self.peek_is(TokenType::Semicolon) {
             self.bump(); // eat ;
             let length = self.eat_type_expression_or_recover_missing(
-                self.options.not_in_position().in_type(),
+                self.flags.not_in_position().in_type(),
                 NodeType::TypeExpression,
             )?;
             self.eat_close_token_or_recover_missing(

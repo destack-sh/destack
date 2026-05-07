@@ -221,6 +221,42 @@ fn test_format_type_readonly_array_union() {
     );
 }
 
+/// Slice types should keep bracket form.
+#[test]
+fn test_format_type_slice() {
+    assert_format_program!(
+        r#"type Values = [Value]
+"#,
+        r#"type Values = [Value];
+"#,
+        FileType::Destack
+    );
+}
+
+/// Slice element types keep readonly prefixes inside brackets.
+#[test]
+fn test_format_type_readonly_slice() {
+    assert_format_program!(
+        r#"type Values = [readonly Value]
+"#,
+        r#"type Values = [readonly Value];
+"#,
+        FileType::Destack
+    );
+}
+
+/// Fixed array types should keep their length expression.
+#[test]
+fn test_format_type_fixed_array() {
+    assert_format_program!(
+        r#"type Bytes = [byte; 32]
+"#,
+        r#"type Bytes = [byte; 32];
+"#,
+        FileType::Destack
+    );
+}
+
 /// Class method trailing comments should stay with the terminated member.
 #[test]
 fn test_format_class_method_trailing_line_comment() {

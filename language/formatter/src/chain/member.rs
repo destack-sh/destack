@@ -5,7 +5,7 @@ use crate::expression::parenthesized_expression_needs_preserved_wrapper;
 use crate::operator::{is_chain_expression, write_postfix_base_expression};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Argument, Declarator, DecoratorPosition, Expression, GenericArgument, IfKind, LocalNodeId,
+    Argument, Declarator, DecoratorPosition, Expression, GenericArgument, IfForm, LocalNodeId,
     NodeType, PostfixPosition, ScalarLiteral, TokenType, Tree,
 };
 use destack_core::StringId;
@@ -184,7 +184,7 @@ pub(crate) fn expression_has_ternary_ancestor(
         if matches!(
             context.tree.get(parent_expression_id),
             Expression::If {
-                kind: IfKind::Ternary,
+                form: IfForm::Ternary,
                 ..
             }
         ) {

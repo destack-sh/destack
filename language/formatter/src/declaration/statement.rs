@@ -1,5 +1,5 @@
 use destack_ast::{
-    Block, BlockFormat, Comment, Expression, LocalNodeId, Node, NodeType, Tree, TreeImpl,
+    Block, BlockForm, Comment, Expression, LocalNodeId, Node, NodeType, Tree, TreeImpl,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -196,7 +196,7 @@ pub(crate) fn should_inline_block<'ast>(
     }
 
     // explicit non-value blocks should stay expanded, except empty blocks above
-    if block.format == BlockFormat::Explicit && !block_allows_value_tail(f.context(), block_id) {
+    if block.form == BlockForm::Explicit && !block_allows_value_tail(f.context(), block_id) {
         return false;
     }
 
@@ -256,7 +256,7 @@ fn empty_block_requires_expanded_layout(
 
         let parent_block_id = LocalNodeId::<Block>::new(parent_id);
         let parent_block = context.tree.get(parent_block_id);
-        if parent_block.format != BlockFormat::Implicit {
+        if parent_block.form != BlockForm::Implicit {
             return false;
         }
 

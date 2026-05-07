@@ -82,6 +82,42 @@ type Pair = [T, boolean]
 type Pair = [T, boolean];
 ```
 
+### slice type
+
+Destack slice types keep bracket syntax.
+
+```ds
+type Values = [Value]
+```
+
+```ds expected
+type Values = [Value];
+```
+
+### readonly slice type
+
+Slice element types keep readonly prefixes inside brackets.
+
+```ds
+type Values = [readonly Value]
+```
+
+```ds expected
+type Values = [readonly Value];
+```
+
+### fixed array type
+
+Fixed array types keep their length expression.
+
+```ds
+type Bytes = [byte; 32]
+```
+
+```ds expected
+type Bytes = [byte; 32];
+```
+
 ### bracket tuple union
 
 Empty and singleton bracket tuple types keep bracket syntax in unions.

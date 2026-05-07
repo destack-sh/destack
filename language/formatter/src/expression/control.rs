@@ -23,10 +23,10 @@ use crate::file::{node_has_ignore_directive, node_has_trailing_line_ignore_direc
 use crate::tree::tree_literal_should_break;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    Asynchrony, Block, BlockFormat, DecoratorPosition, Expression, ForEachBinding,
-    ForEachDeclarationKind, ForEachKind, IfCondition, IfKind, Keyword, LetKind, LocalNodeId,
-    MatchCase, MatchKind, MatchSelector, Mutability, NodeType, Pattern, TokenType, TypeExpression,
-    WhileKind, YieldCardinality,
+    Asynchrony, BindingKeyword, Block, BlockForm, DecoratorPosition, Expression, ForEachBinding,
+    ForEachOperator, IfCondition, IfForm, Keyword, LetKind, LocalNodeId, MatchCase, MatchForm,
+    MatchSelector, Mutability, NodeType, Pattern, TokenType, TypeExpression, WhileForm,
+    YieldCardinality,
 };
 use destack_core::StringId;
 use destack_fir::format::{Buffer, Format, FormatError, FormatResult};
@@ -125,7 +125,7 @@ fn format_statement_body_expression_with_semicolon<'ast>(
     let if_chain_handles_annotations = matches!(
         expression,
         Expression::If {
-            kind: IfKind::If,
+            form: IfForm::If,
             ..
         }
     );
@@ -268,7 +268,7 @@ fn is_statement_wrapper_block<'ast>(
     block_id: LocalNodeId<Block>,
 ) -> bool {
     let block = context.tree.get(block_id);
-    block.format == BlockFormat::Implicit
+    block.form == BlockForm::Implicit
 }
 
 /// Return true when this block is an empty statement wrapper.
@@ -364,7 +364,7 @@ fn transparent_control_body_expression(
     };
 
     let block = context.tree.get(*block_id);
-    if block.format != BlockFormat::Implicit || block.len() != 1 {
+    if block.form != BlockForm::Implicit || block.len() != 1 {
         return None;
     }
 
@@ -385,7 +385,7 @@ fn transparent_empty_control_body(
     };
 
     let block = context.tree.get(*block_id);
-    if block.format != BlockFormat::Implicit || !block.is_empty() {
+    if block.form != BlockForm::Implicit || !block.is_empty() {
         return None;
     }
 
@@ -577,7 +577,7 @@ fn write_wrapped_adjacent_statement_expression<'ast>(
         if matches!(
             f.context().tree.get(wrapped_expression_id),
             Expression::If {
-                kind: IfKind::Ternary,
+                form: IfForm::Ternary,
                 ..
             }
         ) {
@@ -614,7 +614,7 @@ fn write_expanded_adjacent_statement_value<'ast>(
     if matches!(
         f.context().tree.get(expression_id),
         Expression::If {
-            kind: IfKind::Ternary,
+            form: IfForm::Ternary,
             ..
         }
     ) {
@@ -887,7 +887,7 @@ fn write_if_else_separator<'ast>(
     let then_is_explicit_block = matches!(
         f.context().tree.get(then_expression_id),
         Expression::Block(block_id)
-            if f.context().tree.get(*block_id).format == BlockFormat::Explicit
+            if f.context().tree.get(*block_id).form == BlockForm::Explicit
     );
     let else_on_same_line = then_is_explicit_block && (!has_line_comment || !has_dangling_comments);
     let line_comment_after_explicit_block =
@@ -1032,7 +1032,7 @@ pub(crate) fn format_if_else_chain<'ast>(
         match if_node {
             // if or else if
             Expression::If {
-                kind: _, // we turn everything into regular ifs
+                form: _, // we turn everything into regular ifs
                 condition,
                 then_expression: then_expression_id,
                 else_expression: else_expression_id,
@@ -1289,13 +1289,13 @@ fn statement_body_requires_head_space(
 /// Format a `while` or `do while` expression.
 pub(crate) fn format_while_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    kind: WhileKind,
+    form: WhileForm,
     condition: LocalNodeId<Expression>,
     body: LocalNodeId<Block>,
 ) -> FormatResult<()> {
-    match kind {
+    match form {
         // while (<condition>) <body>
-        WhileKind::While => {
+        WhileForm::While => {
             let head = format_with(|f| {
                 write_if_or_while_test_expression(f, condition)?;
                 write_comments_for_empty_statement_body(f, body)
@@ -1310,8 +1310,8 @@ pub(crate) fn format_while_expression<'ast>(
             format_statement_body_block(f, body)?;
         }
         // do <body> while (<condition>)
-        WhileKind::DoWhile => {
-            let is_block_body = f.context().tree.get(body).format == BlockFormat::Explicit;
+        WhileForm::DoWhile => {
+            let is_block_body = f.context().tree.get(body).form == BlockForm::Explicit;
 
             write!(f, [Keyword::Do])?;
             if statement_body_requires_head_space(f.context(), body) {
@@ -1352,7 +1352,7 @@ pub(crate) fn format_for_each_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     asynchrony: Asynchrony,
-    kind: ForEachKind,
+    operator: ForEachOperator,
     binding: &ForEachBinding,
     iterator: LocalNodeId<Expression>,
     body: LocalNodeId<Block>,
@@ -1364,24 +1364,21 @@ pub(crate) fn format_for_each_expression<'ast>(
     if asynchrony == Asynchrony::Async {
         write!(f, [Keyword::Await, space()])?;
     }
-    let keyword = match kind {
-        ForEachKind::In => Keyword::In,
-        ForEachKind::Of => Keyword::Of,
+    let keyword = match operator {
+        ForEachOperator::In => Keyword::In,
+        ForEachOperator::Of => Keyword::Of,
     };
 
     // binding
     write!(f, [token("(")])?;
     match binding {
-        ForEachBinding::Pattern {
-            pattern,
-            declaration_kind,
-        } => {
+        ForEachBinding::Pattern { pattern, keyword } => {
             // explicit declaration kind
-            if let Some(declaration_kind) = declaration_kind {
-                let keyword = match declaration_kind {
-                    ForEachDeclarationKind::Var => Keyword::Var,
-                    ForEachDeclarationKind::Let => Keyword::Let,
-                    ForEachDeclarationKind::Const => Keyword::Const,
+            if let Some(keyword) = keyword {
+                let keyword = match keyword {
+                    BindingKeyword::Var => Keyword::Var,
+                    BindingKeyword::Let => Keyword::Let,
+                    BindingKeyword::Const => Keyword::Const,
                 };
                 write!(f, [keyword, space()])?;
                 format_for_each_binding_pattern(f, *pattern)?;
@@ -1605,7 +1602,7 @@ pub(crate) fn format_match_case_with_style<'ast>(
                 write!(f, [space(), token("=>"), space(), *body])?;
             } else {
                 let block = f.context().tree.get(*body);
-                if block.format == BlockFormat::Explicit {
+                if block.form == BlockForm::Explicit {
                     write!(f, [space(), *body])?;
                 } else if !block.is_empty() {
                     write!(
@@ -1636,7 +1633,7 @@ fn switch_case_expression_body_is_explicit_block(
     };
 
     let block = context.tree.get(*block_id);
-    block.format == BlockFormat::Explicit
+    block.form == BlockForm::Explicit
 }
 
 impl<'ast> FormatNode<'ast, MatchCase> for MatchCase {
@@ -1656,19 +1653,19 @@ pub(crate) fn format_match<'ast>(
     include_prefix: bool,
 ) -> FormatResult<()> {
     let match_node = f.context().tree.get(node_id);
-    let Expression::Match { kind, value, cases } = &match_node else {
+    let Expression::Match { form, value, cases } = &match_node else {
         return Err(FormatError::SyntaxError {
             message: "invalid match expression",
         });
     };
-    let kind = *kind;
-    let is_switch_style = matches!(kind, MatchKind::Switch);
+    let form = *form;
+    let is_switch_style = matches!(form, MatchForm::Switch);
 
     if include_prefix {
         // match/switch <expression>
-        let keyword = match kind {
-            MatchKind::Match => Keyword::Match,
-            MatchKind::Switch => Keyword::Switch,
+        let keyword = match form {
+            MatchForm::Match => Keyword::Match,
+            MatchForm::Switch => Keyword::Switch,
         };
         write!(f, [keyword, space()])?;
     }

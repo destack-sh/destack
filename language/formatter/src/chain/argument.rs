@@ -1,5 +1,5 @@
 use crate::DestackFormatContext;
-use destack_ast::{Argument, Declaration, Expression, FunctionKind, LocalNodeId, Tree};
+use destack_ast::{Argument, Declaration, Expression, FunctionForm, LocalNodeId, Tree};
 
 /// Get the value expression of any argument variant.
 pub(crate) fn argument_value_id_if_present(
@@ -28,7 +28,7 @@ pub(crate) fn is_lambda_expression(
 
     matches!(
         tree.get(*declaration_id),
-        Declaration::Function(function) if function.signature.kind == FunctionKind::Lambda
+        Declaration::Function(function) if function.signature.form == FunctionForm::Lambda
     )
 }
 
@@ -51,7 +51,7 @@ pub(crate) fn is_nested_lambda_expression(
         return false;
     };
 
-    if function.signature.kind != FunctionKind::Lambda {
+    if function.signature.form != FunctionForm::Lambda {
         return false;
     }
 

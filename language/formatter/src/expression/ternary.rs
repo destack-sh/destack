@@ -4,7 +4,7 @@ use crate::annotation::FormatTrailingComments;
 use crate::chain::{expression_trivia_anchor_end, transparent_inner_expression};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Argument, Comment, Expression, IfCondition, IfKind, LocalNodeId, NodeType, ScalarLiteral, Tree,
+    Argument, Comment, Expression, IfCondition, IfForm, LocalNodeId, NodeType, ScalarLiteral, Tree,
 };
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{
@@ -36,7 +36,7 @@ fn ternary_parts(
     Option<LocalNodeId<Expression>>,
 )> {
     let Expression::If {
-        kind: IfKind::Ternary,
+        form: IfForm::Ternary,
         condition,
         then_expression,
         else_expression,
@@ -159,7 +159,7 @@ fn expression_is_ternary(
     matches!(
         context.tree.get(expression_id),
         Expression::If {
-            kind: IfKind::Ternary,
+            form: IfForm::Ternary,
             ..
         }
     )
@@ -279,7 +279,7 @@ fn ternary_branch_needs_inline_parentheses(
     matches!(
         context.tree.get(expression_id),
         Expression::If {
-            kind: IfKind::Ternary,
+            form: IfForm::Ternary,
             ..
         }
     )

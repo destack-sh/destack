@@ -17,8 +17,8 @@ use crate::expression::ExpressionLeftSide;
 use crate::operator::AssignmentLikeLayout;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_ast::{
-    Ambientness, Argument, Declaration, ExportMode, Expression, FunctionDeclaration, FunctionKind,
-    FunctionSignature, IfKind, LocalNodeId, Name, NodeType, Parameter, TemplateLiteral,
+    Argument, Declaration, ExportKind, Expression, FunctionDeclaration, FunctionForm,
+    FunctionSignature, IfForm, LocalNodeId, Name, NodeType, Parameter, TemplateLiteral,
 };
 use destack_fir::format::{FormatResult, RemoveSoftLinesBuffer};
 use destack_fir::prelude::*;
@@ -179,7 +179,7 @@ fn write_lambda_parameters_and_return_type<'ast>(
 fn lambda_declaration_needs_trailing_semicolon(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Declaration>,
-    export: Option<ExportMode>,
+    export: Option<ExportKind>,
 ) -> bool {
     export.is_some() || lambda_declaration_is_statement_position(context, node_id)
 }
@@ -214,7 +214,7 @@ fn lambda_declaration<'ast>(
         unreachable!();
     };
 
-    debug_assert_eq!(function.signature.kind, FunctionKind::Lambda);
+    debug_assert_eq!(function.signature.form, FunctionForm::Lambda);
     function
 }
 
@@ -282,7 +282,7 @@ fn next_lambda_chain_declaration(
     };
 
     match context.tree.get(*next_id) {
-        Declaration::Function(function) if function.signature.kind == FunctionKind::Lambda => {
+        Declaration::Function(function) if function.signature.form == FunctionForm::Lambda => {
             Some(*next_id)
         }
         _ => None,
@@ -431,7 +431,7 @@ fn lambda_body_needs_parentheses(
     if !matches!(
         body_expression,
         Expression::If {
-            kind: IfKind::Ternary,
+            form: IfForm::Ternary,
             ..
         }
     ) {
@@ -813,7 +813,7 @@ fn write_lambda_chain_layout<'ast>(
 fn write_lambda_body_and_terminator<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
-    export: Option<ExportMode>,
+    export: Option<ExportKind>,
     body: &Option<LocalNodeId<Expression>>,
     options: FormatLambdaDeclarationOptions,
 ) -> FormatResult<()> {
@@ -937,18 +937,18 @@ fn write_lambda_head<'ast>(
 pub(crate) fn format_lambda_declaration_with_options<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
-    export: Option<ExportMode>,
-    ambient: Ambientness,
+    export: Option<ExportKind>,
+    is_ambient: bool,
     name: Option<Name>,
     signature: &FunctionSignature,
     body: &Option<LocalNodeId<Expression>>,
     options: FormatLambdaDeclarationOptions,
 ) -> FormatResult<()> {
-    debug_assert_eq!(signature.kind, FunctionKind::Lambda);
+    debug_assert_eq!(signature.form, FunctionForm::Lambda);
     debug_assert!(name.is_none());
 
     write_function_export_prefix(f, node_id, export)?;
-    write_function_ambient_prefix(f, ambient)?;
+    write_function_ambient_prefix(f, is_ambient)?;
 
     if body.is_none() {
         write_lambda_head(f, node_id, signature, body, options, true)?;
@@ -961,8 +961,8 @@ pub(crate) fn format_lambda_declaration_with_options<'ast>(
 pub(crate) fn format_lambda_declaration<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
-    export: Option<ExportMode>,
-    ambient: Ambientness,
+    export: Option<ExportKind>,
+    is_ambient: bool,
     name: Option<Name>,
     signature: &FunctionSignature,
     body: &Option<LocalNodeId<Expression>>,
@@ -971,7 +971,7 @@ pub(crate) fn format_lambda_declaration<'ast>(
         f,
         node_id,
         export,
-        ambient,
+        is_ambient,
         name,
         signature,
         body,
