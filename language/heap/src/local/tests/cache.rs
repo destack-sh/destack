@@ -1,5 +1,6 @@
 use crate::{
-    HeapOptions, HeapSpace, Payload, RawSpace, SizeClassTable, test_allocator, test_layout,
+    HeapOptions, HeapSpace, Payload, RawAllocationShape, RawSpace, SizeClassTable, test_allocator,
+    test_layout,
 };
 use destack_mir::ReferenceMap;
 
@@ -20,7 +21,7 @@ fn test_release_empty_raw_span_into_page_run_cache() {
     let mut raw =
         RawSpace::with_options(allocator, &options).expect("explicit raw options should build");
     let pointer = raw
-        .allocate(4, Payload::Bytes(&[1, 2, 3, 4]))
+        .allocate(RawAllocationShape::bytes(4), Payload::Bytes(&[1, 2, 3, 4]))
         .expect("raw allocation should succeed");
 
     // one live span should charge one full span of active bytes

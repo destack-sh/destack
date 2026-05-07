@@ -1,6 +1,6 @@
 use crate::{
     AccountingRegion, DEFAULT_YOUNG_BYTES, HeapError, HeapLimits, HeapOptions, HeapSpaceLimits,
-    Payload, RawLimits, test_layout,
+    Payload, RawAllocationShape, RawLimits, test_layout,
 };
 use destack_mir::ReferenceMap;
 
@@ -29,8 +29,11 @@ fn raw_retained_bytes_after_allocate(options: HeapOptions, bytes: &[u8]) -> u64 
     let mut test_heap = TestHeap::with_options(options);
     let heap = &mut test_heap.heap;
 
-    heap.allocate_raw(bytes.len(), Payload::Bytes(bytes))
-        .expect("raw allocation should succeed");
+    heap.allocate_raw(
+        RawAllocationShape::bytes(bytes.len()),
+        Payload::Bytes(bytes),
+    )
+    .expect("raw allocation should succeed");
 
     heap.usage().raw.retained_bytes
 }
@@ -159,7 +162,7 @@ fn test_reject_raw_allocation_when_limit_exceeded() {
     .expect("baseline raw heap should fit its current retained-byte limit");
 
     let error = heap
-        .allocate_raw(1, Payload::Bytes(&[1]))
+        .allocate_raw(RawAllocationShape::bytes(1), Payload::Bytes(&[1]))
         .expect_err("raw allocation should be rejected");
 
     assert_eq!(
@@ -205,7 +208,10 @@ fn test_reject_raw_replace_when_limit_exceeded() {
     let mut test_heap = TestHeap::with_options(HeapOptions::local());
     let heap = &mut test_heap.heap;
     let pointer = heap
-        .allocate_raw(4097, Payload::Bytes(&vec![0xAA; 4097]))
+        .allocate_raw(
+            RawAllocationShape::bytes(4097),
+            Payload::Bytes(&vec![0xAA; 4097]),
+        )
         .expect("raw allocation should succeed");
     let baseline = heap.usage().raw.retained_bytes;
     heap.set_limits(HeapLimits {

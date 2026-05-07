@@ -7,8 +7,8 @@ use crate::local::raw::RawSpace;
 use crate::local::space::HeapSpace;
 use crate::{
     AllocationLayout, AllocationShape, GcPacer, GcPressure, GcProgress, GcState, GcStats,
-    HeapError, HeapLimits, HeapOptions, HeapReference, HeapResult, Payload, RawPointer, RootSet,
-    SharedHeapReference,
+    HeapError, HeapLimits, HeapOptions, HeapReference, HeapResult, Payload, RawAllocationShape,
+    RawPointer, RootSet, SharedHeapReference,
 };
 
 /// One pending local GC request.
@@ -421,16 +421,16 @@ impl Heap {
     /// Allocate one raw allocation.
     pub fn allocate_raw(
         &mut self,
-        byte_len: usize,
+        shape: RawAllocationShape,
         allocation: Payload<'_>,
     ) -> HeapResult<RawPointer> {
-        let retained_byte_delta = self.raw.alloc_retained_byte_delta(byte_len);
+        let retained_byte_delta = self.raw.alloc_retained_byte_delta(shape);
 
         // check the projected raw retained-byte delta first
         self.check_retained_byte_delta(0, retained_byte_delta)?;
 
         // then allocate through raw space
-        self.raw.allocate(byte_len, allocation)
+        self.raw.allocate(shape, allocation)
     }
 
     /// Return whether one heap reference currently refers to one live allocation.

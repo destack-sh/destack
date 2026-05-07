@@ -1,5 +1,5 @@
 use super::{RawLocation, RawPlace, RawSpace};
-use crate::{HeapError, HeapResult, Payload, RawPointer};
+use crate::{HeapError, HeapResult, Payload, RawAllocationShape, RawPointer};
 
 impl RawSpace {
     /// Fill one caller-provided buffer from one raw allocation at one offset.
@@ -189,7 +189,7 @@ impl RawSpace {
                     Some(new_slot) => RawPlace::Small(new_slot),
                     None => {
                         let pages = self.allocate_page_run_zeroed(bytes.len())?;
-                        let allocation_id = self.insert_large_allocation(bytes.len(), pages)?;
+                        let allocation_id = self.insert_large_allocation(bytes.len(), 1, pages)?;
                         let Some(allocation) = self.large_allocation(allocation_id) else {
                             return Err(HeapError::MissingLargeAllocation {
                                 allocation_id: allocation_id.id(),
@@ -213,7 +213,8 @@ impl RawSpace {
                 self.base_pointer(new_location)
             }
             RawPlace::Large(allocation_id) => {
-                let new_location = self.allocate_place(bytes.len(), Payload::Bytes(bytes))?;
+                let shape = RawAllocationShape::bytes(bytes.len());
+                let new_location = self.allocate_place(shape, Payload::Bytes(bytes))?;
 
                 let Some(allocation) = self.large_allocation(allocation_id) else {
                     return Err(HeapError::MissingLargeAllocation {

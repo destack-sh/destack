@@ -4,8 +4,8 @@ use crate::allocator::{Allocator, PageRun};
 use crate::local::raw::RawSpaceImage;
 use crate::local::space::{HeapSpaceImage, YoungImage};
 use crate::{
-    HeapError, HeapImage, HeapOptions, HeapSpace, Payload, RawSpace, SizeClassTable, TestLayout,
-    test_allocator, test_layouts,
+    HeapError, HeapImage, HeapOptions, HeapSpace, Payload, RawAllocationShape, RawSpace,
+    SizeClassTable, TestLayout, test_allocator, test_layouts,
 };
 use destack_mir::ReferenceMap;
 
@@ -312,10 +312,16 @@ fn test_roundtrip_raw_space_image() {
     let first_bytes = vec![1; 5000];
     let second_bytes = vec![2; 5000];
     let first = raw
-        .allocate(first_bytes.len(), Payload::Bytes(&first_bytes))
+        .allocate(
+            RawAllocationShape::bytes(first_bytes.len()),
+            Payload::Bytes(&first_bytes),
+        )
         .expect("raw allocation should succeed");
     let _second = raw
-        .allocate(second_bytes.len(), Payload::Bytes(&second_bytes))
+        .allocate(
+            RawAllocationShape::bytes(second_bytes.len()),
+            Payload::Bytes(&second_bytes),
+        )
         .expect("raw allocation should succeed");
 
     let image = raw.image().expect("raw image should capture");
@@ -356,7 +362,10 @@ fn test_roundtrip_heap_image_and_fork() {
         )
         .expect("heap allocation should succeed");
     let _raw = heap
-        .allocate_raw(4, Payload::Bytes(&[0xCA, 0xFE, 0xBA, 0xBE]))
+        .allocate_raw(
+            RawAllocationShape::bytes(4),
+            Payload::Bytes(&[0xCA, 0xFE, 0xBA, 0xBE]),
+        )
         .expect("raw allocation should succeed");
 
     // capture both the frozen image and the live fork
@@ -759,10 +768,10 @@ fn test_roundtrip_raw_small_space_image() {
 
     // small allocations should stay in spans and share those span pages after restore
     let first = raw
-        .allocate(3, Payload::Bytes(&[1, 2, 3]))
+        .allocate(RawAllocationShape::new(3, 16), Payload::Bytes(&[1, 2, 3]))
         .expect("raw allocation should succeed");
     let _second = raw
-        .allocate(3, Payload::Bytes(&[4, 5, 6]))
+        .allocate(RawAllocationShape::bytes(3), Payload::Bytes(&[4, 5, 6]))
         .expect("raw allocation should succeed");
     let image = raw.image().expect("raw image should capture");
     let mut restored =
@@ -772,6 +781,7 @@ fn test_roundtrip_raw_small_space_image() {
     assert_eq!(read_first_raw_image_bytes(&image), vec![1, 2, 3]);
     assert_eq!(read_first_raw_image_bytes(&restored_image), vec![1, 2, 3]);
     assert_eq!(restored.read_bytes(first), Ok(vec![1, 2, 3]));
+    assert_eq!(first.offset() % 16, 0);
 
     // mutating one small allocation should not affect the captured image bytes
     restored
@@ -801,7 +811,10 @@ fn test_roundtrip_raw_small_space_image_with_large_size_class() {
 
     // one custom large size class should stay in small space without truncation
     let _pointer = raw
-        .allocate(bytes.len(), Payload::Bytes(&bytes))
+        .allocate(
+            RawAllocationShape::bytes(bytes.len()),
+            Payload::Bytes(&bytes),
+        )
         .expect("raw allocation should succeed");
     let image = raw.image().expect("raw image should capture");
     let mut restored = RawSpace::from_image(allocator, &image).expect("raw image should restore");
@@ -864,7 +877,7 @@ fn test_restore_raw_image_rejects_invalid_size_class() {
     let allocator = test_allocator(&options);
     let mut raw = RawSpace::with_options(allocator.clone(), &options)
         .expect("explicit raw options should build");
-    raw.allocate(3, Payload::Bytes(&[1, 2, 3]))
+    raw.allocate(RawAllocationShape::bytes(3), Payload::Bytes(&[1, 2, 3]))
         .expect("raw allocation should succeed");
 
     let image = raw.image().expect("raw image should capture");
@@ -884,7 +897,7 @@ fn test_fork_raw_space_rejects_invalid_size_class() {
     let allocator = test_allocator(&options);
     let mut raw = RawSpace::with_options(allocator.clone(), &options)
         .expect("explicit raw options should build");
-    raw.allocate(3, Payload::Bytes(&[1, 2, 3]))
+    raw.allocate(RawAllocationShape::bytes(3), Payload::Bytes(&[1, 2, 3]))
         .expect("raw allocation should succeed");
     raw.small.size_classes =
         crate::SizeClassTable::new([16]).expect("size classes should validate");
@@ -908,7 +921,7 @@ fn test_restore_heap_image_rejects_invalid_raw_size_class() {
         Payload::Bytes(&[1, 2, 3]),
     )
     .expect("heap allocation should succeed");
-    heap.allocate_raw(3, Payload::Bytes(&[4, 5, 6]))
+    heap.allocate_raw(RawAllocationShape::bytes(3), Payload::Bytes(&[4, 5, 6]))
         .expect("raw allocation should succeed");
 
     let original_image = heap.image().expect("heap image should capture");
@@ -943,7 +956,7 @@ fn test_fork_heap_rejects_invalid_raw_size_class() {
         Payload::Bytes(&[1, 2, 3]),
     )
     .expect("heap allocation should succeed");
-    heap.allocate_raw(3, Payload::Bytes(&[4, 5, 6]))
+    heap.allocate_raw(RawAllocationShape::bytes(3), Payload::Bytes(&[4, 5, 6]))
         .expect("raw allocation should succeed");
     heap.raw.small.size_classes = SizeClassTable::new([16]).expect("size classes should validate");
 

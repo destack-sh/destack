@@ -5,8 +5,8 @@ use parking_lot::{Mutex, RwLock};
 use super::{SharedRawAllocation, SharedRawLocation, SharedRawPageMapEntry};
 use crate::allocator::{AddressSpace, PageRun, PageRunCache};
 use crate::{
-    AllocationUsage, Allocator, HeapError, HeapOptions, HeapResult, Payload, SharedRawPointer,
-    SharedRawSpaceUsage,
+    AllocationUsage, Allocator, HeapError, HeapOptions, HeapResult, Payload, RawAllocationShape,
+    SharedRawPointer, SharedRawSpaceUsage,
 };
 
 /// Mutable shared raw-space state.
@@ -126,20 +126,21 @@ impl SharedRawSpace {
     /// Allocate one shared raw allocation.
     pub fn allocate(
         &self,
-        byte_len: usize,
+        shape: RawAllocationShape,
         allocation: Payload<'_>,
     ) -> HeapResult<SharedRawPointer> {
         if let Some(actual) = allocation.byte_len()
-            && actual != byte_len
+            && actual != shape.byte_len
         {
             return Err(HeapError::InvalidAllocationBytes {
-                expected: byte_len,
+                expected: shape.byte_len,
                 actual,
             });
         }
 
-        let pages = self.allocate_pages(byte_len)?;
-        let first_offset = self.reserve_space_range(pages.len() * self.allocator.page_bytes())?;
+        let pages = self.allocate_pages(shape.byte_len)?;
+        let first_offset =
+            self.reserve_space_range(pages.len() * self.allocator.page_bytes(), shape.alignment)?;
 
         // materialize the full allocation before publishing it
         if let Err(error) = self
@@ -166,7 +167,7 @@ impl SharedRawSpace {
                 std::ptr::write_bytes(
                     (mapping.base_address() + first_offset) as *mut u8,
                     0,
-                    byte_len,
+                    shape.byte_len,
                 );
             },
         }
@@ -174,14 +175,14 @@ impl SharedRawSpace {
 
         let record = Arc::new(RwLock::new(SharedRawAllocation::new(
             first_offset,
-            byte_len,
+            shape.byte_len,
             pages,
         )));
         allocations.push(record);
         drop(allocations);
 
         let mut state = self.state.lock();
-        state.usage.allocate(byte_len);
+        state.usage.allocate(shape.byte_len);
         drop(state);
 
         Ok(SharedRawPointer::new(first_offset))
@@ -211,8 +212,8 @@ impl SharedRawSpace {
     }
 
     /// Return the projected retained-byte delta for one shared allocation.
-    pub fn alloc_retained_byte_delta(&self, byte_len: usize) -> i64 {
-        self.round_up_allocation_bytes(byte_len) as i64
+    pub fn alloc_retained_byte_delta(&self, shape: RawAllocationShape) -> i64 {
+        self.round_up_allocation_bytes(shape.byte_len) as i64
     }
 
     /// Return the remaining byte length for one shared raw pointer.
@@ -415,10 +416,7 @@ impl SharedRawSpace {
     }
 
     /// Return the current live raw allocation page runs.
-    fn live_page_runs(
-        &self,
-        allocations: &[Arc<RwLock<SharedRawAllocation>>],
-    ) -> Vec<crate::PageRun> {
+    fn live_page_runs(&self, allocations: &[Arc<RwLock<SharedRawAllocation>>]) -> Vec<PageRun> {
         let mut pages = Vec::with_capacity(allocations.len());
 
         for allocation in allocations {
@@ -600,12 +598,13 @@ impl SharedRawSpace {
 
 impl SharedRawSpace {
     /// Reserve one logical shared raw-space byte range.
-    fn reserve_space_range(&self, byte_len: usize) -> HeapResult<usize> {
+    fn reserve_space_range(&self, byte_len: usize, alignment: usize) -> HeapResult<usize> {
         let mut state = self.state.lock();
         let mapping_byte_len = self.mapping.read().byte_len();
         debug_assert!(state.next_offset <= mapping_byte_len);
 
-        let first_offset = align_up(state.next_offset, self.allocator.page_bytes());
+        let alignment = alignment.max(self.allocator.page_bytes());
+        let first_offset = align_up(state.next_offset, alignment);
         let next_offset = first_offset + byte_len;
         if next_offset > mapping_byte_len {
             return Err(HeapError::InvalidByteRange {

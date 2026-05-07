@@ -2,10 +2,13 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use super::{
-    LargeAllocation, LargeAllocationId, RawLocation, RawPageMapEntry, RawPlace, SmallSpan,
+    LargeAllocation, LargeAllocationId, RawLocation, RawPageMapEntry, RawPlace, RawSmallSpanClass,
+    SmallSpan,
 };
-use crate::allocator::{AddressSpace, Allocator, PageRun, PageRunCache, SizeClassTable};
-use crate::{AllocationUsage, CowTable, HeapError, HeapOptions, HeapResult, RawSpaceUsage};
+use crate::allocator::{AddressSpace, Allocator, PageRun, PageRunCache, SizeClassTable, SpanSlot};
+use crate::{
+    AllocationUsage, CowTable, HeapError, HeapOptions, HeapResult, RawPointer, RawSpaceUsage,
+};
 
 /// The first non-null raw large-allocation id.
 const FIRST_ALLOCATED_LARGE_ALLOCATION_ID: u64 = 1;
@@ -19,8 +22,8 @@ pub(crate) struct SmallSpace {
     pub(crate) span_bytes: usize,
     /// The live raw spans.
     pub(crate) spans: CowTable<SmallSpan>,
-    /// The reusable non-full spans per logical byte length.
-    pub(crate) partial_spans: BTreeMap<usize, Vec<usize>>,
+    /// The reusable non-full spans per raw small-span class.
+    pub(crate) partial_spans: BTreeMap<RawSmallSpanClass, Vec<usize>>,
 }
 
 /// One raw large space.
@@ -228,7 +231,7 @@ impl RawSpace {
     }
 
     /// Return the resolved location for one live raw pointer.
-    pub(crate) fn resolve_location(&self, pointer: crate::RawPointer) -> Option<RawLocation> {
+    pub(crate) fn resolve_location(&self, pointer: RawPointer) -> Option<RawLocation> {
         let page_bytes = self.allocator.page_bytes();
         let page_index = pointer.offset() / page_bytes;
         let page_offset = pointer.offset() % page_bytes;
@@ -259,11 +262,11 @@ impl RawSpace {
 
                 let slot_base_offset = slot_index * span.class.size_class;
                 let base_offset = span.first_offset + slot_base_offset;
-                let slot = crate::allocator::SpanSlot::new(span_index, slot_index).ok()?;
+                let slot = SpanSlot::new(span_index, slot_index).ok()?;
 
                 Some(RawLocation {
                     place: RawPlace::Small(slot),
-                    base: crate::RawPointer::new(base_offset),
+                    base: RawPointer::new(base_offset),
                     byte_offset: slot_offset,
                     byte_len,
                 })
@@ -285,7 +288,7 @@ impl RawSpace {
 
                 Some(RawLocation {
                     place: RawPlace::Large(allocation_id),
-                    base: crate::RawPointer::new(allocation.first_offset),
+                    base: RawPointer::new(allocation.first_offset),
                     byte_offset: logical_byte_offset,
                     byte_len: allocation.len,
                 })
@@ -294,7 +297,7 @@ impl RawSpace {
     }
 
     /// Return the base pointer for one raw place.
-    pub(crate) fn base_pointer(&self, place: RawPlace) -> HeapResult<crate::RawPointer> {
+    pub(crate) fn base_pointer(&self, place: RawPlace) -> HeapResult<RawPointer> {
         let base_offset = match place {
             RawPlace::Small(slot) => {
                 let Some(span) = self.span(slot.span_index()) else {
@@ -317,14 +320,19 @@ impl RawSpace {
             }
         };
 
-        Ok(crate::RawPointer::new(base_offset))
+        Ok(RawPointer::new(base_offset))
     }
 
-    /// Reserve one logical raw-space byte range.
-    pub(crate) fn reserve_space_range(&mut self, byte_len: usize) -> HeapResult<usize> {
+    /// Reserve one logical raw-space byte range with the given alignment.
+    pub(crate) fn reserve_space_range_aligned(
+        &mut self,
+        byte_len: usize,
+        alignment: usize,
+    ) -> HeapResult<usize> {
         debug_assert!(self.next_offset <= self.mapping.byte_len());
 
-        let first_offset = align_up(self.next_offset, self.allocator.page_bytes());
+        let alignment = alignment.max(self.allocator.page_bytes());
+        let first_offset = align_up(self.next_offset, alignment);
         let next_offset = first_offset + byte_len;
         if next_offset > self.mapping.byte_len() {
             return Err(HeapError::InvalidByteRange {
