@@ -1280,9 +1280,9 @@ newtype interface Try {
 For `Result<T, E>`, `Ok { value }` branches to `TryContinue<T>` and `Err { error }` branches to `TryFailure<E>`.
 The branch names describe the operator's control flow, not the data constructors of any one type.
 
-#### Try, Catch, Match and Finally
+#### Try-Catch-Finally
 
-The `try`/`catch` syntax handles both exceptions and explicit `Try` propagation:
+The well known `try`/`catch` forms work for both exceptions and explicit `Try` propagation:
 
 ```ds
 declare function readConfig(path: string): Result<Config, IOError>;
@@ -1299,9 +1299,8 @@ The example uses `Result`, but any type implementing `Try` behaves the same:
 - `try` does not implicitly unwrap `Result` values
 - Use `?` inside the block to propagate `Try` failures into the catch
 - Use `??` inside the block when the failure should be handled locally with a fallback
-- When a `?` is inside a `try` with a catch, `FromFailure` is not required
 
-When the propagated failures are statically known, `catch match` can branch on them directly:
+When the propagated failures are statically known, the new `catch match` form can branch on them directly for some particularly pleasant syntactic sugar:
 
 ```ds
 try {
@@ -1312,6 +1311,8 @@ try {
     FormatError { line } => Error(`bad format on line ${line}`)
 }
 ```
+
+Finally arms work as before.
 
 ### Trees (TSX)
 
