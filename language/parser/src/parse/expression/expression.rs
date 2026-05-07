@@ -1939,13 +1939,13 @@ impl Parser {
         )?;
 
         let type_expression = if is_value_of {
-            TypeExpression::ValueOf {
+            TypeExpression::OwnedOf {
                 mutability,
                 variance,
                 target_type,
             }
         } else {
-            TypeExpression::ReferenceOf {
+            TypeExpression::BorrowedOf {
                 mutability,
                 variance,
                 target_type,
@@ -1968,13 +1968,13 @@ impl Parser {
         let variance = self.eat_variance_bound_maybe()?;
         let right = self.eat_expression_with_context_unchecked(self.flags.not_in_position())?;
         let expression = if is_value_of {
-            Expression::ValueOf {
+            Expression::MoveOf {
                 mutability,
                 variance,
                 right,
             }
         } else {
-            Expression::ReferenceOf {
+            Expression::BorrowOf {
                 mutability,
                 variance,
                 right,
