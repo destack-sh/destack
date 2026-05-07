@@ -1,9 +1,7 @@
-use std::collections::HashMap;
-
 use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{collect_module_resolved_read_symbol_usage, import_item_removal_span};
+use crate::rules::common::{collect_module_read_symbol_usage, import_item_removal_span};
 use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -35,10 +33,8 @@ impl LintRule for NoUnusedImports {
     /// Check module DIR nodes for unused import bindings.
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
-        let read_symbols =
-            collect_module_resolved_read_symbol_usage(ctx.module_id(), ctx.tree, ctx.types);
+        let read_symbols = collect_module_read_symbol_usage(ctx.module_id(), ctx.tree, ctx.types);
         let import_clauses = collect_import_clauses(ctx);
-        let canonical_counts = canonical_import_symbol_counts(ctx, &import_clauses);
 
         // report each unused import binding
         for clause in &import_clauses {
@@ -49,7 +45,7 @@ impl LintRule for NoUnusedImports {
                 };
 
                 // enforce this lint guard
-                if import_symbol_is_used(ctx, symbol_id, &read_symbols, &canonical_counts) {
+                if import_symbol_is_used(ctx, symbol_id, &read_symbols) {
                     continue;
                 }
 
@@ -117,57 +113,13 @@ fn collect_import_clauses(ctx: &LintModuleDirContext<'_>) -> Vec<ImportClause> {
     clauses
 }
 
-/// Count canonical targets for local import bindings.
-fn canonical_import_symbol_counts(
-    ctx: &LintModuleDirContext<'_>,
-    clauses: &[ImportClause],
-) -> HashMap<dir::GlobalSymbolId, usize> {
-    let mut counts = HashMap::new();
-
-    // count canonical symbols so we only apply canonical fallback for unique mappings
-    for clause in clauses {
-        for item_id in &clause.items {
-            let item = ctx.tree.get(*item_id);
-            let Some(symbol_id) = item.symbol() else {
-                continue;
-            };
-            let symbol = ctx.symbols.get_symbol(symbol_id);
-            let Some(canonical_id) = symbol.canonical_symbol.or(symbol.target_symbol) else {
-                continue;
-            };
-
-            *counts.entry(canonical_id).or_default() += 1;
-        }
-    }
-
-    counts
-}
-
 /// Return true when an import symbol is used in this module.
 fn import_symbol_is_used(
     ctx: &LintModuleDirContext<'_>,
     symbol_id: dir::LocalSymbolId,
     read_symbols: &std::collections::HashSet<dir::GlobalSymbolId>,
-    canonical_counts: &HashMap<dir::GlobalSymbolId, usize>,
 ) -> bool {
-    // direct local usage
-    if read_symbols.contains(&symbol_id.into_global(ctx.module_id())) {
-        return true;
-    }
-
-    // canonical fallback for resolver paths that bypass local import aliases
-    let symbol = ctx.symbols.get_symbol(symbol_id);
-    let Some(canonical_id) = symbol.canonical_symbol.or(symbol.target_symbol) else {
-        return false;
-    };
-    let is_unique_canonical_binding = canonical_counts
-        .get(&canonical_id)
-        .is_some_and(|count| *count == 1);
-    if !is_unique_canonical_binding {
-        return false;
-    }
-
-    read_symbols.contains(&canonical_id)
+    read_symbols.contains(&symbol_id.into_global(ctx.module_id()))
 }
 
 /// Build a safe fix for one unused import binding when removal is syntactically local.

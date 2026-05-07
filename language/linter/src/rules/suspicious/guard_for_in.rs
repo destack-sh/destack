@@ -246,7 +246,7 @@ impl<'a, 'b> GuardForInVisitor<'a, 'b> {
     /// Return true when one expression resolves to the built in Object value.
     fn is_object_reference(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         expression_is_symbol_or_global_qualified_member(
-            self.ctx.tree,
+            self.ctx,
             expression_id,
             self.object_symbol,
             &self.global_qualifiers,
@@ -371,7 +371,7 @@ impl<'a, 'b> GuardForInVisitor<'a, 'b> {
         candidate_id: dir::LocalNodeId<dir::Expression>,
         binding_symbol: dir::GlobalSymbolId,
     ) -> bool {
-        expression_target_symbol(self.ctx.tree, candidate_id) == Some(binding_symbol)
+        expression_target_symbol(self.ctx, candidate_id) == Some(binding_symbol)
     }
 
     /// Return true when the if consequent is just `continue`.
@@ -488,13 +488,7 @@ fn side_effect_free_iterator_text(
     let expression = ctx.tree.get(expression_id);
     if !matches!(
         expression,
-        dir::Expression::LocalReference {
-            generic_arguments,
-            ..
-        } | dir::Expression::ModuleReference {
-            generic_arguments,
-            ..
-        } | dir::Expression::GlobalReference {
+        dir::Expression::Path {
             generic_arguments,
             ..
         } if generic_arguments.is_empty()

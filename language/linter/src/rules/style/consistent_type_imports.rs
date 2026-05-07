@@ -184,8 +184,8 @@ fn collect_import_symbol_reference_context_usage(
         std::collections::HashMap::new();
 
     // inspect all direct symbol references once in tree order
-    for (expression_id, expression) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
-        let Some(symbol_id) = expression.target_symbol() else {
+    for (expression_id, _) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
+        let Some(symbol_id) = ctx.expression_target_symbol(expression_id) else {
             continue;
         };
         if !tracked_symbols.contains(&symbol_id) {
@@ -536,10 +536,7 @@ fn import_item_is_semantic_type_only(
 /// Return the dependency item kind when present.
 fn item_space(item: &dir::DependencyItem) -> Option<dir::DependencySpace> {
     match item {
-        dir::DependencyItem::UnresolvedRemote { space, .. }
-        | dir::DependencyItem::UnresolvedLocal { space, .. }
-        | dir::DependencyItem::Local { space, .. }
-        | dir::DependencyItem::Remote { space, .. } => Some(*space),
+        dir::DependencyItem::Item { space, .. } => Some(*space),
         dir::DependencyItem::Value { .. } | dir::DependencyItem::Error => None,
     }
 }
@@ -547,11 +544,9 @@ fn item_space(item: &dir::DependencyItem) -> Option<dir::DependencySpace> {
 /// Return the dependency item binding.
 fn item_binding(item: &dir::DependencyItem) -> Option<dir::DependencyBinding> {
     match item {
-        dir::DependencyItem::UnresolvedRemote { binding, .. }
-        | dir::DependencyItem::UnresolvedLocal { binding, .. }
-        | dir::DependencyItem::Value { binding, .. }
-        | dir::DependencyItem::Local { binding, .. }
-        | dir::DependencyItem::Remote { binding, .. } => Some(*binding),
+        dir::DependencyItem::Item { binding, .. } | dir::DependencyItem::Value { binding, .. } => {
+            Some(*binding)
+        }
         dir::DependencyItem::Error => None,
     }
 }

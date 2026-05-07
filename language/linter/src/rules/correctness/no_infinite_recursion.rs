@@ -3,9 +3,7 @@ use std::collections::{HashMap, HashSet};
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{
-    expression_target_symbol, find_cycle_path, strongly_connected_components,
-};
+use crate::rules::common::{find_cycle_path, strongly_connected_components};
 use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -57,7 +55,7 @@ impl LintRule for NoInfiniteRecursion {
         // build one call graph from unconditional call edges only
         let mut adjacency = HashMap::new();
         for function in &function_infos {
-            let profile = analyze_function_calls(ctx.tree, function.body_id);
+            let profile = analyze_function_calls(ctx, function.body_id);
             let mut neighbors = Vec::new();
 
             // keep the current conservative guard behavior:
@@ -142,8 +140,11 @@ struct FunctionCallProfile {
 }
 
 /// Visitor that collects function call symbols and conditional markers.
-#[derive(Default)]
-struct FunctionCallCollector {
+struct FunctionCallCollector<'a> {
+    /// The module being scanned.
+    module_id: destack_source::ModuleId,
+    /// The type table carrying semantic resolutions.
+    types: &'a dir::TypeTable,
     /// Whether conditionals were seen while traversing this body.
     has_conditional: bool,
     /// Called function symbols in this body.
@@ -152,7 +153,7 @@ struct FunctionCallCollector {
     options: NodeVisitorOptions,
 }
 
-impl FunctionCallCollector {
+impl FunctionCallCollector<'_> {
     /// Walk one function body and collect call profile data.
     fn run(&mut self, tree: &dir::Tree, body_id: dir::LocalNodeId<dir::Expression>) {
         let body = tree.get(body_id);
@@ -168,7 +169,7 @@ impl FunctionCallCollector {
     }
 }
 
-impl NodeVisitor for FunctionCallCollector {
+impl NodeVisitor for FunctionCallCollector<'_> {
     fn options(&self) -> &NodeVisitorOptions {
         &self.options
     }
@@ -189,7 +190,13 @@ impl NodeVisitor for FunctionCallCollector {
 
         // collect call targets for call graph edges
         if let dir::Expression::Call { left, .. } = expression
-            && let Some(target_symbol) = expression_target_symbol(tree, *left)
+            && let Some(target_symbol) = self
+                .types
+                .symbol_resolution(left.into_global_any(self.module_id))
+                .and_then(|resolution| match resolution {
+                    dir::SymbolResolution::Target(symbol) => Some(*symbol),
+                    dir::SymbolResolution::Candidates(_) => None,
+                })
         {
             self.called_symbols.insert(target_symbol);
         }
@@ -240,11 +247,17 @@ fn collect_function_infos(ctx: &LintModuleDirContext<'_>) -> Vec<FunctionInfo> {
 
 /// Analyze one function body and return call profile data.
 fn analyze_function_calls(
-    tree: &dir::Tree,
+    ctx: &LintModuleDirContext<'_>,
     body_id: dir::LocalNodeId<dir::Expression>,
 ) -> FunctionCallProfile {
-    let mut collector = FunctionCallCollector::default();
-    collector.run(tree, body_id);
+    let mut collector = FunctionCallCollector {
+        module_id: ctx.module_id(),
+        types: ctx.types,
+        has_conditional: false,
+        called_symbols: HashSet::new(),
+        options: NodeVisitorOptions::default(),
+    };
+    collector.run(ctx.tree, body_id);
     collector.finish()
 }
 

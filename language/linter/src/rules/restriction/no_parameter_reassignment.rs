@@ -56,8 +56,7 @@ impl LintRule for NoParameterReassignment {
             };
 
             // resolve the assigned symbol from the target
-            let Some(target_symbol) = expression_target_symbol(ctx.tree, assigned_expression_id)
-            else {
+            let Some(target_symbol) = expression_target_symbol(ctx, assigned_expression_id) else {
                 continue;
             };
 
@@ -164,9 +163,9 @@ fn parameter_is_used_after_span(
     offset: u32,
 ) -> bool {
     // scan resolved expression targets for the same parameter symbol
-    for (expression_id, expression) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
+    for (expression_id, _) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
         // keep only expressions targeting the same parameter symbol
-        if expression.target_symbol() != Some(parameter_symbol) {
+        if ctx.expression_target_symbol(expression_id) != Some(parameter_symbol) {
             continue;
         }
 

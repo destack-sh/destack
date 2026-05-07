@@ -199,8 +199,7 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
         };
 
         // keep push targets that resolve to a symbol
-        let push_receiver_expression = self.ctx.tree.get(push_call.receiver_id);
-        let push_target_symbol = push_receiver_expression.target_symbol()?;
+        let push_target_symbol = self.ctx.expression_target_symbol(push_call.receiver_id)?;
 
         Some(MapPattern {
             parameter_name: *name,

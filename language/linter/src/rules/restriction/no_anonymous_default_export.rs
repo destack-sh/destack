@@ -281,17 +281,14 @@ fn collect_occupied_names(ctx: &LintAstContext<'_>) -> HashSet<String> {
     }
 
     for pattern_field_id in ctx.tree.iter_nodes::<ast::PatternField>() {
-        match ctx.tree.get(pattern_field_id) {
-            ast::PatternField::Named { name, pattern, .. } => {
-                if pattern.is_none() {
-                    names.insert(ctx.strings.get(name.string()).to_string());
-                } else if let Some(pattern_id) = pattern
-                    && let Some(binding_name) = named_pattern_field_binding_name(ctx, *pattern_id)
-                {
-                    names.insert(ctx.strings.get(binding_name).to_string());
-                }
+        if let ast::PatternField::Named { name, pattern, .. } = ctx.tree.get(pattern_field_id) {
+            if pattern.is_none() {
+                names.insert(ctx.strings.get(name.string()).to_string());
+            } else if let Some(pattern_id) = pattern
+                && let Some(binding_name) = named_pattern_field_binding_name(ctx, *pattern_id)
+            {
+                names.insert(ctx.strings.get(binding_name).to_string());
             }
-            _ => {}
         }
     }
 

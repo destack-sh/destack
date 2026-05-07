@@ -1,14 +1,13 @@
 use std::sync::Arc;
 
-use destack_artifact::{AmbientEnvironment, Ast, DirExported, WellKnownSymbols};
+use destack_artifact::{Ast, DirExported, GlobalEnvironment, WellKnownSymbols};
 use destack_ast::StringId;
 use destack_dir::{self as dir, WellKnownSymbol};
 use destack_source::{File, FileId, ModuleId, PackageId};
 use destack_workspace::{
-    LintSeverity, LinterOptions, Module, Package, ProfileId, Repository, Revision,
+    ArtifactCache, LintSeverity, LinterOptions, Module, Package, ProfileId, Repository, Revision,
 };
 
-use crate::linter::artifact::{read_ambient_environment, read_ast, read_dir_exported};
 use crate::linter::library::is_library_module;
 use crate::{LintMeta, LintReport, LintRequirement};
 
@@ -16,6 +15,8 @@ use crate::{LintMeta, LintReport, LintRequirement};
 pub struct LintPackageAstContext {
     /// The repository backing this lint pass.
     pub repository: Arc<Repository>,
+    /// Revision artifact cache for this lint pass.
+    pub artifacts: Arc<ArtifactCache>,
     /// The package being linted.
     pub package: Arc<Package>,
     /// The source revision for this lint pass.
@@ -38,12 +39,14 @@ impl LintPackageAstContext {
     /// Create a new AST package lint context.
     pub fn new(
         repository: Arc<Repository>,
+        artifacts: Arc<ArtifactCache>,
         package: Arc<Package>,
         revision: Revision,
         options: LinterOptions,
     ) -> Self {
         Self {
             repository,
+            artifacts,
             package,
             revision,
             options,
@@ -71,7 +74,7 @@ impl LintPackageAstContext {
 
     /// Return one AST artifact for one revision-scoped module.
     pub fn module_ast(&self, module_id: ModuleId) -> Option<Arc<Ast>> {
-        read_ast(&self.repository, self.revision, module_id)
+        self.artifacts.ast(module_id)
     }
 
     /// Return all visible module ids in the active package.
@@ -145,6 +148,8 @@ impl LintPackageAstContext {
 pub struct LintPackageDirContext {
     /// The repository backing this lint pass.
     pub repository: Arc<Repository>,
+    /// Revision artifact cache for this lint pass.
+    pub artifacts: Arc<ArtifactCache>,
     /// The package being linted.
     pub package: Arc<Package>,
     /// The source revision for this lint pass.
@@ -170,6 +175,7 @@ impl LintPackageDirContext {
     /// Create a new DIR package lint context.
     pub fn new(
         repository: Arc<Repository>,
+        artifacts: Arc<ArtifactCache>,
         package: Arc<Package>,
         revision: Revision,
         profile_id: ProfileId,
@@ -177,6 +183,7 @@ impl LintPackageDirContext {
     ) -> Self {
         Self {
             repository,
+            artifacts,
             package,
             revision,
             profile_id,
@@ -211,14 +218,14 @@ impl LintPackageDirContext {
         self.repository.file(self.revision, file_id).ok().flatten()
     }
 
-    /// Return one resolved DIR artifact for one revision-scoped module.
-    pub fn resolved_dir(&self, module_id: ModuleId) -> Option<Arc<DirExported>> {
-        read_dir_exported(&self.repository, self.revision, module_id, self.profile_id)
+    /// Return one exported DIR artifact for one revision-scoped module.
+    pub fn exported_dir(&self, module_id: ModuleId) -> Option<Arc<DirExported>> {
+        self.artifacts.dir_exported(module_id, self.profile_id)
     }
 
-    /// Return the library environment for the active revision and profile.
-    pub fn ambient_environment(&self) -> Option<Arc<AmbientEnvironment>> {
-        read_ambient_environment(&self.repository, self.revision, self.profile_id)
+    /// Return the global environment for the active revision and profile.
+    pub fn global_environment(&self) -> Option<Arc<GlobalEnvironment>> {
+        self.artifacts.global_environment(self.profile_id)
     }
 
     /// Return all visible module ids in the active package.
@@ -239,15 +246,15 @@ impl LintPackageDirContext {
 
     /// Get a cached declared library symbol for the active profile and name.
     pub fn get_declared_library_symbol(&self, name: StringId) -> Option<dir::GlobalSymbolId> {
-        let environment = self.ambient_environment()?;
+        let environment = self.global_environment()?;
         let key = dir::StaticKey::Name(name);
 
-        environment.declared_symbol_from_key(&key, dir::SymbolSpaceOrder::ValueThenType)
+        environment.symbol_from_key(key, dir::SymbolSpace::Value)
     }
 
     /// Get well-known symbols for the active profile.
     pub fn get_well_known_symbols(&self) -> Option<WellKnownSymbols> {
-        let environment = self.ambient_environment()?;
+        let environment = self.global_environment()?;
         Some(environment.well_known_symbols())
     }
 
@@ -341,12 +348,12 @@ fn is_lib_available(ctx: &LintPackageDirContext, libs: &[&str]) -> bool {
         return true;
     }
 
-    let Some(environment) = ctx.ambient_environment() else {
+    let Some(environment) = ctx.global_environment() else {
         return false;
     };
 
     environment
-        .ambient_modules
+        .modules
         .iter()
         .filter_map(|module_id| ctx.repository_module(*module_id))
         .any(|module| is_library_module(module.as_ref(), libs))

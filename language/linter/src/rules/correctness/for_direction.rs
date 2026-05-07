@@ -179,9 +179,7 @@ fn increment_with_expected_direction(
             left,
             right,
         } => {
-            let Some(left_expression_id) = assign_pattern_expression(ctx.tree, *left) else {
-                return None;
-            };
+            let left_expression_id = assign_pattern_expression(ctx.tree, *left)?;
 
             // map assignment operator to target direction
             let replacement_operator =
@@ -294,9 +292,7 @@ fn update_direction_for_counter(
             left,
             right,
         } => {
-            let Some(left_expression_id) = assign_pattern_expression(ctx.tree, *left) else {
-                return None;
-            };
+            let left_expression_id = assign_pattern_expression(ctx.tree, *left)?;
 
             // require assignment target to match the counter path
             if !expression_matches_counter(ctx, left_expression_id, counter_segments) {

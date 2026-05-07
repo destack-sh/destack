@@ -168,8 +168,7 @@ impl<'a, 'b> PreferArrayLiteralVisitor<'a, 'b> {
         }
 
         // check if the receiver is a tracked empty array
-        let receiver = self.ctx.tree.get(method_call.receiver_id);
-        let Some(target_symbol) = receiver.target_symbol() else {
+        let Some(target_symbol) = self.ctx.expression_target_symbol(method_call.receiver_id) else {
             return;
         };
 
@@ -183,8 +182,7 @@ impl<'a, 'b> PreferArrayLiteralVisitor<'a, 'b> {
     /// Mark an expression's target as having a non-push use.
     fn mark_other_use(&mut self, expression_id: LocalNodeId<dir::Expression>) {
         // check if this references a tracked array
-        let expression = self.ctx.tree.get(expression_id);
-        let Some(target_symbol) = expression.target_symbol() else {
+        let Some(target_symbol) = self.ctx.expression_target_symbol(expression_id) else {
             return;
         };
 
@@ -361,7 +359,7 @@ impl NodeVisitor for PreferArrayLiteralVisitor<'_, '_> {
         }
 
         // mark plain symbol uses that are not just `.push(...)` receivers
-        if expression.target_symbol().is_some() && !self.is_push_receiver_use(id) {
+        if self.ctx.expression_target_symbol(id).is_some() && !self.is_push_receiver_use(id) {
             self.mark_other_use(id);
         }
 

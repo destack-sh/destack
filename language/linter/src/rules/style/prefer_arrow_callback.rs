@@ -3,7 +3,7 @@ use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    expression_enters_nested_declaration_scope, expression_is_new_target, expression_target_symbol,
+    expression_enters_nested_declaration_scope, expression_is_new_target,
     expression_unwrap_parenthesized, signature_declares_value_name,
 };
 use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
@@ -436,6 +436,8 @@ fn callback_body_usage(
     // walk only the current callback body
     let mut visitor = CallbackBodyUsageVisitor {
         root_expression_id: body_expression_id,
+        module_id: ctx.module_id(),
+        types: ctx.types,
         function_symbol,
         function_name,
         arguments_name,
@@ -452,9 +454,13 @@ fn callback_body_usage(
 }
 
 /// Visitor that collects callback body references and skips nested callables.
-struct CallbackBodyUsageVisitor {
+struct CallbackBodyUsageVisitor<'a> {
     /// The root expression for the callback body.
     root_expression_id: dir::LocalNodeId<dir::Expression>,
+    /// The module being scanned.
+    module_id: destack_source::ModuleId,
+    /// The type table carrying semantic resolutions.
+    types: &'a dir::TypeTable,
     /// The callback function symbol.
     function_symbol: dir::GlobalSymbolId,
     /// The callback function name when present.
@@ -473,7 +479,7 @@ struct CallbackBodyUsageVisitor {
     options: NodeVisitorOptions,
 }
 
-impl NodeVisitor for CallbackBodyUsageVisitor {
+impl NodeVisitor for CallbackBodyUsageVisitor<'_> {
     /// Return visitor options.
     fn options(&self) -> &NodeVisitorOptions {
         &self.options
@@ -515,7 +521,15 @@ impl NodeVisitor for CallbackBodyUsageVisitor {
         {
             self.usage.uses_arguments = true;
         }
-        if expression_target_symbol(tree, expression_id) == Some(self.function_symbol)
+        if self
+            .types
+            .symbol_resolution(expression_id.into_global_any(self.module_id))
+            .is_some_and(|resolution| match resolution {
+                dir::SymbolResolution::Target(symbol) => *symbol == self.function_symbol,
+                dir::SymbolResolution::Candidates(symbols) => {
+                    symbols.contains(&self.function_symbol)
+                }
+            })
             || self
                 .function_name
                 .is_some_and(|name| expression_is_single_name_reference(tree, expression_id, name))
@@ -538,25 +552,10 @@ fn expression_is_single_name_reference(
     let expression = tree.get(expression_id);
 
     match expression {
-        dir::Expression::UnresolvedPath {
+        dir::Expression::Path {
             path,
             generic_arguments,
-            ..
-        }
-        | dir::Expression::LocalReference {
-            path,
-            generic_arguments,
-            ..
-        }
-        | dir::Expression::ModuleReference {
-            path,
-            generic_arguments,
-            ..
-        }
-        | dir::Expression::GlobalReference {
-            path,
-            generic_arguments,
-            ..
+            space: _,
         } => generic_arguments.is_empty() && path.segments.len() == 1 && path.segments[0] == name,
         _ => false,
     }

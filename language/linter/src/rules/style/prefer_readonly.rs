@@ -3,9 +3,7 @@ use std::collections::{HashMap, HashSet};
 use destack_dir::{self as dir, Member};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{
-    canonical_symbol_for, collect_assigned_symbol_usage, expression_unwrap_parenthesized,
-};
+use crate::rules::common::{collect_assigned_symbol_usage, expression_unwrap_parenthesized};
 use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -107,16 +105,7 @@ fn collect_private_mutable_field_candidates(
             }
 
             let global_symbol_id = symbol.into_global(ctx.module_id());
-            let canonical_symbol_id = canonical_symbol_for(
-                &ctx.repository,
-                ctx.revision,
-                ctx.profile_id,
-                ctx.module_id(),
-                ctx.symbols,
-                global_symbol_id,
-            )
-            .unwrap_or(global_symbol_id);
-            candidates.insert(canonical_symbol_id, *member_id);
+            candidates.insert(global_symbol_id, *member_id);
         }
     }
 
@@ -137,12 +126,8 @@ fn collect_mutated_candidate_fields(
     candidates: &HashMap<dir::GlobalSymbolId, dir::LocalNodeId<Member>>,
 ) -> HashSet<dir::GlobalSymbolId> {
     let assigned_symbols = collect_assigned_symbol_usage(
-        &ctx.repository,
-        ctx.revision,
-        ctx.profile_id,
         ctx.module_id(),
         ctx.tree,
-        ctx.symbols,
         ctx.types,
         |assignment_expression_id, assigned_expression_id| {
             !assignment_is_constructor_self_initialization(
@@ -227,8 +212,8 @@ fn expression_is_this_reference(
         dir::Expression::As { expression, .. } | dir::Expression::Satisfies { expression, .. } => {
             expression_is_this_reference(tree, *expression)
         }
-        dir::Expression::ValueOf { right, .. }
-        | dir::Expression::ReferenceOf { right, .. }
+        dir::Expression::MoveOf { right, .. }
+        | dir::Expression::BorrowOf { right, .. }
         | dir::Expression::PointerOf { right, .. } => expression_is_this_reference(tree, *right),
         dir::Expression::Maybe { left } | dir::Expression::Must { left } => {
             expression_is_this_reference(tree, *left)

@@ -3,11 +3,11 @@ use std::collections::HashSet;
 use destack_dir as dir;
 use destack_dir::{NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_source::ModuleId;
-use destack_workspace::{ProfileId, Repository, Revision};
 
 use super::{
     assign_pattern_contains_expression, expression_assignment_target, expression_candidate_symbols,
     expression_is_standalone_statement, resolution_target_symbols,
+    symbol_resolution_target_symbols,
 };
 
 /// Collected symbol usage for one DIR module.
@@ -16,16 +16,16 @@ pub struct ModuleSymbolUsage {
     /// Symbols referenced directly by expression target symbols.
     pub direct_symbols: HashSet<dir::GlobalSymbolId>,
     /// Symbols referenced through DIR resolution candidates.
-    pub resolved_symbols: HashSet<dir::GlobalSymbolId>,
+    pub candidate_symbols: HashSet<dir::GlobalSymbolId>,
 }
 
 impl ModuleSymbolUsage {
-    /// Return true when a global symbol appears in direct or resolved usage.
+    /// Return true when a global symbol appears in direct or candidate usage.
     pub fn references_symbol(&self, symbol_id: dir::GlobalSymbolId) -> bool {
-        self.direct_symbols.contains(&symbol_id) || self.resolved_symbols.contains(&symbol_id)
+        self.direct_symbols.contains(&symbol_id) || self.candidate_symbols.contains(&symbol_id)
     }
 
-    /// Return true when a local symbol appears in direct or resolved usage.
+    /// Return true when a local symbol appears in direct or candidate usage.
     pub fn references_local_symbol(
         &self,
         module_id: ModuleId,
@@ -45,8 +45,8 @@ impl ModuleSymbolUsage {
             }
         }
 
-        // resolved local references
-        for symbol_id in &self.resolved_symbols {
+        // candidate local references
+        for symbol_id in &self.candidate_symbols {
             if symbol_id.module_id == module_id {
                 symbols.insert(symbol_id.local_id);
             }
@@ -64,38 +64,53 @@ pub fn collect_module_symbol_usage(
 ) -> ModuleSymbolUsage {
     let mut usage = ModuleSymbolUsage::default();
 
-    // direct symbol references and resolver candidates
-    for (expression_id, expression) in tree.iter_nodes_of_type::<dir::Expression>() {
-        if let Some(symbol_id) = expression.target_symbol() {
-            usage.direct_symbols.insert(symbol_id);
+    // direct symbol references and resolution candidates
+    for (expression_id, _) in tree.iter_nodes_of_type::<dir::Expression>() {
+        let global_expression_id = expression_id.into_global_any(module_id);
+
+        if let Some(resolution) = types.symbol_resolution(global_expression_id) {
+            for symbol_id in symbol_resolution_target_symbols(resolution) {
+                usage.direct_symbols.insert(symbol_id);
+            }
         }
 
-        let global_expression_id = expression_id.into_global_any(module_id);
-        let Some(resolution_id) = types.node_resolution_id(global_expression_id) else {
-            continue;
-        };
-
-        let resolution = types.get_resolution(resolution_id);
-        for symbol_id in resolution_target_symbols(resolution) {
-            usage.resolved_symbols.insert(symbol_id);
+        if let Some(resolution) = types.resolution(global_expression_id) {
+            for symbol_id in resolution_target_symbols(resolution) {
+                usage.candidate_symbols.insert(symbol_id);
+            }
         }
     }
 
     usage
 }
 
+/// Resolve the single lexical target symbol for one expression.
+fn expression_target_symbol(
+    module_id: ModuleId,
+    types: &dir::TypeTable,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> Option<dir::GlobalSymbolId> {
+    let resolution = types.symbol_resolution(expression_id.into_global_any(module_id))?;
+
+    match resolution {
+        dir::SymbolResolution::Target(symbol) => Some(*symbol),
+        dir::SymbolResolution::Candidates(_) => None,
+    }
+}
+
 /// Collect direct reference expression ids for one local symbol in one module.
 pub fn collect_local_symbol_direct_reference_expression_ids(
     module_id: ModuleId,
     tree: &dir::Tree,
+    types: &dir::TypeTable,
     symbol_id: dir::LocalSymbolId,
 ) -> Vec<dir::LocalNodeId<dir::Expression>> {
     let mut references = Vec::new();
     let global_symbol_id = symbol_id.into_global(module_id);
 
     // collect direct target symbol references in deterministic tree order
-    for (expression_id, expression) in tree.iter_nodes_of_type::<dir::Expression>() {
-        if expression.target_symbol() == Some(global_symbol_id) {
+    for (expression_id, _) in tree.iter_nodes_of_type::<dir::Expression>() {
+        if expression_target_symbol(module_id, types, expression_id) == Some(global_symbol_id) {
             references.push(expression_id);
         }
     }
@@ -107,18 +122,26 @@ pub fn collect_local_symbol_direct_reference_expression_ids(
 pub fn local_symbol_has_direct_references(
     module_id: ModuleId,
     tree: &dir::Tree,
+    types: &dir::TypeTable,
     symbol_id: dir::LocalSymbolId,
 ) -> bool {
     tree.iter_nodes_of_type::<dir::Expression>()
-        .any(|(_, expression)| expression.target_symbol() == Some(symbol_id.into_global(module_id)))
+        .any(|(expression_id, _)| {
+            expression_target_symbol(module_id, types, expression_id)
+                == Some(symbol_id.into_global(module_id))
+        })
 }
 
 /// Collect symbols read by one expression subtree.
 pub fn collect_expression_read_symbol_usage(
+    module_id: ModuleId,
     tree: &dir::Tree,
+    types: &dir::TypeTable,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> HashSet<dir::GlobalSymbolId> {
     let mut collector = ReadSymbolCollector {
+        module_id,
+        types,
         reads: HashSet::new(),
         options: NodeVisitorOptions::default(),
     };
@@ -127,23 +150,8 @@ pub fn collect_expression_read_symbol_usage(
     collector.reads
 }
 
-/// Collect read symbols for a list of module roots.
+/// Collect read symbols for one module.
 pub fn collect_module_read_symbol_usage(
-    tree: &dir::Tree,
-    roots: &[dir::LocalNodeId<dir::Expression>],
-) -> HashSet<dir::GlobalSymbolId> {
-    let mut reads = HashSet::new();
-
-    // collect read symbols from each root expression tree
-    for root_id in roots {
-        reads.extend(collect_expression_read_symbol_usage(tree, *root_id));
-    }
-
-    reads
-}
-
-/// Collect read symbols and resolved read candidates for one module.
-pub fn collect_module_resolved_read_symbol_usage(
     module_id: ModuleId,
     tree: &dir::Tree,
     types: &dir::TypeTable,
@@ -151,22 +159,23 @@ pub fn collect_module_resolved_read_symbol_usage(
     let mut reads = HashSet::new();
 
     // collect read usages from expression nodes
-    for (expression_id, expression) in tree.iter_nodes_of_type::<dir::Expression>() {
+    for (expression_id, _) in tree.iter_nodes_of_type::<dir::Expression>() {
         if !expression_reference_is_read(tree, expression_id) {
             continue;
         }
 
-        if let Some(symbol_id) = expression.target_symbol() {
-            reads.insert(symbol_id);
+        let global_expression_id = expression_id.into_global_any(module_id);
+
+        if let Some(resolution) = types.symbol_resolution(global_expression_id) {
+            for symbol_id in symbol_resolution_target_symbols(resolution) {
+                reads.insert(symbol_id);
+            }
         }
 
-        let global_expression_id = expression_id.into_global_any(module_id);
-        let Some(resolution_id) = types.node_resolution_id(global_expression_id) else {
-            continue;
-        };
-        let resolution = types.get_resolution(resolution_id);
-        for symbol_id in resolution_target_symbols(resolution) {
-            reads.insert(symbol_id);
+        if let Some(resolution) = types.resolution(global_expression_id) {
+            for symbol_id in resolution_target_symbols(resolution) {
+                reads.insert(symbol_id);
+            }
         }
     }
 
@@ -176,12 +185,8 @@ pub fn collect_module_resolved_read_symbol_usage(
 /// Collect assigned symbols for assignment-like expressions in one module.
 #[allow(clippy::too_many_arguments)]
 pub fn collect_assigned_symbol_usage(
-    repository: &Repository,
-    revision: Revision,
-    profile_id: ProfileId,
     module_id: ModuleId,
     tree: &dir::Tree,
-    symbols: &dir::SymbolTable,
     types: &dir::TypeTable,
     mut include_assignment: impl FnMut(
         dir::LocalNodeId<dir::Expression>,
@@ -203,17 +208,8 @@ pub fn collect_assigned_symbol_usage(
             continue;
         }
 
-        let assigned_expression = tree.get(assigned_expression_id);
-        let candidate_symbols = expression_candidate_symbols(
-            repository,
-            revision,
-            profile_id,
-            module_id,
-            symbols,
-            types,
-            assigned_expression_id,
-            assigned_expression,
-        );
+        let candidate_symbols =
+            expression_candidate_symbols(module_id, types, assigned_expression_id);
         assigned_symbols.extend(candidate_symbols);
     }
 
@@ -221,14 +217,18 @@ pub fn collect_assigned_symbol_usage(
 }
 
 /// Collect symbol reads while skipping pure write positions.
-struct ReadSymbolCollector {
+struct ReadSymbolCollector<'a> {
+    /// The module being scanned.
+    module_id: ModuleId,
+    /// The type table carrying semantic resolutions.
+    types: &'a dir::TypeTable,
     /// Collected symbols read from one expression.
     reads: HashSet<dir::GlobalSymbolId>,
     /// Visitor options.
     options: NodeVisitorOptions,
 }
 
-impl NodeVisitor for ReadSymbolCollector {
+impl NodeVisitor for ReadSymbolCollector<'_> {
     fn options(&self) -> &NodeVisitorOptions {
         &self.options
     }
@@ -264,7 +264,7 @@ impl NodeVisitor for ReadSymbolCollector {
             return;
         }
 
-        if let Some(symbol_id) = expression.target_symbol() {
+        if let Some(symbol_id) = expression_target_symbol(self.module_id, self.types, id) {
             self.reads.insert(symbol_id);
         }
 

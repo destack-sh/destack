@@ -1,7 +1,7 @@
 use destack_core::{StringId, StringPool};
 use destack_dir as dir;
 use destack_source::{ModuleId, Span};
-use destack_workspace::{ProfileId, Repository, Revision};
+use destack_workspace::{ArtifactCache, ProfileId};
 
 use crate::ConstValue;
 
@@ -132,40 +132,19 @@ pub fn expression_import_target_static_specifier(expression: &dir::Expression) -
             source: _,
             space: _,
             target,
-            target_module: _,
             items: _,
             attributes: _,
             arguments: _,
-        }
-        | dir::Expression::ReExport {
-            target,
-            target_module: _,
-            space: _,
-            items: _,
-            attributes: _,
-        }
-        | dir::Expression::UnresolvedReExport {
+        } => match target {
+            dir::ImportTarget::String(target) => Some(*target),
+            dir::ImportTarget::Expression { .. } => None,
+        },
+        dir::Expression::ReExport {
             target,
             space: _,
             items: _,
             attributes: _,
         } => Some(*target),
-        dir::Expression::UnresolvedImport {
-            source: _,
-            space: _,
-            target: dir::ImportTarget::String(target),
-            items: _,
-            attributes: _,
-            arguments: _,
-        } => Some(*target),
-        dir::Expression::UnresolvedImport {
-            source: _,
-            space: _,
-            target: dir::ImportTarget::Expression { .. },
-            items: _,
-            attributes: _,
-            arguments: _,
-        } => None,
         _ => None,
     }
 }
@@ -180,8 +159,8 @@ pub fn expression_import_target_specifier(
         return Some(target_id);
     }
 
-    // match unresolved expression targets that evaluate to static strings
-    let dir::Expression::UnresolvedImport { target, .. } = expression else {
+    // match expression targets that evaluate to static strings
+    let dir::Expression::Import { target, .. } = expression else {
         return None;
     };
     let dir::ImportTarget::Expression { target } = target else {
@@ -270,22 +249,7 @@ pub fn type_expression_contains_reference_segment(
         dir::TypeExpression::Reference {
             path,
             generic_arguments,
-            space_order: _,
-        }
-        | dir::TypeExpression::LocalReference {
-            path,
-            generic_arguments,
-            target_symbol: _,
-        }
-        | dir::TypeExpression::ModuleReference {
-            path,
-            generic_arguments,
-            target_symbol: _,
-        }
-        | dir::TypeExpression::GlobalReference {
-            path,
-            generic_arguments,
-            target_symbol: _,
+            space: _,
         } => path_or_generic_arguments_contain_reference_segment(
             tree,
             path,
@@ -330,12 +294,12 @@ pub fn type_expression_contains_reference_segment(
         | dir::TypeExpression::Must { target_type }
         | dir::TypeExpression::AsComptime { target_type }
         | dir::TypeExpression::Not { target_type }
-        | dir::TypeExpression::ValueOf {
+        | dir::TypeExpression::OwnedOf {
             target_type,
             mutability: _,
             variance: _,
         }
-        | dir::TypeExpression::ReferenceOf {
+        | dir::TypeExpression::BorrowedOf {
             target_type,
             mutability: _,
             variance: _,
@@ -440,8 +404,8 @@ pub fn expression_unwrap_transparent(
             | dir::Expression::Satisfies { expression, .. } => {
                 expression_id = *expression;
             }
-            dir::Expression::ValueOf { right, .. }
-            | dir::Expression::ReferenceOf { right, .. }
+            dir::Expression::MoveOf { right, .. }
+            | dir::Expression::BorrowOf { right, .. }
             | dir::Expression::PointerOf { right, .. } => {
                 expression_id = *right;
             }
@@ -681,8 +645,13 @@ pub fn expression_is_any_typed(
     }
 
     // check declaration type for symbol backed references
-    let expression = tree.get(expression_id);
-    let Some(target_symbol) = expression.target_symbol() else {
+    let Some(target_symbol) = types
+        .symbol_resolution(expression_id.into_global_any(module_id))
+        .and_then(|resolution| match resolution {
+            dir::SymbolResolution::Target(symbol) => Some(*symbol),
+            dir::SymbolResolution::Candidates(_) => None,
+        })
+    else {
         return false;
     };
     if target_symbol.module_id != module_id {
@@ -690,19 +659,11 @@ pub fn expression_is_any_typed(
     }
 
     let symbol_entry = symbols.get_symbol(target_symbol.local_id);
-    let Some(primary_declaration) = symbol_entry.primary_declaration else {
+    let Some(declaration) = symbol_entry.declaration else {
         return false;
     };
-    if declaration_marks_symbol_as_any(tree, primary_declaration, target_symbol.local_id) {
+    if declaration_marks_symbol_as_any(tree, declaration, target_symbol.local_id) {
         return true;
-    }
-
-    if let Some(secondary_declarations) = &symbol_entry.secondary_declarations {
-        for declaration in secondary_declarations.iter().copied() {
-            if declaration_marks_symbol_as_any(tree, declaration, target_symbol.local_id) {
-                return true;
-            }
-        }
     }
 
     false
@@ -730,12 +691,10 @@ pub fn expression_declared_or_inferred_type_id(
 
 /// Map one expression type from local inference or symbol value types.
 pub fn expression_type_map<T>(
-    repository: &Repository,
-    revision: Revision,
+    artifacts: &ArtifactCache,
     profile_id: ProfileId,
     module_id: ModuleId,
     tree: &dir::Tree,
-    symbols: &dir::SymbolTable,
     types: &dir::TypeTable,
     expression_id: dir::LocalNodeId<dir::Expression>,
     map: impl FnOnce(&dir::TypeTable, dir::LocalTypeId) -> T,
@@ -748,21 +707,21 @@ pub fn expression_type_map<T>(
         return Some(map(types, type_id));
     }
 
-    let expression = tree.get(expression_id);
-    let symbol_id = expression.target_symbol()?;
-    symbol_value_type_map_for(
-        repository, revision, profile_id, module_id, symbols, types, symbol_id, map,
-    )
+    let symbol_id = types
+        .symbol_resolution(expression_id.into_global_any(module_id))
+        .and_then(|resolution| match resolution {
+            dir::SymbolResolution::Target(symbol) => Some(*symbol),
+            dir::SymbolResolution::Candidates(_) => None,
+        })?;
+    symbol_value_type_map_for(artifacts, profile_id, module_id, types, symbol_id, map)
 }
 
 /// Map one expression type from local inference, symbol value types, or call returns.
 pub fn expression_type_or_call_return_type_map<T>(
-    repository: &Repository,
-    revision: Revision,
+    artifacts: &ArtifactCache,
     profile_id: ProfileId,
     module_id: ModuleId,
     tree: &dir::Tree,
-    symbols: &dir::SymbolTable,
     types: &dir::TypeTable,
     expression_id: dir::LocalNodeId<dir::Expression>,
     mut map: impl FnMut(&dir::TypeTable, dir::LocalTypeId) -> T,
@@ -779,13 +738,16 @@ pub fn expression_type_or_call_return_type_map<T>(
     let expression = tree.get(expression_id);
 
     // resolve symbol backed value types
-    if let Some(symbol_id) = expression.target_symbol()
+    if let Some(symbol_id) = types
+        .symbol_resolution(expression_id.into_global_any(module_id))
+        .and_then(|resolution| match resolution {
+            dir::SymbolResolution::Target(symbol) => Some(*symbol),
+            dir::SymbolResolution::Candidates(_) => None,
+        })
         && let Some(mapped_value) = symbol_value_type_map_for(
-            repository,
-            revision,
+            artifacts,
             profile_id,
             module_id,
-            symbols,
             types,
             symbol_id,
             |types, type_id| map(types, type_id),
@@ -800,12 +762,10 @@ pub fn expression_type_or_call_return_type_map<T>(
         _ => return None,
     };
     let return_type_id = expression_type_map(
-        repository,
-        revision,
+        artifacts,
         profile_id,
         module_id,
         tree,
-        symbols,
         types,
         callee_id,
         function_return_type,
@@ -1009,15 +969,8 @@ pub fn expression_is_potentially_tainted(
     // these expression kinds can carry user controlled data
     matches!(
         expression,
-        dir::Expression::LocalReference {
-            path: _,
-            target_symbol: _,
-            generic_arguments: _,
-        } | dir::Expression::ModuleReference {
-            path: _,
-            target_symbol: _,
-            generic_arguments: _,
-        } | dir::Expression::Member { left: _, name: _ }
+        dir::Expression::Path { .. }
+            | dir::Expression::Member { left: _, name: _ }
             | dir::Expression::Call {
                 left: _,
                 generic_arguments: _,
@@ -1048,7 +1001,7 @@ fn generic_argument_contains_reference_segment(
         dir::GenericArgument::Value { value } => {
             expression_contains_reference_segment(tree, *value, target_segment)
         }
-        dir::GenericArgument::Error => return false,
+        dir::GenericArgument::Error => false,
     }
 }
 
@@ -1066,25 +1019,10 @@ fn expression_contains_reference_segment(
             type_expression_contains_reference_segment(tree, *value, target_segment)
         }
 
-        dir::Expression::LocalReference {
+        dir::Expression::Path {
             path,
             generic_arguments,
-            target_symbol: _,
-        }
-        | dir::Expression::ModuleReference {
-            path,
-            generic_arguments,
-            target_symbol: _,
-        }
-        | dir::Expression::GlobalReference {
-            path,
-            generic_arguments,
-            target_symbol: _,
-        }
-        | dir::Expression::UnresolvedPath {
-            path,
-            generic_arguments,
-            space_order: _,
+            space: _,
         } => path_or_generic_arguments_contain_reference_segment(
             tree,
             path,

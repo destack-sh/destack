@@ -172,7 +172,7 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
 
         // match direct and global qualified JSON references
         expression_is_symbol_or_global_qualified_member(
-            self.ctx.tree,
+            self.ctx,
             *left,
             self.json_symbol,
             &self.global_qualifiers,

@@ -5,7 +5,7 @@ use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     argument_expression_id, expression_candidate_symbols, expression_declared_or_inferred_type_id,
-    expression_unwrap_parenthesized, is_string_type, symbol_primary_declaration_for,
+    expression_unwrap_parenthesized, is_string_type, symbol_declaration_for,
 };
 use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
@@ -134,26 +134,16 @@ fn swapped_pair_type_compatible(
     first_index: usize,
     second_index: usize,
 ) -> bool {
-    let callee_expression = ctx.tree.get(callee_expression_id);
-    let candidate_symbols = expression_candidate_symbols(
-        &ctx.repository,
-        ctx.revision,
-        ctx.profile_id,
-        ctx.module_id(),
-        ctx.symbols,
-        ctx.types,
-        callee_expression_id,
-        callee_expression,
-    );
+    let candidate_symbols =
+        expression_candidate_symbols(ctx.module_id(), ctx.types, callee_expression_id);
     if candidate_symbols.is_empty() {
         return true;
     }
 
     // evaluate every local declaration candidate conservatively
     for symbol_id in candidate_symbols {
-        let Some(declaration_id) = symbol_primary_declaration_for(
-            &ctx.repository,
-            ctx.revision,
+        let Some(declaration_id) = symbol_declaration_for(
+            ctx.artifacts.as_ref(),
             ctx.profile_id,
             ctx.module_id(),
             ctx.symbols,
@@ -266,9 +256,7 @@ fn expression_name_hint(
     let expression_id = expression_unwrap_parenthesized(tree, expression_id);
     let expression = tree.get(expression_id);
     match expression {
-        dir::Expression::LocalReference { path, .. }
-        | dir::Expression::ModuleReference { path, .. }
-        | dir::Expression::GlobalReference { path, .. } => path.last_segment(),
+        dir::Expression::Path { path, .. } => path.last_segment(),
         dir::Expression::Member { name, .. } | dir::Expression::PrivateMember { name, .. } => *name,
         dir::Expression::As {
             operator: _,
@@ -280,8 +268,8 @@ fn expression_name_hint(
             expression: value,
             target_type: _,
         } => expression_name_hint(tree, *value),
-        dir::Expression::ValueOf { right, .. }
-        | dir::Expression::ReferenceOf { right, .. }
+        dir::Expression::MoveOf { right, .. }
+        | dir::Expression::BorrowOf { right, .. }
         | dir::Expression::PointerOf { right, .. } => expression_name_hint(tree, *right),
         dir::Expression::Maybe { left } | dir::Expression::Must { left } => {
             expression_name_hint(tree, *left)
@@ -298,17 +286,8 @@ fn stable_parameter_names_for_call_target(
     ctx: &LintModuleDirContext<'_>,
     callee_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<Vec<Option<StringId>>> {
-    let callee_expression = ctx.tree.get(callee_expression_id);
-    let candidate_symbols = expression_candidate_symbols(
-        &ctx.repository,
-        ctx.revision,
-        ctx.profile_id,
-        ctx.module_id(),
-        ctx.symbols,
-        ctx.types,
-        callee_expression_id,
-        callee_expression,
-    );
+    let candidate_symbols =
+        expression_candidate_symbols(ctx.module_id(), ctx.types, callee_expression_id);
     if candidate_symbols.is_empty() {
         return None;
     }
@@ -336,9 +315,8 @@ fn parameter_names_for_symbol(
     ctx: &LintModuleDirContext<'_>,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<Vec<Option<StringId>>> {
-    let declaration_id = symbol_primary_declaration_for(
-        &ctx.repository,
-        ctx.revision,
+    let declaration_id = symbol_declaration_for(
+        ctx.artifacts.as_ref(),
         ctx.profile_id,
         ctx.module_id(),
         ctx.symbols,
@@ -474,8 +452,8 @@ fn pattern_name_hint(
     match pattern {
         dir::Pattern::Binding { name, .. } => Some(*name),
         dir::Pattern::Must(inner)
-        | dir::Pattern::ReferenceOf { right: inner, .. }
-        | dir::Pattern::ValueOf { right: inner, .. } => pattern_name_hint(tree, *inner),
+        | dir::Pattern::BorrowOf { right: inner, .. }
+        | dir::Pattern::MoveOf { right: inner, .. } => pattern_name_hint(tree, *inner),
         _ => None,
     }
 }

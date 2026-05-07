@@ -221,7 +221,7 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
             expression_static_property_access(self.ctx.tree, expression_id)
             && property_name == self.parse_int_name
             && expression_is_symbol_or_global_qualified_member(
-                self.ctx.tree,
+                self.ctx,
                 base_id,
                 self.number_symbol,
                 &self.global_qualifiers,
@@ -235,12 +235,8 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
         let expression_id = expression_unwrap_transparent(self.ctx.tree, expression_id);
         let expression = self.ctx.tree.get(expression_id);
         match expression {
-            dir::Expression::GlobalReference { path, .. }
-            | dir::Expression::UnresolvedPath { path, .. } => {
+            dir::Expression::Path { path, .. } => {
                 path.segments.len() == 1 && path.segments[0] == self.parse_int_name
-            }
-            dir::Expression::LocalReference { .. } | dir::Expression::ModuleReference { .. } => {
-                false
             }
             _ => false,
         }

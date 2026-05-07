@@ -333,7 +333,7 @@ fn ternary_nullish_candidate(
         nullish_binary_target(ctx, *left, *operator, *right)?;
 
     // require stable checked references for safe rewrites
-    let checked_expression_path = expression_reference_path(ctx.tree, checked_expression_id)?;
+    let checked_expression_path = expression_reference_path(ctx, checked_expression_id)?;
     if !checked_expression_path.members.is_empty() {
         return None;
     }

@@ -115,8 +115,8 @@ fn type_expression_complexity_inner(
             | TypeExpression::Must { .. }
             | TypeExpression::AsComptime { .. }
             | TypeExpression::Not { .. }
-            | TypeExpression::ValueOf { .. }
-            | TypeExpression::ReferenceOf { .. }
+            | TypeExpression::OwnedOf { .. }
+            | TypeExpression::BorrowedOf { .. }
             | TypeExpression::PointerOf { .. }
             | TypeExpression::Conditional { .. }
             | TypeExpression::Mapped { .. }
@@ -269,10 +269,10 @@ fn type_expression_complexity_inner(
         | TypeExpression::Must { target_type: left }
         | TypeExpression::AsComptime { target_type: left }
         | TypeExpression::Not { target_type: left }
-        | TypeExpression::ValueOf {
+        | TypeExpression::OwnedOf {
             target_type: left, ..
         }
-        | TypeExpression::ReferenceOf {
+        | TypeExpression::BorrowedOf {
             target_type: left, ..
         }
         | TypeExpression::PointerOf {

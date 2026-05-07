@@ -1454,12 +1454,12 @@ pub fn expression_is_equal(
 
         // value of: compare mutability, variance, and operand
         (
-            ast::Expression::ValueOf {
+            ast::Expression::MoveOf {
                 mutability: left_mutability,
                 variance: left_variance,
                 right: left_right,
             },
-            ast::Expression::ValueOf {
+            ast::Expression::MoveOf {
                 mutability: right_mutability,
                 variance: right_variance,
                 right: right_right,
@@ -1472,12 +1472,12 @@ pub fn expression_is_equal(
 
         // reference of: compare mutability, variance, and operand
         (
-            ast::Expression::ReferenceOf {
+            ast::Expression::BorrowOf {
                 mutability: left_mutability,
                 variance: left_variance,
                 right: left_right,
             },
-            ast::Expression::ReferenceOf {
+            ast::Expression::BorrowOf {
                 mutability: right_mutability,
                 variance: right_variance,
                 right: right_right,
@@ -1696,24 +1696,24 @@ pub fn type_expression_is_equal(
             },
         ) => type_expression_is_equal(ctx, *left_target, *right_target),
         (
-            ast::TypeExpression::ValueOf {
+            ast::TypeExpression::OwnedOf {
                 mutability: left_mutability,
                 variance: left_variance,
                 target_type: left_target,
             },
-            ast::TypeExpression::ValueOf {
+            ast::TypeExpression::OwnedOf {
                 mutability: right_mutability,
                 variance: right_variance,
                 target_type: right_target,
             },
         )
         | (
-            ast::TypeExpression::ReferenceOf {
+            ast::TypeExpression::BorrowedOf {
                 mutability: left_mutability,
                 variance: left_variance,
                 target_type: left_target,
             },
-            ast::TypeExpression::ReferenceOf {
+            ast::TypeExpression::BorrowedOf {
                 mutability: right_mutability,
                 variance: right_variance,
                 target_type: right_target,
@@ -2053,8 +2053,8 @@ pub fn expression_has_side_effects(
         }
 
         // pure: reference/value of (if operand is pure)
-        ast::Expression::ReferenceOf { right, .. }
-        | ast::Expression::ValueOf { right, .. }
+        ast::Expression::BorrowOf { right, .. }
+        | ast::Expression::MoveOf { right, .. }
         | ast::Expression::PointerOf { right, .. } => expression_has_side_effects(ctx, *right),
 
         // side effects: calls, assignments, new, await, yield, etc
@@ -2154,11 +2154,11 @@ pub fn type_expression_has_side_effects(
         | ast::TypeExpression::Not {
             target_type: expression,
         }
-        | ast::TypeExpression::ValueOf {
+        | ast::TypeExpression::OwnedOf {
             target_type: expression,
             ..
         }
-        | ast::TypeExpression::ReferenceOf {
+        | ast::TypeExpression::BorrowedOf {
             target_type: expression,
             ..
         }
@@ -2567,7 +2567,7 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
             ast::Expression::Unary { operator, .. } => {
                 self.push_debug("expression_unary", *operator);
             }
-            ast::Expression::ValueOf {
+            ast::Expression::MoveOf {
                 mutability,
                 variance,
                 ..
@@ -2575,7 +2575,7 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
                 self.push_debug("expression_valueof_mutability", *mutability);
                 self.push_debug("expression_valueof_variance", *variance);
             }
-            ast::Expression::ReferenceOf {
+            ast::Expression::BorrowOf {
                 mutability,
                 variance,
                 ..

@@ -158,7 +158,7 @@ impl<'a, 'b> NoProcessExitVisitor<'a, 'b> {
     /// Return true when the expression refers to the process object.
     fn is_process_expression(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         expression_is_symbol_or_global_qualified_member(
-            self.ctx.tree,
+            self.ctx,
             expression_id,
             self.process_symbol,
             &self.global_qualifiers,

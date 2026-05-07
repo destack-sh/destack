@@ -190,11 +190,8 @@ fn useless_destructuring_alias_parts(
         return None;
     };
 
-    let Some((binding_name, default_expression_id)) =
-        destructuring_alias_pattern_parts(ctx, *pattern_id)
-    else {
-        return None;
-    };
+    let (binding_name, default_expression_id) =
+        destructuring_alias_pattern_parts(ctx, *pattern_id)?;
 
     if *name_id != binding_name {
         return None;

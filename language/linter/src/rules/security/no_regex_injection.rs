@@ -143,7 +143,7 @@ impl<'a, 'b> NoRegexInjectionVisitor<'a, 'b> {
     /// Return true when the expression is the RegExp constructor.
     fn is_regexp_constructor(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         expression_is_symbol_or_global_qualified_member(
-            self.ctx.tree,
+            self.ctx,
             expression_id,
             self.regexp_symbol,
             &self.global_qualifiers,
@@ -177,8 +177,7 @@ impl<'a, 'b> NoRegexInjectionVisitor<'a, 'b> {
     /// Return true when an expression is tainted.
     fn expression_is_tainted(&mut self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         let mut taint = TaintAnalysis::new(
-            self.ctx.repository.as_ref(),
-            self.ctx.revision,
+            self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.tree,

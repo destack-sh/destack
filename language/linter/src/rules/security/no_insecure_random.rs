@@ -143,7 +143,7 @@ impl<'a, 'b> NoInsecureRandomVisitor<'a, 'b> {
     /// Return true when the expression is a Math object reference.
     fn is_math_object(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         expression_is_symbol_or_global_qualified_member(
-            self.ctx.tree,
+            self.ctx,
             expression_id,
             self.math_symbol,
             &self.global_qualifiers,

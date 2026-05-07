@@ -121,8 +121,8 @@ fn equality_literal_for_binding(
 
     let left_id = expression_unwrap_parenthesized(ctx.tree, *left);
     let right_id = expression_unwrap_parenthesized(ctx.tree, *right);
-    let left_is_binding = expression_target_symbol(ctx.tree, left_id) == Some(binding_symbol);
-    let right_is_binding = expression_target_symbol(ctx.tree, right_id) == Some(binding_symbol);
+    let left_is_binding = expression_target_symbol(ctx, left_id) == Some(binding_symbol);
+    let right_is_binding = expression_target_symbol(ctx, right_id) == Some(binding_symbol);
     let left_is_literal = expression_is_simple_literal(ctx.tree, left_id);
     let right_is_literal = expression_is_simple_literal(ctx.tree, right_id);
 

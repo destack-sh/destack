@@ -133,7 +133,7 @@ impl<'a, 'b> NoPrototypePollutionVisitor<'a, 'b> {
         if let dir::Expression::Member { left, name, .. } = expression {
             // check for Object.prototype
             if *name == Some(self.prototype_name)
-                && let Some(symbol) = expression_target_symbol(self.ctx.tree, *left)
+                && let Some(symbol) = expression_target_symbol(self.ctx, *left)
                 && symbol == self.object_symbol
             {
                 return true;
@@ -163,7 +163,7 @@ impl<'a, 'b> NoPrototypePollutionVisitor<'a, 'b> {
                 return false;
             }
 
-            return expression_target_symbol(self.ctx.tree, *left)
+            return expression_target_symbol(self.ctx, *left)
                 .is_some_and(|symbol| symbol == self.object_symbol);
         }
 

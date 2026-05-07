@@ -105,12 +105,10 @@ fn report_redundant_constituents(
     let mut constituents = Vec::new();
     for constituent_expression_id in expression_constituents {
         let Some(type_id) = expression_type_map(
-            &ctx.repository,
-            ctx.revision,
+            ctx.artifacts.as_ref(),
             ctx.profile_id,
             ctx.module_id(),
             ctx.tree,
-            ctx.symbols,
             ctx.types,
             constituent_expression_id,
             |_, type_id| type_id,
@@ -143,7 +141,6 @@ fn report_redundant_constituents(
         &mut dominant_by_redundant,
     );
     mark_semantically_equivalent_redundancies(
-        ctx.types,
         &constituents,
         &mut redundant_indices,
         &mut dominant_by_redundant,
@@ -327,9 +324,8 @@ fn mark_literal_primitive_redundancies(
     }
 }
 
-/// Mark later constituents that are semantically equivalent to earlier ones.
+/// Mark later constituents with the same normalized type as earlier ones.
 fn mark_semantically_equivalent_redundancies(
-    types: &dir::TypeTable,
     constituents: &[Constituent],
     redundant_indices: &mut [bool],
     dominant_by_redundant: &mut HashMap<usize, usize>,
@@ -344,7 +340,7 @@ fn mark_semantically_equivalent_redundancies(
             }
 
             let right_type_id = constituents[right_index].normalized_type_id;
-            if !dir::are_types_equal(left_type_id, right_type_id, types) {
+            if left_type_id != right_type_id {
                 continue;
             }
 
@@ -450,7 +446,7 @@ fn matches_type_literal(
     literal: TypeLiteral,
 ) -> bool {
     let ty = types.get_type(type_id);
-    matches!(ty, dir::Type::TypeLiteral { value } if *value == literal)
+    matches!(ty, dir::Type::Literal(value) if value.value == literal)
 }
 
 /// One comparable literal or primitive kind for redundancy checks.
@@ -487,11 +483,11 @@ enum TypeLiteralKind {
 /// Return one comparable literal or primitive kind for a type id.
 fn type_literal_kind(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> Option<TypeLiteralKind> {
     let ty = types.get_type(type_id);
-    let dir::Type::TypeLiteral { value } = ty else {
+    let dir::Type::Literal(value) = ty else {
         return None;
     };
 
-    match value {
+    match &value.value {
         TypeLiteral::Primitive(dir::PrimitiveType::Boolean) => {
             Some(TypeLiteralKind::PrimitiveBoolean)
         }

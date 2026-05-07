@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     PromiseCallbackArity, expression_unwrap_transparent, fresh_name_in_symbol_scope_for_rename,
     local_symbol_has_direct_references, parameter_binding_name_and_symbol,
-    promise_rejection_callback, rename_local_symbol_fix, symbol_primary_declaration_for,
+    promise_rejection_callback, rename_local_symbol_fix, symbol_declaration_for,
 };
 use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
@@ -257,7 +257,7 @@ fn callback_parameter_binding(
     dir::LocalSymbolId,
 )> {
     // keep callback declarations that resolve in the current module
-    let declaration_id = callback_primary_declaration(ctx, callback_expression_id)?;
+    let declaration_id = callback_declaration(ctx, callback_expression_id)?;
     if declaration_id.module_id != ctx.module_id() {
         return None;
     }
@@ -269,8 +269,8 @@ fn callback_parameter_binding(
     Some((parameter_id, name_id, symbol_id))
 }
 
-/// Resolve one callback primary declaration from one callback expression.
-fn callback_primary_declaration(
+/// Resolve one callback declaration from one callback expression.
+fn callback_declaration(
     ctx: &LintModuleDirContext<'_>,
     callback_expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::GlobalNodeIdAny> {
@@ -282,10 +282,9 @@ fn callback_primary_declaration(
     }
 
     // then resolve referenced callback declarations
-    let target_symbol = callback_expression.target_symbol()?;
-    symbol_primary_declaration_for(
-        &ctx.repository,
-        ctx.revision,
+    let target_symbol = ctx.expression_target_symbol(callback_expression_id)?;
+    symbol_declaration_for(
+        ctx.artifacts.as_ref(),
         ctx.profile_id,
         ctx.module_id(),
         ctx.symbols,
@@ -329,7 +328,7 @@ fn name_is_unused_placeholder(
         return false;
     }
 
-    !local_symbol_has_direct_references(ctx.module_id(), ctx.tree, symbol_id)
+    !local_symbol_has_direct_references(ctx.module_id(), ctx.tree, ctx.types, symbol_id)
 }
 
 /// Return true when one actual name matches configured catch naming conventions.

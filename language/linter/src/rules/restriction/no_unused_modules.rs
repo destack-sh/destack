@@ -121,7 +121,7 @@ impl NoUnusedModules {
         let mut pending = vec![entry_module_id];
         let mut visited = HashSet::new();
 
-        // walk resolved dependencies from the target entry
+        // walk exported dependencies from the target entry
         while let Some(module_id) = pending.pop() {
             if !visited.insert(module_id) {
                 continue;
@@ -218,42 +218,40 @@ fn is_declaration_file(file_type: FileType, ctx: &LintWorkspaceDirContext) -> bo
 
 /// Return true when the module has exports in the active profile DIR.
 fn module_has_exports(ctx: &LintWorkspaceDirContext, module_id: ModuleId) -> bool {
-    let Some(dir) = ctx.resolved_dir(module_id) else {
+    let Some(dir) = ctx.exported_dir(module_id) else {
         return false;
     };
 
     // keep any module with named exports, export assignment, or namespace exports
-    !dir.export_by_symbol_key.is_empty()
-        || dir.export_assignment.is_some()
-        || !dir.namespace_exports.is_empty()
+    !dir.exports.is_empty()
 }
 
-/// Return direct resolved dependencies for one module.
+/// Return direct module dependencies for one module.
 fn module_dependencies(ctx: &LintWorkspaceDirContext, module_id: ModuleId) -> Vec<ModuleId> {
-    let Some(resolved) = ctx.resolved_dir(module_id) else {
+    let Some(exported) = ctx.exported_dir(module_id) else {
         return Vec::new();
     };
 
-    resolved_module_dependencies(&resolved)
+    exported_module_dependencies(&exported)
 }
 
-/// Return direct resolved dependencies from one exported DIR.
-fn resolved_module_dependencies(resolved: &DirExported) -> Vec<ModuleId> {
+/// Return direct module dependencies from one exported DIR.
+fn exported_module_dependencies(exported: &DirExported) -> Vec<ModuleId> {
     let mut dependencies = Vec::new();
 
     // collect import edges for both value and type space
-    for resolution in resolved.import_resolutions.values() {
+    for resolution in exported.imports.resolution_by_key.values() {
         if let Some(module_id) = resolution.value.and_then(|target| target.module_id()) {
             dependencies.push(module_id);
         }
 
-        if let Some(module_id) = resolution.ty.and_then(|target| target.module_id()) {
+        if let Some(module_id) = resolution.type_target.and_then(|target| target.module_id()) {
             dependencies.push(module_id);
         }
     }
 
     // collect namespace re export edges
-    for export in resolved.namespace_exports.iter() {
+    for export in exported.exports.namespace_exports.iter() {
         if let Some(module_id) = export.module_id.module_id() {
             dependencies.push(module_id);
         }

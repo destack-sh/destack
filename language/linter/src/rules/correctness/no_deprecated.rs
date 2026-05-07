@@ -1,7 +1,7 @@
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_decorator_map;
+use crate::rules::common::expression_attribute_map;
 use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -84,9 +84,7 @@ impl<'a, 'b> DeprecatedUsageVisitor<'a, 'b> {
         }
 
         // require optional structure
-        let Some(deprecated_message) =
-            self.deprecated_message_for_expression(expression_id, expression)
-        else {
+        let Some(deprecated_message) = self.deprecated_message_for_expression(expression_id) else {
             return;
         };
 
@@ -121,23 +119,15 @@ impl<'a, 'b> DeprecatedUsageVisitor<'a, 'b> {
     fn deprecated_message_for_expression(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        expression: &dir::Expression,
     ) -> Option<Option<String>> {
-        expression_decorator_map(
-            &self.ctx.repository,
-            self.ctx.revision,
+        expression_attribute_map(
+            self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.symbols,
             self.ctx.types,
             expression_id,
-            expression,
-            |decorators| {
-                decorators
-                    .deprecated
-                    .as_ref()
-                    .map(|deprecated| deprecated.message)
-            },
+            |attributes| attributes.deprecated_message(),
         )
         .map(|message_id| message_id.map(|message_id| self.ctx.strings.get(message_id).to_string()))
     }
@@ -163,9 +153,7 @@ impl NodeVisitor for DeprecatedUsageVisitor<'_, '_> {
 fn is_usage_expression(expression: &dir::Expression) -> bool {
     matches!(
         expression,
-        dir::Expression::LocalReference { .. }
-            | dir::Expression::ModuleReference { .. }
-            | dir::Expression::GlobalReference { .. }
+        dir::Expression::Path { .. }
             | dir::Expression::Member { .. }
             | dir::Expression::Call { .. }
             | dir::Expression::New { .. }

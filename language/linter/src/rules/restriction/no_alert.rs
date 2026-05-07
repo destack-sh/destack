@@ -166,7 +166,7 @@ impl<'a, 'b> NoAlertVisitor<'a, 'b> {
         let names = [self.alert_name, self.confirm_name, self.prompt_name];
 
         expression_is_any_symbol_or_global_qualified_member(
-            self.ctx.tree,
+            self.ctx,
             expression_id,
             &symbols,
             &self.global_qualifiers,

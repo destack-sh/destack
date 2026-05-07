@@ -308,6 +308,7 @@ fn symbol_has_write_references(ctx: &LintModuleDirContext<'_>, symbol_id: Global
     let reference_ids = collect_local_symbol_direct_reference_expression_ids(
         ctx.module_id(),
         ctx.tree,
+        ctx.types,
         symbol_id.local_id,
     );
 
@@ -325,6 +326,7 @@ fn symbol_has_single_const_eligible_assignment(
     let reference_ids = collect_local_symbol_direct_reference_expression_ids(
         ctx.module_id(),
         ctx.tree,
+        ctx.types,
         symbol_id.local_id,
     );
     let mut assignment_expression_id = None;
@@ -433,8 +435,8 @@ fn pattern_is_destructuring(tree: &dir::Tree, pattern_id: LocalNodeId<dir::Patte
         tree.get(pattern_id),
         dir::Pattern::Wildcard
             | dir::Pattern::Must(_)
-            | dir::Pattern::ReferenceOf { .. }
-            | dir::Pattern::ValueOf { .. }
+            | dir::Pattern::BorrowOf { .. }
+            | dir::Pattern::MoveOf { .. }
             | dir::Pattern::Binding { .. }
             | dir::Pattern::Expression { .. }
     )

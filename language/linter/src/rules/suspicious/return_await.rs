@@ -463,12 +463,10 @@ fn expression_thenable_certainty(
 
     // keep unresolved and any-typed values as maybe
     let has_type = expression_type_or_call_return_type_map(
-        &ctx.repository,
-        ctx.revision,
+        ctx.artifacts.as_ref(),
         ctx.profile_id,
         ctx.module_id(),
         ctx.tree,
-        ctx.symbols,
         ctx.types,
         expression_id,
         |_types, _type_id| true,

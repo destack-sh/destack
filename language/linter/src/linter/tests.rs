@@ -855,15 +855,15 @@ impl TestProgram {
             });
     }
 
-    /// Resolve the language environment for the current profile.
-    pub(crate) fn resolve_language_environment(&self) {
-        self.provide_compiler_artifacts(&[ArtifactKey::language_environment(self.profile_id())]);
+    /// Resolve the global environment for the current profile.
+    pub(crate) fn resolve_global_environment(&self) {
+        self.provide_compiler_artifacts(&[ArtifactKey::global_environment(self.profile_id())]);
         self.replace_latest_diagnostics(self.current_workspace_diagnostics());
     }
 
     /// Resolve library packages for the current profile.
     pub(crate) fn resolve_libs(&self) {
-        self.provide_compiler_artifacts(&[ArtifactKey::ambient_environment(self.profile_id())]);
+        self.provide_compiler_artifacts(&[ArtifactKey::global_environment(self.profile_id())]);
         self.replace_latest_diagnostics(self.current_workspace_diagnostics());
     }
 
@@ -876,7 +876,7 @@ impl TestProgram {
             return;
         }
 
-        self.resolve_language_environment();
+        self.resolve_global_environment();
         self.resolve_libs();
     }
 

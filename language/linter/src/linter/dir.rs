@@ -1,23 +1,19 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    AmbientEnvironment, Ast, DirChecked, DirDeclared, DirExported, LanguageEnvironment,
-    WellKnownSymbols,
+    Ast, DirChecked, DirDeclared, DirExported, GlobalEnvironment, WellKnownSymbols,
 };
 use destack_ast::{StringId, StringPool};
 use destack_dir::{LanguageItem, WellKnownSymbol};
 use destack_source::{EditBuilder, File, FileId, ModuleId, PackageId, Span};
 use destack_workspace::{
-    LintSeverity, LinterOptions, Module, Package, Profile, ProfileId, Repository, Revision,
+    ArtifactCache, LintSeverity, LinterOptions, Module, Package, Profile, ProfileId, Repository,
+    Revision,
 };
-use indexmap::IndexMap;
 use {destack_ast as ast, destack_dir as dir};
 
-use crate::linter::artifact::{
-    read_ambient_environment, read_ast, read_dir_checked, read_dir_declared, read_dir_exported,
-    read_language_environment,
-};
 use crate::linter::library::is_library_module;
+use crate::rules::common::expression_unwrap_transparent;
 use crate::{
     ConstValue, GLOBAL_QUALIFIER_SYMBOLS, LintDirAnalysisCache, LintMeta, LintReport,
     LintRequirement,
@@ -40,10 +36,12 @@ struct DecoratorCall<'a> {
     arguments: Option<&'a [dir::LocalNodeId<dir::Argument>]>,
 }
 
-/// Context for DIR-level linting of a single module. Unfurls ModuleDir.
+/// Context for DIR-level linting of a single module.
 pub struct LintModuleDirContext<'a> {
     /// The repository containing this module.
     pub repository: Arc<Repository>,
+    /// Revision artifact cache for this lint pass.
+    pub artifacts: Arc<ArtifactCache>,
     /// The module being linted.
     pub module: &'a Module,
     /// The source revision for this lint pass.
@@ -74,12 +72,6 @@ pub struct LintModuleDirContext<'a> {
     pub namespace_scope: dir::LocalScopeId,
     /// The symbol of the Module default.
     pub default_symbol: dir::LocalSymbolId,
-    /// Namespace exports: modules whose exports are re-exported via `export * from "..."`.
-    pub namespace_exports: Vec<dir::ModuleTarget>,
-    /// Resolved import specifiers to module targets.
-    pub import_resolutions: IndexMap<dir::ImportResolutionKey, dir::ModuleResolution>,
-    /// Exported symbols by key (space, name).
-    pub export_by_symbol_key: IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>,
 
     /// Linter configuration.
     pub options: &'a LinterOptions,
@@ -107,6 +99,7 @@ impl<'a> LintModuleDirContext<'a> {
     /// Create a new DIR lint context for a module.
     pub fn new(
         repository: Arc<Repository>,
+        artifacts: Arc<ArtifactCache>,
         module: &'a Module,
         revision: Revision,
         profile: Profile,
@@ -120,9 +113,6 @@ impl<'a> LintModuleDirContext<'a> {
         namespace_symbol: dir::LocalSymbolId,
         namespace_scope: dir::LocalScopeId,
         default_symbol: dir::LocalSymbolId,
-        namespace_exports: Vec<dir::ModuleTarget>,
-        import_resolutions: IndexMap<dir::ImportResolutionKey, dir::ModuleResolution>,
-        export_by_symbol_key: IndexMap<(dir::SymbolSpace, dir::StaticKey), dir::Export>,
         options: &'a LinterOptions,
         include_fixes: bool,
     ) -> Self {
@@ -130,6 +120,7 @@ impl<'a> LintModuleDirContext<'a> {
 
         Self {
             repository,
+            artifacts,
             module,
             revision,
             profile,
@@ -144,9 +135,6 @@ impl<'a> LintModuleDirContext<'a> {
             namespace_symbol,
             namespace_scope,
             default_symbol,
-            namespace_exports,
-            import_resolutions,
-            export_by_symbol_key,
             options,
             include_fixes,
             analysis: LintDirAnalysisCache::default(),
@@ -155,12 +143,12 @@ impl<'a> LintModuleDirContext<'a> {
     }
 
     /// Return the file id.
-    pub fn file_id(&self) -> destack_source::FileId {
+    pub fn file_id(&self) -> FileId {
         self.module.file_id
     }
 
     /// Return the module id.
-    pub fn module_id(&self) -> destack_source::ModuleId {
+    pub fn module_id(&self) -> ModuleId {
         self.module.id
     }
 
@@ -192,32 +180,27 @@ impl<'a> LintModuleDirContext<'a> {
 
     /// Return one AST artifact for one revision-scoped module.
     pub fn module_ast(&self, module_id: ModuleId) -> Option<Arc<Ast>> {
-        read_ast(&self.repository, self.revision, module_id)
+        self.artifacts.ast(module_id)
     }
 
     /// Return one checked DIR artifact for one revision-scoped module.
-    pub fn analyzed_dir(&self, module_id: ModuleId) -> Option<Arc<DirChecked>> {
-        read_dir_checked(&self.repository, self.revision, module_id, self.profile_id)
+    pub fn checked_dir(&self, module_id: ModuleId) -> Option<Arc<DirChecked>> {
+        self.artifacts.dir_checked(module_id, self.profile_id)
     }
 
     /// Return one declared DIR artifact for one revision-scoped module.
     pub fn declared_dir(&self, module_id: ModuleId) -> Option<Arc<DirDeclared>> {
-        read_dir_declared(&self.repository, self.revision, module_id, self.profile_id)
+        self.artifacts.dir_declared(module_id, self.profile_id)
     }
 
-    /// Return one resolved DIR artifact for one revision-scoped module.
-    pub fn resolved_dir(&self, module_id: ModuleId) -> Option<Arc<DirExported>> {
-        read_dir_exported(&self.repository, self.revision, module_id, self.profile_id)
+    /// Return one exported DIR artifact for one revision-scoped module.
+    pub fn exported_dir(&self, module_id: ModuleId) -> Option<Arc<DirExported>> {
+        self.artifacts.dir_exported(module_id, self.profile_id)
     }
 
-    /// Return the language environment for the active revision and profile.
-    pub fn language_environment(&self) -> Option<Arc<LanguageEnvironment>> {
-        read_language_environment(&self.repository, self.revision, self.profile_id)
-    }
-
-    /// Return the library environment for the active revision and profile.
-    pub fn ambient_environment(&self) -> Option<Arc<AmbientEnvironment>> {
-        read_ambient_environment(&self.repository, self.revision, self.profile_id)
+    /// Return the global environment for the active revision and profile.
+    pub fn global_environment(&self) -> Option<Arc<GlobalEnvironment>> {
+        self.artifacts.global_environment(self.profile_id)
     }
 
     /// Return all visible module ids for the active revision.
@@ -246,10 +229,24 @@ impl<'a> LintModuleDirContext<'a> {
             return Some(type_id);
         }
 
-        // fall back to value types for direct references
-        expression
-            .target_symbol()
+        // then use value types for direct references
+        self.expression_target_symbol(expression_id)
             .and_then(|symbol| self.types.get_value_type_id(symbol))
+    }
+
+    /// Resolve the lexical target symbol for one expression.
+    pub fn expression_target_symbol(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<dir::GlobalSymbolId> {
+        let expression_id = expression_unwrap_transparent(self.tree, expression_id);
+        let global_id = expression_id.into_global_any(self.module.id);
+        let resolution = self.types.symbol_resolution(global_id)?;
+
+        match resolution {
+            dir::SymbolResolution::Target(symbol) => Some(*symbol),
+            dir::SymbolResolution::Candidates(_) => None,
+        }
     }
 
     /// Return the source AST node id for one DIR node.
@@ -267,8 +264,8 @@ impl<'a> LintModuleDirContext<'a> {
 
     /// Get a language item from the cache, returning None if not found.
     pub fn get_language_item(&self, item: LanguageItem) -> Option<dir::GlobalSymbolId> {
-        let environment = self.language_environment()?;
-        environment.item(item)
+        let environment = self.global_environment()?;
+        environment.language.item(item)
     }
 
     /// Get a language item from the cache, panicking if not found.
@@ -279,10 +276,10 @@ impl<'a> LintModuleDirContext<'a> {
 
     /// Get a cached declared library symbol for the module profile and name.
     pub fn get_declared_library_symbol(&self, name: StringId) -> Option<dir::GlobalSymbolId> {
-        let environment = self.ambient_environment()?;
+        let environment = self.global_environment()?;
         let key = dir::StaticKey::Name(name);
 
-        environment.declared_symbol_from_key(&key, dir::SymbolSpaceOrder::ValueThenType)
+        environment.symbol_from_key(key, dir::SymbolSpace::Value)
     }
 
     /// Get a declared library symbol from the cache, panicking if not found.
@@ -293,7 +290,7 @@ impl<'a> LintModuleDirContext<'a> {
 
     /// Get well-known symbols for the module profile.
     pub fn get_well_known_symbols(&self) -> Option<WellKnownSymbols> {
-        let environment = self.ambient_environment()?;
+        let environment = self.global_environment()?;
         Some(environment.well_known_symbols())
     }
 
@@ -355,12 +352,12 @@ impl<'a> LintModuleDirContext<'a> {
         if libs.is_empty() {
             return true;
         }
-        let Some(environment) = self.ambient_environment() else {
+        let Some(environment) = self.global_environment() else {
             return false;
         };
 
         environment
-            .ambient_modules
+            .modules
             .iter()
             .filter_map(|module_id| self.repository_module(*module_id))
             .any(|module| is_library_module(module.as_ref(), libs))
@@ -484,10 +481,7 @@ impl<'a> LintModuleDirContext<'a> {
         // extract path from the decorator expression
         let callee_expression = self.tree.get(call.callee);
         let path = match callee_expression {
-            dir::Expression::LocalReference { path, .. }
-            | dir::Expression::ModuleReference { path, .. }
-            | dir::Expression::GlobalReference { path, .. }
-            | dir::Expression::UnresolvedPath { path, .. } => path,
+            dir::Expression::Path { path, .. } => path,
             _ => return None,
         };
 

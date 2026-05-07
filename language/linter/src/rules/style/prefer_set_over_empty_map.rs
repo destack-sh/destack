@@ -6,7 +6,7 @@ use destack_workspace::LintSeverity;
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
     contains_map_with_empty_value_type, expression_type_map, is_void_or_never_type,
-    symbol_matches_any_or_canonical, well_known_symbol_candidates,
+    well_known_symbol_candidates,
 };
 use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
@@ -73,32 +73,26 @@ impl LintRule for PreferSetOverEmptyMap {
 
         for (expression_id, expression) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
             let should_report = match expression {
-                // type annotations are lowered as type values
-                dir::Expression::Type {
-                    value: _,
-                    resolved_type,
-                } => contains_map_with_empty_value_type(ctx.types, *resolved_type, &map_symbols),
+                // type annotations are lowered as type and value declarations
+                dir::Expression::Type { value } => ctx
+                    .types
+                    .get_declared_or_inferred_type_id(value.into_global_any(ctx.module_id()))
+                    .is_some_and(|type_id| {
+                        contains_map_with_empty_value_type(ctx.types, type_id, &map_symbols)
+                    }),
                 // type references can carry map generic arguments directly
-                dir::Expression::LocalReference {
-                    target_symbol,
-                    generic_arguments,
-                    ..
-                }
-                | dir::Expression::ModuleReference {
-                    target_symbol,
-                    generic_arguments,
-                    ..
-                }
-                | dir::Expression::GlobalReference {
-                    target_symbol,
-                    generic_arguments,
-                    ..
-                } => reference_has_empty_value_argument(
-                    ctx,
-                    *target_symbol,
-                    generic_arguments.as_slice(),
-                    &map_symbols,
-                ),
+                dir::Expression::Path {
+                    generic_arguments, ..
+                } => ctx
+                    .expression_target_symbol(expression_id)
+                    .is_some_and(|target_symbol| {
+                        reference_has_empty_value_argument(
+                            ctx,
+                            target_symbol,
+                            generic_arguments.as_slice(),
+                            &map_symbols,
+                        )
+                    }),
                 // constructor calls keep generic arguments on the new expression
                 dir::Expression::New {
                     left,
@@ -161,11 +155,10 @@ fn new_map_has_empty_value_argument(
     generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
     map_symbols: &[dir::GlobalSymbolId],
 ) -> bool {
-    let callee = ctx.tree.get(callee_expression_id);
-    let Some(target_symbol) = callee.target_symbol() else {
+    let Some(target_symbol) = ctx.expression_target_symbol(callee_expression_id) else {
         return false;
     };
-    if !symbol_is_map(ctx, target_symbol, map_symbols) {
+    if !symbol_is_map(target_symbol, map_symbols) {
         return false;
     }
 
@@ -188,7 +181,7 @@ fn reference_has_empty_value_argument(
     generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
     map_symbols: &[dir::GlobalSymbolId],
 ) -> bool {
-    if !symbol_is_map(ctx, target_symbol, map_symbols) {
+    if !symbol_is_map(target_symbol, map_symbols) {
         return false;
     }
 
@@ -233,12 +226,10 @@ fn expression_is_void_or_never_type(
     }
 
     expression_type_map(
-        &ctx.repository,
-        ctx.revision,
+        ctx.artifacts.as_ref(),
         ctx.profile_id,
         ctx.module_id(),
         ctx.tree,
-        ctx.symbols,
         ctx.types,
         expression_id,
         is_void_or_never_type,
@@ -247,20 +238,8 @@ fn expression_is_void_or_never_type(
 }
 
 /// Return true when one symbol resolves to one map symbol candidate.
-fn symbol_is_map(
-    ctx: &LintModuleDirContext<'_>,
-    symbol_id: dir::GlobalSymbolId,
-    map_symbols: &[dir::GlobalSymbolId],
-) -> bool {
-    symbol_matches_any_or_canonical(
-        &ctx.repository,
-        ctx.revision,
-        ctx.profile_id,
-        ctx.module_id(),
-        ctx.symbols,
-        symbol_id,
-        map_symbols,
-    )
+fn symbol_is_map(symbol_id: dir::GlobalSymbolId, map_symbols: &[dir::GlobalSymbolId]) -> bool {
+    map_symbols.contains(&symbol_id)
 }
 
 #[cfg(test)]

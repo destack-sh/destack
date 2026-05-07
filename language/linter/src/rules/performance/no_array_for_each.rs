@@ -230,7 +230,7 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
             let candidate_key = dir::StaticKey::Name(candidate_id);
             self.ctx
                 .symbols
-                .find_active_symbol_up_to(scope, candidate_key, mark)
+                .find_symbol_up_to(scope, candidate_key, mark)
                 .is_some()
         };
 
@@ -265,6 +265,7 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
         let mut spans = collect_local_symbol_direct_reference_expression_ids(
             self.ctx.module_id(),
             self.ctx.tree,
+            self.ctx.types,
             parameter_symbol,
         )
         .into_iter()

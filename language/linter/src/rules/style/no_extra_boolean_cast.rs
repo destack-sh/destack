@@ -124,7 +124,7 @@ impl<'a, 'b> NoExtraBooleanCastVisitor<'a, 'b> {
     /// Return true when the expression resolves to the built in Boolean constructor.
     fn is_boolean_reference(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         expression_is_symbol_or_global_qualified_member(
-            self.ctx.tree,
+            self.ctx,
             expression_id,
             self.boolean_symbol,
             &self.global_qualifiers,

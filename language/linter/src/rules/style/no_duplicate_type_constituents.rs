@@ -95,12 +95,10 @@ fn report_duplicate_constituents(
     let mut constituents = Vec::new();
     for constituent_expression_id in expression_constituents {
         let Some(type_id) = expression_type_map(
-            &ctx.repository,
-            ctx.revision,
+            ctx.artifacts.as_ref(),
             ctx.profile_id,
             ctx.module_id(),
             ctx.tree,
-            ctx.symbols,
             ctx.types,
             constituent_expression_id,
             |_, type_id| type_id,
@@ -114,8 +112,8 @@ fn report_duplicate_constituents(
         });
     }
 
-    // keep only later constituents that are semantically equal to earlier ones
-    let duplicate_pairs = duplicate_constituent_pairs(ctx.types, &constituents);
+    // keep only later constituents with the same normalized type
+    let duplicate_pairs = duplicate_constituent_pairs(&constituents);
     if duplicate_pairs.is_empty() {
         return;
     }
@@ -168,20 +166,17 @@ fn report_duplicate_constituents(
 }
 
 /// Return duplicate constituent pairs as `(duplicate_index, first_index)`.
-fn duplicate_constituent_pairs(
-    types: &dir::TypeTable,
-    constituents: &[Constituent],
-) -> Vec<(usize, usize)> {
+fn duplicate_constituent_pairs(constituents: &[Constituent]) -> Vec<(usize, usize)> {
     let mut duplicate_pairs = Vec::new();
 
-    // remove later semantically equivalent constituents and preserve source order
+    // remove later matching constituents and preserve source order
     for left_index in 0..constituents.len() {
         let left_type_id = constituents[left_index].normalized_type_id;
 
         for (right_index, right_constituent) in constituents.iter().enumerate().skip(left_index + 1)
         {
             let right_type_id = right_constituent.normalized_type_id;
-            if !dir::are_types_equal(left_type_id, right_type_id, types) {
+            if left_type_id != right_type_id {
                 continue;
             }
 

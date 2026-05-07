@@ -32,8 +32,8 @@ impl LintRule for NoShadow {
     fn check_module_dir<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleDirContext<'a>) {
         let meta = self.meta();
 
-        // scan all active local symbols in deterministic order
-        for symbol_id in ctx.symbols.active_symbol_ids() {
+        // scan all local symbols in deterministic order
+        for symbol_id in ctx.symbols.symbol_ids() {
             let symbol = ctx.symbols.get_symbol(symbol_id);
             if !symbol_is_shadow_candidate(symbol) {
                 continue;
@@ -125,10 +125,7 @@ fn compiler_redeclaration_errors_enabled(_ctx: &LintModuleDirContext<'_>) -> boo
 /// Return true when this symbol can participate in no-shadow checks.
 fn symbol_is_shadow_candidate(symbol: &dir::Symbol) -> bool {
     // keep named value-space symbols only
-    if !matches!(
-        symbol.space,
-        dir::SymbolSpace::Value | dir::SymbolSpace::TypeValue
-    ) {
+    if symbol.space != dir::SymbolSpace::Value {
         return false;
     }
     if symbol.key.is_none() {
@@ -152,12 +149,12 @@ fn symbol_is_shadow_candidate(symbol: &dir::Symbol) -> bool {
 
 /// Return true when the symbol declaration is one lexical binding anchor.
 fn symbol_has_shadowable_declaration(symbol: &dir::Symbol) -> bool {
-    let Some(primary_declaration) = symbol.primary_declaration else {
+    let Some(declaration) = symbol.declaration else {
         return false;
     };
 
     matches!(
-        primary_declaration.local_id.ty,
+        declaration.local_id.ty,
         dir::NodeType::Declaration
             | dir::NodeType::Declarator
             | dir::NodeType::Parameter
@@ -186,9 +183,9 @@ fn find_shadowed_ancestor<'a>(
     // walk the lexical parent chain and stop at the first shadowed ancestor
     while let Some((parent_scope_id, parent_mark)) = parent {
         let parent_scope = ctx.symbols.get_scope_by_id(parent_scope_id);
-        let shadowed_symbol_id =
-            ctx.symbols
-                .find_active_symbol_up_to(parent_scope, key, parent_mark);
+        let shadowed_symbol_id = ctx
+            .symbols
+            .find_symbol_up_to(parent_scope, key, parent_mark);
         if let Some(shadowed_symbol_id) = shadowed_symbol_id {
             let shadowed_symbol = ctx.symbols.get_symbol(shadowed_symbol_id);
             if symbols_shadow_each_other(symbol, shadowed_symbol) {
@@ -208,13 +205,13 @@ fn symbol_name_text(ctx: &LintModuleDirContext<'_>, symbol: &dir::Symbol) -> Opt
     Some(ctx.strings.get(name).to_string())
 }
 
-/// Resolve severity and span for the symbol primary declaration.
+/// Resolve severity and span for the symbol declaration.
 fn symbol_declaration_severity_and_span(
     ctx: &LintModuleDirContext<'_>,
     meta: &LintMeta,
     symbol: &dir::Symbol,
 ) -> Option<(LintSeverity, destack_source::Span)> {
-    let declaration = symbol.primary_declaration?;
+    let declaration = symbol.declaration?;
     if declaration.module_id != ctx.module_id() {
         return None;
     }

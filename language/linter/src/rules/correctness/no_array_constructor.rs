@@ -88,7 +88,7 @@ impl<'a, 'b> ArrayConstructorVisitor<'a, 'b> {
         call_like: CallLikeExpressionInfo<'_>,
     ) {
         // ignore non array references
-        let Some(target_symbol) = expression_target_symbol(self.ctx.tree, call_like.left) else {
+        let Some(target_symbol) = expression_target_symbol(self.ctx, call_like.left) else {
             return;
         };
         if target_symbol != self.array_symbol {

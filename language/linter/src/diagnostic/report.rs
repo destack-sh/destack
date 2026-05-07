@@ -165,7 +165,7 @@ impl ToDiagnostic for LintReport {
         }
 
         for fix in &self.fixes {
-            let suggestion = fix.into_suggestion(context)?;
+            let suggestion = fix.to_suggestion(context)?;
             diagnostic = diagnostic.suggestion(suggestion);
         }
 

@@ -246,7 +246,7 @@ impl<'a, 'b> PreferObjectSpreadVisitor<'a, 'b> {
         };
 
         // match direct Object symbol references
-        if let Some(receiver_symbol) = expression_target_symbol(self.ctx.tree, receiver_id)
+        if let Some(receiver_symbol) = expression_target_symbol(self.ctx, receiver_id)
             && receiver_symbol == self.object_symbol
         {
             return true;
@@ -254,7 +254,7 @@ impl<'a, 'b> PreferObjectSpreadVisitor<'a, 'b> {
 
         // match global qualified Object references
         expression_is_global_qualified_member(
-            self.ctx.tree,
+            self.ctx,
             receiver_id,
             &self.global_qualifiers,
             self.object_name,

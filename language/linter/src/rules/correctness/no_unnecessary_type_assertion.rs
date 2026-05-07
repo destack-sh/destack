@@ -91,9 +91,9 @@ fn source_expression_matches_target_type(
     target_type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
     target_type_id: dir::LocalTypeId,
 ) -> bool {
-    // direct semantic type equality
+    // direct type equality
     if let Some(source_type_id) = source_expression_type_id(ctx, source_expression_id)
-        && dir::are_types_equal(source_type_id, target_type_id, ctx.types)
+        && source_type_id == target_type_id
     {
         return true;
     }
@@ -134,15 +134,13 @@ fn source_expression_is_declared_any(
     }
 
     // symbol backed references can still expose a declared `any` across modules
-    let Some(source_symbol_id) = expression_target_symbol(ctx.tree, expression_id) else {
+    let Some(source_symbol_id) = expression_target_symbol(ctx, expression_id) else {
         return false;
     };
     let Some(source_value_type_id) = symbol_value_type_id_for(
-        &ctx.repository,
-        ctx.revision,
+        ctx.artifacts.as_ref(),
         ctx.profile_id,
         ctx.module_id(),
-        ctx.symbols,
         ctx.types,
         source_symbol_id,
     ) else {
@@ -156,7 +154,7 @@ fn source_expression_is_declared_any(
     }
 
     // cross module
-    let Some(module_dir) = ctx.analyzed_dir(source_value_type_id.module_id) else {
+    let Some(module_dir) = ctx.checked_dir(source_value_type_id.module_id) else {
         return false;
     };
     let source_type_id = unwrap_value_type_id(&module_dir.types, source_value_type_id.type_id);

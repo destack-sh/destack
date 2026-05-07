@@ -170,7 +170,7 @@ impl<'a, 'b> BaseToStringVisitor<'a, 'b> {
         };
 
         // ensure this is a call to global String
-        let Some(target_symbol) = expression_target_symbol(self.ctx.tree, *left) else {
+        let Some(target_symbol) = expression_target_symbol(self.ctx, *left) else {
             return;
         };
         if target_symbol != string_symbol {

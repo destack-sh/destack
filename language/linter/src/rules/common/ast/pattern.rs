@@ -54,11 +54,11 @@ fn pattern_assignment_value_expression_id(
             ..
         }
         | ast::Pattern::Must(inner_pattern_id)
-        | ast::Pattern::ReferenceOf {
+        | ast::Pattern::BorrowOf {
             right: inner_pattern_id,
             ..
         }
-        | ast::Pattern::ValueOf {
+        | ast::Pattern::MoveOf {
             right: inner_pattern_id,
             ..
         } => pattern_assignment_value_expression_id(tree, *inner_pattern_id),
@@ -89,11 +89,11 @@ pub fn pattern_expression_id(
             ..
         }
         | ast::Pattern::Must(inner_pattern_id)
-        | ast::Pattern::ReferenceOf {
+        | ast::Pattern::BorrowOf {
             right: inner_pattern_id,
             ..
         }
-        | ast::Pattern::ValueOf {
+        | ast::Pattern::MoveOf {
             right: inner_pattern_id,
             ..
         } => pattern_expression_id(ctx, *inner_pattern_id),
@@ -208,11 +208,11 @@ pub fn pattern_subsumes(
 
         // reference wrappers are comparable only with equal mutability
         (
-            ast::Pattern::ReferenceOf {
+            ast::Pattern::BorrowOf {
                 mutability: left_mutability,
                 right: left_inner,
             },
-            ast::Pattern::ReferenceOf {
+            ast::Pattern::BorrowOf {
                 mutability: right_mutability,
                 right: right_inner,
             },
@@ -222,11 +222,11 @@ pub fn pattern_subsumes(
 
         // value wrappers are comparable only with equal mutability
         (
-            ast::Pattern::ValueOf {
+            ast::Pattern::MoveOf {
                 mutability: left_mutability,
                 right: left_inner,
             },
-            ast::Pattern::ValueOf {
+            ast::Pattern::MoveOf {
                 mutability: right_mutability,
                 right: right_inner,
             },

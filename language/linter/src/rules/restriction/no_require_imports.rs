@@ -110,7 +110,7 @@ impl<'a, 'b> NoRequireImportsVisitor<'a, 'b> {
         }
 
         if let Some(target) = require_import_target(
-            self.ctx.tree,
+            self.ctx,
             expression,
             &self.global_qualifiers,
             self.require_name,
@@ -122,7 +122,7 @@ impl<'a, 'b> NoRequireImportsVisitor<'a, 'b> {
         }
 
         if !expression_uses_require_import(
-            self.ctx.tree,
+            self.ctx,
             expression,
             &self.global_qualifiers,
             self.require_name,
@@ -199,7 +199,7 @@ fn expression_is_require_import_alias(tree: &dir::Tree, expression: &dir::Expres
 
 /// Return true when an expression represents a require() import.
 fn expression_uses_require_import(
-    tree: &dir::Tree,
+    ctx: &LintModuleDirContext<'_>,
     expression: &dir::Expression,
     global_qualifiers: &[dir::GlobalSymbolId],
     require_name: StringId,
@@ -207,7 +207,7 @@ fn expression_uses_require_import(
     // check require based dependency expressions first
     match expression {
         dir::Expression::Declaration(declaration) => {
-            let declaration = tree.get(*declaration);
+            let declaration = ctx.tree.get(*declaration);
             if let dir::Declaration::ImportAlias(dir::ImportAliasDeclaration {
                 target: dir::ImportAliasTarget::Require { .. },
                 ..
@@ -216,8 +216,7 @@ fn expression_uses_require_import(
                 return true;
             }
         }
-        dir::Expression::Import { source, .. }
-        | dir::Expression::UnresolvedImport { source, .. } => {
+        dir::Expression::Import { source, .. } => {
             if *source == ImportSource::RequireCall || *source == ImportSource::ImportEquals {
                 return true;
             }
@@ -225,42 +224,34 @@ fn expression_uses_require_import(
         _ => {}
     }
 
-    // fall back to direct call detection for unresolved or non lowered forms
+    // inspect direct require calls
     let dir::Expression::Call { left, .. } = expression else {
         return false;
     };
-    let callee_id = expression_unwrap_transparent(tree, *left);
-    let callee = tree.get(callee_id);
+    let callee_id = expression_unwrap_transparent(ctx.tree, *left);
+    let callee = ctx.tree.get(callee_id);
 
-    // match unresolved bare require paths
-    if let dir::Expression::UnresolvedPath { path, .. } = callee
+    // match bare require paths
+    if let dir::Expression::Path { path, .. } = callee
         && path.segments.len() == 1
         && path.segments[0] == require_name
     {
         return true;
     }
 
-    // match resolved global require paths
-    if let dir::Expression::GlobalReference { path, .. } = callee
-        && path.segments.len() == 1
-        && path.segments[0] == require_name
-    {
-        return true;
-    }
-
-    expression_is_global_qualified_member(tree, callee_id, global_qualifiers, require_name)
+    expression_is_global_qualified_member(ctx, callee_id, global_qualifiers, require_name)
 }
 
 /// Return the static target string for one require-based import form.
 fn require_import_target(
-    tree: &dir::Tree,
+    ctx: &LintModuleDirContext<'_>,
     expression: &dir::Expression,
     global_qualifiers: &[dir::GlobalSymbolId],
     require_name: StringId,
 ) -> Option<StringId> {
     match expression {
         dir::Expression::Declaration(declaration) => {
-            let declaration = tree.get(*declaration);
+            let declaration = ctx.tree.get(*declaration);
             let dir::Declaration::ImportAlias(dir::ImportAliasDeclaration {
                 target: dir::ImportAliasTarget::Require { target },
                 ..
@@ -272,11 +263,6 @@ fn require_import_target(
             return Some(*target);
         }
         dir::Expression::Import { source, target, .. }
-            if *source == ImportSource::RequireCall || *source == ImportSource::ImportEquals =>
-        {
-            return Some(*target);
-        }
-        dir::Expression::UnresolvedImport { source, target, .. }
             if *source == ImportSource::RequireCall || *source == ImportSource::ImportEquals =>
         {
             let dir::ImportTarget::String(target) = target else {
@@ -295,16 +281,16 @@ fn require_import_target(
         return None;
     }
 
-    if !expression_uses_require_import(tree, expression, global_qualifiers, require_name) {
+    if !expression_uses_require_import(ctx, expression, global_qualifiers, require_name) {
         return None;
     }
 
-    let argument = tree.get(arguments[0]);
+    let argument = ctx.tree.get(arguments[0]);
     let dir::Argument::Positional { value, .. } = argument else {
         return None;
     };
 
-    expression_static_string_literal(tree, *value)
+    expression_static_string_literal(ctx.tree, *value)
 }
 
 /// Return true when one static require target matches an allowed pattern.
@@ -353,7 +339,7 @@ fn require_import_alias_fix(
         return None;
     };
 
-    // keep non exported canonical aliases only
+    // keep non exported aliases only
     if declaration.export.is_some() {
         return None;
     }
@@ -407,7 +393,7 @@ fn require_side_effect_fix(
     }
 
     // keep only require like callees
-    if !expression_uses_require_import(ctx.tree, expression, global_qualifiers, require_name) {
+    if !expression_uses_require_import(ctx, expression, global_qualifiers, require_name) {
         return None;
     }
 

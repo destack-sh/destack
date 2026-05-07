@@ -113,12 +113,10 @@ impl<'a, 'b> NoUnnecessaryTemplateExpressionVisitor<'a, 'b> {
         }
 
         expression_type_or_call_return_type_map(
-            &self.ctx.repository,
-            self.ctx.revision,
+            self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
             self.ctx.module_id(),
             self.ctx.tree,
-            self.ctx.symbols,
             self.ctx.types,
             expression_id,
             |types, type_id| is_string_type(types, type_id, Some(self.string_symbol)),

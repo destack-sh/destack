@@ -90,7 +90,7 @@ impl<'a, 'b> PromiseExecutorReturnVisitor<'a, 'b> {
         arguments: &[dir::LocalNodeId<dir::Argument>],
     ) {
         // ignore non promise calls
-        let Some(target_symbol) = expression_target_symbol(self.ctx.tree, left) else {
+        let Some(target_symbol) = expression_target_symbol(self.ctx, left) else {
             return;
         };
         if target_symbol != self.promise_symbol {
@@ -181,22 +181,22 @@ fn executor_declaration(
     }
 
     // resolve referenced declarations
-    let target_symbol = expression_target_symbol(ctx.tree, expression_id)?;
+    let target_symbol = expression_target_symbol(ctx, expression_id)?;
     if target_symbol.module_id != ctx.module.id {
         return None;
     }
 
     let symbol_entry = ctx.symbols.get_symbol(target_symbol.local_id);
-    let primary_declaration = symbol_entry.primary_declaration?;
-    if primary_declaration.module_id != ctx.module.id {
+    let declaration = symbol_entry.declaration?;
+    if declaration.module_id != ctx.module.id {
         return None;
     }
 
-    if primary_declaration.local_id.ty != dir::NodeType::Declaration {
+    if declaration.local_id.ty != dir::NodeType::Declaration {
         return None;
     }
 
-    Some(primary_declaration.into_local_typed())
+    Some(declaration.into_local_typed())
 }
 
 /// Check whether a function declaration returns a value.

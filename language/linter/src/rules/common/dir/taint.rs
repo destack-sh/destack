@@ -3,12 +3,12 @@ use std::collections::HashMap;
 use destack_core::{StringId, StringPool};
 use destack_dir as dir;
 use destack_source::ModuleId;
-use destack_workspace::{ProfileId, Repository, Revision};
+use destack_workspace::{ArtifactCache, ProfileId};
 
 use crate::rules::common::glob_matches;
 
 use super::{
-    expression_candidate_symbols, expression_unwrap_parenthesized, symbol_decorators_for,
+    expression_candidate_symbols, expression_unwrap_parenthesized, symbol_attributes_for,
     symbol_initializer_expression as resolve_symbol_initializer_expression,
 };
 
@@ -113,10 +113,8 @@ pub struct TaintCache {
 /// One taint analysis session over a DIR module.
 #[derive(Debug)]
 pub struct TaintAnalysis<'a> {
-    /// Program handle for symbol and string lookups.
-    repository: &'a Repository,
-    /// Active source revision.
-    revision: Revision,
+    /// Cached artifact reader for this revision.
+    artifacts: &'a ArtifactCache,
     /// Active profile id.
     profile_id: ProfileId,
     /// Active module id.
@@ -139,8 +137,7 @@ impl<'a> TaintAnalysis<'a> {
     /// Build a taint analysis session.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        repository: &'a Repository,
-        revision: Revision,
+        artifacts: &'a ArtifactCache,
         profile_id: ProfileId,
         module_id: ModuleId,
         tree: &'a dir::Tree,
@@ -151,8 +148,7 @@ impl<'a> TaintAnalysis<'a> {
         include_heuristic_sources: bool,
     ) -> Self {
         Self {
-            repository,
-            revision,
+            artifacts,
             profile_id,
             module_id,
             tree,
@@ -304,7 +300,7 @@ impl<'a> TaintAnalysis<'a> {
         expression_stack.push(expression_id);
 
         let expression = self.tree.get(expression_id);
-        let mut labels = self.expression_decorator_taint_labels(expression_id, expression);
+        let mut labels = self.expression_attribute_taint_labels(expression_id, expression);
 
         if self.include_heuristic_sources
             && expression_is_heuristically_tainted(self.tree, expression_id)
@@ -341,8 +337,8 @@ impl<'a> TaintAnalysis<'a> {
                 labels.merge(&value_labels);
             }
             dir::Expression::Unary { right, .. }
-            | dir::Expression::ValueOf { right, .. }
-            | dir::Expression::ReferenceOf { right, .. }
+            | dir::Expression::MoveOf { right, .. }
+            | dir::Expression::BorrowOf { right, .. }
             | dir::Expression::PointerOf { right, .. } => {
                 // unary wrappers preserve operand taint
                 let right_labels =
@@ -398,10 +394,10 @@ impl<'a> TaintAnalysis<'a> {
             | dir::Expression::New {
                 left, arguments, ..
             } => {
-                // call results can be marked tainted by callee decorators
+                // call results can be marked tainted by callee attributes
                 let callee_expression = self.tree.get(*left);
                 let callee_labels =
-                    self.expression_decorator_taint_labels(*left, callee_expression);
+                    self.expression_attribute_taint_labels(*left, callee_expression);
                 labels.merge(&callee_labels);
 
                 // propagate taint from call arguments
@@ -417,14 +413,12 @@ impl<'a> TaintAnalysis<'a> {
 
                 // apply opt-in sanitizer tags on the callee
                 let sanitizer_labels = expression_sanitizer_taint_labels(
-                    self.repository,
-                    self.revision,
+                    self.artifacts,
                     self.profile_id,
                     self.module_id,
                     self.symbols,
                     self.types,
                     *left,
-                    callee_expression,
                 );
                 labels.apply_sanitizer(&sanitizer_labels, self.strings);
             }
@@ -676,16 +670,8 @@ impl<'a> TaintAnalysis<'a> {
             _ => {}
         }
 
-        let candidate_symbols = expression_candidate_symbols(
-            self.repository,
-            self.revision,
-            self.profile_id,
-            self.module_id,
-            self.symbols,
-            self.types,
-            expression_id,
-            expression,
-        );
+        let candidate_symbols =
+            expression_candidate_symbols(self.module_id, self.types, expression_id);
         for symbol_id in candidate_symbols {
             let symbol_labels =
                 self.symbol_taint_labels_inner(symbol_id, expression_stack, symbol_stack);
@@ -714,9 +700,8 @@ impl<'a> TaintAnalysis<'a> {
         }
         symbol_stack.push(symbol_id);
 
-        let mut labels = symbol_taint_labels_from_decorators(
-            self.repository,
-            self.revision,
+        let mut labels = symbol_taint_labels_from_attributes(
+            self.artifacts,
             self.profile_id,
             self.module_id,
             self.symbols,
@@ -734,28 +719,19 @@ impl<'a> TaintAnalysis<'a> {
         labels
     }
 
-    /// Resolve taint from expression-level decorators.
-    fn expression_decorator_taint_labels(
+    /// Resolve taint from expression target attributes.
+    fn expression_attribute_taint_labels(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        expression: &dir::Expression,
+        _expression: &dir::Expression,
     ) -> TaintLabels {
-        let candidate_symbols = expression_candidate_symbols(
-            self.repository,
-            self.revision,
-            self.profile_id,
-            self.module_id,
-            self.symbols,
-            self.types,
-            expression_id,
-            expression,
-        );
+        let candidate_symbols =
+            expression_candidate_symbols(self.module_id, self.types, expression_id);
 
         let mut labels = TaintLabels::default();
         for symbol_id in candidate_symbols {
-            let symbol_labels = symbol_taint_labels_from_decorators(
-                self.repository,
-                self.revision,
+            let symbol_labels = symbol_taint_labels_from_attributes(
+                self.artifacts,
                 self.profile_id,
                 self.module_id,
                 self.symbols,
@@ -800,8 +776,7 @@ impl<'a> TaintAnalysis<'a> {
         symbol_stack: &mut Vec<dir::GlobalSymbolId>,
     ) -> Option<TaintLabels> {
         let value_expression_id = resolve_symbol_initializer_expression(
-            self.repository,
-            self.revision,
+            self.artifacts,
             self.profile_id,
             self.module_id,
             self.symbols,
@@ -818,35 +793,23 @@ impl<'a> TaintAnalysis<'a> {
 
 /// Return sink taint labels declared on expression target symbols.
 pub fn expression_sink_taint_labels(
-    repository: &Repository,
-    revision: Revision,
+    artifacts: &ArtifactCache,
     profile_id: ProfileId,
     module_id: ModuleId,
     symbols: &dir::SymbolTable,
     types: &dir::TypeTable,
     expression_id: dir::LocalNodeId<dir::Expression>,
-    expression: &dir::Expression,
 ) -> TaintLabels {
-    let candidate_symbols = expression_candidate_symbols(
-        repository,
-        revision,
-        profile_id,
-        module_id,
-        symbols,
-        types,
-        expression_id,
-        expression,
-    );
+    let candidate_symbols = expression_candidate_symbols(module_id, types, expression_id);
 
     let mut labels = TaintLabels::default();
     for symbol_id in candidate_symbols {
-        let Some(decorators) = symbol_decorators_for(
-            repository, revision, profile_id, module_id, symbols, symbol_id,
-        ) else {
+        let Some(attributes) =
+            symbol_attributes_for(artifacts, profile_id, module_id, symbols, symbol_id)
+        else {
             continue;
         };
-        let sink_labels =
-            decorator_marker_taint_labels(decorators.sinks.iter().map(|marker| marker.label));
+        let sink_labels = attribute_marker_taint_labels(attributes.sinks());
         labels.merge(&sink_labels);
     }
 
@@ -855,35 +818,23 @@ pub fn expression_sink_taint_labels(
 
 /// Return sanitizer taint labels declared on expression target symbols.
 pub fn expression_sanitizer_taint_labels(
-    repository: &Repository,
-    revision: Revision,
+    artifacts: &ArtifactCache,
     profile_id: ProfileId,
     module_id: ModuleId,
     symbols: &dir::SymbolTable,
     types: &dir::TypeTable,
     expression_id: dir::LocalNodeId<dir::Expression>,
-    expression: &dir::Expression,
 ) -> TaintLabels {
-    let candidate_symbols = expression_candidate_symbols(
-        repository,
-        revision,
-        profile_id,
-        module_id,
-        symbols,
-        types,
-        expression_id,
-        expression,
-    );
+    let candidate_symbols = expression_candidate_symbols(module_id, types, expression_id);
 
     let mut labels = TaintLabels::default();
     for symbol_id in candidate_symbols {
-        let Some(decorators) = symbol_decorators_for(
-            repository, revision, profile_id, module_id, symbols, symbol_id,
-        ) else {
+        let Some(attributes) =
+            symbol_attributes_for(artifacts, profile_id, module_id, symbols, symbol_id)
+        else {
             continue;
         };
-        let sanitizer_labels =
-            decorator_marker_taint_labels(decorators.sanitizers.iter().map(|marker| marker.label));
+        let sanitizer_labels = attribute_marker_taint_labels(attributes.sanitizers());
         labels.merge(&sanitizer_labels);
     }
 
@@ -904,8 +855,7 @@ fn expression_is_heuristically_tainted(
 
     matches!(
         expression,
-        dir::Expression::LocalReference { .. }
-            | dir::Expression::ModuleReference { .. }
+        dir::Expression::Path { .. }
             | dir::Expression::Member { .. }
             | dir::Expression::Call { .. }
             | dir::Expression::Index { .. }
@@ -914,24 +864,23 @@ fn expression_is_heuristically_tainted(
     )
 }
 
-/// Resolve taint labels from symbol decorators.
-fn symbol_taint_labels_from_decorators(
-    repository: &Repository,
-    revision: Revision,
+/// Resolve taint labels from symbol attributes.
+fn symbol_taint_labels_from_attributes(
+    artifacts: &ArtifactCache,
     profile_id: ProfileId,
     module_id: ModuleId,
     symbols: &dir::SymbolTable,
     symbol_id: dir::GlobalSymbolId,
 ) -> TaintLabels {
-    let Some(decorators) = symbol_decorators_for(
-        repository, revision, profile_id, module_id, symbols, symbol_id,
-    ) else {
+    let Some(attributes) =
+        symbol_attributes_for(artifacts, profile_id, module_id, symbols, symbol_id)
+    else {
         return TaintLabels::default();
     };
 
     let mut labels = TaintLabels::default();
-    for marker in decorators.taints {
-        if let Some(label) = marker.label {
+    for label in attributes.taints() {
+        if let Some(label) = label {
             labels.add_label(label);
         } else {
             labels.add_unlabeled();
@@ -941,8 +890,8 @@ fn symbol_taint_labels_from_decorators(
     labels
 }
 
-/// Resolve labels from decorator markers.
-fn decorator_marker_taint_labels(markers: impl Iterator<Item = Option<StringId>>) -> TaintLabels {
+/// Resolve labels from attribute markers.
+fn attribute_marker_taint_labels(markers: impl Iterator<Item = Option<StringId>>) -> TaintLabels {
     let mut labels = TaintLabels::default();
 
     for marker_label in markers {

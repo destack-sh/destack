@@ -188,7 +188,7 @@ fn generic_argument_value_type_expression(
     match argument {
         ast::GenericArgument::Type { value } => Some(*value),
         ast::GenericArgument::Value { .. } => None,
-        ast::GenericArgument::Error => return None,
+        ast::GenericArgument::Error => None,
     }
 }
 
@@ -208,24 +208,22 @@ fn expression_is_array_semantic(
     array_symbols: &[dir::GlobalSymbolId],
 ) -> bool {
     let expression = ctx.tree.get(expression_id);
-    if let dir::Expression::Type {
-        value: _,
-        resolved_type,
-    } = expression
+    if let dir::Expression::Type { value } = expression
+        && let Some(type_id) = ctx
+            .types
+            .get_declared_or_inferred_type_id(value.into_global_any(ctx.module_id()))
     {
         return array_symbols
             .iter()
             .copied()
-            .any(|array_symbol| is_array_type(ctx.types, *resolved_type, Some(array_symbol)));
+            .any(|array_symbol| is_array_type(ctx.types, type_id, Some(array_symbol)));
     }
 
     expression_type_map(
-        &ctx.repository,
-        ctx.revision,
+        ctx.artifacts.as_ref(),
         ctx.profile_id,
         ctx.module_id(),
         ctx.tree,
-        ctx.symbols,
         ctx.types,
         expression_id,
         |types, type_id| {
@@ -335,8 +333,8 @@ fn type_argument_needs_parentheses(expression: &ast::TypeExpression) -> bool {
             | ast::TypeExpression::Must { .. }
             | ast::TypeExpression::AsComptime { .. }
             | ast::TypeExpression::Not { .. }
-            | ast::TypeExpression::ValueOf { .. }
-            | ast::TypeExpression::ReferenceOf { .. }
+            | ast::TypeExpression::OwnedOf { .. }
+            | ast::TypeExpression::BorrowedOf { .. }
             | ast::TypeExpression::PointerOf { .. }
     )
 }

@@ -109,25 +109,10 @@ fn thrown_expression_is_undefined_identifier(
         dir::Expression::TypeLiteral {
             value: dir::TypeLiteral::Undefined,
         } => true,
-        dir::Expression::UnresolvedPath {
+        dir::Expression::Path {
             path,
             generic_arguments,
-            ..
-        }
-        | dir::Expression::LocalReference {
-            path,
-            generic_arguments,
-            ..
-        }
-        | dir::Expression::ModuleReference {
-            path,
-            generic_arguments,
-            ..
-        }
-        | dir::Expression::GlobalReference {
-            path,
-            generic_arguments,
-            ..
+            space: _,
         } => {
             generic_arguments.is_empty()
                 && path.segments.len() == 1

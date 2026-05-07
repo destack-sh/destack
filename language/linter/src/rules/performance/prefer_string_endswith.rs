@@ -448,10 +448,10 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         }
 
         // compare suffix symbols when possible
-        let Some(expected_symbol) = expression_target_symbol(self.ctx.tree, *left) else {
+        let Some(expected_symbol) = expression_target_symbol(self.ctx, *left) else {
             return false;
         };
-        let Some(actual_symbol) = expression_target_symbol(self.ctx.tree, suffix_id) else {
+        let Some(actual_symbol) = expression_target_symbol(self.ctx, suffix_id) else {
             return false;
         };
 
@@ -514,8 +514,8 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         }
 
         if let (Some(expected_symbol), Some(actual_symbol)) = (
-            expression_target_symbol(self.ctx.tree, *left),
-            expression_target_symbol(self.ctx.tree, target_id),
+            expression_target_symbol(self.ctx, *left),
+            expression_target_symbol(self.ctx, target_id),
         ) {
             return expected_symbol == actual_symbol;
         }

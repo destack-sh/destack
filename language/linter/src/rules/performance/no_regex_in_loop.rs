@@ -100,7 +100,7 @@ impl<'a, 'b> NoRegexInLoopVisitor<'a, 'b> {
 
         // check if this is RegExp construction
         if !expression_is_symbol_or_global_qualified_member(
-            self.ctx.tree,
+            self.ctx,
             callee_id,
             self.regexp_symbol,
             &self.global_qualifiers,

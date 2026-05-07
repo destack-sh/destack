@@ -27,25 +27,20 @@ pub struct ReferencePath {
 
 /// Resolve the target symbol for a reference expression.
 pub fn expression_target_symbol(
-    tree: &dir::Tree,
+    ctx: &LintModuleDirContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::GlobalSymbolId> {
-    // unwrap transparent wrappers first
-    let expression_id = expression_unwrap_transparent(tree, expression_id);
-
-    // return the reference target symbol when present
-    let expression = tree.get(expression_id);
-    expression.target_symbol()
+    ctx.expression_target_symbol(expression_id)
 }
 
 /// Resolve the target symbol for one assignment pattern.
 pub fn assign_pattern_target_symbol(
-    tree: &dir::Tree,
+    ctx: &LintModuleDirContext<'_>,
     assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
 ) -> Option<dir::GlobalSymbolId> {
-    let expression_id = assign_pattern_target_expression(tree, assign_pattern_id)?;
+    let expression_id = assign_pattern_target_expression(ctx.tree, assign_pattern_id)?;
 
-    expression_target_symbol(tree, expression_id)
+    expression_target_symbol(ctx, expression_id)
 }
 
 /// Return true when one expression is exactly `new.target`.
@@ -85,12 +80,12 @@ pub fn expression_is_new_target(
 
 /// Resolve a reference path for member expressions.
 pub fn expression_reference_path(
-    tree: &dir::Tree,
+    ctx: &LintModuleDirContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<ReferencePath> {
     // collect member names walking left
     let mut members = Vec::new();
-    let base = expression_reference_path_base(tree, expression_id, &mut members)?;
+    let base = expression_reference_path_base(ctx, expression_id, &mut members)?;
 
     // normalize member order
     members.reverse();
@@ -100,12 +95,12 @@ pub fn expression_reference_path(
 
 /// Resolve a reference path for one assignment pattern.
 pub fn assign_pattern_reference_path(
-    tree: &dir::Tree,
+    ctx: &LintModuleDirContext<'_>,
     assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
 ) -> Option<ReferencePath> {
-    let expression_id = assign_pattern_target_expression(tree, assign_pattern_id)?;
+    let expression_id = assign_pattern_target_expression(ctx.tree, assign_pattern_id)?;
 
-    expression_reference_path(tree, expression_id)
+    expression_reference_path(ctx, expression_id)
 }
 
 /// Return true when two expressions have equivalent source form.
@@ -119,8 +114,8 @@ pub fn expressions_have_equivalent_source_form(
     let right_id = expression_unwrap_transparent(ctx.tree, right_id);
 
     // compare canonicalized reference paths first
-    let left_path = expression_reference_path(ctx.tree, left_id);
-    let right_path = expression_reference_path(ctx.tree, right_id);
+    let left_path = expression_reference_path(ctx, left_id);
+    let right_path = expression_reference_path(ctx, right_id);
     if left_path.is_some() || right_path.is_some() {
         return left_path == right_path;
     }
@@ -155,16 +150,16 @@ fn normalize_expression_source_text(source: &str) -> String {
 
 /// Return true when the expression is a global qualified member access.
 pub fn expression_is_global_qualified_member(
-    tree: &dir::Tree,
+    ctx: &LintModuleDirContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     qualifiers: &[dir::GlobalSymbolId],
     member_name: StringId,
 ) -> bool {
     // normalize transparent wrappers first
-    let expression_id = expression_unwrap_transparent(tree, expression_id);
+    let expression_id = expression_unwrap_transparent(ctx.tree, expression_id);
 
     // resolve the member path
-    if let Some(path) = expression_reference_path(tree, expression_id) {
+    if let Some(path) = expression_reference_path(ctx, expression_id) {
         // ensure the requested member is present
         if path.members.as_slice() != [member_name] {
             return false;
@@ -179,7 +174,7 @@ pub fn expression_is_global_qualified_member(
     }
 
     // support computed static string access like `window["alert"]`
-    let Some((base_id, property_name)) = expression_static_property_access(tree, expression_id)
+    let Some((base_id, property_name)) = expression_static_property_access(ctx.tree, expression_id)
     else {
         return false;
     };
@@ -187,7 +182,7 @@ pub fn expression_is_global_qualified_member(
         return false;
     }
 
-    let Some(base_symbol) = expression_target_symbol(tree, base_id) else {
+    let Some(base_symbol) = expression_target_symbol(ctx, base_id) else {
         return false;
     };
 
@@ -196,32 +191,32 @@ pub fn expression_is_global_qualified_member(
 
 /// Return true when one expression resolves to a symbol or its global-qualified member form.
 pub fn expression_is_symbol_or_global_qualified_member(
-    tree: &dir::Tree,
+    ctx: &LintModuleDirContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     symbol_id: dir::GlobalSymbolId,
     qualifiers: &[dir::GlobalSymbolId],
     member_name: StringId,
 ) -> bool {
     // match direct symbol references
-    let target_symbol = expression_target_symbol(tree, expression_id);
+    let target_symbol = expression_target_symbol(ctx, expression_id);
     if target_symbol == Some(symbol_id) {
         return true;
     }
 
     // match global qualified references
-    expression_is_global_qualified_member(tree, expression_id, qualifiers, member_name)
+    expression_is_global_qualified_member(ctx, expression_id, qualifiers, member_name)
 }
 
 /// Return true when one expression matches any direct symbol or global-qualified member.
 pub fn expression_is_any_symbol_or_global_qualified_member(
-    tree: &dir::Tree,
+    ctx: &LintModuleDirContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     symbols: &[dir::GlobalSymbolId],
     qualifiers: &[dir::GlobalSymbolId],
     member_names: &[StringId],
 ) -> bool {
     // match direct symbol references first
-    if expression_target_symbol(tree, expression_id)
+    if expression_target_symbol(ctx, expression_id)
         .is_some_and(|symbol_id| symbols.contains(&symbol_id))
     {
         return true;
@@ -229,7 +224,7 @@ pub fn expression_is_any_symbol_or_global_qualified_member(
 
     // then match any global qualified reference
     member_names.iter().copied().any(|member_name| {
-        expression_is_global_qualified_member(tree, expression_id, qualifiers, member_name)
+        expression_is_global_qualified_member(ctx, expression_id, qualifiers, member_name)
     })
 }
 
@@ -515,27 +510,27 @@ pub fn call_like_invocation_is_receiver_bound(
 }
 /// Get the base of a reference path.
 fn expression_reference_path_base(
-    tree: &dir::Tree,
+    ctx: &LintModuleDirContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     members: &mut Vec<StringId>,
 ) -> Option<ReferenceBase> {
     // inspect the expression node
-    let expression = tree.get(expression_id);
+    let expression = ctx.tree.get(expression_id);
 
     // match the base or member steps
     match expression {
         dir::Expression::Parenthesized { expression } => {
-            expression_reference_path_base(tree, *expression, members)
+            expression_reference_path_base(ctx, *expression, members)
         }
         dir::Expression::Member { left, name } => {
             let name = (*name)?;
 
             members.push(name);
-            expression_reference_path_base(tree, *left, members)
+            expression_reference_path_base(ctx, *left, members)
         }
         dir::Expression::This => Some(ReferenceBase::This),
         dir::Expression::Super => Some(ReferenceBase::Super),
-        _ => expression.target_symbol().map(ReferenceBase::Symbol),
+        _ => expression_target_symbol(ctx, expression_id).map(ReferenceBase::Symbol),
     }
 }
 
@@ -633,25 +628,10 @@ pub fn expression_method_call(
 /// Return one path when the expression is a path-like reference without generic arguments.
 fn expression_path_without_generic_arguments(expression: &dir::Expression) -> Option<&dir::Path> {
     match expression {
-        dir::Expression::UnresolvedPath {
+        dir::Expression::Path {
             path,
             generic_arguments,
-            space_order: _,
-        } if generic_arguments.is_empty() => Some(path),
-        dir::Expression::LocalReference {
-            path,
-            target_symbol: _,
-            generic_arguments,
-        } if generic_arguments.is_empty() => Some(path),
-        dir::Expression::ModuleReference {
-            path,
-            target_symbol: _,
-            generic_arguments,
-        } if generic_arguments.is_empty() => Some(path),
-        dir::Expression::GlobalReference {
-            path,
-            target_symbol: _,
-            generic_arguments,
+            space: _,
         } if generic_arguments.is_empty() => Some(path),
         _ => None,
     }

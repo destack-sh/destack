@@ -59,10 +59,7 @@ pub fn fresh_name_in_symbol_scope(
     loop {
         let candidate_id = ctx.string_id(&candidate);
         let candidate_key = dir::StaticKey::Name(candidate_id);
-        let is_taken = ctx
-            .symbols
-            .find_active_symbol(scope, candidate_key)
-            .is_some();
+        let is_taken = ctx.symbols.find_symbol(scope, candidate_key).is_some();
         if !is_taken {
             return Some(candidate);
         }
@@ -86,8 +83,12 @@ pub fn fresh_name_in_symbol_scope_for_rename(
     }
 
     // collect direct references for collision checks across usage scopes
-    let reference_expression_ids =
-        collect_local_symbol_direct_reference_expression_ids(ctx.module_id(), ctx.tree, symbol_id);
+    let reference_expression_ids = collect_local_symbol_direct_reference_expression_ids(
+        ctx.module_id(),
+        ctx.tree,
+        ctx.types,
+        symbol_id,
+    );
 
     // resolve declaration scope for the renamed symbol
     let symbol = ctx.symbols.get_symbol(symbol_id);
@@ -143,7 +144,7 @@ fn visible_symbol_for_key(
     loop {
         let scope = ctx.symbols.get_scope_by_id(scope_id);
 
-        if let Some(symbol_id) = ctx.symbols.find_active_symbol_up_to(scope, key, mark) {
+        if let Some(symbol_id) = ctx.symbols.find_symbol_up_to(scope, key, mark) {
             return Some(symbol_id);
         }
 
@@ -174,7 +175,7 @@ pub fn fresh_name_in_expression_scope(
         let candidate_key = dir::StaticKey::Name(candidate_id);
         let is_taken = ctx
             .symbols
-            .find_active_symbol_up_to(scope, candidate_key, mark)
+            .find_symbol_up_to(scope, candidate_key, mark)
             .is_some();
         if !is_taken {
             return Some(candidate);
@@ -196,7 +197,7 @@ fn collect_symbol_rename_spans(
 ) -> Option<Vec<Span>> {
     let symbol = ctx.symbols.get_symbol(symbol_id);
     let declaration = symbol
-        .primary_declaration
+        .declaration
         .filter(|declaration| declaration.module_id == ctx.module_id())
         .map(|declaration| declaration.local_id)
         .or_else(|| find_symbol_declaration_in_module(ctx, symbol_id))?;
@@ -207,8 +208,8 @@ fn collect_symbol_rename_spans(
 
     // include all direct path references for this symbol
     let global_symbol_id = symbol_id.into_global(ctx.module_id());
-    for (expression_id, expression) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
-        if expression.target_symbol() != Some(global_symbol_id) {
+    for (expression_id, _) in ctx.tree.iter_nodes_of_type::<dir::Expression>() {
+        if ctx.expression_target_symbol(expression_id) != Some(global_symbol_id) {
             continue;
         }
 
@@ -227,7 +228,7 @@ fn find_symbol_declaration_in_module(
     ctx: &LintModuleDirContext<'_>,
     symbol_id: dir::LocalSymbolId,
 ) -> Option<dir::LocalNodeIdAny> {
-    // scan parameters first: parameter symbols commonly skip primary declaration metadata
+    // scan parameters first: parameter symbols can be declaration-less
     for (parameter_id, parameter) in ctx.tree.iter_nodes_of_type::<dir::Parameter>() {
         if parameter.symbol() == symbol_id {
             return Some(parameter_id.into_any());
