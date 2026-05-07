@@ -58,10 +58,10 @@ impl LintRule for UseIsnan {
             }
 
             // check switch comparisons against NaN
-            let Expression::Match { kind, value, cases } = expression else {
+            let Expression::Match { form, value, cases } = expression else {
                 continue;
             };
-            if *kind != ast::MatchKind::Switch {
+            if *form != ast::MatchForm::Switch {
                 continue;
             }
             if !ctx.options.correctness.use_isnan_enforce_for_switch_case {

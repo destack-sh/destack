@@ -1208,9 +1208,9 @@ impl<'a> AstSignatureCollector<'a> {
         self.push_debug("function_is_abstract", signature.is_abstract);
         self.push_debug("function_is_override", signature.is_override);
         self.push_debug("function_asynchrony", signature.asynchrony);
-        self.push_debug("function_cardinality", signature.cardinality);
-        self.push_debug_optional("function_mode", signature.mode);
-        self.push_debug("function_kind", signature.kind);
+        self.push_debug("function_is_generator", signature.is_generator);
+        self.push_debug_optional("function_mode", signature.role);
+        self.push_debug("function_kind", signature.form);
     }
 
     /// Push scalar literal metadata.
@@ -1306,12 +1306,12 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
             }
             ast::Expression::Import {
                 source,
-                kind,
+                space,
                 target,
                 ..
             } => {
                 self.push_debug("expr_import_source", *source);
-                self.push_debug("expr_import_kind", *kind);
+                self.push_debug("expr_import_space", *space);
                 match target {
                     ast::ImportTarget::String(target) => {
                         self.push_literal_id("expr_import_target", *target, "$str");
@@ -1321,8 +1321,8 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
                     }
                 }
             }
-            ast::Expression::Export { kind, target, .. } => {
-                self.push_debug("expr_export_kind", *kind);
+            ast::Expression::Export { space, target, .. } => {
+                self.push_debug("expr_export_space", *space);
                 if let Some(target) = target {
                     self.push_literal_id("expr_export_target", *target, "$str");
                 } else {
@@ -1342,9 +1342,9 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
                 self.push_debug("expr_using_asynchrony", *asynchrony);
             }
             ast::Expression::If {
-                kind, condition, ..
+                form, condition, ..
             } => {
-                self.push_debug("expr_if_kind", *kind);
+                self.push_debug("expr_if_form", *form);
                 match condition {
                     ast::IfCondition::Expression { .. } => {
                         self.push_same("expr_if_condition_kind", "expr");
@@ -1358,23 +1358,21 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
                     }
                 }
             }
-            ast::Expression::While { kind, .. } => {
-                self.push_debug("expr_while_kind", *kind);
+            ast::Expression::While { form, .. } => {
+                self.push_debug("expr_while_form", *form);
             }
             ast::Expression::ForEach {
                 asynchrony,
-                kind,
+                operator,
                 binding,
                 ..
             } => {
                 self.push_debug("expr_foreach_asynchrony", *asynchrony);
-                self.push_debug("expr_foreach_kind", *kind);
+                self.push_debug("expr_foreach_operator", *operator);
                 match binding {
-                    ast::ForEachBinding::Pattern {
-                        declaration_kind, ..
-                    } => {
+                    ast::ForEachBinding::Pattern { keyword, .. } => {
                         self.push_same("expr_foreach_binding", "pattern");
-                        self.push_debug_optional("expr_foreach_declaration", *declaration_kind);
+                        self.push_debug_optional("expr_foreach_keyword", *keyword);
                     }
                     ast::ForEachBinding::Using { asynchrony, .. } => {
                         self.push_same("expr_foreach_binding", "using");
@@ -1382,8 +1380,8 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
                     }
                 }
             }
-            ast::Expression::Match { kind, .. } => {
-                self.push_debug("expr_match_kind", *kind);
+            ast::Expression::Match { form, .. } => {
+                self.push_debug("expr_match_form", *form);
             }
             ast::Expression::Break { label, value } => {
                 if let Some(label) = label {
@@ -1502,7 +1500,7 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
                 self.push_debug_optional("decl_type_mutability", declaration.mutability);
             }
             ast::Declaration::ImportAlias(declaration) => {
-                self.push_debug("decl_import_alias_kind", declaration.kind);
+                self.push_debug("decl_import_alias_kind", declaration.space);
                 match &declaration.target {
                     ast::ImportAliasTarget::Require { target } => {
                         self.push_same("decl_import_alias_target_kind", "require");
@@ -1600,14 +1598,14 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
     ) {
         match dependency_item {
             ast::DependencyItem::Item {
-                mode,
-                kind,
+                binding,
+                space,
                 name,
                 alias,
                 ..
             } => {
-                self.push_debug("dependency_mode", *mode);
-                self.push_debug_optional("dependency_kind", *kind);
+                self.push_debug("dependency_binding", *binding);
+                self.push_debug_optional("dependency_space", *space);
                 if let Some(name) = *name {
                     self.push_name("dependency_name", name);
                 } else {

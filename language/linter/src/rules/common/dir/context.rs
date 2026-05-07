@@ -253,7 +253,7 @@ fn callable_boundary_asynchrony(
                 body: _,
                 is_optional: _,
                 visibility: _,
-                ambient: _,
+                is_ambient: _,
                 is_abstract: _,
                 is_override: _,
                 is_static: _,
@@ -318,7 +318,7 @@ fn expression_is_using_declaration(
         dir::Expression::Using {
             asynchrony: _,
             export: _,
-            ambient: _,
+            is_ambient: _,
             declarators: _,
         }
     )

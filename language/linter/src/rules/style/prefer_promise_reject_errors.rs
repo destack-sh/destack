@@ -1,4 +1,4 @@
-use destack_dir::{self as dir, LanguageSymbol, WellKnownSymbol};
+use destack_dir::{self as dir, LanguageItem, WellKnownSymbol};
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireWellKnownSymbol;
@@ -71,8 +71,8 @@ impl<'a, 'b> PromiseRejectVisitor<'a, 'b> {
             ok_name: ctx.string_id("ok"),
             err_name: ctx.string_id("err"),
             promise_symbol: ctx.well_known_symbol(WellKnownSymbol::Promise),
-            error_symbol: ctx.get_language_symbol(LanguageSymbol::Error),
-            result_symbol: ctx.get_language_symbol(LanguageSymbol::Result),
+            error_symbol: ctx.get_language_item(LanguageItem::Error),
+            result_symbol: ctx.get_language_item(LanguageItem::Result),
             ctx,
             meta,
         }

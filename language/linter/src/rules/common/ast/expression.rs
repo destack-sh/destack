@@ -109,10 +109,10 @@ pub fn assign_patterns_are_equal(
                 && expression_is_equal(ctx, *left_value, *right_value)
         }
         (
-            ast::AssignPattern::Array {
+            ast::AssignPattern::Sequence {
                 fields: left_fields,
             },
-            ast::AssignPattern::Array {
+            ast::AssignPattern::Sequence {
                 fields: right_fields,
             },
         )
@@ -624,7 +624,7 @@ pub fn if_expression_branch_chain(
     loop {
         let current_expression = tree.get(current_if_id);
         let ast::Expression::If {
-            kind: _,
+            form: _,
             then_expression,
             else_expression,
             ..
@@ -648,7 +648,7 @@ pub fn if_expression_branch_chain(
         if matches!(
             else_expression,
             ast::Expression::If {
-                kind: ast::IfKind::If,
+                form: ast::IfForm::If,
                 ..
             }
         ) {
@@ -1097,7 +1097,7 @@ pub fn declaration_at_allowed_root(
     }
     let block_id = ast::LocalNodeId::<ast::Block>::new(parent_id);
     let block = tree.get(block_id);
-    if block.format != ast::BlockFormat::Explicit {
+    if block.form != ast::BlockForm::Explicit {
         return true;
     }
 
@@ -2171,6 +2171,8 @@ pub fn type_expression_has_side_effects(
         ast::TypeExpression::Tuple { .. }
         | ast::TypeExpression::ArrayTuple { .. }
         | ast::TypeExpression::Array { .. }
+        | ast::TypeExpression::Slice { .. }
+        | ast::TypeExpression::FixedArray { .. }
         | ast::TypeExpression::Object { .. }
         | ast::TypeExpression::Declaration { .. }
         | ast::TypeExpression::FunctionTypeDeclaration(_)
@@ -2483,12 +2485,12 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
             }
             ast::Expression::Import {
                 source,
-                kind,
+                space,
                 target,
                 ..
             } => {
                 self.push_debug("expression_import_source", *source);
-                self.push_debug("expression_import_kind", *kind);
+                self.push_debug("expression_import_space", *space);
                 match target {
                     ast::ImportTarget::String(target) => {
                         self.push_string_id("expression_import_target", *target);
@@ -2498,8 +2500,8 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
                     }
                 }
             }
-            ast::Expression::Export { kind, target, .. } => {
-                self.push_debug("expression_export_kind", *kind);
+            ast::Expression::Export { space, target, .. } => {
+                self.push_debug("expression_export_space", *space);
                 if let Some(target) = target {
                     self.push_string_id("expression_export_target", *target);
                 }
@@ -2507,20 +2509,22 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
             ast::Expression::ExportNamespace { name } => {
                 self.push_string_id("expression_export_namespace", *name);
             }
-            ast::Expression::If { kind, .. } => {
-                self.push_debug("expression_if_kind", *kind);
+            ast::Expression::If { form, .. } => {
+                self.push_debug("expression_if_form", *form);
             }
-            ast::Expression::While { kind, .. } => {
-                self.push_debug("expression_while_kind", *kind);
+            ast::Expression::While { form, .. } => {
+                self.push_debug("expression_while_form", *form);
             }
             ast::Expression::ForEach {
-                asynchrony, kind, ..
+                asynchrony,
+                operator,
+                ..
             } => {
                 self.push_debug("expression_foreach_asynchrony", *asynchrony);
-                self.push_debug("expression_foreach_kind", *kind);
+                self.push_debug("expression_foreach_operator", *operator);
             }
-            ast::Expression::Match { kind, .. } => {
-                self.push_debug("expression_match_kind", *kind);
+            ast::Expression::Match { form, .. } => {
+                self.push_debug("expression_match_form", *form);
             }
             ast::Expression::Break { label, value } => {
                 self.push_debug("expression_break_has_label", label.is_some());

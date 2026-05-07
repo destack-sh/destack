@@ -55,12 +55,12 @@ impl LintRule for NoBarrelFile {
             let expression = ctx.tree.get(expression_id);
             match expression {
                 Expression::Export {
-                    kind,
+                    space,
                     target,
                     items,
                     ..
                 } => {
-                    if target.is_some() && export_is_value_reexport(ctx, *kind, items.as_slice()) {
+                    if target.is_some() && export_is_value_reexport(ctx, *space, items.as_slice()) {
                         if first_value_reexport_id.is_none() {
                             first_value_reexport_id = Some(expression_id);
                         }
@@ -125,10 +125,10 @@ fn module_is_declaration_file(ctx: &LintAstContext<'_>) -> bool {
 /// Return true when one export-from clause re-exports runtime values.
 fn export_is_value_reexport(
     ctx: &LintAstContext<'_>,
-    kind: ast::DependencyKind,
+    space: ast::DependencySpace,
     items: &[ast::LocalNodeId<ast::DependencyItem>],
 ) -> bool {
-    if kind == ast::DependencyKind::Type {
+    if space == ast::DependencySpace::Type {
         return false;
     }
 
@@ -139,7 +139,7 @@ fn export_is_value_reexport(
     items.iter().any(|item_id| {
         let item = ctx.tree.get(*item_id);
         match item {
-            ast::DependencyItem::Item { kind, .. } => *kind != Some(ast::DependencyKind::Type),
+            ast::DependencyItem::Item { space, .. } => *space != Some(ast::DependencySpace::Type),
             ast::DependencyItem::Error => true,
         }
     })

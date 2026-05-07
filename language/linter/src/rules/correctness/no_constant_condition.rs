@@ -41,10 +41,10 @@ impl LintRule for NoConstantCondition {
             // resolve the condition expression to inspect
             let condition_id = match expression {
                 ast::Expression::While {
-                    kind, condition, ..
+                    form, condition, ..
                 } => {
                     // align source defaults: allow `while (true)` as an explicit infinite loop
-                    if *kind == ast::WhileKind::While && ctx.const_bool(*condition) == Some(true) {
+                    if *form == ast::WhileForm::While && ctx.const_bool(*condition) == Some(true) {
                         continue;
                     }
                     *condition
@@ -147,7 +147,7 @@ fn no_constant_condition_fix(
 
     // avoid deletion fixes for never-running loops
     if let ast::Expression::While {
-        kind: ast::WhileKind::While,
+        form: ast::WhileForm::While,
         condition,
         ..
     } = expression

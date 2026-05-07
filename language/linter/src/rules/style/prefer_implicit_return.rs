@@ -1,5 +1,5 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, Block, Declaration, Expression, FunctionKind};
+use destack_ast::{self as ast, Block, Declaration, Expression, FunctionForm};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::source_text_contains_comment_token;
@@ -44,7 +44,7 @@ impl LintRule for PreferImplicitReturn {
             };
 
             // only check lambda functions
-            if declaration.signature.kind != FunctionKind::Lambda {
+            if declaration.signature.form != FunctionForm::Lambda {
                 continue;
             }
 

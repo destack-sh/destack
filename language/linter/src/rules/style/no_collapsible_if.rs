@@ -52,7 +52,7 @@ impl LintRule for NoCollapsibleIf {
 
             // match outer if statement without else
             let ast::Expression::If {
-                kind: ast::IfKind::If,
+                form: ast::IfForm::If,
                 condition: outer_condition,
                 then_expression: then_expression_id,
                 else_expression: None,
@@ -182,7 +182,7 @@ fn expression_needs_parentheses_for_and_operand(expression: &ast::Expression) ->
     matches!(
         expression,
         ast::Expression::If {
-            kind: ast::IfKind::Ternary,
+            form: ast::IfForm::Ternary,
             ..
         } | ast::Expression::Assign { .. }
             | ast::Expression::Binary {
@@ -232,7 +232,7 @@ fn is_if_without_else(
 ) -> Option<ast::LocalNodeId<ast::Expression>> {
     // check if it's an if without else
     if let ast::Expression::If {
-        kind: ast::IfKind::If,
+        form: ast::IfForm::If,
         else_expression: None,
         ..
     } = expression

@@ -37,10 +37,10 @@ impl LintRule for MaxSwitchCases {
 
         // check each switch expression against non-empty non-default case count
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let ast::Expression::Match { kind, cases, .. } = ctx.tree.get(node_id) else {
+            let ast::Expression::Match { form, cases, .. } = ctx.tree.get(node_id) else {
                 continue;
             };
-            if *kind != ast::MatchKind::Switch {
+            if *form != ast::MatchForm::Switch {
                 continue;
             }
 

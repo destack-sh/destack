@@ -62,6 +62,7 @@ impl LintRule for NoDefaultExport {
         for (node_id, declaration) in ctx.tree.iter_nodes_of_type::<dir::Declaration>() {
             let export = match declaration {
                 dir::Declaration::Global(_) => None,
+                dir::Declaration::Module(_) => None,
                 dir::Declaration::Namespace(declaration) => declaration.export,
                 dir::Declaration::Type(declaration) => declaration.export,
                 dir::Declaration::ImportAlias(declaration) => declaration.export,
@@ -72,7 +73,7 @@ impl LintRule for NoDefaultExport {
                 dir::Declaration::Extension(declaration) => declaration.export,
                 dir::Declaration::Function(declaration) => declaration.export,
             };
-            if export == Some(dir::ExportMode::Default) {
+            if export == Some(dir::ExportKind::Default) {
                 let severity = ctx.get_effective_severity(meta, node_id);
                 if !severity.is_enabled() {
                     continue;
@@ -124,40 +125,40 @@ fn dependency_item_exports_default(
     }
 
     match item {
-        dir::DependencyItem::Value { mode, .. } => *mode == dir::DependencyMode::Default,
+        dir::DependencyItem::Value { binding, .. } => *binding == dir::DependencyBinding::Default,
         dir::DependencyItem::Local {
-            mode,
-            kind,
+            binding,
+            space,
             name,
             alias,
             ..
         }
         | dir::DependencyItem::UnresolvedLocal {
-            mode,
-            kind,
+            binding,
+            space,
             name,
             alias,
             ..
         }
         | dir::DependencyItem::Remote {
-            mode,
-            kind,
+            binding,
+            space,
             name,
             alias,
             ..
         }
         | dir::DependencyItem::UnresolvedRemote {
-            mode,
-            kind,
+            binding,
+            space,
             name,
             alias,
             ..
         } => {
-            if *kind != dir::DependencyKind::Value {
+            if *space != dir::DependencySpace::Value {
                 return false;
             }
 
-            dependency_item_export_name(*mode, *name, *alias, default_name) == Some(default_name)
+            dependency_item_export_name(*binding, *name, *alias, default_name) == Some(default_name)
         }
         dir::DependencyItem::Error => false,
     }
@@ -165,7 +166,7 @@ fn dependency_item_exports_default(
 
 /// Return the exported name for one dependency item.
 fn dependency_item_export_name(
-    mode: dir::DependencyMode,
+    binding: dir::DependencyBinding,
     name: Option<dir::Name>,
     alias: Option<StringId>,
     default_name: StringId,
@@ -174,10 +175,10 @@ fn dependency_item_export_name(
         return alias;
     }
 
-    match mode {
-        dir::DependencyMode::Item => name.map(|name| name.string()),
-        dir::DependencyMode::Default => name.map(|name| name.string()).or(Some(default_name)),
-        dir::DependencyMode::Namespace => None,
+    match binding {
+        dir::DependencyBinding::Item => name.map(|name| name.string()),
+        dir::DependencyBinding::Default => name.map(|name| name.string()).or(Some(default_name)),
+        dir::DependencyBinding::Namespace => None,
     }
 }
 

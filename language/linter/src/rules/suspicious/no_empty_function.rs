@@ -109,12 +109,12 @@ fn empty_function_kind(
     signature: &ast::FunctionSignature,
 ) -> EmptyFunctionKind {
     // getters, setters, and constructors are specialized method kinds first
-    if let Some(mode) = signature.mode {
-        return match mode {
-            ast::FunctionMode::Getter => EmptyFunctionKind::Getters,
-            ast::FunctionMode::Setter => EmptyFunctionKind::Setters,
-            ast::FunctionMode::Constructor => EmptyFunctionKind::Constructors,
-            ast::FunctionMode::New | ast::FunctionMode::Call => {
+    if let Some(role) = signature.role {
+        return match role {
+            ast::FunctionRole::Getter => EmptyFunctionKind::Getters,
+            ast::FunctionRole::Setter => EmptyFunctionKind::Setters,
+            ast::FunctionRole::Constructor => EmptyFunctionKind::Constructors,
+            ast::FunctionRole::New | ast::FunctionRole::Call => {
                 empty_non_accessor_function_kind(owner_id, signature)
             }
         };
@@ -139,10 +139,10 @@ fn empty_non_accessor_function_kind(
 
     // classify by callable owner and signature traits
     match owner_id {
-        CallableOwnerId::Declaration(_) => match signature.kind {
-            ast::FunctionKind::Lambda => EmptyFunctionKind::ArrowFunctions,
-            ast::FunctionKind::Function => {
-                if signature.cardinality == ast::FunctionCardinality::Generator {
+        CallableOwnerId::Declaration(_) => match signature.form {
+            ast::FunctionForm::Lambda => EmptyFunctionKind::ArrowFunctions,
+            ast::FunctionForm::Function => {
+                if signature.is_generator {
                     EmptyFunctionKind::GeneratorFunctions
                 } else if signature.asynchrony == ast::Asynchrony::Async {
                     EmptyFunctionKind::AsyncFunctions
@@ -152,7 +152,7 @@ fn empty_non_accessor_function_kind(
             }
         },
         CallableOwnerId::Member(_) | CallableOwnerId::Property(_) => {
-            if signature.cardinality == ast::FunctionCardinality::Generator {
+            if signature.is_generator {
                 EmptyFunctionKind::GeneratorMethods
             } else if signature.asynchrony == ast::Asynchrony::Async {
                 EmptyFunctionKind::AsyncMethods

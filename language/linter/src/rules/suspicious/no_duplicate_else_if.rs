@@ -39,7 +39,7 @@ impl LintRule for NoDuplicateElseIf {
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expr = ctx.tree.get(node_id);
             let ast::Expression::If {
-                kind: ast::IfKind::If,
+                form: ast::IfForm::If,
                 condition,
                 ..
             } = expr

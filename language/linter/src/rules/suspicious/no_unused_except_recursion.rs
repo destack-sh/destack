@@ -299,7 +299,7 @@ impl<'a> RecursiveParameterUseVisitor<'a> {
 
         // fallback: resolution candidate match
         let global_expression_id = expression_id.into_global_any(self.module_id);
-        let Some(resolution_id) = self.types.get_resolution_for_node(global_expression_id) else {
+        let Some(resolution_id) = self.types.node_resolution_id(global_expression_id) else {
             return false;
         };
         let resolution = self.types.get_resolution(resolution_id);

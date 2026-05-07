@@ -36,13 +36,13 @@ impl LintRule for NoIdenticalBranches {
         let meta = self.meta();
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let ast::Expression::If { kind, .. } = ctx.tree.get(node_id) else {
+            let ast::Expression::If { form, .. } = ctx.tree.get(node_id) else {
                 continue;
             };
 
             // statement-style if chains:
             // only evaluate the chain root, not nested else-if children
-            if *kind == ast::IfKind::If
+            if *form == ast::IfForm::If
                 && expression_is_else_if_branch(ctx.tree, ctx.parents, node_id)
             {
                 continue;

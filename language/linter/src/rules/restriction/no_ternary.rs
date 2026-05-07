@@ -1,5 +1,5 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, IfKind};
+use destack_ast::{self as ast, IfForm};
 use destack_workspace::LintSeverity;
 
 use crate::{LintAstContext, LintReport, LintRule, declare_lint};
@@ -34,10 +34,10 @@ impl LintRule for NoTernary {
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
-            let ast::Expression::If { kind, .. } = expression else {
+            let ast::Expression::If { form, .. } = expression else {
                 continue;
             };
-            if *kind != IfKind::Ternary {
+            if *form != IfForm::Ternary {
                 continue;
             }
 

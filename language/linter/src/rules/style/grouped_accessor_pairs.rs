@@ -1,7 +1,7 @@
 use crate::LintMeta;
 use std::collections::HashMap;
 
-use destack_ast::{self as ast, Declaration, FunctionMode, Key, Member, Property, TypeMember};
+use destack_ast::{self as ast, Declaration, FunctionRole, Key, Member, Property, TypeMember};
 use destack_source::Span;
 use destack_workspace::{GroupedAccessorPairsOrder, LintSeverity};
 
@@ -171,8 +171,8 @@ struct AccessorSlot {
     owner: AccessorOwner,
     /// The accessor key identity.
     key: AccessorKey,
-    /// The accessor mode.
-    mode: FunctionMode,
+    /// The accessor role.
+    role: FunctionRole,
 }
 
 /// One item that can contribute an accessor pair slot.
@@ -257,7 +257,7 @@ where
             continue;
         };
 
-        let Some(mode) = signature.mode else {
+        let Some(role) = signature.role else {
             continue;
         };
 
@@ -269,7 +269,7 @@ where
             index,
             owner: item.owner(),
             key,
-            mode,
+            role,
         });
     }
 
@@ -296,9 +296,9 @@ fn check_ungrouped_accessors<T>(
             .entry((slot.owner, slot.key.clone()))
             .or_default();
 
-        match slot.mode {
-            FunctionMode::Getter => entry.getters.push(slot.index),
-            FunctionMode::Setter => entry.setters.push(slot.index),
+        match slot.role {
+            FunctionRole::Getter => entry.getters.push(slot.index),
+            FunctionRole::Setter => entry.setters.push(slot.index),
             _ => {}
         }
     }

@@ -130,7 +130,7 @@ impl NodeVisitor for ForInArrayVisitor<'_, '_> {
     ) {
         // check for-in expressions on arrays
         if let dir::Expression::ForEach {
-            kind: dir::ForEachKind::In,
+            operator: dir::ForEachOperator::In,
             iterator,
             ..
         } = expression

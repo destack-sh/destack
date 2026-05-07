@@ -1,6 +1,6 @@
 use destack_core::StringId;
 use destack_dir::{
-    self as dir, FunctionMode, IfKind, NodeVisitor, NodeVisitorOptions, Property, WellKnownSymbol,
+    self as dir, FunctionRole, IfForm, NodeVisitor, NodeVisitorOptions, Property, WellKnownSymbol,
     walk_expression,
 };
 use destack_workspace::LintSeverity;
@@ -310,8 +310,8 @@ impl<'a, 'b> PreferObjectSpreadVisitor<'a, 'b> {
             };
 
             matches!(
-                signature.mode,
-                Some(FunctionMode::Getter | FunctionMode::Setter)
+                signature.role,
+                Some(FunctionRole::Getter | FunctionRole::Setter)
             )
         })
     }
@@ -349,7 +349,7 @@ impl<'a, 'b> PreferObjectSpreadVisitor<'a, 'b> {
         ) || matches!(
             expression,
             dir::Expression::If {
-                kind: IfKind::Ternary,
+                form: IfForm::Ternary,
                 ..
             }
         )

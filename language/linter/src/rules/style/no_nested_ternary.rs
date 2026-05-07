@@ -36,7 +36,7 @@ impl LintRule for NoNestedTernary {
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             // look for ternary expressions
             let ast::Expression::If {
-                kind: ast::IfKind::Ternary,
+                form: ast::IfForm::Ternary,
                 condition,
                 then_expression,
                 else_expression,
@@ -80,7 +80,7 @@ fn is_ternary(ctx: &LintAstContext<'_>, expr_id: ast::LocalNodeId<ast::Expressio
     let expr = ctx.tree.get(expr_id);
     match expr {
         ast::Expression::If {
-            kind: ast::IfKind::Ternary,
+            form: ast::IfForm::Ternary,
             ..
         } => true,
         ast::Expression::Parenthesized { expression } => is_ternary(ctx, *expression),

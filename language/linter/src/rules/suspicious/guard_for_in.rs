@@ -415,7 +415,7 @@ impl NodeVisitor for GuardForInVisitor<'_, '_> {
         expression: &dir::Expression,
     ) {
         if let dir::Expression::ForEach {
-            kind: dir::ForEachKind::In,
+            operator: dir::ForEachOperator::In,
             binding,
             iterator,
             body,

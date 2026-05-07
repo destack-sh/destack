@@ -1,5 +1,5 @@
 use crate::LintMeta;
-use destack_ast::{self as ast, IfKind, UnaryOperator};
+use destack_ast::{self as ast, IfForm, UnaryOperator};
 use destack_workspace::LintSeverity;
 
 use crate::{LintAstContext, LintReport, LintRule, declare_lint};
@@ -35,7 +35,7 @@ impl LintRule for NoNegatedCondition {
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             let expression = ctx.tree.get(node_id);
             let ast::Expression::If {
-                kind,
+                form,
                 condition,
                 then_expression: _,
                 else_expression,
@@ -46,7 +46,7 @@ impl LintRule for NoNegatedCondition {
             };
 
             // only check if the branch shape is eligible
-            if !has_negated_condition_context(ctx, *kind, *else_expression) {
+            if !has_negated_condition_context(ctx, *form, *else_expression) {
                 continue;
             }
 
@@ -65,9 +65,9 @@ impl LintRule for NoNegatedCondition {
             }
 
             let expression_span = ctx.tree.get_span(node_id);
-            let message = match kind {
-                IfKind::If => "unexpected negated condition in if-else",
-                IfKind::Ternary => "unexpected negated condition in ternary",
+            let message = match form {
+                IfForm::If => "unexpected negated condition in if-else",
+                IfForm::Ternary => "unexpected negated condition in ternary",
             };
             ctx.report(
                 LintReport::new(
@@ -87,25 +87,25 @@ impl LintRule for NoNegatedCondition {
 /// Return true when the expression kind and else branch should be checked.
 fn has_negated_condition_context(
     ctx: &LintAstContext<'_>,
-    kind: IfKind,
+    form: IfForm,
     else_expression: Option<ast::LocalNodeId<ast::Expression>>,
 ) -> bool {
-    match kind {
+    match form {
         // match `if (...) ... else ...` but skip `else if` chains
-        IfKind::If => {
+        IfForm::If => {
             let Some(else_expression_id) = else_expression else {
                 return false;
             };
             !matches!(
                 ctx.tree.get(else_expression_id),
                 ast::Expression::If {
-                    kind: ast::IfKind::If,
+                    form: ast::IfForm::If,
                     ..
                 }
             )
         }
         // match ternary expressions that always include an alternate branch
-        IfKind::Ternary => else_expression.is_some(),
+        IfForm::Ternary => else_expression.is_some(),
     }
 }
 

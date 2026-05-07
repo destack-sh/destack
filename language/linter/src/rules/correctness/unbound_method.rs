@@ -104,7 +104,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
 
         // resolve global id
         let global_id = expression_id.into_global_any(self.ctx.module_id());
-        let Some(resolution_id) = self.ctx.types.get_resolution_for_node(global_id) else {
+        let Some(resolution_id) = self.ctx.types.node_resolution_id(global_id) else {
             return;
         };
         let resolution = self.ctx.types.get_resolution(resolution_id);

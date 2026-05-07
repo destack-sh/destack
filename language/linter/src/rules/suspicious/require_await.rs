@@ -1,6 +1,6 @@
 use destack_dir::{
-    self as dir, Asynchrony, Expression, FunctionCardinality, NodeVisitor, NodeVisitorOptions,
-    WellKnownSymbol, walk_expression,
+    self as dir, Asynchrony, Expression, NodeVisitor, NodeVisitorOptions, WellKnownSymbol,
+    walk_expression,
 };
 use destack_source::{ModuleId, Span};
 use destack_workspace::{LintSeverity, ProfileId, Repository, Revision};
@@ -191,14 +191,14 @@ fn check_async_callable<T: dir::Node>(
         ctx.symbols,
         ctx.types,
         body_id,
-        signature.cardinality == FunctionCardinality::Generator,
+        signature.is_generator,
         promise_symbols,
         async_function_symbols,
     );
     if analysis.has_await || analysis.has_thenable_return {
         return;
     }
-    if signature.cardinality == FunctionCardinality::Generator && analysis.has_async_yield {
+    if signature.is_generator && analysis.has_async_yield {
         return;
     }
 

@@ -40,7 +40,7 @@ impl LintRule for NoOverlappingMatchArms {
             let expression = ctx.tree.get(expression_id);
             let dir::Expression::Match {
                 source: _,
-                kind: _,
+                form: _,
                 value: _,
                 cases,
                 scope: _,

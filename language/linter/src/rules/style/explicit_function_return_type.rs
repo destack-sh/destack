@@ -1,6 +1,6 @@
 use crate::LintMeta;
 use destack_ast::{
-    self as ast, Declaration, FunctionKind, FunctionMode, Key, Member, Name, NodeVisitor,
+    self as ast, Declaration, FunctionForm, FunctionRole, Key, Member, Name, NodeVisitor,
     NodeVisitorOptions, Property, walk_expression,
 };
 use destack_source::Span;
@@ -148,7 +148,7 @@ fn signature_requires_explicit_return_type(
     key: Option<&Key>,
     constructor_name: ast::StringId,
 ) -> bool {
-    if signature.kind == FunctionKind::Lambda {
+    if signature.form == FunctionForm::Lambda {
         return false;
     }
 
@@ -156,8 +156,8 @@ fn signature_requires_explicit_return_type(
         return false;
     }
 
-    if signature.mode == Some(FunctionMode::Setter)
-        || signature.mode == Some(FunctionMode::Constructor)
+    if signature.role == Some(FunctionRole::Setter)
+        || signature.role == Some(FunctionRole::Constructor)
     {
         return false;
     }

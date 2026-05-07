@@ -1788,7 +1788,7 @@ fn symbol_lineage_contains_inner(
     }
 
     // resolve the lineage edges
-    let result = if let Some(lineage) = types.get_lineage_for_symbol(symbol) {
+    let result = if let Some(lineage) = types.symbol_lineage(symbol) {
         // check the extends edge first
         if lineage.extends.is_some_and(|extends_symbol| {
             symbol_lineage_contains_inner(types, extends_symbol, target_symbol, state)

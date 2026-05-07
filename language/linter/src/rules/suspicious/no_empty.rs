@@ -39,7 +39,7 @@ impl LintRule for NoEmpty {
         for node_id in ctx.tree.iter_nodes::<ast::Block>() {
             // skip implicit blocks, only explicit braces can be empty statements
             let block = ctx.tree.get(node_id);
-            if block.format != ast::BlockFormat::Explicit {
+            if block.form != ast::BlockForm::Explicit {
                 continue;
             }
 
@@ -93,10 +93,10 @@ impl LintRule for NoEmpty {
 
         // inspect empty switch expressions separately
         for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let ast::Expression::Match { kind, cases, .. } = ctx.tree.get(expression_id) else {
+            let ast::Expression::Match { form, cases, .. } = ctx.tree.get(expression_id) else {
                 continue;
             };
-            if *kind != ast::MatchKind::Switch || !cases.is_empty() {
+            if *form != ast::MatchForm::Switch || !cases.is_empty() {
                 continue;
             }
             if span_has_comment(ctx.tree, ctx.tree.get_span(expression_id)) {

@@ -188,7 +188,7 @@ fn assignment_is_inside_constructor_method(
                 return false;
             };
 
-            return signature.mode == Some(dir::FunctionMode::Constructor);
+            return signature.role == Some(dir::FunctionRole::Constructor);
         }
         if parent_id.ty == dir::NodeType::Declaration {
             return false;

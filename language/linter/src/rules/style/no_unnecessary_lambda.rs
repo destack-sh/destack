@@ -52,9 +52,9 @@ impl LintRule for NoUnnecessaryLambda {
             };
 
             // keep sync scalar lambdas only
-            if declaration.signature.kind != dir::FunctionKind::Lambda
+            if declaration.signature.form != dir::FunctionForm::Lambda
                 || declaration.signature.asynchrony != dir::Asynchrony::Sync
-                || declaration.signature.cardinality != dir::FunctionCardinality::Scalar
+                || declaration.signature.is_generator
             {
                 continue;
             }

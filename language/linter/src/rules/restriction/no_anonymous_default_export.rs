@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use destack_ast::{self as ast, Declaration, DependencyMode, ExportMode, Expression};
+use destack_ast::{self as ast, Declaration, DependencyBinding, ExportKind, Expression};
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{expression_path_segments, expression_unwrap_parenthesized_source_form};
@@ -41,11 +41,11 @@ impl LintRule for NoAnonymousDefaultExport {
             let declaration = ctx.tree.get(declaration_id);
             let (is_default_export, is_anonymous) = match declaration {
                 Declaration::Function(declaration) => (
-                    declaration.export == Some(ExportMode::Default),
+                    declaration.export == Some(ExportKind::Default),
                     declaration.name.is_none(),
                 ),
                 Declaration::Class(declaration) => (
-                    declaration.export == Some(ExportMode::Default),
+                    declaration.export == Some(ExportKind::Default),
                     declaration.name.is_none(),
                 ),
                 _ => continue,
@@ -103,7 +103,7 @@ impl LintRule for NoAnonymousDefaultExport {
 
                 // keep only default export items with values
                 let ast::DependencyItem::Item {
-                    mode: DependencyMode::Default,
+                    binding: DependencyBinding::Default,
                     value: Some(item_value),
                     ..
                 } = item

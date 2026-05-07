@@ -122,7 +122,7 @@ fn target_symbol_for_expression(
 
     // then resolution candidates
     let global_expression_id = expression_id.into_global_any(ctx.module_id());
-    let resolution_id = ctx.types.get_resolution_for_node(global_expression_id)?;
+    let resolution_id = ctx.types.node_resolution_id(global_expression_id)?;
     let resolution = ctx.types.get_resolution(resolution_id);
 
     // extract one target symbol from static resolution results
@@ -219,7 +219,9 @@ fn generic_parameters_for_declaration(
             dir::Declaration::Function(declaration) => {
                 Some(declaration.signature.generic_parameters.clone())
             }
-            dir::Declaration::Global(_) | dir::Declaration::ImportAlias(_) => None,
+            dir::Declaration::Global(_)
+            | dir::Declaration::Module(_)
+            | dir::Declaration::ImportAlias(_) => None,
         };
     }
 

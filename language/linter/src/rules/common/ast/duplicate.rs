@@ -151,15 +151,15 @@ fn expression_coarse_key(
             block.len().hash(&mut hasher);
         }
         ast::Expression::If {
-            kind,
+            form,
             else_expression,
             ..
         } => {
-            hash_debug_into(&mut hasher, kind);
+            hash_debug_into(&mut hasher, form);
             else_expression.is_some().hash(&mut hasher);
         }
-        ast::Expression::Match { kind, cases, .. } => {
-            hash_debug_into(&mut hasher, kind);
+        ast::Expression::Match { form, cases, .. } => {
+            hash_debug_into(&mut hasher, form);
             cases.len().hash(&mut hasher);
         }
         _ => {}
@@ -250,12 +250,12 @@ fn expression_structural_key(
             block_prefilter_key(ctx, *block_id).hash(&mut hasher);
         }
         ast::Expression::If {
-            kind,
+            form,
             condition,
             then_expression,
             else_expression,
         } => {
-            hash_debug_into(&mut hasher, kind);
+            hash_debug_into(&mut hasher, form);
             hash_if_condition_shape(ctx, &mut hasher, condition);
             hash_expression_kind(ctx, &mut hasher, *then_expression);
             if let Some(else_expression) = else_expression {
@@ -264,8 +264,8 @@ fn expression_structural_key(
                 false.hash(&mut hasher);
             }
         }
-        ast::Expression::Match { kind, value, cases } => {
-            hash_debug_into(&mut hasher, kind);
+        ast::Expression::Match { form, value, cases } => {
+            hash_debug_into(&mut hasher, form);
             hash_expression_kind(ctx, &mut hasher, *value);
             cases.len().hash(&mut hasher);
         }
@@ -292,7 +292,7 @@ fn hash_assign_pattern_kind(
             hash_assign_pattern_kind(ctx, hasher, *pattern);
             hash_expression_kind(ctx, hasher, *value);
         }
-        ast::AssignPattern::Array { fields } | ast::AssignPattern::Object { fields } => {
+        ast::AssignPattern::Sequence { fields } | ast::AssignPattern::Object { fields } => {
             fields.len().hash(hasher);
         }
     }

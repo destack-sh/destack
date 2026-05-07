@@ -432,7 +432,7 @@ fn constructor_parameters(
         let dir::Member::Method { signature, .. } = member else {
             continue;
         };
-        if signature.mode != Some(dir::FunctionMode::Constructor) {
+        if signature.role != Some(dir::FunctionRole::Constructor) {
             continue;
         }
 

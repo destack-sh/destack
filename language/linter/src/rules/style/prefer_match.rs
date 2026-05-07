@@ -41,7 +41,7 @@ impl LintRule for PreferMatch {
 
             // only check top-level if expressions (not nested else-ifs)
             let ast::Expression::If {
-                kind: ast::IfKind::If,
+                form: ast::IfForm::If,
                 condition,
                 else_expression: Some(else_expr),
                 ..
@@ -167,7 +167,7 @@ fn collect_if_chain_for_match(
     while let Some(next_else_expression_id) = current_else_expression_id {
         let next_else_expression = ctx.tree.get(next_else_expression_id);
         if let ast::Expression::If {
-            kind: ast::IfKind::If,
+            form: ast::IfForm::If,
             condition,
             then_expression,
             else_expression: chained_else_expression,

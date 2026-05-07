@@ -1,4 +1,4 @@
-use destack_ast::{self as ast, Declaration, Name, NamespaceKind};
+use destack_ast::{self as ast, Declaration, Name, NamespaceForm};
 use destack_source::FileType;
 use destack_workspace::LintSeverity;
 
@@ -84,7 +84,7 @@ fn namespace_declaration_is_allowed(
         return true;
     };
 
-    if namespace_is_external_module(declaration.kind, Some(declaration.name)) {
+    if namespace_is_external_module(declaration.form, Some(declaration.name)) {
         return true;
     }
 
@@ -92,21 +92,21 @@ fn namespace_declaration_is_allowed(
         return false;
     }
 
-    namespace_is_declaration_context(ctx, declaration_id, declaration.ambient)
+    namespace_is_declaration_context(ctx, declaration_id, declaration.is_ambient)
 }
 
 /// Return true when one namespace declaration is an external module declaration.
-fn namespace_is_external_module(kind: NamespaceKind, name: Option<Name>) -> bool {
-    kind == NamespaceKind::Module && matches!(name, Some(Name::String(_)))
+fn namespace_is_external_module(form: NamespaceForm, name: Option<Name>) -> bool {
+    form == NamespaceForm::Module && matches!(name, Some(Name::String(_)))
 }
 
 /// Return true when one namespace declaration lives in a declaration context.
 fn namespace_is_declaration_context(
     ctx: &LintAstContext<'_>,
     declaration_id: ast::LocalNodeId<ast::Declaration>,
-    ambient: ast::Ambientness,
+    is_ambient: bool,
 ) -> bool {
-    if ambient.is_ambient() {
+    if is_ambient {
         return true;
     }
 
@@ -127,7 +127,7 @@ fn namespace_is_declaration_context(
         let Declaration::Namespace(parent_declaration) = ctx.tree.get(parent_declaration_id) else {
             continue;
         };
-        if parent_declaration.ambient.is_ambient() {
+        if parent_declaration.is_ambient {
             return true;
         }
     }

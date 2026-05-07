@@ -96,8 +96,8 @@ fn check_callback_argument(
         };
 
         // keep callbacks that are already arrows or cannot be arrows
-        if declaration.signature.kind == dir::FunctionKind::Lambda
-            || declaration.signature.cardinality == dir::FunctionCardinality::Generator
+        if declaration.signature.form == dir::FunctionForm::Lambda
+            || declaration.signature.is_generator
         {
             continue;
         }
@@ -246,7 +246,7 @@ fn collect_callback_candidates(
 
     // recurse through ternary wrappers
     if let dir::Expression::If {
-        kind: dir::IfKind::Ternary,
+        form: dir::IfForm::Ternary,
         then_expression,
         else_expression: Some(else_expression_id),
         ..

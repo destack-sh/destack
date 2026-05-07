@@ -1,4 +1,4 @@
-use destack_ast::{self as ast, DependencyItem, DependencyMode, Expression, ImportSource};
+use destack_ast::{self as ast, DependencyBinding, DependencyItem, Expression, ImportSource};
 use destack_source::Span;
 use destack_workspace::{LintSeverity, SortImportsMemberSyntax};
 
@@ -290,7 +290,7 @@ fn named_import_items(
             matches!(
                 ctx.tree.get(*item_id),
                 DependencyItem::Item {
-                    mode: DependencyMode::Item,
+                    binding: DependencyBinding::Item,
                     ..
                 }
             )
@@ -305,7 +305,7 @@ fn member_form_group(ctx: &LintAstContext<'_>, import: &ImportInfo) -> SortImpor
     }
 
     if let Some(first_item_id) = import.items.first()
-        && item_mode(ctx, *first_item_id) == Some(DependencyMode::Namespace)
+        && item_binding(ctx, *first_item_id) == Some(DependencyBinding::Namespace)
     {
         return SortImportsMemberSyntax::All;
     }
@@ -317,13 +317,13 @@ fn member_form_group(ctx: &LintAstContext<'_>, import: &ImportInfo) -> SortImpor
     SortImportsMemberSyntax::Multiple
 }
 
-/// Return the dependency mode for one import item.
-fn item_mode(
+/// Return the dependency binding for one import item.
+fn item_binding(
     ctx: &LintAstContext<'_>,
     item_id: ast::LocalNodeId<DependencyItem>,
-) -> Option<DependencyMode> {
+) -> Option<DependencyBinding> {
     match ctx.tree.get(item_id) {
-        DependencyItem::Item { mode, .. } => Some(*mode),
+        DependencyItem::Item { binding, .. } => Some(*binding),
         DependencyItem::Error => None,
     }
 }

@@ -288,7 +288,7 @@ impl<'a, 'b> NoExtraBooleanCastVisitor<'a, 'b> {
                 }
             }
             dir::Expression::If {
-                kind: dir::IfKind::Ternary,
+                form: dir::IfForm::Ternary,
                 then_expression,
                 else_expression,
                 ..
@@ -398,7 +398,7 @@ fn replacement_needs_parentheses(
                 | dir::Expression::Assign { .. }
                 | dir::Expression::AssignBinary { .. }
                 | dir::Expression::If {
-                    kind: dir::IfKind::Ternary,
+                    form: dir::IfForm::Ternary,
                     ..
                 }
                 | dir::Expression::SequenceExpression { .. }

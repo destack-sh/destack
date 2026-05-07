@@ -369,7 +369,7 @@ fn require_import_alias_fix(
         return None;
     };
     let target_text = escape_import_target(ctx.strings.get(target).as_ref());
-    let prefix = if declaration.kind == dir::DependencyKind::Type {
+    let prefix = if declaration.space == dir::DependencySpace::Type {
         "import type"
     } else {
         "import"

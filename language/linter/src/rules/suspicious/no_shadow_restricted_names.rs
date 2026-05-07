@@ -2,7 +2,7 @@ use crate::LintMeta;
 use std::sync::LazyLock;
 
 use destack_ast as ast;
-use destack_dir::LanguageSymbol;
+use destack_dir::LanguageItem;
 use destack_source::Span;
 use destack_workspace::LintSeverity;
 
@@ -58,7 +58,7 @@ const JS_GLOBALS: &[&str] = &[
 /// Sorted list of all restricted names (JS globals + language items).
 static RESTRICTED_NAMES: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
     let mut names: Vec<&'static str> = JS_GLOBALS.to_vec();
-    names.extend(LanguageSymbol::all().map(|item| item.export_name()));
+    names.extend(LanguageItem::all().map(|item| item.export_name()));
     names.sort_unstable();
     names.dedup();
     names
@@ -611,10 +611,10 @@ let isNaN = true
     }
 
     #[test]
-    fn test_detects_language_symbol_type() {
+    fn test_detects_language_item_type() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
         let result = test.lint_ast(
-            "no_shadow_restricted_names/test_detects_language_symbol_type.ds",
+            "no_shadow_restricted_names/test_detects_language_item_type.ds",
             r#"
 let Type = 42
 "#,
@@ -624,10 +624,10 @@ let Type = 42
     }
 
     #[test]
-    fn test_detects_language_symbol_add() {
+    fn test_detects_language_item_add() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
         let result = test.lint_ast(
-            "no_shadow_restricted_names/test_detects_language_symbol_add.ds",
+            "no_shadow_restricted_names/test_detects_language_item_add.ds",
             r#"
 struct Add {}
 "#,
@@ -637,10 +637,10 @@ struct Add {}
     }
 
     #[test]
-    fn test_allows_removed_language_symbol_range() {
+    fn test_allows_removed_language_item_range() {
         let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
         let result = test.lint_ast(
-            "no_shadow_restricted_names/test_allows_removed_language_symbol_range.ds",
+            "no_shadow_restricted_names/test_allows_removed_language_item_range.ds",
             r#"
 function Range() {}
 "#,

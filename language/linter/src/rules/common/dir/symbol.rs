@@ -34,7 +34,7 @@ pub fn expression_candidate_symbols(
 
     // include resolver candidates for dynamic/static lookups
     let global_expression_id = expression_id.into_global_any(local_module_id);
-    if let Some(resolution_id) = local_types.get_resolution_for_node(global_expression_id) {
+    if let Some(resolution_id) = local_types.node_resolution_id(global_expression_id) {
         let resolution = local_types.get_resolution(resolution_id);
         for symbol_id in resolution_target_symbols(resolution) {
             push_unique_symbol(&mut symbols, symbol_id);

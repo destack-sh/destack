@@ -37,7 +37,7 @@ impl LintRule for NoEmptyPattern {
 
             let is_empty = match pattern {
                 ast::Pattern::Object { fields } => fields.is_empty(),
-                ast::Pattern::Array { fields } => fields.is_empty(),
+                ast::Pattern::Sequence { fields } => fields.is_empty(),
                 ast::Pattern::Tuple { fields } => fields.is_empty(),
                 _ => false,
             };
@@ -63,7 +63,7 @@ impl LintRule for NoEmptyPattern {
 
             let kind = match pattern {
                 ast::Pattern::Object { .. } => "object",
-                ast::Pattern::Array { .. } => "array",
+                ast::Pattern::Sequence { .. } => "sequence",
                 ast::Pattern::Tuple { .. } => "tuple",
                 _ => unreachable!(),
             };

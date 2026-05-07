@@ -126,6 +126,8 @@ fn type_expression_complexity_inner(
             | TypeExpression::ArrayTuple { .. }
             | TypeExpression::Object { .. }
             | TypeExpression::Array { .. }
+            | TypeExpression::Slice { .. }
+            | TypeExpression::FixedArray { .. }
     );
     let current_depth = if increases_depth {
         current_depth + 1
@@ -142,10 +144,22 @@ fn type_expression_complexity_inner(
                 current_depth,
             ));
         }
-        TypeExpression::Array { element } => {
+        TypeExpression::Array { element } | TypeExpression::Slice { element } => {
             max_depth = max_depth.max(type_expression_complexity_inner(
                 tree,
                 *element,
+                current_depth,
+            ));
+        }
+        TypeExpression::FixedArray { element, length } => {
+            max_depth = max_depth.max(type_expression_complexity_inner(
+                tree,
+                *element,
+                current_depth,
+            ));
+            max_depth = max_depth.max(type_expression_complexity_inner(
+                tree,
+                *length,
                 current_depth,
             ));
         }

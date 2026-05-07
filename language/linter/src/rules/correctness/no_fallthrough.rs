@@ -47,12 +47,12 @@ impl LintRule for NoFallthrough {
 
         // inspect candidate expressions
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let ast::Expression::Match { kind, cases, .. } = ctx.tree.get(node_id) else {
+            let ast::Expression::Match { form, cases, .. } = ctx.tree.get(node_id) else {
                 continue;
             };
 
             // only check switch statements
-            if *kind != ast::MatchKind::Switch {
+            if *form != ast::MatchForm::Switch {
                 continue;
             }
 

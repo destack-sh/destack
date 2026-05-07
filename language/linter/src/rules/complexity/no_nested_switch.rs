@@ -35,10 +35,10 @@ impl LintRule for NoNestedSwitch {
 
         for node_id in ctx.tree.iter_nodes::<ast::Expression>() {
             // only check switch statements, not match expressions
-            let ast::Expression::Match { kind, .. } = ctx.tree.get(node_id) else {
+            let ast::Expression::Match { form, .. } = ctx.tree.get(node_id) else {
                 continue;
             };
-            if *kind != ast::MatchKind::Switch {
+            if *form != ast::MatchForm::Switch {
                 continue;
             }
             // check if this switch is nested inside another switch
@@ -95,8 +95,8 @@ fn is_nested_in_switch(
         }
 
         // check if parent is a switch statement
-        if let ast::Expression::Match { kind, .. } = parent
-            && *kind == ast::MatchKind::Switch
+        if let ast::Expression::Match { form, .. } = parent
+            && *form == ast::MatchForm::Switch
         {
             return true;
         }

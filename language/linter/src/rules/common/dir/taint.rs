@@ -215,7 +215,7 @@ impl<'a> TaintAnalysis<'a> {
             }
 
             // destructuring targets read from every nested key and target
-            dir::AssignPattern::Array { fields } | dir::AssignPattern::Object { fields } => {
+            dir::AssignPattern::Sequence { fields } | dir::AssignPattern::Object { fields } => {
                 for field_id in fields {
                     let field_labels = self.assign_pattern_field_taint_labels_inner(
                         *field_id,

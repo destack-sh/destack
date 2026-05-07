@@ -1,7 +1,7 @@
 use crate::LintMeta;
 use destack_ast::{
     self as ast, AssignOperator, BinaryOperator, Expression, FunctionSignature, LocalNodeId,
-    MatchKind, NodeVisitor, NodeVisitorOptions, PatternField, Tree, walk_expression,
+    MatchForm, NodeVisitor, NodeVisitorOptions, PatternField, Tree, walk_expression,
     walk_parameter, walk_pattern_field,
 };
 use destack_workspace::{CyclomaticComplexityVariant, LintSeverity};
@@ -216,8 +216,8 @@ impl NodeVisitor for ComplexityVisitor {
             | Expression::Loop { .. } => {
                 self.complexity += 1;
             }
-            Expression::Match { kind, cases, .. } => {
-                self.complexity += match_case_complexity(tree, *kind, cases, self.variant);
+            Expression::Match { form, cases, .. } => {
+                self.complexity += match_case_complexity(tree, *form, cases, self.variant);
             }
             Expression::Try {
                 catch_expression, ..
@@ -288,12 +288,12 @@ impl NodeVisitor for ComplexityVisitor {
 /// Return complexity increment from one match expression case set.
 fn match_case_complexity(
     tree: &Tree,
-    kind: MatchKind,
+    form: MatchForm,
     cases: &[LocalNodeId<ast::MatchCase>],
     variant: CyclomaticComplexityVariant,
 ) -> usize {
     // count switch cases according to the selected variant
-    if kind == MatchKind::Switch {
+    if form == MatchForm::Switch {
         if variant == CyclomaticComplexityVariant::Modified {
             return usize::from(!cases.is_empty());
         }
