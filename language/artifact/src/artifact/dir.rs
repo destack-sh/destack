@@ -48,8 +48,8 @@ pub struct DirExported {
 /// Expanded declaration graph for one profile-scoped module.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirExpanded {
-    /// Expansion patch applied to the declared DIR.
-    pub patch: dir::ExpansionPatch,
+    /// Patch applied to the declared DIR.
+    pub patch: dir::Patch,
     /// The strings referenced by nodes introduced in the expansion patch.
     pub strings: StringPool,
     /// The symbols introduced in the expansion patch.
@@ -70,8 +70,8 @@ pub struct DirChecked {
 /// Materialized local body semantics for one profile-scoped module.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirMaterialized {
-    /// Materialization patch produced by comptime materialization.
-    pub patch: dir::MaterializationPatch,
+    /// Patch produced by comptime materialization.
+    pub patch: dir::Patch,
     /// The strings referenced by nodes introduced in the patch.
     pub strings: StringPool,
     /// Semantic type state for nodes introduced or replaced by the patch.
@@ -81,12 +81,12 @@ pub struct DirMaterialized {
 /// Elaborated local body semantics for one profile-scoped module.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirElaborated {
-    /// Materialization patch produced by elaboration.
-    pub patch: dir::MaterializationPatch,
+    /// Patch produced by elaboration.
+    pub patch: dir::Patch,
     /// The strings referenced by nodes introduced in the patch.
     pub strings: StringPool,
     /// Semantic type state for nodes introduced or replaced by the patch.
     pub types: dir::TypeTable,
-    /// Elaborated type guard strategies.
+    /// Elaborated type guard entries.
     pub guards: dir::GuardTable,
 }
