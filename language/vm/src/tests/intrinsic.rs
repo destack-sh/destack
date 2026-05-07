@@ -170,16 +170,16 @@ b0(v0: uint32, v1: uint32):
 }
 
 #[test]
-fn test_intrinsic_atomic_cas_success_flag() {
+fn test_atomic_cas_success_flag() {
     let mir = r#"
 function test(): boolean {
 b0:
-    v0: ref<int32, raw> = raw.alloc int32
+    v0: ref<atomic<int32>, raw> = raw.alloc atomic<int32>
     v1: int32 = 10int32
-    store v0, v1
+    atomic.store v0, v1, relaxed
     v2: int32 = 10int32
     v3: int32 = 99int32
-    v4: (int32, boolean) = atomic.cas v0, v2, v3, relaxed, device, device, any
+    v4: (int32, boolean) = atomic.cas v0, v2, v3, relaxed
     v5: boolean = field.get v4, 1
     return v5
 }"#;
@@ -187,16 +187,16 @@ b0:
 }
 
 #[test]
-fn test_intrinsic_atomic_cas_success_value() {
+fn test_atomic_cas_success_value() {
     let mir = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw> = raw.alloc int32
+    v0: ref<atomic<int32>, raw> = raw.alloc atomic<int32>
     v1: int32 = 10int32
-    store v0, v1
+    atomic.store v0, v1, relaxed
     v2: int32 = 10int32
     v3: int32 = 42int32
-    v4: (int32, boolean) = atomic.cas v0, v2, v3, relaxed, device, device, any
+    v4: (int32, boolean) = atomic.cas v0, v2, v3, relaxed
     v5: int32 = field.get v4, 0
     return v5
 }"#;
@@ -204,16 +204,16 @@ b0:
 }
 
 #[test]
-fn test_intrinsic_atomic_cas_failure_flag() {
+fn test_atomic_cas_failure_flag() {
     let mir = r#"
 function test(): boolean {
 b0:
-    v0: ref<int32, raw> = raw.alloc int32
+    v0: ref<atomic<int32>, raw> = raw.alloc atomic<int32>
     v1: int32 = 10int32
-    store v0, v1
+    atomic.store v0, v1, relaxed
     v2: int32 = 11int32
     v3: int32 = 99int32
-    v4: (int32, boolean) = atomic.cas v0, v2, v3, relaxed, device, device, any
+    v4: (int32, boolean) = atomic.cas v0, v2, v3, relaxed
     v5: boolean = field.get v4, 1
     return v5
 }"#;
@@ -221,16 +221,16 @@ b0:
 }
 
 #[test]
-fn test_intrinsic_atomic_cas_weak_success() {
+fn test_atomic_cas_weak_success() {
     let mir = r#"
 function test(): boolean {
 b0:
-    v0: ref<int32, raw> = raw.alloc int32
+    v0: ref<atomic<int32>, raw> = raw.alloc atomic<int32>
     v1: int32 = 5int32
-    store v0, v1
+    atomic.store v0, v1, relaxed
     v2: int32 = 5int32
     v3: int32 = 6int32
-    v4: (int32, boolean) = atomic.cas.weak v0, v2, v3, relaxed, device, device, any
+    v4: (int32, boolean) = atomic.cas.weak v0, v2, v3, relaxed
     v5: boolean = field.get v4, 1
     return v5
 }"#;
@@ -238,16 +238,16 @@ b0:
 }
 
 #[test]
-fn test_intrinsic_atomic_fetch_umin() {
+fn test_atomic_fetch_umin() {
     let mir = r#"
 function test(): uint32 {
 b0:
-    v0: ref<uint32, raw> = raw.alloc uint32
+    v0: ref<atomic<uint32>, raw> = raw.alloc atomic<uint32>
     v1: uint32 = 40uint32
-    store v0, v1
+    atomic.store v0, v1, relaxed
     v2: uint32 = 10uint32
-    v3: uint32 = atomic.rmw.umin v0, v2, relaxed, device, device, any
-    v4: uint32 = load v0
+    v3: uint32 = atomic.rmw.umin v0, v2, relaxed
+    v4: uint32 = atomic.load v0, relaxed
     v5: uint32 = int.add v3, v4
     return v5
 }"#;
@@ -255,16 +255,16 @@ b0:
 }
 
 #[test]
-fn test_intrinsic_atomic_fetch_umax() {
+fn test_atomic_fetch_umax() {
     let mir = r#"
 function test(): uint32 {
 b0:
-    v0: ref<uint32, raw> = raw.alloc uint32
+    v0: ref<atomic<uint32>, raw> = raw.alloc atomic<uint32>
     v1: uint32 = 12uint32
-    store v0, v1
+    atomic.store v0, v1, relaxed
     v2: uint32 = 20uint32
-    v3: uint32 = atomic.rmw.umax v0, v2, relaxed, device, device, any
-    v4: uint32 = load v0
+    v3: uint32 = atomic.rmw.umax v0, v2, relaxed
+    v4: uint32 = atomic.load v0, relaxed
     v5: uint32 = int.add v3, v4
     return v5
 }"#;
@@ -272,16 +272,89 @@ b0:
 }
 
 #[test]
-fn test_intrinsic_atomic_fetch_fadd() {
+fn test_atomic_store_load_managed_heap() {
+    let mir = r#"
+function test(): int32 {
+b0:
+    v0: ref<atomic<int32>, managed> = new atomic<int32>
+    v1: int32 = 42int32
+    atomic.store v0, v1, relaxed
+    v2: int32 = atomic.load v0, relaxed
+    return v2
+}"#;
+    run_mir_expect(mir, "test", &[], Value::int32(42));
+}
+
+#[test]
+fn test_atomic_store_load_shared_heap() {
+    let mir = r#"
+function test(): int32 {
+b0:
+    v0: ref<atomic<int32>, managed, space(shared)> = new atomic<int32>
+    v1: int32 = 37int32
+    atomic.store v0, v1, relaxed
+    v2: int32 = atomic.load v0, relaxed
+    return v2
+}"#;
+    run_mir_expect(mir, "test", &[], Value::int32(37));
+}
+
+#[test]
+fn test_atomic_store_load_owned_heap() {
+    let mir = r#"
+function test(): int32 {
+b0:
+    v0: ref<atomic<int32>, owned> = new atomic<int32>
+    v1: int32 = 43int32
+    atomic.store v0, v1, relaxed
+    v2: int32 = atomic.load v0, relaxed
+    drop v0
+    return v2
+}"#;
+    run_mir_expect(mir, "test", &[], Value::int32(43));
+}
+
+#[test]
+fn test_atomic_store_load_owned_shared_heap() {
+    let mir = r#"
+function test(): int32 {
+b0:
+    v0: ref<atomic<int32>, owned, space(shared)> = new atomic<int32>
+    v1: int32 = 44int32
+    atomic.store v0, v1, relaxed
+    v2: int32 = atomic.load v0, relaxed
+    drop v0
+    return v2
+}"#;
+    run_mir_expect(mir, "test", &[], Value::int32(44));
+}
+
+#[test]
+fn test_atomic_store_load_shared_raw() {
+    let mir = r#"
+function test(): int32 {
+b0:
+    v0: ref<atomic<int32>, raw, space(shared)> = raw.alloc atomic<int32>
+    v1: int32 = 45int32
+    atomic.store v0, v1, relaxed
+    v2: int32 = atomic.load v0, relaxed
+    raw.free v0
+    return v2
+}"#;
+    run_mir_expect(mir, "test", &[], Value::int32(45));
+}
+
+#[test]
+fn test_atomic_fetch_fadd() {
     let mir = r#"
 function test(): float64 {
 b0:
-    v0: ref<float64, raw> = raw.alloc float64
+    v0: ref<atomic<float64>, raw> = raw.alloc atomic<float64>
     v1: float64 = 1.5float64
-    store v0, v1
+    atomic.store v0, v1, relaxed
     v2: float64 = 2.25float64
-    v3: float64 = atomic.rmw.fadd v0, v2, relaxed, device, device, any
-    v4: float64 = load v0
+    v3: float64 = atomic.rmw.fadd v0, v2, relaxed
+    v4: float64 = atomic.load v0, relaxed
     v5: float64 = float.add v3, v4
     return v5
 }"#;
@@ -289,16 +362,16 @@ b0:
 }
 
 #[test]
-fn test_intrinsic_atomic_fetch_fmin() {
+fn test_atomic_fetch_fmin() {
     let mir = r#"
 function test(): float64 {
 b0:
-    v0: ref<float64, raw> = raw.alloc float64
+    v0: ref<atomic<float64>, raw> = raw.alloc atomic<float64>
     v1: float64 = 3.5float64
-    store v0, v1
+    atomic.store v0, v1, relaxed
     v2: float64 = 1.25float64
-    v3: float64 = atomic.rmw.fmin v0, v2, relaxed, device, device, any
-    v4: float64 = load v0
+    v3: float64 = atomic.rmw.fmin v0, v2, relaxed
+    v4: float64 = atomic.load v0, relaxed
     v5: float64 = float.add v3, v4
     return v5
 }"#;
@@ -306,16 +379,16 @@ b0:
 }
 
 #[test]
-fn test_intrinsic_atomic_fetch_fmax() {
+fn test_atomic_fetch_fmax() {
     let mir = r#"
 function test(): float64 {
 b0:
-    v0: ref<float64, raw> = raw.alloc float64
+    v0: ref<atomic<float64>, raw> = raw.alloc atomic<float64>
     v1: float64 = 3.5float64
-    store v0, v1
+    atomic.store v0, v1, relaxed
     v2: float64 = 7.25float64
-    v3: float64 = atomic.rmw.fmax v0, v2, relaxed, device, device, any
-    v4: float64 = load v0
+    v3: float64 = atomic.rmw.fmax v0, v2, relaxed
+    v4: float64 = atomic.load v0, relaxed
     v5: float64 = float.add v3, v4
     return v5
 }"#;

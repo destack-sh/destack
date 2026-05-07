@@ -381,6 +381,10 @@ pub(crate) fn value_layout_from_type(
             None => ValueLayout::Unknown,
         },
         mir::Type::Slice { .. } => ValueLayout::FrameBytes { ty },
+        mir::Type::Atomic { value } => match value.ty() {
+            Some(value) => value_layout_from_type(tree, value),
+            None => ValueLayout::Unknown,
+        },
         mir::Type::Newtype { inner, .. } => match inner.ty() {
             Some(inner) => value_layout_from_type(tree, inner),
             None => ValueLayout::Unknown,
@@ -454,6 +458,7 @@ pub(crate) fn word_layout_from_type(
         mir::Type::FunctionSignature { .. } | mir::Type::FunctionPointer { .. } => {
             Some(WordLayout::FunctionPointer)
         }
+        mir::Type::Atomic { value } => word_layout_from_type(tree, value.ty()?),
         _ => None,
     }
 }

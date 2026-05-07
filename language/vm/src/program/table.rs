@@ -1,16 +1,15 @@
 use {destack_heap as heap, destack_mir as mir};
 
 use super::{
-    AllocationLayout, AtomicCompareExchange, AtomicFence, AtomicLoad, AtomicRmw, AtomicStore, Call,
-    CallBranch, CallIndirect, CallIndirectBranch, CallInterface, CallInterfaceBranch, CallVirtual,
-    CallVirtualBranch, CallableBind, ConstValue, FrameSelect, Intrinsic, MoveRange, Projection,
-    SliceProjection, SwitchCase, TailCall, TailCallIndirect, TailCallInterface, TailCallVirtual,
-    TensorBinary, TensorBroadcast, TensorConcat, TensorContiguousBinary, TensorContiguousUnary,
-    TensorConvert, TensorConvolution, TensorCopy, TensorDot, TensorExtract, TensorFill,
-    TensorGather, TensorLayout, TensorLoad, TensorPad, TensorReduce, TensorReshape, TensorScatter,
-    TensorSelect, TensorSlice, TensorStore, TensorTranspose, TensorUnary, TensorView, VectorBinary,
-    VectorConvert, VectorExtract, VectorInsert, VectorReduce, VectorSelect, VectorShuffle,
-    VectorSplat, VectorUnary,
+    AllocationLayout, AtomicCompareExchange, Call, CallBranch, CallIndirect, CallIndirectBranch,
+    CallInterface, CallInterfaceBranch, CallVirtual, CallVirtualBranch, CallableBind, ConstValue,
+    FrameSelect, Intrinsic, MoveRange, Projection, SliceProjection, SwitchCase, TailCall,
+    TailCallIndirect, TailCallInterface, TailCallVirtual, TensorBinary, TensorBroadcast,
+    TensorConcat, TensorContiguousBinary, TensorContiguousUnary, TensorConvert, TensorConvolution,
+    TensorCopy, TensorDot, TensorExtract, TensorFill, TensorGather, TensorLayout, TensorLoad,
+    TensorPad, TensorReduce, TensorReshape, TensorScatter, TensorSelect, TensorSlice, TensorStore,
+    TensorTranspose, TensorUnary, TensorView, VectorBinary, VectorConvert, VectorExtract,
+    VectorInsert, VectorReduce, VectorSelect, VectorShuffle, VectorSplat, VectorUnary,
 };
 
 /// Identifier for one pooled check constraint.
@@ -262,11 +261,7 @@ macro_rules! side_record_table {
 
 side_record_table! {
     frame_select: FrameSelect,
-    atomic_load: AtomicLoad,
-    atomic_store: AtomicStore,
-    atomic_rmw: AtomicRmw,
     atomic_compare_exchange: AtomicCompareExchange,
-    atomic_fence: AtomicFence,
     vector_splat: VectorSplat,
     vector_extract: VectorExtract,
     vector_binary: VectorBinary,

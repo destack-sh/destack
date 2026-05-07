@@ -902,38 +902,16 @@ pub(crate) enum Op {
     BarrierWriteHeap,
     /// Record a shared heap reference write.
     BarrierWriteSharedHeap,
-    /// Atomically load one word.
+    /// Atomically load one scalar value.
     AtomicLoad,
-    /// Atomically store one word.
+    /// Atomically store one scalar value.
     AtomicStore,
-    /// Atomically compare and exchange one word.
-    AtomicCompareExchange,
-    /// Atomically exchange one word.
+    /// Atomically exchange one scalar value.
     AtomicExchange,
-    /// Atomically add one word.
-    AtomicAdd,
-    /// Atomically subtract one word.
-    AtomicSub,
-    /// Atomically and one word.
-    AtomicAnd,
-    /// Atomically or one word.
-    AtomicOr,
-    /// Atomically xor one word.
-    AtomicXor,
-    /// Atomically signed min one word.
-    AtomicMin,
-    /// Atomically signed max one word.
-    AtomicMax,
-    /// Atomically unsigned min one word.
-    AtomicUmin,
-    /// Atomically unsigned max one word.
-    AtomicUmax,
-    /// Atomically add one float word.
-    AtomicFadd,
-    /// Atomically min one float word.
-    AtomicFmin,
-    /// Atomically max one float word.
-    AtomicFmax,
+    /// Atomically compare and exchange one scalar value.
+    AtomicCompareExchange,
+    /// Atomically update one scalar value.
+    AtomicReadModifyWrite,
     /// Execute an atomic fence.
     AtomicFence,
 

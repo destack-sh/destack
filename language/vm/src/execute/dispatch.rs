@@ -978,36 +978,33 @@ macro_rules! dispatch_instruction {
             Op::BranchGeF64 => $transfer!(super::execute_branch_ge_f64($machine, instruction)),
             Op::Switch => $transfer!(super::execute_switch($machine, instruction)),
             Op::SwitchTable => $transfer!(super::execute_switch_table($machine, instruction)),
+            Op::Check => $transfer!(super::execute_check($machine, instruction)),
             Op::Assume => $step!(super::execute_assume($machine, instruction)),
+            Op::BarrierWriteHeap => {
+                $step!(super::execute_barrier_write_heap($machine, instruction))
+            }
+            Op::BarrierWriteSharedHeap => {
+                $step!(super::execute_barrier_write_shared_heap(
+                    $machine,
+                    instruction
+                ))
+            }
+            Op::AtomicLoad => $step!(super::execute_atomic_load($machine, instruction)),
+            Op::AtomicStore => $step!(super::execute_atomic_store($machine, instruction)),
+            Op::AtomicExchange => $step!(super::execute_atomic_exchange($machine, instruction)),
             Op::AtomicCompareExchange => {
                 $step!(super::execute_atomic_compare_exchange(
                     $machine,
                     instruction
                 ))
             }
+            Op::AtomicReadModifyWrite => {
+                $step!(super::execute_atomic_read_modify_write(
+                    $machine,
+                    instruction
+                ))
+            }
             Op::AtomicFence => $step!(super::execute_atomic_fence($machine, instruction)),
-            Op::AtomicLoad => $step!(super::execute_atomic_load($machine, instruction)),
-            Op::AtomicStore => $step!(super::execute_atomic_store($machine, instruction)),
-            Op::AtomicExchange => $step!(super::execute_atomic_exchange($machine, instruction)),
-            Op::AtomicAdd => $step!(super::execute_atomic_add($machine, instruction)),
-            Op::AtomicSub => $step!(super::execute_atomic_sub($machine, instruction)),
-            Op::AtomicAnd => $step!(super::execute_atomic_and($machine, instruction)),
-            Op::AtomicOr => $step!(super::execute_atomic_or($machine, instruction)),
-            Op::AtomicXor => $step!(super::execute_atomic_xor($machine, instruction)),
-            Op::AtomicMin => $step!(super::execute_atomic_min($machine, instruction)),
-            Op::AtomicMax => $step!(super::execute_atomic_max($machine, instruction)),
-            Op::AtomicUmin => $step!(super::execute_atomic_umin($machine, instruction)),
-            Op::AtomicUmax => $step!(super::execute_atomic_umax($machine, instruction)),
-            Op::AtomicFadd => $step!(super::execute_atomic_fadd($machine, instruction)),
-            Op::AtomicFmin => $step!(super::execute_atomic_fmin($machine, instruction)),
-            Op::AtomicFmax => $step!(super::execute_atomic_fmax($machine, instruction)),
-            Op::BarrierWriteHeap => {
-                $step!(super::execute_barrier_write_heap($machine, instruction))
-            }
-            Op::BarrierWriteSharedHeap => {
-                $step!({ super::execute_barrier_write_shared_heap($machine, instruction) })
-            }
-            Op::Check => $transfer!(super::execute_check($machine, instruction)),
             Op::Intrinsic => $step!(super::execute_intrinsic($machine, instruction)),
             Op::ReturnWord => $transfer!(super::execute_return_word($machine, instruction)),
             Op::ReturnAddress => $transfer!(super::execute_return_address($machine, instruction)),
@@ -1019,335 +1016,12 @@ macro_rules! dispatch_instruction {
             Op::TensorConvolution => {
                 $step!(super::execute_tensor_convolution($machine, instruction))
             }
-            Op::TensorCopyHeapFromHeap => {
-                $step!(super::execute_tensor_copy_heap_from_heap(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyHeapFromSharedHeap => {
-                $step!(super::execute_tensor_copy_heap_from_shared_heap(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyHeapFromRaw => {
-                $step!(super::execute_tensor_copy_heap_from_raw(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyHeapFromSharedRaw => {
-                $step!(super::execute_tensor_copy_heap_from_shared_raw(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyHeapFromStack => {
-                $step!(super::execute_tensor_copy_heap_from_stack(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyHeapFromFrame => {
-                $step!(super::execute_tensor_copy_heap_from_frame(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyHeapFromStatic => {
-                $step!(super::execute_tensor_copy_heap_from_static(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopySharedHeapFromHeap => {
-                $step!(super::execute_tensor_copy_shared_heap_from_heap(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopySharedHeapFromSharedHeap => {
-                $step!(super::execute_tensor_copy_shared_heap_from_shared_heap(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopySharedHeapFromRaw => {
-                $step!(super::execute_tensor_copy_shared_heap_from_raw(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopySharedHeapFromSharedRaw => {
-                $step!(super::execute_tensor_copy_shared_heap_from_shared_raw(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopySharedHeapFromStack => {
-                $step!(super::execute_tensor_copy_shared_heap_from_stack(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopySharedHeapFromFrame => {
-                $step!(super::execute_tensor_copy_shared_heap_from_frame(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopySharedHeapFromStatic => {
-                $step!(super::execute_tensor_copy_shared_heap_from_static(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyRawFromHeap => {
-                $step!(super::execute_tensor_copy_raw_from_heap(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyRawFromSharedHeap => {
-                $step!(super::execute_tensor_copy_raw_from_shared_heap(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyRawFromRaw => {
-                $step!(super::execute_tensor_copy_raw_from_raw(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyRawFromSharedRaw => {
-                $step!(super::execute_tensor_copy_raw_from_shared_raw(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyRawFromStack => {
-                $step!(super::execute_tensor_copy_raw_from_stack(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyRawFromFrame => {
-                $step!(super::execute_tensor_copy_raw_from_frame(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyRawFromStatic => {
-                $step!(super::execute_tensor_copy_raw_from_static(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopySharedRawFromHeap => {
-                $step!(super::execute_tensor_copy_shared_raw_from_heap(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopySharedRawFromSharedHeap => {
-                $step!(super::execute_tensor_copy_shared_raw_from_shared_heap(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopySharedRawFromRaw => {
-                $step!(super::execute_tensor_copy_shared_raw_from_raw(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopySharedRawFromSharedRaw => {
-                $step!(super::execute_tensor_copy_shared_raw_from_shared_raw(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopySharedRawFromStack => {
-                $step!(super::execute_tensor_copy_shared_raw_from_stack(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopySharedRawFromFrame => {
-                $step!(super::execute_tensor_copy_shared_raw_from_frame(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopySharedRawFromStatic => {
-                $step!(super::execute_tensor_copy_shared_raw_from_static(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyStackFromHeap => {
-                $step!(super::execute_tensor_copy_stack_from_heap(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyStackFromSharedHeap => {
-                $step!(super::execute_tensor_copy_stack_from_shared_heap(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyStackFromRaw => {
-                $step!(super::execute_tensor_copy_stack_from_raw(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyStackFromSharedRaw => {
-                $step!(super::execute_tensor_copy_stack_from_shared_raw(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyStackFromStack => {
-                $step!(super::execute_tensor_copy_stack_from_stack(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyStackFromFrame => {
-                $step!(super::execute_tensor_copy_stack_from_frame(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyStackFromStatic => {
-                $step!(super::execute_tensor_copy_stack_from_static(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyFrameFromHeap => {
-                $step!(super::execute_tensor_copy_frame_from_heap(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyFrameFromSharedHeap => {
-                $step!(super::execute_tensor_copy_frame_from_shared_heap(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyFrameFromRaw => {
-                $step!(super::execute_tensor_copy_frame_from_raw(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyFrameFromSharedRaw => {
-                $step!(super::execute_tensor_copy_frame_from_shared_raw(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyFrameFromStack => {
-                $step!(super::execute_tensor_copy_frame_from_stack(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyFrameFromFrame => {
-                $step!(super::execute_tensor_copy_frame_from_frame(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyFrameFromStatic => {
-                $step!(super::execute_tensor_copy_frame_from_static(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyStaticFromHeap => {
-                $step!(super::execute_tensor_copy_static_from_heap(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyStaticFromSharedHeap => {
-                $step!(super::execute_tensor_copy_static_from_shared_heap(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyStaticFromRaw => {
-                $step!(super::execute_tensor_copy_static_from_raw(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyStaticFromSharedRaw => {
-                $step!(super::execute_tensor_copy_static_from_shared_raw(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyStaticFromStack => {
-                $step!(super::execute_tensor_copy_static_from_stack(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyStaticFromFrame => {
-                $step!(super::execute_tensor_copy_static_from_frame(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorCopyStaticFromStatic => {
-                $step!(super::execute_tensor_copy_static_from_static(
-                    $machine,
-                    instruction
-                ))
-            }
+            Op::TensorCopy => $step!(super::execute_tensor_copy($machine, instruction)),
             Op::TensorDot => $step!(super::execute_tensor_dot($machine, instruction)),
-            Op::TensorFillHeap => $step!(super::execute_tensor_fill_heap($machine, instruction)),
-            Op::TensorFillSharedHeap => {
-                $step!(super::execute_tensor_fill_shared_heap(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorFillRaw => $step!(super::execute_tensor_fill_raw($machine, instruction)),
-            Op::TensorFillSharedRaw => {
-                $step!(super::execute_tensor_fill_shared_raw($machine, instruction))
-            }
-            Op::TensorFillStack => $step!(super::execute_tensor_fill_stack($machine, instruction)),
-            Op::TensorFillFrame => $step!(super::execute_tensor_fill_frame($machine, instruction)),
-            Op::TensorFillStatic => {
-                $step!(super::execute_tensor_fill_static($machine, instruction))
-            }
+            Op::TensorFill => $step!(super::execute_tensor_fill($machine, instruction)),
             Op::TensorGather => $step!(super::execute_tensor_gather($machine, instruction)),
             Op::TensorExtract => $step!(super::execute_tensor_extract($machine, instruction)),
-            Op::TensorLoadHeap => $step!(super::execute_tensor_load_heap($machine, instruction)),
-            Op::TensorLoadSharedHeap => {
-                $step!(super::execute_tensor_load_shared_heap(
-                    $machine,
-                    instruction
-                ))
-            }
-            Op::TensorLoadRaw => $step!(super::execute_tensor_load_raw($machine, instruction)),
-            Op::TensorLoadSharedRaw => {
-                $step!(super::execute_tensor_load_shared_raw($machine, instruction))
-            }
-            Op::TensorLoadStack => $step!(super::execute_tensor_load_stack($machine, instruction)),
-            Op::TensorLoadFrame => $step!(super::execute_tensor_load_frame($machine, instruction)),
-            Op::TensorLoadStatic => {
-                $step!(super::execute_tensor_load_static($machine, instruction))
-            }
+            Op::TensorLoad => $step!(super::execute_tensor_load($machine, instruction)),
             Op::TensorSplat => $step!(super::execute_tensor_splat($machine, instruction)),
             Op::TensorPad => $step!(super::execute_tensor_pad($machine, instruction)),
             Op::TensorReduce => $step!(super::execute_tensor_reduce($machine, instruction)),

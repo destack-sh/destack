@@ -1,4 +1,5 @@
 mod allocation;
+mod atomic;
 mod cast;
 mod constant;
 mod function;
@@ -17,6 +18,7 @@ mod transfer;
 mod value;
 
 pub(crate) use allocation::*;
+pub(crate) use atomic::*;
 pub(crate) use cast::*;
 pub(crate) use constant::*;
 pub(crate) use function::*;

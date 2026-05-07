@@ -284,37 +284,15 @@ impl<'a> BlockLowerer<'a> {
             mir::Instruction::AtomicLoad {
                 destination,
                 pointer,
-                ordering,
-                scope,
-                memory_scope,
-                flags,
+                access,
                 ..
-            } => self.lower_atomic_load(
-                pool,
-                *destination,
-                *pointer,
-                *ordering,
-                *scope,
-                *memory_scope,
-                *flags,
-            )?,
+            } => self.lower_atomic_load(pool, *destination, *pointer, *access)?,
 
             mir::Instruction::AtomicStore {
                 pointer,
                 value,
-                ordering,
-                scope,
-                memory_scope,
-                flags,
-            } => self.lower_atomic_store(
-                pool,
-                *pointer,
-                *value,
-                *ordering,
-                *scope,
-                *memory_scope,
-                *flags,
-            )?,
+                access,
+            } => self.lower_atomic_store(pool, *pointer, *value, *access)?,
 
             mir::Instruction::AtomicCompareExchange {
                 destination,
@@ -322,10 +300,7 @@ impl<'a> BlockLowerer<'a> {
                 expected,
                 new_value,
                 is_weak,
-                ordering,
-                scope,
-                memory_scope,
-                flags,
+                access,
             } => self.lower_atomic_compare_exchange(
                 pool,
                 *destination,
@@ -333,10 +308,7 @@ impl<'a> BlockLowerer<'a> {
                 *expected,
                 *new_value,
                 *is_weak,
-                *ordering,
-                *scope,
-                *memory_scope,
-                *flags,
+                *access,
             )?,
 
             mir::Instruction::AtomicRmw {
@@ -344,28 +316,10 @@ impl<'a> BlockLowerer<'a> {
                 operator,
                 pointer,
                 value,
-                ordering,
-                scope,
-                memory_scope,
-                flags,
-            } => self.lower_atomic_rmw(
-                pool,
-                *destination,
-                *operator,
-                *pointer,
-                *value,
-                *ordering,
-                *scope,
-                *memory_scope,
-                *flags,
-            )?,
+                access,
+            } => self.lower_atomic_rmw(pool, *destination, *operator, *pointer, *value, *access)?,
 
-            mir::Instruction::AtomicFence {
-                ordering,
-                scope,
-                memory_scope,
-                flags,
-            } => self.lower_atomic_fence(pool, *ordering, *scope, *memory_scope, *flags),
+            mir::Instruction::AtomicFence { access } => self.lower_atomic_fence(pool, *access),
 
             mir::Instruction::BarrierWrite {
                 object,
