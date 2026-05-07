@@ -1,5 +1,7 @@
 import {
     type Declaration,
+    type Expression,
+    type Node,
     type Scope,
     type Symbol,
 } from "../../reflect/dir/index.ds";
@@ -43,52 +45,75 @@ export newtype PatchRemove = {
     symbol: Symbol;
 };
 
-/// One static patch operation.
-export newtype Patch =
+/// Patch that replaces a function or method body.
+export newtype PatchBody = {
+    kind: "body";
+    symbol: Symbol;
+    body: Expression;
+};
+
+/// Patch that replaces one expression.
+export newtype PatchExpression = {
+    kind: "expression";
+    target: Expression;
+    value: Expression;
+};
+
+/// Patch that removes an already declared node from a checked shape.
+export newtype PatchRemoveNode = {
+    kind: "remove-node";
+    target: Node;
+};
+
+/// One declaration expansion patch operation.
+export newtype ExpandPatch =
     | PatchAdd
     | PatchReplace
     | PatchRename
     | PatchRemove;
 
 extension of Patch {
-    /// Create an add patch.
-    static add(input: { scope: Scope; declaration: Declaration }): Patch {
-        Patch(PatchAdd({
+    /// Create an expansion add patch.
+    static add(input: { scope: Scope; declaration: Declaration }): ExpandPatch {
+        ExpandPatch(PatchAdd({
             kind: "add",
             scope: input.scope,
             declaration: input.declaration,
         }))
     }
 
-    /// Create a replace patch.
-    static replace(input: { symbol: Symbol; declaration: Declaration }): Patch {
-        Patch(PatchReplace({
+    /// Create an expansion replace patch.
+    static replace(input: { symbol: Symbol; declaration: Declaration }): ExpandPatch {
+        ExpandPatch(PatchReplace({
             kind: "replace",
             symbol: input.symbol,
             declaration: input.declaration,
         }))
     }
 
-    /// Create a rename patch.
-    static rename(input: { symbol: Symbol; name: string }): Patch {
-        Patch(PatchRename({
+    /// Create an expansion rename patch.
+    static rename(input: { symbol: Symbol; name: string }): ExpandPatch {
+        ExpandPatch(PatchRename({
             kind: "rename",
             symbol: input.symbol,
             name: input.name,
         }))
     }
 
-    /// Create a remove patch.
-    static remove(input: { symbol: Symbol }): Patch {
-        Patch(PatchRemove({
+    /// Create an expansion remove patch.
+    static remove(input: { symbol: Symbol }): ExpandPatch {
+        ExpandPatch(PatchRemove({
             kind: "remove",
             symbol: input.symbol,
         }))
     }
 }
 
-/// Protocol for decorator values that provide patches.
+/// Protocol for decorator values that provide static patches.
 export newtype interface Patcher<Target> {
-    /// Return the patches for the decorated target.
-    static patch(target: Target, context: PatchContext, config: this): Patch[];
+    /// Return declaration expansion patches for the decorated target.
+    static expand(target: Target, context: PatchContext, config: this): Patch[];
+
+    /// Return checked materialization patches for the decorated target.
+    static materialize(target: Target, context: PatchContext, config: this): Patch[];
 }
