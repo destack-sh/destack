@@ -306,6 +306,7 @@ pub(crate) fn get_symbol_declaration_span(
 fn symbol_index_kind_for_declaration(declaration: &dir::Declaration) -> SymbolEntryKind {
     match declaration {
         dir::Declaration::Global { .. } => SymbolEntryKind::Namespace,
+        dir::Declaration::Module { .. } => SymbolEntryKind::Namespace,
         dir::Declaration::Function { .. } => SymbolEntryKind::Function,
         dir::Declaration::Struct { .. } => SymbolEntryKind::Struct,
         dir::Declaration::Class { .. } => SymbolEntryKind::Class,

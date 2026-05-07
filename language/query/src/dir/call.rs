@@ -171,7 +171,7 @@ fn call_target_symbols(
         module_id: ctx.module_id(),
         local_id: expression_id.into(),
     };
-    let Some(resolution_id) = ctx.dir().types().get_resolution_for_node(node_id) else {
+    let Some(resolution_id) = ctx.dir().types().node_resolution_id(node_id) else {
         return targets;
     };
 

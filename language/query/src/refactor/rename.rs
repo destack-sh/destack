@@ -487,7 +487,7 @@ fn rename_pattern_binding_name(
         }
         dir::Pattern::Tuple { .. }
         | dir::Pattern::TaggedTuple { .. }
-        | dir::Pattern::Array { .. }
+        | dir::Pattern::Sequence { .. }
         | dir::Pattern::Object { .. }
         | dir::Pattern::TaggedObject { .. }
         | dir::Pattern::Union { .. }

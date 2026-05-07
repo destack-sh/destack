@@ -141,7 +141,7 @@ fn import_clause_info(
     target_span: Option<Span>,
 ) -> Option<ImportClauseInfo> {
     // require an import expression
-    let ast::Expression::Import { items, kind, .. } = expr else {
+    let ast::Expression::Import { items, space, .. } = expr else {
         return None;
     };
     let items = items.as_ref()?;
@@ -154,23 +154,23 @@ fn import_clause_info(
     // detect cursor inside the clause braces
     let cursor_in_clause = offset >= open_brace.end && offset <= end_boundary.start;
 
-    // collect existing names and detect item kind under the cursor
+    // collect existing names and detect item space under the cursor
     let mut existing_names = Vec::new();
-    let mut in_item_kind = None;
+    let mut in_item_space = None;
 
     for item_id in items {
         let item = ast.tree().get(*item_id);
         let span = ast.tree().source_map.get(item_id.id);
 
-        let (item_kind, item_name, item_alias) = match item {
+        let (item_space, item_name, item_alias) = match item {
             ast::DependencyItem::Item {
-                kind, name, alias, ..
-            } => (*kind, *name, *alias),
+                space, name, alias, ..
+            } => (*space, *name, *alias),
             ast::DependencyItem::Error => continue,
         };
 
         if span.contains(offset) {
-            in_item_kind = item_kind;
+            in_item_space = item_space;
             continue;
         }
 
@@ -183,7 +183,7 @@ fn import_clause_info(
         }
     }
 
-    if !cursor_in_clause && in_item_kind.is_none() {
+    if !cursor_in_clause && in_item_space.is_none() {
         return None;
     }
 
@@ -202,11 +202,11 @@ fn import_clause_info(
         false
     };
 
-    let space_filter = match kind {
-        ast::DependencyKind::Type => Some(dir::SymbolSpace::Type),
-        ast::DependencyKind::Value => match in_item_kind {
-            Some(ast::DependencyKind::Type) => Some(dir::SymbolSpace::Type),
-            Some(ast::DependencyKind::Value) => Some(dir::SymbolSpace::Value),
+    let space_filter = match space {
+        ast::DependencySpace::Type => Some(dir::SymbolSpace::Type),
+        ast::DependencySpace::Value => match in_item_space {
+            Some(ast::DependencySpace::Type) => Some(dir::SymbolSpace::Type),
+            Some(ast::DependencySpace::Value) => Some(dir::SymbolSpace::Value),
             None if cursor_is_type => Some(dir::SymbolSpace::Type),
             None => None,
         },

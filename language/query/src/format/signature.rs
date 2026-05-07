@@ -71,8 +71,9 @@ pub fn format_declaration_signature(
             strings,
         ),
         dir::Declaration::Global(_) => format!("{declaration_prefix}global"),
+        dir::Declaration::Module(_) => format!("{declaration_prefix}module"),
         dir::Declaration::ImportAlias(declaration) => {
-            format_import_alias(&name, declaration.kind, &declaration_prefix)
+            format_import_alias(&name, declaration.space, &declaration_prefix)
         }
         dir::Declaration::Struct(declaration) => {
             let generics_text = format_generics(
@@ -216,8 +217,8 @@ fn format_declaration_prefix(declaration: &dir::Declaration) -> String {
     format!("{export_prefix}{declare_prefix}{abstract_prefix}")
 }
 
-fn format_import_alias(name: &str, kind: dir::DependencyKind, export_prefix: &str) -> String {
-    let import_prefix = if kind == dir::DependencyKind::Type {
+fn format_import_alias(name: &str, kind: dir::DependencySpace, export_prefix: &str) -> String {
+    let import_prefix = if kind == dir::DependencySpace::Type {
         "import type "
     } else {
         "import "
@@ -517,8 +518,9 @@ pub fn format_symbol_signature(
             strings,
         ),
         dir::Declaration::Global(_) => format!("{declaration_prefix}global"),
+        dir::Declaration::Module(_) => format!("{declaration_prefix}module"),
         dir::Declaration::ImportAlias(declaration) => {
-            format_import_alias(&name, declaration.kind, &declaration_prefix)
+            format_import_alias(&name, declaration.space, &declaration_prefix)
         }
         dir::Declaration::Struct(declaration) => {
             let generics_text = format_generics(

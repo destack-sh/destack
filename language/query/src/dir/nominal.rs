@@ -140,7 +140,7 @@ fn recorded_member_resolution(
         module_id: dir.module_id(),
         local_id: expression_id.into(),
     };
-    let resolution_id = types.get_resolution_for_node(node_id)?;
+    let resolution_id = types.node_resolution_id(node_id)?;
 
     let resolution = types.get_resolution(resolution_id);
     match resolution {

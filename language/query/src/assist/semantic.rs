@@ -157,6 +157,7 @@ pub fn semantic_tokens(
         // determine token type from declaration kind
         let token_type = match declaration {
             dir::Declaration::Global(_) => SemanticTokenType::Namespace,
+            dir::Declaration::Module(_) => SemanticTokenType::Namespace,
             dir::Declaration::Function(_) => SemanticTokenType::Function,
             dir::Declaration::Struct(_) => SemanticTokenType::Struct,
             dir::Declaration::Class(_) => SemanticTokenType::Class,
@@ -164,9 +165,9 @@ pub fn semantic_tokens(
             dir::Declaration::Enum(_) => SemanticTokenType::Enum,
             dir::Declaration::Namespace(_) => SemanticTokenType::Namespace,
             dir::Declaration::Type(_) => SemanticTokenType::Type,
-            dir::Declaration::ImportAlias(declaration) => match declaration.kind {
-                dir::DependencyKind::Type => SemanticTokenType::Type,
-                dir::DependencyKind::Value => SemanticTokenType::Namespace,
+            dir::Declaration::ImportAlias(declaration) => match declaration.space {
+                dir::DependencySpace::Type => SemanticTokenType::Type,
+                dir::DependencySpace::Value => SemanticTokenType::Namespace,
             },
             dir::Declaration::Extension(_) => SemanticTokenType::Type,
         };

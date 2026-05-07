@@ -361,7 +361,7 @@ pub fn format_type(
         }
         dir::Type::Function {
             asynchrony,
-            cardinality: _,
+            is_generator: _,
             generic_parameters,
             this_parameter,
             parameters,

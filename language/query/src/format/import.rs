@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use destack_ast::{DependencyItem, DependencyKind, LocalNodeId, Tree};
+use destack_ast::{DependencyItem, DependencySpace, LocalNodeId, Tree};
 use destack_core::{ImmutableStringPool, StringId};
 use destack_workspace::ImportSortOrder;
 
@@ -93,7 +93,7 @@ pub fn sort_import_declaration_indices(keys: &[ImportDeclarationKey<'_>]) -> Vec
     result
 }
 
-/// Return dependency items sorted by kind and configured key order.
+/// Return dependency items sorted by space and configured key order.
 pub fn sort_dependency_items(
     items: &[LocalNodeId<DependencyItem>],
     tree: &Tree,
@@ -106,8 +106,8 @@ pub fn sort_dependency_items(
         let right_item = tree.get(*right_id);
 
         // type imports come before value imports
-        let left_is_type = dependency_item_kind(left_item) == Some(DependencyKind::Type);
-        let right_is_type = dependency_item_kind(right_item) == Some(DependencyKind::Type);
+        let left_is_type = dependency_item_space(left_item) == Some(DependencySpace::Type);
+        let right_is_type = dependency_item_space(right_item) == Some(DependencySpace::Type);
         match (left_is_type, right_is_type) {
             (true, false) => return Ordering::Less,
             (false, true) => return Ordering::Greater,
@@ -136,10 +136,10 @@ fn is_alias_specifier(specifier: &str) -> bool {
     specifier.starts_with("@/") || specifier.starts_with("~/") || specifier.starts_with('#')
 }
 
-/// Return one dependency item's kind when the item is valid.
-fn dependency_item_kind(item: &DependencyItem) -> Option<DependencyKind> {
+/// Return one dependency item's space when the item is valid.
+fn dependency_item_space(item: &DependencyItem) -> Option<DependencySpace> {
     match item {
-        DependencyItem::Item { kind, .. } => *kind,
+        DependencyItem::Item { space, .. } => *space,
         DependencyItem::Error => None,
     }
 }

@@ -310,9 +310,12 @@ fn enum_field_to_document_symbol(
 
 /// Resolve the display name for an AST declaration.
 fn declaration_display_name_ast(strings: &StringPool, declaration: &ast::Declaration) -> String {
-    // default global declarations to the keyword label
+    // default block declarations to keyword labels
     if matches!(declaration, ast::Declaration::Global(_)) {
         return "global".to_string();
+    }
+    if matches!(declaration, ast::Declaration::Module(_)) {
+        return "module".to_string();
     }
 
     // prefer the explicit declaration name when available
@@ -326,6 +329,7 @@ fn declaration_display_name_ast(strings: &StringPool, declaration: &ast::Declara
 fn declaration_symbol_kind_ast(declaration: &ast::Declaration) -> SymbolKind {
     match declaration {
         ast::Declaration::Global(_) => SymbolKind::Namespace,
+        ast::Declaration::Module(_) => SymbolKind::Namespace,
         ast::Declaration::Function(_) => SymbolKind::Function,
         ast::Declaration::Struct(_) => SymbolKind::Struct,
         ast::Declaration::Class(_) => SymbolKind::Class,
@@ -333,9 +337,9 @@ fn declaration_symbol_kind_ast(declaration: &ast::Declaration) -> SymbolKind {
         ast::Declaration::Enum(_) => SymbolKind::Enum,
         ast::Declaration::Namespace(_) => SymbolKind::Namespace,
         ast::Declaration::Type(_) => SymbolKind::TypeParameter,
-        ast::Declaration::ImportAlias(declaration) => match declaration.kind {
-            ast::DependencyKind::Type => SymbolKind::TypeParameter,
-            ast::DependencyKind::Value => SymbolKind::Variable,
+        ast::Declaration::ImportAlias(declaration) => match declaration.space {
+            ast::DependencySpace::Type => SymbolKind::TypeParameter,
+            ast::DependencySpace::Value => SymbolKind::Variable,
         },
         ast::Declaration::Extension(_) => SymbolKind::Class,
     }

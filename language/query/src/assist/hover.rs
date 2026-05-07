@@ -274,7 +274,7 @@ fn resolve_hover_type_text(
 
     // map the hover node to a type id
     let type_id = match hover_node_id.ty {
-        NodeType::Pattern => types.get_type_id_for_symbol(symbols, symbol_id),
+        NodeType::Pattern => types.symbol_type_id(symbols, symbol_id),
         NodeType::Member | NodeType::EnumField | NodeType::Parameter => {
             ctx.dir().node_type_id(hover_node_id)
         }

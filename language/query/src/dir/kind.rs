@@ -1,4 +1,4 @@
-use destack_dir::{Declaration, DependencyKind, Member, TypeMember};
+use destack_dir::{Declaration, DependencySpace, Member, TypeMember};
 use serde::{Deserialize, Serialize};
 
 /// Kind of a symbol in navigation queries.
@@ -62,6 +62,7 @@ pub enum SymbolKind {
 pub(crate) fn declaration_symbol_kind(declaration: &Declaration) -> SymbolKind {
     match declaration {
         Declaration::Global(_) => SymbolKind::Namespace,
+        Declaration::Module(_) => SymbolKind::Namespace,
         Declaration::Function(_) => SymbolKind::Function,
         Declaration::Struct(_) => SymbolKind::Struct,
         Declaration::Class(_) => SymbolKind::Class,
@@ -69,9 +70,9 @@ pub(crate) fn declaration_symbol_kind(declaration: &Declaration) -> SymbolKind {
         Declaration::Enum(_) => SymbolKind::Enum,
         Declaration::Namespace(_) => SymbolKind::Namespace,
         Declaration::Type(_) => SymbolKind::TypeParameter,
-        Declaration::ImportAlias(declaration) => match declaration.kind {
-            DependencyKind::Type => SymbolKind::TypeParameter,
-            DependencyKind::Value => SymbolKind::Variable,
+        Declaration::ImportAlias(declaration) => match declaration.space {
+            DependencySpace::Type => SymbolKind::TypeParameter,
+            DependencySpace::Value => SymbolKind::Variable,
         },
         Declaration::Extension(_) => SymbolKind::Class,
     }

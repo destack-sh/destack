@@ -128,12 +128,12 @@ fn get_receiver_type(
 ) -> Option<dir::LocalTypeId> {
     let types = dir.types();
     let symbol_type_id = receiver_symbol
-        .and_then(|receiver_symbol| types.get_type_id_for_symbol(dir.symbols(), receiver_symbol));
+        .and_then(|receiver_symbol| types.symbol_type_id(dir.symbols(), receiver_symbol));
 
     concrete_type_id(
         types,
         types
-            .get_member_receiver_type_id_for_node(receiver_global)
+            .member_receiver_type_id(receiver_global)
             .or_else(|| types.get_declared_or_inferred_type_id(receiver_global))
             .or(symbol_type_id),
     )

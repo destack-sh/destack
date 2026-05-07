@@ -18,8 +18,8 @@ use crate::core::{
     query_context, query_context_for_profile, repository_import_relevance,
 };
 use crate::dir::{
-    ImportEditMode, MemberInfo, MemberKind, MemberName, build_import_display_path,
-    build_import_edits_with_mode, doc_text_for_symbol, get_canonical_symbol,
+    ImportEditSpace, MemberInfo, MemberKind, MemberName, build_import_display_path,
+    build_import_edits, doc_text_for_symbol, get_canonical_symbol,
     matches_import_clause_space_filter, matches_symbol_space_filter, module_name_from_path,
     parameter_names_for_symbol, resolve_extension_members_for_symbol, resolve_reference_members,
     resolve_type_members, search_importable_symbols, visible_symbols,
@@ -508,7 +508,7 @@ impl<'a> CompletionBuilder<'a> {
         let ctx = self.query_context_for_module(symbol_id.module_id)?;
         let types = ctx.dir().types();
         let symbols = ctx.dir().symbols();
-        let type_id = types.get_type_id_for_symbol(symbols, symbol_id)?;
+        let type_id = types.symbol_type_id(symbols, symbol_id)?;
 
         Some(Self::value_shape_for_type(types, type_id))
     }
@@ -543,7 +543,7 @@ impl<'a> CompletionBuilder<'a> {
         let ctx = self.query_context_for_module(symbol_id.module_id)?;
         let types = ctx.dir().types();
         let symbols = ctx.dir().symbols();
-        let type_id = types.get_type_id_for_symbol(symbols, symbol_id)?;
+        let type_id = types.symbol_type_id(symbols, symbol_id)?;
 
         self.type_symbol_for_type(types, type_id)
     }
@@ -570,7 +570,7 @@ impl<'a> CompletionBuilder<'a> {
         };
         let types = ctx.dir().types();
         let symbols = ctx.dir().symbols();
-        let Some(type_id) = types.get_type_id_for_symbol(symbols, symbol_id) else {
+        let Some(type_id) = types.symbol_type_id(symbols, symbol_id) else {
             return Vec::new();
         };
 
@@ -1370,8 +1370,8 @@ impl<'a> CompletionBuilder<'a> {
                 continue;
             }
 
-            let import_mode =
-                ImportEditMode::for_auto_import(space_filter, export.space, current_language_type);
+            let import_space =
+                ImportEditSpace::for_auto_import(space_filter, export.space, current_language_type);
 
             self.push_auto_import_completion(
                 current_package_id,
@@ -1383,7 +1383,7 @@ impl<'a> CompletionBuilder<'a> {
                 export.kind,
                 space_filter,
                 export.space,
-                import_mode,
+                import_space,
                 &mut results,
             );
         }
@@ -1427,18 +1427,18 @@ impl<'a> CompletionBuilder<'a> {
         symbol_type: SymbolType,
         expected_space: Option<SymbolSpace>,
         symbol_space: SymbolSpace,
-        import_mode: ImportEditMode,
+        import_space: ImportEditSpace,
         results: &mut Vec<Completion>,
     ) {
         let display_path =
             build_import_display_path(self.repository, self.revision, self.file_id, module_path);
-        let import_edits = build_import_edits_with_mode(
+        let import_edits = build_import_edits(
             self.repository,
             self.revision,
             self.file_id,
             export_name,
             &display_path,
-            import_mode,
+            import_space,
         );
         if import_edits.is_empty() {
             return;

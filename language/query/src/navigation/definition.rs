@@ -327,7 +327,7 @@ fn overload_definition_span_for_call_site(
             module_id: ctx.module_id(),
             local_id: parent_expression_id.into(),
         };
-        let resolution_id = types.get_resolution_for_node(node_id)?;
+        let resolution_id = types.node_resolution_id(node_id)?;
         let resolution = types.get_resolution(resolution_id);
         match resolution {
             Resolution::Static { candidate, .. } => Some((
