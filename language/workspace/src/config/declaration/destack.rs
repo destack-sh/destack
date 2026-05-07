@@ -201,6 +201,9 @@ impl DestackDeclaration {
         {
             compiler.no_managed = parent_compiler.no_managed;
         }
+        if parent_compiler.no_heap.is_stricter_than(compiler.no_heap) {
+            compiler.no_heap = parent_compiler.no_heap;
+        }
         if parent_compiler
             .no_runtime
             .is_stricter_than(compiler.no_runtime)

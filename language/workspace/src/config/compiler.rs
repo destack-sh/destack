@@ -55,6 +55,8 @@ pub struct CompilerOptions {
     // capability restrictions
     /// Policy for GC-managed defaults and allocations.
     pub no_managed: DiagnosticPolicy,
+    /// Policy for all heap allocation.
+    pub no_heap: DiagnosticPolicy,
     /// Policy for runtime usage (no managed memory, no Promise, no exceptions, ...).
     pub no_runtime: DiagnosticPolicy,
     /// Policy for referential equality.
@@ -124,6 +126,7 @@ impl Default for CompilerOptions {
 
             // capability restrictions
             no_managed: DiagnosticPolicy::Allow,
+            no_heap: DiagnosticPolicy::Allow,
             no_runtime: DiagnosticPolicy::Allow,
             no_referential_equality: DiagnosticPolicy::Allow,
             no_dynamic_evaluation: DiagnosticPolicy::Allow,
@@ -188,10 +191,18 @@ impl CompilerOptions {
         self.no_global_this = DiagnosticPolicy::Deny;
     }
 
+    /// Enable heap-free restrictions.
+    pub fn apply_no_heap_restrictions(&mut self) {
+        if self.no_heap.is_stricter_than(self.no_managed) {
+            self.no_managed = self.no_heap;
+        }
+    }
+
     /// Enable runtime-free restrictions for compile-time only targets.
     pub fn apply_no_runtime_restrictions(&mut self) {
         // force runtime control flags on when runtime is disabled
         self.no_runtime = DiagnosticPolicy::Deny;
+        self.no_heap = DiagnosticPolicy::Deny;
         self.no_managed = DiagnosticPolicy::Deny;
         self.no_exceptions = DiagnosticPolicy::Deny;
         self.no_dynamic_evaluation = DiagnosticPolicy::Deny;
@@ -365,6 +376,8 @@ pub struct CompilerOptionsJson {
     // capability restrictions
     /// Policy for GC-managed defaults and allocations.
     pub no_managed: Option<DiagnosticPolicyJson>,
+    /// Policy for all heap allocation.
+    pub no_heap: Option<DiagnosticPolicyJson>,
     /// Policy for runtime usage (no managed memory, no Promise, no exceptions, ...).
     pub no_runtime: Option<DiagnosticPolicyJson>,
     /// Policy for referential equality.
@@ -472,6 +485,10 @@ impl From<&CompilerOptionsJson> for CompilerOptions {
                 .no_managed
                 .map(DiagnosticPolicy::from)
                 .unwrap_or(DiagnosticPolicy::Allow),
+            no_heap: json
+                .no_heap
+                .map(DiagnosticPolicy::from)
+                .unwrap_or(DiagnosticPolicy::Allow),
             no_runtime: json
                 .no_runtime
                 .map(DiagnosticPolicy::from)
@@ -528,6 +545,9 @@ impl From<&CompilerOptionsJson> for CompilerOptions {
             tsconfig: json.tsconfig.as_ref().map(PathBuf::from),
             skip_lib_check: json.skip_lib_check.unwrap_or(false),
         };
+
+        // apply heap-free restrictions when requested
+        options.apply_no_heap_restrictions();
 
         // apply runtime-free restrictions when requested
         if options.no_runtime.is_deny() {
