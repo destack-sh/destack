@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::rules::common::{find_cycle_path, strongly_connected_components};
 use crate::{LintPackageDirContext, LintReport, LintRule, declare_lint};
-use destack_artifact::DirExported;
+use destack_artifact::{DirExported, DirImported};
 use destack_source::{FileType, ModuleId, Span};
 
 declare_lint! {
@@ -215,7 +215,12 @@ fn build_adjacency(
     for module_id in module_ids {
         let mut dependencies = Vec::new();
 
-        // collect exported module edges so binding targets stay visible
+        // collect imported module edges so binding targets stay visible
+        if let Some(imported) = ctx.imported_dir(module_id) {
+            collect_imported_module_dependencies(&imported, &mut dependencies);
+        }
+
+        // collect namespace re export edges
         if let Some(exported) = ctx.exported_dir(module_id) {
             collect_exported_module_dependencies(&exported, &mut dependencies);
         }
@@ -230,10 +235,10 @@ fn build_adjacency(
     adjacency
 }
 
-/// Extend one dependency list with direct exported module edges.
-fn collect_exported_module_dependencies(exported: &DirExported, dependencies: &mut Vec<ModuleId>) {
+/// Extend one dependency list with direct import edges.
+fn collect_imported_module_dependencies(imported: &DirImported, dependencies: &mut Vec<ModuleId>) {
     // collect import edges for both value and type space
-    for resolution in exported.imports.resolution_by_key.values() {
+    for resolution in imported.imports.resolution_by_key.values() {
         if let Some(module_id) = resolution.value.and_then(|target| target.module_id()) {
             dependencies.push(module_id);
         }
@@ -242,7 +247,10 @@ fn collect_exported_module_dependencies(exported: &DirExported, dependencies: &m
             dependencies.push(module_id);
         }
     }
+}
 
+/// Extend one dependency list with direct export edges.
+fn collect_exported_module_dependencies(exported: &DirExported, dependencies: &mut Vec<ModuleId>) {
     // collect namespace re export edges
     for export in exported.exports.namespace_exports.iter() {
         if let Some(module_id) = export.module_id.module_id() {

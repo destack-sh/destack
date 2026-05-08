@@ -15,7 +15,7 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
         let state = AnalyzeState::new(module, profile, context);
-        self.require_dir_declared(state.context, state.module, state.profile)
+        self.require_dir_exported(state.context, state.module, state.profile)
             .map_err(CompilerError::from)?;
         let payload = DirChecked {
             types: TypeTable::new(state.module),

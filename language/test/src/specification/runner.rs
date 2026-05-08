@@ -365,7 +365,6 @@ fn apply_destack_config_for_spec(
         !repository
             .destack_config_for_file(revision, destack_config_file_id)
             .map_err(|error| format!("failed to load destack.json: {error}"))?
-            .map(|config| config.as_ref().clone())
             .ok_or_else(|| "failed to load destack.json".to_string())?
             .as_ref()
             .targets

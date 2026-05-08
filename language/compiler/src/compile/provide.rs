@@ -28,13 +28,14 @@ impl Compiler {
             ArtifactKey::DirDeclared { module, profile } => {
                 self.provide_dir_declared(module, profile, context)
             }
+            ArtifactKey::DirImported { module, profile } => {
+                self.provide_dir_imported(module, profile, context)
+            }
+            ArtifactKey::DirExpanded { module, profile } => {
+                self.provide_dir_expanded(module, profile, context)
+            }
             ArtifactKey::DirExported { module, profile } => {
                 self.provide_dir_exported(module, profile, context)
-            }
-            ArtifactKey::DirExpanded { .. } => {
-                todo!(
-                    "expanded DIR artifact reached compiler before expansion provider is wired: {artifact_key:?}"
-                )
             }
             ArtifactKey::DirChecked { module, profile } => {
                 self.provide_dir_checked(module, profile, context)

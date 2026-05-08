@@ -116,7 +116,7 @@ fn resolved_import_target_module(
         None,
     );
     let targets = dir
-        .exported()
+        .imported()
         .imports
         .resolution_by_key
         .get(&cache_key)

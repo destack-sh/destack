@@ -7,7 +7,7 @@ use super::entry::{ArtifactEntry, ArtifactOutcome};
 use super::pin::ArtifactPin;
 use crate::{
     ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactVersion, Ast, Data,
-    DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported, DirMaterialized,
+    DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported, DirImported, DirMaterialized,
     GlobalEnvironment, MirLowered, MirOptimized, ModuleLinted, ModuleOutput, ModuleQueryIndex,
     PackageLinted, PackageOutput, WorkspaceLinted, WorkspaceQueryIndex,
 };
@@ -33,10 +33,12 @@ pub struct ArtifactStore {
 
     /// Declared DIR artifacts by module and profile.
     dir_declared: ArtifactMap<DirDeclared>,
-    /// Exported DIR artifacts by module and profile.
-    dir_exported: ArtifactMap<DirExported>,
+    /// Imported DIR artifacts by module and profile.
+    dir_imported: ArtifactMap<DirImported>,
     /// Expanded DIR artifacts by module and profile.
     dir_expanded: ArtifactMap<DirExpanded>,
+    /// Exported DIR artifacts by module and profile.
+    dir_exported: ArtifactMap<DirExported>,
     /// Checked DIR artifacts by module and profile.
     dir_checked: ArtifactMap<DirChecked>,
     /// Materialized DIR artifacts by module and profile.
@@ -147,8 +149,9 @@ impl ArtifactStore {
             ArtifactKey::Ast { .. } => self.ast.contains_key(version),
             ArtifactKey::Data { .. } => self.data.contains_key(version),
             ArtifactKey::DirDeclared { .. } => self.dir_declared.contains_key(version),
-            ArtifactKey::DirExported { .. } => self.dir_exported.contains_key(version),
+            ArtifactKey::DirImported { .. } => self.dir_imported.contains_key(version),
             ArtifactKey::DirExpanded { .. } => self.dir_expanded.contains_key(version),
+            ArtifactKey::DirExported { .. } => self.dir_exported.contains_key(version),
             ArtifactKey::DirChecked { .. } => self.dir_checked.contains_key(version),
             ArtifactKey::DirMaterialized { .. } => self.dir_materialized.contains_key(version),
             ArtifactKey::DirElaborated { .. } => self.dir_elaborated.contains_key(version),
@@ -220,12 +223,12 @@ impl ArtifactStore {
                 matches!(&version.key, ArtifactKey::DirDeclared { .. }),
                 "DirDeclared",
             ),
-            ArtifactPayload::DirExported(payload) => Self::insert_payload(
-                &self.dir_exported,
+            ArtifactPayload::DirImported(payload) => Self::insert_payload(
+                &self.dir_imported,
                 version,
                 payload,
-                matches!(&version.key, ArtifactKey::DirExported { .. }),
-                "DirExported",
+                matches!(&version.key, ArtifactKey::DirImported { .. }),
+                "DirImported",
             ),
             ArtifactPayload::DirExpanded(payload) => Self::insert_payload(
                 &self.dir_expanded,
@@ -233,6 +236,13 @@ impl ArtifactStore {
                 payload,
                 matches!(&version.key, ArtifactKey::DirExpanded { .. }),
                 "DirExpanded",
+            ),
+            ArtifactPayload::DirExported(payload) => Self::insert_payload(
+                &self.dir_exported,
+                version,
+                payload,
+                matches!(&version.key, ArtifactKey::DirExported { .. }),
+                "DirExported",
             ),
             ArtifactPayload::DirChecked(payload) => Self::insert_payload(
                 &self.dir_checked,
@@ -364,9 +374,9 @@ impl ArtifactStore {
             .map(|entry| entry.value().clone())
     }
 
-    /// Get one exported DIR artifact.
-    pub fn dir_exported(&self, version: &ArtifactVersion) -> Option<Arc<DirExported>> {
-        self.dir_exported
+    /// Get one imported DIR artifact.
+    pub fn dir_imported(&self, version: &ArtifactVersion) -> Option<Arc<DirImported>> {
+        self.dir_imported
             .get(version)
             .map(|entry| entry.value().clone())
     }
@@ -374,6 +384,13 @@ impl ArtifactStore {
     /// Get one expanded DIR artifact.
     pub fn dir_expanded(&self, version: &ArtifactVersion) -> Option<Arc<DirExpanded>> {
         self.dir_expanded
+            .get(version)
+            .map(|entry| entry.value().clone())
+    }
+
+    /// Get one exported DIR artifact.
+    pub fn dir_exported(&self, version: &ArtifactVersion) -> Option<Arc<DirExported>> {
+        self.dir_exported
             .get(version)
             .map(|entry| entry.value().clone())
     }

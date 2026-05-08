@@ -31,13 +31,18 @@ pub enum ArtifactKey {
         module: ModuleId,
         profile: ProfileId,
     },
-    /// Exported DIR.
-    DirExported {
+    /// Imported DIR.
+    DirImported {
         module: ModuleId,
         profile: ProfileId,
     },
     /// Expanded DIR.
     DirExpanded {
+        module: ModuleId,
+        profile: ProfileId,
+    },
+    /// Exported DIR.
+    DirExported {
         module: ModuleId,
         profile: ProfileId,
     },
@@ -104,8 +109,9 @@ impl ArtifactKey {
             Self::Ast { .. } | Self::Data { .. } => ArtifactProvider::Source,
             Self::GlobalEnvironment { .. }
             | Self::DirDeclared { .. }
-            | Self::DirExported { .. }
+            | Self::DirImported { .. }
             | Self::DirExpanded { .. }
+            | Self::DirExported { .. }
             | Self::DirChecked { .. }
             | Self::DirMaterialized { .. }
             | Self::DirElaborated { .. }
@@ -150,14 +156,19 @@ impl ArtifactKey {
         Self::DirDeclared { module, profile }
     }
 
-    /// Build one exported DIR artifact key.
-    pub fn dir_exported(module: ModuleId, profile: ProfileId) -> Self {
-        Self::DirExported { module, profile }
+    /// Build one imported DIR artifact key.
+    pub fn dir_imported(module: ModuleId, profile: ProfileId) -> Self {
+        Self::DirImported { module, profile }
     }
 
     /// Build one expanded DIR artifact key.
     pub fn dir_expanded(module: ModuleId, profile: ProfileId) -> Self {
         Self::DirExpanded { module, profile }
+    }
+
+    /// Build one exported DIR artifact key.
+    pub fn dir_exported(module: ModuleId, profile: ProfileId) -> Self {
+        Self::DirExported { module, profile }
     }
 
     /// Build one checked DIR artifact key.
@@ -235,8 +246,9 @@ impl ArtifactKey {
             Self::Ast { .. } => "ast",
             Self::Data { .. } => "data",
             Self::DirDeclared { .. } => "dir_declared",
-            Self::DirExported { .. } => "dir_exported",
+            Self::DirImported { .. } => "dir_imported",
             Self::DirExpanded { .. } => "dir_expanded",
+            Self::DirExported { .. } => "dir_exported",
             Self::DirChecked { .. } => "dir_checked",
             Self::DirMaterialized { .. } => "dir_materialized",
             Self::DirElaborated { .. } => "dir_elaborated",
@@ -258,8 +270,9 @@ impl ArtifactKey {
             Self::Ast { module }
             | Self::Data { module }
             | Self::DirDeclared { module, .. }
-            | Self::DirExported { module, .. }
+            | Self::DirImported { module, .. }
             | Self::DirExpanded { module, .. }
+            | Self::DirExported { module, .. }
             | Self::DirChecked { module, .. }
             | Self::DirMaterialized { module, .. }
             | Self::DirElaborated { module, .. }
@@ -283,8 +296,9 @@ impl ArtifactKey {
         match self {
             Self::GlobalEnvironment { profile }
             | Self::DirDeclared { profile, .. }
-            | Self::DirExported { profile, .. }
+            | Self::DirImported { profile, .. }
             | Self::DirExpanded { profile, .. }
+            | Self::DirExported { profile, .. }
             | Self::DirChecked { profile, .. }
             | Self::DirMaterialized { profile, .. }
             | Self::DirElaborated { profile, .. }

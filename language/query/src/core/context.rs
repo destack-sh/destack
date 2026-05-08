@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactKey, ArtifactPin, ArtifactVersion, Ast, DirChecked, DirDeclared, DirExported,
-    GlobalEnvironment,
+    DirImported, GlobalEnvironment,
 };
 use destack_ast as ast;
 use destack_core::StringPool;
@@ -24,6 +24,8 @@ pub(crate) struct QueryContext {
     ast: Arc<Ast>,
     /// The declared module DIR.
     dir_declared: Arc<DirDeclared>,
+    /// The imported module DIR.
+    dir_imported: Arc<DirImported>,
     /// The exported module DIR.
     dir_exported: Arc<DirExported>,
     /// The checked module DIR.
@@ -98,6 +100,8 @@ pub(crate) struct DirQueryContext<'a> {
     revision: Revision,
     /// The declared DIR artifact.
     declared: &'a DirDeclared,
+    /// The imported DIR artifact.
+    imported: &'a DirImported,
     /// The exported DIR artifact.
     exported: &'a DirExported,
     /// The checked DIR artifact.
@@ -143,6 +147,11 @@ impl<'a> DirQueryContext<'a> {
     /// Return the namespace scope for this module.
     pub(crate) fn namespace_scope(self) -> dir::LocalScopeId {
         self.declared.namespace_scope
+    }
+
+    /// Return the imported DIR artifact.
+    pub(crate) fn imported(self) -> &'a DirImported {
+        self.imported
     }
 
     /// Return the exported DIR artifact.
@@ -202,6 +211,7 @@ impl QueryContext {
             module_id: self.module_id,
             revision: self.revision,
             declared: self.dir_declared.as_ref(),
+            imported: self.dir_imported.as_ref(),
             exported: self.dir_exported.as_ref(),
             checked: self.dir_checked.as_ref(),
         }
@@ -241,6 +251,16 @@ pub(crate) fn query_context_for_profile(
         revision,
         ArtifactKey::dir_declared(module.id, selected_profile),
     )?;
+    let imported_version = artifact_version(
+        repository,
+        revision,
+        ArtifactKey::dir_imported(module.id, selected_profile),
+    )?;
+    let expanded_version = artifact_version(
+        repository,
+        revision,
+        ArtifactKey::dir_expanded(module.id, selected_profile),
+    )?;
     let exported_version = artifact_version(
         repository,
         revision,
@@ -255,20 +275,31 @@ pub(crate) fn query_context_for_profile(
     // resolve module ast and profile dir artifact
     let ast = artifacts.ast(&ast_version)?;
     let dir_declared = artifacts.dir_declared(&declared_version)?;
+    let dir_imported = artifacts.dir_imported(&imported_version)?;
     let dir_exported = artifacts.dir_exported(&exported_version)?;
     let dir_checked = artifacts.dir_checked(&checked_version)?;
 
     // artifact roots
     let ast_pin = artifacts.pin(&ast_version)?;
     let declared_pin = artifacts.pin(&declared_version)?;
+    let imported_pin = artifacts.pin(&imported_version)?;
+    let expanded_pin = artifacts.pin(&expanded_version)?;
     let exported_pin = artifacts.pin(&exported_version)?;
     let checked_pin = artifacts.pin(&checked_version)?;
 
     // build query context
     Some(QueryContext {
-        _pins: vec![ast_pin, declared_pin, exported_pin, checked_pin],
+        _pins: vec![
+            ast_pin,
+            declared_pin,
+            imported_pin,
+            expanded_pin,
+            exported_pin,
+            checked_pin,
+        ],
         ast,
         dir_declared,
+        dir_imported,
         dir_exported,
         dir_checked,
         revision,

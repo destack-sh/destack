@@ -34,13 +34,11 @@ pub struct DirDeclared {
     pub module_bindings: Vec<dir::ModuleBinding>,
 }
 
-/// Exported name surface for one profile-scoped module.
+/// Imported name surface for one profile-scoped module.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DirExported {
+pub struct DirImported {
     /// Resolved module imports.
     pub imports: dir::ImportTable,
-    /// Resolved module exports.
-    pub exports: dir::ExportTable,
 }
 
 /// Expanded declaration graph for one profile-scoped module.
@@ -52,6 +50,13 @@ pub struct DirExpanded {
     pub strings: StringPool,
     /// The symbols introduced in the expansion patch.
     pub symbols: dir::SymbolTable,
+}
+
+/// Exported name surface for one profile-scoped module.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DirExported {
+    /// Resolved module exports.
+    pub exports: dir::ExportTable,
 }
 
 /// Checked semantic state for one profile-scoped module.

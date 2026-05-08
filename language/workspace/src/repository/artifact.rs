@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactVersion, Ast,
-    DirChecked, DirDeclared, DirExported, GlobalEnvironment,
+    DirChecked, DirDeclared, DirExpanded, DirExported, DirImported, GlobalEnvironment,
 };
 use destack_source::{DiagnosticCollection, ModuleId, ProfileId};
 use parking_lot::Mutex;
@@ -22,6 +22,10 @@ pub struct ArtifactCache {
     ast: Mutex<HashMap<ModuleId, Arc<Ast>>>,
     /// Declared DIR artifacts by module and profile.
     dir_declared: Mutex<HashMap<(ModuleId, ProfileId), Arc<DirDeclared>>>,
+    /// Imported DIR artifacts by module and profile.
+    dir_imported: Mutex<HashMap<(ModuleId, ProfileId), Arc<DirImported>>>,
+    /// Expanded DIR artifacts by module and profile.
+    dir_expanded: Mutex<HashMap<(ModuleId, ProfileId), Arc<DirExpanded>>>,
     /// Exported DIR artifacts by module and profile.
     dir_exported: Mutex<HashMap<(ModuleId, ProfileId), Arc<DirExported>>>,
     /// Checked DIR artifacts by module and profile.
@@ -38,6 +42,8 @@ impl ArtifactCache {
             revision,
             ast: Mutex::new(HashMap::new()),
             dir_declared: Mutex::new(HashMap::new()),
+            dir_imported: Mutex::new(HashMap::new()),
+            dir_expanded: Mutex::new(HashMap::new()),
             dir_exported: Mutex::new(HashMap::new()),
             dir_checked: Mutex::new(HashMap::new()),
             global_environment: Mutex::new(HashMap::new()),
@@ -73,6 +79,34 @@ impl ArtifactCache {
 
         self.read_cached(&self.dir_declared, key, artifact_key, |version| {
             self.repository.artifact_store().dir_declared(version)
+        })
+    }
+
+    /// Read one imported DIR artifact.
+    pub fn dir_imported(
+        &self,
+        module_id: ModuleId,
+        profile_id: ProfileId,
+    ) -> Option<Arc<DirImported>> {
+        let key = (module_id, profile_id);
+        let artifact_key = ArtifactKey::dir_imported(module_id, profile_id);
+
+        self.read_cached(&self.dir_imported, key, artifact_key, |version| {
+            self.repository.artifact_store().dir_imported(version)
+        })
+    }
+
+    /// Read one expanded DIR artifact.
+    pub fn dir_expanded(
+        &self,
+        module_id: ModuleId,
+        profile_id: ProfileId,
+    ) -> Option<Arc<DirExpanded>> {
+        let key = (module_id, profile_id);
+        let artifact_key = ArtifactKey::dir_expanded(module_id, profile_id);
+
+        self.read_cached(&self.dir_expanded, key, artifact_key, |version| {
+            self.repository.artifact_store().dir_expanded(version)
         })
     }
 
