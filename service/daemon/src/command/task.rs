@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use destack_source::DiagnosticCollection;
-use destack_workspace::{Repository, Revision, Workspace, WorkspaceOptions};
+use destack_workspace::{DestackConfig, Repository, Revision, Workspace};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -251,10 +251,10 @@ impl CommandContext<'_> {
 
         let root_options = self
             .repository
-            .workspace_options(revision)
+            .destack_config_for_workspace(revision)
             .map_err(|error| format!("failed to derive workspace options: {error}"))?;
         let selected_names = resolve_task_project_selection_names(
-            root_options.as_ref(),
+            root_options.as_deref(),
             &projects,
             &options.projects,
             &options.groups,
@@ -354,7 +354,7 @@ fn load_task_project(
         None
     };
     let package_name = if let Some(declaration) = declaration.as_ref() {
-        let options = declaration.package_options();
+        let options = declaration;
 
         if let Some(name) = options.name.clone() {
             Some(name)
@@ -501,7 +501,7 @@ fn relative_project_path(project_path: &Path, workspace_root: &Path) -> String {
 
 /// Resolve selected project names from explicit projects and groups.
 fn resolve_task_project_selection_names(
-    root_options: Option<&WorkspaceOptions>,
+    root_options: Option<&DestackConfig>,
     projects: &[TaskProject],
     selected_projects: &[String],
     selected_groups: &[String],
@@ -526,8 +526,7 @@ fn resolve_task_project_selection_names(
     // expand named workspace groups into project names
     for group_name in selected_groups {
         let members = root_options
-            .membership
-            .groups
+            .workspace_groups
             .get(group_name)
             .ok_or_else(|| unknown_group_error(group_name, root_options))?;
 
@@ -624,10 +623,9 @@ fn ambiguous_project_error(selector: &str, projects: &[&TaskProject]) -> String 
 }
 
 /// Build one unknown workspace group error with suggestions.
-fn unknown_group_error(group_name: &str, root_options: &WorkspaceOptions) -> String {
+fn unknown_group_error(group_name: &str, root_options: &DestackConfig) -> String {
     let groups: Vec<&str> = root_options
-        .membership
-        .groups
+        .workspace_groups
         .keys()
         .map(String::as_str)
         .collect();

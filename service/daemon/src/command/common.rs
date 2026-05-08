@@ -3,12 +3,11 @@ use std::path::PathBuf;
 use destack_artifact::{EmitFormat, Platform, Runtime};
 use destack_source::FileType;
 use destack_workspace::{
-    DebugInfoLevel, EmitArtifact, LinkMode, LtoMode, OptimizeLevel, RuntimeOptionsJson,
-    SourceMapMode, StripLevel, Target,
+    DebugInfoLevel, LtoMode, OptimizeLevel, RuntimeOptionsJson, SourceMapMode, StripLevel, Target,
 };
 use serde::{Deserialize, Serialize};
 
-pub use destack_workspace::ConfigOverride;
+pub use destack_workspace::ConfigPatch;
 
 /// Command input sources.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -48,8 +47,6 @@ pub struct CommandTargetOverrides {
     pub cpu: Option<String>,
     /// CPU feature overrides.
     pub cpu_features: Vec<String>,
-    /// Link mode override.
-    pub link_mode: Option<LinkMode>,
     /// LTO mode override.
     pub lto: Option<LtoMode>,
     /// Custom linker override.
@@ -66,8 +63,6 @@ pub struct CommandTargetOverrides {
     pub declaration: bool,
     /// Emit source maps override.
     pub source_map: bool,
-    /// Additional artifacts to emit.
-    pub artifacts: Vec<EmitArtifact>,
     /// Enable optimization override.
     pub optimize: bool,
     /// Optimization level override.
@@ -90,7 +85,6 @@ impl CommandTargetOverrides {
             && self.platform.is_none()
             && self.cpu.is_none()
             && self.cpu_features.is_empty()
-            && self.link_mode.is_none()
             && self.lto.is_none()
             && self.linker.is_none()
             && self.link_args.is_empty()
@@ -99,7 +93,6 @@ impl CommandTargetOverrides {
             && self.out_file.is_none()
             && !self.declaration
             && !self.source_map
-            && self.artifacts.is_empty()
             && !self.optimize
             && self.opt_level.is_none()
             && !self.debug
@@ -126,9 +119,6 @@ impl CommandTargetOverrides {
         if !self.cpu_features.is_empty() {
             target.cpu_features = self.cpu_features.clone();
         }
-        if let Some(link_mode) = self.link_mode {
-            target.link_mode = link_mode;
-        }
         if let Some(lto) = self.lto {
             target.lto_mode = lto;
         }
@@ -151,9 +141,6 @@ impl CommandTargetOverrides {
 
         target.declaration = self.declaration;
         target.source_map_mode = self.source_map.then_some(SourceMapMode::External);
-        if !self.artifacts.is_empty() {
-            target.artifacts = self.artifacts.clone();
-        }
 
         let profile = resolve_profile(self.debug, self.release);
         if let Some(profile) = profile {
@@ -268,8 +255,8 @@ pub struct CommonCommandOptions {
     pub profile: Option<String>,
     /// Optional environment overrides.
     pub env: Vec<CommandEnvVar>,
-    /// Optional config overrides.
-    pub overrides: Vec<ConfigOverride>,
+    /// Optional config patches.
+    pub config_patches: Vec<ConfigPatch>,
     /// Whether the command should watch for changes.
     pub watch: bool,
     /// Whether the command should skip writes.

@@ -82,22 +82,22 @@ impl CommandContext<'_> {
         } else {
             self.find_destack_config(self.session.cwd())
         };
-        let declaration = config_path
+        let config = config_path
             .as_ref()
-            .and_then(|path| self.load_destack_declaration(path).ok());
+            .and_then(|path| self.load_destack_config(path).ok());
 
         // load workspace configs when requested
-        let workspace_declarations = if options.all {
-            self.load_workspace_declarations(revision).ok()
+        let workspace_configs = if options.all {
+            self.load_workspace_configs(revision).ok()
         } else {
             None
         };
 
         // derive target summaries
-        let targets = declaration.as_ref().map(|declaration| {
-            let package_options = declaration.package_options();
+        let targets = config.as_ref().map(|config| {
+            let config = config;
 
-            package_options
+            config
                 .targets
                 .iter()
                 .map(|(name, target)| CommandInfoTarget {
@@ -116,16 +116,16 @@ impl CommandContext<'_> {
         });
 
         // derive workspace target summaries
-        let workspace_targets = workspace_declarations.as_ref().map(|declarations| {
-            declarations
+        let workspace_targets = workspace_configs.as_ref().map(|configs| {
+            configs
                 .iter()
-                .flat_map(|declaration| {
-                    let package_options = declaration.package_options();
-                    let package_dir = declaration.directory.display().to_string();
+                .flat_map(|config| {
+                    let config = config;
+                    let package_dir = config.directory.display().to_string();
 
-                    package_options
+                    config
                         .targets
-                        .into_iter()
+                        .iter()
                         .map(move |(name, target)| CommandInfoTarget {
                             name: name.clone(),
                             emit: format!("{:?}", target.emit),

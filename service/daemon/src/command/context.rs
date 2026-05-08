@@ -9,7 +9,7 @@ use destack_resolver::{CachePolicy, Resolver, ResolverContext, ResolverOptions};
 use destack_session::{FileChange, Session};
 use destack_source::{FileType, ModuleId, ProfileId, TargetId, glob};
 use destack_workspace::{
-    DestackDeclaration, OptimizeLevel, Ref, Repository, Revision, Target, TargetDiscovery,
+    DestackConfig, OptimizeLevel, Ref, Repository, Revision, Target, TargetDiscovery,
 };
 
 use crate::Daemon;
@@ -83,10 +83,10 @@ impl<'a> CommandContext<'a> {
             DaemonCommandError::internal(format!("failed to initialize command session: {error}"))
         })?;
         session
-            .apply_workspace_config_overrides(session.head(), &common.overrides)
+            .apply_workspace_config_patches(session.head(), &common.config_patches)
             .map_err(|error| {
                 DaemonCommandError::internal(format!(
-                    "failed to apply command config overrides: {error}"
+                    "failed to apply command config patches: {error}"
                 ))
             })?;
 
@@ -111,9 +111,8 @@ impl<'a> CommandContext<'a> {
         }
 
         let config_path = self.resolve_destack_config_path(self.common.config_path.as_deref())?;
-        let declaration = self.load_destack_declaration(&config_path)?;
-        let inputs =
-            collect_sources_from_destack_declaration(&declaration, self.common.target.as_deref());
+        let config = self.load_destack_config(&config_path)?;
+        let inputs = collect_sources_from_destack_config(&config, self.common.target.as_deref());
 
         if inputs.is_empty() {
             return Err("no input files provided".to_string().into());
@@ -370,15 +369,9 @@ impl<'a> CommandContext<'a> {
 
     /// Build a resolver for the current repository.
     pub(super) fn resolver(&self) -> Resolver {
-        let workspace_options = self
-            .revision()
-            .ok()
-            .and_then(|revision| self.daemon.repository.workspace_options(revision).ok())
-            .flatten();
-
         Resolver::from_repository(
             self.repository.clone(),
-            ResolverOptions::workspace_defaults(self.root.clone(), workspace_options.as_ref()),
+            ResolverOptions::workspace_defaults(self.root.clone()),
         )
     }
 
@@ -390,12 +383,9 @@ impl<'a> CommandContext<'a> {
         resolve_destack_config_path(&self.resolver(), self.root.as_path(), override_path)
     }
 
-    /// Load one `destack.json` declaration for a path.
-    pub(super) fn load_destack_declaration(
-        &self,
-        path: &Path,
-    ) -> CommandResult<DestackDeclaration> {
-        load_destack_declaration(&self.resolver(), path)
+    /// Load one `destack.json` config for a path.
+    pub(super) fn load_destack_config(&self, path: &Path) -> CommandResult<DestackConfig> {
+        load_destack_config(&self.resolver(), path)
     }
 
     /// Find destack.json for a directory.
@@ -403,12 +393,12 @@ impl<'a> CommandContext<'a> {
         find_destack_config(&self.resolver(), cwd)
     }
 
-    /// Load all visible workspace `destack.json` declarations.
-    pub(super) fn load_workspace_declarations(
+    /// Load all visible workspace `destack.json` configs.
+    pub(super) fn load_workspace_configs(
         &self,
         revision: Revision,
-    ) -> CommandResult<Vec<DestackDeclaration>> {
-        load_workspace_declarations(&self.resolver(), &self.repository, revision)
+    ) -> CommandResult<Vec<DestackConfig>> {
+        load_workspace_configs(&self.resolver(), &self.repository, revision)
     }
 }
 
@@ -471,7 +461,7 @@ fn resolve_destack_config_path(
     Ok(destack_config_path)
 }
 
-fn load_destack_declaration(resolver: &Resolver, path: &Path) -> CommandResult<DestackDeclaration> {
+fn load_destack_config(resolver: &Resolver, path: &Path) -> CommandResult<DestackConfig> {
     let revision = resolver_revision(resolver)?;
     let mut context = ResolverContext::new(revision);
 
@@ -497,7 +487,7 @@ fn find_destack_config(resolver: &Resolver, cwd: &Path) -> Option<PathBuf> {
 
     loop {
         let candidate = directory.join("destack.json");
-        match repository.destack_declaration_for_path(revision, &candidate) {
+        match repository.destack_config_for_path(revision, &candidate) {
             Ok(Some(_)) => return Some(candidate),
             Ok(None) => {}
             Err(_) => return None,
@@ -518,11 +508,11 @@ fn resolver_revision(resolver: &Resolver) -> CommandResult<Revision> {
         .map_err(|error| error.to_string().into())
 }
 
-fn load_workspace_declarations(
+fn load_workspace_configs(
     resolver: &Resolver,
     repository: &Repository,
     revision: Revision,
-) -> CommandResult<Vec<DestackDeclaration>> {
+) -> CommandResult<Vec<DestackConfig>> {
     let mut configs = BTreeMap::new();
     for package_path in repository
         .package_roots(revision)
@@ -535,16 +525,16 @@ fn load_workspace_declarations(
 
     let mut resolved = Vec::new();
     for (path, _) in configs {
-        resolved.push(load_destack_declaration(resolver, &path)?);
+        resolved.push(load_destack_config(resolver, &path)?);
     }
 
     Ok(resolved)
 }
-fn collect_sources_from_destack_declaration(
-    declaration: &DestackDeclaration,
+fn collect_sources_from_destack_config(
+    config: &DestackConfig,
     target_name: Option<&str>,
 ) -> Vec<PathBuf> {
-    let options = declaration.package_options();
+    let options = config;
     let selected_target = target_name
         .map(str::to_string)
         .or_else(|| options.default_target.clone());
@@ -570,7 +560,7 @@ fn collect_sources_from_destack_declaration(
         )
     };
 
-    let base_dir = declaration.directory.clone();
+    let base_dir = config.directory.clone();
     let mut paths = BTreeMap::new();
 
     if discovery == TargetDiscovery::Entry && !entries.is_empty() {
