@@ -770,10 +770,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 mutability: _,
                 variance: _,
                 right,
-            }
-            | Expression::PointerOf {
-                mutability: _,
-                right,
             } => {
                 let right_expression = tree.get(*right);
                 visitor.visit_expression(tree, *right, right_expression);

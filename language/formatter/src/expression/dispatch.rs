@@ -80,7 +80,6 @@ fn write_expression_trailing_annotations<'ast>(
         | Expression::InstanceOf { .. }
         | Expression::MoveOf { .. }
         | Expression::BorrowOf { .. }
-        | Expression::PointerOf { .. }
         | Expression::Await { .. }
         | Expression::AwaitMaybe { .. }
         | Expression::Comptime { .. }
@@ -247,7 +246,6 @@ fn format_expression_body<'ast>(
         | Expression::InstanceOf { .. }
         | Expression::MoveOf { .. }
         | Expression::BorrowOf { .. }
-        | Expression::PointerOf { .. }
         | Expression::Await { .. }
         | Expression::AwaitMaybe { .. }
         | Expression::Comptime { .. }

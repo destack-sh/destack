@@ -268,9 +268,9 @@ fn expression_name_hint(
             expression: value,
             target_type: _,
         } => expression_name_hint(tree, *value),
-        dir::Expression::MoveOf { right, .. }
-        | dir::Expression::BorrowOf { right, .. }
-        | dir::Expression::PointerOf { right, .. } => expression_name_hint(tree, *right),
+        dir::Expression::MoveOf { right, .. } | dir::Expression::BorrowOf { right, .. } => {
+            expression_name_hint(tree, *right)
+        }
         dir::Expression::Maybe { left } | dir::Expression::Must { left } => {
             expression_name_hint(tree, *left)
         }

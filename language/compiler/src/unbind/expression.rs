@@ -657,11 +657,6 @@ impl Compiler {
                     let right = self.unbind_expression(module, *right, tree, symbols, types, ast_tree, ast_strings, context);
                     ast::Expression::BorrowOf { mutability, variance, right }
                 }
-                dir::Expression::PointerOf { mutability, right } => {
-                    let mutability = mutability.map(|m| self.unbind_mutability(context, m));
-                    let right = self.unbind_expression(module, *right, tree, symbols, types, ast_tree, ast_strings, context);
-                    ast::Expression::PointerOf { mutability, right }
-                }
                 dir::Expression::Is { value, target_type } => {
                     let value = self.unbind_expression(module, *value, tree, symbols, types, ast_tree, ast_strings, context);
                     let target_type = self.unbind_type_expression(

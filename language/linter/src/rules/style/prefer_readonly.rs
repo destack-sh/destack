@@ -212,9 +212,9 @@ fn expression_is_this_reference(
         dir::Expression::As { expression, .. } | dir::Expression::Satisfies { expression, .. } => {
             expression_is_this_reference(tree, *expression)
         }
-        dir::Expression::MoveOf { right, .. }
-        | dir::Expression::BorrowOf { right, .. }
-        | dir::Expression::PointerOf { right, .. } => expression_is_this_reference(tree, *right),
+        dir::Expression::MoveOf { right, .. } | dir::Expression::BorrowOf { right, .. } => {
+            expression_is_this_reference(tree, *right)
+        }
         dir::Expression::Maybe { left } | dir::Expression::Must { left } => {
             expression_is_this_reference(tree, *left)
         }

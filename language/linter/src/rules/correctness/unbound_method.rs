@@ -247,9 +247,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
                 } if *value == current_id => {
                     current_id = parent_id;
                 }
-                dir::Expression::MoveOf { right, .. }
-                | dir::Expression::BorrowOf { right, .. }
-                | dir::Expression::PointerOf { right, .. }
+                dir::Expression::MoveOf { right, .. } | dir::Expression::BorrowOf { right, .. }
                     if *right == current_id =>
                 {
                     current_id = parent_id;

@@ -30,7 +30,6 @@ pub(crate) fn resolve_nominal_symbol_from_type_expression(
     // unwrap type operators and wrappers to the underlying nominal expression
     match expression {
         Expression::BorrowOf { right, .. }
-        | Expression::PointerOf { right, .. }
         | Expression::MoveOf { right, .. }
         | Expression::Maybe { left: right }
         | Expression::Must { left: right } => {

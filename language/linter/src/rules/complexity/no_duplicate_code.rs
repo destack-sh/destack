@@ -1445,9 +1445,6 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
                 self.push_debug_optional("expr_reference_of_mutability", *mutability);
                 self.push_debug_optional("expr_reference_of_variance", *variance);
             }
-            ast::Expression::PointerOf { mutability, .. } => {
-                self.push_debug_optional("expr_pointer_of_mutability", *mutability);
-            }
             ast::Expression::Member { name, .. } => {
                 if let Some(name) = *name {
                     self.push_identifier_id("expr_member_name", name);

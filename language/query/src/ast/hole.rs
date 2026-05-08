@@ -421,9 +421,6 @@ fn expression_slot_position_in_expression(
         }
         | ast::Expression::BorrowOf {
             right: expression, ..
-        }
-        | ast::Expression::PointerOf {
-            right: expression, ..
         } => {
             if *expression == expr_id {
                 return Some(ExpressionSlotPosition::Value);

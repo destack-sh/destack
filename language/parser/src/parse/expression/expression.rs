@@ -1979,21 +1979,6 @@ impl Parser {
         Ok(self.insert_node(expression, self.get_span_from(start)))
     }
 
-    /// Eat one value-space `*` prefix expression.
-    fn eat_value_pointer_expression(
-        &mut self,
-        start: &ParserSpanStart,
-    ) -> ParseResult<LocalNodeId<Expression>> {
-        self.bump(); // eat *
-        let mutability = self.eat_reference_mutability_maybe()?;
-        let right = self.eat_expression_with_context_unchecked(self.flags.not_in_position())?;
-
-        Ok(self.insert_node(
-            Expression::PointerOf { mutability, right },
-            self.get_span_from(start),
-        ))
-    }
-
     /// Eat one type-space bracket primary expression.
     fn eat_type_bracket_primary_expression(
         &mut self,
@@ -2190,10 +2175,6 @@ impl Parser {
             TokenType::ElementwiseAnd if self.language.is_destack() => self
                 .eat_value_reference_or_value_of_expression(start, token_type)
                 .map(ParsedExpression::plain),
-            TokenType::Multiply if self.language.is_destack() => self
-                .eat_value_pointer_expression(start)
-                .map(ParsedExpression::plain),
-
             // collections and blocks
             TokenType::OpenBracket => self
                 .eat_value_bracket_primary_expression(start)

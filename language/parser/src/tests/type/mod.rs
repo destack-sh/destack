@@ -7,4 +7,4 @@ mod index;
 mod literal;
 mod mapped;
 mod operator;
-mod tuple;
+mod sequence;

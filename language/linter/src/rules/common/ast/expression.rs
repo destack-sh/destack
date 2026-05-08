@@ -1488,21 +1488,6 @@ pub fn expression_is_equal(
                 && expression_is_equal(ctx, *left_right, *right_right)
         }
 
-        // pointer of: compare mutability and operand
-        (
-            ast::Expression::PointerOf {
-                mutability: left_mutability,
-                right: left_right,
-            },
-            ast::Expression::PointerOf {
-                mutability: right_mutability,
-                right: right_right,
-            },
-        ) => {
-            left_mutability == right_mutability
-                && expression_is_equal(ctx, *left_right, *right_right)
-        }
-
         // await expressions: compare inner expression
         (
             ast::Expression::Await {
@@ -2053,9 +2038,9 @@ pub fn expression_has_side_effects(
         }
 
         // pure: reference/value of (if operand is pure)
-        ast::Expression::BorrowOf { right, .. }
-        | ast::Expression::MoveOf { right, .. }
-        | ast::Expression::PointerOf { right, .. } => expression_has_side_effects(ctx, *right),
+        ast::Expression::BorrowOf { right, .. } | ast::Expression::MoveOf { right, .. } => {
+            expression_has_side_effects(ctx, *right)
+        }
 
         // side effects: calls, assignments, new, await, yield, etc
         ast::Expression::Call { .. }
@@ -2582,9 +2567,6 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
             } => {
                 self.push_debug("expression_referenceof_mutability", *mutability);
                 self.push_debug("expression_referenceof_variance", *variance);
-            }
-            ast::Expression::PointerOf { mutability, .. } => {
-                self.push_debug("expression_pointerof_mutability", *mutability);
             }
             ast::Expression::Member { name, .. } | ast::Expression::PrivateMember { name, .. } => {
                 if let Some(name) = name {

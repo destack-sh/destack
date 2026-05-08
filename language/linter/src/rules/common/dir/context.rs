@@ -374,9 +374,6 @@ fn expression_is_transparent_parent_of(
     ) || matches!(
         parent_expression,
         dir::Expression::BorrowOf { right, .. } if *right == child_expression_id
-    ) || matches!(
-        parent_expression,
-        dir::Expression::PointerOf { right, .. } if *right == child_expression_id
     )
 }
 

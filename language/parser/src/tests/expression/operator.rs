@@ -657,7 +657,7 @@ fn test_parse_array_destructuring_assignment_defaults() {
         assert_eq!(*operator, AssignOperator::Assign);
         assert_expression_path!(parser, parser.tree.get(*right), "value");
 
-        assert_node!(parser.tree, *left, AssignPattern::Array { fields } => {
+        assert_node!(parser.tree, *left, AssignPattern::Sequence { fields } => {
             assert_eq!(fields.len(), 4);
 
             assert_node!(parser.tree, fields[0], AssignPatternField::Positional { pattern } => {
@@ -716,7 +716,7 @@ fn test_parse_nested_destructuring_assignment_defaults() {
                     assert_name!(parser, *name, "e");
                     assert!(!*is_shorthand);
 
-                    assert_node!(parser.tree, pattern.expect("expected nested array"), AssignPattern::Array { fields } => {
+                    assert_node!(parser.tree, pattern.expect("expected nested array"), AssignPattern::Sequence { fields } => {
                         assert_eq!(fields.len(), 1);
 
                         assert_node!(parser.tree, fields[0], AssignPatternField::Positional { pattern } => {

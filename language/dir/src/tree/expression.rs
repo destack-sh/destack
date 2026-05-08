@@ -107,7 +107,7 @@ pub enum Expression {
         target: LocalNodeId<Expression>,
     },
 
-    /// Unary operation (except reference/dereference, e.g., `-x`).
+    /// Unary operation (e.g., `-x`, `!x`, `*x`).
     Unary {
         operator: UnaryOperator,
         right: LocalNodeId<Expression>,
@@ -122,11 +122,6 @@ pub enum Expression {
     BorrowOf {
         mutability: Option<Mutability>,
         variance: Option<VarianceBound>,
-        right: LocalNodeId<Expression>,
-    },
-    /// Pointer type operation (e.g., `*T`).
-    PointerOf {
-        mutability: Option<Mutability>,
         right: LocalNodeId<Expression>,
     },
     /// Binary operation.
@@ -389,7 +384,6 @@ impl Expression {
             Expression::Unary { .. } => "unary",
             Expression::MoveOf { .. } => "move of",
             Expression::BorrowOf { .. } => "borrow of",
-            Expression::PointerOf { .. } => "pointer of",
             Expression::Binary { .. } => "binary",
             Expression::Assign { .. } => "assign",
             Expression::AssignBinary { .. } => "assign binary",
