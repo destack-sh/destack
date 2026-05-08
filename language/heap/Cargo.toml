@@ -14,14 +14,11 @@ doctest = false
 [dependencies]
 # language
 destack_core = { workspace = true }
+destack_memory = { workspace = true }
 destack_mir = { workspace = true }
 crossbeam-deque = { workspace = true }
-libc = { workspace = true }
 parking_lot = { workspace = true }
 serde = { workspace = true, features = ["derive", "rc"] }
-
-[target.'cfg(windows)'.dependencies]
-windows-sys = { workspace = true, features = ["Win32_Foundation", "Win32_Security", "Win32_System_Diagnostics_Debug", "Win32_System_Kernel", "Win32_System_Memory", "Win32_System_SystemInformation", "Win32_System_Threading"] }
 
 [dev-dependencies]
 criterion = { workspace = true }

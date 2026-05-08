@@ -1721,11 +1721,10 @@ dependencies = [
  "criterion",
  "crossbeam-deque",
  "destack_core",
+ "destack_memory",
  "destack_mir",
- "libc",
  "parking_lot",
  "serde",
- "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -1861,6 +1860,15 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_repr",
+]
+
+[[package]]
+name = "destack_memory"
+version = "0.55.4"
+dependencies = [
+ "libc",
+ "parking_lot",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -2165,6 +2173,7 @@ dependencies = [
  "destack_core",
  "destack_engine",
  "destack_heap",
+ "destack_memory",
  "destack_mir",
  "destack_source",
  "postcard",

@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use {destack_heap as heap, destack_mir as mir};
+use {destack_heap as heap, destack_memory as memory, destack_mir as mir};
 
 /// Anchor for MIR-level error locations.
 #[derive(Debug, Clone, PartialEq)]
@@ -369,6 +369,14 @@ impl From<heap::HeapError> for Error {
             error => Self::InvariantViolation {
                 context: error.to_string(),
             },
+        }
+    }
+}
+
+impl From<memory::MemoryError> for Error {
+    fn from(error: memory::MemoryError) -> Self {
+        Self::InvariantViolation {
+            context: error.to_string(),
         }
     }
 }

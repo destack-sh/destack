@@ -1,6 +1,8 @@
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
+use destack_memory::MemoryError;
+
 use crate::allocator::PageId;
 use crate::{AccountingRegion, HeapReference, RawPointer, SharedHeapReference, SharedRawPointer};
 
@@ -703,3 +705,21 @@ impl Display for HeapError {
 }
 
 impl Error for HeapError {}
+
+impl From<MemoryError> for HeapError {
+    fn from(error: MemoryError) -> Self {
+        match error {
+            MemoryError::AddressSpaceFailed { byte_len } => Self::AddressSpaceFailed { byte_len },
+            MemoryError::InvalidByteRange {
+                start,
+                len,
+                capacity,
+            } => Self::InvalidByteRange {
+                start,
+                len,
+                capacity,
+            },
+            MemoryError::InvariantViolation { context } => Self::InvariantViolation { context },
+        }
+    }
+}
