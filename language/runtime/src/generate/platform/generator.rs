@@ -321,7 +321,7 @@ impl RuntimeGenerator {
     fn profile_key(&self) -> ProfileKey {
         ProfileKey::new(
             EmitFormat::Native,
-            Runtime::NativeManaged,
+            Runtime::Destack,
             self.host_platform(),
             None,
             None,
@@ -329,9 +329,7 @@ impl RuntimeGenerator {
             vec!["core".to_string(), "platform".to_string()],
             None,
             Vec::new(),
-            false,
-            false,
-            false,
+            Vec::new(),
             EnvironmentStamp::from_env_all(),
             ProfileFlags::default(),
         )
