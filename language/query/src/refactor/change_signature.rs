@@ -119,7 +119,7 @@ pub fn change_signature(
         let Some(ctx) = query_context(repository, revision, module_id) else {
             continue;
         };
-        let dir_tree = ctx.dir().tree();
+        let dir_tree = ctx.dir().view();
 
         for (expr_id, expr) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
             let left_expression = match expr {
@@ -205,7 +205,7 @@ fn constructor_owner_symbol(
         return None;
     }
 
-    let dir_tree = ctx.dir().tree();
+    let dir_tree = ctx.dir().view();
     let Ok(member_id) = declaration.local_id.try_into() else {
         return None;
     };
@@ -216,7 +216,7 @@ fn constructor_owner_symbol(
     }
 
     // walk to the parent declaration for the owning class
-    let parent = dir_tree.get_parent(member_id.id)?;
+    let parent = dir_tree.get_parent(member_id)?;
     if parent.ty != dir::NodeType::Declaration {
         return None;
     }
@@ -241,7 +241,7 @@ fn constructor_owner_symbol(
 /// Return the symbol targeted by a call target expression.
 fn call_target_symbol(
     ctx: &QueryContext,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     call_left: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::GlobalSymbolId> {
     // unwrap call-target wrappers to the underlying expression
@@ -292,7 +292,7 @@ fn function_parameter_span(
         symbol.declaration?
     };
 
-    let dir_tree = ctx.dir().tree();
+    let dir_tree = ctx.dir().view();
     let local_id = declaration.local_id;
     let ast_span = match local_id.ty {
         dir::NodeType::Declaration => {
@@ -300,7 +300,7 @@ fn function_parameter_span(
                 return None;
             };
             function_signature_for_node(dir_tree, local_id)?;
-            let source_id = dir_tree.get_source(decl_id.id);
+            let source_id = dir_tree.get_source(decl_id);
             ctx.ast().tree().source_map.get(source_id)
         }
         dir::NodeType::Member => {
@@ -308,12 +308,12 @@ fn function_parameter_span(
                 return None;
             };
             function_signature_for_node(dir_tree, local_id)?;
-            let source_id = dir_tree.get_source(member_id.id);
+            let source_id = dir_tree.get_source(member_id);
             ctx.ast().tree().source_map.get(source_id)
         }
         dir::NodeType::Declarator | dir::NodeType::Pattern => {
             let declaration_id = function_declaration_from_binding(dir_tree, local_id)?;
-            let source_id = dir_tree.get_source(declaration_id.id);
+            let source_id = dir_tree.get_source(declaration_id);
             ctx.ast().tree().source_map.get(source_id)
         }
         _ => return None,
@@ -364,7 +364,7 @@ fn function_parameter_name_positions(
     };
 
     // resolve the function signature for this declaration
-    let dir_tree = ctx.dir().tree();
+    let dir_tree = ctx.dir().view();
     let Some(signature) = function_signature_for_node(dir_tree, declaration.local_id) else {
         return HashMap::new();
     };
@@ -391,7 +391,7 @@ fn function_parameter_name_positions(
 
 /// Resolve a function signature for a declaration, member, or binding node.
 fn function_signature_for_node(
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     node_id: dir::LocalNodeIdAny,
 ) -> Option<&dir::FunctionSignature> {
     match node_id.ty {
@@ -426,13 +426,13 @@ fn function_signature_for_node(
 
 /// Resolve a function declaration from a declarator or pattern binding.
 fn function_declaration_from_binding(
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     node_id: dir::LocalNodeIdAny,
 ) -> Option<dir::LocalNodeId<dir::Declaration>> {
     let declarator_id = match node_id.ty {
         dir::NodeType::Declarator => node_id.try_into().ok(),
         dir::NodeType::Pattern => {
-            let parent = dir_tree.get_parent(node_id.id)?;
+            let parent = dir_tree.get_parent_any(node_id)?;
             if parent.ty != dir::NodeType::Declarator {
                 return None;
             }
@@ -614,7 +614,7 @@ fn parse_param_specs(raw: &str) -> Vec<ParamSpec> {
 fn build_arguments_for_call(
     repository: &Repository,
     ctx: &QueryContext,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     expr_id: dir::LocalNodeId<dir::Expression>,
     params: &[ParamSpec],
     old_param_positions: &HashMap<String, usize>,
@@ -749,7 +749,7 @@ fn build_arguments_for_call(
 fn argument_value_text(
     source_file: &File,
     ctx: &QueryContext,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     argument: &dir::Argument,
 ) -> String {
     // extract the argument value text without labels

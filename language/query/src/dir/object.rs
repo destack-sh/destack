@@ -44,7 +44,7 @@ pub(crate) fn object_literal_cursor_context(
     }
 
     // resolve dir tree and types for object literal analysis
-    let dir_tree = dir.tree();
+    let dir_tree = dir.view();
     let types = dir.types();
     let ast_tree = ast.tree();
 
@@ -171,7 +171,7 @@ fn contextual_object_type(
 
 /// Extract property names from object literal properties.
 fn extract_object_property_names(
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     properties: &[dir::LocalNodeId<dir::Property>],
     strings: &StringPool,
 ) -> Vec<String> {

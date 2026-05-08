@@ -24,8 +24,8 @@ pub(crate) fn resolve_nominal_symbol_from_type_expression(
     expression_id: dir::LocalNodeId<Expression>,
 ) -> Option<GlobalSymbolId> {
     // inspect the expression shape
-    let dir_tree = dir.tree();
-    let expression = dir_tree.get::<Expression>(expression_id);
+    let view = dir.view();
+    let expression = view.get::<Expression>(expression_id);
 
     // unwrap type operators and wrappers to the underlying nominal expression
     match expression {
@@ -131,21 +131,31 @@ fn recorded_member_resolution(
     };
     let resolution = types.resolution(node_id)?;
     match resolution {
-        Resolution::Dispatch(dir::DispatchResolution::Static { target, .. }) => Some(target.symbol),
+        Resolution::Dispatch(dir::DispatchResolution::Static { target, .. }) => {
+            if !dir.symbol_is_active(target.symbol) {
+                return None;
+            }
+
+            Some(target.symbol)
+        }
         Resolution::Dispatch(dir::DispatchResolution::Dynamic { targets, .. }) => {
             if targets.len() == 1 {
-                return Some(targets[0].symbol);
+                let symbol_id = targets[0].symbol;
+                if !dir.symbol_is_active(symbol_id) {
+                    return None;
+                }
+
+                return Some(symbol_id);
             }
 
             None
         }
-        Resolution::Symbol(dir::SymbolResolution::Target(symbol_id)) => Some(*symbol_id),
-        Resolution::Symbol(dir::SymbolResolution::Candidates(symbols)) => {
-            if symbols.len() == 1 {
-                return Some(symbols[0]);
+        Resolution::Symbol(symbol_id) => {
+            if !dir.symbol_is_active(*symbol_id) {
+                return None;
             }
 
-            None
+            Some(*symbol_id)
         }
         Resolution::Dispatch(dir::DispatchResolution::Builtin { .. })
         | Resolution::Dependency(_)

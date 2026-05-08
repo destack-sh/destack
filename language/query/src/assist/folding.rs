@@ -105,7 +105,7 @@ fn folding_ranges_with_dir(
         let Some(source_file) = repository.file(revision, ctx.file_id()).ok().flatten() else {
             return Vec::new();
         };
-        let dir_tree = ctx.dir().tree();
+        let dir_tree = ctx.dir().view();
 
         // collect folding ranges from declarations
         let mut ranges = Vec::new();
@@ -129,7 +129,7 @@ fn folding_ranges_with_dir(
             }
 
             // resolve the declaration span
-            let ast_node_id = dir_tree.get_source(decl_id.id);
+            let ast_node_id = dir_tree.get_source(decl_id);
             let span = ctx.ast().tree().source_map.get(ast_node_id);
 
             // convert the span to line numbers

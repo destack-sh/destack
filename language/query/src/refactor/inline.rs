@@ -95,7 +95,7 @@ pub fn inline_symbol(
     };
 
     // find the declarator that owns the symbol
-    let dir_tree = ctx.dir().tree();
+    let dir_tree = ctx.dir().view();
     let declaration_id = declaration.local_id;
     let (declarator_id, statement_id) = find_declarator_and_statement(dir_tree, declaration_id)?;
 
@@ -275,7 +275,7 @@ fn collect_inline_reference_entries(
     reference_name: Option<String>,
 ) -> Vec<ReferenceEntry> {
     // collect reference expressions for the inline target
-    let dir_tree = ctx.dir().tree();
+    let dir_tree = ctx.dir().view();
     let mut entries = Vec::new();
 
     for (expr_id, expression) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
@@ -335,7 +335,7 @@ fn collect_inline_reference_entries(
         let Some(expr_id) = property_parent_expression(dir_tree, property_id) else {
             continue;
         };
-        let (scope_id, scope_mark) = dir_tree.get_scope::<dir::Expression>(expr_id);
+        let (scope_id, scope_mark) = dir_tree.get_scope(expr_id);
         let Some(static_key) = key_name_key(key) else {
             continue;
         };
@@ -373,7 +373,7 @@ fn collect_inline_reference_entries(
 
 /// Count the number of bindings in a pattern.
 fn count_pattern_bindings(
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     pattern_id: dir::LocalNodeId<dir::Pattern>,
 ) -> usize {
     let mut bindings = HashSet::new();
@@ -383,7 +383,7 @@ fn count_pattern_bindings(
 
 /// Collect binding symbols from a pattern.
 fn collect_pattern_bindings(
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     pattern_id: dir::LocalNodeId<dir::Pattern>,
     bindings: &mut HashSet<dir::LocalSymbolId>,
 ) {
@@ -428,7 +428,7 @@ fn collect_pattern_bindings(
 
 /// Collect binding symbols from a pattern field.
 fn collect_pattern_bindings_field(
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     field_id: dir::LocalNodeId<dir::PatternField>,
     bindings: &mut HashSet<dir::LocalSymbolId>,
 ) {
@@ -463,7 +463,7 @@ fn collect_pattern_bindings_field(
 /// Resolve the access path for a destructured binding.
 fn pattern_access_path(
     strings: &StringPool,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     pattern_id: dir::LocalNodeId<dir::Pattern>,
     target_symbol: dir::LocalSymbolId,
 ) -> Option<Vec<AccessSegment>> {
@@ -519,7 +519,7 @@ fn pattern_access_path(
 /// Resolve access paths for object fields.
 fn pattern_access_path_object_fields(
     strings: &StringPool,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     fields: &[dir::LocalNodeId<dir::PatternField>],
     target_symbol: dir::LocalSymbolId,
 ) -> Option<Vec<AccessSegment>> {
@@ -566,7 +566,7 @@ fn pattern_access_path_object_fields(
 /// Resolve access paths for tuple and array fields.
 fn pattern_access_path_indexed(
     strings: &StringPool,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     fields: &[dir::LocalNodeId<dir::PatternField>],
     target_symbol: dir::LocalSymbolId,
 ) -> Option<Vec<AccessSegment>> {
@@ -668,12 +668,12 @@ fn escape_string_literal(value: &str) -> String {
 
 /// Resolve the nearest expression that owns a property shorthand.
 fn property_parent_expression(
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     property_id: dir::LocalNodeId<dir::Property>,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
     // walk upward to find the containing expression for a property
     let mut current = dir::LocalNodeIdAny::from(property_id);
-    while let Some(parent) = dir_tree.get_parent(current.id) {
+    while let Some(parent) = dir_tree.get_parent_any(current) {
         if parent.ty == dir::NodeType::Expression {
             return parent.try_into().ok();
         }
@@ -698,13 +698,13 @@ fn key_name_key(key: &dir::Key) -> Option<dir::StaticKey> {
 /// Resolve the precise span for a reference expression.
 fn reference_span_for_expression(
     ctx: &QueryContext,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     expr_id: dir::LocalNodeId<dir::Expression>,
 ) -> Span {
     let span = main_span_for_dir_node(ctx.ast(), dir_tree, expr_id.into())
         .unwrap_or_else(|| span_for_dir_node(ctx.ast(), dir_tree, expr_id.into()));
 
-    let Some(parent) = dir_tree.get_parent(expr_id.id) else {
+    let Some(parent) = dir_tree.get_parent(expr_id) else {
         return span;
     };
     if parent.ty != dir::NodeType::Expression {
@@ -745,7 +745,7 @@ fn reference_span_for_expression(
 fn collect_captured_symbols(
     repository: &Repository,
     ctx: &QueryContext,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     value_id: dir::LocalNodeId<dir::Expression>,
     inline_symbol: dir::GlobalSymbolId,
 ) -> Option<Vec<CapturedSymbol>> {
@@ -754,7 +754,8 @@ fn collect_captured_symbols(
     let mut captured: HashMap<dir::StaticKey, dir::GlobalSymbolId> = HashMap::new();
     let mut has_unknown = false;
 
-    let expression = dir_tree.get::<dir::Expression>(value_id);
+    let raw_tree = dir_tree.tree();
+    let expression = raw_tree.get::<dir::Expression>(value_id);
     let mut visitor = CapturedSymbolVisitor::new(
         repository,
         ctx.revision(),
@@ -765,7 +766,7 @@ fn collect_captured_symbols(
         &mut captured,
         &mut has_unknown,
     );
-    visitor.visit_expression(dir_tree, value_id, expression);
+    visitor.visit_expression(raw_tree, value_id, expression);
 
     if has_unknown {
         return None;
@@ -786,7 +787,7 @@ fn collect_captured_symbols(
 fn inline_shadow_safe(
     repository: &Repository,
     ctx: &QueryContext,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     reference_entries: &[ReferenceEntry],
     captured_symbols: &[CapturedSymbol],
 ) -> bool {
@@ -794,7 +795,7 @@ fn inline_shadow_safe(
     let symbols = ctx.dir().symbols();
 
     for entry in reference_entries {
-        let (scope_id, scope_mark) = dir_tree.get_scope::<dir::Expression>(entry.expr_id);
+        let (scope_id, scope_mark) = dir_tree.get_scope(entry.expr_id);
         for captured in captured_symbols {
             let Some(resolved_local) =
                 resolve_symbol_in_scope(symbols, scope_id, scope_mark, captured.name_key)
@@ -823,7 +824,7 @@ fn resolve_symbol_in_scope(
     // resolve a name through the scope chain honoring scope marks
     loop {
         let scope = symbols.get_scope_by_id(scope_id);
-        if let Some(symbol_id) = scope.find_up_to(key, scope_mark) {
+        if let Some(symbol_id) = symbols.find_symbol_up_to(scope, key, scope_mark) {
             return Some(symbol_id);
         }
 
@@ -835,7 +836,7 @@ fn resolve_symbol_in_scope(
 
 /// Find the declarator and statement ids for a declaration.
 fn find_declarator_and_statement(
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     declaration_id: dir::LocalNodeIdAny,
 ) -> Option<(
     dir::LocalNodeId<dir::Declarator>,
@@ -846,7 +847,7 @@ fn find_declarator_and_statement(
     let mut declarator_id = None;
     let mut statement_id = None;
 
-    while let Some(parent) = dir_tree.get_parent(current.id) {
+    while let Some(parent) = dir_tree.get_parent_any(current) {
         if parent.ty == dir::NodeType::Declarator {
             let Ok(typed) = parent.try_into() else {
                 return None;
@@ -876,7 +877,7 @@ fn find_declarator_and_statement(
 
 /// Resolve the initializer expression for a declarator.
 fn declarator_value(
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     declarator_id: dir::LocalNodeId<dir::Declarator>,
     statement_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
@@ -899,7 +900,7 @@ fn declarator_value(
 /// Resolve declarator spans for a let statement.
 fn statement_declarator_spans(
     ctx: &QueryContext,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     statement_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<Vec<(dir::LocalNodeId<dir::Declarator>, Span)>> {
     // resolve declarator spans from the let statement
@@ -1031,20 +1032,21 @@ fn expression_is_simple(expression: &dir::Expression) -> bool {
 
 /// Detect whether an expression produces side effects.
 fn expression_has_side_effects(
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     expr_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // walk the expression subtree and detect side effects
-    let expr = dir_tree.get::<dir::Expression>(expr_id);
+    let raw_tree = dir_tree.tree();
+    let expr = raw_tree.get::<dir::Expression>(expr_id);
     let mut visitor = SideEffectVisitor::new();
-    visitor.visit_expression(dir_tree, expr_id, expr);
+    visitor.visit_expression(raw_tree, expr_id, expr);
     visitor.has_side_effects
 }
 
 /// Detect whether a symbol is assigned within a scope.
 fn symbol_is_assigned(ctx: &QueryContext, symbol_id: dir::GlobalSymbolId) -> bool {
     // scan for assignments to this symbol
-    let dir_tree = ctx.dir().tree();
+    let dir_tree = ctx.dir().view();
     for (_expr_id, expr) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
         let target_symbol = match expr {
             dir::Expression::Assign { left, .. } => assign_pattern_target_symbol(ctx, *left),
@@ -1073,7 +1075,7 @@ fn assign_pattern_target_symbol(
     ctx: &QueryContext,
     assign_pattern_id: dir::LocalNodeId<dir::AssignPattern>,
 ) -> Option<dir::GlobalSymbolId> {
-    let dir_tree = ctx.dir().tree();
+    let dir_tree = ctx.dir().view();
     let assign_pattern = dir_tree.get(assign_pattern_id);
 
     match assign_pattern {
@@ -1149,13 +1151,7 @@ impl dir::NodeVisitor for CapturedSymbolVisitor<'_> {
         }
 
         let node_id = id.into_global_any(self.module_id);
-        let target_symbol = self
-            .types
-            .symbol_resolution(node_id)
-            .and_then(|resolution| match resolution {
-                dir::SymbolResolution::Target(symbol_id) => Some(*symbol_id),
-                dir::SymbolResolution::Candidates(_) => None,
-            });
+        let target_symbol = self.types.symbol_resolution(node_id);
 
         if let Some(target_symbol) = target_symbol {
             let canonical = get_canonical_symbol(self.repository, self.revision, target_symbol);

@@ -20,11 +20,11 @@ pub(crate) fn get_module_by_file_id(
 /// Get the span of a DIR node using one DIR tree.
 pub(crate) fn get_node_tree_span(
     ast: AstQueryContext<'_>,
-    dir_tree: &dir::Tree,
+    dir: dir::View<'_>,
     dir_node_id: LocalNodeIdAny,
 ) -> Span {
     // get the AST node id from the DIR node
-    let ast_node_id = dir_tree.get_source(dir_node_id.id);
+    let ast_node_id = dir.get_source_any(dir_node_id);
 
     // get the span from AST source map
     ast.source_map().get(ast_node_id)
@@ -33,11 +33,11 @@ pub(crate) fn get_node_tree_span(
 /// Get the main span of a DIR node using one DIR tree.
 pub(crate) fn get_node_tree_main_span(
     ast: AstQueryContext<'_>,
-    dir_tree: &dir::Tree,
+    dir: dir::View<'_>,
     dir_node_id: LocalNodeIdAny,
 ) -> Span {
     // get the AST node id from the DIR node
-    let ast_node_id = dir_tree.get_source(dir_node_id.id);
+    let ast_node_id = dir.get_source_any(dir_node_id);
 
     // try to get the main span first (e.g., identifier span for declarations)
     ast.source_map().get_main_or_enclosing(ast_node_id)
@@ -46,11 +46,11 @@ pub(crate) fn get_node_tree_main_span(
 /// Resolve the span for a DIR node within a query context.
 pub(crate) fn span_for_dir_node(
     ast: AstQueryContext<'_>,
-    dir_tree: &dir::Tree,
+    dir: dir::View<'_>,
     node_id: LocalNodeIdAny,
 ) -> Span {
     // resolve the source span for the node
-    let source_id = dir_tree.get_source(node_id.id);
+    let source_id = dir.get_source_any(node_id);
     let ast_span = ast.source_map().get(source_id);
 
     Span::new(ast.file_id(), ast_span.start, ast_span.end)
@@ -59,11 +59,11 @@ pub(crate) fn span_for_dir_node(
 /// Resolve the span for a DIR node when its source id is present in the AST source map.
 pub(crate) fn try_span_for_dir_node(
     ast: AstQueryContext<'_>,
-    dir_tree: &dir::Tree,
+    dir: dir::View<'_>,
     node_id: LocalNodeIdAny,
 ) -> Option<Span> {
     // resolve the source span when the source id is still valid
-    let source_id = dir_tree.get_source(node_id.id);
+    let source_id = dir.get_source_any(node_id);
     let ast_span = ast.source_map().try_get(source_id)?;
 
     Some(Span::new(ast.file_id(), ast_span.start, ast_span.end))
@@ -72,11 +72,11 @@ pub(crate) fn try_span_for_dir_node(
 /// Resolve the main span for a DIR node when available.
 pub(crate) fn main_span_for_dir_node(
     ast: AstQueryContext<'_>,
-    dir_tree: &dir::Tree,
+    dir: dir::View<'_>,
     node_id: LocalNodeIdAny,
 ) -> Option<Span> {
     // resolve the source span for the node
-    let source_id = dir_tree.get_source(node_id.id);
+    let source_id = dir.get_source_any(node_id);
     let ast_span = ast.source_map().get_main(source_id)?;
 
     Some(Span::new(ast.file_id(), ast_span.start, ast_span.end))
@@ -85,11 +85,11 @@ pub(crate) fn main_span_for_dir_node(
 /// Resolve the main or enclosing span for a DIR node.
 pub(crate) fn main_or_enclosing_span_for_dir_node(
     ast: AstQueryContext<'_>,
-    dir_tree: &dir::Tree,
+    dir: dir::View<'_>,
     node_id: LocalNodeIdAny,
 ) -> Span {
     // resolve the source span for the node
-    let source_id = dir_tree.get_source(node_id.id);
+    let source_id = dir.get_source_any(node_id);
     let ast_span = ast.source_map().get_main_or_enclosing(source_id);
 
     Span::new(ast.file_id(), ast_span.start, ast_span.end)

@@ -1,5 +1,5 @@
 use destack_ast as ast;
-use destack_dir::{self as dir, DeclarationForm, GlobalSymbolId};
+use destack_dir::{self as dir, GlobalSymbolId, SymbolForm};
 use destack_source::{FileId, NodeSpanType, Span, Uri};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
@@ -153,7 +153,7 @@ pub fn code_lenses(repository: &Repository, revision: Revision, file: FileId) ->
 
     // collect declarations and their info
     let declarations: Vec<_> = {
-        let dir_tree = ctx.dir().tree();
+        let dir_tree = ctx.dir().view();
         let symbols = ctx.dir().symbols();
 
         dir_tree
@@ -165,29 +165,28 @@ pub fn code_lenses(repository: &Repository, revision: Revision, file: FileId) ->
                         module_id,
                         local_id: symbol_id,
                     };
-                    let ast_node_id = dir_tree.get_source(decl_id.id);
+                    let ast_node_id = dir_tree.get_source(decl_id);
                     let main_span = ctx
                         .ast()
                         .tree()
                         .get_side_span_by_id(ast_node_id, NodeSpanType::Main);
                     let name = resolve_symbol_name(repository, revision, global_symbol_id);
                     let is_test = has_decorator_named(ast, ast_node_id, "test");
-                    let declaration_form = symbols.get_symbol(symbol_id).form;
+                    let symbol_form = symbols.get_symbol(symbol_id).form;
                     (
                         decl.clone(),
                         global_symbol_id,
                         main_span,
                         is_test,
                         name,
-                        declaration_form,
+                        symbol_form,
                     )
                 },
             )
             .collect()
     };
 
-    for (declaration, global_symbol_id, main_span, is_test, name, declaration_form) in declarations
-    {
+    for (declaration, global_symbol_id, main_span, is_test, name, symbol_form) in declarations {
         let Some(span) = main_span else {
             continue;
         };
@@ -208,7 +207,7 @@ pub fn code_lenses(repository: &Repository, revision: Revision, file: FileId) ->
         }
 
         // count implementations for interfaces
-        if declaration_form == DeclarationForm::Interface {
+        if symbol_form == SymbolForm::Interface {
             let impl_count = count_implementations(repository, revision, global_symbol_id);
             if impl_count > 0 {
                 lenses.push(CodeLens::implementations(span, impl_count));
@@ -216,7 +215,7 @@ pub fn code_lenses(repository: &Repository, revision: Revision, file: FileId) ->
         }
 
         // count subclasses for classes
-        if declaration_form == DeclarationForm::Class {
+        if symbol_form == SymbolForm::Class {
             let subclass_count = count_subclasses(repository, revision, global_symbol_id);
             if subclass_count > 0 {
                 lenses.push(CodeLens::implementations(span, subclass_count));

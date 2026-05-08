@@ -121,7 +121,7 @@ pub fn signature_help(
     // resolve signature help within the query context
     with_query_context_for_file(repository, revision, file, |ctx| {
         // resolve the dir tree for traversal
-        let dir_tree = ctx.dir().tree();
+        let dir_tree = ctx.dir().view();
 
         // resolve the source text for cursor checks
         let source_file = repository.file(revision, ctx.file_id()).ok().flatten()?;
@@ -236,7 +236,7 @@ fn signature_info_for_symbol(
     let source = source_file.text();
 
     // resolve the function signature from the declaration or member
-    let dir_tree = ctx.dir().tree();
+    let dir_tree = ctx.dir().view();
     let (signature, doc_text) = match declaration_ref.local_id.ty {
         // handle function declarations
         NodeType::Declaration => {
@@ -245,7 +245,7 @@ fn signature_info_for_symbol(
             let Declaration::Function(declaration) = declaration else {
                 return None;
             };
-            let ast_node_id = dir_tree.get_source(declaration_id.id);
+            let ast_node_id = dir_tree.get_source(declaration_id);
             let doc_text = doc_text_for_node_without_tags(
                 ctx.ast(),
                 source,
@@ -259,7 +259,7 @@ fn signature_info_for_symbol(
             let member_id = declaration_ref.local_id.try_into_typed().ok()?;
             let member = dir_tree.get::<Member>(member_id);
             let signature = member.signature()?;
-            let ast_node_id = dir_tree.get_source(member_id.id);
+            let ast_node_id = dir_tree.get_source(member_id);
             let doc_text = doc_text_for_node_without_tags(
                 ctx.ast(),
                 source,
@@ -335,7 +335,7 @@ fn parameter_infos_from_data(labels: &[String], data: &ParameterData) -> Vec<Par
 /// Counts how many arguments come before the cursor position.
 fn determine_active_parameter(
     ctx: &QueryContext,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     call_expression_id: dir::LocalNodeId<Expression>,
     arguments: &[dir::LocalNodeId<Argument>],
     cursor_offset: u32,

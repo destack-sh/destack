@@ -87,7 +87,7 @@ pub fn inlay_hints(
     // resolve hints within the query context
     with_query_context_for_file(repository, revision, file, |ctx| {
         // resolve shared dir data for hint generation
-        let dir_tree = ctx.dir().tree();
+        let dir_tree = ctx.dir().view();
         let types = ctx.dir().types();
 
         // collect parameter and type hints
@@ -109,7 +109,7 @@ pub fn inlay_hints(
             }
 
             // get the span of this call expression
-            let ast_node_id = dir_tree.get_source(expression_id.id);
+            let ast_node_id = dir_tree.get_source(expression_id);
             let call_span = ctx.ast().tree().source_map.get(ast_node_id);
 
             // skip if outside the requested range
@@ -151,7 +151,7 @@ pub fn inlay_hints(
                 }
 
                 // get the span of the argument expression
-                let arg_ast_id = dir_tree.get_source(argument.value().id);
+                let arg_ast_id = dir_tree.get_source(argument.value());
                 let arg_span = ctx.ast().tree().source_map.get(arg_ast_id);
 
                 // add a parameter hint at the start of the argument
@@ -175,7 +175,7 @@ pub fn inlay_hints(
             } = pattern
             {
                 // get the span of the binding name
-                let ast_node_id = dir_tree.get_source(declarator.pattern.id);
+                let ast_node_id = dir_tree.get_source(declarator.pattern);
                 let Some(name_span) = ctx.ast().tree().source_map.get_main(ast_node_id) else {
                     continue;
                 };
@@ -267,7 +267,7 @@ fn get_parameter_names(
 /// Decide whether a parameter hint should be skipped for an argument.
 fn should_skip_parameter_hint(
     strings: &StringPool,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     argument: &Argument,
     param_name: &str,
     argument_is_literal: bool,
@@ -311,7 +311,7 @@ fn should_skip_parameter_hint(
 /// Extract a simple reference name from an argument value when available.
 fn argument_reference(
     strings: &StringPool,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     argument: &Argument,
 ) -> Option<ArgumentReference> {
     // resolve the argument expression
@@ -336,7 +336,7 @@ enum ArgumentReference {
 }
 
 /// Check whether an argument is a literal value.
-fn argument_is_literal(dir_tree: &dir::Tree, argument: &Argument) -> bool {
+fn argument_is_literal(dir_tree: dir::View<'_>, argument: &Argument) -> bool {
     // resolve the argument expression
     let expr = dir_tree.get::<Expression>(argument.value());
 

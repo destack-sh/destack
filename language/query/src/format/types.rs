@@ -540,7 +540,7 @@ pub fn format_symbol_path(
 
         // collect named owners into the path
         let scope = symbols.get_scope_by_id(scope_id);
-        if let Some(owner_id) = scope.owner_id
+        if let Some(owner_id) = scope.owner
             && owner_id != symbol_id.into_local()
         {
             let owner = symbols.get_symbol(owner_id);

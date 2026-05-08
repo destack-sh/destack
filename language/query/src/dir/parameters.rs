@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use destack_core::StringPool;
 use destack_dir::{
-    Declaration, GlobalSymbolId, LocalNodeId, LocalTypeId, Member, NodeType, Parameter, Tree,
+    Declaration, GlobalSymbolId, LocalNodeId, LocalTypeId, Member, NodeType, Parameter,
 };
 use destack_workspace::{Repository, Revision};
 
@@ -51,7 +51,7 @@ pub(crate) fn parameter_display_name(strings: &StringPool, parameter: &Parameter
 /// Collect parameter display names from parameter nodes.
 pub(crate) fn parameter_display_names(
     strings: &StringPool,
-    tree: &Tree,
+    tree: destack_dir::View<'_>,
     parameters: &[LocalNodeId<Parameter>],
 ) -> Vec<String> {
     // collect parameter display names in declared order
@@ -111,7 +111,7 @@ fn parameter_data_for_symbol_with_context(
     let source = source_file.text();
 
     // resolve parameter data based on the declaration node type
-    let dir_tree = ctx.dir().tree();
+    let dir_tree = ctx.dir().view();
     match global_node_id.local_id.ty {
         // collect parameters from function declarations
         NodeType::Declaration => {
@@ -121,7 +121,7 @@ fn parameter_data_for_symbol_with_context(
                 return None;
             };
 
-            let ast_node_id = dir_tree.get_source(declaration_id.id);
+            let ast_node_id = dir_tree.get_source(declaration_id);
             let docs = parameter_doc_map(ctx.ast(), source, ast_node_id);
             let names = parameter_display_names(
                 ctx.dir().strings(),
@@ -138,7 +138,7 @@ fn parameter_data_for_symbol_with_context(
             let member = dir_tree.get::<Member>(member_id);
             let signature = member.signature()?;
 
-            let ast_node_id = dir_tree.get_source(member_id.id);
+            let ast_node_id = dir_tree.get_source(member_id);
             let docs = parameter_doc_map(ctx.ast(), source, ast_node_id);
             let names =
                 parameter_display_names(ctx.dir().strings(), dir_tree, &signature.parameters);
@@ -168,7 +168,7 @@ pub(crate) fn expected_parameter_hint_for_symbol(
     };
 
     // resolve the parameters for the declaration
-    let dir_tree = ctx.dir().tree();
+    let dir_tree = ctx.dir().view();
     let parameters = match global_node_id.local_id.ty {
         NodeType::Declaration => {
             let declaration_id = global_node_id.local_id.try_into_typed().ok()?;
@@ -329,7 +329,7 @@ fn collect_expected_type_symbols_inner(
 
 /// Resolve the parameter node that should guide one argument index.
 fn resolve_expected_parameter_id(
-    dir_tree: &Tree,
+    dir_tree: destack_dir::View<'_>,
     parameters: &[LocalNodeId<Parameter>],
     parameter_index: usize,
 ) -> Option<LocalNodeId<Parameter>> {

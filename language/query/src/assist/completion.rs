@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use destack_ast as ast;
 use destack_ast::Keyword;
-use destack_dir::{self as dir, DeclarationForm, FloatType, IntType, SymbolSpace};
+use destack_dir::{self as dir, FloatType, IntType, SymbolForm, SymbolSpace};
 use destack_source::{Edit, File, FileId, FileType, Loader, ModuleId, PackageId, Uri};
 use destack_workspace::{Module, Repository, Revision};
 use serde::{Deserialize, Serialize};
@@ -88,19 +88,19 @@ struct CompletionValueShape {
     is_constructable: bool,
 }
 
-impl From<DeclarationForm> for CompletionKind {
+impl From<SymbolForm> for CompletionKind {
     /// Convert a symbol type into a completion kind.
-    fn from(ty: DeclarationForm) -> Self {
+    fn from(ty: SymbolForm) -> Self {
         match ty {
-            DeclarationForm::Void => CompletionKind::Variable,
-            DeclarationForm::Class => CompletionKind::Class,
-            DeclarationForm::Struct => CompletionKind::Struct,
-            DeclarationForm::Interface => CompletionKind::Interface,
-            DeclarationForm::Enum => CompletionKind::Enum,
-            DeclarationForm::Function => CompletionKind::Function,
-            DeclarationForm::Extension => CompletionKind::Class,
-            DeclarationForm::TypeAlias => CompletionKind::TypeParameter,
-            DeclarationForm::Newtype => CompletionKind::TypeParameter,
+            SymbolForm::Value => CompletionKind::Variable,
+            SymbolForm::Class => CompletionKind::Class,
+            SymbolForm::Struct => CompletionKind::Struct,
+            SymbolForm::Interface => CompletionKind::Interface,
+            SymbolForm::Enum => CompletionKind::Enum,
+            SymbolForm::Function => CompletionKind::Function,
+            SymbolForm::Extension => CompletionKind::Class,
+            SymbolForm::TypeAlias => CompletionKind::TypeParameter,
+            SymbolForm::Newtype => CompletionKind::TypeParameter,
         }
     }
 }
@@ -508,7 +508,7 @@ impl<'a> CompletionBuilder<'a> {
         let ctx = self.query_context_for_module(symbol_id.module_id)?;
         let types = ctx.dir().types();
         let symbols = ctx.dir().symbols();
-        let type_id = types.declaration_form_id(symbols, symbol_id)?;
+        let type_id = types.symbol_type_id(symbols, symbol_id)?;
 
         Some(Self::value_shape_for_type(types, type_id))
     }
@@ -539,7 +539,7 @@ impl<'a> CompletionBuilder<'a> {
         let ctx = self.query_context_for_module(symbol_id.module_id)?;
         let types = ctx.dir().types();
         let symbols = ctx.dir().symbols();
-        let type_id = types.declaration_form_id(symbols, symbol_id)?;
+        let type_id = types.symbol_type_id(symbols, symbol_id)?;
 
         self.type_symbol_for_type(types, type_id)
     }
@@ -566,7 +566,7 @@ impl<'a> CompletionBuilder<'a> {
         };
         let types = ctx.dir().types();
         let symbols = ctx.dir().symbols();
-        let Some(type_id) = types.declaration_form_id(symbols, symbol_id) else {
+        let Some(type_id) = types.symbol_type_id(symbols, symbol_id) else {
             return Vec::new();
         };
 
@@ -643,7 +643,7 @@ impl<'a> CompletionBuilder<'a> {
     }
 
     /// Format a type detail string for a symbol's declared or inferred type.
-    fn format_declaration_form_detail(&self, symbol_id: dir::GlobalSymbolId) -> Option<String> {
+    fn format_symbol_form_detail(&self, symbol_id: dir::GlobalSymbolId) -> Option<String> {
         let ctx = self.query_context_for_module(symbol_id.module_id)?;
 
         let symbols = ctx.dir().symbols();
@@ -742,7 +742,7 @@ impl<'a> CompletionBuilder<'a> {
 
             completion = completion.with_type_symbols(self.type_symbols_for_symbol(symbol_id));
 
-            if let Some(type_text) = self.format_declaration_form_detail(symbol_id) {
+            if let Some(type_text) = self.format_symbol_form_detail(symbol_id) {
                 completion = completion.with_detail(type_text);
             }
         }
@@ -976,14 +976,14 @@ impl<'a> CompletionBuilder<'a> {
             return primitive_type_completions();
         };
         let symbols = ctx.dir().symbols();
-        let dir_tree = ctx.dir().tree();
+        let dir_tree = ctx.dir().view();
 
         let mut results = Vec::new();
         let mut seen_names = HashSet::new();
 
         // normalize void aliases through their canonical exported type
-        let resolve_declaration_form = |symbol_id: dir::LocalSymbolId, symbol: &dir::Symbol| {
-            if symbol.form != DeclarationForm::Void {
+        let resolve_symbol_form = |symbol_id: dir::LocalSymbolId, symbol: &dir::Symbol| {
+            if symbol.form != SymbolForm::Value {
                 return symbol.form;
             }
 
@@ -1022,7 +1022,7 @@ impl<'a> CompletionBuilder<'a> {
                 continue;
             }
 
-            let kind = CompletionKind::from(resolve_declaration_form(visible.id, visible.symbol));
+            let kind = CompletionKind::from(resolve_symbol_form(visible.id, visible.symbol));
             let completion = Completion::new(name, kind)
                 .with_sort_order(SORT_LOCAL_SYMBOL)
                 .as_local();
@@ -1054,7 +1054,7 @@ impl<'a> CompletionBuilder<'a> {
                 continue;
             }
 
-            let kind = CompletionKind::from(resolve_declaration_form(symbol_id, symbol));
+            let kind = CompletionKind::from(resolve_symbol_form(symbol_id, symbol));
             let completion = Completion::new(name, kind)
                 .with_sort_order(SORT_LOCAL_SYMBOL)
                 .as_local();
@@ -1117,7 +1117,7 @@ impl<'a> CompletionBuilder<'a> {
         let mut results = Vec::new();
 
         // snapshot the visible value-space symbols before building completions
-        let symbols_to_process: Vec<(dir::LocalSymbolId, String, DeclarationForm)> = {
+        let symbols_to_process: Vec<(dir::LocalSymbolId, String, SymbolForm)> = {
             let symbols = ctx.dir().symbols();
             let mut symbols_to_process = Vec::new();
             let mut seen_names = HashSet::new();
@@ -1145,8 +1145,8 @@ impl<'a> CompletionBuilder<'a> {
         };
 
         // build one completion per visible symbol
-        for (local_id, name, declaration_form) in symbols_to_process {
-            let kind = CompletionKind::from(declaration_form);
+        for (local_id, name, symbol_form) in symbols_to_process {
+            let kind = CompletionKind::from(symbol_form);
             let mut completion = Completion::new(&name, kind)
                 .with_sort_order(SORT_LOCAL_SYMBOL)
                 .as_local();
@@ -1164,7 +1164,7 @@ impl<'a> CompletionBuilder<'a> {
             }
             completion = completion.with_type_symbols(self.type_symbols_for_symbol(symbol_id));
 
-            if declaration_form == DeclarationForm::Function
+            if symbol_form == SymbolForm::Function
                 && let Some(param_names) =
                     get_function_param_names(self.repository, self.revision, symbol_id)
             {
@@ -1421,7 +1421,7 @@ impl<'a> CompletionBuilder<'a> {
         local_id: dir::LocalSymbolId,
         module_path: &str,
         export_name: &str,
-        declaration_form: DeclarationForm,
+        symbol_form: SymbolForm,
         expected_space: Option<SymbolSpace>,
         symbol_space: SymbolSpace,
         import_space: ImportEditSpace,
@@ -1458,7 +1458,7 @@ impl<'a> CompletionBuilder<'a> {
 
         let sort_text = import_sort_text(&relevance, &display_path, export_name);
         let import_sort_key = import_sort_key(&relevance, &display_path, export_name);
-        let kind = CompletionKind::from(declaration_form);
+        let kind = CompletionKind::from(symbol_form);
         let detail = format!("Auto import from {display_path}");
         let mut completion = Completion::new(export_name, kind)
             .with_detail(detail)
@@ -1466,7 +1466,7 @@ impl<'a> CompletionBuilder<'a> {
             .with_import_sort_key(import_sort_key)
             .with_sort_text(sort_text)
             .with_additional_edits(import_edits)
-            .with_value_shape(CompletionValueShape::for_declaration_form(declaration_form))
+            .with_value_shape(CompletionValueShape::for_symbol_form(symbol_form))
             .as_auto_import();
 
         let symbol_id = dir::GlobalSymbolId {
@@ -1733,11 +1733,8 @@ fn primitive_type_completions() -> Vec<Completion> {
 }
 
 /// Check whether one symbol type is constructable with `new`.
-fn is_constructable_symbol(declaration_form: DeclarationForm) -> bool {
-    matches!(
-        declaration_form,
-        DeclarationForm::Class | DeclarationForm::Struct
-    )
+fn is_constructable_symbol(symbol_form: SymbolForm) -> bool {
+    matches!(symbol_form, SymbolForm::Class | SymbolForm::Struct)
 }
 
 /// Check whether one completion entry is constructable with `new`.
@@ -2348,13 +2345,13 @@ impl CompletionContext {
 
 impl CompletionValueShape {
     /// Build one coarse callable and constructable shape from one symbol type.
-    fn for_declaration_form(declaration_form: DeclarationForm) -> Self {
-        match declaration_form {
-            DeclarationForm::Function => Self {
+    fn for_symbol_form(symbol_form: SymbolForm) -> Self {
+        match symbol_form {
+            SymbolForm::Function => Self {
                 is_callable: true,
                 is_constructable: false,
             },
-            DeclarationForm::Class | DeclarationForm::Struct => Self {
+            SymbolForm::Class | SymbolForm::Struct => Self {
                 is_callable: false,
                 is_constructable: true,
             },

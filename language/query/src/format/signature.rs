@@ -46,7 +46,7 @@ pub fn format_declaration_signature(
     // resolve dir data for formatting
     let ctx = query_context_for_profile(repository, revision, module.id, profile)
         .unwrap_or_else(|| panic!("no query context for profile {profile:?}"));
-    let dir_tree = ctx.dir().tree();
+    let dir_tree = ctx.dir().view();
     let types = ctx.dir().types();
     let module_id = module.id;
 
@@ -135,7 +135,7 @@ fn format_function(
     signature: &dir::FunctionSignature,
     declaration_prefix: &str,
     module_id: ModuleId,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     types: &dir::TypeTable,
     repository: &Repository,
     revision: Revision,
@@ -231,7 +231,7 @@ pub fn format_call_signature(
     name: &str,
     signature: &dir::FunctionSignature,
     module_id: ModuleId,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     types: &dir::TypeTable,
     repository: &Repository,
     revision: Revision,
@@ -307,7 +307,7 @@ pub fn format_call_signature(
 fn format_generics(
     generics: &[dir::LocalNodeId<dir::GenericParameter>],
     module_id: ModuleId,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     types: &dir::TypeTable,
     repository: &Repository,
     revision: Revision,
@@ -342,7 +342,7 @@ fn format_generics(
 fn format_generic_parameter(
     parameter_id: dir::LocalNodeId<dir::GenericParameter>,
     _module_id: ModuleId,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     _types: &dir::TypeTable,
     _repository: &Repository,
     _revision: Revision,
@@ -363,7 +363,7 @@ fn format_parameters(
     this_parameter: Option<dir::LocalNodeId<dir::Parameter>>,
     parameters: &[dir::LocalNodeId<dir::Parameter>],
     module_id: ModuleId,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     types: &dir::TypeTable,
     repository: &Repository,
     revision: Revision,
@@ -390,7 +390,7 @@ fn format_parameter_labels(
     this_parameter: Option<dir::LocalNodeId<dir::Parameter>>,
     parameters: &[dir::LocalNodeId<dir::Parameter>],
     module_id: ModuleId,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     types: &dir::TypeTable,
     repository: &Repository,
     revision: Revision,
@@ -434,7 +434,7 @@ fn format_parameter_labels(
 fn format_parameter(
     parameter_id: dir::LocalNodeId<dir::Parameter>,
     module_id: ModuleId,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     types: &dir::TypeTable,
     repository: &Repository,
     revision: Revision,
@@ -485,7 +485,7 @@ pub fn format_symbol_signature(
     };
 
     // read the declaration from the tree
-    let dir_tree = ctx.dir().tree();
+    let dir_tree = ctx.dir().view();
     let declaration_id = declaration_ref.local_id.try_into().ok()?;
     let declaration = dir_tree.get::<dir::Declaration>(declaration_id);
 

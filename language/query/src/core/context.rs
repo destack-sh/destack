@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactKey, ArtifactPin, ArtifactVersion, Ast, DirChecked, DirDeclared, DirExported,
-    DirImported, GlobalEnvironment,
+    ArtifactKey, ArtifactPin, ArtifactVersion, Ast, DirChecked, DirDeclared, DirExpanded,
+    DirExported, DirImported, GlobalEnvironment,
 };
 use destack_ast as ast;
 use destack_core::StringPool;
@@ -26,6 +26,8 @@ pub(crate) struct QueryContext {
     dir_declared: Arc<DirDeclared>,
     /// The imported module DIR.
     dir_imported: Arc<DirImported>,
+    /// The expanded module DIR.
+    dir_expanded: Arc<DirExpanded>,
     /// The exported module DIR.
     dir_exported: Arc<DirExported>,
     /// The checked module DIR.
@@ -102,6 +104,8 @@ pub(crate) struct DirQueryContext<'a> {
     declared: &'a DirDeclared,
     /// The imported DIR artifact.
     imported: &'a DirImported,
+    /// The expanded DIR artifact.
+    expanded: &'a DirExpanded,
     /// The exported DIR artifact.
     exported: &'a DirExported,
     /// The checked DIR artifact.
@@ -119,9 +123,23 @@ impl<'a> DirQueryContext<'a> {
         self.revision
     }
 
-    /// Return the DIR tree.
-    pub(crate) fn tree(self) -> &'a dir::Tree {
-        &self.declared.tree
+    /// Return the visible DIR tree view.
+    pub(crate) fn view(self) -> dir::View<'a> {
+        dir::View::patched(&self.declared.tree, &self.expanded.patch)
+    }
+
+    /// Return whether one DIR symbol is visible in this query view.
+    pub(crate) fn symbol_is_active(self, symbol_id: dir::GlobalSymbolId) -> bool {
+        if symbol_id.module_id != self.module_id {
+            return true;
+        }
+
+        let symbol = self.symbols().get_symbol(symbol_id.local_id);
+        let Some(declaration) = symbol.declaration else {
+            return true;
+        };
+
+        self.view().is_active(declaration.local_id)
     }
 
     /// Return the DIR symbol table.
@@ -212,6 +230,7 @@ impl QueryContext {
             revision: self.revision,
             declared: self.dir_declared.as_ref(),
             imported: self.dir_imported.as_ref(),
+            expanded: self.dir_expanded.as_ref(),
             exported: self.dir_exported.as_ref(),
             checked: self.dir_checked.as_ref(),
         }
@@ -276,6 +295,7 @@ pub(crate) fn query_context_for_profile(
     let ast = artifacts.ast(&ast_version)?;
     let dir_declared = artifacts.dir_declared(&declared_version)?;
     let dir_imported = artifacts.dir_imported(&imported_version)?;
+    let dir_expanded = artifacts.dir_expanded(&expanded_version)?;
     let dir_exported = artifacts.dir_exported(&exported_version)?;
     let dir_checked = artifacts.dir_checked(&checked_version)?;
 
@@ -300,6 +320,7 @@ pub(crate) fn query_context_for_profile(
         ast,
         dir_declared,
         dir_imported,
+        dir_expanded,
         dir_exported,
         dir_checked,
         revision,

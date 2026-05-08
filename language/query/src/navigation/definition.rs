@@ -132,12 +132,12 @@ fn resolve_import_definition_at_offset(
     let module = get_module_by_file_id(repository, revision, file)?;
     let ctx = query_context(repository, revision, module.id)?;
     let ast = ctx.ast();
-    let dir_tree = ctx.dir().tree();
+    let dir_tree = ctx.dir().view();
 
     // scan dependency items and select the one at the cursor
     for item_id in dir_tree.iter_node_ids_of_type::<DependencyItem>() {
         // resolve the main declaration span for coarse overlap checks
-        let fallback_span = get_node_tree_main_span(ctx.ast(), ctx.dir().tree(), item_id.into());
+        let fallback_span = get_node_tree_main_span(ctx.ast(), ctx.dir().view(), item_id.into());
 
         // skip items that do not cover the cursor
         if !fallback_span.contains(offset) {
@@ -145,7 +145,7 @@ fn resolve_import_definition_at_offset(
         }
 
         // resolve side spans for imported-name and alias positions
-        let source_id = dir_tree.get_source(item_id.id);
+        let source_id = dir_tree.get_source(item_id);
         let imported_name_span = ast
             .tree()
             .get_side_span_by_id(source_id, NodeSpanType::Region(NodeSpanRegion::Type))
@@ -301,10 +301,10 @@ fn overload_definition_span_for_call_site(
     // resolve the query context for this file
     let module = get_module_by_file_id(repository, revision, file)?;
     let ctx = query_context(repository, revision, module.id)?;
-    let dir_tree = ctx.dir().tree();
+    let dir_tree = ctx.dir().view();
 
     // require a call/new parent where this expression is the callee
-    let parent = dir_tree.get_parent(expression_id.id)?;
+    let parent = dir_tree.get_parent(expression_id)?;
     if parent.ty != NodeType::Expression {
         return None;
     }
@@ -382,7 +382,7 @@ fn overload_declaration_span_for_signature(
         {
             return Some(get_node_tree_main_span(
                 ctx.ast(),
-                ctx.dir().tree(),
+                ctx.dir().view(),
                 declaration.local_id,
             ));
         }
@@ -396,7 +396,7 @@ fn declaration_parameter_type_ids(
     ctx: &QueryContext,
     declaration_id: dir::LocalNodeIdAny,
 ) -> Option<Vec<dir::LocalTypeId>> {
-    let dir_tree = ctx.dir().tree();
+    let dir_tree = ctx.dir().view();
     let types = ctx.dir().types();
 
     let parameters = match declaration_id.ty {
