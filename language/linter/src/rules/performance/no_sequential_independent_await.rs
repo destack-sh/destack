@@ -294,10 +294,6 @@ impl NodeVisitor for SymbolReferenceVisitor<'_> {
         if let Some(target_symbol) = self
             .types
             .symbol_resolution(id.into_global_any(self.module_id))
-            .and_then(|resolution| match resolution {
-                dir::SymbolResolution::Target(symbol) => Some(*symbol),
-                dir::SymbolResolution::Candidates(_) => None,
-            })
             && target_symbol.module_id == self.module_id
             && self.target_symbols.contains(&target_symbol.local_id)
         {

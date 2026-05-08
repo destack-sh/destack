@@ -7,7 +7,6 @@ use destack_source::ModuleId;
 use super::{
     assign_pattern_contains_expression, expression_assignment_target, expression_candidate_symbols,
     expression_is_standalone_statement, resolution_target_symbols,
-    symbol_resolution_target_symbols,
 };
 
 /// Collected symbol usage for one DIR module.
@@ -68,10 +67,8 @@ pub fn collect_module_symbol_usage(
     for (expression_id, _) in tree.iter_nodes_of_type::<dir::Expression>() {
         let global_expression_id = expression_id.into_global_any(module_id);
 
-        if let Some(resolution) = types.symbol_resolution(global_expression_id) {
-            for symbol_id in symbol_resolution_target_symbols(resolution) {
-                usage.direct_symbols.insert(symbol_id);
-            }
+        if let Some(symbol_id) = types.symbol_resolution(global_expression_id) {
+            usage.direct_symbols.insert(symbol_id);
         }
 
         if let Some(resolution) = types.resolution(global_expression_id) {
@@ -90,12 +87,7 @@ fn expression_target_symbol(
     types: &dir::TypeTable,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> Option<dir::GlobalSymbolId> {
-    let resolution = types.symbol_resolution(expression_id.into_global_any(module_id))?;
-
-    match resolution {
-        dir::SymbolResolution::Target(symbol) => Some(*symbol),
-        dir::SymbolResolution::Candidates(_) => None,
-    }
+    types.symbol_resolution(expression_id.into_global_any(module_id))
 }
 
 /// Collect direct reference expression ids for one local symbol in one module.
@@ -166,10 +158,8 @@ pub fn collect_module_read_symbol_usage(
 
         let global_expression_id = expression_id.into_global_any(module_id);
 
-        if let Some(resolution) = types.symbol_resolution(global_expression_id) {
-            for symbol_id in symbol_resolution_target_symbols(resolution) {
-                reads.insert(symbol_id);
-            }
+        if let Some(symbol_id) = types.symbol_resolution(global_expression_id) {
+            reads.insert(symbol_id);
         }
 
         if let Some(resolution) = types.resolution(global_expression_id) {

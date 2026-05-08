@@ -193,10 +193,6 @@ impl NodeVisitor for FunctionCallCollector<'_> {
             && let Some(target_symbol) = self
                 .types
                 .symbol_resolution(left.into_global_any(self.module_id))
-                .and_then(|resolution| match resolution {
-                    dir::SymbolResolution::Target(symbol) => Some(*symbol),
-                    dir::SymbolResolution::Candidates(_) => None,
-                })
         {
             self.called_symbols.insert(target_symbol);
         }

@@ -171,11 +171,11 @@ enum TypeBooleanQuery<'a> {
         promise_symbol: dir::GlobalSymbolId,
     },
     /// Check reference symbol type compatibility.
-    ReferenceDeclarationForm {
+    ReferenceSymbolForm {
         /// Local symbol table for declaration form reads.
         symbols: &'a dir::SymbolTable,
         /// Required symbol type.
-        declaration_form: dir::DeclarationForm,
+        symbol_form: dir::SymbolForm,
     },
     /// Check infer variable compatibility.
     InferVar,
@@ -322,7 +322,7 @@ fn type_query_composition_policy(
             TypeBooleanQuery::Any
             | TypeBooleanQuery::ExplicitAny
             | TypeBooleanQuery::PromiseOrAny { .. }
-            | TypeBooleanQuery::ReferenceDeclarationForm { .. }
+            | TypeBooleanQuery::ReferenceSymbolForm { .. }
             | TypeBooleanQuery::InferVar
             | TypeBooleanQuery::PromiseSpreadElementCompatible { .. }
             | TypeBooleanQuery::MapWithEmptyValue { .. }
@@ -334,7 +334,7 @@ fn type_query_composition_policy(
         dir::Type::Intersection(_) => match query {
             TypeBooleanQuery::Promise { .. }
             | TypeBooleanQuery::PromiseOrAny { .. }
-            | TypeBooleanQuery::ReferenceDeclarationForm { .. }
+            | TypeBooleanQuery::ReferenceSymbolForm { .. }
             | TypeBooleanQuery::InferVar
             | TypeBooleanQuery::PromiseSpreadElementCompatible { .. }
             | TypeBooleanQuery::MapWithEmptyValue { .. }
@@ -397,12 +397,12 @@ fn evaluate_reference_boolean_type_query(
                 return true;
             }
         }
-        TypeBooleanQuery::ReferenceDeclarationForm {
+        TypeBooleanQuery::ReferenceSymbolForm {
             symbols,
-            declaration_form,
+            symbol_form,
         } => {
             if symbol.module_id == symbols.module_id
-                && symbols.get_symbol(symbol.local_id).form == declaration_form
+                && symbols.get_symbol(symbol.local_id).form == symbol_form
             {
                 return true;
             }
@@ -490,7 +490,7 @@ fn evaluate_terminal_boolean_type_query(
             dir::Type::Function(function) => function.this_parameter.is_some(),
             _ => false,
         },
-        TypeBooleanQuery::ReferenceDeclarationForm { .. } => false,
+        TypeBooleanQuery::ReferenceSymbolForm { .. } => false,
         TypeBooleanQuery::InferVar => matches!(ty, dir::Type::InferVariable(_)),
         TypeBooleanQuery::PromiseSpreadElementCompatible { promise_symbol } => match ty {
             dir::Type::Literal(dir::LiteralType {
@@ -1071,18 +1071,18 @@ pub fn is_function_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bo
 }
 
 /// Return true when one type may resolve to one symbol type.
-pub fn is_reference_declaration_form(
+pub fn is_reference_symbol_form(
     types: &dir::TypeTable,
     symbols: &dir::SymbolTable,
     type_id: dir::LocalTypeId,
-    declaration_form: dir::DeclarationForm,
+    symbol_form: dir::SymbolForm,
 ) -> bool {
     evaluate_boolean_type_query(
         types,
         type_id,
-        TypeBooleanQuery::ReferenceDeclarationForm {
+        TypeBooleanQuery::ReferenceSymbolForm {
             symbols,
-            declaration_form,
+            symbol_form,
         },
     )
 }

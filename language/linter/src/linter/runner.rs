@@ -419,6 +419,9 @@ impl LintRunner {
         let declared = artifacts
             .dir_declared(module.id, profile.id())
             .expect("lint DIR pass requires committed declared DIR artifact");
+        let expanded = artifacts
+            .dir_expanded(module.id, profile.id())
+            .expect("lint DIR pass requires committed expanded DIR artifact");
         let checked = artifacts
             .dir_checked(module.id, profile.id())
             .expect("lint DIR pass requires committed checked DIR artifact");
@@ -431,7 +434,8 @@ impl LintRunner {
             profile,
             file,
             &ast.tree,
-            &declared.tree,
+            declared.as_ref(),
+            expanded.as_ref(),
             &declared.strings,
             &declared.symbols,
             &checked.types,

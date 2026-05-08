@@ -249,7 +249,6 @@ pub fn type_expression_contains_reference_segment(
         dir::TypeExpression::Reference {
             path,
             generic_arguments,
-            space: _,
         } => path_or_generic_arguments_contain_reference_segment(
             tree,
             path,
@@ -643,12 +642,7 @@ pub fn expression_is_any_typed(
     }
 
     // check declaration type for symbol backed references
-    let Some(target_symbol) = types
-        .symbol_resolution(expression_id.into_global_any(module_id))
-        .and_then(|resolution| match resolution {
-            dir::SymbolResolution::Target(symbol) => Some(*symbol),
-            dir::SymbolResolution::Candidates(_) => None,
-        })
+    let Some(target_symbol) = types.symbol_resolution(expression_id.into_global_any(module_id))
     else {
         return false;
     };
@@ -705,12 +699,7 @@ pub fn expression_type_map<T>(
         return Some(map(types, type_id));
     }
 
-    let symbol_id = types
-        .symbol_resolution(expression_id.into_global_any(module_id))
-        .and_then(|resolution| match resolution {
-            dir::SymbolResolution::Target(symbol) => Some(*symbol),
-            dir::SymbolResolution::Candidates(_) => None,
-        })?;
+    let symbol_id = types.symbol_resolution(expression_id.into_global_any(module_id))?;
     symbol_value_type_map_for(artifacts, profile_id, module_id, types, symbol_id, map)
 }
 
@@ -736,12 +725,7 @@ pub fn expression_type_or_call_return_type_map<T>(
     let expression = tree.get(expression_id);
 
     // resolve symbol backed value types
-    if let Some(symbol_id) = types
-        .symbol_resolution(expression_id.into_global_any(module_id))
-        .and_then(|resolution| match resolution {
-            dir::SymbolResolution::Target(symbol) => Some(*symbol),
-            dir::SymbolResolution::Candidates(_) => None,
-        })
+    if let Some(symbol_id) = types.symbol_resolution(expression_id.into_global_any(module_id))
         && let Some(mapped_value) = symbol_value_type_map_for(
             artifacts,
             profile_id,
@@ -1020,7 +1004,6 @@ fn expression_contains_reference_segment(
         dir::Expression::Path {
             path,
             generic_arguments,
-            space: _,
         } => path_or_generic_arguments_contain_reference_segment(
             tree,
             path,

@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    Ast, DirChecked, DirDeclared, DirExported, DirImported, GlobalEnvironment, WellKnownSymbols,
+    Ast, DirChecked, DirDeclared, DirExpanded, DirExported, DirImported, GlobalEnvironment,
+    WellKnownSymbols,
 };
 use destack_ast::{StringId, StringPool};
 use destack_dir::{LanguageItem, WellKnownSymbol};
@@ -57,6 +58,8 @@ pub struct LintModuleDirContext<'a> {
     pub ast: &'a ast::Tree,
     /// The DIR tree.
     pub tree: &'a dir::Tree,
+    /// The visible DIR tree view.
+    pub view: dir::View<'a>,
     /// The DIR string pool.
     pub strings: &'a StringPool,
     /// The symbol table.
@@ -105,7 +108,8 @@ impl<'a> LintModuleDirContext<'a> {
         profile: Profile,
         file: Arc<File>,
         ast: &'a ast::Tree,
-        tree: &'a dir::Tree,
+        declared: &'a DirDeclared,
+        expanded: &'a DirExpanded,
         strings: &'a StringPool,
         symbols: &'a dir::SymbolTable,
         types: &'a dir::TypeTable,
@@ -127,7 +131,8 @@ impl<'a> LintModuleDirContext<'a> {
             profile_id,
             file,
             ast,
-            tree,
+            tree: &declared.tree,
+            view: dir::View::patched(&declared.tree, &expanded.patch),
             strings,
             symbols,
             types,
@@ -244,14 +249,28 @@ impl<'a> LintModuleDirContext<'a> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<dir::GlobalSymbolId> {
+        if !self.view.is_active(expression_id.into_any()) {
+            return None;
+        }
+
         let expression_id = expression_unwrap_transparent(self.tree, expression_id);
         let global_id = expression_id.into_global_any(self.module.id);
-        let resolution = self.types.symbol_resolution(global_id)?;
-
-        match resolution {
-            dir::SymbolResolution::Target(symbol) => Some(*symbol),
-            dir::SymbolResolution::Candidates(_) => None,
+        let symbol = self.types.symbol_resolution(global_id)?;
+        if !self.symbol_is_active(symbol.local_id) {
+            return None;
         }
+
+        Some(symbol)
+    }
+
+    /// Return whether one local DIR symbol is visible in this lint view.
+    fn symbol_is_active(&self, symbol_id: dir::LocalSymbolId) -> bool {
+        let symbol = self.symbols.get_symbol(symbol_id);
+        let Some(declaration) = symbol.declaration else {
+            return true;
+        };
+
+        self.view.is_active(declaration.local_id)
     }
 
     /// Return the source AST node id for one DIR node.
@@ -259,7 +278,7 @@ impl<'a> LintModuleDirContext<'a> {
         &self,
         node_id: dir::LocalNodeIdAny,
     ) -> Option<ast::LocalNodeId<T>> {
-        let source_id = self.tree.get_source(node_id.id);
+        let source_id = self.view.get_source_any(node_id);
         if self.ast.get_node_type(source_id) != T::TYPE {
             return None;
         }
@@ -413,15 +432,15 @@ impl<'a> LintModuleDirContext<'a> {
     ) -> LintSeverity {
         // walk up parent chain, collecting decorator overrides (innermost first)
         let mut overrides: Vec<LintSeverityOverride> = Vec::new();
-        let mut current = Some(node_id.id);
+        let mut current = Some(node_id.into_any());
 
         while let Some(id) = current {
-            for decorator_id in self.tree.get_decorators(id) {
+            for decorator_id in self.view.get_decorators_any(id) {
                 if let Some(item) = self.eat_decorator(decorator_id, meta) {
                     overrides.push(item);
                 }
             }
-            current = self.tree.get_parent_id(id);
+            current = self.view.get_parent_any(id);
         }
 
         // apply from outermost to innermost (reverse since we collected innermost first)
@@ -446,7 +465,7 @@ impl<'a> LintModuleDirContext<'a> {
     ) -> dir::LocalNodeId<dir::Expression> {
         let mut current = expression_id;
         loop {
-            let expression = self.tree.get(current);
+            let expression = self.view.get(current);
             let dir::Expression::Parenthesized { expression } = expression else {
                 return current;
             };
@@ -459,9 +478,9 @@ impl<'a> LintModuleDirContext<'a> {
         &self,
         decorator_id: dir::LocalNodeId<dir::Decorator>,
     ) -> Option<DecoratorCall<'_>> {
-        let decorator = self.tree.get(decorator_id);
+        let decorator = self.view.get(decorator_id);
         let expression_id = self.unwrap_decorator_expression(decorator.expression);
-        match self.tree.get(expression_id) {
+        match self.view.get(expression_id) {
             dir::Expression::Call {
                 left, arguments, ..
             } => Some(DecoratorCall {
@@ -484,7 +503,7 @@ impl<'a> LintModuleDirContext<'a> {
         let call = self.decorator_call(decorator_id)?;
 
         // extract path from the decorator expression
-        let callee_expression = self.tree.get(call.callee);
+        let callee_expression = self.view.get(call.callee);
         let path = match callee_expression {
             dir::Expression::Path { path, .. } => path,
             _ => return None,
@@ -506,12 +525,12 @@ impl<'a> LintModuleDirContext<'a> {
 
         // extract the string argument (lint ID or code)
         let arguments = call.arguments?;
-        let first_argument = self.tree.get(*arguments.first()?);
+        let first_argument = self.view.get(*arguments.first()?);
         let dir::Argument::Positional { value, .. } = first_argument else {
             return None;
         };
 
-        let argument_expression = self.tree.get(*value);
+        let argument_expression = self.view.get(*value);
         let dir::Expression::ScalarLiteral {
             value: dir::ScalarLiteral::String(string_id),
         } = argument_expression
@@ -550,7 +569,7 @@ impl<'a> LintModuleDirContext<'a> {
 
     /// Return the source span for a DIR node by looking up its AST source node.
     pub fn get_span<T: dir::Node>(&self, id: dir::LocalNodeId<T>) -> Span {
-        let ast_node_id = self.tree.get_source(id.id);
+        let ast_node_id = self.view.get_source(id);
         self.ast.get_span_by_id(ast_node_id)
     }
 

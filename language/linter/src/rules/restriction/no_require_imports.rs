@@ -217,7 +217,7 @@ fn expression_uses_require_import(
             }
         }
         dir::Expression::Import { source, .. } => {
-            if *source == ImportSource::RequireCall || *source == ImportSource::ImportEquals {
+            if *source == ImportSource::ImportEquals {
                 return true;
             }
         }
@@ -262,9 +262,7 @@ fn require_import_target(
 
             return Some(*target);
         }
-        dir::Expression::Import { source, target, .. }
-            if *source == ImportSource::RequireCall || *source == ImportSource::ImportEquals =>
-        {
+        dir::Expression::Import { source, target, .. } if *source == ImportSource::ImportEquals => {
             let dir::ImportTarget::String(target) = target else {
                 return None;
             };

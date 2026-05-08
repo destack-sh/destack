@@ -88,6 +88,8 @@ impl<'a, 'b> NoTaintedSinkVisitor<'a, 'b> {
             self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
             self.ctx.module_id(),
+            self.ctx.tree,
+            self.ctx.strings,
             self.ctx.symbols,
             self.ctx.types,
             callee_id,
@@ -100,7 +102,7 @@ impl<'a, 'b> NoTaintedSinkVisitor<'a, 'b> {
             let argument = self.ctx.tree.get(argument_id);
             let source_id = argument.value();
             let source_labels = self.expression_taint_labels(source_id);
-            if !source_labels.matches_sink(&sink_labels, self.ctx.strings) {
+            if !source_labels.matches_sink(&sink_labels) {
                 continue;
             }
 
@@ -118,6 +120,8 @@ impl<'a, 'b> NoTaintedSinkVisitor<'a, 'b> {
             self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
             self.ctx.module_id(),
+            self.ctx.tree,
+            self.ctx.strings,
             self.ctx.symbols,
             self.ctx.types,
             left,
@@ -127,7 +131,7 @@ impl<'a, 'b> NoTaintedSinkVisitor<'a, 'b> {
         }
 
         let source_labels = self.expression_taint_labels(right);
-        if !source_labels.matches_sink(&sink_labels, self.ctx.strings) {
+        if !source_labels.matches_sink(&sink_labels) {
             return;
         }
 

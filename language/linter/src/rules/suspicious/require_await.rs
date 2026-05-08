@@ -527,13 +527,7 @@ fn expression_is_async_symbol_call(
 
     // resolve one direct callee symbol
     let callee_id = expression_unwrap_parenthesized(tree, *left);
-    let Some(symbol_id) = types
-        .symbol_resolution(callee_id.into_global_any(module_id))
-        .and_then(|resolution| match resolution {
-            dir::SymbolResolution::Target(symbol) => Some(*symbol),
-            dir::SymbolResolution::Candidates(_) => None,
-        })
-    else {
+    let Some(symbol_id) = types.symbol_resolution(callee_id.into_global_any(module_id)) else {
         return false;
     };
 

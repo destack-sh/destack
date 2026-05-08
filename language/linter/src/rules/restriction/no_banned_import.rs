@@ -198,8 +198,10 @@ enum TargetSurface {
     ResolvedModulePath,
     /// The resolved module file name.
     ResolvedModuleName,
-    /// The resolved `declare module` binding specifier.
-    ResolvedBindingSpecifier,
+    /// The resolved `declare module` specifier.
+    ResolvedDeclaredModule,
+    /// The resolved external import specifier.
+    ResolvedExternalSpecifier,
 }
 
 impl TargetSurface {
@@ -209,7 +211,8 @@ impl TargetSurface {
             Self::Specifier => "import specifier",
             Self::ResolvedModulePath => "resolved module path",
             Self::ResolvedModuleName => "resolved module file name",
-            Self::ResolvedBindingSpecifier => "resolved module binding",
+            Self::ResolvedDeclaredModule => "resolved declared module",
+            Self::ResolvedExternalSpecifier => "resolved external specifier",
         }
     }
 }
@@ -230,7 +233,7 @@ fn expression_target_module(
 
     match resolution {
         dir::DependencyResolution::Module(module) => module.for_space(space),
-        dir::DependencyResolution::Binding(_) => None,
+        dir::DependencyResolution::Symbol(_) => None,
     }
 }
 
@@ -288,23 +291,23 @@ fn matching_target(
                 });
             }
         }
-        dir::ModuleTarget::Binding(binding_specifier) => {
-            let binding_text = ctx.strings.get(binding_specifier);
-            if let Some(pattern) = matching_pattern(binding_text.as_ref(), patterns) {
+        dir::ModuleTarget::Declared(declared_specifier) => {
+            let declared_text = ctx.strings.get(declared_specifier);
+            if let Some(pattern) = matching_pattern(declared_text.as_ref(), patterns) {
                 return Some(MatchedTarget {
                     pattern,
-                    target: binding_text.to_string(),
-                    surface: TargetSurface::ResolvedBindingSpecifier,
+                    target: declared_text.to_string(),
+                    surface: TargetSurface::ResolvedDeclaredModule,
                 });
             }
         }
         dir::ModuleTarget::External(specifier) => {
-            let binding_text = ctx.strings.get(specifier);
-            if let Some(pattern) = matching_pattern(binding_text.as_ref(), patterns) {
+            let specifier_text = ctx.strings.get(specifier);
+            if let Some(pattern) = matching_pattern(specifier_text.as_ref(), patterns) {
                 return Some(MatchedTarget {
                     pattern,
-                    target: binding_text.to_string(),
-                    surface: TargetSurface::ResolvedBindingSpecifier,
+                    target: specifier_text.to_string(),
+                    surface: TargetSurface::ResolvedExternalSpecifier,
                 });
             }
         }
