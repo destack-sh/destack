@@ -1,9 +1,9 @@
 /// A growable contiguous array.
-export struct Array<T> {
+export class Array<T> {
     /// The backing storage view.
-    data: Slice<T>;
+    data: Slice<T> = undefined!;
     /// The allocated capacity in elements.
-    capacity: usize;
+    capacity: usize = 0;
 }
 
 /// Readonly view of a dynamic array.

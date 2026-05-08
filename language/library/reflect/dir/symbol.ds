@@ -48,8 +48,8 @@ export enum SymbolBinding {
 export enum SymbolOrigin {
     /// Declaration in module scope.
     Primary,
-    /// Declaration inside a global augmentation.
-    GlobalAugmentation,
+    /// Declaration inside a global.
+    Global,
 }
 
 /// Duplicate-binding validation category.

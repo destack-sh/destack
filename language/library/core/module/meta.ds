@@ -24,18 +24,8 @@ export type Platform =
 /// The output format for the build.
 export type Output = "js" | "ts" | "wasm" | "native";
 
-/// The runtime environment that will execute the code.
-export type Runtime =
-    | "browser"
-    | "node"
-    | "deno"
-    | "bun"
-    | "worker"
-    | "wasm-js"
-    | "wasm-wasi"
-    | "native-managed"
-    | "native-freestanding"
-    | "native-embedded";
+/// The semantic runtime contract for the build.
+export type Runtime = "destack" | "js";
 
 /// Coarse target family metadata.
 export type TargetFamily =
@@ -65,7 +55,7 @@ export interface ImportMetaTarget {
 export interface ImportMetaEnv {
     /// Index signature for arbitrary environment variables.
     readonly [key: string]: string | undefined;
-    /// Node environment mode.
+    /// Environment mode.
     readonly NODE_ENV?: "development" | "production" | "test";
     /// True in development builds.
     readonly DEV: boolean;
@@ -93,14 +83,24 @@ export interface ImportMeta {
     readonly output: Output;
     /// The target platform (OS) being compiled for.
     readonly platform: Platform;
-    /// The runtime environment that will execute the code.
+    /// The semantic runtime contract for this build.
     readonly runtime: Runtime;
     /// Structured target metadata.
     readonly target: ImportMetaTarget;
-    /// True if this is a debug/development build (from target.debug).
+    /// Active source graph modes.
+    readonly modes: readonly string[];
+    /// True when the debug mode is active.
     readonly debug: boolean;
-    /// True if this is a test build.
+    /// True when the development mode is active.
+    readonly dev: boolean;
+    /// True when the production mode is active.
+    readonly prod: boolean;
+    /// True when the test mode is active.
     readonly test: boolean;
+    /// True when the benchmark mode is active.
+    readonly bench: boolean;
+    /// True when the lint mode is active.
+    readonly lint: boolean;
     /// Environment variables (from build configuration).
     readonly env: ImportMetaEnv;
 }

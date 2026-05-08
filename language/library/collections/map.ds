@@ -1,17 +1,17 @@
 /// Ordered hash map with one hash index and one ordered entry array.
-export struct Map<K, V> {
+export class Map<K, V> {
     /// Number of entries in the map.
-    length: uint32;
+    length: uint32 = 0;
     /// Number of allocated hash slots.
-    tableCapacity: uint32;
+    tableCapacity: uint32 = 0;
     /// Number of allocated entry slots.
-    entryCapacity: uint32;
+    entryCapacity: uint32 = 0;
     /// Raw control-byte storage owned by this map.
-    control: *uint8;
+    control: *uint8 = null as *uint8;
     /// Raw bucket-to-entry index storage owned by this map.
-    buckets: *uint32;
+    buckets: *uint32 = null as *uint32;
     /// Raw ordered entry storage owned by this map.
-    entries: *MapEntry<K, V>;
+    entries: *MapEntry<K, V> = null as *MapEntry<K, V>;
 }
 
 /// One stored key-value pair in insertion order.
@@ -116,7 +116,7 @@ extension<K, V> of Map<K, V> implements Index<K, V>, IndexSet<K, V>, Iterable<[K
     /// Create an empty map.
     static new<K, V>(): Map<K, V> {
         // #Incomplete
-        undefined!
+        new Map<K, V>()
     }
 
     /// Create a map with pre-allocated capacity.
