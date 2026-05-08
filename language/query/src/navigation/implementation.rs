@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use destack_dir::{DeclarationForm, Expression, GlobalSymbolId, LocalNodeIdAny, NodeType};
+use destack_dir::{Expression, GlobalSymbolId, LocalNodeIdAny, NodeType, SymbolForm};
 use destack_source::{FileId, Span, Uri};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
@@ -121,8 +121,8 @@ pub fn goto_implementation(
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(canonical_id.local_id);
         (
-            symbol.form == DeclarationForm::Interface,
-            symbol.form == DeclarationForm::Class,
+            symbol.form == SymbolForm::Interface,
+            symbol.form == SymbolForm::Class,
         )
     };
 
@@ -169,9 +169,9 @@ fn resolve_type_symbol_at_offset(
 ) -> Option<GlobalSymbolId> {
     with_query_context_for_file(repository, revision, file, |ctx| {
         // scan expression nodes to find a type reference under the cursor
-        let dir_tree = ctx.dir().tree();
+        let dir_tree = ctx.dir().view();
         for (expression_id, _expression) in dir_tree.iter_nodes_of_type::<Expression>() {
-            let span = get_node_tree_main_span(ctx.ast(), ctx.dir().tree(), expression_id.into());
+            let span = get_node_tree_main_span(ctx.ast(), ctx.dir().view(), expression_id.into());
 
             if offset < span.start || offset > span.end {
                 continue;
@@ -289,5 +289,5 @@ fn symbol_is_implementable(
     let symbol = symbols.get_symbol(symbol_id.local_id);
 
     // return whether the symbol is implementable
-    symbol.form == DeclarationForm::Interface || symbol.form == DeclarationForm::Class
+    symbol.form == SymbolForm::Interface || symbol.form == SymbolForm::Class
 }

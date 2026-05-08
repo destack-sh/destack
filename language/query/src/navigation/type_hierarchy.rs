@@ -1,4 +1,4 @@
-use destack_dir::{DeclarationForm, GlobalSymbolId};
+use destack_dir::{GlobalSymbolId, SymbolForm};
 use destack_source::{FileId, Span, Uri};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
@@ -39,14 +39,14 @@ pub enum TypeHierarchyKind {
 }
 
 impl TypeHierarchyKind {
-    /// Convert from DeclarationForm if it's a type kind.
-    fn from_declaration_form(ty: DeclarationForm) -> Option<Self> {
+    /// Convert from SymbolForm if it's a type kind.
+    fn from_symbol_form(ty: SymbolForm) -> Option<Self> {
         match ty {
-            DeclarationForm::Class => Some(Self::Class),
-            DeclarationForm::Interface => Some(Self::Interface),
-            DeclarationForm::Struct => Some(Self::Struct),
-            DeclarationForm::Enum => Some(Self::Enum),
-            DeclarationForm::TypeAlias => Some(Self::TypeAlias),
+            SymbolForm::Class => Some(Self::Class),
+            SymbolForm::Interface => Some(Self::Interface),
+            SymbolForm::Struct => Some(Self::Struct),
+            SymbolForm::Enum => Some(Self::Enum),
+            SymbolForm::TypeAlias => Some(Self::TypeAlias),
             _ => None,
         }
     }
@@ -114,7 +114,7 @@ pub fn prepare_type_hierarchy(
     let (kind, name) = {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(canonical_id.local_id);
-        let kind = TypeHierarchyKind::from_declaration_form(symbol.form)?;
+        let kind = TypeHierarchyKind::from_symbol_form(symbol.form)?;
         let name = resolve_symbol_name(repository, revision, canonical_id)?;
         Some((kind, name))
     }?;
@@ -230,7 +230,7 @@ fn type_hierarchy_item_from_symbol(
     let (kind, name) = {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(canonical_id.local_id);
-        let kind = TypeHierarchyKind::from_declaration_form(symbol.form)?;
+        let kind = TypeHierarchyKind::from_symbol_form(symbol.form)?;
         let name = resolve_symbol_name(repository, revision, canonical_id)?;
         Some((kind, name))
     }?;

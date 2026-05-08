@@ -56,7 +56,7 @@ pub(super) fn detect_call_argument_context(
         return None;
     }
 
-    let dir_tree = dir.tree();
+    let dir_tree = dir.view();
 
     // scan spans for a call or new expression argument list
     for enc in &enclosing {
@@ -140,7 +140,7 @@ fn call_argument_context_for_span(
     repository: &Repository,
     ast: AstQueryContext<'_>,
     dir: DirQueryContext<'_>,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     enc: &EnclosingSpan,
     offset: u32,
 ) -> Option<CompletionContext> {
@@ -169,7 +169,7 @@ fn call_argument_context_after_separator(
     repository: &Repository,
     ast: AstQueryContext<'_>,
     dir: DirQueryContext<'_>,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     offset: u32,
     separator_position: u32,
 ) -> Option<CompletionContext> {
@@ -231,7 +231,7 @@ fn call_argument_context_after_separator(
 
 /// Resolve one DIR call expression from one enclosing span.
 fn dir_call_expression_for_enclosing_span<'a>(
-    dir_tree: &'a dir::Tree,
+    dir_tree: dir::View<'a>,
     enc: &EnclosingSpan,
 ) -> Option<(dir::LocalNodeId<dir::Expression>, DirCallExpression<'a>)> {
     let dir_node_id = dir_tree.get_node_id_by_source_id(enc.idx)?;
@@ -267,7 +267,7 @@ fn dir_call_expression(expr: &dir::Expression) -> Option<DirCallExpression<'_>> 
 /// Resolve the active argument index inside one call.
 fn active_argument_index(
     ast: AstQueryContext<'_>,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     arguments: &[dir::LocalNodeId<dir::Argument>],
     offset: u32,
 ) -> usize {
@@ -308,17 +308,17 @@ fn expected_parameter_hint(
 /// Resolve the source span for one dir node.
 fn dir_node_span(
     ast: AstQueryContext<'_>,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     node_id: dir::LocalNodeIdAny,
 ) -> Span {
-    let source_id = dir_tree.get_source(node_id.id);
+    let source_id = dir_tree.get_source_any(node_id);
     ast.tree().source_map.get(source_id)
 }
 
 /// Resolve the source span for one call target expression.
 fn left_expression_span(
     ast: AstQueryContext<'_>,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     left: dir::LocalNodeId<dir::Expression>,
 ) -> Span {
     let left_node_id: dir::LocalNodeIdAny = left.into();
@@ -363,7 +363,7 @@ fn normalize_call_argument_scope(scope: ScopeAtOffset) -> ScopeAtOffset {
 /// Check whether the cursor is inside a call argument list.
 fn cursor_in_argument_list(
     ast: AstQueryContext<'_>,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     arguments: &[dir::LocalNodeId<dir::Argument>],
     left_span: Span,
     call_span: Span,

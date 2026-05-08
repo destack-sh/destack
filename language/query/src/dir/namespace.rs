@@ -9,7 +9,7 @@ pub(crate) fn namespace_receiver_symbol_target(
     dir: DirQueryContext<'_>,
     expression_id: dir::LocalNodeId<Expression>,
 ) -> Option<GlobalSymbolId> {
-    let dir_tree = dir.tree();
+    let dir_tree = dir.view();
     let expression = dir_tree.get::<Expression>(expression_id);
 
     match expression {

@@ -64,7 +64,7 @@ pub(crate) fn scope_from_block_span(
     ast_block_id: u32,
     offset: u32,
 ) -> Option<ScopeAtOffset> {
-    let dir_tree = dir.tree();
+    let dir_tree = dir.view();
     let symbols = dir.symbols();
     let dir_node_id = dir_tree.get_node_id_by_source_id(ast_block_id)?;
 
@@ -73,11 +73,11 @@ pub(crate) fn scope_from_block_span(
         return None;
     }
 
-    let Ok(block_id) = dir_node_id.try_into_typed() else {
+    let Ok(block_id) = dir_node_id.try_into_typed::<dir::Block>() else {
         return None;
     };
 
-    let (scope_id, _) = dir_tree.get_scope::<dir::Block>(block_id);
+    let (scope_id, _) = dir_tree.get_scope(block_id);
     let scope_mark = scope_mark_at_offset(ast, scope_id, offset, dir_tree, symbols);
 
     Some(ScopeAtOffset {
@@ -93,8 +93,8 @@ pub(crate) fn expression_scope_at_offset(
     expr_id: dir::LocalNodeId<dir::Expression>,
     offset: u32,
 ) -> ScopeAtOffset {
-    let dir_tree = dir.tree();
-    let (scope_id, _) = dir_tree.get_scope::<dir::Expression>(expr_id);
+    let dir_tree = dir.view();
+    let (scope_id, _) = dir_tree.get_scope(expr_id);
 
     scope_at_offset(ast, dir, offset).unwrap_or(ScopeAtOffset {
         scope_id,
@@ -110,7 +110,7 @@ fn scope_from_enclosing_dir_nodes(
     offset: u32,
     block_only: bool,
 ) -> Option<ScopeAtOffset> {
-    let dir_tree = dir.tree();
+    let dir_tree = dir.view();
     let symbols = dir.symbols();
 
     for enc in enclosing {
@@ -120,11 +120,11 @@ fn scope_from_enclosing_dir_nodes(
 
         // blocks define the local statement scope
         if dir_node_id.ty == dir::NodeType::Block {
-            let Ok(block_id) = dir_node_id.try_into_typed() else {
+            let Ok(block_id) = dir_node_id.try_into_typed::<dir::Block>() else {
                 continue;
             };
 
-            let (scope_id, _) = dir_tree.get_scope::<dir::Block>(block_id);
+            let (scope_id, _) = dir_tree.get_scope(block_id);
             let scope_mark = scope_mark_at_offset(ast, scope_id, offset, dir_tree, symbols);
 
             return Some(ScopeAtOffset {
@@ -139,11 +139,11 @@ fn scope_from_enclosing_dir_nodes(
 
         // expressions reuse the surrounding lexical scope with an offset aware mark
         if dir_node_id.ty == dir::NodeType::Expression {
-            let Ok(expr_id) = dir_node_id.try_into_typed() else {
+            let Ok(expr_id) = dir_node_id.try_into_typed::<dir::Block>() else {
                 continue;
             };
 
-            let (scope_id, _) = dir_tree.get_scope::<dir::Expression>(expr_id);
+            let (scope_id, _) = dir_tree.get_scope(expr_id);
             let scope_mark = scope_mark_at_offset(ast, scope_id, offset, dir_tree, symbols);
 
             return Some(ScopeAtOffset {
@@ -175,7 +175,7 @@ fn scope_from_enclosing_dir_blocks(
     enclosing: &[EnclosingSpan],
     offset: u32,
 ) -> Option<ScopeAtOffset> {
-    let dir_tree = dir.tree();
+    let dir_tree = dir.view();
     let symbols = dir.symbols();
 
     for enc in enclosing {
@@ -187,11 +187,11 @@ fn scope_from_enclosing_dir_blocks(
             continue;
         }
 
-        let Ok(block_id) = dir_node_id.try_into_typed() else {
+        let Ok(block_id) = dir_node_id.try_into_typed::<dir::Block>() else {
             continue;
         };
 
-        let (scope_id, _) = dir_tree.get_scope::<dir::Block>(block_id);
+        let (scope_id, _) = dir_tree.get_scope(block_id);
         let scope_mark = scope_mark_at_offset(ast, scope_id, offset, dir_tree, symbols);
 
         return Some(ScopeAtOffset {
@@ -210,7 +210,7 @@ fn scope_from_enclosing_owned_declarations(
     enclosing: &[EnclosingSpan],
     offset: u32,
 ) -> Option<ScopeAtOffset> {
-    let dir_tree = dir.tree();
+    let dir_tree = dir.view();
     let symbols = dir.symbols();
 
     for enc in enclosing {
@@ -245,7 +245,7 @@ fn ast_parent_scope_at_offset(
 ) -> Option<ScopeAtOffset> {
     let start_id = enclosing.first().map(|enc| enc.idx)?;
 
-    let dir_tree = dir.tree();
+    let dir_tree = dir.view();
     let symbols = dir.symbols();
 
     for parent_id in ast.parents().walk_parents_by_id(start_id) {
@@ -267,11 +267,11 @@ fn ast_parent_scope_at_offset(
 
         // blocks still win inside damaged syntax
         if dir_node_id.ty == dir::NodeType::Block {
-            let Ok(block_id) = dir_node_id.try_into_typed() else {
+            let Ok(block_id) = dir_node_id.try_into_typed::<dir::Block>() else {
                 continue;
             };
 
-            let (scope_id, _) = dir_tree.get_scope::<dir::Block>(block_id);
+            let (scope_id, _) = dir_tree.get_scope(block_id);
             let scope_mark = scope_mark_at_offset(ast, scope_id, offset, dir_tree, symbols);
 
             return Some(ScopeAtOffset {
@@ -282,11 +282,11 @@ fn ast_parent_scope_at_offset(
 
         // expressions carry the surrounding lexical scope
         if dir_node_id.ty == dir::NodeType::Expression {
-            let Ok(expr_id) = dir_node_id.try_into_typed() else {
+            let Ok(expr_id) = dir_node_id.try_into_typed::<dir::Block>() else {
                 continue;
             };
 
-            let (scope_id, _) = dir_tree.get_scope::<dir::Expression>(expr_id);
+            let (scope_id, _) = dir_tree.get_scope(expr_id);
             let scope_mark = scope_mark_at_offset(ast, scope_id, offset, dir_tree, symbols);
 
             return Some(ScopeAtOffset {
@@ -320,7 +320,7 @@ fn ast_parent_block_scope_at_offset(
 ) -> Option<ScopeAtOffset> {
     let start_id = enclosing.first().map(|enc| enc.idx)?;
 
-    let dir_tree = dir.tree();
+    let dir_tree = dir.view();
     let symbols = dir.symbols();
 
     for parent_id in ast.parents().walk_parents_by_id(start_id) {
@@ -342,11 +342,11 @@ fn ast_parent_block_scope_at_offset(
 
         // prefer the nearest enclosing block
         if dir_node_id.ty == dir::NodeType::Block {
-            let Ok(block_id) = dir_node_id.try_into_typed() else {
+            let Ok(block_id) = dir_node_id.try_into_typed::<dir::Block>() else {
                 continue;
             };
 
-            let (scope_id, _) = dir_tree.get_scope::<dir::Block>(block_id);
+            let (scope_id, _) = dir_tree.get_scope(block_id);
             let scope_mark = scope_mark_at_offset(ast, scope_id, offset, dir_tree, symbols);
 
             return Some(ScopeAtOffset {
@@ -376,7 +376,7 @@ fn scope_mark_at_offset(
     ast: AstQueryContext<'_>,
     scope_id: dir::LocalScopeId,
     offset: u32,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     symbols: &dir::SymbolTable,
 ) -> dir::LocalScopeMark {
     let scope = symbols.get_scope_by_id(scope_id);
@@ -394,7 +394,7 @@ fn scope_mark_at_offset(
             continue;
         };
 
-        let source_id = dir_tree.get_source(declaration.local_id.id);
+        let source_id = dir_tree.get_source_any(declaration.local_id);
         let span = ast
             .tree()
             .source_map
@@ -414,7 +414,7 @@ fn owned_scope_for_declaration_id(
     declaration_id: u32,
 ) -> Option<dir::LocalScopeId> {
     for (index, scope) in symbols.scopes().enumerate() {
-        let Some(owner_id) = scope.owner_id else {
+        let Some(owner_id) = scope.owner else {
             continue;
         };
 
@@ -434,11 +434,11 @@ fn owned_scope_for_declaration_id(
 /// Resolve the owned scope for one ast declaration id.
 fn owned_scope_for_ast_declaration_id(
     symbols: &dir::SymbolTable,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     ast_id: u32,
 ) -> Option<dir::LocalScopeId> {
     for (index, scope) in symbols.scopes().enumerate() {
-        let Some(owner_id) = scope.owner_id else {
+        let Some(owner_id) = scope.owner else {
             continue;
         };
 
@@ -447,7 +447,7 @@ fn owned_scope_for_ast_declaration_id(
             continue;
         };
 
-        if dir_tree.get_source(declaration.local_id.id) == ast_id {
+        if dir_tree.get_source_any(declaration.local_id) == ast_id {
             return Some(dir::LocalScopeId::new(index as u32));
         }
     }

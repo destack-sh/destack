@@ -142,12 +142,12 @@ pub fn semantic_tokens(
     };
 
     let mut tokens = Vec::new();
-    let dir_tree = ctx.dir().tree();
+    let dir_tree = ctx.dir().view();
 
     // collect declaration tokens (these are definition sites)
     for (decl_id, declaration) in dir_tree.iter_nodes_of_type::<dir::Declaration>() {
         // get the main span (identifier) for the declaration
-        let ast_node_id = dir_tree.get_source(decl_id.id);
+        let ast_node_id = dir_tree.get_source(decl_id);
         let Some(main_span) = ctx
             .ast()
             .tree()
@@ -195,7 +195,7 @@ pub fn semantic_tokens(
 
     // collect parameter tokens
     for (parameter_id, parameter) in dir_tree.iter_nodes_of_type::<dir::Parameter>() {
-        let ast_node_id = dir_tree.get_source(parameter_id.id);
+        let ast_node_id = dir_tree.get_source(parameter_id);
         let span = ctx.ast().tree().get_span_by_id(ast_node_id);
 
         // for parameters, try to get just the name span if available
@@ -222,7 +222,7 @@ pub fn semantic_tokens(
     for (pattern_id, pattern) in dir_tree.iter_nodes_of_type::<dir::Pattern>() {
         if let dir::Pattern::Binding { mutability, .. } = pattern {
             saw_pattern_bindings = true;
-            let ast_node_id = dir_tree.get_source(pattern_id.id);
+            let ast_node_id = dir_tree.get_source(pattern_id);
             let Some(main_span) = ctx
                 .ast()
                 .tree()
@@ -253,7 +253,7 @@ pub fn semantic_tokens(
                 continue;
             };
 
-            let ast_node_id = dir_tree.get_source(declarator.pattern.id);
+            let ast_node_id = dir_tree.get_source(declarator.pattern);
             let Some(main_span) = ctx
                 .ast()
                 .tree()
@@ -278,7 +278,7 @@ pub fn semantic_tokens(
 
     // collect pattern field bindings (destructuring)
     for (field_id, field) in dir_tree.iter_nodes_of_type::<dir::PatternField>() {
-        let ast_node_id = dir_tree.get_source(field_id.id);
+        let ast_node_id = dir_tree.get_source(field_id);
         let Some(main_span) = ctx
             .ast()
             .tree()
@@ -312,7 +312,7 @@ pub fn semantic_tokens(
 
     // collect expression tokens (references, literals, etc.)
     for (expression_id, expression) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
-        let ast_node_id = dir_tree.get_source(expression_id.id);
+        let ast_node_id = dir_tree.get_source(expression_id);
         let span = ctx.ast().tree().get_span_by_id(ast_node_id);
 
         match expression {
@@ -328,7 +328,7 @@ pub fn semantic_tokens(
                 let target_symbols = target_ctx.dir().symbols();
                 let symbol = target_symbols.get_symbol(target_symbol.local_id);
 
-                let token_type = declaration_form_to_token_type(symbol.form);
+                let token_type = symbol_form_to_token_type(symbol.form);
                 tokens.push(SemanticToken::new(span, token_type));
             }
 
@@ -389,7 +389,7 @@ pub fn semantic_tokens(
 
     // collect member tokens (fields, methods)
     for (member_id, member) in dir_tree.iter_nodes_of_type::<dir::Member>() {
-        let ast_node_id = dir_tree.get_source(member_id.id);
+        let ast_node_id = dir_tree.get_source(member_id);
 
         // try to get the name span
         let Some(main_span) = ctx
@@ -448,7 +448,7 @@ pub fn semantic_tokens(
 
     // collect enum field tokens
     for (field_id, _field) in dir_tree.iter_nodes_of_type::<dir::EnumField>() {
-        let ast_node_id = dir_tree.get_source(field_id.id);
+        let ast_node_id = dir_tree.get_source(field_id);
 
         if let Some(main_span) = ctx
             .ast()
@@ -465,8 +465,8 @@ pub fn semantic_tokens(
     // collect type parameter tokens from declarations with generics
     for (_decl_id, declaration) in dir_tree.iter_nodes_of_type::<dir::Declaration>() {
         if let Some(generic_parameters) = declaration.generic_parameters() {
-            for parameter_id in generic_parameters {
-                let ast_node_id = dir_tree.get_source(parameter_id.id);
+            for &parameter_id in generic_parameters {
+                let ast_node_id = dir_tree.get_source(parameter_id);
                 if let Some(main_span) = ctx
                     .ast()
                     .tree()
@@ -483,7 +483,7 @@ pub fn semantic_tokens(
 
     // collect decorator tokens
     for (decorator_id, _decorator) in dir_tree.iter_nodes_of_type::<dir::Decorator>() {
-        let ast_node_id = dir_tree.get_source(decorator_id.id);
+        let ast_node_id = dir_tree.get_source(decorator_id);
         let span = ctx.ast().tree().get_span_by_id(ast_node_id);
 
         // for decorators, highlight the whole thing or just the name
@@ -517,7 +517,7 @@ pub fn semantic_tokens(
 
     // collect dependency item tokens (imports/exports)
     for (item_id, _) in dir_tree.iter_nodes_of_type::<dir::DependencyItem>() {
-        let ast_node_id = dir_tree.get_source(item_id.id);
+        let ast_node_id = dir_tree.get_source(item_id);
 
         // get the local binding name span
         let Some(main_span) = ctx
@@ -536,7 +536,7 @@ pub fn semantic_tokens(
                 {
                     let target_symbols = target_ctx.dir().symbols();
                     let symbol = target_symbols.get_symbol(target_symbol.local_id);
-                    declaration_form_to_token_type(symbol.form)
+                    symbol_form_to_token_type(symbol.form)
                 } else {
                     SemanticTokenType::Variable
                 }
@@ -615,18 +615,18 @@ fn parameter_is_readonly(parameter: &dir::Parameter) -> bool {
     }
 }
 
-/// Map DeclarationForm to SemanticTokenType.
-fn declaration_form_to_token_type(declaration_form: dir::DeclarationForm) -> SemanticTokenType {
-    match declaration_form {
-        dir::DeclarationForm::Void => SemanticTokenType::Variable,
-        dir::DeclarationForm::Class => SemanticTokenType::Class,
-        dir::DeclarationForm::Struct => SemanticTokenType::Struct,
-        dir::DeclarationForm::Interface => SemanticTokenType::Interface,
-        dir::DeclarationForm::Enum => SemanticTokenType::Enum,
-        dir::DeclarationForm::Function => SemanticTokenType::Function,
-        dir::DeclarationForm::Extension => SemanticTokenType::Type,
-        dir::DeclarationForm::TypeAlias => SemanticTokenType::Type,
-        dir::DeclarationForm::Newtype => SemanticTokenType::Type,
+/// Map SymbolForm to SemanticTokenType.
+fn symbol_form_to_token_type(symbol_form: dir::SymbolForm) -> SemanticTokenType {
+    match symbol_form {
+        dir::SymbolForm::Value => SemanticTokenType::Variable,
+        dir::SymbolForm::Class => SemanticTokenType::Class,
+        dir::SymbolForm::Struct => SemanticTokenType::Struct,
+        dir::SymbolForm::Interface => SemanticTokenType::Interface,
+        dir::SymbolForm::Enum => SemanticTokenType::Enum,
+        dir::SymbolForm::Function => SemanticTokenType::Function,
+        dir::SymbolForm::Extension => SemanticTokenType::Type,
+        dir::SymbolForm::TypeAlias => SemanticTokenType::Type,
+        dir::SymbolForm::Newtype => SemanticTokenType::Type,
     }
 }
 

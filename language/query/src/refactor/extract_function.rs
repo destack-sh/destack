@@ -149,10 +149,11 @@ fn extract_expression(
     }
 
     // reject extraction when the expression contains forbidden control flow
-    let dir_tree = ctx.dir().tree();
-    let expression = dir_tree.get::<dir::Expression>(expr_id);
+    let dir_tree = ctx.dir().view();
+    let raw_tree = dir_tree.tree();
+    let expression = raw_tree.get::<dir::Expression>(expr_id);
     let mut control_flow = ControlFlowVisitor::new();
-    control_flow.visit_expression(dir_tree, expr_id, expression);
+    control_flow.visit_expression(raw_tree, expr_id, expression);
     if control_flow.has_forbidden {
         return None;
     }
@@ -312,7 +313,7 @@ fn extract_statement_block(
 /// Resolve a statement selection from a span.
 fn resolve_statement_selection(ctx: &QueryContext, selection: Span) -> Option<StatementSelection> {
     // resolve the tightest block containing the selection
-    let dir_tree = ctx.dir().tree();
+    let dir_tree = ctx.dir().view();
     let mut best_block: Option<(dir::LocalNodeId<dir::Block>, Span, u32)> = None;
 
     for (block_id, _block) in dir_tree.iter_nodes_of_type::<dir::Block>() {
@@ -391,13 +392,14 @@ fn resolve_statement_selection(ctx: &QueryContext, selection: Span) -> Option<St
 /// Check whether a selection contains control flow that blocks extraction.
 fn selection_contains_control_flow(ctx: &QueryContext, selection: &StatementSelection) -> bool {
     // scan the selection for control flow that cannot be safely extracted
-    let dir_tree = ctx.dir().tree();
+    let dir_tree = ctx.dir().view();
+    let raw_tree = dir_tree.tree();
     let mut visitor = ControlFlowVisitor::new();
 
     for idx in selection.selected_range.clone() {
         let expr_id = selection.container_expressions[idx];
-        let expression = dir_tree.get::<dir::Expression>(expr_id);
-        visitor.visit_expression(dir_tree, expr_id, expression);
+        let expression = raw_tree.get::<dir::Expression>(expr_id);
+        visitor.visit_expression(raw_tree, expr_id, expression);
         if visitor.has_forbidden {
             return true;
         }
@@ -409,13 +411,14 @@ fn selection_contains_control_flow(ctx: &QueryContext, selection: &StatementSele
 /// Check whether a selection contains await expressions.
 fn selection_contains_await(ctx: &QueryContext, selection: &StatementSelection) -> bool {
     // scan the selection for await expressions
-    let dir_tree = ctx.dir().tree();
+    let dir_tree = ctx.dir().view();
+    let raw_tree = dir_tree.tree();
     let mut visitor = AwaitVisitor::new();
 
     for idx in selection.selected_range.clone() {
         let expr_id = selection.container_expressions[idx];
-        let expression = dir_tree.get::<dir::Expression>(expr_id);
-        visitor.visit_expression(dir_tree, expr_id, expression);
+        let expression = raw_tree.get::<dir::Expression>(expr_id);
+        visitor.visit_expression(raw_tree, expr_id, expression);
         if visitor.has_await {
             return true;
         }
@@ -430,10 +433,11 @@ fn expression_contains_await(
     expr_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // scan the expression for await usage
-    let dir_tree = ctx.dir().tree();
-    let expression = dir_tree.get::<dir::Expression>(expr_id);
+    let dir_tree = ctx.dir().view();
+    let raw_tree = dir_tree.tree();
+    let expression = raw_tree.get::<dir::Expression>(expr_id);
     let mut visitor = AwaitVisitor::new();
-    visitor.visit_expression(dir_tree, expr_id, expression);
+    visitor.visit_expression(raw_tree, expr_id, expression);
     visitor.has_await
 }
 
@@ -444,16 +448,17 @@ fn collect_output_symbols(
     selection: &StatementSelection,
 ) -> Vec<OutputSymbol> {
     // collect symbols referenced after the selection in the same container
-    let dir_tree = ctx.dir().tree();
+    let dir_tree = ctx.dir().view();
+    let raw_tree = dir_tree.tree();
     let mut referenced_after: HashMap<dir::GlobalSymbolId, dir::LocalNodeId<dir::Expression>> =
         HashMap::new();
 
     if let Some(last_index) = selection.selected_range.clone().last() {
         for expr_id in selection.container_expressions.iter().skip(last_index + 1) {
-            let expression = dir_tree.get::<dir::Expression>(*expr_id);
+            let expression = raw_tree.get::<dir::Expression>(*expr_id);
             let mut visitor =
                 ReferenceCollector::new(ctx.module_id(), ctx.dir().types(), &mut referenced_after);
-            visitor.visit_expression(dir_tree, *expr_id, expression);
+            visitor.visit_expression(raw_tree, *expr_id, expression);
         }
     }
 
@@ -640,7 +645,7 @@ fn collect_free_variables(
     selection: Span,
 ) -> Vec<FreeVariable> {
     // collect free variables in order of appearance
-    let dir_tree = ctx.dir().tree();
+    let dir_tree = ctx.dir().view();
     let mut seen = HashSet::new();
     let mut vars: Vec<(u32, FreeVariable)> = Vec::new();
 
@@ -930,13 +935,7 @@ impl dir::NodeVisitor for ReferenceCollector<'_> {
         expression: &dir::Expression,
     ) {
         let node_id = id.into_global_any(self.module_id);
-        let target_symbol = self
-            .types
-            .symbol_resolution(node_id)
-            .and_then(|resolution| match resolution {
-                dir::SymbolResolution::Target(symbol_id) => Some(*symbol_id),
-                dir::SymbolResolution::Candidates(_) => None,
-            });
+        let target_symbol = self.types.symbol_resolution(node_id);
 
         if let Some(target_symbol) = target_symbol {
             self.references.entry(target_symbol).or_insert(id);

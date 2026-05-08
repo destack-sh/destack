@@ -1,6 +1,6 @@
 use destack_ast as ast;
 use destack_core::StringPool;
-use destack_dir::{Declaration, EnumField, LocalNodeId, Member, Tree, TypeMember};
+use destack_dir::{self as dir, Declaration, EnumField, LocalNodeId, Member, TypeMember};
 use destack_source::{FileId, Span, Uri};
 use destack_workspace::{Repository, Revision};
 use serde::{Deserialize, Serialize};
@@ -101,7 +101,7 @@ fn document_symbols_with_dir(
 ) -> Option<Vec<DocumentSymbol>> {
     with_query_context_for_file(repository, revision, file, |ctx| {
         // resolve the dir tree
-        let dir_tree = ctx.dir().tree();
+        let dir_tree = ctx.dir().view();
 
         // collect document symbols
         let mut symbols = Vec::new();
@@ -221,7 +221,7 @@ fn document_symbols_with_ast(
 
 /// Convert a member to a document symbol.
 fn member_to_document_symbol(
-    dir_tree: &Tree,
+    dir_tree: dir::View<'_>,
     member_id: LocalNodeId<Member>,
     ctx: &QueryContext,
 ) -> Option<DocumentSymbol> {
@@ -261,7 +261,7 @@ fn member_to_document_symbol(
 
 /// Convert a type member to a document symbol.
 fn type_member_to_document_symbol(
-    dir_tree: &Tree,
+    dir_tree: dir::View<'_>,
     member_id: LocalNodeId<TypeMember>,
     ctx: &QueryContext,
 ) -> Option<DocumentSymbol> {
@@ -286,7 +286,7 @@ fn type_member_to_document_symbol(
 
 /// Convert an enum field to a document symbol.
 fn enum_field_to_document_symbol(
-    dir_tree: &Tree,
+    dir_tree: dir::View<'_>,
     field_id: LocalNodeId<EnumField>,
     ctx: &QueryContext,
 ) -> Option<DocumentSymbol> {

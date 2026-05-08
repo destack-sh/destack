@@ -55,7 +55,7 @@ pub(crate) fn build_reference_targets_for_module(
 
     let mut targets = HashSet::new();
     let dir = ctx.dir();
-    let dir_tree = dir.tree();
+    let dir_tree = dir.view();
 
     // expressions
     for (expression_id, expression) in dir_tree.iter_nodes_of_type::<Expression>() {
@@ -211,7 +211,7 @@ fn collect_expression_reference_spans(
 ) -> Vec<Span> {
     // collect matching expression ids first to avoid borrow issues
     let matching_expression_ids: Vec<_> = {
-        let dir_tree = dir.tree();
+        let dir_tree = dir.view();
         dir_tree
             .iter_nodes_of_type::<Expression>()
             .filter_map(|(expression_id, expression)| {
@@ -260,7 +260,7 @@ fn collect_expression_reference_spans(
     };
 
     // resolve spans for the matching expressions
-    let dir_tree = dir.tree();
+    let dir_tree = dir.view();
     let mut spans = Vec::new();
     for expression_id in matching_expression_ids {
         let span = resolve_expression_reference_span(ast, dir, dir_tree, expression_id);
@@ -334,7 +334,7 @@ fn collect_expression_reference_spans(
 
     // capture member receiver spans when the receiver matches the target symbol
     if options.include_members {
-        let dir_tree = dir.tree();
+        let dir_tree = dir.view();
         for (expression_id, expression) in dir_tree.iter_nodes_of_type::<Expression>() {
             let Expression::Member { left, .. } = expression else {
                 continue;
@@ -408,7 +408,7 @@ fn span_matches_target_name(
 fn member_receiver_matches_target(
     repository: &Repository,
     dir: DirQueryContext<'_>,
-    _dir_tree: &dir::Tree,
+    _dir_tree: dir::View<'_>,
     receiver_expression_id: dir::LocalNodeId<Expression>,
     canonical_id: GlobalSymbolId,
     _target_name: Option<&str>,
@@ -426,7 +426,7 @@ fn expression_reference_target(
     dir: DirQueryContext<'_>,
     expression_id: dir::LocalNodeId<Expression>,
 ) -> Option<GlobalSymbolId> {
-    if expression_is_member_receiver_expression(dir.tree(), expression_id) {
+    if expression_is_member_receiver_expression(dir.view(), expression_id) {
         return namespace_receiver_symbol_target(dir, expression_id);
     }
 
@@ -435,10 +435,10 @@ fn expression_reference_target(
 
 /// Check whether an expression is used as the receiver of a member access.
 fn expression_is_member_receiver_expression(
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     expression_id: dir::LocalNodeId<Expression>,
 ) -> bool {
-    let Some(parent) = dir_tree.get_parent(expression_id.id) else {
+    let Some(parent) = dir_tree.get_parent(expression_id) else {
         return false;
     };
     if parent.ty != NodeType::Expression {
@@ -459,12 +459,12 @@ fn expression_is_member_receiver_expression(
 fn resolve_expression_reference_span(
     ast: AstQueryContext<'_>,
     dir: DirQueryContext<'_>,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     expression_id: dir::LocalNodeId<Expression>,
 ) -> Option<Span> {
-    let span = get_node_tree_main_span(ast, dir.tree(), expression_id.into());
+    let span = get_node_tree_main_span(ast, dir.view(), expression_id.into());
 
-    let Some(parent) = dir_tree.get_parent(expression_id.id) else {
+    let Some(parent) = dir_tree.get_parent(expression_id) else {
         return Some(span);
     };
     if parent.ty != NodeType::Expression {
@@ -493,7 +493,7 @@ fn resolve_expression_reference_span(
     }
 
     // derive receiver spans when direct mapping points at member names
-    let member_span = get_node_tree_span(ast, dir.tree(), parent_expression_id.into());
+    let member_span = get_node_tree_span(ast, dir.view(), parent_expression_id.into());
     if member_span.file == member_name_span.file && member_span.start < receiver_end {
         return Some(Span::new(member_span.file, member_span.start, receiver_end));
     }
@@ -509,7 +509,7 @@ fn resolve_member_receiver_reference_span(
     receiver_expression_id: dir::LocalNodeId<Expression>,
 ) -> Option<Span> {
     let receiver_expression_id = {
-        let dir_tree = dir.tree();
+        let dir_tree = dir.view();
         let mut receiver_expression_id = receiver_expression_id;
         loop {
             let receiver_expression = dir_tree.get::<Expression>(receiver_expression_id);
@@ -522,7 +522,7 @@ fn resolve_member_receiver_reference_span(
     };
 
     let receiver_span = ast_expression_span_for_dir_expression(ast, dir, receiver_expression_id)
-        .unwrap_or_else(|| get_node_tree_main_span(ast, dir.tree(), receiver_expression_id.into()));
+        .unwrap_or_else(|| get_node_tree_main_span(ast, dir.view(), receiver_expression_id.into()));
 
     let Some(member_name_span) = get_member_access_name_span(ast, dir, member_expression_id) else {
         return Some(receiver_span);
@@ -542,7 +542,7 @@ fn resolve_member_receiver_reference_span(
     }
 
     // derive receiver spans from member expression spans when needed
-    let member_span = get_node_tree_span(ast, dir.tree(), member_expression_id.into());
+    let member_span = get_node_tree_span(ast, dir.view(), member_expression_id.into());
     if member_span.file == member_name_span.file && member_span.start < receiver_end {
         return Some(Span::new(member_span.file, member_span.start, receiver_end));
     }
@@ -556,7 +556,7 @@ fn ast_expression_span_for_dir_expression(
     dir: DirQueryContext<'_>,
     expression_id: dir::LocalNodeId<Expression>,
 ) -> Option<Span> {
-    let source_id = dir.tree().get_source(expression_id.id);
+    let source_id = dir.view().get_source(expression_id);
 
     let expression_id = ast::LocalNodeId::<ast::Expression>::new(source_id);
     ast_expression_main_span_without_parentheses(ast, expression_id)
@@ -631,7 +631,7 @@ fn collect_member_reference_spans(
     let mut spans = Vec::new();
 
     // scan member expressions for matches and namespace receivers
-    let dir_tree = dir.tree();
+    let dir_tree = dir.view();
     for (expression_id, expression) in dir_tree.iter_nodes_of_type::<Expression>() {
         let Expression::Member { left, name, .. } = expression else {
             continue;
@@ -755,7 +755,7 @@ fn collect_dependency_reference_spans(
 ) -> Vec<Span> {
     // collect matching dependency item ids first to avoid borrow issues
     let matching_dependency_ids: Vec<_> = {
-        let dir_tree = dir.tree();
+        let dir_tree = dir.view();
         dir_tree
             .iter_nodes_of_type::<DependencyItem>()
             .filter_map(|(item_id, _)| {
@@ -774,7 +774,7 @@ fn collect_dependency_reference_spans(
         } else {
             None
         }
-        .or_else(|| Some(get_node_tree_main_span(ast, dir.tree(), item_id.into())));
+        .or_else(|| Some(get_node_tree_main_span(ast, dir.view(), item_id.into())));
 
         let Some(span) = span else {
             continue;
@@ -808,11 +808,11 @@ fn dependency_item_name_span(
 ) -> Option<Span> {
     // fall back to the main span when no name was provided
     let Some(target_name) = target_name else {
-        return Some(get_node_tree_main_span(ast, dir.tree(), item_id.into()));
+        return Some(get_node_tree_main_span(ast, dir.view(), item_id.into()));
     };
 
     // resolve name + alias for matching
-    let dir_tree = dir.tree();
+    let dir_tree = dir.view();
     let item = dir_tree.get::<DependencyItem>(item_id);
     let (name_id, alias_id) = match item {
         DependencyItem::Item { name, alias, .. } => (name.map(|name| name.string()), *alias),
@@ -821,7 +821,7 @@ fn dependency_item_name_span(
     };
 
     // resolve the ast node id for span lookup
-    let ast_node_id = dir_tree.get_source(item_id.id);
+    let ast_node_id = dir_tree.get_source(item_id);
 
     // match the remote/local item name first
     if let Some(name_id) = name_id
@@ -852,7 +852,7 @@ fn namespace_import_aliases_for_module(
     module_id: ModuleId,
 ) -> Vec<GlobalSymbolId> {
     // scan dependency items for namespace imports to the target module
-    let dir_tree = dir.tree();
+    let dir_tree = dir.view();
     dir_tree
         .iter_nodes_of_type::<DependencyItem>()
         .filter_map(|(item_id, item)| {
@@ -878,7 +878,7 @@ fn namespace_import_aliases_for_module(
                 .dependency_resolution(node_id)
                 .and_then(|resolution| match resolution {
                     dir::DependencyResolution::Module(resolution) => resolution.for_space(*space),
-                    dir::DependencyResolution::Binding(_) => None,
+                    dir::DependencyResolution::Symbol(_) => None,
                 })
                 .and_then(|target| target.module_id())?;
             if target_module_id != module_id {

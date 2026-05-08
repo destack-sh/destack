@@ -380,7 +380,7 @@ fn resolve_name_from_declaration(
         symbol.declaration?
     };
 
-    let dir_tree = ctx.dir().tree();
+    let dir_tree = ctx.dir().view();
     match declaration.local_id.ty {
         dir::NodeType::Member => {
             let member_id = declaration.local_id.try_into().ok()?;
@@ -459,7 +459,7 @@ fn resolve_name_from_declaration(
 /// Return the binding name for one pattern subtree.
 fn rename_pattern_binding_name(
     strings: &StringPool,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     pattern_id: dir::LocalNodeId<dir::Pattern>,
     target_symbol: dir::LocalSymbolId,
 ) -> Option<String> {
@@ -536,7 +536,7 @@ fn resolve_interface_member_target(
         return None;
     }
 
-    let dir_tree = ctx.dir().tree();
+    let dir_tree = ctx.dir().view();
     let Ok(member_id) = declaration.local_id.try_into() else {
         return None;
     };
@@ -545,7 +545,7 @@ fn resolve_interface_member_target(
     let member_name = member_key_name(ctx.dir().strings(), member_key)?;
 
     // resolve the parent declaration and ensure it is an interface
-    let parent = dir_tree.get_parent(member_id.id)?;
+    let parent = dir_tree.get_parent(member_id)?;
     if parent.ty != dir::NodeType::Declaration {
         return None;
     }
@@ -605,9 +605,9 @@ fn collect_interface_member_implementations(
             continue;
         };
 
-        let dir_tree = ctx.dir().tree();
+        let dir_tree = ctx.dir().view();
         for (member_id, member) in dir_tree.iter_nodes_of_type::<dir::Member>() {
-            let Some(parent) = dir_tree.get_parent(member_id.id) else {
+            let Some(parent) = dir_tree.get_parent(member_id) else {
                 continue;
             };
             if parent.ty != dir::NodeType::Declaration {

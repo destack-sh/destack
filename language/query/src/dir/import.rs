@@ -6,8 +6,8 @@ use destack_ast::{
 };
 use destack_core::StringId;
 use destack_dir::{
-    Declaration, DeclarationForm, DependencyBinding as DirDependencyBinding,
-    DependencyItem as DirDependencyItem, LocalNodeId, LocalSymbolId, NodeType, SymbolSpace,
+    Declaration, DependencyBinding as DirDependencyBinding, DependencyItem as DirDependencyItem,
+    LocalNodeId, LocalSymbolId, NodeType, SymbolForm, SymbolSpace,
 };
 use destack_source::{Edit, FileId, PathExt, Span};
 
@@ -58,21 +58,21 @@ fn dependency_item_binding(item: &DependencyItem) -> Option<AstDependencyBinding
 }
 
 /// Check whether a symbol type participates in the type namespace.
-pub(crate) fn is_type_symbol(declaration_form: DeclarationForm) -> bool {
+pub(crate) fn is_type_symbol(symbol_form: SymbolForm) -> bool {
     matches!(
-        declaration_form,
-        DeclarationForm::Class
-            | DeclarationForm::Struct
-            | DeclarationForm::Interface
-            | DeclarationForm::Enum
-            | DeclarationForm::TypeAlias
-            | DeclarationForm::Newtype
+        symbol_form,
+        SymbolForm::Class
+            | SymbolForm::Struct
+            | SymbolForm::Interface
+            | SymbolForm::Enum
+            | SymbolForm::TypeAlias
+            | SymbolForm::Newtype
     )
 }
 
 /// Check whether a symbol matches a requested symbol space filter.
 pub(crate) fn matches_symbol_space_filter(
-    declaration_form: DeclarationForm,
+    symbol_form: SymbolForm,
     symbol_space: SymbolSpace,
     filter: Option<SymbolSpace>,
 ) -> bool {
@@ -83,7 +83,7 @@ pub(crate) fn matches_symbol_space_filter(
     match filter {
         SymbolSpace::Type => match symbol_space {
             SymbolSpace::Type => true,
-            _ => is_type_symbol(declaration_form),
+            _ => is_type_symbol(symbol_form),
         },
         SymbolSpace::Value => symbol_space == SymbolSpace::Value,
         SymbolSpace::Label => symbol_space == SymbolSpace::Label,
@@ -92,7 +92,7 @@ pub(crate) fn matches_symbol_space_filter(
 
 /// Check whether a symbol matches an explicit import-clause space filter.
 pub(crate) fn matches_import_clause_space_filter(
-    declaration_form: DeclarationForm,
+    symbol_form: SymbolForm,
     symbol_space: SymbolSpace,
     filter: Option<SymbolSpace>,
 ) -> bool {
@@ -101,8 +101,8 @@ pub(crate) fn matches_import_clause_space_filter(
     };
 
     match filter {
-        SymbolSpace::Type => symbol_space == SymbolSpace::Type || is_type_symbol(declaration_form),
-        _ => matches_symbol_space_filter(declaration_form, symbol_space, Some(filter)),
+        SymbolSpace::Type => symbol_space == SymbolSpace::Type || is_type_symbol(symbol_form),
+        _ => matches_symbol_space_filter(symbol_form, symbol_space, Some(filter)),
     }
 }
 
@@ -131,7 +131,7 @@ pub(crate) fn resolve_local_import_alias_name(
     };
     if declaration.local_id.ty == NodeType::Declaration {
         let declaration_id: LocalNodeId<Declaration> = declaration.local_id.try_into().ok()?;
-        let dir_tree = ctx.dir().tree();
+        let dir_tree = ctx.dir().view();
         let declaration = dir_tree.get::<Declaration>(declaration_id);
         let Declaration::ImportAlias(declaration) = declaration else {
             return None;
@@ -147,7 +147,7 @@ pub(crate) fn resolve_local_import_alias_name(
 
     // resolve the local import binding name
     let item_id: LocalNodeId<DirDependencyItem> = declaration.local_id.try_into().ok()?;
-    let dir_tree = ctx.dir().tree();
+    let dir_tree = ctx.dir().view();
     let local_name_id =
         dependency_item_local_import_alias_name(dir_tree.get::<DirDependencyItem>(item_id))?;
 
@@ -221,7 +221,7 @@ pub(crate) fn is_dependency_alias_for_target(
     };
 
     // check for an alias that targets the canonical symbol
-    let dir_tree = dir.tree();
+    let dir_tree = dir.view();
     let item = dir_tree.get::<DirDependencyItem>(item_id);
     let (alias, binding) = match item {
         DirDependencyItem::Item { alias, binding, .. } => (alias, binding),
@@ -263,7 +263,7 @@ fn local_default_import_alias_name_in_context(
 
     let item_id: LocalNodeId<DirDependencyItem> = declaration.local_id.try_into().ok()?;
     let local_name_id =
-        dependency_item_default_import_alias_name(dir.tree().get::<DirDependencyItem>(item_id))?;
+        dependency_item_default_import_alias_name(dir.view().get::<DirDependencyItem>(item_id))?;
 
     Some(dir.strings().get(local_name_id).to_string())
 }

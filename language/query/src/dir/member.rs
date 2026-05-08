@@ -1,8 +1,8 @@
 use destack_ast::StringPool;
 use destack_dir as dir;
 use destack_dir::{
-    Declaration, DeclarationForm, GlobalSymbolId, LocalSymbolId, LocalTypeId, Member,
-    ScalarLiteral, StaticKey, SymbolTable, Type, TypeTable, WellKnownSymbol,
+    Declaration, GlobalSymbolId, LocalSymbolId, LocalTypeId, Member, ScalarLiteral, StaticKey,
+    SymbolForm, SymbolTable, Type, TypeTable, WellKnownSymbol,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Repository, Revision};
@@ -209,7 +209,7 @@ fn resolve_type_members_inner(
                         {
                             let symbols_table = ctx.dir().symbols();
                             let sym = symbols_table.get_symbol(reference.symbol.local_id);
-                            return sym.form == DeclarationForm::Enum;
+                            return sym.form == SymbolForm::Enum;
                         }
                     }
                 }
@@ -356,7 +356,7 @@ fn resolve_local_symbol_members(
 
     // check if this symbol is an enum (for member kind detection)
     let symbol = symbols.get_symbol(symbol_id);
-    let is_enum = symbol.form == DeclarationForm::Enum;
+    let is_enum = symbol.form == SymbolForm::Enum;
 
     // first: try to get members from the symbol's instance type
     // this is the primary source for struct/class/interface fields
@@ -427,7 +427,7 @@ pub(crate) fn resolve_extension_members_for_symbol(
         |dir, extension| {
             // load symbol and trees for extension lookup
             let symbols = dir.symbols();
-            let tree = dir.tree();
+            let tree = dir.view();
 
             // resolve the extension declaration
             let ext_symbol = symbols.get_symbol(extension.symbol.local_id);

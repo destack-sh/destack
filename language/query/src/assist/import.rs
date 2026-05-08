@@ -109,20 +109,16 @@ fn resolved_import_target_module(
 ) -> Option<ModuleId> {
     let specifier = ast.strings().get(target);
     let target_id = dir.strings().intern(&specifier);
-    let cache_key = dir::ImportResolutionKey::new(
-        Some(dir.module_id()),
-        target_id,
-        ModuleEdgeRelation::Import,
-        None,
-    );
-    let targets = dir
-        .imported()
-        .imports
-        .resolution_by_key
-        .get(&cache_key)
-        .copied()?;
+    let dependency = dir.imported().dependencies.iter().find(|dependency| {
+        dependency.specifier == target_id
+            && dependency.relation == ModuleEdgeRelation::Import
+            && dependency.loader.is_none()
+    })?;
 
-    targets.value.and_then(|target| target.module_id())
+    dependency
+        .resolution
+        .value
+        .and_then(|target| target.module_id())
 }
 
 /// Parsed import clause info for completion.

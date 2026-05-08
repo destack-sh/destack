@@ -8,20 +8,20 @@ pub(crate) fn expression_symbol_target(
     dir: DirQueryContext<'_>,
     expression_id: dir::LocalNodeId<Expression>,
 ) -> Option<GlobalSymbolId> {
-    let dir_tree = dir.tree();
-    let expression = dir_tree.get::<Expression>(expression_id);
+    let view = dir.view();
+    let expression = view.get::<Expression>(expression_id);
 
     match expression {
         // preserve the underlying symbol through wrappers
         Expression::Parenthesized { expression } => expression_symbol_target(dir, *expression),
         _ => {
             let node_id = expression_id.into_global_any(dir.module_id());
-            let resolution = dir.types().symbol_resolution(node_id)?;
-
-            match resolution {
-                dir::SymbolResolution::Target(symbol_id) => Some(*symbol_id),
-                dir::SymbolResolution::Candidates(_) => None,
+            let symbol_id = dir.types().symbol_resolution(node_id)?;
+            if !dir.symbol_is_active(symbol_id) {
+                return None;
             }
+
+            Some(symbol_id)
         }
     }
 }
@@ -35,7 +35,13 @@ pub(crate) fn dependency_symbol_target(
     let resolution = dir.types().dependency_resolution(node_id)?;
 
     match resolution {
-        dir::DependencyResolution::Binding(symbol_id) => Some(*symbol_id),
+        dir::DependencyResolution::Symbol(symbol_id) => {
+            if !dir.symbol_is_active(*symbol_id) {
+                return None;
+            }
+
+            Some(*symbol_id)
+        }
         dir::DependencyResolution::Module(_) => None,
     }
 }
@@ -55,7 +61,7 @@ pub(crate) fn expression_is_type_position(
     dir: DirQueryContext<'_>,
     expression_id: dir::LocalNodeId<Expression>,
 ) -> bool {
-    let mut current_id = dir.tree().get_source(expression_id.id);
+    let mut current_id = dir.view().get_source(expression_id);
 
     loop {
         let Some(parent_id) = ast.parents().get_by_id(current_id) else {

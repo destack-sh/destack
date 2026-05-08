@@ -134,7 +134,7 @@ fn document_links_with_dir(
 ) -> Option<Vec<DocumentLink>> {
     with_query_context_for_file(repository, revision, file, |ctx| {
         // find all import and re-export statements
-        let dir_tree = ctx.dir().tree();
+        let dir_tree = ctx.dir().view();
         let mut links = Vec::new();
         for (expr_id, expr) in dir_tree.iter_nodes_of_type::<Expression>() {
             match expr {
@@ -143,7 +143,7 @@ fn document_links_with_dir(
                         continue;
                     };
 
-                    // skip module bindings for document links
+                    // skip declared modules for document links
                     let node_id = expr_id.into_global_any(ctx.module_id());
                     let Some(dir::DependencyResolution::Module(resolution)) =
                         ctx.dir().types().dependency_resolution(node_id)
@@ -188,7 +188,7 @@ fn document_links_with_dir(
                     );
                 }
                 Expression::ReExport { target, space, .. } => {
-                    // skip module bindings for document links
+                    // skip declared modules for document links
                     let node_id = expr_id.into_global_any(ctx.module_id());
                     let Some(dir::DependencyResolution::Module(resolution)) =
                         ctx.dir().types().dependency_resolution(node_id)

@@ -49,7 +49,7 @@ fn member_access_context_from_member_name(
         return None;
     }
 
-    let dir_tree = dir.tree();
+    let dir_tree = dir.view();
 
     // resolve enclosing spans from innermost to outermost
     let enclosing = sorted_enclosing_spans(ast, cursor_position, cursor_position);
@@ -127,15 +127,15 @@ fn get_receiver_type(
     receiver_symbol: Option<dir::GlobalSymbolId>,
 ) -> Option<dir::LocalTypeId> {
     let types = dir.types();
-    let declaration_form_id = receiver_symbol
-        .and_then(|receiver_symbol| types.declaration_form_id(dir.symbols(), receiver_symbol));
+    let symbol_type_id = receiver_symbol
+        .and_then(|receiver_symbol| types.symbol_type_id(dir.symbols(), receiver_symbol));
 
     concrete_type_id(
         types,
         types
             .member_receiver_type_id(receiver_global)
             .or_else(|| types.get_declared_or_inferred_type_id(receiver_global))
-            .or(declaration_form_id),
+            .or(symbol_type_id),
     )
 }
 
@@ -146,7 +146,7 @@ fn member_access_context_at_offset(
     receiver_position: u32,
 ) -> Option<CompletionContext> {
     let enclosing = sorted_enclosing_spans(ast, receiver_position, receiver_position);
-    let dir_tree = dir.tree();
+    let dir_tree = dir.view();
     let mut partial_context = None;
 
     // scan for the nearest enclosing expression

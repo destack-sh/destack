@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use destack_dir::{DeclarationForm, GlobalSymbolId, StaticKey, SymbolSpace};
+use destack_dir::{GlobalSymbolId, StaticKey, SymbolForm, SymbolSpace};
 use destack_source::{ModuleId, PathExt, ProfileId};
 use destack_workspace::{Repository, Revision};
 
@@ -16,7 +16,7 @@ pub(crate) struct ExportedSymbol {
     /// The name of the exported symbol.
     pub name: String,
     /// The kind of symbol.
-    pub kind: DeclarationForm,
+    pub kind: SymbolForm,
     /// The symbol space.
     pub space: dir::SymbolSpace,
     /// The module that exports this symbol.
@@ -51,7 +51,7 @@ fn export_symbol_shape(
     revision: Revision,
     symbol_id: GlobalSymbolId,
     profile_id: ProfileId,
-) -> Option<(DeclarationForm, SymbolSpace)> {
+) -> Option<(SymbolForm, SymbolSpace)> {
     let ctx = query_context_for_profile(repository, revision, symbol_id.module_id, profile_id)?;
     let symbols = ctx.dir().symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
@@ -158,7 +158,7 @@ pub(crate) fn build_specifier_candidates_for_module(
     let Some(entries) = with_ast_query_for_module(repository, revision, module_id, |ast| {
         let mut dir_targets = std::collections::HashMap::new();
         if let Some(ctx) = query_context.as_ref() {
-            let dir_tree = ctx.dir().tree();
+            let dir_tree = ctx.dir().view();
             for (expression_id, expression) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
                 let target_module = match expression {
                     dir::Expression::Import { space, .. }
@@ -171,7 +171,7 @@ pub(crate) fn build_specifier_candidates_for_module(
                                 dir::DependencyResolution::Module(resolution) => {
                                     resolution.for_space(*space)
                                 }
-                                dir::DependencyResolution::Binding(_) => None,
+                                dir::DependencyResolution::Symbol(_) => None,
                             })
                     }
                     _ => None,
@@ -180,7 +180,7 @@ pub(crate) fn build_specifier_candidates_for_module(
                     continue;
                 };
 
-                let source_id = dir_tree.get_source(expression_id.id);
+                let source_id = dir_tree.get_source(expression_id);
                 dir_targets.insert(source_id, target_module.module_id());
             }
         }

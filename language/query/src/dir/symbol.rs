@@ -131,7 +131,7 @@ pub(crate) fn build_workspace_symbol_candidates_for_module(
         return Vec::new();
     };
 
-    let dir_tree = ctx.dir().tree();
+    let dir_tree = ctx.dir().view();
     let mut entries = Vec::new();
 
     // declarations, members, enum fields
@@ -139,7 +139,7 @@ pub(crate) fn build_workspace_symbol_candidates_for_module(
         let name = declaration_display_name(ctx.dir().strings(), declaration);
         let kind = symbol_index_kind_for_declaration(declaration);
         let container_name =
-            container_name_for_node(dir_tree, ctx.dir().strings(), declaration_id.id);
+            container_name_for_node(dir_tree, ctx.dir().strings(), declaration_id.into());
 
         let Some(range) = symbol_index_range(&ctx, dir_tree, declaration_id.id) else {
             continue;
@@ -244,7 +244,7 @@ pub(crate) fn get_symbol_local_definition_span(
         if let Some(declaration) = declaration {
             return Some(get_node_tree_main_span(
                 ctx.ast(),
-                ctx.dir().tree(),
+                ctx.dir().view(),
                 declaration.local_id,
             ));
         }
@@ -322,7 +322,7 @@ fn symbol_index_kind_for_declaration(declaration: &dir::Declaration) -> SymbolEn
 /// Convert one member to one symbol index entry.
 fn member_to_symbol_index_entry(
     ctx: &QueryContext,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     member_id: dir::LocalNodeId<dir::Member>,
     container_name: &str,
 ) -> Option<SymbolEntry> {
@@ -356,7 +356,7 @@ fn member_to_symbol_index_entry(
 /// Convert one type member to one symbol index entry.
 fn type_member_to_symbol_index_entry(
     ctx: &QueryContext,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     member_id: dir::LocalNodeId<dir::TypeMember>,
     container_name: &str,
 ) -> Option<SymbolEntry> {
@@ -386,7 +386,7 @@ fn type_member_to_symbol_index_entry(
 /// Convert one enum field to one symbol index entry.
 fn enum_field_to_symbol_index_entry(
     ctx: &QueryContext,
-    dir_tree: &dir::Tree,
+    dir_tree: dir::View<'_>,
     field_id: dir::LocalNodeId<dir::EnumField>,
     container_name: &str,
 ) -> Option<SymbolEntry> {
@@ -433,7 +433,7 @@ fn symbol_index_kind_for_type_member(member: &dir::TypeMember) -> Option<SymbolE
 }
 
 /// Resolve one symbol index range without failing the whole query on bad source ids.
-fn symbol_index_range(ctx: &QueryContext, dir_tree: &dir::Tree, node_id: u32) -> Option<Span> {
+fn symbol_index_range(ctx: &QueryContext, dir_tree: dir::View<'_>, node_id: u32) -> Option<Span> {
     let node_id = LocalNodeIdAny::new(node_id, dir_tree.get_node_type(node_id));
     try_span_for_dir_node(ctx.ast(), dir_tree, node_id)
 }
@@ -443,7 +443,7 @@ fn get_symbol_span_with(
     repository: &Repository,
     revision: Revision,
     symbol_id: GlobalSymbolId,
-    span_for_declaration: impl Fn(AstQueryContext<'_>, &dir::Tree, LocalNodeIdAny) -> Span + Copy,
+    span_for_declaration: impl Fn(AstQueryContext<'_>, dir::View<'_>, LocalNodeIdAny) -> Span + Copy,
 ) -> Option<Span> {
     with_symbol_context(repository, revision, symbol_id.module_id, |ctx| {
         let (canonical_id, declaration) = {
@@ -464,7 +464,7 @@ fn get_symbol_span_with(
         if let Some(declaration) = declaration {
             return Some(span_for_declaration(
                 ctx.ast(),
-                ctx.dir().tree(),
+                ctx.dir().view(),
                 declaration.local_id,
             ));
         }

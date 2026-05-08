@@ -26,7 +26,7 @@ pub(crate) fn resolve_extract_expression(
     selection: Span,
 ) -> Option<(dir::LocalNodeId<dir::Expression>, Span)> {
     // scan expressions for the smallest span that contains the selection
-    let dir_tree = ctx.dir().tree();
+    let dir_tree = ctx.dir().view();
     let mut best: Option<(dir::LocalNodeId<dir::Expression>, Span)> = None;
     let mut best_len = u32::MAX;
 
@@ -57,10 +57,10 @@ pub(crate) fn statement_span_for_expression(
     fallback: Span,
 ) -> Span {
     // walk parent expressions until we find a statement boundary
-    let dir_tree = ctx.dir().tree();
+    let dir_tree = ctx.dir().view();
     let mut current = dir::LocalNodeIdAny::from(expr_id);
 
-    while let Some(parent) = dir_tree.get_parent(current.id) {
+    while let Some(parent) = dir_tree.get_parent_any(current) {
         if parent.ty == dir::NodeType::Expression {
             let Ok(parent_id) = parent.try_into() else {
                 current = parent;

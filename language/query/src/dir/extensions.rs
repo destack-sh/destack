@@ -1,4 +1,4 @@
-use destack_dir::{Extension, ExtensionKind, GlobalSymbolId};
+use destack_dir::{Extension, ExtensionForm, GlobalSymbolId};
 use destack_source::{ModuleId, ProfileId};
 use destack_workspace::{Repository, Revision};
 
@@ -69,10 +69,10 @@ pub(crate) fn build_extension_candidates_for_module(
 
 /// Check whether an extension is visible from a module.
 fn extension_is_visible(extension: &Extension, current_module_id: ModuleId) -> bool {
-    // choose visibility rules by extension kind
-    match extension.kind {
-        ExtensionKind::Inherent => true,
-        ExtensionKind::Local => extension.symbol.module_id == current_module_id,
-        ExtensionKind::Named => true,
+    // choose visibility rules by extension form
+    match extension.form {
+        ExtensionForm::Inherent => true,
+        ExtensionForm::Local => extension.symbol.module_id == current_module_id,
+        ExtensionForm::Named => true,
     }
 }

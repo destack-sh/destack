@@ -165,7 +165,7 @@ pub fn hover(
     let container_name = container_name_for_symbol(repository, revision, symbol_at.symbol_id);
 
     // resolve shared dir data for formatting
-    let dir_tree = ctx.dir().tree();
+    let dir_tree = ctx.dir().view();
     let types = ctx.dir().types();
 
     // format based on node type
@@ -274,7 +274,7 @@ fn resolve_hover_type_text(
 
     // map the hover node to a type id
     let type_id = match hover_node_id.ty {
-        NodeType::Pattern => types.declaration_form_id(symbols, symbol_id),
+        NodeType::Pattern => types.symbol_type_id(symbols, symbol_id),
         NodeType::Member | NodeType::EnumField | NodeType::Parameter => {
             ctx.dir().node_type_id(hover_node_id)
         }
@@ -311,7 +311,7 @@ fn hover_location(repository: &Repository, revision: Revision, span: Span) -> Op
 fn hover_range_for_symbol(ctx: &QueryContext, node_id: LocalNodeIdAny, default_span: Span) -> Span {
     // preserve full declaration ranges for member declarations
     if node_id.ty == NodeType::Member {
-        return get_node_tree_span(ctx.ast(), ctx.dir().tree(), node_id);
+        return get_node_tree_span(ctx.ast(), ctx.dir().view(), node_id);
     }
 
     default_span

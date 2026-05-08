@@ -1,6 +1,5 @@
 use destack_dir::{
-    self as dir, DeclarationForm, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId,
-    Resolution,
+    self as dir, Expression, GlobalNodeIdAny, GlobalSymbolId, LocalNodeId, Resolution, SymbolForm,
 };
 use destack_source::{ModuleId, ProfileId};
 use destack_workspace::{Repository, Revision};
@@ -37,7 +36,7 @@ pub(crate) fn call_target(
     left_expression_id: LocalNodeId<Expression>,
 ) -> CallTarget {
     // read the left expression node
-    let dir_tree = dir.tree();
+    let dir_tree = dir.view();
     let left_expression = dir_tree.get::<Expression>(left_expression_id);
 
     // inspect the target expression shape
@@ -94,7 +93,7 @@ fn symbol_is_function(
 
     let symbols = ctx.dir().symbols();
     let symbol = symbols.get_symbol(symbol_id.local_id);
-    symbol.form == DeclarationForm::Function
+    symbol.form == SymbolForm::Function
 }
 
 /// Build call index entries for one module.
@@ -109,7 +108,7 @@ pub(crate) fn build_call_candidates_for_module(
     };
 
     let mut entries = Vec::new();
-    let dir_tree = ctx.dir().tree();
+    let dir_tree = ctx.dir().view();
 
     for (expression_id, expression) in dir_tree.iter_nodes_of_type::<Expression>() {
         let left_expression = match expression {
@@ -117,7 +116,7 @@ pub(crate) fn build_call_candidates_for_module(
             _ => continue,
         };
 
-        let call_span = get_node_tree_span(ctx.ast(), ctx.dir().tree(), expression_id.into());
+        let call_span = get_node_tree_span(ctx.ast(), ctx.dir().view(), expression_id.into());
         let caller_symbol = find_containing_function_symbol(&ctx, expression_id.into());
         let callee_symbols = call_target_symbols(repository, &ctx, expression_id, left_expression);
         for callee_symbol in callee_symbols {
@@ -193,13 +192,13 @@ fn find_containing_function_symbol(
     while let Some(node_id) = current {
         if node_id.ty == dir::NodeType::Declaration {
             let declaration_id: dir::LocalNodeId<dir::Declaration> = node_id.try_into().ok()?;
-            let declaration = ctx.dir().tree().get::<dir::Declaration>(declaration_id);
+            let declaration = ctx.dir().view().get::<dir::Declaration>(declaration_id);
             if matches!(declaration, dir::Declaration::Function { .. }) {
                 return Some(GlobalSymbolId::new(ctx.module_id(), declaration.symbol()));
             }
         }
 
-        current = ctx.dir().tree().get_parent(node_id.id);
+        current = ctx.dir().view().get_parent_any(node_id);
     }
 
     None
