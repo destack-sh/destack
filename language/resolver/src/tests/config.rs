@@ -16,12 +16,12 @@ fn test_reads_destack_paths() {
 
     let directory = resolver
         .read_destack(&project("/app"), &mut ctx, CachePolicy::Reload)
-        .map(|config| config.package_options().name);
+        .map(|config| config.name);
     assert_eq!(directory, Ok(Some("app".into())));
 
     let extensionless = resolver
         .read_destack(&project("/other"), &mut ctx, CachePolicy::Reload)
-        .map(|config| config.package_options().name);
+        .map(|config| config.name);
     assert_eq!(extensionless, Ok(Some("other".into())));
 }
 
@@ -39,7 +39,7 @@ fn test_reads_destack_extends() {
 
     let result = resolver
         .read_destack(&project("/app"), &mut ctx, CachePolicy::Reload)
-        .map(|config| config.package_options().name);
+        .map(|config| config.name);
     assert_eq!(result, Ok(Some("base".into())));
 }
 

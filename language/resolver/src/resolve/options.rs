@@ -2,8 +2,6 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_workspace::WorkspaceOptions;
-
 /// The options controlling Destack module resolution.
 #[derive(Debug, Clone)]
 pub struct ResolverOptions {
@@ -44,8 +42,8 @@ impl Default for ResolverOptions {
 }
 
 impl ResolverOptions {
-    /// Create default options using workspace policy.
-    pub fn workspace_defaults(cwd: PathBuf, _workspace_options: Option<&WorkspaceOptions>) -> Self {
+    /// Create default options for one workspace root.
+    pub fn workspace_defaults(cwd: PathBuf) -> Self {
         Self::cwd_defaults(cwd)
     }
 
