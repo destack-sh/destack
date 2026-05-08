@@ -178,7 +178,7 @@ impl Continuation {
             }
 
             let base = stack.allocate(frame_image.bytes.len(), Word::BYTE_LEN)?;
-            stack.write(base, &frame_image.bytes)?;
+            stack.copy_bytes(base, &frame_image.bytes)?;
             let frame_base = stack.address(base, frame_image.bytes.len())?;
             let frame = frame_image.restore(program, base, frame_base)?;
             frames.push(frame);

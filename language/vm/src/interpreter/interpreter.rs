@@ -105,7 +105,7 @@ impl Interpreter {
             let base = interpreter
                 .stack
                 .allocate(frame_image.bytes.len(), Word::BYTE_LEN)?;
-            interpreter.stack.write(base, &frame_image.bytes)?;
+            interpreter.stack.copy_bytes(base, &frame_image.bytes)?;
             let frame_base = interpreter.stack.address(base, frame_image.bytes.len())?;
             let frame = Frame::from_image(frame_image, program, base, frame_base)?;
 
