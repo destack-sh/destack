@@ -7,7 +7,7 @@ use destack_source::LanguageType;
 fn test_parse_slice_type() {
     let mut test = TestParser::new("type T = [EventTarget]");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type T = [EventTarget]
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -26,7 +26,7 @@ fn test_parse_slice_type() {
 fn test_parse_readonly_slice_type() {
     let mut test = TestParser::new("type T = [readonly EventTarget]");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type T = [readonly EventTarget]
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -47,7 +47,7 @@ fn test_parse_readonly_slice_type() {
 fn test_parse_fixed_array_type() {
     let mut test = TestParser::new("type T = [EventTarget; 32]");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type T = [EventTarget; 32]
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -69,7 +69,7 @@ fn test_parse_fixed_array_type() {
 fn test_parse_single_element_tuple_type() {
     let mut test = TestParser::new("type T = [EventTarget,]");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type T = [EventTarget,]
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -92,9 +92,10 @@ fn test_parse_single_element_tuple_type() {
 
 #[test]
 fn test_parse_typescript_single_element_tuple_type() {
-    let mut test = TestParser::new_with_options("type T = [EventTarget]", LanguageType::TypeScript);
+    let mut test =
+        TestParser::new_with_language("type T = [EventTarget]", LanguageType::TypeScript);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type T = [EventTarget]
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -287,9 +288,9 @@ fn test_parse_optional_tuple_element_with_readonly_type() {
 #[test]
 fn test_parse_typescript_readonly_tuple_element() {
     let mut test =
-        TestParser::new_with_options("type T = [readonly EventTarget]", LanguageType::TypeScript);
+        TestParser::new_with_language("type T = [readonly EventTarget]", LanguageType::TypeScript);
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type T = [readonly EventTarget]
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -339,7 +340,7 @@ fn test_parse_tuple_type() {
 fn test_parse_tuple_type_with_readonly_type_element() {
     let mut test = TestParser::new("type T = [string, readonly EventTarget]");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     // type T = [string, readonly EventTarget]
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
@@ -435,7 +436,7 @@ fn test_parse_tuple_type_missing_close_bracket() {
 fn test_parse_tuple_type_missing_first_element() {
     let mut test = TestParser::new("type T = [, string]");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.options).unwrap();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
 
     test.assert_error_leaves(&parser, &[(Some(NodeType::TypeExpression), None, ",")]);
 

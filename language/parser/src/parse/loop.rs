@@ -226,7 +226,7 @@ impl Parser {
                 })
             } else {
                 // declaration forms keep binding-pattern parsing
-                let pattern_flags = self.flags.not_in_position().in_for_each().in_before_block();
+                let pattern_flags = self.flags.not_in_position().in_for_each();
                 let pattern = self.with_flags(pattern_flags, |parser| parser.eat_pattern())?;
                 Ok(ForEachBinding::Pattern { pattern, keyword })
             }

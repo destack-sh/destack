@@ -247,9 +247,6 @@ impl Compiler {
             | Expression::BorrowOf {
                 right: statement, ..
             }
-            | Expression::PointerOf {
-                right: statement, ..
-            }
             | Expression::Maybe { left: statement }
             | Expression::Must { left: statement }
             | Expression::Delete { value: statement }

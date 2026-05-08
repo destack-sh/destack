@@ -404,9 +404,7 @@ pub fn expression_unwrap_transparent(
             | dir::Expression::Satisfies { expression, .. } => {
                 expression_id = *expression;
             }
-            dir::Expression::MoveOf { right, .. }
-            | dir::Expression::BorrowOf { right, .. }
-            | dir::Expression::PointerOf { right, .. } => {
+            dir::Expression::MoveOf { right, .. } | dir::Expression::BorrowOf { right, .. } => {
                 expression_id = *right;
             }
             _ => {

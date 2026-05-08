@@ -307,17 +307,6 @@ pub(crate) fn format_operator_expression<'ast>(
             write_prefix_expression_operand(f, node_id, *right)?;
         }
 
-        // pointer
-        Expression::PointerOf { mutability, right } => {
-            write!(f, [token("*")])?;
-            if let Some(mutability) = mutability
-                && *mutability == Mutability::Immutable
-            {
-                write!(f, [token("readonly"), space()])?;
-            }
-            write_prefix_expression_operand(f, node_id, *right)?;
-        }
-
         // member
         Expression::Member { .. } | Expression::PrivateMember { .. } => {
             format_member_expression(f, node_id)?;

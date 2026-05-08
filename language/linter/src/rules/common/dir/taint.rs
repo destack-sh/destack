@@ -338,8 +338,7 @@ impl<'a> TaintAnalysis<'a> {
             }
             dir::Expression::Unary { right, .. }
             | dir::Expression::MoveOf { right, .. }
-            | dir::Expression::BorrowOf { right, .. }
-            | dir::Expression::PointerOf { right, .. } => {
+            | dir::Expression::BorrowOf { right, .. } => {
                 // unary wrappers preserve operand taint
                 let right_labels =
                     self.expression_taint_labels_inner(*right, expression_stack, symbol_stack);

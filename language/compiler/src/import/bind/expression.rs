@@ -1001,24 +1001,6 @@ impl Compiler {
                     right,
                 }
             }
-            ast::Expression::PointerOf { mutability, right } => {
-                let mutability = mutability.map(|mutability| self.bind_mutability(mutability));
-                let right = self.bind_expression(
-                    module,
-                    ast,
-                    namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
-                    scope,
-                    *right,
-                    Some(expression_id),
-                    tree,
-                    symbols,
-                    types,
-                    space,
-                );
-                Expression::PointerOf { mutability, right }
-            }
             ast::Expression::Is { value, target_type } => {
                 let value = self.bind_expression(
                     module,

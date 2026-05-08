@@ -99,9 +99,7 @@ pub fn is_trivial_expression(tree: &Tree, expression: &Expression) -> bool {
             .map_or(is_trivial_expression(tree, tree.get(*left)), |index_id| {
                 is_trivial_expression(tree, tree.get(*index_id))
             }),
-        Expression::BorrowOf { right, .. } | Expression::PointerOf { right, .. } => {
-            is_trivial_expression(tree, tree.get(*right))
-        }
+        Expression::BorrowOf { right, .. } => is_trivial_expression(tree, tree.get(*right)),
         Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => {
             is_trivial_expression(tree, tree.get(*left))
         }
