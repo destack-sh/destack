@@ -347,7 +347,7 @@ impl Compiler {
                     }
                 })?;
                 let item_node = source_item_id.into_global_any(module_id);
-                let Some(dir::DependencyResolution::Binding(symbol)) =
+                let Some(dir::DependencyResolution::Symbol(symbol)) =
                     checked.types.dependency_resolution(item_node)
                 else {
                     return Err(LinkError::Internal {
@@ -387,13 +387,8 @@ impl Compiler {
             })?;
         let symbol = source_directory.symbols.get_symbol(symbol_id.local_id);
 
-        // prefer the emitted binding name over the source declaration name
-        if let Some(name) = symbol
-            .attributes
-            .binding_name()
-            .flatten()
-            .or_else(|| symbol.name())
-        {
+        // use the source declaration name for same-output local bridging
+        if let Some(name) = symbol.name() {
             return Ok((symbol_id, source_directory.strings.get(name).to_string()));
         }
 

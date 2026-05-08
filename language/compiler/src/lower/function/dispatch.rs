@@ -83,7 +83,7 @@ impl FunctionLowerer<'_> {
             dir::Type::Reference(reference)
                 if self
                     .context
-                    .symbol_is(reference.symbol, dir::DeclarationForm::Interface) =>
+                    .symbol_is(reference.symbol, dir::SymbolForm::Interface) =>
             {
                 Some(reference.symbol)
             }

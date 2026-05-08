@@ -102,10 +102,10 @@ impl ModuleLowerer<'_> {
             && matches!(
                 self.symbol_form(reference.symbol),
                 Some(
-                    dir::DeclarationForm::Struct
-                        | dir::DeclarationForm::Class
-                        | dir::DeclarationForm::Interface
-                        | dir::DeclarationForm::Enum
+                    dir::SymbolForm::Struct
+                        | dir::SymbolForm::Class
+                        | dir::SymbolForm::Interface
+                        | dir::SymbolForm::Enum
                 )
             )
         {
@@ -130,10 +130,10 @@ impl ModuleLowerer<'_> {
             && matches!(
                 self.symbol_form(symbol),
                 Some(
-                    dir::DeclarationForm::Struct
-                        | dir::DeclarationForm::Class
-                        | dir::DeclarationForm::Interface
-                        | dir::DeclarationForm::Enum
+                    dir::SymbolForm::Struct
+                        | dir::SymbolForm::Class
+                        | dir::SymbolForm::Interface
+                        | dir::SymbolForm::Enum
                 )
             )
         {
@@ -289,7 +289,7 @@ impl ModuleLowerer<'_> {
         names.reference = Some(name_id);
 
         // resolve interface reference and instance types separately
-        if self.symbol_is(symbol, dir::DeclarationForm::Interface) {
+        if self.symbol_is(symbol, dir::SymbolForm::Interface) {
             let instance_name = format!("{name}{OBJECT_METADATA_SUFFIX}");
             let instance_name_id = self.builder.intern(&instance_name);
             names.reference = Some(name_id);
@@ -319,7 +319,7 @@ impl ModuleLowerer<'_> {
         }
 
         // resolve class reference types separately
-        if self.symbol_is(symbol, dir::DeclarationForm::Class)
+        if self.symbol_is(symbol, dir::SymbolForm::Class)
             && let Some(reference_type_id) = self.nominal_reference_type_id_for_symbol(symbol)
             && let Some(mir_type) = self.type_lowerer.cached_type(reference_type_id)
         {
@@ -496,7 +496,7 @@ impl ModuleLowerer<'_> {
             self.symbol_path_from_symbols(reference.symbol, &dir.symbols)
         })?;
 
-        if self.symbol_is(reference.symbol, dir::DeclarationForm::Class) {
+        if self.symbol_is(reference.symbol, dir::SymbolForm::Class) {
             return Some(format!("{name}{REFERENCE_METADATA_SUFFIX}"));
         }
 
@@ -995,7 +995,7 @@ impl ModuleLowerer<'_> {
 
             // return the first scope owner
             let scope = self.symbols.get_scope_by_id(scope_id);
-            if let Some(owner_id) = scope.owner_id {
+            if let Some(owner_id) = scope.owner {
                 return Some(owner_id.into_global(self.module_id));
             }
 
@@ -1144,7 +1144,7 @@ impl ModuleLowerer<'_> {
 
             // collect named owners into the path
             let scope = symbols.get_scope_by_id(scope_id);
-            if let Some(owner_id) = scope.owner_id
+            if let Some(owner_id) = scope.owner
                 && owner_id != symbol_id.into_local()
             {
                 let owner = symbols.get_symbol(owner_id);

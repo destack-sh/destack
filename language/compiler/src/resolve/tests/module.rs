@@ -981,7 +981,7 @@ export * from "./dep.ts";
     );
 }
 
-/// Build module dependencies edges for module binding imports.
+/// Build module dependency edges for declared module imports.
 #[test]
 fn test_module_dependencies_binding_dependency() {
     let test = TestProgram::memory_sequential();
@@ -1012,6 +1012,6 @@ value;
     // assert dependency edges
     assert!(
         dependencies.contains(&decl_module_id),
-        "expected module dependencies to include module binding module"
+        "expected module dependencies to include declared module"
     );
 }

@@ -190,20 +190,21 @@ fn module_dependency_edges(imported: &DirImported, exported: &DirExported) -> Ve
     let mut edges = Vec::new();
 
     // import resolutions
-    for (key, resolution) in imported.imports.resolution_by_key.iter() {
+    for dependency in &imported.dependencies {
+        let resolution = dependency.resolution;
         push_module_edge(
             &mut edges,
             resolution.value,
-            key.relation,
-            Some(key.specifier),
-            key.loader,
+            dependency.relation,
+            Some(dependency.specifier),
+            dependency.loader,
         );
         push_module_edge(
             &mut edges,
             resolution.type_target,
-            key.relation,
-            Some(key.specifier),
-            key.loader,
+            dependency.relation,
+            Some(dependency.specifier),
+            dependency.loader,
         );
     }
 

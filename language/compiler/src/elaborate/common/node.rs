@@ -172,13 +172,12 @@ impl Compiler {
             Expression::Path {
                 path: Path::from(&[name][..]),
                 generic_arguments: Vec::new(),
-                space: dir::SymbolSpace::Value,
             },
         );
         let reference_node = reference_id.into_global_any(state.module_id);
         state
             .types
-            .set_symbol_resolution(reference_node, dir::SymbolResolution::Target(target_symbol));
+            .set_symbol_resolution(reference_node, target_symbol);
 
         // annotate the reference type
         self.set_expression_type(state.types, state.module_id, reference_id, value_type_id);

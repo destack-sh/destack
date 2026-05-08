@@ -14,26 +14,10 @@ pub enum LibraryKind {
 /// Runtime targets for library sources.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum LibraryRuntime {
-    /// Web browser (Chrome, Firefox, Safari, etc.).
-    Browser,
-    /// Node.js.
-    Node,
-    /// Deno.
-    Deno,
-    /// Bun.
-    Bun,
-    /// Web Worker / Service Worker / Shared Worker.
-    Worker,
-    /// WASM running in a JS host (browser or Node).
-    WasmJs,
-    /// WASM with WASI (wasmtime, wasmer, etc.).
-    WasmWasi,
-    /// Native managed runtime (main runtime with OS services available).
-    NativeManaged,
-    /// Native freestanding runtime (no OS services assumed).
-    NativeFreestanding,
-    /// Native embedded runtime (freestanding with tight constraints).
-    NativeEmbedded,
+    /// Destack semantic runtime.
+    Destack,
+    /// JavaScript host runtime.
+    Js,
 }
 
 /// Output formats for library sources.
@@ -129,16 +113,8 @@ impl LibraryPlatform {
 impl From<Runtime> for LibraryRuntime {
     fn from(value: Runtime) -> Self {
         match value {
-            Runtime::Browser => Self::Browser,
-            Runtime::Node => Self::Node,
-            Runtime::Deno => Self::Deno,
-            Runtime::Bun => Self::Bun,
-            Runtime::Worker => Self::Worker,
-            Runtime::WasmJs => Self::WasmJs,
-            Runtime::WasmWasi => Self::WasmWasi,
-            Runtime::NativeManaged => Self::NativeManaged,
-            Runtime::NativeFreestanding => Self::NativeFreestanding,
-            Runtime::NativeEmbedded => Self::NativeEmbedded,
+            Runtime::Destack => Self::Destack,
+            Runtime::Js => Self::Js,
         }
     }
 }

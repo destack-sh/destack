@@ -2,9 +2,9 @@ use crate::Compiler;
 use destack_artifact::Ast;
 use destack_ast::{self as ast, StringId};
 use destack_dir::{
-    Asynchrony, DeclarationForm, FunctionForm, FunctionRole, FunctionSignature, GenericParameter,
-    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding, NodeType, StaticKey,
-    SymbolBinding, SymbolKind, SymbolSpace, SymbolTable, Tree, Type, TypeExpression, TypeTable,
+    Asynchrony, DeclaredModule, FunctionForm, FunctionRole, FunctionSignature, GenericParameter,
+    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeType, StaticKey, SymbolBinding,
+    SymbolForm, SymbolRole, SymbolSpace, SymbolTable, Tree, Type, TypeExpression, TypeTable,
     UnevaluatedType, VarianceModifier,
 };
 use destack_workspace::Module;
@@ -18,8 +18,8 @@ impl Compiler {
         module: &Module,
         ast: &Ast,
         namespace_scope: LocalScopeId,
-        global_augmentation_scope: LocalScopeId,
-        module_bindings: &mut Vec<ModuleBinding>,
+        global_scope: LocalScopeId,
+        declared_modules: &mut Vec<DeclaredModule>,
         scope: (LocalScopeId, LocalScopeMark),
         ast_parameter_id: ast::LocalNodeId<ast::GenericParameter>,
         parent_id: Option<LocalNodeIdAny>,
@@ -55,8 +55,8 @@ impl Compiler {
                         module,
                         ast,
                         namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
+                        global_scope,
+                        declared_modules,
                         scope,
                         constraint,
                         Some(parameter_id.into()),
@@ -71,8 +71,8 @@ impl Compiler {
                         module,
                         ast,
                         namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
+                        global_scope,
+                        declared_modules,
                         scope,
                         default,
                         Some(parameter_id.into()),
@@ -84,8 +84,8 @@ impl Compiler {
                 });
 
                 let (symbol_id, _) = symbols.insert_symbol(
-                    SymbolKind::Local,
-                    DeclarationForm::TypeAlias,
+                    SymbolRole::Local,
+                    SymbolForm::TypeAlias,
                     SymbolSpace::Type,
                     SymbolBinding::Runtime,
                     Some(StaticKey::Name(name)),
@@ -117,8 +117,8 @@ impl Compiler {
                         module,
                         ast,
                         namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
+                        global_scope,
+                        declared_modules,
                         scope,
                         declared_type,
                         Some(parameter_id.into()),
@@ -133,8 +133,8 @@ impl Compiler {
                         module,
                         ast,
                         namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
+                        global_scope,
+                        declared_modules,
                         scope,
                         default,
                         Some(parameter_id.into()),
@@ -146,8 +146,8 @@ impl Compiler {
                 });
 
                 let (symbol_id, _) = symbols.insert_symbol(
-                    SymbolKind::Local,
-                    DeclarationForm::Void,
+                    SymbolRole::Local,
+                    SymbolForm::Value,
                     SymbolSpace::Value,
                     SymbolBinding::Runtime,
                     Some(StaticKey::Name(name)),
@@ -182,8 +182,8 @@ impl Compiler {
             }
             ast::GenericParameter::Error => {
                 let (symbol_id, _) = symbols.insert_symbol(
-                    SymbolKind::Local,
-                    DeclarationForm::Void,
+                    SymbolRole::Local,
+                    SymbolForm::Value,
                     SymbolSpace::Value,
                     SymbolBinding::Runtime,
                     None,
@@ -216,8 +216,8 @@ impl Compiler {
         let arguments_name = StringId::for_text("arguments");
         let arguments_key = StaticKey::Name(arguments_name);
         let scope = symbols.get_scope_by_id(scope_id);
-        scope
-            .find_up_to(arguments_key, LocalScopeMark::end())
+        symbols
+            .find_symbol_up_to(scope, arguments_key, LocalScopeMark::end())
             .is_some()
     }
 
@@ -257,8 +257,8 @@ impl Compiler {
         module: &Module,
         ast: &Ast,
         namespace_scope: LocalScopeId,
-        global_augmentation_scope: LocalScopeId,
-        module_bindings: &mut Vec<ModuleBinding>,
+        global_scope: LocalScopeId,
+        declared_modules: &mut Vec<DeclaredModule>,
         scope: (LocalScopeId, LocalScopeMark),
         signature: &ast::FunctionSignature,
         parent_id: Option<LocalNodeIdAny>,
@@ -282,8 +282,8 @@ impl Compiler {
                     module,
                     ast,
                     namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
+                    global_scope,
+                    declared_modules,
                     scope,
                     *parameter,
                     parent_id,
@@ -330,8 +330,8 @@ impl Compiler {
                 module,
                 ast,
                 namespace_scope,
-                global_augmentation_scope,
-                module_bindings,
+                global_scope,
+                declared_modules,
                 scope,
                 SymbolSpace::Value,
                 this_parameter,
@@ -348,8 +348,8 @@ impl Compiler {
                     module,
                     ast,
                     namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
+                    global_scope,
+                    declared_modules,
                     scope,
                     SymbolSpace::Value,
                     *parameter,
@@ -387,8 +387,8 @@ impl Compiler {
                     module,
                     ast,
                     namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
+                    global_scope,
+                    declared_modules,
                     scope,
                     return_type,
                     parent_id,
@@ -408,8 +408,8 @@ impl Compiler {
                     module,
                     ast,
                     namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
+                    global_scope,
+                    declared_modules,
                     scope,
                     *where_clause,
                     parent_id,

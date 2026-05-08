@@ -2,9 +2,9 @@ use crate::Compiler;
 use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
-    Argument, BindingCategory, Expression, LocalNodeId, LocalNodeIdAny, LocalScopeId,
-    LocalScopeMark, ModuleBinding, NodeType, Parameter, ProvenanceReason, SymbolBinding,
-    SymbolSpace, SymbolTable, Tree, Type, TypeTable, UnevaluatedType,
+    Argument, BindingScope, DeclaredModule, Expression, LocalNodeId, LocalNodeIdAny, LocalScopeId,
+    LocalScopeMark, NodeType, Parameter, ProvenanceReason, SymbolBinding, SymbolSpace, SymbolTable,
+    Tree, Type, TypeTable, UnevaluatedType,
 };
 use destack_workspace::Module;
 
@@ -26,8 +26,8 @@ impl Compiler {
         module: &Module,
         ast: &Ast,
         namespace_scope: LocalScopeId,
-        global_augmentation_scope: LocalScopeId,
-        module_bindings: &mut Vec<ModuleBinding>,
+        global_scope: LocalScopeId,
+        declared_modules: &mut Vec<DeclaredModule>,
         scope: (LocalScopeId, LocalScopeMark),
         symbol_space: SymbolSpace,
         ast_parameter_id: ast::LocalNodeId<ast::Parameter>,
@@ -65,8 +65,8 @@ impl Compiler {
                         module,
                         ast,
                         namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
+                        global_scope,
+                        declared_modules,
                         scope,
                         declared_type,
                         Some(parameter_id.into()),
@@ -81,8 +81,8 @@ impl Compiler {
                         module,
                         ast,
                         namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
+                        global_scope,
+                        declared_modules,
                         scope,
                         default,
                         Some(parameter_id),
@@ -116,7 +116,7 @@ impl Compiler {
                 symbol.declaration = Some(parameter_id.into_global_any(module.id));
 
                 self.apply_binding_mutability(symbols, symbol_id, binding_mutability);
-                self.apply_binding_category(symbols, symbol_id, BindingCategory::Parameter);
+                self.apply_binding_scope(symbols, symbol_id, BindingScope::Parameter);
 
                 if let Some(declared_type) = declared_type {
                     let declared_type_id = types.insert_type_from(
@@ -143,13 +143,13 @@ impl Compiler {
                     module,
                     ast,
                     namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
+                    global_scope,
+                    declared_modules,
                     scope,
                     None,
                     SymbolBinding::Runtime,
                     Some(binding_mutability),
-                    Some(BindingCategory::Parameter),
+                    Some(BindingScope::Parameter),
                     *pattern,
                     Some(parameter_id),
                     tree,
@@ -161,8 +161,8 @@ impl Compiler {
                         module,
                         ast,
                         namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
+                        global_scope,
+                        declared_modules,
                         scope,
                         declared_type,
                         Some(parameter_id.into()),
@@ -177,8 +177,8 @@ impl Compiler {
                         module,
                         ast,
                         namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
+                        global_scope,
+                        declared_modules,
                         scope,
                         default,
                         Some(parameter_id),
@@ -203,7 +203,7 @@ impl Compiler {
                 symbol.declaration = Some(parameter_id.into_global_any(module.id));
 
                 self.apply_binding_mutability(symbols, symbol_id, binding_mutability);
-                self.apply_binding_category(symbols, symbol_id, BindingCategory::Parameter);
+                self.apply_binding_scope(symbols, symbol_id, BindingScope::Parameter);
 
                 if let Some(declared_type) = declared_type {
                     let declared_type_id = types.insert_type_from(
@@ -233,8 +233,8 @@ impl Compiler {
                         module,
                         ast,
                         namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
+                        global_scope,
+                        declared_modules,
                         scope,
                         declared_type,
                         Some(parameter_id.into()),
@@ -266,7 +266,7 @@ impl Compiler {
                 symbol.declaration = Some(parameter_id.into_global_any(module.id));
 
                 self.apply_binding_mutability(symbols, symbol_id, binding_mutability);
-                self.apply_binding_category(symbols, symbol_id, BindingCategory::Parameter);
+                self.apply_binding_scope(symbols, symbol_id, BindingScope::Parameter);
 
                 if let Some(declared_type) = declared_type {
                     let declared_type_id = types.insert_type_from(
@@ -291,13 +291,13 @@ impl Compiler {
                     module,
                     ast,
                     namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
+                    global_scope,
+                    declared_modules,
                     scope,
                     None,
                     SymbolBinding::Runtime,
                     Some(binding_mutability),
-                    Some(BindingCategory::Parameter),
+                    Some(BindingScope::Parameter),
                     *pattern,
                     Some(parameter_id),
                     tree,
@@ -309,8 +309,8 @@ impl Compiler {
                         module,
                         ast,
                         namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
+                        global_scope,
+                        declared_modules,
                         scope,
                         declared_type,
                         Some(parameter_id.into()),
@@ -333,7 +333,7 @@ impl Compiler {
                 symbol.declaration = Some(parameter_id.into_global_any(module.id));
 
                 self.apply_binding_mutability(symbols, symbol_id, binding_mutability);
-                self.apply_binding_category(symbols, symbol_id, BindingCategory::Parameter);
+                self.apply_binding_scope(symbols, symbol_id, BindingScope::Parameter);
 
                 if let Some(declared_type) = declared_type {
                     let declared_type_id = types.insert_type_from(
@@ -359,7 +359,7 @@ impl Compiler {
                 let symbol = symbols.get_symbol_mut(symbol_id);
                 symbol.declaration = Some(parameter_id.into_global_any(module.id));
 
-                self.apply_binding_category(symbols, symbol_id, BindingCategory::Parameter);
+                self.apply_binding_scope(symbols, symbol_id, BindingScope::Parameter);
 
                 parameter_id
             }
@@ -372,8 +372,8 @@ impl Compiler {
         module: &Module,
         ast: &Ast,
         namespace_scope: LocalScopeId,
-        global_augmentation_scope: LocalScopeId,
-        module_bindings: &mut Vec<ModuleBinding>,
+        global_scope: LocalScopeId,
+        declared_modules: &mut Vec<DeclaredModule>,
         scope: (LocalScopeId, LocalScopeMark),
         ast_argument_id: ast::LocalNodeId<ast::Argument>,
         parent_id: Option<LocalNodeIdAny>,
@@ -393,8 +393,8 @@ impl Compiler {
                     module,
                     ast,
                     namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
+                    global_scope,
+                    declared_modules,
                     scope,
                     *value,
                     Some(argument_id),
@@ -411,8 +411,8 @@ impl Compiler {
                     module,
                     ast,
                     namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
+                    global_scope,
+                    declared_modules,
                     scope,
                     *value,
                     Some(argument_id),
@@ -428,8 +428,8 @@ impl Compiler {
                     module,
                     ast,
                     namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
+                    global_scope,
+                    declared_modules,
                     scope,
                     *value,
                     Some(argument_id),
@@ -446,8 +446,8 @@ impl Compiler {
                     module,
                     ast,
                     namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
+                    global_scope,
+                    declared_modules,
                     scope,
                     *value,
                     Some(argument_id),

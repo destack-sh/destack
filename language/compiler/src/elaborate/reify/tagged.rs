@@ -4,7 +4,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use dir::{
     Argument, Declaration, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, NodeType,
-    SymbolResolution, SymbolTable, Tree, Type, TypeExpression, TypeTable, UnevaluatedType,
+    SymbolTable, Tree, Type, TypeExpression, TypeTable, UnevaluatedType,
 };
 
 use crate::elaborate::ElaborateState;
@@ -52,15 +52,13 @@ impl Compiler {
             return Ok(false);
         };
         let callee_node = callee_id.into_global_any(state.module_id);
-        let Some(SymbolResolution::Target(callee_symbol)) =
-            state.types.symbol_resolution(callee_node)
-        else {
+        let Some(callee_symbol) = state.types.symbol_resolution(callee_node) else {
             return Ok(false);
         };
 
         // determine the constructor kind from the nominal declaration
         let Some(constructor_kind) =
-            self.nominal_constructor_kind_for_symbol(state, *callee_symbol)?
+            self.nominal_constructor_kind_for_symbol(state, callee_symbol)?
         else {
             return Ok(false);
         };
@@ -232,7 +230,6 @@ impl Compiler {
             Expression::Path {
                 path,
                 generic_arguments: callee_generic_arguments,
-                space,
             } => {
                 let type_expression_id = state.tree.reserve_from(
                     NodeType::TypeExpression,
@@ -251,14 +248,13 @@ impl Compiler {
                         } else {
                             generic_arguments
                         },
-                        space,
                     },
                 );
 
                 let source_node = callee_id.into_global_any(state.module_id);
                 let target_node = type_expression_id.into_global_any(state.module_id);
-                if let Some(resolution) = state.types.symbol_resolution(source_node).cloned() {
-                    state.types.set_symbol_resolution(target_node, resolution);
+                if let Some(symbol_id) = state.types.symbol_resolution(source_node) {
+                    state.types.set_symbol_resolution(target_node, symbol_id);
                 }
 
                 Some(type_expression_id)

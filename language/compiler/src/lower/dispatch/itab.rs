@@ -281,7 +281,7 @@ impl ModuleLowerer<'_> {
     ) -> LowerResult<mir::LocalNodeId<mir::Function>> {
         // decide the search order for concrete methods
         let mut symbols = Vec::new();
-        if self.symbol_is(concrete, dir::DeclarationForm::Class) {
+        if self.symbol_is(concrete, dir::SymbolForm::Class) {
             symbols.extend(self.collect_class_lineage(concrete).into_iter().rev());
         } else {
             symbols.push(concrete);
@@ -366,7 +366,7 @@ impl ModuleLowerer<'_> {
             // skip non nominal types
             if !matches!(
                 self.symbol_form(symbol),
-                Some(dir::DeclarationForm::Class | dir::DeclarationForm::Struct)
+                Some(dir::SymbolForm::Class | dir::SymbolForm::Struct)
             ) {
                 continue;
             }

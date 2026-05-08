@@ -1,8 +1,8 @@
 use crate::{Compiler, CompilerError, CompilerResult};
 use destack_artifact::{ArtifactKey, ArtifactPayload, DirDeclared};
 use destack_dir::{
-    DeclarationForm, ExportKind, Expression, LocalNodeIdAny, LocalScopeMark, NodeType, ScopeKind,
-    SymbolBinding, SymbolKind, SymbolSpace, SymbolTable, Tree, TypeLiteral, TypeTable,
+    ExportKind, Expression, LocalNodeIdAny, LocalScopeMark, NodeType, ScopeKind, SymbolBinding,
+    SymbolForm, SymbolRole, SymbolSpace, SymbolTable, Tree, TypeLiteral, TypeTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, ProviderContext, ProviderError};
@@ -29,41 +29,41 @@ impl Compiler {
             module_node,
             namespace_symbol,
             namespace_scope,
-            global_augmentation_scope,
+            global_scope,
             default_symbol,
             export_assignment_symbol,
-            mut module_bindings,
+            mut declared_modules,
         ) = {
             let module_handle = self.module(revision, module);
             let module_guard = module_handle.as_ref();
             let module_expression = ast.anchor_expression;
             let default_symbol_kind = if module_guard.is_code() {
-                SymbolKind::Namespace
+                SymbolRole::Namespace
             } else {
-                SymbolKind::Item
+                SymbolRole::Item
             };
 
             // set up the namespace, scopes, and module symbols
             let mut symbols = SymbolTable::new(module);
             let namespace_scope = symbols.insert_scope(ScopeKind::Namespace, None, None);
-            let global_augmentation_scope = symbols.insert_scope(
+            let global_scope = symbols.insert_scope(
                 ScopeKind::Namespace,
                 Some((namespace_scope, LocalScopeMark::end())),
                 None,
             );
             let (namespace_symbol, _) = symbols.insert_symbol(
-                SymbolKind::Namespace,
-                DeclarationForm::Void,
+                SymbolRole::Namespace,
+                SymbolForm::Value,
                 SymbolSpace::Value,
                 SymbolBinding::Runtime,
                 None,
                 (namespace_scope, LocalScopeMark::end()),
                 Some(ExportKind::Named),
             );
-            symbols.get_scope_by_id_mut(namespace_scope).owner_id = Some(namespace_symbol);
+            symbols.get_scope_by_id_mut(namespace_scope).owner = Some(namespace_symbol);
             let (default_symbol, _) = symbols.insert_symbol(
                 default_symbol_kind,
-                DeclarationForm::Void,
+                SymbolForm::Value,
                 SymbolSpace::Value,
                 SymbolBinding::Runtime,
                 None,
@@ -71,8 +71,8 @@ impl Compiler {
                 Some(ExportKind::Default),
             );
             let (export_assignment_symbol, _) = symbols.insert_symbol(
-                SymbolKind::Namespace,
-                DeclarationForm::Void,
+                SymbolRole::Namespace,
+                SymbolForm::Value,
                 SymbolSpace::Value,
                 SymbolBinding::Runtime,
                 None,
@@ -94,20 +94,20 @@ impl Compiler {
                 module_node,
                 namespace_symbol,
                 namespace_scope,
-                global_augmentation_scope,
+                global_scope,
                 default_symbol,
                 export_assignment_symbol,
                 Vec::new(),
             )
         };
 
-        // run bind, desugar, and validate on the transient base DIR
+        // run bind and desugar on the transient base DIR
         self.import_module_bind(
             module,
             &ast,
             namespace_scope,
-            global_augmentation_scope,
-            &mut module_bindings,
+            global_scope,
+            &mut declared_modules,
             &mut tree,
             &mut symbols,
             &mut types,
@@ -115,16 +115,7 @@ impl Compiler {
             context,
         )?;
         self.import_module_desugar(module, &mut tree, context)?;
-        self.import_module_validate(
-            module,
-            profile,
-            &tree,
-            &ast.strings,
-            &symbols,
-            &roots,
-            global_augmentation_scope,
-            context,
-        )?;
+
         // publish the final declared artifact
         let dir = DirDeclared {
             tree,
@@ -135,11 +126,10 @@ impl Compiler {
             module_node,
             namespace_symbol,
             namespace_scope,
-            global_augmentation_scope,
             default_symbol,
             export_assignment_symbol,
             export_assignment: None,
-            module_bindings,
+            declared_modules,
         };
 
         assert_eq!(

@@ -2,9 +2,9 @@ use crate::Compiler;
 use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
-    BindingCategory, DeclarationForm, ExportKind, LocalNodeId, LocalNodeIdAny, LocalScopeId,
-    LocalScopeMark, LocalSymbolId, ModuleBinding, Mutability, NodeType, Pattern, PatternField,
-    ScopeKind, StaticKey, StringId, SymbolBinding, SymbolKind, SymbolSpace, SymbolTable, Tree,
+    BindingScope, DeclaredModule, ExportKind, LocalNodeId, LocalNodeIdAny, LocalScopeId,
+    LocalScopeMark, LocalSymbolId, Mutability, NodeType, Pattern, PatternField, ScopeKind,
+    StaticKey, StringId, SymbolBinding, SymbolForm, SymbolRole, SymbolSpace, SymbolTable, Tree,
     TypeTable,
 };
 use destack_workspace::Module;
@@ -23,12 +23,12 @@ impl Compiler {
             let scope = symbols.get_scope_by_id(scope_id);
 
             // function-scoped bindings live on the owning function scope
-            let is_function_scope = scope.owner_id.is_some_and(|owner_symbol_id| {
+            let is_function_scope = scope.owner.is_some_and(|owner_symbol_id| {
                 let owner_symbol = symbols.get_symbol(owner_symbol_id);
-                owner_symbol.form == DeclarationForm::Function
+                owner_symbol.form == SymbolForm::Function
                     || (scope.kind == ScopeKind::Namespace
-                        && owner_symbol.kind == SymbolKind::Item
-                        && owner_symbol.form == DeclarationForm::Void
+                        && owner_symbol.role == SymbolRole::Item
+                        && owner_symbol.form == SymbolForm::Value
                         && owner_symbol.binding == SymbolBinding::Runtime)
             });
             if is_function_scope {
@@ -60,15 +60,15 @@ impl Compiler {
             .unwrap_or_else(|| self.default_binding_mutability(module))
     }
 
-    /// Select the scope where a binding should be introduced for the binding category.
+    /// Select the scope where a binding should be introduced for the binding scope.
     ///
     /// Function-scoped declarations (`var`) bind in the nearest owning scope
     /// (typically function scope, or module root when no function owner exists).
-    fn binding_scope_for_category(
+    fn scope_for_binding_scope(
         &self,
         scope: (LocalScopeId, LocalScopeMark),
         binding: SymbolBinding,
-        binding_category: Option<BindingCategory>,
+        binding_scope_form: Option<BindingScope>,
         symbols: &SymbolTable,
     ) -> (LocalScopeId, LocalScopeMark) {
         // keep ambient and declaration bindings in their lexical scopes
@@ -76,7 +76,7 @@ impl Compiler {
             return scope;
         }
 
-        if binding_category != Some(BindingCategory::FunctionScoped) {
+        if binding_scope_form != Some(BindingScope::Function) {
             return scope;
         }
 
@@ -100,16 +100,16 @@ impl Compiler {
         }
     }
 
-    /// Record binding category for a symbol when not already set.
-    pub(super) fn apply_binding_category(
+    /// Record binding scope for a symbol when not already set.
+    pub(super) fn apply_binding_scope(
         &self,
         symbols: &mut SymbolTable,
         symbol_id: LocalSymbolId,
-        category: BindingCategory,
+        binding_scope: BindingScope,
     ) {
         let symbol = symbols.get_symbol_mut(symbol_id);
-        if symbol.binding_category == BindingCategory::Unclassified {
-            symbol.binding_category = category;
+        if symbol.binding_scope.is_none() {
+            symbol.binding_scope = Some(binding_scope);
         }
     }
 
@@ -119,13 +119,13 @@ impl Compiler {
         module: &Module,
         ast: &Ast,
         namespace_scope: LocalScopeId,
-        global_augmentation_scope: LocalScopeId,
-        module_bindings: &mut Vec<ModuleBinding>,
+        global_scope: LocalScopeId,
+        declared_modules: &mut Vec<DeclaredModule>,
         scope: (LocalScopeId, LocalScopeMark),
         export: Option<ExportKind>,
         binding: SymbolBinding,
         binding_mutability: Option<Mutability>,
-        binding_category: Option<BindingCategory>,
+        binding_scope_form: Option<BindingScope>,
         ast_pattern_id: ast::LocalNodeId<ast::Pattern>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut Tree,
@@ -135,21 +135,21 @@ impl Compiler {
         let ast_pattern = ast.tree.get(ast_pattern_id);
         let pattern_id =
             tree.reserve_from_source(NodeType::Pattern, ast_pattern_id.id, scope, parent_id);
-        let binding_scope =
-            self.binding_scope_for_category(scope, binding, binding_category, symbols);
+        let binding_target_scope =
+            self.scope_for_binding_scope(scope, binding, binding_scope_form, symbols);
         let pattern = match ast_pattern {
             ast::Pattern::Wildcard => Pattern::Wildcard,
             ast::Pattern::Must(ast_pattern_id) => Pattern::Must(self.bind_pattern(
                 module,
                 ast,
                 namespace_scope,
-                global_augmentation_scope,
-                module_bindings,
+                global_scope,
+                declared_modules,
                 scope,
                 export,
                 binding,
                 binding_mutability,
-                binding_category,
+                binding_scope_form,
                 *ast_pattern_id,
                 Some(pattern_id),
                 tree,
@@ -164,13 +164,13 @@ impl Compiler {
                     module,
                     ast,
                     namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
+                    global_scope,
+                    declared_modules,
                     scope,
                     export,
                     binding,
                     binding_mutability,
-                    binding_category,
+                    binding_scope_form,
                     *ast_pattern_id,
                     Some(pattern_id),
                     tree,
@@ -181,8 +181,8 @@ impl Compiler {
                     module,
                     ast,
                     namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
+                    global_scope,
+                    declared_modules,
                     scope,
                     *value,
                     Some(pattern_id),
@@ -202,13 +202,13 @@ impl Compiler {
                     module,
                     ast,
                     namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
+                    global_scope,
+                    declared_modules,
                     scope,
                     export,
                     binding,
                     binding_mutability,
-                    binding_category,
+                    binding_scope_form,
                     *right_id,
                     Some(pattern_id),
                     tree,
@@ -226,13 +226,13 @@ impl Compiler {
                     module,
                     ast,
                     namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
+                    global_scope,
+                    declared_modules,
                     scope,
                     export,
                     binding,
                     binding_mutability,
-                    binding_category,
+                    binding_scope_form,
                     *right_id,
                     Some(pattern_id),
                     tree,
@@ -253,13 +253,13 @@ impl Compiler {
                         module,
                         ast,
                         namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
+                        global_scope,
+                        declared_modules,
                         scope,
                         export,
                         binding,
                         binding_mutability,
-                        binding_category,
+                        binding_scope_form,
                         pattern,
                         Some(pattern_id),
                         tree,
@@ -273,15 +273,15 @@ impl Compiler {
                     SymbolSpace::Value,
                     StaticKey::Name(name),
                     binding,
-                    binding_scope,
+                    binding_target_scope,
                     export,
                     symbols,
                 );
                 let symbol_mutability =
                     self.resolve_binding_mutability(module, mutability, binding_mutability);
                 self.apply_binding_mutability(symbols, symbol, symbol_mutability);
-                if let Some(binding_category) = binding_category {
-                    self.apply_binding_category(symbols, symbol, binding_category);
+                if let Some(binding_scope) = binding_scope_form {
+                    self.apply_binding_scope(symbols, symbol, binding_scope);
                 }
                 Pattern::Binding {
                     mutability,
@@ -295,8 +295,8 @@ impl Compiler {
                     module,
                     ast,
                     namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
+                    global_scope,
+                    declared_modules,
                     scope,
                     *value,
                     Some(pattern_id),
@@ -312,8 +312,8 @@ impl Compiler {
                     module,
                     ast,
                     namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
+                    global_scope,
+                    declared_modules,
                     scope,
                     *value,
                     Some(pattern_id),
@@ -332,13 +332,13 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             scope,
                             export,
                             binding,
                             binding_mutability,
-                            binding_category,
+                            binding_scope_form,
                             *field,
                             Some(pattern_id),
                             tree,
@@ -354,8 +354,8 @@ impl Compiler {
                     module,
                     ast,
                     namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
+                    global_scope,
+                    declared_modules,
                     scope,
                     *ty,
                     Some(pattern_id),
@@ -371,13 +371,13 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             scope,
                             export,
                             binding,
                             binding_mutability,
-                            binding_category,
+                            binding_scope_form,
                             *field,
                             Some(pattern_id),
                             tree,
@@ -396,13 +396,13 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             scope,
                             export,
                             binding,
                             binding_mutability,
-                            binding_category,
+                            binding_scope_form,
                             *field,
                             Some(pattern_id),
                             tree,
@@ -421,13 +421,13 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             scope,
                             export,
                             binding,
                             binding_mutability,
-                            binding_category,
+                            binding_scope_form,
                             *field,
                             Some(pattern_id),
                             tree,
@@ -443,8 +443,8 @@ impl Compiler {
                     module,
                     ast,
                     namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
+                    global_scope,
+                    declared_modules,
                     scope,
                     *ty,
                     Some(pattern_id),
@@ -460,13 +460,13 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             scope,
                             export,
                             binding,
                             binding_mutability,
-                            binding_category,
+                            binding_scope_form,
                             *field,
                             Some(pattern_id),
                             tree,
@@ -485,13 +485,13 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             scope,
                             export,
                             binding,
                             binding_mutability,
-                            binding_category,
+                            binding_scope_form,
                             *field,
                             Some(pattern_id),
                             tree,
@@ -521,9 +521,9 @@ impl Compiler {
         ast: &Ast,
         export: Option<ExportKind>,
         binding: SymbolBinding,
-        binding_scope: (LocalScopeId, LocalScopeMark),
+        scope: (LocalScopeId, LocalScopeMark),
         binding_mutability: Option<Mutability>,
-        binding_category: Option<BindingCategory>,
+        binding_scope_form: Option<BindingScope>,
         field_mutability: Option<Mutability>,
         field_name: StringId,
         symbols: &mut SymbolTable,
@@ -535,7 +535,7 @@ impl Compiler {
             SymbolSpace::Value,
             StaticKey::Name(field_name),
             binding,
-            binding_scope,
+            scope,
             export,
             symbols,
         );
@@ -544,8 +544,8 @@ impl Compiler {
         let symbol_mutability =
             self.resolve_binding_mutability(module, field_mutability, binding_mutability);
         self.apply_binding_mutability(symbols, symbol, symbol_mutability);
-        if let Some(binding_category) = binding_category {
-            self.apply_binding_category(symbols, symbol, binding_category);
+        if let Some(binding_scope) = binding_scope_form {
+            self.apply_binding_scope(symbols, symbol, binding_scope);
         }
 
         symbol
@@ -581,13 +581,13 @@ impl Compiler {
         module: &Module,
         ast: &Ast,
         namespace_scope: LocalScopeId,
-        global_augmentation_scope: LocalScopeId,
-        module_bindings: &mut Vec<ModuleBinding>,
+        global_scope: LocalScopeId,
+        declared_modules: &mut Vec<DeclaredModule>,
         scope: (LocalScopeId, LocalScopeMark),
         export: Option<ExportKind>,
         binding: SymbolBinding,
         binding_mutability: Option<Mutability>,
-        binding_category: Option<BindingCategory>,
+        binding_scope_form: Option<BindingScope>,
         ast_pattern_field_id: ast::LocalNodeId<ast::PatternField>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut Tree,
@@ -601,8 +601,8 @@ impl Compiler {
             scope,
             parent_id,
         );
-        let binding_scope =
-            self.binding_scope_for_category(scope, binding, binding_category, symbols);
+        let binding_target_scope =
+            self.scope_for_binding_scope(scope, binding, binding_scope_form, symbols);
         let pattern_field = match ast_pattern_field {
             ast::PatternField::Named {
                 mutability,
@@ -617,13 +617,13 @@ impl Compiler {
                         module,
                         ast,
                         namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
+                        global_scope,
+                        declared_modules,
                         scope,
                         export,
                         binding,
                         binding_mutability,
-                        binding_category,
+                        binding_scope_form,
                         pattern,
                         Some(pattern_field_id),
                         tree,
@@ -641,9 +641,9 @@ impl Compiler {
                         ast,
                         export,
                         binding,
-                        binding_scope,
+                        binding_target_scope,
                         binding_mutability,
-                        binding_category,
+                        binding_scope_form,
                         mutability,
                         name,
                         symbols,
@@ -670,8 +670,8 @@ impl Compiler {
                     module,
                     ast,
                     namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
+                    global_scope,
+                    declared_modules,
                     scope,
                     *key,
                     Some(pattern_field_id),
@@ -684,13 +684,13 @@ impl Compiler {
                     module,
                     ast,
                     namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
+                    global_scope,
+                    declared_modules,
                     scope,
                     export,
                     binding,
                     binding_mutability,
-                    binding_category,
+                    binding_scope_form,
                     *pattern,
                     Some(pattern_field_id),
                     tree,
@@ -711,13 +711,13 @@ impl Compiler {
                     module,
                     ast,
                     namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
+                    global_scope,
+                    declared_modules,
                     scope,
                     export,
                     binding,
                     binding_mutability,
-                    binding_category,
+                    binding_scope_form,
                     *pattern_id,
                     Some(pattern_field_id),
                     tree,
@@ -736,13 +736,13 @@ impl Compiler {
                         module,
                         ast,
                         namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
+                        global_scope,
+                        declared_modules,
                         scope,
                         export,
                         binding,
                         binding_mutability,
-                        binding_category,
+                        binding_scope_form,
                         pattern_id,
                         Some(pattern_field_id),
                         tree,

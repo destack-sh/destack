@@ -7,7 +7,7 @@ use destack_artifact::EmitFormat;
 use destack_codegen_lib::CodegenBackend;
 use destack_core::StringPool;
 use destack_mir as mir;
-use destack_workspace::Target;
+use destack_workspace::{MODE_DEBUG, Target};
 use target_lexicon::Triple;
 
 use crate::lower::{ModuleLowerOutput, ModuleLowerer};
@@ -41,7 +41,7 @@ impl CodegenCraneliftBackend {
 
         Ok(Self {
             isa,
-            debug: target.debug,
+            debug: target.modes.iter().any(|mode| mode == MODE_DEBUG),
         })
     }
 

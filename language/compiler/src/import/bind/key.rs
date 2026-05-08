@@ -3,7 +3,7 @@ use crate::common::ast::evaluate_numeric_literal;
 use destack_artifact::Ast;
 use destack_ast::{self as ast, StringId};
 use destack_dir::{
-    Key, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding, Name, SymbolSpace,
+    DeclaredModule, Key, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Name, SymbolSpace,
     SymbolTable, Tree, TypeTable,
 };
 use destack_workspace::Module;
@@ -30,8 +30,8 @@ impl Compiler {
         module: &Module,
         ast: &Ast,
         namespace_scope: LocalScopeId,
-        global_augmentation_scope: LocalScopeId,
-        module_bindings: &mut Vec<ModuleBinding>,
+        global_scope: LocalScopeId,
+        declared_modules: &mut Vec<DeclaredModule>,
         scope: (LocalScopeId, LocalScopeMark),
         key: ast::Key,
         parent_id: Option<LocalNodeIdAny>,
@@ -60,8 +60,8 @@ impl Compiler {
                     module,
                     ast,
                     namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
+                    global_scope,
+                    declared_modules,
                     scope,
                     expression,
                     parent_id,

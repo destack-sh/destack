@@ -58,7 +58,7 @@ impl ModuleLowerer<'_> {
         if let Some(symbol) = self.types.symbol_for_instance_type(type_id)
             && matches!(
                 self.symbol_form(symbol),
-                Some(dir::DeclarationForm::Struct | dir::DeclarationForm::Class)
+                Some(dir::SymbolForm::Struct | dir::SymbolForm::Class)
             )
         {
             self.lower_nominal_layout(symbol)?;
@@ -69,7 +69,7 @@ impl ModuleLowerer<'_> {
             dir::Type::Reference(reference) => {
                 if matches!(
                     self.symbol_form(reference.symbol),
-                    Some(dir::DeclarationForm::Struct | dir::DeclarationForm::Class)
+                    Some(dir::SymbolForm::Struct | dir::SymbolForm::Class)
                 ) {
                     self.lower_nominal_layout(reference.symbol)?;
                 }

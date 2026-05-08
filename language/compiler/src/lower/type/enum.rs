@@ -48,11 +48,11 @@ pub(crate) fn enum_field_value_for_symbol(
 
     // resolve the enum symbol that owns this field
     let scope = symbols.get_scope_by_symbol(member_symbol.local_id);
-    let Some(scope_owner) = scope.owner_id else {
+    let Some(scope_owner) = scope.owner else {
         return Ok(None);
     };
     let scope_owner_entry = symbols.get_symbol(scope_owner);
-    if scope_owner_entry.form != dir::DeclarationForm::Enum {
+    if scope_owner_entry.form != dir::SymbolForm::Enum {
         return Ok(None);
     }
     let enum_symbol = scope_owner.into_global(member_symbol.module_id);

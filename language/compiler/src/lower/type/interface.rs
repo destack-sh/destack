@@ -51,7 +51,7 @@ impl TypeLowerer<'_> {
         };
 
         // require an interface symbol
-        if !self.symbol_is(reference.symbol, dir::DeclarationForm::Interface) {
+        if !self.symbol_is(reference.symbol, dir::SymbolForm::Interface) {
             return Err(LowerError::UnsupportedType {
                 anchor: self.diagnostic_anchor(node),
                 ty: type_id.into_global(module_id),

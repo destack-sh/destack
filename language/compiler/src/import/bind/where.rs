@@ -1,6 +1,6 @@
 use destack_ast as ast;
 use destack_dir::{
-    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding, NodeType,
+    DeclaredModule, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeType,
     SymbolSpace, SymbolTable, Tree, TypeExpression, TypeTable, WhereClause,
 };
 
@@ -17,8 +17,8 @@ impl Compiler {
         module: &Module,
         ast: &Ast,
         namespace_scope: LocalScopeId,
-        global_augmentation_scope: LocalScopeId,
-        module_bindings: &mut Vec<ModuleBinding>,
+        global_scope: LocalScopeId,
+        declared_modules: &mut Vec<DeclaredModule>,
         scope: (LocalScopeId, LocalScopeMark),
         ast_where_clause_id: ast::LocalNodeId<ast::WhereClause>,
         parent_id: Option<LocalNodeIdAny>,
@@ -38,8 +38,8 @@ impl Compiler {
             module,
             ast,
             namespace_scope,
-            global_augmentation_scope,
-            module_bindings,
+            global_scope,
+            declared_modules,
             scope,
             ast_where_clause.right,
             Some(where_clause_id),

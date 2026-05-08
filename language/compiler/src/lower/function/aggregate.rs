@@ -561,7 +561,7 @@ impl FunctionLowerer<'_> {
         // get the result type from the constructor target when syntax is nominal
         let constructor_target = self.constructor_target_symbol_for_expression(expression_id)?;
         let result_type = if let Some(symbol) = constructor_target
-            && self.context.symbol_is(symbol, dir::DeclarationForm::Class)
+            && self.context.symbol_is(symbol, dir::SymbolForm::Class)
             && let Some(reference_type_id) = self.nominal_reference_type_id_for_symbol(symbol)
         {
             let node = expression_id.into_global_any(self.context.module_id);
@@ -667,7 +667,7 @@ impl FunctionLowerer<'_> {
 
         // resolve class symbols for vtable header defaults
         let class_symbol = constructor_target
-            .filter(|symbol| self.context.symbol_is(*symbol, dir::DeclarationForm::Class))
+            .filter(|symbol| self.context.symbol_is(*symbol, dir::SymbolForm::Class))
             .or_else(|| {
                 self.type_for_expression(expression_id)
                     .and_then(|type_id| self.class_symbol_for_type(type_id))

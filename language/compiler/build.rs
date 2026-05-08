@@ -70,11 +70,7 @@ fn render_sources(sources: &[String]) -> String {
     output
         .push_str("use crate::library::source::{LibraryOutput, LibraryRuntime, LibrarySource};\n");
     output.push('\n');
-    output.push_str("const NATIVE_RUNTIMES: &[LibraryRuntime] = &[\n");
-    output.push_str("    LibraryRuntime::NativeManaged,\n");
-    output.push_str("    LibraryRuntime::NativeFreestanding,\n");
-    output.push_str("    LibraryRuntime::NativeEmbedded,\n");
-    output.push_str("];\n\n");
+    output.push_str("const NATIVE_RUNTIMES: &[LibraryRuntime] = &[LibraryRuntime::Destack];\n\n");
     output.push_str("const NATIVE_OUTPUTS: &[LibraryOutput] = &[LibraryOutput::Native];\n\n");
     output.push_str("pub(crate) const CORE_DECLARED_SYMBOLS: &[&str] = &[\n");
     for symbol in core_declared_symbols() {

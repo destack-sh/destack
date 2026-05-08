@@ -293,7 +293,7 @@ impl ModuleLowerer<'_> {
                 if reference.symbol == platform_error_symbol {
                     return true;
                 }
-                if self.symbol_is(reference.symbol, dir::DeclarationForm::TypeAlias)
+                if self.symbol_is(reference.symbol, dir::SymbolForm::TypeAlias)
                     && let Some(target) = self.types.get_alias_target_type_id(reference.symbol)
                 {
                     return self.is_platform_error_type_inner(

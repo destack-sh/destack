@@ -641,10 +641,8 @@ impl ModuleLowerer<'_> {
                         .insert_from_source(expression, self.module.id, expression_id);
 
                 // lexical binding targets live in the type table
-                if let Some(dir::SymbolResolution::Target(target_symbol)) =
-                    self.types.symbol_resolution(source_id)
-                {
-                    self.set_global_node_symbol(expression_id, *target_symbol);
+                if let Some(target_symbol) = self.types.symbol_resolution(source_id) {
+                    self.set_global_node_symbol(expression_id, target_symbol);
                 }
 
                 expression_id.into_any()

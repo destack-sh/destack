@@ -92,7 +92,7 @@ impl ModuleLowerer<'_> {
                     let resolution = self
                         .types
                         .dependency_resolution(source_id.into_global_any(self.module.id));
-                    if let Some(dir::DependencyResolution::Binding(target_symbol)) = resolution {
+                    if let Some(dir::DependencyResolution::Symbol(target_symbol)) = resolution {
                         self.set_global_node_symbol(item_id, *target_symbol);
                     }
                     // local declaration items keep their source symbol

@@ -108,19 +108,12 @@ impl FunctionLoweringContext<'_> {
     }
 
     /// Return the declaration form for one symbol.
-    pub(crate) fn symbol_form(
-        &self,
-        symbol_id: dir::GlobalSymbolId,
-    ) -> Option<dir::DeclarationForm> {
+    pub(crate) fn symbol_form(&self, symbol_id: dir::GlobalSymbolId) -> Option<dir::SymbolForm> {
         Some(self.symbol(symbol_id)?.form)
     }
 
     /// Return whether one symbol has the given declaration form.
-    pub(crate) fn symbol_is(
-        &self,
-        symbol_id: dir::GlobalSymbolId,
-        form: dir::DeclarationForm,
-    ) -> bool {
+    pub(crate) fn symbol_is(&self, symbol_id: dir::GlobalSymbolId, form: dir::SymbolForm) -> bool {
         self.symbol_form(symbol_id)
             .is_some_and(|actual| actual == form)
     }
@@ -684,7 +677,7 @@ impl<'a> FunctionLowerer<'a> {
     ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         if self
             .context
-            .symbol_is(target_symbol, dir::DeclarationForm::Function)
+            .symbol_is(target_symbol, dir::SymbolForm::Function)
         {
             return self.lower_function_value_for_symbol(expression_id, target_symbol);
         }
@@ -735,9 +728,7 @@ impl<'a> FunctionLowerer<'a> {
         let node_id = expression_id.into_global_any(self.context.module_id);
 
         // read the resolved symbol from the checked DIR tables
-        let Some(dir::SymbolResolution::Target(symbol)) =
-            self.context.types.symbol_resolution(node_id)
-        else {
+        let Some(symbol) = self.context.types.symbol_resolution(node_id) else {
             return Err(LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(node_id.into_anchored(Some(self.context.profile))),
                 message: "expression is missing symbol resolution".to_string(),
@@ -745,7 +736,7 @@ impl<'a> FunctionLowerer<'a> {
             .into());
         };
 
-        Ok(*symbol)
+        Ok(symbol)
     }
 
     /// Lower a function symbol reference to a closure value.

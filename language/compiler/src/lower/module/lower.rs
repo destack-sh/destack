@@ -205,7 +205,7 @@ impl<'a> ModuleLowerer<'a> {
         let target_config = Self::target_config_for_module(compiler, context, module, target)?;
 
         // resolve runtime check policies
-        let debug = compiler.profile(context.revision(), profile).key.debug;
+        let debug = compiler.profile(context.revision(), profile).env.debug;
         let runtime_checks = RuntimeCheckConfig::from_target(&target_config, debug);
         let binding_abi_lowering = target_config.emit.is_native();
 
@@ -501,21 +501,15 @@ impl<'a> ModuleLowerer<'a> {
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> mir::AllocationMode {
-        // load symbol attributes
         let symbol = self.symbols.get_symbol(symbol.local_id);
-        let attributes = &symbol.attributes;
 
         // prefer no heap when explicitly requested
-        if attributes.is_no_heap()
-            || self.symbol_has_language_decorator(symbol, LanguageItem::NoHeap)
-        {
+        if self.symbol_has_language_decorator(symbol, LanguageItem::NoHeap) {
             return mir::AllocationMode::NoHeap;
         }
 
         // apply no managed only when requested explicitly
-        if attributes.is_no_managed()
-            || self.symbol_has_language_decorator(symbol, LanguageItem::NoManaged)
-        {
+        if self.symbol_has_language_decorator(symbol, LanguageItem::NoManaged) {
             return mir::AllocationMode::NoManaged;
         }
 
@@ -543,9 +537,7 @@ impl<'a> ModuleLowerer<'a> {
             if self
                 .types
                 .symbol_resolution(decorator_node)
-                .is_some_and(|resolution| {
-                    matches!(resolution, dir::SymbolResolution::Target(symbol) if *symbol == target_symbol)
-                })
+                .is_some_and(|symbol| symbol == target_symbol)
             {
                 return true;
             }
@@ -599,7 +591,7 @@ impl<'a> ModuleLowerer<'a> {
         anchor: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<dir::LocalTypeId> {
         self.types
-            .declaration_form_id(self.symbols, symbol)
+            .symbol_type_id(self.symbols, symbol)
             .ok_or_else(|| LowerError::MissingType {
                 anchor: self.diagnostic_anchor(anchor),
             })
@@ -1029,7 +1021,7 @@ impl<'a> ModuleLowerer<'a> {
 
             if matches!(
                 self.symbol_form(symbol),
-                Some(dir::DeclarationForm::Class | dir::DeclarationForm::Interface)
+                Some(dir::SymbolForm::Class | dir::SymbolForm::Interface)
             ) && let Some(reference_type_id) = self.nominal_reference_type_id_for_symbol(symbol)
             {
                 self.lower_type(reference_type_id, anchor)?;
@@ -1119,7 +1111,7 @@ impl<'a> ModuleLowerer<'a> {
             let symbol = self.symbols.get_symbol_by_id(symbol_id);
             if !matches!(
                 symbol.form,
-                dir::DeclarationForm::Newtype | dir::DeclarationForm::Enum
+                dir::SymbolForm::Newtype | dir::SymbolForm::Enum
             ) {
                 continue;
             }

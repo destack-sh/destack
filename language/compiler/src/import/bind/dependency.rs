@@ -1,16 +1,27 @@
 use destack_ast::{self as ast};
 use destack_core::StringId;
 use destack_dir::{
-    DependencyBinding, DependencyItem, DependencySpace, ImportAttribute, ImportAttributeClause,
-    ImportAttributeClauseKind, ImportAttributeValue, ImportSource, LocalNodeId, LocalNodeIdAny,
-    LocalScopeId, LocalScopeMark, ModuleBinding, Mutability, NodeType, StaticKey, SymbolSpace,
-    SymbolTable, Tree, TypeTable,
+    DeclaredModule, DependencyBinding, DependencyItem, DependencySpace, ImportAttribute,
+    ImportAttributeClause, ImportAttributeClauseKind, ImportAttributeValue, ImportSource,
+    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Mutability, NodeType, StaticKey,
+    SymbolSpace, SymbolTable, Tree, TypeTable,
 };
 
 use crate::Compiler;
 
 use destack_artifact::Ast;
 use destack_workspace::Module;
+
+/// The compiler binding context for one dependency item.
+#[derive(Debug, Clone, Copy)]
+pub(super) enum DependencySite {
+    /// Import dependency.
+    Import,
+    /// Re-export dependency.
+    ReExport,
+    /// Local export dependency.
+    Export,
+}
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -122,10 +133,10 @@ impl Compiler {
         module: &Module,
         ast: &Ast,
         namespace_scope: LocalScopeId,
-        global_augmentation_scope: LocalScopeId,
-        module_bindings: &mut Vec<ModuleBinding>,
+        global_scope: LocalScopeId,
+        declared_modules: &mut Vec<DeclaredModule>,
         scope: (LocalScopeId, LocalScopeMark),
-        source: ImportSource,
+        site: DependencySite,
         default_space: ast::DependencySpace,
         _target: Option<StringId>,
         ast_item_id: ast::LocalNodeId<ast::DependencyItem>,
@@ -154,10 +165,7 @@ impl Compiler {
             unreachable!();
         };
 
-        let is_export = matches!(
-            source,
-            ImportSource::ExportStatement | ImportSource::ValueExpression
-        );
+        let is_export = matches!(site, DependencySite::ReExport | DependencySite::Export);
         let space = self.bind_dependency_space(ast_kind.unwrap_or(default_space));
         let binding = self.bind_dependency_binding(*ast_mode);
         let name = ast_name.map(|name| self.bind_name(ast, name));
@@ -196,8 +204,8 @@ impl Compiler {
                     module,
                     ast,
                     namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
+                    global_scope,
+                    declared_modules,
                     scope,
                     *ast_value_id,
                     Some(item_id),
@@ -228,18 +236,7 @@ impl Compiler {
         // attach declaration to the symbol
         if let Some(symbol_id) = symbol_id {
             symbols.get_symbol_mut(symbol_id).declare(item_id);
-            if symbol_space == SymbolSpace::Value
-                && matches!(
-                    source,
-                    ImportSource::ImportStatement
-                        | ImportSource::ReferencePathDirective
-                        | ImportSource::ReferenceTypesDirective
-                        | ImportSource::ReferenceLibDirective
-                        | ImportSource::ReferenceNoDefaultLibDirective
-                        | ImportSource::ImportEquals
-                        | ImportSource::ImportCall
-                )
-            {
+            if symbol_space == SymbolSpace::Value && matches!(site, DependencySite::Import) {
                 self.apply_binding_mutability(symbols, symbol_id, Mutability::Immutable);
             }
         }

@@ -1,9 +1,9 @@
 use destack_artifact::EmitFormat;
 use destack_dir as dir;
 use dir::{
-    Argument, BinaryOperator, DeclarationForm, Declarator, Expression, IfCondition, IfForm,
-    LocalNodeId, Mutability, NodeType, Property, ScopeKind, SymbolBinding, SymbolKind, SymbolSpace,
-    Type, TypeLiteral,
+    Argument, BinaryOperator, Declarator, Expression, IfCondition, IfForm, LocalNodeId, Mutability,
+    NodeType, Property, ScopeKind, SymbolBinding, SymbolForm, SymbolRole, SymbolSpace, Type,
+    TypeLiteral,
 };
 
 use crate::elaborate::ElaborateState;
@@ -573,8 +573,8 @@ impl Compiler {
         // create one local symbol for the synthetic binding
         let scope_mark = state.symbols.get_scope_mark(scope.0);
         let (symbol_id, _) = state.symbols.insert_symbol(
-            SymbolKind::Local,
-            DeclarationForm::Void,
+            SymbolRole::Local,
+            SymbolForm::Value,
             SymbolSpace::Value,
             SymbolBinding::Runtime,
             None,

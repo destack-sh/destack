@@ -361,7 +361,7 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
         let symbol_entry = symbols.get_symbol(reference.symbol.local_id);
         if !matches!(
             symbol_entry.form,
-            dir::DeclarationForm::TypeAlias | dir::DeclarationForm::Newtype
+            dir::SymbolForm::TypeAlias | dir::SymbolForm::Newtype
         ) {
             return type_id;
         }

@@ -1470,9 +1470,6 @@ impl Compiler {
             }
             dir::ImportSource::ImportEquals => ast::ImportSource::ImportEquals,
             dir::ImportSource::ImportCall => ast::ImportSource::ImportCall,
-            dir::ImportSource::RequireCall
-            | dir::ImportSource::ExportStatement
-            | dir::ImportSource::ValueExpression => ast::ImportSource::ImportStatement,
         }
     }
 }
