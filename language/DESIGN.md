@@ -1401,7 +1401,7 @@ newtype Shape =
     | { kind: "circle"; radius: int32 };
 ```
 
-At the library level, a derive provider is just a nominal provider value returning `Patch`es.
+At the library level, a `derive` provider is just a nominal provider value that implements `Patcher`, with some additional instrumentation.
 
 #### Static If
 
@@ -1603,7 +1603,7 @@ function load(id: UserId): Result<User, Error> {
 As explained in the annotations and decorator piece, `memoize` by itself is just an inert annotation and it only receives behavior by implementing the `Patcher`.
 The general `Patcher` protocol is based on three rules:
  1. Patchers must not generate or implement other `Patcher`s, so expansion cannot recursively change the macro system itself.
- 2. Patchers are run in two phases during compilation: `expand` may contribute new (externally visible) symbols, but lacks final type information, while `materialize` may replace checked implementation details.
+ 2. Patchers are run in two phases during compilation: `expand` may contribute new symbols before final inference, while `materialize` fills in the implementation with full type information.
  3. Patchers edit their containing module through phase-specific context methods (`add`, `addChild`, `replace`, `rename`, `remove`).
 
 | Operation | Example | Meaning |
@@ -1617,19 +1617,40 @@ The general `Patcher` protocol is based on three rules:
 Most basic wrapper-shaped decorators are just `rename` plus `add`.
 
 ```ds
-extension of memoize implements Patcher<FunctionDeclaration>
+type MemoizeState = {
+    innerName: string;
+    capacity: uint;
+};
+
+extension of memoize implements Patcher<FunctionDeclaration, MemoizeState>
 {
-    static expand(target: FunctionDeclaration, context: ExpansionContext, config: this): void {
+    static expand(
+        target: FunctionDeclaration,
+        context: ExpansionContext,
+        config: this,
+    ): MemoizeState {
         const innerName = `${context.name}Inner`;
         const wrapper = comptime eval<Declaration>(ds`
-            function ${context.name}(id: UserId): Result<User, Error>;
+            function ${context.name}(id: UserId): Result<User, Error> {
+                // placeholder
+            }
         `);
 
         context.rename(innerName);
         context.add(wrapper);
+
+        return {
+            innerName,
+            capacity: config.capacity ?? 256,
+        };
     }
 
-    static materialize(target: FunctionDeclaration, context: MaterializationContext, config: this): void {
+    static materialize(
+        target: FunctionDeclaration,
+        context: MaterializationContext,
+        config: this,
+        state: MemoizeState,
+    ): void {
         const implementation = comptime eval<Declaration>(ds`
             function ${context.name}(id: UserId): Result<User, Error> {
                 const cached = cache.get(id);
@@ -1637,8 +1658,8 @@ extension of memoize implements Patcher<FunctionDeclaration>
                     return cached;
                 }
 
-                const user = ${target}(id)?;
-                cache.set(id, user, config.capacity ?? 256);
+                const user = ${state.innerName}(id)?;
+                cache.set(id, user, ${state.capacity});
                 return Result.ok(user);
             }
         `);
