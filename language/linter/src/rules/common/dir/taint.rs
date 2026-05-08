@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use destack_core::{StringId, StringPool};
+use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::ModuleId;
 use destack_workspace::{ArtifactCache, ProfileId};
@@ -8,8 +8,8 @@ use destack_workspace::{ArtifactCache, ProfileId};
 use crate::rules::common::glob_matches;
 
 use super::{
-    expression_candidate_symbols, expression_unwrap_parenthesized, symbol_attributes_for,
-    symbol_initializer_expression as resolve_symbol_initializer_expression,
+    SymbolDecorator, expression_candidate_symbols, expression_unwrap_parenthesized,
+    symbol_decorators_for, symbol_initializer_expression as resolve_symbol_initializer_expression,
 };
 
 /// Label set for taint tracking.
@@ -20,7 +20,7 @@ pub struct TaintLabels {
     /// Whether this taint set contains an unlabeled marker.
     matches_all: bool,
     /// The explicit taint labels.
-    labels: Vec<StringId>,
+    labels: Vec<String>,
 }
 
 impl TaintLabels {
@@ -40,7 +40,7 @@ impl TaintLabels {
     }
 
     /// Add one explicit label.
-    pub fn add_label(&mut self, label: StringId) {
+    pub fn add_label(&mut self, label: String) {
         if self.labels.contains(&label) {
             return;
         }
@@ -53,13 +53,13 @@ impl TaintLabels {
             self.matches_all = true;
         }
 
-        for label in other.labels.iter().copied() {
-            self.add_label(label);
+        for label in &other.labels {
+            self.add_label(label.clone());
         }
     }
 
     /// Return true when this source set can flow into the sink set.
-    pub fn matches_sink(&self, sink: &Self, strings: &StringPool) -> bool {
+    pub fn matches_sink(&self, sink: &Self) -> bool {
         if self.is_empty() || sink.is_empty() {
             return false;
         }
@@ -68,12 +68,11 @@ impl TaintLabels {
             return true;
         }
 
-        for source_label in self.labels.iter().copied() {
+        for source_label in &self.labels {
             if sink
                 .labels
                 .iter()
-                .copied()
-                .any(|sink_label| label_matches_glob_pattern(strings, source_label, sink_label))
+                .any(|sink_label| glob_matches(sink_label, source_label))
             {
                 return true;
             }
@@ -83,7 +82,7 @@ impl TaintLabels {
     }
 
     /// Remove labels covered by a sanitizer set.
-    pub fn apply_sanitizer(&mut self, sanitizer: &Self, strings: &StringPool) {
+    pub fn apply_sanitizer(&mut self, sanitizer: &Self) {
         if sanitizer.is_empty() {
             return;
         }
@@ -94,9 +93,10 @@ impl TaintLabels {
         }
 
         self.labels.retain(|source_label| {
-            !sanitizer.labels.iter().copied().any(|sanitizer_label| {
-                label_matches_glob_pattern(strings, *source_label, sanitizer_label)
-            })
+            !sanitizer
+                .labels
+                .iter()
+                .any(|sanitizer_label| glob_matches(sanitizer_label, source_label))
         });
     }
 }
@@ -415,11 +415,13 @@ impl<'a> TaintAnalysis<'a> {
                     self.artifacts,
                     self.profile_id,
                     self.module_id,
+                    self.tree,
+                    self.strings,
                     self.symbols,
                     self.types,
                     *left,
                 );
-                labels.apply_sanitizer(&sanitizer_labels, self.strings);
+                labels.apply_sanitizer(&sanitizer_labels);
             }
             dir::Expression::Await { expression } | dir::Expression::AwaitMaybe { expression } => {
                 // awaits preserve taint
@@ -699,11 +701,14 @@ impl<'a> TaintAnalysis<'a> {
         }
         symbol_stack.push(symbol_id);
 
-        let mut labels = symbol_taint_labels_from_attributes(
+        let mut labels = symbol_taint_labels_from_decorators(
             self.artifacts,
             self.profile_id,
             self.module_id,
+            self.tree,
+            self.strings,
             self.symbols,
+            self.types,
             symbol_id,
         );
 
@@ -729,11 +734,14 @@ impl<'a> TaintAnalysis<'a> {
 
         let mut labels = TaintLabels::default();
         for symbol_id in candidate_symbols {
-            let symbol_labels = symbol_taint_labels_from_attributes(
+            let symbol_labels = symbol_taint_labels_from_decorators(
                 self.artifacts,
                 self.profile_id,
                 self.module_id,
+                self.tree,
+                self.strings,
                 self.symbols,
+                self.types,
                 symbol_id,
             );
             labels.merge(&symbol_labels);
@@ -795,20 +803,33 @@ pub fn expression_sink_taint_labels(
     artifacts: &ArtifactCache,
     profile_id: ProfileId,
     module_id: ModuleId,
+    tree: &dir::Tree,
+    strings: &StringPool,
     symbols: &dir::SymbolTable,
     types: &dir::TypeTable,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> TaintLabels {
+    let Some(sink_symbol) = language_item_symbol(artifacts, profile_id, dir::LanguageItem::Sink)
+    else {
+        return TaintLabels::default();
+    };
+
     let candidate_symbols = expression_candidate_symbols(module_id, types, expression_id);
 
     let mut labels = TaintLabels::default();
     for symbol_id in candidate_symbols {
-        let Some(attributes) =
-            symbol_attributes_for(artifacts, profile_id, module_id, symbols, symbol_id)
-        else {
-            continue;
-        };
-        let sink_labels = attribute_marker_taint_labels(attributes.sinks());
+        let decorators = symbol_decorators_for(
+            artifacts,
+            profile_id,
+            module_id,
+            tree,
+            strings,
+            symbols,
+            types,
+            symbol_id,
+            sink_symbol,
+        );
+        let sink_labels = decorator_taint_labels(decorators);
         labels.merge(&sink_labels);
     }
 
@@ -820,20 +841,34 @@ pub fn expression_sanitizer_taint_labels(
     artifacts: &ArtifactCache,
     profile_id: ProfileId,
     module_id: ModuleId,
+    tree: &dir::Tree,
+    strings: &StringPool,
     symbols: &dir::SymbolTable,
     types: &dir::TypeTable,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> TaintLabels {
+    let Some(sanitizer_symbol) =
+        language_item_symbol(artifacts, profile_id, dir::LanguageItem::Sanitizer)
+    else {
+        return TaintLabels::default();
+    };
+
     let candidate_symbols = expression_candidate_symbols(module_id, types, expression_id);
 
     let mut labels = TaintLabels::default();
     for symbol_id in candidate_symbols {
-        let Some(attributes) =
-            symbol_attributes_for(artifacts, profile_id, module_id, symbols, symbol_id)
-        else {
-            continue;
-        };
-        let sanitizer_labels = attribute_marker_taint_labels(attributes.sanitizers());
+        let decorators = symbol_decorators_for(
+            artifacts,
+            profile_id,
+            module_id,
+            tree,
+            strings,
+            symbols,
+            types,
+            symbol_id,
+            sanitizer_symbol,
+        );
+        let sanitizer_labels = decorator_taint_labels(decorators);
         labels.merge(&sanitizer_labels);
     }
 
@@ -863,53 +898,61 @@ fn expression_is_heuristically_tainted(
     )
 }
 
-/// Resolve taint labels from symbol attributes.
-fn symbol_taint_labels_from_attributes(
+/// Resolve taint labels from symbol decorators.
+fn symbol_taint_labels_from_decorators(
     artifacts: &ArtifactCache,
     profile_id: ProfileId,
     module_id: ModuleId,
+    tree: &dir::Tree,
+    strings: &StringPool,
     symbols: &dir::SymbolTable,
+    types: &dir::TypeTable,
     symbol_id: dir::GlobalSymbolId,
 ) -> TaintLabels {
-    let Some(attributes) =
-        symbol_attributes_for(artifacts, profile_id, module_id, symbols, symbol_id)
+    let Some(taint_symbol) = language_item_symbol(artifacts, profile_id, dir::LanguageItem::Taint)
     else {
         return TaintLabels::default();
     };
 
+    let decorators = symbol_decorators_for(
+        artifacts,
+        profile_id,
+        module_id,
+        tree,
+        strings,
+        symbols,
+        types,
+        symbol_id,
+        taint_symbol,
+    );
+
+    decorator_taint_labels(decorators)
+}
+
+/// Resolve labels from matching decorators.
+fn decorator_taint_labels(decorators: Vec<SymbolDecorator>) -> TaintLabels {
     let mut labels = TaintLabels::default();
-    for label in attributes.taints() {
-        if let Some(label) = label {
-            labels.add_label(label);
-        } else {
-            labels.add_unlabeled();
+
+    for decorator in decorators {
+        for label in decorator.arguments {
+            if let Some(label) = label {
+                labels.add_label(label);
+            } else {
+                labels.add_unlabeled();
+            }
         }
     }
 
     labels
 }
 
-/// Resolve labels from attribute markers.
-fn attribute_marker_taint_labels(markers: impl Iterator<Item = Option<StringId>>) -> TaintLabels {
-    let mut labels = TaintLabels::default();
+/// Resolve a language item from the artifact cache.
+fn language_item_symbol(
+    artifacts: &ArtifactCache,
+    profile_id: ProfileId,
+    item: dir::LanguageItem,
+) -> Option<dir::GlobalSymbolId> {
+    let environment = artifacts.global_environment(profile_id)?;
 
-    for marker_label in markers {
-        if let Some(label) = marker_label {
-            labels.add_label(label);
-        } else {
-            labels.add_unlabeled();
-        }
-    }
-
-    labels
-}
-
-/// Return true when one source label matches one sink or sanitizer glob pattern.
-fn label_matches_glob_pattern(strings: &StringPool, source: StringId, sink: StringId) -> bool {
-    let source_text = strings.get(source);
-    let sink_text = strings.get(sink);
-    let source_text = source_text.as_ref();
-    let sink_text = sink_text.as_ref();
-
-    glob_matches(sink_text, source_text)
+    environment.language.item(item)
 }

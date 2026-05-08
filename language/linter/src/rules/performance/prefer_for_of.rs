@@ -400,10 +400,6 @@ impl IndexUseCollector<'_> {
     ) -> Option<GlobalSymbolId> {
         self.types
             .symbol_resolution(expression_id.into_global_any(self.module_id))
-            .and_then(|resolution| match resolution {
-                dir::SymbolResolution::Target(symbol) => Some(*symbol),
-                dir::SymbolResolution::Candidates(_) => None,
-            })
     }
 }
 

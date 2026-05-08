@@ -42,9 +42,6 @@ impl LintRule for NoShadow {
             let Some(shadowed_symbol) = find_shadowed_ancestor(ctx, symbol) else {
                 continue;
             };
-            if should_skip_due_to_redeclaration_policy(ctx, symbol, shadowed_symbol) {
-                continue;
-            }
             let Some(symbol_name) = symbol_name_text(ctx, symbol) else {
                 continue;
             };
@@ -90,38 +87,6 @@ impl LintRule for NoShadow {
     }
 }
 
-/// Return true when this pair should be handled by compiler redeclaration checks.
-fn should_skip_due_to_redeclaration_policy(
-    ctx: &LintModuleDirContext<'_>,
-    current: &dir::Symbol,
-    ancestor: &dir::Symbol,
-) -> bool {
-    if !compiler_redeclaration_errors_enabled(ctx) {
-        return false;
-    }
-
-    let current_category = current.binding_category;
-    let ancestor_category = ancestor.binding_category;
-    matches!(
-        (current_category, ancestor_category),
-        (
-            dir::BindingCategory::FunctionScoped,
-            dir::BindingCategory::BlockScoped
-        ) | (
-            dir::BindingCategory::FunctionScoped,
-            dir::BindingCategory::Parameter
-        ) | (
-            dir::BindingCategory::BlockScoped,
-            dir::BindingCategory::Parameter
-        )
-    )
-}
-
-/// Return true when compiler local-redeclaration errors are enforced for this module.
-fn compiler_redeclaration_errors_enabled(_ctx: &LintModuleDirContext<'_>) -> bool {
-    true
-}
-
 /// Return true when this symbol can participate in no-shadow checks.
 fn symbol_is_shadow_candidate(symbol: &dir::Symbol) -> bool {
     // keep named value-space symbols only
@@ -129,17 +94,6 @@ fn symbol_is_shadow_candidate(symbol: &dir::Symbol) -> bool {
         return false;
     }
     if symbol.key.is_none() {
-        return false;
-    }
-
-    // keep lexical binding categories only
-    if !matches!(
-        symbol.binding_category,
-        dir::BindingCategory::FunctionScoped
-            | dir::BindingCategory::BlockScoped
-            | dir::BindingCategory::Parameter
-            | dir::BindingCategory::Unclassified
-    ) {
         return false;
     }
 

@@ -1,7 +1,7 @@
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::expression_attribute_map;
+use crate::rules::common::expression_symbol_decorator_map;
 use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -120,16 +120,20 @@ impl<'a, 'b> DeprecatedUsageVisitor<'a, 'b> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<Option<String>> {
-        expression_attribute_map(
+        let deprecated_symbol = self.ctx.get_language_item(dir::LanguageItem::Deprecated)?;
+
+        expression_symbol_decorator_map(
             self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
             self.ctx.module_id(),
+            self.ctx.tree,
+            self.ctx.strings,
             self.ctx.symbols,
             self.ctx.types,
             expression_id,
-            |attributes| attributes.deprecated_message(),
+            deprecated_symbol,
+            |decorator| Some(decorator.arguments.first().cloned().flatten()),
         )
-        .map(|message_id| message_id.map(|message_id| self.ctx.strings.get(message_id).to_string()))
     }
 }
 

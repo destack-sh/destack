@@ -403,7 +403,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
 
     /// Return true when a symbol value type declares a `this` parameter.
     fn symbol_has_this_parameter(&self, symbol_id: dir::GlobalSymbolId) -> bool {
-        let Some(declaration_form_id) = symbol_value_type_id_for(
+        let Some(symbol_type_id) = symbol_value_type_id_for(
             self.ctx.artifacts.as_ref(),
             self.ctx.profile_id,
             self.ctx.module_id(),
@@ -414,15 +414,15 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
         };
 
         // fast path when the type information is in this module
-        if declaration_form_id.module_id == self.ctx.module_id() {
-            return has_non_void_this_parameter_type(self.ctx.types, declaration_form_id.type_id);
+        if symbol_type_id.module_id == self.ctx.module_id() {
+            return has_non_void_this_parameter_type(self.ctx.types, symbol_type_id.type_id);
         }
 
         // load foreign module types for the `this` parameter check
-        let Some(module_dir) = self.ctx.checked_dir(declaration_form_id.module_id) else {
+        let Some(module_dir) = self.ctx.checked_dir(symbol_type_id.module_id) else {
             return false;
         };
-        has_non_void_this_parameter_type(&module_dir.types, declaration_form_id.type_id)
+        has_non_void_this_parameter_type(&module_dir.types, symbol_type_id.type_id)
     }
 }
 

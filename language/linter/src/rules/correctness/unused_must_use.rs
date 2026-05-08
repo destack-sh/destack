@@ -2,7 +2,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    expression_discarded_call_like_value, expression_has_attribute,
+    expression_discarded_call_like_value, expression_has_symbol_decorator,
     expression_is_standalone_statement, expression_unwrap_parenthesized,
 };
 use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
@@ -84,15 +84,8 @@ impl<'a, 'b> UnusedMustUseVisitor<'a, 'b> {
         };
         let expression = self.ctx.tree.get(expression_id);
 
-        let has_must_use = expression_has_attribute(
-            self.ctx.artifacts.as_ref(),
-            self.ctx.profile_id,
-            self.ctx.module_id(),
-            self.ctx.symbols,
-            self.ctx.types,
-            expression_id,
-            |attributes| attributes.is_must_use(),
-        ) || call_like_callee_has_must_use(self.ctx, expression);
+        let has_must_use = expression_has_must_use(self.ctx, expression_id)
+            || call_like_callee_has_must_use(self.ctx, expression);
         if !has_must_use {
             return;
         }
@@ -133,14 +126,29 @@ fn call_like_callee_has_must_use(
         dir::Expression::Call { left, .. } | dir::Expression::New { left, .. } => *left,
         _ => return false,
     };
-    expression_has_attribute(
+
+    expression_has_must_use(ctx, callee_id)
+}
+
+/// Return true when an expression candidate symbol is decorated with `@mustUse`.
+fn expression_has_must_use(
+    ctx: &LintModuleDirContext<'_>,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    let Some(must_use_symbol) = ctx.get_language_item(dir::LanguageItem::MustUse) else {
+        return false;
+    };
+
+    expression_has_symbol_decorator(
         ctx.artifacts.as_ref(),
         ctx.profile_id,
         ctx.module_id(),
+        ctx.tree,
+        ctx.strings,
         ctx.symbols,
         ctx.types,
-        callee_id,
-        |attributes| attributes.is_must_use(),
+        expression_id,
+        must_use_symbol,
     )
 }
 

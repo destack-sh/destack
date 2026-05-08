@@ -631,7 +631,6 @@ fn expression_path_without_generic_arguments(expression: &dir::Expression) -> Op
         dir::Expression::Path {
             path,
             generic_arguments,
-            space: _,
         } if generic_arguments.is_empty() => Some(path),
         _ => None,
     }

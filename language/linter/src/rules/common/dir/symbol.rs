@@ -1,4 +1,5 @@
 use destack_artifact::WellKnownSymbols;
+use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::ModuleId;
 use destack_workspace::{ArtifactCache, ProfileId};
@@ -12,6 +13,13 @@ pub struct SymbolValueTypeId {
     pub type_id: dir::LocalTypeId,
 }
 
+/// A matched decorator attached to a symbol declaration.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SymbolDecorator {
+    /// The string arguments supplied to the decorator.
+    pub arguments: Vec<Option<String>>,
+}
+
 /// Return candidate symbols for an expression usage site.
 pub fn expression_candidate_symbols(
     local_module_id: ModuleId,
@@ -22,10 +30,8 @@ pub fn expression_candidate_symbols(
 
     // include lexical reference targets
     let global_expression_id = expression_id.into_global_any(local_module_id);
-    if let Some(resolution) = local_types.symbol_resolution(global_expression_id) {
-        for symbol_id in symbol_resolution_target_symbols(resolution) {
-            push_unique_symbol(&mut symbols, symbol_id);
-        }
+    if let Some(symbol_id) = local_types.symbol_resolution(global_expression_id) {
+        push_unique_symbol(&mut symbols, symbol_id);
     }
 
     // include dispatch target symbols
@@ -38,57 +44,69 @@ pub fn expression_candidate_symbols(
     symbols
 }
 
-/// Map attributes found on expression candidate symbols.
+/// Map decorators found on expression candidate symbols.
 #[allow(clippy::too_many_arguments)]
-pub fn expression_attribute_map<T>(
+pub fn expression_symbol_decorator_map<T>(
     artifacts: &ArtifactCache,
     profile_id: ProfileId,
     local_module_id: ModuleId,
+    local_tree: &dir::Tree,
+    local_strings: &StringPool,
     local_symbols: &dir::SymbolTable,
     local_types: &dir::TypeTable,
     expression_id: dir::LocalNodeId<dir::Expression>,
-    mut map: impl FnMut(&dir::SymbolAttributes) -> Option<T>,
+    decorator_symbol: dir::GlobalSymbolId,
+    mut map: impl FnMut(&SymbolDecorator) -> Option<T>,
 ) -> Option<T> {
     let symbols = expression_candidate_symbols(local_module_id, local_types, expression_id);
 
     for symbol_id in symbols {
-        let Some(attributes) = symbol_attributes_for(
+        let decorators = symbol_decorators_for(
             artifacts,
             profile_id,
             local_module_id,
+            local_tree,
+            local_strings,
             local_symbols,
+            local_types,
             symbol_id,
-        ) else {
-            continue;
-        };
+            decorator_symbol,
+        );
 
-        if let Some(value) = map(&attributes) {
-            return Some(value);
+        for decorator in decorators {
+            if let Some(value) = map(&decorator) {
+                return Some(value);
+            }
         }
     }
 
     None
 }
 
-/// Return true when an expression candidate symbol matches one attribute predicate.
+/// Return true when an expression candidate symbol has a matching decorator.
 #[allow(clippy::too_many_arguments)]
-pub fn expression_has_attribute(
+pub fn expression_has_symbol_decorator(
     artifacts: &ArtifactCache,
     profile_id: ProfileId,
     local_module_id: ModuleId,
+    local_tree: &dir::Tree,
+    local_strings: &StringPool,
     local_symbols: &dir::SymbolTable,
     local_types: &dir::TypeTable,
     expression_id: dir::LocalNodeId<dir::Expression>,
-    mut predicate: impl FnMut(&dir::SymbolAttributes) -> bool,
+    decorator_symbol: dir::GlobalSymbolId,
 ) -> bool {
-    expression_attribute_map(
+    expression_symbol_decorator_map(
         artifacts,
         profile_id,
         local_module_id,
+        local_tree,
+        local_strings,
         local_symbols,
         local_types,
         expression_id,
-        |attributes| predicate(attributes).then_some(()),
+        decorator_symbol,
+        |_| Some(()),
     )
     .is_some()
 }
@@ -96,20 +114,10 @@ pub fn expression_has_attribute(
 /// Collect target symbols from a resolution.
 pub fn resolution_target_symbols(resolution: &dir::Resolution) -> Vec<dir::GlobalSymbolId> {
     match resolution {
-        dir::Resolution::Symbol(symbol) => symbol_resolution_target_symbols(symbol),
+        dir::Resolution::Symbol(symbol) => vec![*symbol],
         dir::Resolution::Dependency(dependency) => dependency_resolution_target_symbols(dependency),
         dir::Resolution::Control(_) => Vec::new(),
         dir::Resolution::Dispatch(dispatch) => dispatch_resolution_target_symbols(dispatch),
-    }
-}
-
-/// Collect target symbols from a symbol resolution.
-pub fn symbol_resolution_target_symbols(
-    resolution: &dir::SymbolResolution,
-) -> Vec<dir::GlobalSymbolId> {
-    match resolution {
-        dir::SymbolResolution::Target(symbol) => vec![*symbol],
-        dir::SymbolResolution::Candidates(symbols) => symbols.clone(),
     }
 }
 
@@ -118,7 +126,7 @@ pub fn dependency_resolution_target_symbols(
     resolution: &dir::DependencyResolution,
 ) -> Vec<dir::GlobalSymbolId> {
     match resolution {
-        dir::DependencyResolution::Binding(symbol) => vec![*symbol],
+        dir::DependencyResolution::Symbol(symbol) => vec![*symbol],
         dir::DependencyResolution::Module(_) => Vec::new(),
     }
 }
@@ -142,6 +150,144 @@ fn push_unique_symbol(symbols: &mut Vec<dir::GlobalSymbolId>, symbol: dir::Globa
         return;
     }
     symbols.push(symbol);
+}
+
+/// Read matching decorators in one module-local DIR snapshot.
+fn symbol_decorators_in_module(
+    module_id: ModuleId,
+    tree: &dir::Tree,
+    strings: &StringPool,
+    symbols: &dir::SymbolTable,
+    types: &dir::TypeTable,
+    symbol_id: dir::LocalSymbolId,
+    decorator_symbol: dir::GlobalSymbolId,
+) -> Vec<SymbolDecorator> {
+    let symbol = symbols.get_symbol(symbol_id);
+    let Some(declaration) = symbol.declaration else {
+        return Vec::new();
+    };
+    if declaration.module_id != module_id {
+        return Vec::new();
+    }
+
+    let mut decorators = Vec::new();
+    for decorator_id in tree.get_decorators(declaration.local_id.id) {
+        let decorator = tree.get(decorator_id);
+        let Some(decorator) = symbol_decorator_from_expression(
+            module_id,
+            tree,
+            strings,
+            types,
+            decorator,
+            decorator_symbol,
+        ) else {
+            continue;
+        };
+
+        decorators.push(decorator);
+    }
+
+    decorators
+}
+
+/// Read one decorator when its callee resolves to the requested symbol.
+fn symbol_decorator_from_expression(
+    module_id: ModuleId,
+    tree: &dir::Tree,
+    strings: &StringPool,
+    types: &dir::TypeTable,
+    decorator: &dir::Decorator,
+    decorator_symbol: dir::GlobalSymbolId,
+) -> Option<SymbolDecorator> {
+    let expression_id = unwrap_parenthesized_expression(tree, decorator.expression);
+    let expression = tree.get(expression_id);
+    let (callee_id, arguments) = match expression {
+        dir::Expression::Call {
+            left, arguments, ..
+        } => (
+            unwrap_parenthesized_expression(tree, *left),
+            Some(arguments.as_slice()),
+        ),
+        _ => (expression_id, None),
+    };
+
+    if !decorator_expression_matches(module_id, types, expression_id, callee_id, decorator_symbol) {
+        return None;
+    }
+
+    let arguments = decorator_string_arguments(tree, strings, arguments);
+
+    Some(SymbolDecorator { arguments })
+}
+
+/// Unwrap parenthesized decorator expressions.
+fn unwrap_parenthesized_expression(
+    tree: &dir::Tree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> dir::LocalNodeId<dir::Expression> {
+    let mut current = expression_id;
+    loop {
+        let expression = tree.get(current);
+        let dir::Expression::Parenthesized { expression } = expression else {
+            return current;
+        };
+        current = *expression;
+    }
+}
+
+/// Check both the decorator call and callee for a resolved decorator symbol.
+fn decorator_expression_matches(
+    module_id: ModuleId,
+    types: &dir::TypeTable,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+    callee_id: dir::LocalNodeId<dir::Expression>,
+    decorator_symbol: dir::GlobalSymbolId,
+) -> bool {
+    let expression_node = expression_id.into_global_any(module_id);
+    if types
+        .symbol_resolution(expression_node)
+        .is_some_and(|symbol| symbol == decorator_symbol)
+    {
+        return true;
+    }
+
+    let callee_node = callee_id.into_global_any(module_id);
+    types
+        .symbol_resolution(callee_node)
+        .is_some_and(|symbol| symbol == decorator_symbol)
+}
+
+/// Read string arguments, using None as the unlabeled marker.
+fn decorator_string_arguments(
+    tree: &dir::Tree,
+    strings: &StringPool,
+    arguments: Option<&[dir::LocalNodeId<dir::Argument>]>,
+) -> Vec<Option<String>> {
+    let Some(arguments) = arguments else {
+        return vec![None];
+    };
+    if arguments.is_empty() {
+        return vec![None];
+    }
+
+    let mut values = Vec::new();
+    for argument_id in arguments {
+        let argument = tree.get(*argument_id);
+        let dir::Argument::Positional { value, .. } = argument else {
+            continue;
+        };
+        let expression = tree.get(*value);
+        let dir::Expression::ScalarLiteral {
+            value: dir::ScalarLiteral::String(value),
+        } = expression
+        else {
+            continue;
+        };
+
+        values.push(Some(strings.get(*value).to_string()));
+    }
+
+    values
 }
 
 /// Return all symbol candidates for one well known symbol id.
@@ -180,22 +326,44 @@ pub fn symbol_for(
     Some(dir.symbols.get_symbol(symbol_id.local_id).clone())
 }
 
-/// Read attributes for a symbol.
-pub fn symbol_attributes_for(
+/// Read matching decorators for a symbol.
+#[allow(clippy::too_many_arguments)]
+pub fn symbol_decorators_for(
     artifacts: &ArtifactCache,
     profile_id: ProfileId,
     local_module_id: ModuleId,
+    local_tree: &dir::Tree,
+    local_strings: &StringPool,
     local_symbols: &dir::SymbolTable,
+    local_types: &dir::TypeTable,
     symbol_id: dir::GlobalSymbolId,
-) -> Option<dir::SymbolAttributes> {
-    let symbol = symbol_for(
-        artifacts,
-        profile_id,
-        local_module_id,
-        local_symbols,
-        symbol_id,
-    )?;
-    Some(symbol.attributes)
+    decorator_symbol: dir::GlobalSymbolId,
+) -> Vec<SymbolDecorator> {
+    if symbol_id.module_id == local_module_id {
+        return symbol_decorators_in_module(
+            local_module_id,
+            local_tree,
+            local_strings,
+            local_symbols,
+            local_types,
+            symbol_id.local_id,
+            decorator_symbol,
+        );
+    }
+
+    let Some(dir) = artifacts.dir_declared(symbol_id.module_id, profile_id) else {
+        return Vec::new();
+    };
+
+    symbol_decorators_in_module(
+        symbol_id.module_id,
+        &dir.tree,
+        &dir.strings,
+        &dir.symbols,
+        &dir.types,
+        symbol_id.local_id,
+        decorator_symbol,
+    )
 }
 
 /// Read the declaration id for a symbol.

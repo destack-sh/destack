@@ -235,7 +235,8 @@ fn module_dependencies(ctx: &LintWorkspaceDirContext, module_id: ModuleId) -> Ve
 /// Extend one dependency list with direct import edges.
 fn collect_imported_module_dependencies(imported: &DirImported, dependencies: &mut Vec<ModuleId>) {
     // collect import edges for both value and type space
-    for resolution in imported.imports.resolution_by_key.values() {
+    for dependency in &imported.dependencies {
+        let resolution = dependency.resolution;
         if let Some(module_id) = resolution.value.and_then(|target| target.module_id()) {
             dependencies.push(module_id);
         }

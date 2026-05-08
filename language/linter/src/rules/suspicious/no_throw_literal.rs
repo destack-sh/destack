@@ -112,7 +112,6 @@ fn thrown_expression_is_undefined_identifier(
         dir::Expression::Path {
             path,
             generic_arguments,
-            space: _,
         } => {
             generic_arguments.is_empty()
                 && path.segments.len() == 1

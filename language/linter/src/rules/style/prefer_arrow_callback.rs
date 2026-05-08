@@ -524,12 +524,7 @@ impl NodeVisitor for CallbackBodyUsageVisitor<'_> {
         if self
             .types
             .symbol_resolution(expression_id.into_global_any(self.module_id))
-            .is_some_and(|resolution| match resolution {
-                dir::SymbolResolution::Target(symbol) => *symbol == self.function_symbol,
-                dir::SymbolResolution::Candidates(symbols) => {
-                    symbols.contains(&self.function_symbol)
-                }
-            })
+            .is_some_and(|symbol| symbol == self.function_symbol)
             || self
                 .function_name
                 .is_some_and(|name| expression_is_single_name_reference(tree, expression_id, name))
@@ -555,7 +550,6 @@ fn expression_is_single_name_reference(
         dir::Expression::Path {
             path,
             generic_arguments,
-            space: _,
         } => generic_arguments.is_empty() && path.segments.len() == 1 && path.segments[0] == name,
         _ => false,
     }

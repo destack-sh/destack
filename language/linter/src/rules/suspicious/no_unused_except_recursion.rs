@@ -261,10 +261,6 @@ impl<'a> RecursiveParameterUseVisitor<'a> {
         let Some(target_symbol) = self
             .types
             .symbol_resolution(expression_id.into_global_any(self.module_id))
-            .and_then(|resolution| match resolution {
-                dir::SymbolResolution::Target(symbol) => Some(*symbol),
-                dir::SymbolResolution::Candidates(_) => None,
-            })
         else {
             return;
         };
@@ -296,12 +292,7 @@ impl<'a> RecursiveParameterUseVisitor<'a> {
         if self
             .types
             .symbol_resolution(expression_id.into_global_any(self.module_id))
-            .is_some_and(|resolution| match resolution {
-                dir::SymbolResolution::Target(symbol) => *symbol == self.function_symbol,
-                dir::SymbolResolution::Candidates(symbols) => {
-                    symbols.contains(&self.function_symbol)
-                }
-            })
+            .is_some_and(|symbol| symbol == self.function_symbol)
         {
             return true;
         }

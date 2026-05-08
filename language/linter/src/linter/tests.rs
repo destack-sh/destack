@@ -16,13 +16,13 @@ use destack_compiler::Compiler;
 use destack_core::StringPool;
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
-use destack_parser::{Parser, ParserSettings};
+use destack_parser::{Parser, ParserOptions};
 use destack_session::open_repository_from_fs;
 use destack_source::{
     DiagnosticCollection, DiagnosticLabel, DiagnosticSeverity, DiffOptions, Edit as SourceEdit,
     File, FileContentId, FileId, FileSystem, FileType, LanguageType, Loader, ModuleId,
-    OverlayFileSystem, PackageId, PhysicalFileSystem, PrintOptions, Span, TargetId, Uri,
-    print_diagnostics, print_diff,
+    OverlayFileSystem, PackageId, PhysicalFileSystem, PrintOptions, Span, Uri, print_diagnostics,
+    print_diff,
 };
 use destack_workspace::{
     Edit as RepositoryEdit, HostEnvironment, LintCategory, LintSeverity, LinterOptions, Module,
@@ -211,7 +211,7 @@ fn parse_code_ast(
 ) -> Ast {
     let language_type = language_type_for_code_file(compiler, file.ty, package_id, context);
     let mut parser =
-        Parser::lex_file_with_settings(file.clone(), language_type, ParserSettings::default());
+        Parser::lex_file_with_options(file.clone(), language_type, ParserOptions::default());
     let expressions = parser.parse();
     context.emit_collection(parser.diagnostics.collect());
 
@@ -275,10 +275,6 @@ fn language_type_for_code_file(
         context.track(ArtifactDependency::file_content(file_id, content_id));
     }
 
-    let config = compiler
-        .repository
-        .destack_config_for_package_id(context.revision(), package_id)
-        .unwrap_or_else(|error| panic!("failed to load package options: {error}"));
     LanguageType::JavaScript
 }
 
@@ -709,7 +705,7 @@ impl TestProgram {
         // profile
         let profile_key = ProfileKey::new(
             EmitFormat::Js,
-            Runtime::Browser,
+            Runtime::Js,
             Platform::Web,
             None,
             None,
@@ -717,9 +713,7 @@ impl TestProgram {
             libs,
             None,
             Vec::new(),
-            false,
-            false,
-            false,
+            Vec::new(),
             environment.key_all(),
             ProfileFlags::default(),
         );
@@ -929,7 +923,8 @@ impl TestProgram {
 
                     continue;
                 }
-                ArtifactProvider::Compiler | ArtifactProvider::Linter => {}
+                ArtifactProvider::Compiler | ArtifactProvider::Linter | ArtifactProvider::Query => {
+                }
             }
 
             match self.compiler.provide(context.as_ref()) {

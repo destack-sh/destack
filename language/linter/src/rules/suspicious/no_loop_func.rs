@@ -326,10 +326,6 @@ impl NodeVisitor for CapturedMutableSymbolCollector<'_> {
         if let Some(target_symbol) = self
             .types
             .symbol_resolution(id.into_global_any(self.module_id))
-            .and_then(|resolution| match resolution {
-                dir::SymbolResolution::Target(symbol) => Some(*symbol),
-                dir::SymbolResolution::Candidates(_) => None,
-            })
         {
             self.record_reference(id, target_symbol);
         }
