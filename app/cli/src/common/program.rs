@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use clap::{Args, ValueEnum};
 use destack_artifact::MemoryCacheStore;
+use destack_daemon::protocol::ConfigPatch;
 use destack_session::{Session, open_repository_from_fs};
 use destack_source::{FileSystem, IndentStyle, LineEnding, PhysicalFileSystem};
 use destack_workspace::{
@@ -10,7 +11,7 @@ use destack_workspace::{
     LinterOptions, OrganizeImports, QuoteProperty, QuoteStyle, Ref, Repository, TrailingComma,
 };
 
-use crate::pipeline::daemon::config_overrides_from_program;
+use crate::pipeline::daemon::config_patches_from_program;
 
 use crate::common::{ReportArgs, report_error};
 
@@ -466,9 +467,9 @@ impl ProgramArgs {
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_default())
     }
 
-    /// Build config overrides from explicit CLI options.
-    pub fn config_overrides(&self) -> Vec<destack_daemon::protocol::ConfigOverride> {
-        config_overrides_from_program(self)
+    /// Build config patches from explicit CLI options.
+    pub fn config_patches(&self) -> Vec<ConfigPatch> {
+        config_patches_from_program(self)
     }
 
     /// Attach a file system override for testing.

@@ -576,9 +576,5 @@ fn is_config_path(path: &Path) -> bool {
         return false;
     };
 
-    if file_name == "destack.json" || file_name == "jsconfig.json" {
-        return true;
-    }
-
-    file_name.starts_with("tsconfig") && file_name.ends_with(".json")
+    file_name == "destack.json"
 }

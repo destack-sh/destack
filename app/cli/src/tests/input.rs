@@ -11,7 +11,7 @@ fn test_input_args_to_sources_orders_inputs() {
         eval: vec!["let x = 1".to_string()],
         module: vec!["mod:export const value = 1".to_string()],
         stdin: true,
-        source_type: Some("ts".to_string()),
+        file_type: Some("ts".to_string()),
     };
 
     // resolve the sources

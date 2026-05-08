@@ -62,35 +62,6 @@ fn test_task_run_dry_run() {
     assert_success(code);
 }
 
-/// Runs a package.json script when no Destack task is defined.
-#[test]
-fn test_task_run_dry_run_falls_back_to_package_json() {
-    // set up a package script without one destack task override
-    let program = TestProgram::new("task_run_package_json");
-    program.write_package_json(json!({
-        "scripts": {
-            "start": "echo pkg",
-        },
-    }));
-
-    // build task args with dry run
-    let args = TaskArgs {
-        program: program.program_args(),
-        report: ReportArgs::default(),
-        name: Some("start".to_string()),
-        projects: Vec::new(),
-        groups: Vec::new(),
-        args: Vec::new(),
-        dry_run: true,
-    };
-
-    // run the task command
-    let code = run(&args);
-
-    // assert the command succeeded
-    assert_success(code);
-}
-
 /// Runs one workspace task for one selected project group.
 #[test]
 fn test_task_run_dry_run_for_workspace_group() {

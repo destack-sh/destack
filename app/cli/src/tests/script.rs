@@ -2,19 +2,14 @@ use super::tests::TestProgram;
 use crate::pipeline::script::{ScriptSource, load_tasks, resolve_script_command};
 use serde_json::json;
 
-/// Resolves destack.json tasks before package.json scripts.
+/// Resolves destack.json tasks.
 #[test]
-fn test_resolve_script_command_prefers_destack_config() {
+fn test_resolve_script_command_reads_destack_config() {
     // setup
     let program = TestProgram::new("script_destack_config");
     program.write_destack_config_with_base(json!({
         "tasks": {
             "build": "echo ds",
-        },
-    }));
-    program.write_package_json(json!({
-        "scripts": {
-            "build": "echo pkg",
         },
     }));
 
@@ -23,31 +18,9 @@ fn test_resolve_script_command_prefers_destack_config() {
         .expect("script lookup should succeed")
         .expect("script should be found");
 
-    // assert destack.json task wins
+    // assert destack.json task resolves
     assert_eq!(script.source, ScriptSource::Destack);
     assert_eq!(script.command, "echo ds");
-    assert_eq!(script.cwd, program.root);
-}
-
-/// Resolves package.json scripts when destack.json tasks are absent.
-#[test]
-fn test_resolve_script_command_falls_back_to_package_json() {
-    // setup
-    let program = TestProgram::new("script_package");
-    program.write_package_json(json!({
-        "scripts": {
-            "start": "echo pkg",
-        },
-    }));
-
-    // resolve the script command
-    let script = resolve_script_command(&program.program_args(), "start")
-        .expect("script lookup should succeed")
-        .expect("script should be found");
-
-    // assert package.json script wins
-    assert_eq!(script.source, ScriptSource::PackageJson);
-    assert_eq!(script.command, "echo pkg");
     assert_eq!(script.cwd, program.root);
 }
 

@@ -137,7 +137,7 @@ just app/full
 | `daemon` | Manage the background daemon service. |
 | `dev` | Developer workflows, including integrated release flows. |
 
-`run` resolves `destack.json` tasks first, then `package.json` scripts when the argument is not a file path.
+`run` resolves `destack.json` tasks when the argument is not a file path.
 
 ## Common flags
 

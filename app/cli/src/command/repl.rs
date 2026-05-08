@@ -44,7 +44,7 @@ pub fn run(args: &ReplArgs) -> i32 {
 
     // build daemon command options
     let repository = args.program.setup();
-    let target_name = match default_target_for_repository(&args.program, &repository) {
+    let target_name = match default_target_for_repository(&args.program, repository.clone()) {
         Ok(default_target) => {
             let fallback = default_target.as_deref().unwrap_or("native");
             target_name_from_args(&args.target, fallback)

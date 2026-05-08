@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_resolver::{Resolver, ResolverOptions};
-use destack_workspace::{DestackDeclaration, Repository, Revision, Workspace};
+use destack_resolver::{CachePolicy, Resolver, ResolverContext, ResolverOptions};
+use destack_workspace::{DestackConfig, Repository, Revision, Workspace};
 
 use crate::common::ProgramArgs;
 use crate::error::{CliError, CliResult};
@@ -41,15 +41,9 @@ pub fn workspace_context(
     let workspace = repository
         .workspace(revision)
         .map_err(|error| CliError::message(format!("failed to derive workspace: {error}")))?;
-    let workspace_options = repository.workspace_options(revision).map_err(|error| {
-        CliError::message(format!("failed to derive workspace options: {error}"))
-    })?;
     let resolver = Resolver::from_repository(
         repository.clone(),
-        ResolverOptions::workspace_defaults(
-            repository.workspace_root().to_path_buf(),
-            workspace_options.as_ref(),
-        ),
+        ResolverOptions::workspace_defaults(repository.workspace_root().to_path_buf()),
     );
     Ok(WorkspaceContext {
         repository,
@@ -78,7 +72,7 @@ pub fn find_destack_config(
 
     loop {
         let candidate = directory.join("destack.json");
-        match repository.destack_declaration_for_path(revision, &candidate) {
+        match repository.destack_config_for_path(revision, &candidate) {
             Ok(Some(_)) => return Some(candidate),
             Ok(None) => {}
             Err(_) => return None,
@@ -90,17 +84,17 @@ pub fn find_destack_config(
     }
 }
 
-/// Load one `destack.json` declaration from one revision.
-pub fn load_destack_declaration(
-    repository: &Repository,
+/// Load one `destack.json` config from one revision.
+pub fn load_destack_config(
+    resolver: &Resolver,
     revision: Revision,
     path: &Path,
-) -> CliResult<DestackDeclaration> {
-    repository
-        .destack_declaration_for_path(revision, path)
-        .map_err(|error| CliError::message(format!("failed to load {}: {error}", path.display())))?
-        .map(|declaration| declaration.as_ref().clone())
-        .ok_or_else(|| CliError::message(format!("failed to load {}", path.display())))
+) -> CliResult<DestackConfig> {
+    let mut context = ResolverContext::new(revision);
+
+    resolver
+        .read_destack(path, &mut context, CachePolicy::Reload)
+        .map_err(|error| CliError::message(format!("failed to load {}: {error}", path.display())))
 }
 
 /// Resolve a destack.json path based on program args.
@@ -151,75 +145,85 @@ pub fn resolve_destack_config_path(
 }
 
 /// Resolve a destack.json path and load it.
-pub fn load_destack_declaration_for_program(
+pub fn load_destack_config_for_program(
     program_args: &ProgramArgs,
+    resolver: &Resolver,
     repository: &Repository,
     revision: Revision,
     cwd: &Path,
-) -> CliResult<DestackDeclaration> {
+) -> CliResult<DestackConfig> {
     let path = resolve_destack_config_path(program_args, repository, revision, cwd)?;
-    load_destack_declaration(repository, revision, &path)
+    load_destack_config(resolver, revision, &path)
 }
 
 /// Resolve the default target from destack.json when available.
 pub fn default_target_for_program(
     program_args: &ProgramArgs,
+    resolver: &Resolver,
     repository: &Repository,
     revision: Revision,
     cwd: &Path,
 ) -> CliResult<Option<String>> {
     // honor explicit config paths
     if program_args.config.is_some() {
-        let declaration =
-            load_destack_declaration_for_program(program_args, repository, revision, cwd)?;
-        return Ok(declaration.package_options().default_target);
+        let config =
+            load_destack_config_for_program(program_args, resolver, repository, revision, cwd)?;
+        return Ok(config.default_target);
     }
 
     // fall back to auto discovery when present
     let Some(path) = find_destack_config(repository, revision, cwd) else {
         return Ok(None);
     };
-    let declaration = load_destack_declaration(repository, revision, &path)?;
-    Ok(declaration.package_options().default_target)
+    let config = load_destack_config(resolver, revision, &path)?;
+    Ok(config.default_target)
 }
 
 /// Resolve the default target using a repository resolver.
 pub fn default_target_for_repository(
     program_args: &ProgramArgs,
-    repository: &Repository,
+    repository: Arc<Repository>,
 ) -> CliResult<Option<String>> {
     // build a resolver using the repository configuration
     let reference = destack_workspace::Ref::for_workspace_root(repository.workspace_root());
     let revision = repository.current(&reference).map_err(|error| {
         CliError::message(format!("failed to resolve current revision: {error}"))
     })?;
+    let resolver = Resolver::from_repository(
+        repository.clone(),
+        ResolverOptions::workspace_defaults(repository.workspace_root().to_path_buf()),
+    );
+
     default_target_for_program(
         program_args,
-        repository,
+        &resolver,
+        &repository,
         revision,
         repository.workspace_root(),
     )
 }
 
 /// Resolve a destack.json for a path and load it.
-pub fn load_destack_declaration_for_path(
+pub fn load_destack_config_for_path(
+    resolver: &Resolver,
     repository: &Repository,
     revision: Revision,
     path: &Path,
-) -> CliResult<DestackDeclaration> {
+) -> CliResult<DestackConfig> {
     // resolve the config path from the directory
     let destack_config_path = find_destack_config(repository, revision, path)
         .ok_or_else(|| CliError::message("destack.json not found"))?;
 
     // load the resolved config
-    load_destack_declaration(repository, revision, &destack_config_path)
+    load_destack_config(resolver, revision, &destack_config_path)
 }
 
 /// Load destack.json files for all packages in a workspace.
-pub fn load_workspace_declarations(
+pub fn load_workspace_configs(
+    resolver: &Resolver,
     repository: &Repository,
     revision: Revision,
-) -> CliResult<Vec<DestackDeclaration>> {
+) -> CliResult<Vec<DestackConfig>> {
     // collect unique config paths
     let mut configs = BTreeMap::new();
     let package_paths = repository
@@ -236,7 +240,7 @@ pub fn load_workspace_declarations(
     // load unique configs in a stable order
     let mut resolved = Vec::new();
     for (path, _) in configs {
-        resolved.push(load_destack_declaration(repository, revision, &path)?);
+        resolved.push(load_destack_config(resolver, revision, &path)?);
     }
 
     // return the loaded configs

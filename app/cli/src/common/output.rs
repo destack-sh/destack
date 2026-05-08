@@ -3,8 +3,7 @@ use std::path::PathBuf;
 use clap::{Args, ValueEnum};
 use destack_artifact::{EmitFormat, Platform, Runtime};
 use destack_workspace::{
-    DebugInfoLevel, EmitArtifact, LinkMode, LtoMode, OptimizeLevel, SourceMapMode, StripLevel,
-    Target,
+    DebugInfoLevel, LtoMode, OptimizeLevel, SourceMapMode, StripLevel, Target,
 };
 
 /// Emit format for CLI (maps to workspace EmitFormat).
@@ -96,51 +95,6 @@ impl From<LtoArg> for LtoMode {
             LtoArg::None => LtoMode::None,
             LtoArg::Thin => LtoMode::Thin,
             LtoArg::Full => LtoMode::Full,
-        }
-    }
-}
-
-/// Link mode for CLI (maps to workspace LinkMode).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub enum LinkModeArg {
-    /// Prefer static linking.
-    Static,
-    /// Prefer dynamic linking.
-    Dynamic,
-}
-
-impl From<LinkModeArg> for LinkMode {
-    fn from(mode: LinkModeArg) -> Self {
-        match mode {
-            LinkModeArg::Static => LinkMode::Static,
-            LinkModeArg::Dynamic => LinkMode::Dynamic,
-        }
-    }
-}
-
-/// Extra artifacts to emit for CLI (maps to workspace EmitArtifact).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub enum ArtifactArg {
-    /// Lowered MIR.
-    Mir,
-    /// Backend IR.
-    Ir,
-    /// Assembly output.
-    Asm,
-    /// Object file output.
-    Object,
-    /// Symbol table output.
-    Symbols,
-}
-
-impl From<ArtifactArg> for EmitArtifact {
-    fn from(value: ArtifactArg) -> Self {
-        match value {
-            ArtifactArg::Mir => EmitArtifact::Mir,
-            ArtifactArg::Ir => EmitArtifact::Ir,
-            ArtifactArg::Asm => EmitArtifact::Asm,
-            ArtifactArg::Object => EmitArtifact::Object,
-            ArtifactArg::Symbols => EmitArtifact::Symbols,
         }
     }
 }
@@ -249,10 +203,6 @@ pub struct TargetArgs {
     #[arg(long = "source-map")]
     pub source_map: bool,
 
-    /// Extra artifacts to emit (mir, ir, asm, object, symbols).
-    #[arg(long = "artifact", value_enum, value_delimiter = ',')]
-    pub artifacts: Vec<ArtifactArg>,
-
     /// Enable optimization.
     #[arg(long)]
     pub optimize: bool,
@@ -280,10 +230,6 @@ pub struct TargetArgs {
     /// Link time optimization mode.
     #[arg(long = "lto", value_enum)]
     pub lto: Option<LtoArg>,
-
-    /// Link mode (static or dynamic).
-    #[arg(long = "link-mode", value_enum)]
-    pub link_mode: Option<LinkModeArg>,
 
     /// CPU name for native codegen.
     #[arg(long = "cpu")]
@@ -326,7 +272,6 @@ impl TargetArgs {
             || self.out_file.is_some()
             || self.declaration
             || self.source_map
-            || !self.artifacts.is_empty()
             || self.optimize
             || self.opt_level.is_some()
             || self.debug
@@ -334,7 +279,6 @@ impl TargetArgs {
             || self.debug_info.is_some()
             || self.strip.is_some()
             || self.lto.is_some()
-            || self.link_mode.is_some()
     }
 
     /// Get the target name (for named targets).
@@ -368,9 +312,6 @@ impl TargetArgs {
         if !self.cpu_features.is_empty() {
             target.cpu_features = self.cpu_features.clone();
         }
-        if let Some(link_mode) = self.link_mode {
-            target.link_mode = link_mode.into();
-        }
         if let Some(lto) = self.lto {
             target.lto_mode = lto.into();
         }
@@ -395,14 +336,6 @@ impl TargetArgs {
         // apply emission flags
         target.declaration = self.declaration;
         target.source_map_mode = self.source_map.then_some(SourceMapMode::External);
-        if !self.artifacts.is_empty() {
-            target.artifacts = self
-                .artifacts
-                .iter()
-                .copied()
-                .map(EmitArtifact::from)
-                .collect();
-        }
 
         // apply optimization settings
         let profile = resolve_profile(self.debug, self.release);

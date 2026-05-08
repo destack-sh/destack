@@ -16,7 +16,7 @@ use crate::pipeline::watch::{
     WatchCompileContext, WatchLoopOptions, build_watch_loop_options, emit_watch_compile_report,
     run_daemon_watch_command, watch_error,
 };
-use crate::pipeline::workspace::{load_destack_declaration_for_program, workspace_context};
+use crate::pipeline::workspace::{load_destack_config_for_program, workspace_context};
 use clap::Args;
 
 /// State for build watch mode.
@@ -62,17 +62,17 @@ pub fn run(args: &BuildArgs) -> i32 {
             Ok(context) => context,
             Err(error) => return report_error("build", &args.report, &error.to_string()),
         };
-        let declaration = match load_destack_declaration_for_program(
+        let config = match load_destack_config_for_program(
             &args.program,
+            &context.resolver,
             &context.repository,
             context.revision,
             context.repository.workspace_root(),
         ) {
-            Ok(declaration) => declaration,
+            Ok(config) => config,
             Err(error) => return report_error("build", &args.report, &error.to_string()),
         };
-        declaration
-            .package_options()
+        config
             .default_target
             .unwrap_or_else(|| "default".to_string())
     };

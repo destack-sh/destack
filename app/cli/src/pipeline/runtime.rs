@@ -1,38 +1,11 @@
 use destack_artifact::ArtifactKey;
 use destack_runtime::runtime::bindings::BindingPolicy;
 use destack_source::{ModuleId, ProfileId, TargetId};
-use destack_vm::{
-    ExecutionMode, Isolate, IsolateId, IsolateOptions, TrustPolicy as VmTrustPolicy, Value,
-};
-use destack_workspace::{DebugMode, Repository, Revision, Target, TrustPolicy};
+use destack_vm::{Isolate, IsolateId, IsolateOptions, Value};
+use destack_workspace::{Repository, Revision, Target};
 
 use crate::common::InputSource;
 use crate::error::{CliError, CliResult};
-
-/// Create isolate options from target configuration.
-pub fn isolate_options_for_target(target: &Target) -> IsolateOptions {
-    // start from default isolate options
-    let mut options = IsolateOptions::default();
-
-    // apply trust policy defaults
-    let trust_policy = match target.trust_policy {
-        TrustPolicy::Untrusted => VmTrustPolicy::Untrusted,
-        TrustPolicy::Trusted => VmTrustPolicy::Trusted,
-        TrustPolicy::Internal => VmTrustPolicy::Internal,
-    };
-    options.apply_trust_policy(trust_policy);
-
-    // enable debug execution when requested
-    let execution_mode = match target.debug_mode {
-        DebugMode::Vm => ExecutionMode::Debug,
-        DebugMode::Auto if target.debug => ExecutionMode::Debug,
-        _ => ExecutionMode::Runtime,
-    };
-    options.execution.mode = execution_mode;
-
-    // return resolved options
-    options
-}
 
 /// Create binding policy from target configuration.
 pub fn binding_policy_for_target(target: &Target) -> BindingPolicy {
@@ -114,7 +87,13 @@ pub fn exit_status_from_value(value: Value) -> i32 {
                 1
             }
         }
-        Value::Int { value, .. } => value.clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32,
+        Value::Int { value, .. } => {
+            let min = i128::from(i32::MIN);
+            let max = i128::from(i32::MAX);
+
+            value.clamp(min, max) as i32
+        }
+        Value::UInt { value, .. } => value.min(i32::MAX as u128) as i32,
         _ => 0,
     }
 }

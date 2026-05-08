@@ -14,8 +14,6 @@ use crate::pipeline::workspace::{
 pub enum ScriptSource {
     /// Script came from destack.json tasks.
     Destack,
-    /// Script came from package.json scripts.
-    PackageJson,
 }
 
 /// Resolved script command for execution.
@@ -44,7 +42,7 @@ pub struct TaskSpec {
     pub cwd: Option<PathBuf>,
 }
 
-/// Resolve a script command from destack.json tasks or package.json scripts.
+/// Resolve a script command from destack.json tasks.
 pub fn resolve_script_command(
     program_args: &ProgramArgs,
     script_name: &str,
@@ -207,64 +205,7 @@ pub(crate) fn resolve_script_command_with_resolver(
         }));
     }
 
-    if let Some(script) = resolve_package_script(script_name, repository, revision, cwd)? {
-        return Ok(Some(script));
-    }
-
     Ok(None)
-}
-
-/// Resolve a package.json script by name.
-fn resolve_package_script(
-    name: &str,
-    repository: &destack_workspace::Repository,
-    revision: destack_workspace::Revision,
-    cwd: &Path,
-) -> CliResult<Option<ScriptCommand>> {
-    // find the semantic package for the current path
-    let package = repository.nearest_package(revision, cwd).map_err(|error| {
-        CliError::message(format!(
-            "failed to resolve package for {}: {error}",
-            cwd.display()
-        ))
-    })?;
-    let Some(package) = package else {
-        return Ok(None);
-    };
-
-    // load the tracked package declaration from the active revision
-    let declaration = repository
-        .package_declaration_for_package(revision, package.as_ref())
-        .map_err(|error| {
-            CliError::message(format!(
-                "failed to load package.json for {}: {error}",
-                cwd.display()
-            ))
-        })?;
-    let Some(declaration) = declaration else {
-        return Ok(None);
-    };
-
-    let Some(scripts) = declaration.manifest.scripts.as_ref() else {
-        return Ok(None);
-    };
-
-    let Some(command) = scripts.get(name) else {
-        return Ok(None);
-    };
-
-    let cwd = declaration
-        .path
-        .parent()
-        .map(PathBuf::from)
-        .unwrap_or_else(|| cwd.to_path_buf());
-
-    Ok(Some(ScriptCommand {
-        name: name.to_string(),
-        command: command.to_string(),
-        cwd,
-        source: ScriptSource::PackageJson,
-    }))
 }
 
 /// Resolve the base directory for destack.json tasks.

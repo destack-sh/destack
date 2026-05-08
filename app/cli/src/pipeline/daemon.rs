@@ -7,15 +7,15 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use destack_daemon::protocol::{
     CommandEnvVar, CommandInput, CommandMessagePayload, CommandOutputChunk, CommandPayload,
     CommandRequest, CommandResponse, CommandRunPayload, CommandTargetOverrides,
-    CommonCommandOptions, ConfigOverride, DaemonMessageKind as ProtocolMessageKind,
+    CommonCommandOptions, ConfigPatch, DaemonMessageKind as ProtocolMessageKind,
     DaemonMessageRecord, DaemonQuery, DaemonQueryResponse, DaemonRequest, DaemonResponse,
     DiagnosticBatch, FileUpdateImage, OpenRootRequest, OutputStream, ProtocolClient,
     QueryRequestBody, QueryRequestPayload, QueryResponseBody, RootHandleId, RootOpenOptions,
     WatchBatch as ProtocolWatchBatch, WatchBatchRequest, WatchEvent, WatchStatus,
 };
 use destack_daemon::{
-    DaemonConnectOptions, DaemonConnection, DaemonInstance, DaemonLaunchConfig,
-    connect_in_process_daemon, connect_ipc_daemon,
+    DaemonConnectOptions, DaemonConnection, DaemonInstance, DaemonLaunchConfig, DaemonMessageKind,
+    WatchBatch, connect_in_process_daemon, connect_ipc_daemon,
 };
 use destack_session::SessionEventHandler;
 use destack_source::{DiagnosticCollection, File, FileId, FileType, FileWatchStatus};
@@ -218,7 +218,7 @@ impl CommandOptionsBuilder {
             runtime_overrides: None,
             profile: None,
             env: Vec::new(),
-            overrides: config_overrides_from_program(program),
+            config_patches: config_patches_from_program(program),
             watch: false,
             dry_run: false,
         };
@@ -268,9 +268,9 @@ impl CommandOptionsBuilder {
         self
     }
 
-    /// Set config overrides.
-    pub fn overrides(mut self, overrides: Vec<ConfigOverride>) -> Self {
-        self.options.overrides = overrides;
+    /// Set config patches.
+    pub fn config_patches(mut self, patches: Vec<ConfigPatch>) -> Self {
+        self.options.config_patches = patches;
         self
     }
 
@@ -286,13 +286,13 @@ impl CommandOptionsBuilder {
     }
 }
 
-/// Build command config overrides from explicit CLI formatter and linter options.
-pub fn config_overrides_from_program(program: &ProgramArgs) -> Vec<ConfigOverride> {
-    let mut overrides = Vec::new();
+/// Build command config patches from explicit CLI formatter and linter options.
+pub fn config_patches_from_program(program: &ProgramArgs) -> Vec<ConfigPatch> {
+    let mut patches = Vec::new();
 
     // formatter
     if let Some(value) = formatter_override_value(&program.formatter) {
-        overrides.push(ConfigOverride {
+        patches.push(ConfigPatch {
             path: "formatter".to_string(),
             value,
         });
@@ -300,13 +300,13 @@ pub fn config_overrides_from_program(program: &ProgramArgs) -> Vec<ConfigOverrid
 
     // linter
     if let Some(value) = linter_override_value(&program.linter) {
-        overrides.push(ConfigOverride {
+        patches.push(ConfigPatch {
             path: "linter".to_string(),
             value,
         });
     }
 
-    overrides
+    patches
 }
 
 /// Build one formatter override object from explicit CLI flags.
@@ -770,7 +770,7 @@ impl ProtocolDaemonClient {
     fn protocol_batch_for_root(
         &self,
         root: &Path,
-        batch: &destack_daemon::WatchBatch,
+        batch: &WatchBatch,
     ) -> Option<ProtocolWatchBatch> {
         let events: Vec<WatchEvent> = batch
             .events
@@ -831,10 +831,7 @@ impl ProtocolDaemonClient {
 }
 
 impl WatchDaemon for ProtocolDaemonClient {
-    fn apply_watch_batch(
-        &self,
-        batch: &destack_daemon::WatchBatch,
-    ) -> CliResult<WatchBatchSummary> {
+    fn apply_watch_batch(&self, batch: &WatchBatch) -> CliResult<WatchBatchSummary> {
         let mut summary = WatchBatchSummary::default();
         for handle in &self.handles {
             let Some(protocol_batch) = self.protocol_batch_for_root(&handle.root, batch) else {
@@ -853,9 +850,9 @@ impl WatchMessage {
     /// Build a watch message from a protocol record.
     pub fn from_record(record: &DaemonMessageRecord) -> Self {
         let kind = match record.kind {
-            ProtocolMessageKind::Info => destack_daemon::DaemonMessageKind::Info,
-            ProtocolMessageKind::Warning => destack_daemon::DaemonMessageKind::Warning,
-            ProtocolMessageKind::Error => destack_daemon::DaemonMessageKind::Error,
+            ProtocolMessageKind::Info => DaemonMessageKind::Info,
+            ProtocolMessageKind::Warning => DaemonMessageKind::Warning,
+            ProtocolMessageKind::Error => DaemonMessageKind::Error,
         };
         Self {
             kind,
@@ -913,7 +910,6 @@ pub fn target_overrides_from_args(args: &TargetArgs) -> Option<CommandTargetOver
         platform: args.platform.map(Into::into),
         cpu: args.cpu.clone(),
         cpu_features: args.cpu_features.clone(),
-        link_mode: args.link_mode.map(Into::into),
         lto: args.lto.map(Into::into),
         linker: args.linker.clone(),
         link_args: args.link_args.clone(),
@@ -922,7 +918,6 @@ pub fn target_overrides_from_args(args: &TargetArgs) -> Option<CommandTargetOver
         out_file: args.out_file.clone(),
         declaration: args.declaration,
         source_map: args.source_map,
-        artifacts: args.artifacts.iter().copied().map(Into::into).collect(),
         optimize: args.optimize,
         opt_level: args.opt_level.map(OptimizeLevel::from),
         debug: args.debug,
@@ -1440,7 +1435,7 @@ fn filter_status_for_root(status: &FileWatchStatus, root: &Path) -> Option<FileW
     }
 }
 
-fn watch_batch_timestamps(batch: &destack_daemon::WatchBatch) -> (u64, u64) {
+fn watch_batch_timestamps(batch: &WatchBatch) -> (u64, u64) {
     let duration = batch.ended_at.saturating_duration_since(batch.started_at);
     let end = SystemTime::now()
         .duration_since(UNIX_EPOCH)
