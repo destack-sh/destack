@@ -1,29 +1,45 @@
 # Materialization
 
-Macro expansion changes visible declarations before checking, and materialization fills checked implementation details after checking.
+Expansion fixes the visible declaration graph, and materialization fills checked implementation details.
 
 ## bodies
 
-### materialize fills checked bodies
+### materialize receives expansion state
 
 ```ds
 newtype fastRoute = (string,);
 
-extension of fastRoute implements Patcher<FunctionDeclaration>
+type FastRouteState = {
+    value: string;
+};
+
+extension of fastRoute implements Patcher<FunctionDeclaration, FastRouteState>
 {
-    static expand(target: FunctionDeclaration, context: ExpansionContext, config: this): void {
+    static expand(
+        target: FunctionDeclaration,
+        context: ExpansionContext,
+        config: this,
+    ): FastRouteState {
         const declaration = comptime eval<Declaration>(ds`
             function ${context.name}(): string;
         `);
 
         context.replace(declaration);
+
+        return {
+            value: config[0],
+        };
     }
 
-    static materialize(target: FunctionDeclaration, context: MaterializationContext, config: this): void {
-        const value = config[0];
+    static materialize(
+        target: FunctionDeclaration,
+        context: MaterializationContext,
+        config: this,
+        state: FastRouteState,
+    ): void {
         const implementation = comptime eval<Declaration>(ds`
             function ${context.name}(): string {
-                return ${value};
+                return ${state.value};
             }
         `);
 
@@ -38,3 +54,32 @@ function route(): string {
 
 route satisfies () => string;
 ```
+
+### materialize cannot add visible declarations
+
+```ds
+newtype lateExport = ();
+
+extension of lateExport implements Patcher<FunctionDeclaration>
+{
+    static materialize(
+        target: FunctionDeclaration,
+        context: MaterializationContext,
+        config: this,
+        state: void,
+    ): void {
+        const declaration = comptime eval<Declaration>(ds`
+            function lateName(): string;
+        `);
+
+        context.add(declaration);
+    }
+}
+
+@lateExport
+function load(): string {
+    return "load";
+}
+```
+
+- contains: add
