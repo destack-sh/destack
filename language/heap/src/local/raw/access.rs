@@ -24,7 +24,7 @@ impl RawSpace {
         let (location, byte_offset) = self.resolve_range(pointer, start, byte_len)?;
         let offset = location.base.offset() + byte_offset;
 
-        self.mapping.address(offset, byte_len)
+        Ok(self.mapping.address(offset, byte_len)?)
     }
 
     /// Return one checked mutable address for a live raw byte range.
@@ -37,7 +37,7 @@ impl RawSpace {
         let (location, byte_offset) = self.resolve_range(pointer, start, byte_len)?;
         let offset = location.base.offset() + byte_offset;
 
-        self.mapping.address(offset, byte_len)
+        Ok(self.mapping.address(offset, byte_len)?)
     }
 
     /// Return whether one raw pointer currently refers to one live allocation.
@@ -65,7 +65,7 @@ impl RawSpace {
     ) -> HeapResult<Vec<u8>> {
         let offset = location.base.offset() + byte_offset;
 
-        self.mapping.bytes(offset, byte_len)
+        Ok(self.mapping.bytes(offset, byte_len)?)
     }
 
     /// Return the remaining byte length for one raw allocation.
@@ -86,7 +86,7 @@ impl RawSpace {
     ) -> HeapResult<()> {
         let offset = location.base.offset() + byte_offset;
 
-        self.mapping.read(offset, target)
+        Ok(self.mapping.read(offset, target)?)
     }
 
     /// Overwrite one raw byte range.
@@ -127,7 +127,7 @@ impl RawSpace {
         let offset = location.base.offset() + byte_offset;
 
         unsafe {
-            self.mapping.write_mapped(offset, bytes);
+            self.mapping.copy_mapped_bytes(offset, bytes);
         }
 
         Ok(())
@@ -176,7 +176,7 @@ impl RawSpace {
                     let offset = span.first_offset + slot_offset;
 
                     unsafe {
-                        self.mapping.write_mapped(offset, bytes);
+                        self.mapping.copy_mapped_bytes(offset, bytes);
                     }
 
                     self.usage.resize(previous_byte_len, bytes.len());
@@ -188,7 +188,7 @@ impl RawSpace {
                 let new_location = match self.allocate_small_bytes(bytes)? {
                     Some(new_slot) => RawPlace::Small(new_slot),
                     None => {
-                        let pages = self.allocate_page_run_zeroed(bytes.len())?;
+                        let pages = self.allocate_page_run(bytes.len())?;
                         let allocation_id = self.insert_large_allocation(bytes.len(), 1, pages)?;
                         let Some(allocation) = self.large_allocation(allocation_id) else {
                             return Err(HeapError::MissingLargeAllocation {
@@ -198,7 +198,7 @@ impl RawSpace {
                         let first_offset = allocation.first_offset;
 
                         unsafe {
-                            self.mapping.write_mapped(first_offset, bytes);
+                            self.mapping.copy_mapped_bytes(first_offset, bytes);
                         }
 
                         RawPlace::Large(allocation_id)

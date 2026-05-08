@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
+use destack_memory::AddressSpace;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
 use super::{SharedRawAllocation, SharedRawSpace};
-use crate::allocator::{AddressSpace, PageRunCache};
+use crate::allocator::PageRunCache;
 use crate::{AllocationUsage, Allocator, HeapResult, PageId, PageRun};
 
 /// One frozen shared raw-space allocation image.
@@ -112,7 +113,7 @@ impl SharedRawSpace {
     pub fn fork(&self) -> HeapResult<Self> {
         let allocations = self.allocations.read();
         let state = self.state.lock();
-        let mapping = self.mapping.write().fork()?;
+        let mapping = self.mapping.write().fork_lazy()?;
         let base_address = mapping.base_address();
 
         let forked = Self {
@@ -131,7 +132,7 @@ impl SharedRawSpace {
                         |allocation: &Arc<RwLock<SharedRawAllocation>>| -> HeapResult<_> {
                             let allocation = allocation.read();
                             let pages = if allocation.is_vacant() {
-                                crate::PageRun::empty()
+                                PageRun::empty()
                             } else {
                                 self.allocator.share_page_run(allocation.pages)?
                             };
@@ -171,7 +172,7 @@ impl SharedRawSpace {
                     let bytes = allocator.bytes_to_vec_from(&allocation.pages, 0, byte_len)?;
                     let pages = allocator.allocate_pages(byte_len)?;
 
-                    mapping.write(allocation.first_offset, &bytes[..allocation.len])?;
+                    mapping.copy_bytes(allocation.first_offset, &bytes[..allocation.len])?;
 
                     Arc::new(RwLock::new(SharedRawAllocation::new(
                         allocation.first_offset,
@@ -215,7 +216,7 @@ impl SharedRawSpace {
                     |allocation: &Arc<RwLock<SharedRawAllocation>>| -> HeapResult<_> {
                         let allocation = allocation.read();
                         let pages = if allocation.is_vacant() {
-                            crate::PageRun::empty()
+                            PageRun::empty()
                         } else {
                             let byte_len = allocation.pages.len() * self.allocator.page_bytes();
                             let bytes = self
@@ -224,7 +225,7 @@ impl SharedRawSpace {
                                 .bytes(allocation.first_offset, byte_len)?;
 
                             // images own the captured bytes
-                            self.allocator.allocate_bytes(&bytes)?
+                            self.allocator.allocate_image_bytes(&bytes)?
                         };
 
                         Ok(SharedRawAllocationImage {

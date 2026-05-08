@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use parking_lot::Mutex;
 
@@ -97,21 +97,11 @@ impl Allocator {
         self.allocate_run(page_count)
     }
 
-    /// Allocate zeroed pages for one byte length.
-    pub fn allocate_zeroed(&self, byte_len: usize) -> HeapResult<PageRun> {
-        let run = self.allocate_pages(byte_len)?;
+    /// Allocate image pages and copy one byte slice into them.
+    pub(crate) fn allocate_image_bytes(&self, bytes: &[u8]) -> HeapResult<PageRun> {
+        let page_run = self.allocate_pages(bytes.len())?;
 
-        // materialize image bytes only for callers that read allocator pages
-        self.zero_run(run)?;
-
-        Ok(run)
-    }
-
-    /// Allocate pages and copy one byte slice into them.
-    pub fn allocate_bytes(&self, bytes: &[u8]) -> HeapResult<PageRun> {
-        let page_run = self.allocate_zeroed(bytes.len())?;
-
-        // initialize the new logical page range
+        // initialize the frozen logical page range
         self.write_bytes(&page_run, 0, bytes)?;
 
         Ok(page_run)
@@ -317,16 +307,6 @@ impl Allocator {
         Ok(())
     }
 
-    /// Zero one full run before reuse.
-    pub(super) fn zero_run(&self, run: PageRun) -> HeapResult<()> {
-        // clear each page in the run
-        for page_id in run.page_ids() {
-            self.store_page_bytes(page_id, vec![0; self.page_bytes()].into_boxed_slice())?;
-        }
-
-        Ok(())
-    }
-
     /// Allocate one free run large enough for the requested size.
     fn allocate_free_run(&self, page_count: usize) -> Option<PageRun> {
         let mut state = self.state.lock();
@@ -418,7 +398,7 @@ impl Allocator {
 
         if let Some(chunk_index) = current_chunk_index
             && chunk_index < chunk_count
-            && self.chunk_has_capacity(chunk_index, page_count)?
+            && self.chunk_has_capacity(chunk_index, page_count)
         {
             return Ok(chunk_index);
         }
@@ -443,16 +423,16 @@ impl Allocator {
     }
 
     /// Report whether one chunk still has capacity for one run.
-    fn chunk_has_capacity(&self, chunk_index: usize, page_count: usize) -> HeapResult<bool> {
+    fn chunk_has_capacity(&self, chunk_index: usize, page_count: usize) -> bool {
         let Some(chunk) = self.chunk(chunk_index) else {
-            return Ok(false);
+            return false;
         };
 
         chunk.has_capacity(page_count, self.pages_per_chunk())
     }
 
     /// Return one logical run reference count.
-    fn run_ref_count(&self, run: PageRun) -> HeapResult<&std::sync::atomic::AtomicU32> {
+    fn run_ref_count(&self, run: PageRun) -> HeapResult<&AtomicU32> {
         let (chunk_index, chunk_page_index) = self.chunk_position(run.first_page);
         let Some(chunk) = self.chunk(chunk_index) else {
             return Err(HeapError::MissingPage {

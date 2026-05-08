@@ -261,8 +261,7 @@ pub(crate) fn execute_free_raw(
     let pointer = machine.load_word_at(pointer).as_raw_pointer();
     let heap = machine.heap_mut();
     match heap.free_raw(pointer) {
-        Ok(true) => {}
-        Ok(false) => return Err(Error::InvalidRawPointer),
+        Ok(()) => {}
         Err(HeapError::InvalidRawPointer { .. }) => {
             return Err(Error::InvalidRawPointer);
         }
@@ -349,8 +348,7 @@ pub(crate) fn execute_drop_heap(
 
     // release local heap storage immediately
     match machine.heap_mut().free_heap(reference) {
-        Ok(true) => Ok(()),
-        Ok(false) => Err(Error::InvalidHeapReference),
+        Ok(()) => Ok(()),
         Err(HeapError::InvalidHeapReference { .. }) => Err(Error::InvalidHeapReference),
         Err(error) => Err(Error::from(error)),
     }
@@ -366,8 +364,7 @@ pub(crate) fn execute_drop_shared_heap(
 
     // release shared heap storage immediately
     match machine.shared().free_heap(reference) {
-        Ok(true) => Ok(()),
-        Ok(false) => Err(Error::InvalidSharedHeapReference),
+        Ok(()) => Ok(()),
         Err(HeapError::InvalidSharedHeapReference { .. }) => Err(Error::InvalidSharedHeapReference),
         Err(error) => Err(Error::from(error)),
     }
@@ -427,8 +424,7 @@ fn drop_local_slice_backing(
 
     // release local heap backing storage
     match machine.heap_mut().free_heap(reference) {
-        Ok(true) => Ok(()),
-        Ok(false) => Err(Error::InvalidHeapReference),
+        Ok(()) => Ok(()),
         Err(HeapError::InvalidHeapReference { .. }) => Err(Error::InvalidHeapReference),
         Err(error) => Err(Error::from(error)),
     }
@@ -444,8 +440,7 @@ fn drop_shared_slice_backing(
 
     // release shared heap backing storage
     match machine.shared().free_heap(reference) {
-        Ok(true) => Ok(()),
-        Ok(false) => Err(Error::InvalidSharedHeapReference),
+        Ok(()) => Ok(()),
         Err(HeapError::InvalidSharedHeapReference { .. }) => Err(Error::InvalidSharedHeapReference),
         Err(error) => Err(Error::from(error)),
     }
@@ -477,8 +472,7 @@ pub(crate) fn execute_free_shared_raw(
     // free the pointed shared raw allocation
     let pointer = machine.load_word_at(pointer).as_shared_raw_pointer();
     match machine.shared().free_raw(pointer) {
-        Ok(true) => {}
-        Ok(false) => return Err(Error::InvalidSharedRawPointer),
+        Ok(()) => {}
         Err(HeapError::InvalidSharedRawPointer { .. }) => {
             return Err(Error::InvalidSharedRawPointer);
         }

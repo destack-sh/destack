@@ -1,6 +1,7 @@
 use super::Promotion;
 use crate::local::space::{
-    GcKind, GcStats, HeapPageMapEntry, HeapPlace, HeapSpace, YoungPlace, YoungRunCursor,
+    GcKind, GcStats, HeapPageMapEntry, HeapPlace, HeapSpace, LargeAllocationId, YoungPlace,
+    YoungRunCursor,
 };
 use crate::{
     HeapError, HeapReference, HeapResult, RootSet, RootSlot, ScanSource, TraceQueue,
@@ -121,8 +122,8 @@ impl HeapSpace {
             }
 
             // otherwise free unreachable young allocations
-            let did_free = match self.free(reference) {
-                Ok(did_free) => did_free,
+            match self.free(reference) {
+                Ok(()) => {}
                 Err(error) => {
                     self.discard_young_promotions(promotions)?;
 
@@ -133,10 +134,8 @@ impl HeapSpace {
                 }
             };
 
-            if did_free {
-                freed_allocations += 1;
-                freed_bytes += location.byte_len as u64;
-            }
+            freed_allocations += 1;
+            freed_bytes += location.byte_len as u64;
         }
 
         // rewrite references only after every target has been staged
@@ -398,7 +397,7 @@ impl HeapSpace {
     /// Queue every young reference discovered from one dirty large allocation.
     fn enqueue_dirty_large_allocation_references(
         &mut self,
-        allocation_id: crate::local::space::LargeAllocationId,
+        allocation_id: LargeAllocationId,
         pending: &mut HeapTraceQueue,
     ) -> HeapResult<()> {
         let Some(allocation) = self.large_allocation(allocation_id) else {

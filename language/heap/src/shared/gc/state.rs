@@ -292,7 +292,7 @@ pub(crate) struct SharedGcState {
     /// The next reference index to sweep.
     pub(crate) sweep_cursor: AtomicUsize,
     /// The shared reference snapshot for the active sweep.
-    pub(crate) sweep_references: Mutex<Arc<[crate::SharedHeapReference]>>,
+    pub(crate) sweep_references: Mutex<Arc<[SharedHeapReference]>>,
     /// The number of mark items currently being traced.
     pub(crate) mark_inflight: AtomicUsize,
     /// The allocations freed so far in the active cycle.

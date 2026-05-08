@@ -1,3 +1,5 @@
+use std::ptr::write_bytes;
+
 use super::{
     LargeAllocation, LargeAllocationId, RawPageMapEntry, RawPlace, RawSmallSpanClass, RawSpace,
     SmallSpan,
@@ -64,7 +66,7 @@ impl RawSpace {
     }
 
     /// Free one raw allocation.
-    pub fn free(&mut self, pointer: RawPointer) -> HeapResult<bool> {
+    pub fn free(&mut self, pointer: RawPointer) -> HeapResult<()> {
         // resolve the live allocation first
         let Some(location) = self.resolve_location(pointer) else {
             return Err(HeapError::InvalidRawPointer { pointer });
@@ -80,7 +82,7 @@ impl RawSpace {
                 // update heap usage
                 self.usage.free(freed_bytes);
 
-                Ok(true)
+                Ok(())
             }
 
             // release one allocation in large space and its allocator pages
@@ -113,7 +115,7 @@ impl RawSpace {
                 self.unmap_page_run(first_offset, &pages);
                 self.release_page_run(pages)?;
 
-                Ok(true)
+                Ok(())
             }
         }
     }
@@ -129,7 +131,7 @@ impl RawSpace {
 
             Ok(RawPlace::Small(slot))
         } else {
-            let pages = self.allocate_large_pages(shape.byte_len)?;
+            let pages = self.allocate_page_run(shape.byte_len)?;
             let allocation_id =
                 self.insert_large_allocation(shape.byte_len, shape.alignment, pages)?;
             let Some(large_allocation) = self.large_allocation(allocation_id) else {
@@ -142,10 +144,10 @@ impl RawSpace {
             // initialize bytes before returning the raw pointer
             match payload {
                 Payload::Bytes(bytes) => unsafe {
-                    self.mapping.write_mapped(first_offset, bytes);
+                    self.mapping.copy_mapped_bytes(first_offset, bytes);
                 },
                 Payload::Zeroed => unsafe {
-                    std::ptr::write_bytes(
+                    write_bytes(
                         (self.mapping.base_address() + first_offset) as *mut u8,
                         0,
                         shape.byte_len,
@@ -252,7 +254,7 @@ impl RawSpace {
             if span.occupied_count < span.slot_count {
                 if span.occupied_count == 0 && span.pages.is_empty() {
                     let first_offset = span.first_offset;
-                    let pages = self.allocate_page_run_zeroed(class.span_bytes)?;
+                    let pages = self.allocate_page_run(class.span_bytes)?;
 
                     // materialize the full span before handing out slots
                     self.mapping.materialize(first_offset, class.span_bytes)?;
@@ -280,7 +282,7 @@ impl RawSpace {
 
         // otherwise allocate one fresh span for the size class
         let slot_count = (class.span_bytes / class.size_class).max(1);
-        let pages = self.allocate_page_run_zeroed(class.span_bytes)?;
+        let pages = self.allocate_page_run(class.span_bytes)?;
         let first_offset = self.reserve_space_range_aligned(class.span_bytes, class.size_class)?;
 
         // materialize the full span before handing out slots
@@ -342,10 +344,10 @@ impl RawSpace {
 
         match allocation {
             Payload::Bytes(bytes) => unsafe {
-                self.mapping.write_mapped(mapping_offset, bytes);
+                self.mapping.copy_mapped_bytes(mapping_offset, bytes);
             },
             Payload::Zeroed => unsafe {
-                std::ptr::write_bytes(
+                write_bytes(
                     (self.mapping.base_address() + mapping_offset) as *mut u8,
                     0,
                     class.byte_len,
@@ -460,7 +462,9 @@ impl RawSpace {
 
         Some(RawSmallSpanClass {
             size_class: size_class.bytes,
-            span_bytes: size_class.span_bytes(self.allocator.page_bytes(), self.small.span_bytes),
+            span_bytes: size_class
+                .span_bytes(self.allocator.page_bytes(), self.small.span_bytes)
+                .max(self.small.span_bytes),
             byte_len: shape.byte_len,
         })
     }
@@ -493,10 +497,5 @@ impl RawSpace {
         let byte_len = byte_len as u64;
 
         byte_len.div_ceil(page_bytes) * page_bytes
-    }
-
-    /// Allocate one dedicated raw page run.
-    fn allocate_large_pages(&mut self, byte_len: usize) -> HeapResult<PageRun> {
-        self.allocate_page_run_zeroed(byte_len)
     }
 }

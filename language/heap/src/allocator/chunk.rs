@@ -31,8 +31,9 @@ impl Chunk {
         page_count: usize,
         pages_per_chunk: usize,
     ) -> HeapResult<Option<PageRun>> {
-        let page_count = u32::try_from(page_count)
-            .map_err(|_| HeapError::InvalidPageId { index: page_count })?;
+        debug_assert!(page_count <= pages_per_chunk);
+        debug_assert!(u32::try_from(page_count).is_ok());
+        let page_count = page_count as u32;
 
         let start_page = loop {
             // read the current chunk tail
@@ -62,15 +63,11 @@ impl Chunk {
     }
 
     /// Report whether this chunk still has capacity for one run.
-    pub(super) fn has_capacity(
-        &self,
-        page_count: usize,
-        pages_per_chunk: usize,
-    ) -> HeapResult<bool> {
+    pub(super) fn has_capacity(&self, page_count: usize, pages_per_chunk: usize) -> bool {
         let start_page = self.next_unused_page.load(Ordering::Acquire) as usize;
         let end_page = start_page + page_count;
 
-        Ok(end_page <= pages_per_chunk)
+        end_page <= pages_per_chunk
     }
 
     /// Return one run reference count by chunk-local page index.

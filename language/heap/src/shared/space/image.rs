@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use destack_memory::AddressSpace;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
@@ -7,10 +8,10 @@ use super::{
     SharedHeapLargeAllocationImage, SharedHeapPageMapEntry, SharedHeapSmallSpanImage,
     SharedHeapSpace, SharedLargeAllocation, SharedLargeAllocationId, SharedSmallSpan, SpanList,
 };
-use crate::allocator::{AddressSpace, PageRunCache};
+use crate::allocator::PageRunCache;
 use crate::shared::gc::SharedGcState;
 use crate::shared::space::{SharedHeapState, SharedLargeSpace, SharedSmallSpace};
-use crate::{Allocator, GcState, HeapResult, PageId, PageRun, SizeClassTable};
+use crate::{Allocator, GcState, HeapResult, PageId, PageRun, SizeClassTable, SmallSpanClass};
 
 /// One frozen shared heap-space image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -181,7 +182,7 @@ fn restore_shared_mapping(
 
         let bytes = allocator.bytes_to_vec_from(&span.pages, 0, byte_len)?;
 
-        mapping.write(span.first_offset, &bytes)?;
+        mapping.copy_bytes(span.first_offset, &bytes)?;
     }
 
     // restore each captured large allocation range
@@ -192,7 +193,7 @@ fn restore_shared_mapping(
 
         let bytes = allocator.bytes_to_vec_from(&allocation.pages, 0, allocation.len)?;
 
-        mapping.write(allocation.first_offset, &bytes)?;
+        mapping.copy_bytes(allocation.first_offset, &bytes)?;
     }
 
     Ok(())
@@ -204,7 +205,7 @@ impl SharedHeapSpace {
     /// Call this only from a safepoint where shared heap mutators are stopped.
     pub fn fork(&self) -> HeapResult<Self> {
         let store = self.state.read();
-        let mapping = self.mapping.fork()?;
+        let mapping = self.mapping.fork_lazy()?;
 
         // share small span page metadata with the fork
         let spans = store
@@ -314,7 +315,7 @@ impl SharedHeapSpace {
         for span in &store.small.spans {
             let byte_len = span.page_count() * self.allocator.page_bytes();
             let bytes = self.mapping.bytes(span.first_offset, byte_len)?;
-            let pages = self.allocator.allocate_bytes(&bytes)?;
+            let pages = self.allocator.allocate_image_bytes(&bytes)?;
 
             spans.push(SharedHeapSmallSpanImage {
                 first_offset: span.first_offset,
@@ -335,7 +336,7 @@ impl SharedHeapSpace {
                     .mapping
                     .bytes(allocation.first_offset, allocation.len)?;
 
-                self.allocator.allocate_bytes(&bytes)?
+                self.allocator.allocate_image_bytes(&bytes)?
             } else {
                 PageRun::empty()
             };
@@ -418,10 +419,7 @@ impl SharedHeapSpace {
                         )))
                     })
                     .collect::<HeapResult<Vec<_>>>()?,
-                partial_spans: vec![
-                    Vec::new();
-                    crate::SmallSpanClass::bucket_count(image.size_classes())
-                ],
+                partial_spans: vec![Vec::new(); SmallSpanClass::bucket_count(image.size_classes())],
             },
             large: SharedLargeSpace {
                 page_bytes: image.page_bytes(),

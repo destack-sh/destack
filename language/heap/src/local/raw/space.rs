@@ -1,11 +1,13 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use destack_memory::AddressSpace;
+
 use super::{
     LargeAllocation, LargeAllocationId, RawLocation, RawPageMapEntry, RawPlace, RawSmallSpanClass,
     SmallSpan,
 };
-use crate::allocator::{AddressSpace, Allocator, PageRun, PageRunCache, SizeClassTable, SpanSlot};
+use crate::allocator::{Allocator, PageRun, PageRunCache, SizeClassTable, SpanSlot};
 use crate::{
     AllocationUsage, CowTable, HeapError, HeapOptions, HeapResult, RawPointer, RawSpaceUsage,
 };
@@ -135,8 +137,8 @@ impl RawSpace {
         }
     }
 
-    /// Allocate one zeroed page run through the local page-run cache.
-    pub(crate) fn allocate_page_run_zeroed(&mut self, byte_len: usize) -> HeapResult<PageRun> {
+    /// Allocate one page run through the local page-run cache.
+    pub(crate) fn allocate_page_run(&mut self, byte_len: usize) -> HeapResult<PageRun> {
         self.page_run_cache
             .allocate_pages(&self.allocator, byte_len)
     }

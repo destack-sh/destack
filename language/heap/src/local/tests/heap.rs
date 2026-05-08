@@ -38,7 +38,7 @@ fn test_free_heap_reclaims_live_allocation() {
         .expect("heap allocation should succeed");
 
     assert!(heap.is_live(reference));
-    assert!(heap.free(reference).expect("heap free should succeed"));
+    heap.free(reference).expect("heap free should succeed");
     assert!(!heap.is_live(reference));
 
     let next_reference = heap
@@ -78,7 +78,7 @@ fn test_allocate_heap_clears_reused_small_slot_tail() {
         )
         .expect("heap allocation should succeed");
 
-    assert!(heap.free(first).expect("heap free should succeed"));
+    heap.free(first).expect("heap free should succeed");
 
     let reused = heap
         .allocate(
