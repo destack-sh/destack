@@ -50,14 +50,14 @@ struct StringEntry {
 
 /// Serialized string pool representation.
 #[derive(Serialize, Deserialize)]
-struct LocalStringPoolData {
+struct StringPoolData {
     /// Stored strings sorted by stable id.
     strings: Vec<(StringId, String)>,
 }
 
-/// Arena-based string pool for single-threaded use.
+/// Dense storage for interned string bytes.
 #[derive(Clone, Default)]
-pub struct LocalStringPool {
+struct StringStorage {
     /// Contiguous buffer containing all interned string bytes.
     buffer: String,
     /// Dense entries for stored strings.
@@ -66,7 +66,7 @@ pub struct LocalStringPool {
     slot_by_id: FxHashMap<StringId, usize>,
 }
 
-impl Serialize for LocalStringPool {
+impl Serialize for StringStorage {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -75,29 +75,29 @@ impl Serialize for LocalStringPool {
     }
 }
 
-impl<'de> Deserialize<'de> for LocalStringPool {
+impl<'de> Deserialize<'de> for StringStorage {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        let data = LocalStringPoolData::deserialize(deserializer)?;
+        let data = StringPoolData::deserialize(deserializer)?;
         Self::from_serialized_data(data).map_err(serde::de::Error::custom)
     }
 }
 
-impl Debug for LocalStringPool {
+impl Debug for StringStorage {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("LocalStringPool")
+        f.debug_struct("StringStorage")
             .field("length", &self.entries.len())
             .field("buffer_size", &self.buffer.len())
             .finish()
     }
 }
 
-impl LocalStringPool {
-    /// Create a new empty LocalStringPool.
+impl StringStorage {
+    /// Create a new empty storage.
     #[inline]
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             buffer: String::new(),
             entries: Vec::new(),
@@ -105,9 +105,9 @@ impl LocalStringPool {
         }
     }
 
-    /// Create a new LocalStringPool with pre-allocated capacity.
+    /// Create a new storage with pre-allocated capacity.
     #[inline]
-    pub fn with_capacity(string_count: usize, total_bytes: usize) -> Self {
+    fn with_capacity(string_count: usize, total_bytes: usize) -> Self {
         Self {
             buffer: String::with_capacity(total_bytes),
             entries: Vec::with_capacity(string_count),
@@ -117,7 +117,7 @@ impl LocalStringPool {
 
     /// Get the string associated with the given StringId.
     #[inline]
-    pub fn get(&self, id: StringId) -> &str {
+    fn get(&self, id: StringId) -> &str {
         let slot = self
             .slot_by_id
             .get(&id)
@@ -130,7 +130,7 @@ impl LocalStringPool {
 
     /// Return the string associated with the given StringId when present.
     #[inline]
-    pub fn get_maybe(&self, id: StringId) -> Option<&str> {
+    fn get_maybe(&self, id: StringId) -> Option<&str> {
         let slot = self.slot_by_id.get(&id).copied()?;
         let entry = self.entries[slot];
 
@@ -139,49 +139,12 @@ impl LocalStringPool {
 
     /// Check if the pool contains the given StringId.
     #[inline]
-    pub fn contains(&self, id: StringId) -> bool {
+    fn contains(&self, id: StringId) -> bool {
         self.slot_by_id.contains_key(&id)
     }
 
-    /// Intern a string, storing only one owned copy of bytes.
-    #[inline]
-    pub fn intern<S: AsRef<str>>(&mut self, text: S) -> StringId {
-        let text = text.as_ref();
-        let id = StringId::for_text(text);
-
-        if let Some(slot) = self.slot_by_id.get(&id).copied() {
-            let entry = self.entries[slot];
-            let existing = &self.buffer[entry.offset as usize..(entry.offset + entry.len) as usize];
-            assert_eq!(
-                existing, text,
-                "string id collision for {id}: existing {existing:?}, new {text:?}",
-            );
-
-            return id;
-        }
-
-        self.insert_verified(id, text);
-
-        id
-    }
-
-    /// Ensure this pool contains one string from another pool.
-    #[inline]
-    pub fn ensure_from(&mut self, other: &LocalStringPool, string_id: StringId) {
-        let text = other.get(string_id);
-
-        self.ensure_text(string_id, text);
-    }
-
-    /// Ensure this pool contains every string from another pool.
-    pub fn ensure_all_from(&mut self, other: &LocalStringPool) {
-        for (id, text) in other.iter() {
-            self.ensure_text(id, text);
-        }
-    }
-
     /// Iterate stored strings in dense storage order.
-    pub fn iter(&self) -> impl Iterator<Item = (StringId, &str)> + '_ {
+    fn iter(&self) -> impl Iterator<Item = (StringId, &str)> + '_ {
         self.entries
             .iter()
             .map(|entry| (entry.id, self.get(entry.id)))
@@ -189,24 +152,18 @@ impl LocalStringPool {
 
     /// Get the number of unique strings stored in this pool.
     #[inline]
-    pub fn len(&self) -> usize {
+    fn len(&self) -> usize {
         self.entries.len()
     }
 
     /// Check if the pool contains no strings.
     #[inline]
-    pub fn is_empty(&self) -> bool {
+    fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
 
-    /// Convert to an immutable pool.
-    #[inline]
-    pub fn into_immutable(self) -> ImmutableStringPool {
-        ImmutableStringPool { inner: self }
-    }
-
-    /// Return the owned bytes for this pool.
-    pub fn owned_bytes(&self) -> usize {
+    /// Return the owned bytes for this storage.
+    fn owned_bytes(&self) -> usize {
         let mut owned_bytes = size_of::<Self>();
         owned_bytes += self.buffer.capacity() * size_of::<u8>();
         owned_bytes += self.entries.capacity() * size_of::<StringEntry>();
@@ -216,7 +173,7 @@ impl LocalStringPool {
     }
 
     /// Create the canonical serialized representation.
-    fn to_serialized_data(&self) -> LocalStringPoolData {
+    fn to_serialized_data(&self) -> StringPoolData {
         let mut strings = self
             .entries
             .iter()
@@ -224,11 +181,11 @@ impl LocalStringPool {
             .collect::<Vec<_>>();
         strings.sort_by_key(|(id, _)| *id);
 
-        LocalStringPoolData { strings }
+        StringPoolData { strings }
     }
 
     /// Build one pool from its canonical serialized representation.
-    fn from_serialized_data(data: LocalStringPoolData) -> Result<Self, String> {
+    fn from_serialized_data(data: StringPoolData) -> Result<Self, String> {
         let mut pool = Self::with_capacity(
             data.strings.len(),
             data.strings.iter().map(|(_, string)| string.len()).sum(),
@@ -291,7 +248,7 @@ impl LocalStringPool {
 
 /// Thread-safe string interning with stable identifiers.
 pub struct StringPool {
-    inner: RwLock<LocalStringPool>,
+    inner: RwLock<StringStorage>,
 }
 
 impl Clone for StringPool {
@@ -334,7 +291,7 @@ impl<'de> Deserialize<'de> for StringPool {
     where
         D: Deserializer<'de>,
     {
-        let state = LocalStringPool::deserialize(deserializer)?;
+        let state = StringStorage::deserialize(deserializer)?;
 
         Ok(Self {
             inner: RwLock::new(state),
@@ -346,14 +303,14 @@ impl StringPool {
     /// Create a new empty StringPool.
     pub fn new() -> Self {
         Self {
-            inner: RwLock::new(LocalStringPool::new()),
+            inner: RwLock::new(StringStorage::new()),
         }
     }
 
-    /// Create a StringPool from a LocalStringPool.
-    pub fn from_local(local: LocalStringPool) -> Self {
+    /// Create a new StringPool with pre-allocated capacity.
+    pub fn with_capacity(string_count: usize, total_bytes: usize) -> Self {
         Self {
-            inner: RwLock::new(local),
+            inner: RwLock::new(StringStorage::with_capacity(string_count, total_bytes)),
         }
     }
 
@@ -496,7 +453,7 @@ impl StringPool {
 /// A reference to a string in a StringPool.
 #[derive(Debug)]
 pub struct StringRef<'a> {
-    pool: parking_lot::RwLockReadGuard<'a, LocalStringPool>,
+    pool: parking_lot::RwLockReadGuard<'a, StringStorage>,
     id: StringId,
 }
 
@@ -523,7 +480,7 @@ impl std::cmp::PartialEq<&str> for StringRef<'_> {
 /// Frozen string pool with lock-free read-only access.
 #[derive(Clone, Default)]
 pub struct ImmutableStringPool {
-    inner: LocalStringPool,
+    inner: StringStorage,
 }
 
 impl Serialize for ImmutableStringPool {
@@ -540,7 +497,7 @@ impl<'de> Deserialize<'de> for ImmutableStringPool {
     where
         D: Deserializer<'de>,
     {
-        let inner = LocalStringPool::deserialize(deserializer)?;
+        let inner = StringStorage::deserialize(deserializer)?;
 
         Ok(Self { inner })
     }
@@ -558,7 +515,7 @@ impl ImmutableStringPool {
     /// Create a new empty immutable string pool.
     pub fn empty() -> Self {
         Self {
-            inner: LocalStringPool::new(),
+            inner: StringStorage::new(),
         }
     }
 
@@ -596,8 +553,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_local_pool_intern_same_string_yields_same_id() {
-        let mut pool = LocalStringPool::new();
+    fn test_pool_intern_same_string_yields_same_id() {
+        let pool = StringPool::new();
         let a = pool.intern("hello");
         let b = pool.intern("hello");
 
@@ -609,8 +566,8 @@ mod tests {
     }
 
     #[test]
-    fn test_local_pool_intern_distinct_strings() {
-        let mut pool = LocalStringPool::new();
+    fn test_pool_intern_distinct_strings() {
+        let pool = StringPool::new();
         let a = pool.intern("alpha");
         let b = pool.intern("beta");
 
@@ -621,8 +578,8 @@ mod tests {
     }
 
     #[test]
-    fn test_local_pool_intern_empty_string() {
-        let mut pool = LocalStringPool::new();
+    fn test_pool_intern_empty_string() {
+        let pool = StringPool::new();
         let id1 = pool.intern("");
         let id2 = pool.intern("");
 
@@ -656,11 +613,11 @@ mod tests {
 
     #[test]
     fn test_immutable_pool() {
-        let mut local = LocalStringPool::new();
-        let a = local.intern("foo");
-        let b = local.intern("bar");
+        let pool = StringPool::new();
+        let a = pool.intern("foo");
+        let b = pool.intern("bar");
 
-        let immutable = local.into_immutable();
+        let immutable = pool.into_immutable();
 
         assert_eq!(immutable.get(a), "foo");
         assert_eq!(immutable.get(b), "bar");
@@ -669,10 +626,10 @@ mod tests {
 
     #[test]
     fn test_pool_serialized_data_is_sorted_by_string_id() {
-        let mut pool = LocalStringPool::new();
-        pool.intern("zeta");
-        pool.intern("alpha");
-        pool.intern("middle");
+        let mut pool = StringStorage::new();
+        pool.ensure_text(StringId::for_text("zeta"), "zeta");
+        pool.ensure_text(StringId::for_text("alpha"), "alpha");
+        pool.ensure_text(StringId::for_text("middle"), "middle");
 
         let data = pool.to_serialized_data();
         let mut expected = data.strings.clone();
@@ -684,11 +641,11 @@ mod tests {
     #[test]
     fn test_pool_deserialize_rejects_duplicate_id() {
         let id = StringId::for_text("alpha");
-        let data = LocalStringPoolData {
+        let data = StringPoolData {
             strings: vec![(id, "alpha".to_string()), (id, "alpha".to_string())],
         };
 
-        let result = LocalStringPool::from_serialized_data(data);
+        let result = StringStorage::from_serialized_data(data);
 
         assert_eq!(
             result.unwrap_err(),
@@ -700,11 +657,11 @@ mod tests {
     fn test_pool_deserialize_rejects_mismatched_id() {
         let id = StringId::for_text("beta");
         let actual_id = StringId::for_text("alpha");
-        let data = LocalStringPoolData {
+        let data = StringPoolData {
             strings: vec![(id, "alpha".to_string())],
         };
 
-        let result = LocalStringPool::from_serialized_data(data);
+        let result = StringStorage::from_serialized_data(data);
 
         assert_eq!(
             result.unwrap_err(),
@@ -714,12 +671,14 @@ mod tests {
 
     #[test]
     fn test_pool_deserialize_restores_strings() {
-        let mut pool = LocalStringPool::new();
-        let alpha = pool.intern("alpha");
-        let beta = pool.intern("beta");
+        let mut pool = StringStorage::new();
+        let alpha = StringId::for_text("alpha");
+        let beta = StringId::for_text("beta");
+        pool.ensure_text(alpha, "alpha");
+        pool.ensure_text(beta, "beta");
         let data = pool.to_serialized_data();
 
-        let restored = LocalStringPool::from_serialized_data(data).unwrap();
+        let restored = StringStorage::from_serialized_data(data).unwrap();
 
         assert_eq!(restored.get(alpha), "alpha");
         assert_eq!(restored.get(beta), "beta");
