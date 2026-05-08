@@ -1,4 +1,4 @@
-use destack_dir::{DeclarationForm, LocalSymbolId, SymbolSpace};
+use destack_dir::{LocalSymbolId, SymbolForm, SymbolSpace};
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
@@ -49,7 +49,7 @@ pub struct ImportEntry {
     /// The exported symbol name.
     pub name: String,
     /// The exported symbol declaration form.
-    pub form: DeclarationForm,
+    pub form: SymbolForm,
     /// The exported symbol space.
     pub space: SymbolSpace,
     /// The module that exports this symbol.
