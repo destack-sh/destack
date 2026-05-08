@@ -1,6 +1,6 @@
 # Expansion
 
-Macro expansion edits a module with `add`, `addChild`, `replace`, `rename`, and `remove`.
+Expansion edits the visible declaration graph before checking.
 
 ## declarations
 
@@ -12,9 +12,7 @@ newtype exposeMetrics = ();
 extension of exposeMetrics implements Patcher<ClassDeclaration> {
     static expand(target: ClassDeclaration, context: ExpansionContext, config: this): void {
         const declaration = comptime eval<Declaration>(ds`
-            function getRequestCount(): uint64 {
-                return 0;
-            }
+            function getRequestCount(): uint64;
         `);
 
         context.add(declaration);
@@ -61,11 +59,8 @@ newtype constantRoute = (string,);
 extension of constantRoute implements Patcher<FunctionDeclaration>
 {
     static expand(target: FunctionDeclaration, context: ExpansionContext, config: this): void {
-        const value = config[0];
         const replacement = comptime eval<Declaration>(ds`
-            function ${context.name}(): string {
-                return ${value};
-            }
+            function ${context.name}(): string;
         `);
 
         context.replace(replacement);
@@ -122,7 +117,7 @@ helper;
 
 - contains: helper
 
-### replacement declarations are typed
+### replacement declarations must be declarations
 
 ```ds
 newtype bad = ();

@@ -1,77 +1,77 @@
 # Decorators
 
-Decorator values can implement `Patcher` to rewrite their target.
+Decorator values can implement `Patcher` to change their target during compilation.
 
 ## functions
 
-### rename and add wrap a function
+### decorator values select patchers
 
 ```ds
-newtype logged = ();
+newtype route = (string,);
 
-declare function log(message: string): void;
-
-extension of logged implements Patcher<FunctionDeclaration>
+extension of route implements Patcher<FunctionDeclaration>
 {
     static expand(target: FunctionDeclaration, context: ExpansionContext, config: this): void {
-        const innerName = `${context.name}Inner`;
-        const wrapper = comptime eval<Declaration>(ds`
-            function ${context.name}(id: string): string {
-                log(`${context.name} id=${id}`);
-                return ${innerName}(id);
-            }
+        const declaration = comptime eval<Declaration>(ds`
+            const ${context.name}Path: string = ${config[0]};
         `);
 
-        context.rename(innerName);
-        context.add(wrapper);
+        context.add(declaration);
     }
 }
 
-@logged
-function load(id: string): string {
-    return id;
+@route("/users")
+function users(): string {
+    return "users";
 }
 
-load satisfies (id: string) => string;
+usersPath satisfies string;
 ```
 
 ### decorator values configure patchers
 
 ```ds
-newtype memoize = {
-    capacity?: uint;
-};
+newtype exportAs = (string,);
 
-declare function readCachedUser(id: string): string | undefined;
-declare function writeCachedUser(id: string, value: string, capacity: uint): void;
-
-extension of memoize implements Patcher<FunctionDeclaration>
+extension of exportAs implements Patcher<FunctionDeclaration>
 {
     static expand(target: FunctionDeclaration, context: ExpansionContext, config: this): void {
-        const capacity = config.capacity ?? 256;
-        const innerName = `${context.name}Inner`;
-        const wrapper = comptime eval<Declaration>(ds`
-            function ${context.name}(id: string): string {
-                const cached = readCachedUser(id);
-                if (cached != undefined) {
-                    return cached;
-                }
-
-                const value = ${innerName}(id);
-                writeCachedUser(id, value, ${capacity});
-                return value;
-            }
-        `);
-
-        context.rename(innerName);
-        context.add(wrapper);
+        context.rename(config[0]);
     }
 }
 
-@memoize({ capacity: 1024 })
+@exportAs("loadUser")
 function load(id: string): string {
     return id;
 }
 
-load satisfies (id: string) => string;
+loadUser satisfies (id: string) => string;
+```
+
+### imported decorators use exported symbols
+
+```ds:macros.ds
+export newtype expose = ();
+
+export extension of expose implements Patcher<FunctionDeclaration>
+{
+    static expand(target: FunctionDeclaration, context: ExpansionContext, config: this): void {
+        const declaration = comptime eval<Declaration>(ds`
+            const ${context.name}Name: string = "${context.name}";
+        `);
+
+        context.add(declaration);
+    }
+}
+```
+
+```ds:main.ds
+import { expose } from "./macros.ds";
+
+@expose
+function load(id: string): string {
+    return id;
+}
+
+loadName satisfies string;
 ```

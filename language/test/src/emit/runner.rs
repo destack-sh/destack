@@ -175,12 +175,12 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
 
     // load the tracked package config through the real repository path
     let destack_config_file_id = repository.file_id(&destack_config_path);
-    let declaration = match repository
-        .destack_declaration_for_file(revision, destack_config_file_id)
+    let config = match repository
+        .destack_config_for_file(revision, destack_config_file_id)
         .expect("failed to load tracked destack.json from revision")
-        .map(|declaration| declaration.as_ref().clone())
+        .map(|config| config.as_ref().clone())
     {
-        Some(declaration) => declaration,
+        Some(config) => config,
         None => {
             return CaseResult::Failed {
                 message: format!(
@@ -192,7 +192,7 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
     };
 
     // extract targets
-    let package_options = declaration.package_options();
+    let package_options = config.package_options();
     let targets: Vec<(String, Target)> = package_options
         .targets
         .iter()
