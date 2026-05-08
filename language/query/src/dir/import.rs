@@ -713,10 +713,7 @@ pub(crate) fn module_name_from_path(path: &Path) -> Option<String> {
 /// Strip a code module extension from an import path.
 pub(crate) fn strip_module_extension(path: &str) -> String {
     // prefer compound extensions before simple ones
-    let extensions = [
-        ".d.ts", ".d.mts", ".d.cts", ".d.ds", ".tsx", ".ts", ".mts", ".cts", ".jsx", ".js", ".mjs",
-        ".cjs", ".ds",
-    ];
+    let extensions = [".d.ts", ".d.ds", ".tsx", ".ts", ".jsx", ".js", ".ds"];
 
     for extension in extensions {
         if let Some(stripped) = path.strip_suffix(extension) {

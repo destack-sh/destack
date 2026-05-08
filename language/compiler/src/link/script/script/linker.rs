@@ -223,7 +223,6 @@ impl<'a> ScriptLinker<'a> {
         {
             let format = match format {
                 BundleFormat::Esm => "esm",
-                BundleFormat::Cjs => "cjs",
                 BundleFormat::Iife => "iife",
             };
 

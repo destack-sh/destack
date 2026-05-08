@@ -3,7 +3,7 @@ use std::collections::HashSet;
 
 use destack_artifact::DirExported;
 use destack_source::{FileType, ModuleId, Span};
-use destack_workspace::{EntryResolutionMode, TargetDiscovery, TargetDiscoveryOptions};
+use destack_workspace::TargetDiscovery;
 
 use crate::{LintReport, LintRule, LintWorkspaceDirContext, declare_lint};
 
@@ -175,12 +175,7 @@ fn collect_profile_target_entry_modules(
                 continue;
             }
 
-            let options = TargetDiscoveryOptions {
-                entry_resolution: EntryResolutionMode::RepositoryRelative,
-            };
-            let discovered_modules =
-                ctx.repository
-                    .target_module_ids(ctx.revision, *target_id, &options);
+            let discovered_modules = ctx.repository.target_module_ids(ctx.revision, *target_id);
             let Ok(discovered_modules) = discovered_modules else {
                 continue;
             };

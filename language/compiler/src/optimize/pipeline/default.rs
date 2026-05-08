@@ -11,7 +11,7 @@ use crate::optimize::passes::{
     PartialRedundancyElim, Reassociate, SimplifyCfg, Sink, SparseConditionalConstantPropagation,
     Sroa, StackCheck, StorePre, StoreSink, TailCallElim, ValueRangePropagation,
 };
-use crate::optimize::{FunctionPass, OptimizationLevel, PipelineTarget};
+use crate::optimize::{FunctionPass, OptimizationLevel};
 
 use super::builder::{PackagePipelineBuilder, PipelineBuilder, ProgramPipelineBuilder};
 use super::module::{FunctionPipeline, FunctionToModuleAdaptor};
@@ -19,27 +19,26 @@ use super::package::{
     PackageCompositePipeline, PackageLevelProgramPipeline, ProgramCompositePipeline,
 };
 
-/// Build the optimization pipeline for the given level.
-/// Build the optimization pipeline for the given level and target.
+/// Build the optimization pipeline for the given level and target family.
 pub fn default_pipeline(
     level: OptimizationLevel,
-    pipeline_target: PipelineTarget,
+    is_native_target: bool,
 ) -> super::module::CompositePipeline {
     match level {
-        OptimizationLevel::O0 => o0_pipeline(pipeline_target),
-        OptimizationLevel::O1 => o1_pipeline(pipeline_target),
-        OptimizationLevel::O2 => o2_pipeline(pipeline_target),
-        OptimizationLevel::O3 => o3_pipeline(pipeline_target),
-        OptimizationLevel::O4 => o4_pipeline(pipeline_target),
+        OptimizationLevel::O0 => o0_pipeline(is_native_target),
+        OptimizationLevel::O1 => o1_pipeline(is_native_target),
+        OptimizationLevel::O2 => o2_pipeline(is_native_target),
+        OptimizationLevel::O3 => o3_pipeline(is_native_target),
+        OptimizationLevel::O4 => o4_pipeline(is_native_target),
     }
 }
 
 /// Build the package pipeline for the given level.
 pub fn default_package_pipeline(
     level: OptimizationLevel,
-    pipeline_target: PipelineTarget,
+    is_native_target: bool,
 ) -> PackageCompositePipeline {
-    let module_pipeline = default_pipeline(level, pipeline_target);
+    let module_pipeline = default_pipeline(level, is_native_target);
 
     PackagePipelineBuilder::new()
         .module_pipeline(module_pipeline)
@@ -47,13 +46,13 @@ pub fn default_package_pipeline(
 }
 
 /// Build the program pipeline.
-pub fn default_program_pipeline(pipeline_target: PipelineTarget) -> ProgramCompositePipeline {
+pub fn default_program_pipeline(is_native_target: bool) -> ProgramCompositePipeline {
     let pipeline = PackageLevelProgramPipeline::new(
-        default_package_pipeline(OptimizationLevel::O0, pipeline_target),
-        default_package_pipeline(OptimizationLevel::O1, pipeline_target),
-        default_package_pipeline(OptimizationLevel::O2, pipeline_target),
-        default_package_pipeline(OptimizationLevel::O3, pipeline_target),
-        default_package_pipeline(OptimizationLevel::O4, pipeline_target),
+        default_package_pipeline(OptimizationLevel::O0, is_native_target),
+        default_package_pipeline(OptimizationLevel::O1, is_native_target),
+        default_package_pipeline(OptimizationLevel::O2, is_native_target),
+        default_package_pipeline(OptimizationLevel::O3, is_native_target),
+        default_package_pipeline(OptimizationLevel::O4, is_native_target),
     );
 
     ProgramPipelineBuilder::new().pipeline(pipeline).build()
@@ -72,9 +71,9 @@ fn verify() -> Vec<Box<dyn FunctionPass>> {
 }
 
 /// Return canonicalization passes that normalize MIR shape.
-fn canonicalize(pipeline_target: PipelineTarget) -> Vec<Box<dyn FunctionPass>> {
+fn canonicalize(is_native_target: bool) -> Vec<Box<dyn FunctionPass>> {
     let mut passes: Vec<Box<dyn FunctionPass>> = vec![Box::new(Sroa)];
-    if pipeline_target == PipelineTarget::Native {
+    if is_native_target {
         passes.push(Box::new(Mem2Reg));
     }
     passes.push(Box::new(DropInsert));
@@ -212,18 +211,18 @@ fn cleanup() -> Vec<Box<dyn FunctionPass>> {
 }
 
 /// O0: Verification and correctness only.
-fn o0_pipeline(pipeline_target: PipelineTarget) -> CompositePipeline {
+fn o0_pipeline(is_native_target: bool) -> CompositePipeline {
     PipelineBuilder::new()
         .function_passes(verify())
-        .function_passes(canonicalize(pipeline_target))
+        .function_passes(canonicalize(is_native_target))
         .build()
 }
 
 /// O1: Fast compilation with essential optimizations.
-fn o1_pipeline(pipeline_target: PipelineTarget) -> super::module::CompositePipeline {
+fn o1_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
     PipelineBuilder::new()
         .function_passes(verify())
-        .function_passes(canonicalize(pipeline_target))
+        .function_passes(canonicalize(is_native_target))
         .function_passes(scalar_island_light())
         .function_passes(optimize_types())
         .function_passes(cleanup())
@@ -234,10 +233,10 @@ fn o1_pipeline(pipeline_target: PipelineTarget) -> super::module::CompositePipel
 ///
 /// Structure: verify -> canonicalize -> [simplify <-> optimize]* -> cleanup
 /// Each major phase is followed by simplification to expose new opportunities.
-fn o2_pipeline(pipeline_target: PipelineTarget) -> super::module::CompositePipeline {
+fn o2_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
     PipelineBuilder::new()
         .function_passes(verify())
-        .function_passes(canonicalize(pipeline_target))
+        .function_passes(canonicalize(is_native_target))
         // early scalar fixed point island
         .repeat(
             2,
@@ -278,10 +277,10 @@ fn o2_pipeline(pipeline_target: PipelineTarget) -> super::module::CompositePipel
 /// O3: aggressive optimization.
 ///
 /// More iterations, aggressive loop transforms, extra cleanup rounds.
-fn o3_pipeline(pipeline_target: PipelineTarget) -> super::module::CompositePipeline {
+fn o3_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
     PipelineBuilder::new()
         .function_passes(verify())
-        .function_passes(canonicalize(pipeline_target))
+        .function_passes(canonicalize(is_native_target))
         // early scalar fixed point island (more iterations)
         .repeat(
             3,
@@ -326,10 +325,10 @@ fn o3_pipeline(pipeline_target: PipelineTarget) -> super::module::CompositePipel
 /// O4: maximal single module optimization.
 ///
 /// This adds more fixed point iterations to expose secondary effects.
-fn o4_pipeline(pipeline_target: PipelineTarget) -> super::module::CompositePipeline {
+fn o4_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
     PipelineBuilder::new()
         .function_passes(verify())
-        .function_passes(canonicalize(pipeline_target))
+        .function_passes(canonicalize(is_native_target))
         // early scalar fixed point island (extra iterations)
         .repeat(
             4,

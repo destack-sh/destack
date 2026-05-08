@@ -170,7 +170,6 @@ impl OutputLayout {
     fn script_output_format_name(target: &Target) -> &'static str {
         match target.bundle_output.format.unwrap_or(BundleFormat::Esm) {
             BundleFormat::Esm => "esm",
-            BundleFormat::Cjs => "cjs",
             BundleFormat::Iife => "iife",
         }
     }

@@ -168,7 +168,7 @@ pub(crate) fn call_uses_simple_list_layout(
 
     matches!(context.tree.get(call_node_id), Expression::Call { .. })
         && (is_simple_module_import_call(context, call_node_id, left, arguments)
-            || is_commonjs_or_amd_call(context, call_node_id, left, arguments)
+            || is_require_or_amd_call(context, call_node_id, left, arguments)
             || is_test_call_expression(context, call_node_id, left, arguments))
 }
 
@@ -198,8 +198,8 @@ fn is_simple_module_import_call(
     is_require_resolve_paths_call(context, left) || is_import_meta_resolve_call(context, left)
 }
 
-/// Return whether one call is a CommonJS or AMD call pattern.
-fn is_commonjs_or_amd_call(
+/// Return whether one call is a require or AMD call pattern.
+fn is_require_or_amd_call(
     context: &DestackFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
     left: LocalNodeId<Expression>,

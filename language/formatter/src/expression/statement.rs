@@ -24,7 +24,6 @@ use destack_ast::{Comment, Expression, IfForm, LocalNodeId, TokenType};
 use destack_fir::format::{Buffer, Format, FormatResult};
 use destack_fir::prelude::{format_with, group, space, token};
 use destack_fir::write;
-use destack_source::LanguageType;
 
 /// Return whether one statement expression owns its own trailing annotations.
 pub(crate) fn statement_expression_owns_trailing_annotations(expression: &Expression) -> bool {
@@ -67,7 +66,7 @@ fn value_branch_expression_should_expand<'ast>(
         return true;
     }
 
-    LanguageType::from(f.context().file.ty).is_destack()
+    f.context().options.language_type.is_destack()
         && expression_is_in_statement_position(f.context(), node_id)
 }
 

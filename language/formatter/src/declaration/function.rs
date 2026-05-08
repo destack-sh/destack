@@ -74,11 +74,6 @@ where
     }
 }
 
-/// Return whether one file name uses one module extension.
-fn file_uses_module_only_extension(file_name: &str) -> bool {
-    file_name.ends_with(".mts") || file_name.ends_with(".cts")
-}
-
 /// Write one declaration export prefix.
 pub(crate) fn write_function_export_prefix<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -241,7 +236,7 @@ fn single_lambda_generic_parameter_needs_trailing_separator(
         return true;
     }
 
-    file_uses_module_only_extension(&f.context().file.name)
+    false
 }
 
 /// Write one function generic parameter list.

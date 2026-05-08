@@ -23,7 +23,7 @@ use destack_ast::{
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::{format_with, *};
 use destack_fir::{format_args, write};
-use destack_source::{FileId, LanguageType, NodeSpanRegion, NodeSpanType, Span};
+use destack_source::{FileId, NodeSpanRegion, NodeSpanType, Span};
 
 use crate::declaration::dependency as imports;
 use crate::{DestackFormatContext, DestackFormatter};
@@ -1278,7 +1278,7 @@ pub(crate) fn expression_is_in_statement_position(
 
 /// Return true when value-capable control branches use statement formatting in this language.
 fn control_branch_inherits_statement_position(context: &DestackFormatContext<'_>) -> bool {
-    !LanguageType::from(context.file.ty).is_destack()
+    !context.options.language_type.is_destack()
 }
 
 /// Return true when one child expression is statement-position inside one parent block.

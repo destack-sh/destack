@@ -214,16 +214,16 @@ pub(super) fn formatting_options_for_path(
 ) -> FormatterOptions {
     let package = repository.nearest_package(revision, path).ok().flatten();
     if let Some(package) = package
-        && let Ok(Some(package_options)) = repository.package_options(revision, package.id)
+        && let Ok(Some(config)) = repository.destack_config_for_package_id(revision, package.id)
     {
-        return package_options.formatter;
+        return config.formatter.clone();
     }
 
     repository
-        .workspace_options(revision)
+        .destack_config_for_workspace(revision)
         .ok()
         .flatten()
-        .map(|options| options.package.formatter)
+        .map(|config| config.formatter.clone())
         .unwrap_or_default()
 }
 

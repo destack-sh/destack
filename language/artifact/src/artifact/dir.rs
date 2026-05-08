@@ -35,8 +35,6 @@ pub struct DirDeclared {
 }
 
 /// Exported name surface for one profile-scoped module.
-///
-/// This resolves import and export names, but does not carry checked type inference.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirExported {
     /// Resolved module imports.
@@ -57,8 +55,6 @@ pub struct DirExpanded {
 }
 
 /// Checked semantic state for one profile-scoped module.
-///
-/// This carries inferred and declared semantic attachments, including exported inferred types.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirChecked {
     /// Checked type table.

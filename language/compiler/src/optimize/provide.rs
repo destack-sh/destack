@@ -5,14 +5,11 @@ use std::str::FromStr;
 
 use destack_artifact::{ArtifactKey, ArtifactPayload, EmitFormat, MirOptimized, TargetArch};
 use destack_source::{ModuleId, PackageId, TargetId};
-use destack_workspace::{
-    DebugMode, Module, OptimizeLevel as WorkspaceOptimizeLevel, ProfileId, Target,
-};
+use destack_workspace::{Module, OptimizeLevel as WorkspaceOptimizeLevel, ProfileId, Target};
 use target_lexicon::Triple;
 
 use super::{
-    OptimizationLevel, Pipeline, PipelineContext, PipelineOptions, PipelineTarget, TypeContext,
-    default_pipeline,
+    OptimizationLevel, Pipeline, PipelineContext, PipelineOptions, TypeContext, default_pipeline,
 };
 use crate::CompilerError;
 use crate::optimize::OptimizeState;
@@ -77,12 +74,7 @@ impl Compiler {
         // resolve pipeline for this target
         let target_config = self.target_for_module(module, target, context)?;
         let level = self.optimization_level_for_target_config(&target_config);
-        let pipeline_target = if matches!(target_config.debug_mode, DebugMode::Vm) {
-            PipelineTarget::Vm
-        } else {
-            PipelineTarget::Native
-        };
-        let pipeline = default_pipeline(level, pipeline_target);
+        let pipeline = default_pipeline(level, target_config.uses_native_generate_pipeline());
 
         // read committed MIR artifact truth
         let source_mir = context
@@ -161,15 +153,8 @@ impl Compiler {
             level,
             OptimizationLevel::O2 | OptimizationLevel::O3 | OptimizationLevel::O4
         );
-        let pipeline_target = if matches!(target.debug_mode, DebugMode::Vm) {
-            PipelineTarget::Vm
-        } else {
-            PipelineTarget::Native
-        };
-
         PipelineOptions {
             strict_borrow_mode: true,
-            target: pipeline_target,
             float_math: target.float_math,
             type_context: TypeContext { pointer_width_bits },
             unroll_threshold,

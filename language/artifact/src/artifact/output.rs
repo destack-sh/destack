@@ -4,32 +4,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::{EmitFormat, SourceMapArtifact};
 
-/// Formal target output group kind.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub enum TargetOutputKind {
-    /// Per-module library output.
-    #[default]
-    Module,
-    /// Primary runnable entry output.
-    Entry,
-    /// Primary document output.
-    Document,
-    /// Declaration or type surface.
-    Types,
-    /// Asset collection emitted by this target.
-    Assets,
-    /// Build manifest or output index.
-    Manifest,
-    /// Source maps or debug maps.
-    Maps,
-    /// Binary or wasm payload.
-    Binary,
-    /// Additional metadata output.
-    Metadata,
-}
-
 /// Builtin target output name.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -51,8 +25,6 @@ pub enum TargetOutputName {
     Maps,
     /// Binary or wasm payload.
     Binary,
-    /// Additional metadata output.
-    Metadata,
 }
 
 impl TargetOutputName {
@@ -67,22 +39,6 @@ impl TargetOutputName {
             Self::Manifest => "manifest",
             Self::Maps => "maps",
             Self::Binary => "binary",
-            Self::Metadata => "metadata",
-        }
-    }
-
-    /// Return the semantic kind for this builtin output.
-    pub fn kind(&self) -> TargetOutputKind {
-        match self {
-            Self::Module => TargetOutputKind::Module,
-            Self::Entry => TargetOutputKind::Entry,
-            Self::Document => TargetOutputKind::Document,
-            Self::Types => TargetOutputKind::Types,
-            Self::Assets => TargetOutputKind::Assets,
-            Self::Manifest => TargetOutputKind::Manifest,
-            Self::Maps => TargetOutputKind::Maps,
-            Self::Binary => TargetOutputKind::Binary,
-            Self::Metadata => TargetOutputKind::Metadata,
         }
     }
 }

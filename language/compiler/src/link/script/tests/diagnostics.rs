@@ -90,7 +90,7 @@ fn test_rejects_unimplemented_bundle_output_format() {
         target.discovery = TargetDiscovery::Entry;
         target.entry = vec![PathBuf::from("app.ts")];
         target.out_file = Some(PathBuf::from("dist/js.js"));
-        target.bundle_output.format = Some(BundleFormat::Cjs);
+        target.bundle_output.format = Some(BundleFormat::Iife);
     });
 
     let package_id = test.program.module_descriptor(main).package_id;
@@ -100,7 +100,7 @@ fn test_rejects_unimplemented_bundle_output_format() {
     // report one exact linker diagnostic
     test.check_exact_diagnostics(&[ExpectedDiagnostic {
         code: "EK101".to_string(),
-        message: "invalid target: js: output.format 'cjs' is not implemented yet".to_string(),
+        message: "invalid target: js: output.format 'iife' is not implemented yet".to_string(),
     }]);
 }
 

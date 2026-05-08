@@ -275,9 +275,9 @@ fn language_type_for_code_file(
         context.track(ArtifactDependency::file_content(file_id, content_id));
     }
 
-    let package_options = compiler
+    let config = compiler
         .repository
-        .package_options(context.revision(), package_id)
+        .destack_config_for_package_id(context.revision(), package_id)
         .unwrap_or_else(|error| panic!("failed to load package options: {error}"));
     LanguageType::JavaScript
 }

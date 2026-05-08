@@ -110,22 +110,11 @@ impl Default for TypeContext {
     }
 }
 
-/// Execution target for the optimization pipeline.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PipelineTarget {
-    /// VM execution target.
-    Vm,
-    /// Native execution target.
-    Native,
-}
-
 /// Options for pipeline execution.
 #[derive(Debug, Clone)]
 pub struct PipelineOptions {
     /// Enable strict borrow checking mode.
     pub strict_borrow_mode: bool,
-    /// Execution target for this pipeline.
-    pub target: PipelineTarget,
     /// Maximum array elements for SROA to split (larger arrays are left intact).
     pub sroa_max_array_elements: usize,
     /// Floating point math optimization policy.
@@ -148,7 +137,6 @@ impl Default for PipelineOptions {
     fn default() -> Self {
         Self {
             strict_borrow_mode: false,
-            target: PipelineTarget::Native,
             sroa_max_array_elements: 8,
             float_math: FloatMathPolicy::Strict,
             type_context: TypeContext::default(),
