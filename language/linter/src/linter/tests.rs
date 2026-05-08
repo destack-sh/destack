@@ -985,6 +985,8 @@ impl TestProgram {
             let artifact_keys = [
                 ArtifactKey::ast(module_id),
                 ArtifactKey::dir_declared(module_id, profile_id),
+                ArtifactKey::dir_imported(module_id, profile_id),
+                ArtifactKey::dir_expanded(module_id, profile_id),
                 ArtifactKey::dir_exported(module_id, profile_id),
                 ArtifactKey::dir_checked(module_id, profile_id),
             ];

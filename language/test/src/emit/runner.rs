@@ -178,7 +178,6 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
     let config = match repository
         .destack_config_for_file(revision, destack_config_file_id)
         .expect("failed to load tracked destack.json from revision")
-        .map(|config| config.as_ref().clone())
     {
         Some(config) => config,
         None => {
@@ -192,7 +191,6 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
     };
 
     // extract targets
-    let config = config.as_ref();
     let targets: Vec<(String, Target)> = config
         .targets
         .iter()

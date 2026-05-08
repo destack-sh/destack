@@ -1,7 +1,7 @@
 use crate::LintMeta;
 use std::collections::HashSet;
 
-use destack_artifact::DirExported;
+use destack_artifact::{DirExported, DirImported};
 use destack_source::{FileType, ModuleId, Span};
 use destack_workspace::TargetDiscovery;
 
@@ -219,19 +219,23 @@ fn module_has_exports(ctx: &LintWorkspaceDirContext, module_id: ModuleId) -> boo
 
 /// Return direct module dependencies for one module.
 fn module_dependencies(ctx: &LintWorkspaceDirContext, module_id: ModuleId) -> Vec<ModuleId> {
-    let Some(exported) = ctx.exported_dir(module_id) else {
-        return Vec::new();
-    };
-
-    exported_module_dependencies(&exported)
-}
-
-/// Return direct module dependencies from one exported DIR.
-fn exported_module_dependencies(exported: &DirExported) -> Vec<ModuleId> {
     let mut dependencies = Vec::new();
 
+    if let Some(imported) = ctx.imported_dir(module_id) {
+        collect_imported_module_dependencies(&imported, &mut dependencies);
+    }
+
+    if let Some(exported) = ctx.exported_dir(module_id) {
+        collect_exported_module_dependencies(&exported, &mut dependencies);
+    }
+
+    dependencies
+}
+
+/// Extend one dependency list with direct import edges.
+fn collect_imported_module_dependencies(imported: &DirImported, dependencies: &mut Vec<ModuleId>) {
     // collect import edges for both value and type space
-    for resolution in exported.imports.resolution_by_key.values() {
+    for resolution in imported.imports.resolution_by_key.values() {
         if let Some(module_id) = resolution.value.and_then(|target| target.module_id()) {
             dependencies.push(module_id);
         }
@@ -240,15 +244,16 @@ fn exported_module_dependencies(exported: &DirExported) -> Vec<ModuleId> {
             dependencies.push(module_id);
         }
     }
+}
 
+/// Extend one dependency list with direct export edges.
+fn collect_exported_module_dependencies(exported: &DirExported, dependencies: &mut Vec<ModuleId>) {
     // collect namespace re export edges
     for export in exported.exports.namespace_exports.iter() {
         if let Some(module_id) = export.module_id.module_id() {
             dependencies.push(module_id);
         }
     }
-
-    dependencies
 }
 
 /// Return the file name for deterministic sorting.

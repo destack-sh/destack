@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::{Ast, DirExported, GlobalEnvironment, WellKnownSymbols};
+use destack_artifact::{Ast, DirExported, DirImported, GlobalEnvironment, WellKnownSymbols};
 use destack_ast::StringId;
 use destack_dir::{self as dir, WellKnownSymbol};
 use destack_source::{File, FileId, ModuleId, PackageId};
@@ -224,6 +224,11 @@ impl LintWorkspaceDirContext {
     /// Return one source file for the active revision when present.
     pub fn repository_file(&self, file_id: FileId) -> Option<Arc<File>> {
         self.repository.file(self.revision, file_id).ok().flatten()
+    }
+
+    /// Return one imported DIR artifact for one revision-scoped module.
+    pub fn imported_dir(&self, module_id: ModuleId) -> Option<Arc<DirImported>> {
+        self.artifacts.dir_imported(module_id, self.profile_id)
     }
 
     /// Return one exported DIR artifact for one revision-scoped module.

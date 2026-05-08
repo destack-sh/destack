@@ -4,7 +4,7 @@ use std::sync::Arc;
 use destack_artifact::MirOptimized;
 use destack_artifact::{
     ArtifactKey, ArtifactStore, ArtifactVersion, Ast, Data, DirChecked, DirDeclared, DirElaborated,
-    DirExported, GlobalEnvironment, MirLowered, ModuleOutput,
+    DirExpanded, DirExported, DirImported, GlobalEnvironment, MirLowered, ModuleOutput,
 };
 use destack_source::{ModuleId, ProfileId, TargetId};
 use destack_workspace::{ProviderContext, ProviderError};
@@ -33,6 +33,36 @@ impl Compiler {
 
         self.required_artifact(&version, |artifacts, version| {
             artifacts.dir_declared(version)
+        })
+    }
+
+    /// Require one imported DIR artifact and return its payload.
+    pub(crate) fn require_dir_imported(
+        &self,
+        context: &dyn ProviderContext,
+        module: ModuleId,
+        profile: ProfileId,
+    ) -> Result<Arc<DirImported>, ProviderError> {
+        let artifact_key = ArtifactKey::dir_imported(module, profile);
+        let version = context.require(artifact_key)?;
+
+        self.required_artifact(&version, |artifacts, version| {
+            artifacts.dir_imported(version)
+        })
+    }
+
+    /// Require one expanded DIR artifact and return its payload.
+    pub(crate) fn require_dir_expanded(
+        &self,
+        context: &dyn ProviderContext,
+        module: ModuleId,
+        profile: ProfileId,
+    ) -> Result<Arc<DirExpanded>, ProviderError> {
+        let artifact_key = ArtifactKey::dir_expanded(module, profile);
+        let version = context.require(artifact_key)?;
+
+        self.required_artifact(&version, |artifacts, version| {
+            artifacts.dir_expanded(version)
         })
     }
 

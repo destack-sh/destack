@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use destack_artifact::{Data, DirExported, ModuleOutput};
+use destack_artifact::{Data, DirExported, DirImported, ModuleOutput};
 use destack_dir::ModuleTarget;
 use destack_source::{
     File, FileId, FileType, ModuleEdge, ModuleEdgeRelation, ModuleId, PackageId, ProfileId, Span,
@@ -123,7 +123,15 @@ impl<'a> ScriptLinker<'a> {
         module_id: ModuleId,
     ) -> LinkResult<Vec<ModuleEdge>> {
         let profile_id = self.profile_id_for_module(module_id)?;
-        let dir = self
+        let imported = self
+            .compiler
+            .require_dir_imported(self.context, module_id, profile_id)
+            .map_err(|error| LinkError::Internal {
+                anchor: (self.package_id).into(),
+                package: self.package_id,
+                message: format!("module imports are not ready: {error:?}"),
+            })?;
+        let exported = self
             .compiler
             .require_dir_exported(self.context, module_id, profile_id)
             .map_err(|error| LinkError::Internal {
@@ -132,7 +140,10 @@ impl<'a> ScriptLinker<'a> {
                 message: format!("module exports are not ready: {error:?}"),
             })?;
 
-        Ok(module_dependency_edges(dir.as_ref()))
+        Ok(module_dependency_edges(
+            imported.as_ref(),
+            exported.as_ref(),
+        ))
     }
 
     /// Return the parsed data payload for one linked module.
@@ -174,12 +185,12 @@ impl<'a> ScriptLinker<'a> {
     }
 }
 
-/// Collect resolved module dependency edges from one exported DIR artifact.
-fn module_dependency_edges(dir: &DirExported) -> Vec<ModuleEdge> {
+/// Collect resolved module dependency edges from one module DIR surface.
+fn module_dependency_edges(imported: &DirImported, exported: &DirExported) -> Vec<ModuleEdge> {
     let mut edges = Vec::new();
 
     // import resolutions
-    for (key, resolution) in dir.imports.resolution_by_key.iter() {
+    for (key, resolution) in imported.imports.resolution_by_key.iter() {
         push_module_edge(
             &mut edges,
             resolution.value,
@@ -197,7 +208,7 @@ fn module_dependency_edges(dir: &DirExported) -> Vec<ModuleEdge> {
     }
 
     // namespace exports
-    for export in dir.exports.namespace_exports.iter() {
+    for export in exported.exports.namespace_exports.iter() {
         push_module_edge(
             &mut edges,
             Some(export.module_id),

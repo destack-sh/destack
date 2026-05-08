@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    Ast, DirChecked, DirDeclared, DirExported, GlobalEnvironment, WellKnownSymbols,
+    Ast, DirChecked, DirDeclared, DirExported, DirImported, GlobalEnvironment, WellKnownSymbols,
 };
 use destack_ast::{StringId, StringPool};
 use destack_dir::{LanguageItem, WellKnownSymbol};
@@ -191,6 +191,11 @@ impl<'a> LintModuleDirContext<'a> {
     /// Return one declared DIR artifact for one revision-scoped module.
     pub fn declared_dir(&self, module_id: ModuleId) -> Option<Arc<DirDeclared>> {
         self.artifacts.dir_declared(module_id, self.profile_id)
+    }
+
+    /// Return one imported DIR artifact for one revision-scoped module.
+    pub fn imported_dir(&self, module_id: ModuleId) -> Option<Arc<DirImported>> {
+        self.artifacts.dir_imported(module_id, self.profile_id)
     }
 
     /// Return one exported DIR artifact for one revision-scoped module.

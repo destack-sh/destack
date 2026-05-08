@@ -45,6 +45,8 @@ impl Query {
         // query indexes are built from the checked source model
         context.require(ArtifactKey::ast(module_id))?;
         context.require(ArtifactKey::dir_declared(module_id, profile_id))?;
+        context.require(ArtifactKey::dir_imported(module_id, profile_id))?;
+        context.require(ArtifactKey::dir_expanded(module_id, profile_id))?;
         context.require(ArtifactKey::dir_exported(module_id, profile_id))?;
         context.require(ArtifactKey::dir_checked(module_id, profile_id))?;
 

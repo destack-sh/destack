@@ -1,7 +1,7 @@
 use crate::{
-    Ast, Data, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported, DirMaterialized,
-    GlobalEnvironment, MirLowered, MirOptimized, ModuleLinted, ModuleOutput, ModuleQueryIndex,
-    PackageLinted, PackageOutput, WorkspaceLinted, WorkspaceQueryIndex,
+    Ast, Data, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported, DirImported,
+    DirMaterialized, GlobalEnvironment, MirLowered, MirOptimized, ModuleLinted, ModuleOutput,
+    ModuleQueryIndex, PackageLinted, PackageOutput, WorkspaceLinted, WorkspaceQueryIndex,
 };
 
 /// One typed artifact payload.
@@ -15,10 +15,12 @@ pub enum ArtifactPayload {
     GlobalEnvironment(GlobalEnvironment),
     /// Declared DIR.
     DirDeclared(DirDeclared),
-    /// Exported DIR.
-    DirExported(DirExported),
+    /// Imported DIR.
+    DirImported(DirImported),
     /// Expanded DIR.
     DirExpanded(DirExpanded),
+    /// Exported DIR.
+    DirExported(DirExported),
     /// Checked DIR.
     DirChecked(DirChecked),
     /// Materialized DIR.
@@ -73,10 +75,10 @@ impl From<DirDeclared> for ArtifactPayload {
     }
 }
 
-impl From<DirExported> for ArtifactPayload {
+impl From<DirImported> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
-    fn from(payload: DirExported) -> Self {
-        Self::DirExported(payload)
+    fn from(payload: DirImported) -> Self {
+        Self::DirImported(payload)
     }
 }
 
@@ -84,6 +86,13 @@ impl From<DirExpanded> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: DirExpanded) -> Self {
         Self::DirExpanded(payload)
+    }
+}
+
+impl From<DirExported> for ArtifactPayload {
+    /// Convert a typed artifact into an artifact payload.
+    fn from(payload: DirExported) -> Self {
+        Self::DirExported(payload)
     }
 }
 
