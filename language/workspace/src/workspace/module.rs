@@ -9,7 +9,7 @@ use im::OrdMap;
 pub struct Module {
     /// The module id.
     pub id: ModuleId,
-    /// The backing file id.
+    /// The (main) backing file id.
     pub file_id: FileId,
     /// The module uri.
     pub uri: Uri,
@@ -21,6 +21,8 @@ pub struct Module {
     pub language_type: Option<LanguageType>,
     /// The loader used to interpret the module.
     pub loader: Loader,
+    /// The full set of files that compose this module.
+    pub files: Vec<ModuleFile>,
 }
 
 impl Module {
@@ -34,6 +36,15 @@ impl Module {
         language_type: Option<LanguageType>,
         loader: Loader,
     ) -> Self {
+        let base = ModuleFile::new(
+            file_id,
+            uri.clone(),
+            path.clone(),
+            language_type,
+            loader,
+            None,
+        );
+
         Self {
             id,
             file_id,
@@ -42,7 +53,32 @@ impl Module {
             package_id,
             language_type,
             loader,
+            files: vec![base],
         }
+    }
+
+    /// Add one mode file to this module.
+    pub fn push_mode_file(&mut self, file: ModuleFile) {
+        self.files.push(file);
+    }
+
+    /// Return files active for one mode set.
+    pub fn files_for_modes<'a>(&'a self, modes: &[String]) -> Vec<&'a ModuleFile> {
+        let mut files = self
+            .files
+            .iter()
+            .filter(|file| file.mode.is_none())
+            .collect::<Vec<_>>();
+
+        for mode in modes {
+            files.extend(
+                self.files
+                    .iter()
+                    .filter(|file| file.mode.as_deref() == Some(mode.as_str())),
+            );
+        }
+
+        files
     }
 
     /// Return true when this module contains code.
@@ -90,6 +126,44 @@ impl Module {
     pub fn supports_declaration_merging(&self) -> bool {
         self.language_type
             .is_some_and(|language_type| language_type.supports_declaration_merging())
+    }
+}
+
+/// One source file that contributes to a module.
+#[derive(Debug, Clone)]
+pub struct ModuleFile {
+    /// The source file id.
+    pub file_id: FileId,
+    /// The source file uri.
+    pub uri: Uri,
+    /// The source file path when physical.
+    pub path: Option<PathBuf>,
+    /// The source language type for code files.
+    pub language_type: Option<LanguageType>,
+    /// The loader used to interpret the source file.
+    pub loader: Loader,
+    /// The mode that activates this file.
+    pub mode: Option<String>,
+}
+
+impl ModuleFile {
+    /// Build one module file.
+    pub fn new(
+        file_id: FileId,
+        uri: Uri,
+        path: Option<PathBuf>,
+        language_type: Option<LanguageType>,
+        loader: Loader,
+        mode: Option<String>,
+    ) -> Self {
+        Self {
+            file_id,
+            uri,
+            path,
+            language_type,
+            loader,
+            mode,
+        }
     }
 }
 

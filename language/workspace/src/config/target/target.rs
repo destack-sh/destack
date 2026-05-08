@@ -54,8 +54,8 @@ pub struct Target {
     pub es_target: EsTarget,
     /// Explicit profile name for this target.
     pub profile: Option<String>,
-    /// Explicit source graph mode name for this target.
-    pub mode: Option<String>,
+    /// Active source graph modes for this target.
+    pub modes: Vec<String>,
     /// Assembly topology for this script target.
     pub assembly: BundleMode,
     /// Whether to preserve one emitted module file per reachable module.
@@ -140,8 +140,6 @@ pub struct Target {
     pub source_map_mode: Option<SourceMapMode>,
 
     // optimization
-    /// Whether this is a debug build.
-    pub debug: bool,
     /// Whether optimization is enabled.
     pub optimize: bool,
     /// Optimization level.
@@ -201,7 +199,7 @@ impl std::hash::Hash for Target {
         self.module.hash(state);
         self.es_target.hash(state);
         self.profile.hash(state);
-        self.mode.hash(state);
+        self.modes.hash(state);
         self.assembly.hash(state);
         self.preserve_modules.hash(state);
         self.preserve_modules_root.hash(state);
@@ -242,7 +240,6 @@ impl std::hash::Hash for Target {
         self.install_name.hash(state);
         self.declaration.hash(state);
         self.source_map_mode.hash(state);
-        self.debug.hash(state);
         self.optimize.hash(state);
         self.optimize_level.hash(state);
         self.unroll_threshold.hash(state);
@@ -467,6 +464,7 @@ impl Target {
         if self.tree.is_some() {
             compiler_options.tree = self.tree.clone();
         }
+        compiler_options.modes.extend(self.modes.clone());
         compiler_options.globals.extend(self.globals.clone());
         compiler_options.derive.extend(self.derive.clone());
 
@@ -637,9 +635,9 @@ impl Target {
         self
     }
 
-    /// Set an explicit source graph mode name for this target.
-    pub fn with_mode(mut self, mode: impl Into<String>) -> Self {
-        self.mode = Some(mode.into());
+    /// Set active source graph modes for this target.
+    pub fn with_modes(mut self, modes: impl IntoIterator<Item = impl Into<String>>) -> Self {
+        self.modes = modes.into_iter().map(Into::into).collect();
         self
     }
 
@@ -1021,8 +1019,8 @@ pub struct TargetOptions {
     pub es_target: EsTarget,
     /// Explicit profile name for this target.
     pub profile: Option<String>,
-    /// Explicit source graph mode name for this target.
-    pub mode: Option<String>,
+    /// Active source graph modes for this target.
+    pub modes: Vec<String>,
     /// Assembly topology for this script target.
     pub assembly: BundleMode,
     /// Whether to preserve one emitted module file per reachable module.
@@ -1045,8 +1043,6 @@ pub struct TargetOptions {
     pub app: AppOptions,
 
     // optimization
-    /// Whether this is a debug build.
-    pub debug: bool,
     /// Whether optimization is enabled.
     pub optimize: bool,
     /// Optimization level.
@@ -1132,7 +1128,7 @@ impl Default for TargetOptions {
             module: JsModuleFormat::default(),
             es_target: EsTarget::default(),
             profile: None,
-            mode: None,
+            modes: Vec::new(),
             assembly: BundleMode::default(),
             preserve_modules: false,
             preserve_modules_root: None,
@@ -1143,7 +1139,6 @@ impl Default for TargetOptions {
             bundle_output: BundleOutputOptions::default(),
             minify: BundleMinifyOptions::default(),
             app: AppOptions::default(),
-            debug: true,
             optimize: false,
             optimize_level: OptimizeLevel::O0,
             unroll_threshold: None,
@@ -1234,7 +1229,7 @@ impl TargetOptions {
             module: self.module,
             es_target: self.es_target,
             profile: self.profile.clone(),
-            mode: self.mode.clone(),
+            modes: self.modes.clone(),
             assembly: self.assembly,
             preserve_modules: self.preserve_modules,
             preserve_modules_root: self.preserve_modules_root.clone(),
@@ -1245,7 +1240,6 @@ impl TargetOptions {
             bundle_output: self.bundle_output.clone(),
             minify: self.minify.clone(),
             app: self.app.clone(),
-            debug: self.debug,
             optimize: self.optimize,
             optimize_level: self.optimize_level,
             unroll_threshold: self.unroll_threshold,
@@ -1417,7 +1411,7 @@ impl TargetOptions {
                 .and_then(EsTarget::parse)
                 .unwrap_or_default(),
             profile: json.profile.clone(),
-            mode: json.mode.clone(),
+            modes: json.modes.clone().unwrap_or_default(),
             assembly,
             preserve_modules,
             preserve_modules_root,
@@ -1428,7 +1422,6 @@ impl TargetOptions {
             bundle_output,
             minify,
             app,
-            debug: json.debug,
             optimize: json.optimize,
             optimize_level: json
                 .optimize_level
@@ -1583,8 +1576,8 @@ pub struct TargetJson {
     pub target: Option<String>,
     /// Explicit profile name for this target.
     pub profile: Option<String>,
-    /// Explicit source graph mode name for this target.
-    pub mode: Option<String>,
+    /// Active source graph modes for this target.
+    pub modes: Option<Vec<String>>,
     /// Assembly topology for this script target.
     pub assembly: Option<BundleMode>,
     /// Whether to preserve one emitted module file per reachable module.
@@ -1607,9 +1600,6 @@ pub struct TargetJson {
     /// App declaration for packaging and runtime capability planning.
     pub app: Option<AppOptionsJson>,
     // optimization
-    /// Whether this is a debug build.
-    #[serde(default)]
-    pub debug: bool,
     /// Whether optimization is enabled.
     #[serde(default)]
     pub optimize: bool,

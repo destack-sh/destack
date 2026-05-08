@@ -9,8 +9,8 @@ use crate::config::runtime::{RuntimeConfigJson, RuntimeOptionsJson};
 pub struct EnvironmentOptions {
     /// Default profile selection for this environment.
     pub profile: Option<String>,
-    /// Default source graph mode for this environment.
-    pub mode: Option<String>,
+    /// Default active source graph modes for this environment.
+    pub modes: Vec<String>,
     /// Runtime overrides for this environment.
     pub runtime: Option<RuntimeOptionsJson>,
 }
@@ -21,8 +21,8 @@ impl EnvironmentOptions {
         if self.profile.is_none() {
             self.profile = parent.profile.clone();
         }
-        if self.mode.is_none() {
-            self.mode = parent.mode.clone();
+        if self.modes.is_empty() {
+            self.modes = parent.modes.clone();
         }
 
         if let Some(parent_runtime) = &parent.runtime {
@@ -39,7 +39,7 @@ impl From<&EnvironmentJson> for EnvironmentOptions {
     fn from(json: &EnvironmentJson) -> Self {
         Self {
             profile: json.profile.clone(),
-            mode: json.mode.clone(),
+            modes: json.modes.clone().unwrap_or_default(),
             runtime: json
                 .runtime
                 .as_ref()
@@ -86,8 +86,8 @@ pub fn extend_environment_options(
 pub struct EnvironmentJson {
     /// Default profile selection for this environment.
     pub profile: Option<String>,
-    /// Default source graph mode for this environment.
-    pub mode: Option<String>,
+    /// Default active source graph modes for this environment.
+    pub modes: Option<Vec<String>>,
     /// Runtime overrides for this environment.
     pub runtime: Option<RuntimeConfigJson>,
 }

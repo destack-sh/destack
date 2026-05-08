@@ -2,7 +2,9 @@ use destack_artifact::{HostEnvironmentKey, ProfileFlags};
 use serde::{Deserialize, Serialize};
 
 use crate::HostEnvironment;
-use crate::config::CompilerOptions;
+use crate::config::{
+    CompilerOptions, MODE_BENCH, MODE_DEBUG, MODE_DEV, MODE_LINT, MODE_PROD, MODE_TEST,
+};
 
 /// The stable profile id.
 pub use destack_source::ProfileId;
@@ -14,48 +16,55 @@ pub struct ProfileEnvironment {
     pub values: Vec<(String, String)>,
     /// The effective node environment mode.
     pub node_env: Option<String>,
-    /// True in development builds.
+    /// True when the debug mode is active.
+    pub debug: bool,
+    /// True when the development mode is active.
     pub dev: bool,
-    /// True in production builds.
+    /// True when the production mode is active.
     pub prod: bool,
-    /// True in test builds.
+    /// True when the test mode is active.
     pub test: bool,
+    /// True when the benchmark mode is active.
+    pub bench: bool,
+    /// True when the lint mode is active.
+    pub lint: bool,
+    /// Active source graph modes.
+    pub modes: Vec<String>,
 }
 
 impl ProfileEnvironment {
-    /// Derive the effective node environment and mode flags.
-    pub fn mode_from_key(
+    /// Derive the effective node environment.
+    pub fn node_env_from_key(
         key: &HostEnvironmentKey,
         host: &HostEnvironment,
-        debug: bool,
-    ) -> (Option<String>, bool, bool, bool) {
+        modes: &[String],
+    ) -> Option<String> {
         let has_node_env = key.keys().iter().any(|key| key == "NODE_ENV");
-        let mut node_env = if has_node_env {
-            host.get("NODE_ENV").map(ToOwned::to_owned)
-        } else {
-            None
-        };
-
-        if node_env.is_none() {
-            node_env = Some(if debug {
-                "development".to_string()
-            } else {
-                "production".to_string()
-            });
+        if has_node_env && let Some(node_env) = host.get("NODE_ENV") {
+            return Some(node_env.to_string());
         }
 
-        let (dev, prod, test) = match node_env.as_deref() {
-            Some("production") => (false, true, false),
-            Some("test") => (false, false, true),
-            Some("development") => (true, false, false),
-            Some(_) | None => (debug, !debug, false),
-        };
-
-        (node_env, dev, prod, test)
+        if has_mode(modes, MODE_TEST) {
+            Some("test".to_string())
+        } else if has_mode(modes, MODE_PROD) {
+            Some("production".to_string())
+        } else if has_mode(modes, MODE_DEV) {
+            Some("development".to_string())
+        } else {
+            None
+        }
     }
 
     /// Build one profile environment from one host environment key.
-    pub fn from_key(key: &HostEnvironmentKey, host: &HostEnvironment, debug: bool) -> Self {
+    pub fn from_key(key: &HostEnvironmentKey, host: &HostEnvironment, modes: &[String]) -> Self {
+        let node_env = Self::node_env_from_key(key, host, modes);
+        let debug = has_mode(modes, MODE_DEBUG);
+        let dev = has_mode(modes, MODE_DEV);
+        let prod = has_mode(modes, MODE_PROD);
+        let test = has_mode(modes, MODE_TEST);
+        let bench = has_mode(modes, MODE_BENCH);
+        let lint = has_mode(modes, MODE_LINT);
+        let modes = modes.to_vec();
         let mut values = key
             .keys()
             .iter()
@@ -63,7 +72,6 @@ impl ProfileEnvironment {
             .collect::<Vec<_>>();
 
         let has_node_env = key.keys().iter().any(|key| key == "NODE_ENV");
-        let (node_env, dev, prod, test) = Self::mode_from_key(key, host, debug);
 
         if has_node_env
             && let Some(node_env_value) = node_env.clone()
@@ -77,11 +85,20 @@ impl ProfileEnvironment {
         Self {
             values,
             node_env,
+            debug,
             dev,
             prod,
             test,
+            bench,
+            lint,
+            modes,
         }
     }
+}
+
+/// Return whether one active mode is present.
+fn has_mode(modes: &[String], mode: &str) -> bool {
+    modes.iter().any(|active| active == mode)
 }
 
 /// Derive profile identity flags from compiler options.
