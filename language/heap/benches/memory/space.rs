@@ -1,6 +1,7 @@
 use std::hint::black_box;
+use std::mem::size_of;
 
-use destack_heap::AddressSpace;
+use destack_memory::AddressSpace;
 
 use crate::config::{PAGE_BYTES, SPACE_BYTES};
 
@@ -59,6 +60,54 @@ impl AddressSpaceShape {
 
         space
     }
+
+    /// Fork one materialized address space lazily.
+    pub(crate) fn fork_lazy_pair(self) -> (AddressSpace, AddressSpace) {
+        let parent = self.materialize();
+        let child = parent
+            .fork_lazy()
+            .expect("address space fork should succeed");
+
+        (parent, child)
+    }
+
+    /// Fork one materialized address space lazily and return its first word address.
+    pub(crate) fn fork_lazy_word(self) -> (AddressSpace, AddressSpace, *mut usize) {
+        let (parent, child) = self.fork_lazy_pair();
+        let address = child
+            .address(0, size_of::<usize>())
+            .expect("forked address should resolve")
+            .cast::<usize>();
+
+        (parent, child, address)
+    }
+
+    /// Fork one materialized address space eagerly and return its first word address.
+    pub(crate) fn fork_eager_word(self) -> (AddressSpace, AddressSpace, *mut usize) {
+        let parent = self.materialize();
+        let child = parent.fork_eager(..).expect("eager fork should succeed");
+        let address = child
+            .address(0, size_of::<usize>())
+            .expect("forked address should resolve")
+            .cast::<usize>();
+
+        (parent, child, address)
+    }
+
+    /// Fork one materialized address space lazily and return its first page-range address.
+    pub(crate) fn fork_lazy_pages(
+        self,
+        page_count: usize,
+    ) -> (AddressSpace, AddressSpace, *mut usize) {
+        let (parent, child) = self.fork_lazy_pair();
+        let byte_len = page_count * PAGE_BYTES;
+        let address = child
+            .address(0, byte_len)
+            .expect("forked address range should resolve")
+            .cast::<usize>();
+
+        (parent, child, address)
+    }
 }
 
 /// One live address-space lineage used by fork benchmarks.
@@ -97,7 +146,7 @@ impl ForkLineage {
         self.spaces
             .last()
             .expect("fork lineage should keep one leaf")
-            .fork()
+            .fork_lazy()
             .expect("nested address space fork should succeed")
     }
 
@@ -114,7 +163,7 @@ impl ForkLineage {
         // keep every ancestor live so nested forks retain shared frames
         for ancestor_index in 0..ancestor_count {
             let child = spaces[ancestor_index]
-                .fork()
+                .fork_lazy()
                 .expect("address space fork should succeed");
             spaces.push(child);
         }
