@@ -3,11 +3,12 @@ use std::sync::Arc;
 use destack_artifact::ProfileKey;
 use destack_source::{ModuleId, PackageId, ProfileId, TargetId};
 use im::OrdMap;
+use indexmap::IndexMap;
 
 use crate::repository::key::profile_key_for_target;
 use crate::{
-    CompilerOptions, HostEnvironment, Module, Package, ProfileEnvironment, ProfileOptions,
-    Repository, RepositoryError, Revision, Target,
+    CompilerOptions, HostEnvironment, ModeOptions, Module, Package, ProfileEnvironment,
+    ProfileOptions, Repository, RepositoryError, Revision, Target, builtin_modes,
 };
 
 /// One resolved semantic profile.
@@ -22,7 +23,7 @@ pub struct Profile {
 impl Profile {
     /// Build one resolved semantic profile from one canonical key.
     pub fn from_key(key: ProfileKey, environment: &HostEnvironment) -> Self {
-        let env = ProfileEnvironment::from_key(&key.env, environment, key.debug);
+        let env = ProfileEnvironment::from_key(&key.env, environment, &key.modes);
 
         Self { key, env }
     }
@@ -58,7 +59,7 @@ impl Repository {
         let compiler_options = self.module_compiler_options(revision, &package, &module)?;
         let config = self.destack_config_for_package_id(revision, package.id)?;
 
-        let (target, profile_config) = if let Some(config) = config.as_ref() {
+        let (target, profile_config, modes) = if let Some(config) = config.as_ref() {
             let target = self
                 .package_default_target(revision, package.id)?
                 .map(|(_, target)| target)
@@ -67,15 +68,16 @@ impl Repository {
                 .profile
                 .as_ref()
                 .and_then(|name| config.profiles.get(name));
-            (target, profile_config)
+            (target, profile_config, &config.modes)
         } else {
-            (Target::default(), None)
+            (Target::default(), None, default_modes())
         };
 
         let profile = self.profile_from_target(
             &target,
             &compiler_options,
             profile_config,
+            modes,
             &revision_state.host,
         );
 
@@ -112,10 +114,16 @@ impl Repository {
                 .and_then(|name| config.profiles.get(name))
         });
 
+        let modes = if let Some(config) = config.as_ref() {
+            &config.modes
+        } else {
+            default_modes()
+        };
         let profile = self.profile_from_target(
             &target,
             &compiler_options,
             profile_config,
+            modes,
             &revision_state.host,
         );
 
@@ -156,10 +164,16 @@ impl Repository {
                 .and_then(|name| config.profiles.get(name))
         });
 
+        let modes = if let Some(config) = config.as_ref() {
+            &config.modes
+        } else {
+            default_modes()
+        };
         let profile = self.profile_from_target(
             &target,
             &compiler_options,
             profile_config,
+            modes,
             &revision_state.host,
         );
 
@@ -303,10 +317,24 @@ impl Repository {
         target: &Target,
         compiler_options: &CompilerOptions,
         profile_config: Option<&ProfileOptions>,
+        mode_options: &IndexMap<String, ModeOptions>,
         environment: &HostEnvironment,
     ) -> Arc<Profile> {
-        let key = profile_key_for_target(target, compiler_options, profile_config, environment);
+        let key = profile_key_for_target(
+            target,
+            compiler_options,
+            profile_config,
+            mode_options,
+            environment,
+        );
 
         Arc::new(Profile::from_key(key, environment))
     }
+}
+
+/// Return the shared default mode definition map.
+fn default_modes() -> &'static IndexMap<String, ModeOptions> {
+    static MODES: std::sync::OnceLock<IndexMap<String, ModeOptions>> = std::sync::OnceLock::new();
+
+    MODES.get_or_init(builtin_modes)
 }

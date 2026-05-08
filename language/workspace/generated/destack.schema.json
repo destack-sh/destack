@@ -260,12 +260,15 @@
             "null"
           ]
         },
-        "mode": {
-          "description": "Default source graph mode for IDEs and CLI usage.",
+        "modes": {
+          "description": "Default active source graph modes for IDEs and CLI usage.",
           "type": [
-            "string",
+            "array",
             "null"
-          ]
+          ],
+          "items": {
+            "type": "string"
+          }
         },
         "comptimeEnv": {
           "description": "Comptime environment whitelist (if omitted, all env keys are visible).",
@@ -4903,12 +4906,15 @@
             "null"
           ]
         },
-        "mode": {
-          "description": "Explicit source graph mode name for this target.",
+        "modes": {
+          "description": "Active source graph modes for this target.",
           "type": [
-            "string",
+            "array",
             "null"
-          ]
+          ],
+          "items": {
+            "type": "string"
+          }
         },
         "assembly": {
           "description": "Assembly topology for this script target.",
@@ -5009,11 +5015,6 @@
               "type": "null"
             }
           ]
-        },
-        "debug": {
-          "description": "Whether this is a debug build.",
-          "type": "boolean",
-          "default": false
         },
         "optimize": {
           "description": "Whether optimization is enabled.",
@@ -6602,12 +6603,15 @@
             "null"
           ]
         },
-        "mode": {
-          "description": "Default source graph mode for this environment.",
+        "modes": {
+          "description": "Default active source graph modes for this environment.",
           "type": [
-            "string",
+            "array",
             "null"
-          ]
+          ],
+          "items": {
+            "type": "string"
+          }
         },
         "runtime": {
           "description": "Runtime overrides for this environment.",
@@ -6644,15 +6648,18 @@
             "null"
           ]
         },
-        "debug": {
-          "description": "Debug build flag (affects import.meta.debug).",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
         "comptimeEnv": {
           "description": "Comptime environment whitelist (if omitted, all env keys are visible).",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "modes": {
+          "description": "Active source graph modes for this profile.",
           "type": [
             "array",
             "null"

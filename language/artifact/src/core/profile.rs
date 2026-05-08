@@ -48,10 +48,8 @@ pub struct ProfileKey {
     pub tree: Option<String>,
     /// Auto derive providers for the profile.
     pub derive: Vec<String>,
-    /// Debug flag exposed to `import.meta`.
-    pub debug: bool,
-    /// Test flag exposed to `import.meta`.
-    pub test: bool,
+    /// Active source graph modes for the profile.
+    pub modes: Vec<String>,
     /// Compile-time environment identity for `import.meta.env`.
     pub env: HostEnvironmentKey,
     /// Flags that affect semantic behavior.
@@ -71,13 +69,13 @@ impl ProfileKey {
         globals: Vec<String>,
         tree: Option<String>,
         derive: Vec<String>,
-        debug: bool,
-        test: bool,
+        modes: Vec<String>,
         env: HostEnvironmentKey,
         flags: ProfileFlags,
     ) -> Self {
         let globals = normalize_profile_keys(globals);
         let derive = normalize_profile_keys(derive);
+        let modes = normalize_mode_keys(modes);
 
         Self {
             emit,
@@ -89,8 +87,7 @@ impl ProfileKey {
             globals,
             tree,
             derive,
-            debug,
-            test,
+            modes,
             env,
             flags,
         }
@@ -104,4 +101,17 @@ impl ProfileKey {
 
         stable_hash_key_value_128(PROFILE_ID_DOMAIN, &bytes)
     }
+}
+
+/// Normalize mode keys without changing active mode order.
+fn normalize_mode_keys(modes: Vec<String>) -> Vec<String> {
+    let mut normalized = Vec::with_capacity(modes.len());
+
+    for mode in modes {
+        if !normalized.iter().any(|known| known == &mode) {
+            normalized.push(mode);
+        }
+    }
+
+    normalized
 }

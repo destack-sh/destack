@@ -1,7 +1,8 @@
 use destack_artifact::ProfileKey;
+use indexmap::IndexMap;
 
 use crate::{
-    CompilerOptions, HostEnvironment, ProfileEnvironment, ProfileOptions, Target,
+    CompilerOptions, HostEnvironment, ModeOptions, ProfileOptions, Target,
     profile_flags_for_compiler_options,
 };
 
@@ -10,6 +11,7 @@ pub(crate) fn profile_key_for_target(
     target: &Target,
     compiler_options: &CompilerOptions,
     profile_config: Option<&ProfileOptions>,
+    mode_options: &IndexMap<String, ModeOptions>,
     environment: &HostEnvironment,
 ) -> ProfileKey {
     let mut compiler_options = compiler_options.clone();
@@ -23,6 +25,7 @@ pub(crate) fn profile_key_for_target(
         compiler_options
             .derive
             .extend(profile_config.derive.clone());
+        compiler_options.modes.extend(profile_config.modes.clone());
     }
     let compiler_options = target.compiler_options(&compiler_options);
     let emit = target.emit;
@@ -35,11 +38,6 @@ pub(crate) fn profile_key_for_target(
         .and_then(|profile| profile.platform)
         .unwrap_or(target.platform);
 
-    // profile mode
-    let debug = profile_config
-        .and_then(|profile| profile.debug)
-        .unwrap_or(target.debug);
-
     // comptime environment
     let env = profile_config
         .and_then(|profile| profile.comptime_env.as_ref())
@@ -47,8 +45,20 @@ pub(crate) fn profile_key_for_target(
         .map(|keys| environment.key_whitelist(keys))
         .unwrap_or_else(|| environment.key_all());
 
+    let mut modes = Vec::new();
+    for mode in &compiler_options.modes {
+        if let Some(options) = mode_options.get(mode) {
+            for parent in &options.extends {
+                if !modes.iter().any(|active| active == parent) {
+                    modes.push(parent.clone());
+                }
+            }
+        }
+        if !modes.iter().any(|active| active == mode) {
+            modes.push(mode.clone());
+        }
+    }
     let flags = profile_flags_for_compiler_options(&compiler_options);
-    let (_, _, _, test) = ProfileEnvironment::mode_from_key(&env, environment, debug);
     let globals = compiler_options
         .globals
         .iter()
@@ -67,8 +77,7 @@ pub(crate) fn profile_key_for_target(
         globals,
         tree,
         derive,
-        debug,
-        test,
+        modes,
         env,
         flags,
     )

@@ -1,26 +1,73 @@
 use destack_source::{FileId, FileType, LanguageType, Loader, ModuleId, PackageId, Uri};
 use im::OrdMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use crate::repository::{FileEntry, Repository, RepositoryError, Revision};
-use crate::{Module, ModuleIndex, PackageIndex};
+use crate::{Module, ModuleFile, ModuleIndex, PackageIndex, builtin_mode_names};
+
+/// One file before it is assigned to its canonical module.
+#[derive(Debug)]
+struct ModuleFileCandidate {
+    /// The source file id.
+    file_id: FileId,
+    /// The source file path.
+    path: PathBuf,
+    /// The source file type.
+    file_type: FileType,
+    /// The mode suffix when this is a mode file.
+    mode: Option<String>,
+    /// The owning package id.
+    package_id: PackageId,
+    /// The owning package root.
+    package_root: Option<PathBuf>,
+}
 
 impl Repository {
     /// Build the module index from one file map.
     pub(crate) fn module_index_for_files(
         &self,
-        _revision: Revision,
+        revision: Revision,
         files: &OrdMap<FileId, FileEntry>,
         packages: &PackageIndex,
     ) -> Result<ModuleIndex, RepositoryError> {
-        let mut module_index = OrdMap::new();
+        let mut base_files = FxHashMap::default();
+        let mut mode_files: FxHashMap<PathBuf, Vec<ModuleFileCandidate>> = FxHashMap::default();
+        let mut known_modes = FxHashMap::default();
 
+        // collect base files and their mode files
         for (file_id, entry) in files.iter() {
             let path = self.root.join(&entry.logical_path);
-            let Some(module) = self.module_from_file_entry(*file_id, path, packages) else {
+            let Some(candidate) =
+                self.module_file_candidate(revision, *file_id, path, packages, &mut known_modes)?
+            else {
                 continue;
             };
+
+            if let Some(mode) = candidate.mode.as_ref() {
+                let base_path = Self::mode_base_path(&candidate.path, candidate.file_type, mode);
+                mode_files.entry(base_path).or_default().push(candidate);
+            } else {
+                base_files.insert(candidate.path.clone(), candidate);
+            }
+        }
+
+        // build modules from base files only
+        let mut module_index = OrdMap::new();
+        for (base_path, base) in base_files {
+            let mut module = self.module_from_candidate(base);
+            if let Some(mut files) = mode_files.remove(&base_path) {
+                files.sort_by(|left, right| {
+                    left.mode
+                        .cmp(&right.mode)
+                        .then_with(|| left.path.cmp(&right.path))
+                });
+
+                for file in files {
+                    module.push_mode_file(Self::module_file_from_candidate(file));
+                }
+            }
 
             module_index.insert(module.id, Arc::new(module));
         }
@@ -28,35 +75,127 @@ impl Repository {
         Ok(ModuleIndex::new(module_index))
     }
 
-    /// Build one module from one revision file entry when applicable.
-    fn module_from_file_entry(
+    /// Build one candidate from one revision file entry when applicable.
+    fn module_file_candidate(
         &self,
+        revision: Revision,
         file_id: FileId,
         path: PathBuf,
         packages: &PackageIndex,
-    ) -> Option<Module> {
+        known_modes: &mut FxHashMap<PackageId, FxHashSet<String>>,
+    ) -> Result<Option<ModuleFileCandidate>, RepositoryError> {
         let file_type = FileType::from_path_or_unknown(&path);
 
         // skip non-module workspace files
         if !self.is_module_file(&path, file_type) {
-            return None;
+            return Ok(None);
         }
 
-        let package = packages.nearest_package(&path)?;
-        let language_type = LanguageType::try_from(file_type).ok();
-        let loader = Loader::from(file_type);
-        let module_id =
-            ModuleId::from_path_with_loader(package.id, &path, package.path.as_deref(), None);
+        let Some(package) = packages.nearest_package(&path) else {
+            return Ok(None);
+        };
+        if !known_modes.contains_key(&package.id) {
+            let modes = self.known_modes_for_package(revision, package.id)?;
+            known_modes.insert(package.id, modes);
+        }
+        let known_modes = known_modes
+            .get(&package.id)
+            .expect("known modes should be cached for package");
+        let mode = Self::mode_for_path(&path, file_type, &known_modes);
 
-        Some(Module::blank(
-            module_id,
+        Ok(Some(ModuleFileCandidate {
             file_id,
-            Uri::from_path(&path),
-            Some(path),
-            package.id,
+            path,
+            file_type,
+            mode,
+            package_id: package.id,
+            package_root: package.path.clone(),
+        }))
+    }
+
+    /// Build one module from its base file candidate.
+    fn module_from_candidate(&self, candidate: ModuleFileCandidate) -> Module {
+        let language_type = LanguageType::try_from(candidate.file_type).ok();
+        let loader = Loader::from(candidate.file_type);
+        let module_id = ModuleId::from_path_with_loader(
+            candidate.package_id,
+            &candidate.path,
+            candidate.package_root.as_deref(),
+            None,
+        );
+
+        Module::blank(
+            module_id,
+            candidate.file_id,
+            Uri::from_path(&candidate.path),
+            Some(candidate.path),
+            candidate.package_id,
             language_type,
             loader,
-        ))
+        )
+    }
+
+    /// Build one module file from a mode file candidate.
+    fn module_file_from_candidate(candidate: ModuleFileCandidate) -> ModuleFile {
+        let language_type = LanguageType::try_from(candidate.file_type).ok();
+        let loader = Loader::from(candidate.file_type);
+
+        ModuleFile::new(
+            candidate.file_id,
+            Uri::from_path(&candidate.path),
+            Some(candidate.path),
+            language_type,
+            loader,
+            candidate.mode,
+        )
+    }
+
+    /// Return the known mode names for one package.
+    fn known_modes_for_package(
+        &self,
+        revision: Revision,
+        package_id: PackageId,
+    ) -> Result<FxHashSet<String>, RepositoryError> {
+        let modes =
+            if let Some(config) = self.destack_config_for_package_id(revision, package_id)? {
+                config.modes.keys().cloned().collect()
+            } else {
+                builtin_mode_names()
+                    .iter()
+                    .map(|mode_name| (*mode_name).to_string())
+                    .collect()
+            };
+
+        Ok(modes)
+    }
+
+    /// Return the mode suffix for one path when it has one.
+    fn mode_for_path(
+        path: &Path,
+        file_type: FileType,
+        known_modes: &FxHashSet<String>,
+    ) -> Option<String> {
+        let extension = file_type.extension()?;
+        let file_name = path.file_name()?.to_str()?;
+        let suffix = format!(".{extension}");
+        let stem = file_name.strip_suffix(&suffix)?;
+        let (_, mode) = stem.rsplit_once('.')?;
+
+        known_modes.contains(mode).then(|| mode.to_string())
+    }
+
+    /// Return the base path for one mode file.
+    fn mode_base_path(path: &Path, file_type: FileType, mode: &str) -> PathBuf {
+        let extension = file_type
+            .extension()
+            .expect("module mode file should have a concrete extension");
+        let path_text = path.as_os_str().to_string_lossy();
+        let mode_suffix = format!(".{mode}.{extension}");
+        let base = path_text
+            .strip_suffix(&mode_suffix)
+            .expect("mode file should end in its mode suffix");
+
+        PathBuf::from(format!("{base}.{extension}"))
     }
 
     /// Return the module index for one revision.
@@ -141,7 +280,7 @@ impl Repository {
         let modules = self.module_index(revision)?;
 
         for (module_id, module) in modules.iter() {
-            if module.file_id == file_id {
+            if module.files.iter().any(|file| file.file_id == file_id) {
                 return Ok(Some(*module_id));
             }
         }
@@ -169,7 +308,7 @@ impl Repository {
         let modules = self.module_index(revision)?;
 
         for (module_id, module) in modules.iter() {
-            if &module.uri == uri {
+            if module.files.iter().any(|file| &file.uri == uri) {
                 return Ok(Some(*module_id));
             }
         }

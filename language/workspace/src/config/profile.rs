@@ -12,10 +12,10 @@ pub struct ProfileOptions {
     pub runtime: Option<RuntimeOptions>,
     /// Target platform / operating system for this profile.
     pub platform: Option<Platform>,
-    /// Debug flag exposed to import.meta.
-    pub debug: Option<bool>,
     /// Comptime environment whitelist.
     pub comptime_env: Option<Vec<String>>,
+    /// Active source graph modes for this profile.
+    pub modes: Vec<String>,
     /// Default tree tag builder provider.
     pub tree: Option<String>,
     /// Global provider modules for this profile.
@@ -33,8 +33,8 @@ impl ProfileOptions {
                 .as_ref()
                 .map(|runtime| runtime_options_from_json(Some(runtime))),
             platform: json.platform.as_deref().and_then(Platform::parse),
-            debug: json.debug,
             comptime_env: json.comptime_env.clone(),
+            modes: json.modes.clone().unwrap_or_default(),
             tree: json.tree.clone(),
             globals: json
                 .globals
@@ -55,10 +55,10 @@ pub struct ProfileOptionsJson {
     pub runtime: Option<RuntimeConfigJson>,
     /// Target platform / operating system.
     pub platform: Option<String>,
-    /// Debug build flag (affects import.meta.debug).
-    pub debug: Option<bool>,
     /// Comptime environment whitelist (if omitted, all env keys are visible).
     pub comptime_env: Option<Vec<String>>,
+    /// Active source graph modes for this profile.
+    pub modes: Option<Vec<String>>,
     /// Default tree tag builder provider.
     pub tree: Option<String>,
     /// Global provider modules for this profile.

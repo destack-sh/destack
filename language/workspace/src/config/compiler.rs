@@ -19,8 +19,8 @@ pub struct CompilerOptions {
     pub environment: Option<String>,
     /// Default profile for IDEs and CLI usage.
     pub profile: Option<String>,
-    /// Default source graph mode for IDEs and CLI usage.
-    pub mode: Option<String>,
+    /// Default active source graph modes for IDEs and CLI usage.
+    pub modes: Vec<String>,
     /// Comptime environment whitelist (if omitted, all env keys are visible).
     pub comptime_env: Option<Vec<String>>,
     /// Default tree tag builder provider.
@@ -64,7 +64,7 @@ impl Default for CompilerOptions {
             es_target: EsTarget::default(),
             environment: None,
             profile: None,
-            mode: None,
+            modes: Vec::new(),
             comptime_env: None,
             tree: None,
             globals: Vec::new(),
@@ -218,8 +218,8 @@ pub struct CompilerOptionsJson {
     pub environment: Option<String>,
     /// Default profile for IDEs and CLI usage.
     pub profile: Option<String>,
-    /// Default source graph mode for IDEs and CLI usage.
-    pub mode: Option<String>,
+    /// Default active source graph modes for IDEs and CLI usage.
+    pub modes: Option<Vec<String>>,
     /// Comptime environment whitelist (if omitted, all env keys are visible).
     pub comptime_env: Option<Vec<String>>,
     /// Default tree tag builder provider.
@@ -271,7 +271,7 @@ impl From<&CompilerOptionsJson> for CompilerOptions {
                 .unwrap_or_default(),
             environment: json.environment.clone(),
             profile: json.profile.clone(),
-            mode: json.mode.clone(),
+            modes: json.modes.clone().unwrap_or_default(),
             comptime_env: json.comptime_env.clone(),
             tree: json.tree.clone(),
             globals: json

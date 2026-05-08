@@ -9,9 +9,9 @@ use serde_json::Value;
 
 use crate::config::{
     CompilerOptions, EnvironmentOptions, FormatterOptions, LinterOptions, ModeOptions,
-    ProfileOptions, ProfileOptionsJson, RuntimeOptions, TargetOptions,
+    ProfileOptions, ProfileOptionsJson, RuntimeOptions, TargetOptions, builtin_modes,
     environment_options_from_json, extend_environment_options, parse_jsonc_file,
-    runtime_options_from_json, runtime_options_with_base, validate_modes,
+    runtime_options_from_json, runtime_options_with_base,
 };
 
 use super::compiler::CompilerOptionsJson;
@@ -206,16 +206,14 @@ impl DestackConfig {
         options.linter.apply(&mut linter);
 
         // source graph modes
-        let modes = options
-            .modes
-            .as_ref()
-            .map(|mode_map| {
+        let mut modes = builtin_modes();
+        if let Some(mode_map) = &options.modes {
+            modes.extend(
                 mode_map
                     .iter()
-                    .map(|(name, mode_json)| (name.clone(), ModeOptions::from_json(mode_json)))
-                    .collect()
-            })
-            .unwrap_or_default();
+                    .map(|(name, mode_json)| (name.clone(), ModeOptions::from_json(mode_json))),
+            );
+        }
         Ok(Self {
             file_id: file.id,
             path,
@@ -272,8 +270,26 @@ impl DestackConfig {
 
     /// Validate resolved config invariants.
     pub fn validate(&self) -> Result<(), serde_json::Error> {
-        validate_modes(&self.modes)
-            .map_err(|error| serde_json::Error::io(Error::new(ErrorKind::InvalidData, error)))
+        for (mode, options) in &self.modes {
+            for parent in &options.extends {
+                if parent == mode {
+                    let error = Error::new(
+                        ErrorKind::InvalidData,
+                        format!("mode '{mode}' extends itself"),
+                    );
+                    return Err(serde_json::Error::io(error));
+                }
+                if !self.modes.contains_key(parent) {
+                    let error = Error::new(
+                        ErrorKind::InvalidData,
+                        format!("mode '{mode}' extends unknown mode '{parent}'"),
+                    );
+                    return Err(serde_json::Error::io(error));
+                }
+            }
+        }
+
+        Ok(())
     }
 
     /// Inherit settings from one parent config.
@@ -345,8 +361,8 @@ impl DestackConfig {
         if compiler.profile.is_none() {
             compiler.profile = parent_compiler.profile.clone();
         }
-        if compiler.mode.is_none() {
-            compiler.mode = parent_compiler.mode.clone();
+        if compiler.modes.is_empty() {
+            compiler.modes = parent_compiler.modes.clone();
         }
         if compiler.comptime_env.is_none() {
             compiler.comptime_env = parent_compiler.comptime_env.clone();
