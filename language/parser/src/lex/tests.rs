@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::{Lexer, Parser};
 use destack_ast::{LiteralType, NumberBase, Token, TokenSpan, TokenType, render_tokens};
+use destack_core::StringPool;
 use destack_source::{File, FileId, FileType, LanguageType, Span, Uri};
 
 /// Lex the given source input string into its constituent tokens and side tokens.
@@ -89,7 +90,7 @@ fn lex_source_with_tree_literals(
         token: Token::end(),
         span: Span::new(file.id, file.len, file.len),
     };
-    let mut parser = Parser::lex_file(file, language);
+    let mut parser = Parser::lex_file(file, language, Arc::new(StringPool::new()));
 
     // parse without trivia so parser drives tree child tokenization like production code
     let _ = parser.parse_without_trivia();

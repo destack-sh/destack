@@ -274,7 +274,7 @@ impl Parser {
                 identifier.push_str(token_part);
             }
         }
-        let string_id = self.strings.intern(identifier);
+        let string_id = self.strings.intern(&identifier);
         let span = Span::new(first_span.file, first_span.start, last_span.end);
 
         Ok((string_id, span))
@@ -691,7 +691,7 @@ impl Parser {
             return Err(ParseError::unexpected(token.span));
         }
 
-        let key_name = self.strings.intern(key_string);
+        let key_name = self.strings.intern(&key_string);
         Ok((key_name, token.span))
     }
 }

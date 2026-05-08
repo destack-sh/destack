@@ -761,7 +761,7 @@ impl Parser {
             return Err(ParseError::unexpected(token.span));
         }
 
-        let key_name = self.strings.intern(key_string);
+        let key_name = self.strings.intern(&key_string);
         Ok((Name::Number(key_name), token.span))
     }
 

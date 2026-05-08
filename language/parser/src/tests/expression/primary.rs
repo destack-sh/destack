@@ -1,9 +1,12 @@
+use std::sync::Arc;
+
 use crate::tests::*;
 use crate::{
     Parser, ParserOptions, assert_expression_path, assert_node, assert_path,
     assert_qualified_reference_path, assert_string, assert_value_expression_path,
 };
 use destack_ast::*;
+use destack_core::StringPool;
 use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanType};
 
 /// Parse import meta as one dedicated expression root.
@@ -187,6 +190,7 @@ fn test_parse_without_parenthesized_wrappers_keeps_inner_expression_span() {
             preserve_parenthesized_wrappers: false,
             ..ParserOptions::default()
         },
+        Arc::new(StringPool::new()),
     );
     let expression_id = parser.eat_expression(parser.flags).unwrap();
     parser.attach_comments();
