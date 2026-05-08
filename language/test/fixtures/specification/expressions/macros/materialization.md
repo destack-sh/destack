@@ -2,32 +2,46 @@
 
 Expansion fixes the visible declaration graph, and materialization fills checked implementation details.
 
-## bodies
+## functions
 
-### materialize receives expansion state
+### memoize wraps a function body
 
 ```ds
-newtype fastRoute = (string,);
-
-type FastRouteState = {
-    value: string;
+newtype memoize = {
+    capacity?: uint;
 };
 
-extension of fastRoute implements Patcher<FunctionDeclaration, FastRouteState>
+type MemoizeState = {
+    innerName: string;
+    cacheName: string;
+};
+
+extension of memoize implements Patcher<FunctionDeclaration, MemoizeState>
 {
     static expand(
         target: FunctionDeclaration,
         context: ExpansionContext,
         config: this,
-    ): FastRouteState {
+    ): MemoizeState {
+        const innerName = `${context.name}Inner`;
+        const cacheName = `_${context.name}Cache`;
+        const map = context.ensureImport("destack:collections", "Map");
+        const cache = comptime eval<Declaration>(ds`
+            const ${cacheName} = ${map}.withCapacity<string, string>(${config.capacity ?? 256});
+        `);
         const declaration = comptime eval<Declaration>(ds`
-            function ${context.name}(): string;
+            function ${context.name}(id: string): string {
+                // placeholder
+            }
         `);
 
-        context.replace(declaration);
+        context.renameTarget(innerName);
+        context.add(cache);
+        context.add(declaration);
 
         return {
-            value: config[0],
+            innerName,
+            cacheName,
         };
     }
 
@@ -35,51 +49,29 @@ extension of fastRoute implements Patcher<FunctionDeclaration, FastRouteState>
         target: FunctionDeclaration,
         context: MaterializationContext,
         config: this,
-        state: FastRouteState,
+        state: MemoizeState,
     ): void {
         const implementation = comptime eval<Declaration>(ds`
-            function ${context.name}(): string {
-                return ${state.value};
+            function ${context.name}(id: string): string {
+                const cached = ${state.cacheName}.get(id);
+                if (cached != undefined) {
+                    return cached;
+                }
+
+                const value = ${state.innerName}(id);
+                ${state.cacheName}.set(id, value);
+                return value;
             }
         `);
 
-        context.replace(implementation);
+        context.replaceTarget(implementation);
     }
 }
 
-@fastRoute("/users")
-function route(): string {
-    return "/fallback";
+@memoize({ capacity: 1024 })
+function loadUser(id: string): string {
+    return id;
 }
 
-route satisfies () => string;
+loadUser satisfies (id: string) => string;
 ```
-
-### materialize cannot add visible declarations
-
-```ds
-newtype lateExport = ();
-
-extension of lateExport implements Patcher<FunctionDeclaration>
-{
-    static materialize(
-        target: FunctionDeclaration,
-        context: MaterializationContext,
-        config: this,
-        state: void,
-    ): void {
-        const declaration = comptime eval<Declaration>(ds`
-            function lateName(): string;
-        `);
-
-        context.add(declaration);
-    }
-}
-
-@lateExport
-function load(): string {
-    return "load";
-}
-```
-
-- contains: add

@@ -4,7 +4,7 @@ Decorator values can implement `Patcher` to change their target during compilati
 
 ## functions
 
-### decorator values select patchers
+### route decorator adds a route definition
 
 ```ds
 newtype route = (string,);
@@ -12,8 +12,18 @@ newtype route = (string,);
 extension of route implements Patcher<FunctionDeclaration>
 {
     static expand(target: FunctionDeclaration, context: ExpansionContext, config: this): void {
+        context.ensureDeclaration("RouteDefinition", () => comptime eval<Declaration>(ds`
+            type RouteDefinition = {
+                path: string;
+                handler: unknown;
+            };
+        `));
+
         const declaration = comptime eval<Declaration>(ds`
-            const ${context.name}Path: string = ${config[0]};
+            const ROUTE_DEFINITION_${context.name.toUpperCase()} = {
+                path: "${config[0]}",
+                handler: ${context.name},
+            } as const satisfies RouteDefinition;
         `);
 
         context.add(declaration);
@@ -25,39 +35,30 @@ function users(): string {
     return "users";
 }
 
-usersPath satisfies string;
+ROUTE_DEFINITION_USERS.path satisfies "/users";
+ROUTE_DEFINITION_USERS.handler satisfies () => string;
 ```
 
-### decorator values configure patchers
-
-```ds
-newtype exportAs = (string,);
-
-extension of exportAs implements Patcher<FunctionDeclaration>
-{
-    static expand(target: FunctionDeclaration, context: ExpansionContext, config: this): void {
-        context.rename(config[0]);
-    }
-}
-
-@exportAs("loadUser")
-function load(id: string): string {
-    return id;
-}
-
-loadUser satisfies (id: string) => string;
-```
-
-### imported decorators use exported symbols
+### imported decorators expand through exported symbols
 
 ```ds:macros.ds
-export newtype expose = ();
+export newtype route = (string,);
 
-export extension of expose implements Patcher<FunctionDeclaration>
+export extension of route implements Patcher<FunctionDeclaration>
 {
     static expand(target: FunctionDeclaration, context: ExpansionContext, config: this): void {
+        context.ensureDeclaration("RouteDefinition", () => comptime eval<Declaration>(ds`
+            type RouteDefinition = {
+                path: string;
+                handler: unknown;
+            };
+        `));
+
         const declaration = comptime eval<Declaration>(ds`
-            const ${context.name}Name: string = "${context.name}";
+            const ROUTE_DEFINITION_${context.name.toUpperCase()} = {
+                path: "${config[0]}",
+                handler: ${context.name},
+            } as const satisfies RouteDefinition;
         `);
 
         context.add(declaration);
@@ -66,12 +67,13 @@ export extension of expose implements Patcher<FunctionDeclaration>
 ```
 
 ```ds:main.ds
-import { expose } from "./macros.ds";
+import { route } from "./macros.ds";
 
-@expose
+@route("/load")
 function load(id: string): string {
     return id;
 }
 
-loadName satisfies string;
+ROUTE_DEFINITION_LOAD.path satisfies "/load";
+ROUTE_DEFINITION_LOAD.handler satisfies (id: string) => string;
 ```
