@@ -50,11 +50,11 @@ impl CommandContext<'_> {
         let revision = self.revision()?;
         // resolve config selection
         let configs = if options.all {
-            self.load_workspace_declarations(revision)?
+            self.load_workspace_configs(revision)?
         } else {
             let config_path =
                 self.resolve_destack_config_path(self.common.config_path.as_deref())?;
-            vec![self.load_destack_declaration(&config_path)?]
+            vec![self.load_destack_config(&config_path)?]
         };
 
         if configs.is_empty() {
@@ -63,8 +63,8 @@ impl CommandContext<'_> {
 
         // collect target details
         let mut entries = Vec::new();
-        for declaration in &configs {
-            let options = declaration.package_options();
+        for config in &configs {
+            let options = config;
             let default_target = options.default_target.clone();
             for (name, target) in &options.targets {
                 entries.push(CommandTargetsEntry {
@@ -75,7 +75,7 @@ impl CommandContext<'_> {
                     out_dir: target.out_dir.display().to_string(),
                     out_file: target.out_file.as_ref().map(|p| p.display().to_string()),
                     default_target: default_target.clone(),
-                    package_dir: declaration.directory.display().to_string(),
+                    package_dir: config.directory.display().to_string(),
                 });
             }
         }

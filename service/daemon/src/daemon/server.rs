@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::JoinHandle;
+use std::time::Duration;
 
 use destack_session::{Session, SessionEventHandler};
 use destack_workspace::Repository;
@@ -11,7 +12,13 @@ use crate::protocol::{
     ProtocolServer, ProtocolServerActivity, ProtocolServerControl, ProtocolServerError,
     ProtocolServerOptions,
 };
-use crate::{Daemon, DaemonServiceOptions, DaemonShutdownOptions};
+use crate::{Daemon, DaemonServiceOptions};
+
+/// Default idle shutdown timeout for the daemon.
+pub const DEFAULT_DAEMON_IDLE_SHUTDOWN_MS: u64 = 600_000;
+
+/// Idle shutdown monitor poll interval.
+const IDLE_SHUTDOWN_POLL_MS: u64 = 250;
 
 /// Options for the daemon server.
 #[derive(Clone)]
@@ -22,8 +29,8 @@ pub struct DaemonServerOptions {
     pub session_event_handler: Option<SessionEventHandler>,
     /// Protocol options for daemon connections.
     pub protocol: ProtocolServerOptions,
-    /// Shutdown policy options.
-    pub shutdown: DaemonShutdownOptions,
+    /// Idle shutdown timeout.
+    pub idle_shutdown: Option<Duration>,
 }
 
 impl std::fmt::Debug for DaemonServerOptions {
@@ -37,29 +44,8 @@ impl std::fmt::Debug for DaemonServerOptions {
                 &self.session_event_handler.is_some(),
             )
             .field("protocol", &self.protocol)
-            .field("shutdown", &self.shutdown)
+            .field("idle_shutdown", &self.idle_shutdown)
             .finish()
-    }
-}
-
-impl DaemonServerOptions {
-    /// Build server options from a repository.
-    pub fn from_repository(repository: &Repository) -> Self {
-        // start from defaults
-        let mut options = Self::default();
-        let reference = destack_workspace::Ref::for_workspace_root(repository.workspace_root());
-        let revision = repository.current(&reference).ok();
-
-        // apply workspace config overrides
-        if let Some(revision) = revision
-            && let Ok(Some(workspace_options)) = repository.workspace_options(revision)
-        {
-            options.shutdown =
-                DaemonShutdownOptions::from_config(&workspace_options.package.daemon);
-        }
-
-        // return the merged options
-        options
     }
 }
 
@@ -79,8 +65,8 @@ pub struct DaemonServer {
 impl DaemonServer {
     /// Create a new daemon server for a repository and instance.
     pub fn new(repository: Arc<Repository>, instance: DaemonInstance) -> Self {
-        // build options from the repository
-        let options = DaemonServerOptions::from_repository(&repository);
+        // use server defaults
+        let options = DaemonServerOptions::default();
 
         // build the server state
         Self::with_options(repository, instance, options)
@@ -144,9 +130,7 @@ impl DaemonServer {
     fn serve_listener(&self, listener: DaemonIpcListener) -> Result<(), DaemonServerError> {
         // initialize connection state
         let mut handles: Vec<JoinHandle<()>> = Vec::new();
-        let activity = Arc::new(ProtocolServerActivity::new(
-            self.options.shutdown.idle_shutdown,
-        ));
+        let activity = Arc::new(ProtocolServerActivity::new(self.options.idle_shutdown));
         let control = ProtocolServerControl::with_activity(self.shutdown.clone(), activity);
         let monitor = self.spawn_idle_monitor(control.clone());
 
@@ -197,11 +181,11 @@ impl DaemonServer {
     /// Spawn an idle shutdown monitor when configured.
     fn spawn_idle_monitor(&self, control: ProtocolServerControl) -> Option<JoinHandle<()>> {
         // return early when idle shutdown is disabled
-        let _idle_shutdown = self.options.shutdown.idle_shutdown?;
+        let _idle_shutdown = self.options.idle_shutdown?;
 
         // capture shared shutdown state
         let shutdown = self.shutdown.clone();
-        let poll_interval = self.options.shutdown.idle_poll;
+        let poll_interval = Duration::from_millis(IDLE_SHUTDOWN_POLL_MS);
 
         // spawn the idle monitor thread
         Some(std::thread::spawn(move || {
@@ -280,7 +264,7 @@ impl From<DaemonServiceOptions> for DaemonServerOptions {
             worker_limit: options.worker_limit,
             session_event_handler: options.session_event_handler,
             protocol: options.protocol,
-            shutdown: DaemonShutdownOptions::default(),
+            idle_shutdown: Some(Duration::from_millis(DEFAULT_DAEMON_IDLE_SHUTDOWN_MS)),
         }
     }
 }
@@ -292,7 +276,7 @@ impl Default for DaemonServerOptions {
             worker_limit: Session::default_worker_limit(),
             session_event_handler: None,
             protocol: ProtocolServerOptions::default(),
-            shutdown: DaemonShutdownOptions::default(),
+            idle_shutdown: Some(Duration::from_millis(DEFAULT_DAEMON_IDLE_SHUTDOWN_MS)),
         }
     }
 }

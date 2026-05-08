@@ -6,7 +6,7 @@ use destack_artifact::DiskCacheStore;
 use destack_source::{FileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem};
 use destack_workspace::{HostEnvironment, Repository};
 
-use crate::daemon::{DaemonInstance, DaemonServer, DaemonServerOptions, DaemonShutdownOptions};
+use crate::daemon::{DaemonInstance, DaemonServer, DaemonServerOptions};
 use crate::protocol::{
     DaemonRequest, DaemonResponse, FileUpdate, FileUpdateKind, FileUpdateRequest, OpenRootRequest,
     RootOpenOptions,
@@ -65,10 +65,7 @@ fn ensure_ipc_test_environment() -> bool {
 fn ipc_test_server_options() -> DaemonServerOptions {
     // start from deterministic defaults
     let mut options = DaemonServerOptions {
-        shutdown: DaemonShutdownOptions {
-            idle_shutdown: None,
-            idle_poll: Duration::from_millis(250),
-        },
+        idle_shutdown: None,
         ..DaemonServerOptions::default()
     };
 
@@ -412,10 +409,7 @@ fn test_daemon_ipc_idle_shutdown() {
 
     // configure the daemon server for a short idle shutdown
     let options = DaemonServerOptions {
-        shutdown: DaemonShutdownOptions {
-            idle_shutdown: Some(Duration::from_millis(25)),
-            idle_poll: Duration::from_millis(10),
-        },
+        idle_shutdown: Some(Duration::from_millis(25)),
         ..DaemonServerOptions::default()
     };
 

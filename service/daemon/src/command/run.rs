@@ -4,10 +4,8 @@ use destack_artifact::ArtifactKey;
 use destack_runtime::runtime::World;
 use destack_runtime::runtime::engine::Entry;
 use destack_source::{ModuleId, ProfileId, TargetId};
-use destack_vm::{
-    ExecutionMode, Isolate, IsolateId, IsolateOptions, TrustPolicy as VmTrustPolicy, Value,
-};
-use destack_workspace::{DebugMode, Repository, Revision, RuntimeOptionsJson, Target, TrustPolicy};
+use destack_vm::{Isolate, IsolateId, IsolateOptions, Value};
+use destack_workspace::{Repository, Revision, RuntimeOptionsJson, Target};
 use serde::{Deserialize, Serialize};
 
 use super::CommandResult;
@@ -196,7 +194,7 @@ fn run_entry_module(
         revision,
         entry_module,
         &target_id,
-        isolate_options_for_target(&target),
+        IsolateOptions::default(),
     )?;
 
     let entry_source = inputs
@@ -213,14 +211,14 @@ fn run_entry_module(
     let result = world
         .run_entrypoint(runtime_id, &entry, &[])
         .map_err(|error| format!("{error}"))?;
-    let exit_code = exit_status_from_value(&result.value);
+    let exit_code = exit_status_from_value(&result);
 
-    if matches!(run_mode, CommandRunMode::Program) && !is_exit_code_value(&result.value) {
+    if matches!(run_mode, CommandRunMode::Program) && !is_exit_code_value(&result) {
         output.push_stderr(b"non-integer return value, defaulting to exit code 0\n".to_vec());
     }
 
     if matches!(run_mode, CommandRunMode::Eval { print: true }) {
-        let formatted = format_value_for_eval(&result.value);
+        let formatted = format_value_for_eval(&result);
         output.push_stdout(format!("{formatted}\n").into_bytes());
     }
 
@@ -230,7 +228,7 @@ fn run_entry_module(
 
     Ok(RunResult {
         exit_code,
-        payload: value_payload(&result.value),
+        payload: value_payload(&result),
     })
 }
 
@@ -279,7 +277,13 @@ fn exit_status_from_value(value: &Value) -> i32 {
                 1
             }
         }
-        Value::Int { value, .. } => (*value).clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32,
+        Value::Int { value, .. } => {
+            let min = i128::from(i32::MIN);
+            let max = i128::from(i32::MAX);
+
+            (*value).clamp(min, max) as i32
+        }
+        Value::UInt { value, .. } => (*value).min(i32::MAX as u128) as i32,
         _ => 0,
     }
 }
@@ -297,8 +301,8 @@ fn value_payload(value: &Value) -> serde_json::Value {
     match value {
         Value::Void => serde_json::Value::Null,
         Value::Bool(value) => serde_json::Value::Bool(*value),
-        Value::Int { value, .. } => serde_json::Value::Number((*value).into()),
-        Value::UInt { value, .. } => serde_json::Value::Number((*value).into()),
+        Value::Int { value, .. } => int_payload(*value),
+        Value::UInt { value, .. } => uint_payload(*value),
         Value::Float32 { bits } => float_payload(f32::from_bits(*bits).into()),
         Value::Float64 { bits } => float_payload(f64::from_bits(*bits)),
         Value::Char(value) => serde_json::Value::String(value.to_string()),
@@ -306,6 +310,24 @@ fn value_payload(value: &Value) -> serde_json::Value {
         | Value::SharedHeapReference(_)
         | Value::RawPointer(_)
         | Value::SharedRawPointer(_) => serde_json::Value::String(format!("{value:?}")),
+    }
+}
+
+/// Convert one signed integer to json.
+fn int_payload(value: i128) -> serde_json::Value {
+    if let Ok(value) = i64::try_from(value) {
+        serde_json::Value::Number(value.into())
+    } else {
+        serde_json::Value::String(value.to_string())
+    }
+}
+
+/// Convert one unsigned integer to json.
+fn uint_payload(value: u128) -> serde_json::Value {
+    if let Ok(value) = u64::try_from(value) {
+        serde_json::Value::Number(value.into())
+    } else {
+        serde_json::Value::String(value.to_string())
     }
 }
 
@@ -375,27 +397,6 @@ fn float_payload(value: f64) -> serde_json::Value {
     serde_json::Number::from_f64(value)
         .map(serde_json::Value::Number)
         .unwrap_or(serde_json::Value::Null)
-}
-
-/// Create isolate options from target configuration.
-fn isolate_options_for_target(target: &Target) -> IsolateOptions {
-    let mut options = IsolateOptions::default();
-
-    let trust_policy = match target.trust_policy {
-        TrustPolicy::Untrusted => VmTrustPolicy::Untrusted,
-        TrustPolicy::Trusted => VmTrustPolicy::Trusted,
-        TrustPolicy::Internal => VmTrustPolicy::Internal,
-    };
-    options.apply_trust_policy(trust_policy);
-
-    let execution_mode = match target.debug_mode {
-        DebugMode::Vm => ExecutionMode::Debug,
-        DebugMode::Auto if target.debug => ExecutionMode::Debug,
-        _ => ExecutionMode::Runtime,
-    };
-    options.execution.mode = execution_mode;
-
-    options
 }
 
 /// Apply runtime overrides to a target.

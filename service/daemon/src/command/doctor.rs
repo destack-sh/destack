@@ -1,7 +1,7 @@
 use std::process::Command;
 
 use destack_source::DiagnosticCollection;
-use destack_workspace::{DestackDeclaration, ExtendsFieldJson};
+use destack_workspace::DestackConfig;
 use serde::{Deserialize, Serialize};
 
 use super::CommandResult;
@@ -112,9 +112,9 @@ impl CommandContext<'_> {
         } else {
             self.find_destack_config(self.session.cwd())
         };
-        let declaration = config_path
+        let config = config_path
             .as_ref()
-            .and_then(|path| self.load_destack_declaration(path).ok());
+            .and_then(|path| self.load_destack_config(path).ok());
 
         // collect config warnings
         let mut warnings = Vec::new();
@@ -125,11 +125,11 @@ impl CommandContext<'_> {
         let mut target_names = Vec::new();
         let mut default_target = None;
         let mut extends = Vec::new();
-        if let Some(declaration) = declaration.as_ref() {
-            let options = declaration.package_options();
+        if let Some(config) = config.as_ref() {
+            let options = config;
             target_names = options.targets.keys().cloned().collect();
             default_target = options.default_target.clone();
-            extends = list_extends(declaration);
+            extends = list_extends(config);
             if let Some(default_target) = default_target.as_ref()
                 && !options.targets.contains_key(default_target)
             {
@@ -256,12 +256,6 @@ fn parse_version_output(stdout: &[u8], stderr: &[u8]) -> Option<String> {
 }
 
 /// Collect extends entries for a config.
-fn list_extends(declaration: &DestackDeclaration) -> Vec<String> {
-    let mut entries = Vec::new();
-    match &declaration.json.extends {
-        Some(ExtendsFieldJson::Single(value)) => entries.push(value.clone()),
-        Some(ExtendsFieldJson::Multiple(values)) => entries.extend(values.clone()),
-        None => {}
-    }
-    entries
+fn list_extends(config: &DestackConfig) -> Vec<String> {
+    config.options.extends.iter().cloned().collect()
 }

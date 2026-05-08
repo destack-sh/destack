@@ -1,5 +1,5 @@
 use destack_source::DiagnosticCollection;
-use destack_workspace::DestackDeclaration;
+use destack_workspace::DestackConfig;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -57,12 +57,12 @@ impl CommandContext<'_> {
             .workspace(revision)
             .map_err(|error| format!("failed to derive workspace: {error}"))?;
 
-        // resolve declarations for output cleanup
-        let destack_declarations = if options.all_packages {
-            self.load_workspace_declarations(revision)?
+        // resolve configs for output cleanup
+        let destack_configs = if options.all_packages {
+            self.load_workspace_configs(revision)?
         } else {
             match self.resolve_destack_config_path(self.common.config_path.as_deref()) {
-                Ok(path) => vec![self.load_destack_declaration(&path)?],
+                Ok(path) => vec![self.load_destack_config(&path)?],
                 Err(error) => {
                     if clean_dist {
                         return Err(error);
@@ -75,17 +75,17 @@ impl CommandContext<'_> {
         // collect paths for removal
         let mut paths = HashSet::new();
         if clean_dist {
-            for declaration in &destack_declarations {
-                collect_output_paths(declaration, &mut paths);
+            for config in &destack_configs {
+                collect_output_paths(config, &mut paths);
             }
         }
         if clean_cache {
-            if destack_declarations.is_empty() {
+            if destack_configs.is_empty() {
                 let cache_dir =
                     resolve_cache_directory(self.common.cache_dir.as_ref(), &workspace.root, cwd);
                 paths.insert(cache_dir);
             } else {
-                for _ in &destack_declarations {
+                for _ in &destack_configs {
                     let cache_dir = resolve_cache_directory(
                         self.common.cache_dir.as_ref(),
                         &workspace.root,
@@ -144,25 +144,25 @@ impl CommandContext<'_> {
 }
 
 /// Collect output paths for one config.
-fn collect_output_paths(declaration: &DestackDeclaration, paths: &mut HashSet<PathBuf>) {
-    let options = declaration.package_options();
+fn collect_output_paths(config: &DestackConfig, paths: &mut HashSet<PathBuf>) {
+    let options = config;
 
     if let Some(out_dir) = options.compiler.out_dir.as_ref() {
-        paths.insert(resolve_path(out_dir, &declaration.directory));
+        paths.insert(resolve_path(out_dir, &config.directory));
     }
     if let Some(declaration_dir) = options.compiler.declaration_dir.as_ref() {
-        paths.insert(resolve_path(declaration_dir, &declaration.directory));
+        paths.insert(resolve_path(declaration_dir, &config.directory));
     }
 
     for target in options.targets.values() {
-        let out_dir = resolve_path(&target.out_dir, &declaration.directory);
+        let out_dir = resolve_path(&target.out_dir, &config.directory);
         paths.insert(out_dir);
 
         if let Some(out_file) = target.out_file.as_ref() {
-            paths.insert(resolve_path(out_file, &declaration.directory));
+            paths.insert(resolve_path(out_file, &config.directory));
         }
         if let Some(declaration_dir) = target.declaration_dir.as_ref() {
-            paths.insert(resolve_path(declaration_dir, &declaration.directory));
+            paths.insert(resolve_path(declaration_dir, &config.directory));
         }
     }
 }

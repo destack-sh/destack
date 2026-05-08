@@ -398,9 +398,9 @@ fn formatting_options_for_path(
 ) -> FormatterOptions {
     let package = repository.nearest_package(revision, path).ok().flatten();
     if let Some(package) = package
-        && let Ok(Some(package_options)) = repository.package_options(revision, package.id)
+        && let Ok(Some(config)) = repository.destack_config_for_package_id(revision, package.id)
     {
-        return package_options.formatter;
+        return config.formatter.clone();
     }
 
     workspace_formatting_options(repository, revision).unwrap_or_default()
@@ -561,12 +561,12 @@ fn workspace_formatting_options(
     repository: &Repository,
     revision: Revision,
 ) -> CommandResult<FormatterOptions> {
-    let workspace_options = repository
-        .workspace_options(revision)
+    let workspace_config = repository
+        .destack_config_for_workspace(revision)
         .map_err(|error| format!("failed to derive workspace options: {error}"))?;
 
-    Ok(workspace_options
-        .map(|options| options.package.formatter)
+    Ok(workspace_config
+        .map(|options| options.formatter.clone())
         .unwrap_or_default())
 }
 
