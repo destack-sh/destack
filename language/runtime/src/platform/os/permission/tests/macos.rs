@@ -1,6 +1,6 @@
 use std::sync::{Mutex, OnceLock};
 
-use destack_workspace::{RuntimeAppPermission, RuntimeOptions};
+use destack_workspace::{AppPermission, RuntimeOptions};
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::HostSessionId;
@@ -60,7 +60,7 @@ fn enable_location_declaration(options: &mut RuntimeOptions) {
     options
         .app
         .permissions
-        .insert(RuntimeAppPermission::Location);
+        .insert(AppPermission::Location, Default::default());
 }
 
 /// Report one granted location permission result from the macOS host hook.

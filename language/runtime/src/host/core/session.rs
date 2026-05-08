@@ -2,9 +2,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use destack_artifact::Platform;
-use destack_workspace::{
-    PlatformHostOptions, PlatformOsOptions, RuntimeAppDeclaration, RuntimeOptions,
-};
+use destack_workspace::{AppOptions, PlatformHostOptions, PlatformOsOptions, RuntimeOptions};
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::adapter::{HostAdapter, PollResult};
@@ -46,7 +44,7 @@ pub struct Session {
     /// Resolved OS runtime options for host-backed services.
     os_options: PlatformOsOptions,
     /// Resolved target app declaration for request availability checks.
-    app_declaration: RuntimeAppDeclaration,
+    app_declaration: AppOptions,
 }
 
 impl std::fmt::Debug for Session {
@@ -76,11 +74,7 @@ impl Session {
     /// Capture host restore configuration from runtime options.
     pub(crate) fn restore_config_from_runtime_options(
         options: &RuntimeOptions,
-    ) -> (
-        PlatformHostOptions,
-        PlatformOsOptions,
-        RuntimeAppDeclaration,
-    ) {
+    ) -> (PlatformHostOptions, PlatformOsOptions, AppOptions) {
         // resolve compile-target host integration once
         let (platform, _adapter, _cleanup) = default_compile_target_parts();
         let host_options = host_options_for_target(platform, options);
@@ -97,7 +91,7 @@ impl Session {
         runtime_id: RuntimeId,
         host_options: PlatformHostOptions,
         os_options: PlatformOsOptions,
-        app_declaration: RuntimeAppDeclaration,
+        app_declaration: AppOptions,
         is_native_ingress_enabled: bool,
     ) -> Self {
         Self::new_with_options_inner(
@@ -118,7 +112,7 @@ impl Session {
         runtime_id: RuntimeId,
         host_options: PlatformHostOptions,
         os_options: PlatformOsOptions,
-        app_declaration: RuntimeAppDeclaration,
+        app_declaration: AppOptions,
         is_native_ingress_enabled: bool,
     ) -> Self {
         let platform = adapter.platform();
@@ -178,7 +172,7 @@ impl Session {
         runtime_id: RuntimeId,
         host_options: PlatformHostOptions,
         os_options: PlatformOsOptions,
-        app_declaration: RuntimeAppDeclaration,
+        app_declaration: AppOptions,
     ) -> Self {
         // resolve compile-target host integration once
         let (_platform, adapter, cleanup) = default_compile_target_parts();
@@ -385,8 +379,7 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     use destack_workspace::{
-        PlatformOsOptions, RuntimeAppDeclaration, RuntimeAppIntentDeclaration,
-        RuntimeAppNotificationDeclaration,
+        AppIntentOptions, AppNotificationOptions, AppOptions, PlatformOsOptions,
     };
 
     use super::{
@@ -455,7 +448,7 @@ mod tests {
     }
 
     /// Build one test session with one explicit platform and app declaration.
-    fn test_session(platform: Platform, app: RuntimeAppDeclaration) -> (Session, Arc<AtomicUsize>) {
+    fn test_session(platform: Platform, app: AppOptions) -> (Session, Arc<AtomicUsize>) {
         let submit_count = Arc::new(AtomicUsize::new(0));
         let adapter = Arc::new(TestHostAdapter {
             platform,
@@ -481,8 +474,7 @@ mod tests {
     /// Reject undeclared permission requests before adapter submission.
     #[test]
     fn test_submit_request_rejects_undeclared_permission_before_driver() {
-        let (session, submit_count) =
-            test_session(Platform::Android, RuntimeAppDeclaration::default());
+        let (session, submit_count) = test_session(Platform::Android, AppOptions::default());
 
         // submit one undeclared permission request
         let error = session
@@ -503,7 +495,7 @@ mod tests {
     /// Reject undeclared iOS query schemes before adapter submission.
     #[test]
     fn test_submit_request_rejects_undeclared_ios_query_scheme_before_driver() {
-        let (session, submit_count) = test_session(Platform::IOS, RuntimeAppDeclaration::default());
+        let (session, submit_count) = test_session(Platform::IOS, AppOptions::default());
 
         // submit one undeclared query-scheme request
         let error = session
@@ -523,12 +515,12 @@ mod tests {
     #[test]
     fn test_submit_request_allows_declared_notification_permission_request() {
         // notification declaration
-        let app = RuntimeAppDeclaration {
-            notifications: RuntimeAppNotificationDeclaration {
+        let app = AppOptions {
+            notifications: AppNotificationOptions {
                 enabled: true,
-                ..RuntimeAppNotificationDeclaration::default()
+                ..AppNotificationOptions::default()
             },
-            ..RuntimeAppDeclaration::default()
+            ..AppOptions::default()
         };
         let (session, submit_count) = test_session(Platform::IOS, app);
 
@@ -549,8 +541,7 @@ mod tests {
     /// Allow declaration-free document picker requests to reach the adapter.
     #[test]
     fn test_submit_request_allows_declaration_free_document_pick_adapter_path() {
-        let (session, submit_count) =
-            test_session(Platform::MacOS, RuntimeAppDeclaration::default());
+        let (session, submit_count) = test_session(Platform::MacOS, AppOptions::default());
 
         // submit one declaration-free document picker request
         let outcome = session
@@ -575,8 +566,7 @@ mod tests {
     /// Reject undeclared Android file sharing before adapter submission.
     #[test]
     fn test_submit_request_rejects_undeclared_android_file_share_before_driver() {
-        let (session, submit_count) =
-            test_session(Platform::Android, RuntimeAppDeclaration::default());
+        let (session, submit_count) = test_session(Platform::Android, AppOptions::default());
 
         // submit one undeclared file-share request
         let error = session
@@ -595,12 +585,12 @@ mod tests {
     /// Allow declared Android file sharing to reach the adapter.
     #[test]
     fn test_submit_request_allows_declared_android_file_share_adapter_path() {
-        let app = RuntimeAppDeclaration {
-            intents: RuntimeAppIntentDeclaration {
+        let app = AppOptions {
+            intents: AppIntentOptions {
                 shares_files: true,
-                ..RuntimeAppIntentDeclaration::default()
+                ..AppIntentOptions::default()
             },
-            ..RuntimeAppDeclaration::default()
+            ..AppOptions::default()
         };
         let (session, submit_count) = test_session(Platform::Android, app);
 

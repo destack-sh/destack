@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
 
 use destack_vm as vm;
-use destack_workspace::{RuntimeAppPermission, RuntimeOptions};
+use destack_workspace::{AppPermission, RuntimeOptions};
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::abi::{NativeStringRef, VmAbi};
@@ -29,11 +29,11 @@ pub(super) fn enable_media_declarations(options: &mut RuntimeOptions) {
     options
         .app
         .permissions
-        .insert(RuntimeAppPermission::MediaRead);
+        .insert(AppPermission::MediaRead, Default::default());
     options
         .app
         .permissions
-        .insert(RuntimeAppPermission::MediaWrite);
+        .insert(AppPermission::MediaWrite, Default::default());
 }
 
 /// Run one desktop media harness pass with deterministic media roots installed.

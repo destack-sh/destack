@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex as StdMutex, OnceLock};
 
-use destack_workspace::{RuntimeAppBackgroundMode, RuntimeOptions};
+use destack_workspace::{AppBackgroundMode, RuntimeOptions};
 use parking_lot::Mutex;
 
 use crate::platform::os::background::with_background_test_mode;
@@ -31,7 +31,7 @@ pub(super) fn enable_background_declaration(options: &mut RuntimeOptions) {
         .app
         .background
         .modes
-        .insert(RuntimeAppBackgroundMode::Processing);
+        .push(AppBackgroundMode::Processing);
     options.os.state_directory = active_desktop_background_test_state_directory();
 }
 
