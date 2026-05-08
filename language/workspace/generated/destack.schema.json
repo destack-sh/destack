@@ -434,12 +434,27 @@
       "description": "Runtime config JSON.",
       "anyOf": [
         {
-          "description": "Runtime host shorthand.",
-          "type": "string"
+          "description": "Runtime contract shorthand.",
+          "$ref": "#/$defs/Runtime"
         },
         {
           "description": "Full runtime configuration object.",
           "$ref": "#/$defs/RuntimeOptionsJson"
+        }
+      ]
+    },
+    "Runtime": {
+      "description": "Semantic runtime contract for compiled code.",
+      "oneOf": [
+        {
+          "description": "Destack semantic runtime.",
+          "type": "string",
+          "const": "destack"
+        },
+        {
+          "description": "JavaScript host runtime.",
+          "type": "string",
+          "const": "js"
         }
       ]
     },
@@ -449,9 +464,13 @@
       "properties": {
         "host": {
           "description": "Execution host semantics for this runtime.",
-          "type": [
-            "string",
-            "null"
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Runtime"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "version": {
@@ -4620,7 +4639,7 @@
           ]
         },
         "runtime": {
-          "description": "Runtime host shorthand or full runtime configuration.",
+          "description": "Runtime contract shorthand or full runtime configuration.",
           "anyOf": [
             {
               "$ref": "#/$defs/RuntimeConfigJson"
@@ -4631,7 +4650,7 @@
           ]
         },
         "platform": {
-          "description": "Host platform or packaging surface (e.g., browser, ios, android, macos, linux, windows).",
+          "description": "Host platform or packaging surface (e.g., web, ios, android, macos, linux, windows).",
           "type": [
             "string",
             "null"
@@ -6631,7 +6650,7 @@
       "type": "object",
       "properties": {
         "runtime": {
-          "description": "Runtime environment (browser, node, wasm-wasi, native-managed, etc.).",
+          "description": "Runtime contract for this profile.",
           "anyOf": [
             {
               "$ref": "#/$defs/RuntimeConfigJson"
@@ -6702,7 +6721,7 @@
       "type": "object",
       "properties": {
         "extends": {
-          "description": "Mode names inherited before this mode.",
+          "description": "Mode names included before this mode.",
           "anyOf": [
             {
               "$ref": "#/$defs/ModeExtends"

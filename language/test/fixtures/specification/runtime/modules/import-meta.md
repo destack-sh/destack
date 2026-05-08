@@ -19,17 +19,7 @@ output satisfies "js" | "ts" | "wasm" | "native";
 
 ```ds
 const runtime = import.meta.runtime;
-runtime satisfies
-    | "browser"
-    | "node"
-    | "deno"
-    | "bun"
-    | "worker"
-    | "wasm-js"
-    | "wasm-wasi"
-    | "native-managed"
-    | "native-freestanding"
-    | "native-embedded";
+runtime satisfies "destack" | "js";
 ```
 
 ### platform is a known union

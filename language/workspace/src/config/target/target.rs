@@ -78,7 +78,7 @@ pub struct Target {
     pub app: AppOptions,
     /// Emitted artifact family (js, ts, html, wasm, native).
     pub emit: EmitFormat,
-    /// Runtime environment (browser, node, wasm-wasi, native-managed, etc.).
+    /// Runtime execution contract.
     pub runtime: Runtime,
     /// Runtime version for selecting versioned libs.
     pub runtime_version: Option<String>,
@@ -291,7 +291,6 @@ impl Target {
             "js",
             "ts",
             "html",
-            "node",
             "wasm",
             "wasm-wasi",
             "wasi",
@@ -318,9 +317,9 @@ impl Target {
     pub fn js(name: impl Into<String>) -> Self {
         let mut target = Self::from_default_options(name);
         target.emit = EmitFormat::Js;
-        target.runtime = Runtime::Node;
-        target.runtime_options.host = Runtime::Node;
-        target.platform = Platform::Web;
+        target.runtime = Runtime::Js;
+        target.runtime_options.host = Runtime::Js;
+        target.platform = Platform::Universal;
         target.declaration = true;
 
         target
@@ -330,9 +329,9 @@ impl Target {
     pub fn ts(name: impl Into<String>) -> Self {
         let mut target = Self::from_default_options(name);
         target.emit = EmitFormat::Ts;
-        target.runtime = Runtime::Node;
-        target.runtime_options.host = Runtime::Node;
-        target.platform = Platform::Web;
+        target.runtime = Runtime::Js;
+        target.runtime_options.host = Runtime::Js;
+        target.platform = Platform::Universal;
 
         target
     }
@@ -341,21 +340,9 @@ impl Target {
     pub fn html(name: impl Into<String>) -> Self {
         let mut target = Self::from_default_options(name);
         target.emit = EmitFormat::Html;
-        target.runtime = Runtime::Browser;
-        target.runtime_options.host = Runtime::Browser;
+        target.runtime = Runtime::Js;
+        target.runtime_options.host = Runtime::Js;
         target.platform = Platform::Web;
-
-        target
-    }
-
-    /// Create a new target with the given name and JS output for Node.js.
-    pub fn node(name: impl Into<String>) -> Self {
-        let mut target = Self::from_default_options(name);
-        target.emit = EmitFormat::Js;
-        target.runtime = Runtime::Node;
-        target.runtime_options.host = Runtime::Node;
-        target.platform = Platform::Universal;
-        target.declaration = true;
 
         target
     }
@@ -364,8 +351,8 @@ impl Target {
     pub fn wasm_js(name: impl Into<String>) -> Self {
         let mut target = Self::from_default_options(name);
         target.emit = EmitFormat::Wasm;
-        target.runtime = Runtime::WasmJs;
-        target.runtime_options.host = Runtime::WasmJs;
+        target.runtime = Runtime::Destack;
+        target.runtime_options.host = Runtime::Destack;
         target.platform = Platform::Web;
         target.optimize = true;
 
@@ -376,8 +363,8 @@ impl Target {
     pub fn wasm_wasi(name: impl Into<String>) -> Self {
         let mut target = Self::from_default_options(name);
         target.emit = EmitFormat::Wasm;
-        target.runtime = Runtime::WasmWasi;
-        target.runtime_options.host = Runtime::WasmWasi;
+        target.runtime = Runtime::Destack;
+        target.runtime_options.host = Runtime::Destack;
         target.platform = Platform::Wasi;
         target.optimize = true;
 
@@ -388,8 +375,8 @@ impl Target {
     pub fn native(name: impl Into<String>) -> Self {
         let mut target = Self::from_default_options(name);
         target.emit = EmitFormat::Native;
-        target.runtime = Runtime::NativeManaged;
-        target.runtime_options.host = Runtime::NativeManaged;
+        target.runtime = Runtime::Destack;
+        target.runtime_options.host = Runtime::Destack;
         target.platform = Platform::Universal;
         target.optimize = true;
 
@@ -404,8 +391,6 @@ impl Target {
     /// Create a new target with the given name and native freestanding output.
     pub fn native_freestanding(name: impl Into<String>) -> Self {
         let mut target = Self::native(name);
-        target.runtime = Runtime::NativeFreestanding;
-        target.runtime_options.host = Runtime::NativeFreestanding;
         target.platform = Platform::BareMetal;
 
         target
@@ -414,8 +399,6 @@ impl Target {
     /// Create a new target with the given name and native embedded output.
     pub fn native_embedded(name: impl Into<String>) -> Self {
         let mut target = Self::native(name);
-        target.runtime = Runtime::NativeEmbedded;
-        target.runtime_options.host = Runtime::NativeEmbedded;
         target.platform = Platform::BareMetal;
 
         target
@@ -428,7 +411,6 @@ impl Target {
             "js" => Some(Self::js(name)),
             "ts" => Some(Self::ts(name)),
             "html" => Some(Self::html(name)),
-            "node" => Some(Self::node(name)),
             "wasm" => Some(Self::wasm_js(name)),
             "wasm-wasi" | "wasi" => Some(Self::wasm_wasi(name)),
             "native" => Some(Self::native(name)),
@@ -943,7 +925,7 @@ pub struct TargetOptions {
     // output format
     /// Emitted artifact family (js, ts, html, wasm, native).
     pub emit: EmitFormat,
-    /// Runtime environment (browser, node, wasm-wasi, native-managed, etc.).
+    /// Runtime execution contract.
     pub runtime: Runtime,
     /// Runtime version for selecting versioned libs.
     pub runtime_version: Option<String>,
@@ -1503,9 +1485,9 @@ pub struct TargetJson {
     // emit family
     /// Emitted artifact family (e.g., JavaScript, TypeScript, HTML, WebAssembly, Native).
     pub emit: Option<EmitFormatJson>,
-    /// Runtime host shorthand or full runtime configuration.
+    /// Runtime contract shorthand or full runtime configuration.
     pub runtime: Option<RuntimeConfigJson>,
-    /// Host platform or packaging surface (e.g., browser, ios, android, macos, linux, windows).
+    /// Host platform or packaging surface (e.g., web, ios, android, macos, linux, windows).
     pub platform: Option<String>,
     /// Target architecture for native codegen (e.g., "x86_64", "aarch64").
     pub arch: Option<String>,

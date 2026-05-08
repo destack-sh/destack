@@ -42,9 +42,9 @@ impl ModeOptions {
 /// Return the built-in source graph modes.
 pub fn builtin_modes() -> IndexMap<String, ModeOptions> {
     builtin_mode_names()
-    .into_iter()
-    .map(|mode| (mode.to_string(), ModeOptions::default()))
-    .collect()
+        .into_iter()
+        .map(|mode| (mode.to_string(), ModeOptions::default()))
+        .collect()
 }
 
 /// Return the built-in source graph mode names.
