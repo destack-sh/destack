@@ -2096,6 +2096,41 @@ type Lock<T> =
 
 Like many JS/TS-adjacent runtimes, Destack supports importing additional file types beyond code modules.
 
+### Modes
+
+Modes generalise the idea of `module.tests.ds` into a more flexible `<module>.<mode>.ds` schema where `<mode>`s may include both well known contexts (`dev`, `prod`, `test`, `bench`, `lint`), and additional user-defined modes from `destack.json`. 
+The base `module.ds` is always included when a mode is active, and additional `module.<mode>.ds` files are automatically included as if they were just at the end of the file.
+
+For example, when importing `./user` with `test` mode active, both `user.ds` and `user.test.ds` are included:
+
+```ds
+// user.ds
+export function loadUser(id: UserId): Result<User, UserError> {
+    return database.load(id);
+}
+
+// user.test.ds
+test("loadUser", () => {
+    loadUser(UserId(1)) satisfies Result<User, UserError>;
+});
+```
+
+In effect, this is just a file-level shortcut around static if gating `@if(import.meta.modes.includes("mode"))` for all declaratoins in a file.
+Compiler, profile, and target options select active modes with `modes`:
+
+```json:destack.json
+{
+    "modes": {
+        "preview": { "extends": "dev" }
+    },
+    "compiler": {
+        "modes": ["preview"]
+    }
+}
+```
+
+When a mode extends other modes, the inherited modes are included "before" the extending mode.
+
 ### Import Meta
 
 `import.meta` exposes module and profile metadata during static and comptime evaluation.
@@ -2109,8 +2144,13 @@ Like many JS/TS-adjacent runtimes, Destack supports importing additional file ty
 | `import.meta.platform` | target platform | `Platform` | `"linux"`, `"windows"`, `"web"` |
 | `import.meta.target` | target family and ABI | `Target` | `{ family: "unix", arch: "x64", abi: "gnu" }` |
 | `import.meta.runtime` | runtime environment | `Runtime` | `"browser"`, `"node"`, `"native-managed"` |
-| `import.meta.debug` | debug/development build flag | `bool` | `true`, `false` |
-| `import.meta.test` | test build flag | `bool` | `true`, `false` |
+| `import.meta.modes` | active source graph modes | `readonly string[]` | `["test"]`, `["dev", "lint"]` |
+| `import.meta.debug` | `debug` mode shorthand | `bool` | `true`, `false` |
+| `import.meta.dev` | `dev` mode shorthand | `bool` | `true`, `false` |
+| `import.meta.prod` | `prod` mode shorthand | `bool` | `true`, `false` |
+| `import.meta.test` | `test` mode shorthand | `bool` | `true`, `false` |
+| `import.meta.bench` | `bench` mode shorthand | `bool` | `true`, `false` |
+| `import.meta.lint` | `lint` mode shorthand | `bool` | `true`, `false` |
 | `import.meta.env` | configured build environment | `{ readonly [key: string]: string | bool | number }` | `{ NODE_ENV: "production", FEATURE_X: true }` |
 
 ### Data Modules
