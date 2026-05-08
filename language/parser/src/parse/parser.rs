@@ -4,7 +4,7 @@ use destack_ast::{
     BlockForm, Expression, Keyword, LocalNodeId, Node, NodeType, StringId, Token, TokenSpan,
     TokenType, Tree, TreeImpl, TreeMark, TypeExpression,
 };
-use destack_core::LocalStringPool;
+use destack_core::StringPool;
 use destack_source::{
     DiagnosticCollector, EnclosingSpan, File, FileId, LanguageType, MultiSpan, NodeSearchMode,
     NodeSpanBoundary, NodeSpanType, Span,
@@ -17,8 +17,6 @@ use crate::{ParseError, ParseResult};
 use super::state::ParserState;
 
 const ESTIMATED_TOKEN_BYTES: usize = 6;
-const ESTIMATED_STRING_COUNT_DENOMINATOR: usize = 16;
-const ESTIMATED_STRING_BYTES_DENOMINATOR: usize = 8;
 
 /// Cached string ids for type literal identifiers.
 #[allow(dead_code)]
@@ -47,7 +45,7 @@ pub(crate) struct TypeLiteralIdentifiers {
 
 impl TypeLiteralIdentifiers {
     /// Create cached ids for the current string pool.
-    fn new(strings: &mut LocalStringPool) -> Self {
+    fn new(strings: &StringPool) -> Self {
         Self {
             undefined: strings.intern("undefined"),
             unknown: strings.intern("unknown"),
@@ -972,8 +970,8 @@ pub struct Parser {
 
     /// The Node AST tree.
     pub tree: Tree,
-    /// The string pool (lockless for single-threaded parsing).
-    pub strings: LocalStringPool,
+    /// The shared string pool.
+    pub strings: Arc<StringPool>,
 
     /// The language type for parsing behavior.
     pub language: LanguageType,
@@ -1029,7 +1027,7 @@ impl Parser {
     }
 
     /// Create one parser for a file before lexing begins.
-    fn parser_for_file(file: Arc<File>, language: LanguageType) -> Self {
+    fn parser_for_file(file: Arc<File>, language: LanguageType, strings: Arc<StringPool>) -> Self {
         // initialize the lexer for lazy lexing
         let lexer = Lexer::new(file.clone(), language);
 
@@ -1037,12 +1035,8 @@ impl Parser {
         let source_len = file.text().len();
         let estimated_tokens = source_len / ESTIMATED_TOKEN_BYTES;
         let estimated_nodes = estimated_tokens;
-        let estimated_string_count = estimated_tokens / ESTIMATED_STRING_COUNT_DENOMINATOR;
-        let estimated_string_bytes = source_len / ESTIMATED_STRING_BYTES_DENOMINATOR;
         let file_id = file.id;
-        let mut strings =
-            LocalStringPool::with_capacity(estimated_string_count, estimated_string_bytes);
-        let type_literal_identifiers = TypeLiteralIdentifiers::new(&mut strings);
+        let type_literal_identifiers = TypeLiteralIdentifiers::new(strings.as_ref());
         Self {
             file,
             file_id,
@@ -1069,9 +1063,8 @@ impl Parser {
     }
 
     /// Create a new parser from a text File and tokenize it.
-    #[tracing::instrument(name = "parser.lex", level = "trace", skip_all, fields(file_id = ?file.id))]
-    pub fn lex_file(file: Arc<File>, language: LanguageType) -> Self {
-        let mut parser = Self::parser_for_file(file, language);
+    pub fn lex_file(file: Arc<File>, language: LanguageType, strings: Arc<StringPool>) -> Self {
+        let mut parser = Self::parser_for_file(file, language, strings);
 
         // reset parser state to start
         parser.reset();
@@ -1079,18 +1072,13 @@ impl Parser {
     }
 
     /// Lex a file and apply parser options.
-    #[tracing::instrument(
-        name = "parser.lex",
-        level = "trace",
-        skip_all,
-        fields(file_id = ?file.id)
-    )]
     pub fn lex_file_with_options(
         file: Arc<File>,
         language: LanguageType,
         options: ParserOptions,
+        strings: Arc<StringPool>,
     ) -> Self {
-        let mut parser = Self::parser_for_file(file, language);
+        let mut parser = Self::parser_for_file(file, language, strings);
         parser
             .lexer
             .set_retain_trivia_tokens(options.retain_trivia_tokens);
@@ -1406,7 +1394,6 @@ impl Parser {
     }
 
     /// Parse everything as an implicit namespace.
-    #[tracing::instrument(name = "parser.parse", level = "trace", skip_all, fields(file_id = ?self.file_id))]
     pub fn parse(&mut self) -> Vec<LocalNodeId<Expression>> {
         self.parse_root_expressions(true)
     }

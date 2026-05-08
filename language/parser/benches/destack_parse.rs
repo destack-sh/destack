@@ -1,5 +1,6 @@
 use criterion::profiler::Profiler;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+use destack_core::StringPool;
 use destack_parser::{Parser, ParserOptions};
 use destack_source::{File, FileId, FileType, LanguageType, Uri, glob};
 use pprof::ProfilerGuard;
@@ -45,6 +46,7 @@ fn parse_file(file: Arc<File>) -> Parser {
             retain_trivia_tokens,
             ..ParserOptions::default()
         },
+        Arc::new(StringPool::new()),
     );
     if retain_trivia_tokens {
         parser.parse();

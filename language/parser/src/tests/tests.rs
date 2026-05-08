@@ -4,6 +4,7 @@ use destack_ast::{
     AssignPattern, Block, Expression, ImportTarget, LocalNodeId, NodeType, StringId, TokenType,
     TypeExpression, normalize_comment_payload,
 };
+use destack_core::StringPool;
 use destack_source::{File, FileId, FileType, LanguageType, Uri};
 
 use crate::Parser;
@@ -40,7 +41,11 @@ impl TestParser {
 
     /// Get a Parser for this test.
     pub(crate) fn prepare(&mut self) -> Parser {
-        Parser::lex_file(self.file.clone(), self.language)
+        Parser::lex_file(
+            self.file.clone(),
+            self.language,
+            Arc::new(StringPool::new()),
+        )
     }
 
     /// Assert the leaf parser errors by node type, expected token, and source text.

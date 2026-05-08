@@ -1,6 +1,9 @@
+use std::sync::Arc;
+
 use crate::tests::*;
 use crate::{Parser, ParserOptions, assert_comment, assert_expression_path, assert_node};
 use destack_ast::*;
+use destack_core::StringPool;
 use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
 
 #[test]
@@ -886,6 +889,7 @@ fn test_parse_without_parenthesized_wrappers_trims_type_union_last_arm() {
             preserve_parenthesized_wrappers: false,
             ..ParserOptions::default()
         },
+        Arc::new(StringPool::new()),
     );
     let expressions = parser.parse();
 
@@ -918,6 +922,7 @@ fn test_parse_without_parenthesized_wrappers_keeps_inner_type_span() {
             preserve_parenthesized_wrappers: false,
             ..ParserOptions::default()
         },
+        Arc::new(StringPool::new()),
     );
     let expressions = parser.parse();
     parser.attach_comments();
@@ -952,6 +957,7 @@ fn test_parse_without_parenthesized_wrappers_keeps_leading_union_chain_head() {
             preserve_parenthesized_wrappers: false,
             ..ParserOptions::default()
         },
+        Arc::new(StringPool::new()),
     );
     let expressions = parser.parse();
 
@@ -1003,6 +1009,7 @@ fn test_parse_without_parenthesized_wrappers_keeps_leading_intersection_chain_he
             preserve_parenthesized_wrappers: false,
             ..ParserOptions::default()
         },
+        Arc::new(StringPool::new()),
     );
     let expressions = parser.parse();
 
@@ -1231,6 +1238,7 @@ fn test_parse_without_parenthesized_wrappers_trims_mapped_union_last_arm() {
             preserve_parenthesized_wrappers: false,
             ..ParserOptions::default()
         },
+        Arc::new(StringPool::new()),
     );
     let expressions = parser.parse();
 

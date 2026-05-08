@@ -3,6 +3,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
+use destack_core::StringPool;
 use destack_parser::Parser;
 use destack_source::{File, FileId, FileType, LanguageType, Uri};
 use libfuzzer_sys::fuzz_target;
@@ -25,6 +26,10 @@ fuzz_target!(|data: &[u8]| {
     ));
 
     // parse the input
-    let mut parser = Parser::lex_file(file, LanguageType::Destack);
+    let mut parser = Parser::lex_file(
+        file,
+        LanguageType::Destack,
+        Arc::new(StringPool::new()),
+    );
     let _ = parser.parse();
 });
