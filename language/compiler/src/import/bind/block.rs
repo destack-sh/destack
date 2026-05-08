@@ -1,8 +1,8 @@
 use destack_artifact::Ast;
 use destack_ast::{self as ast};
 use destack_dir::{
-    Block, BlockContext, BlockForm, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
-    ModuleBinding, NodeType, ScopeKind, SymbolSpace, SymbolTable, Tree, TypeTable,
+    Block, BlockContext, BlockForm, DeclaredModule, LocalNodeId, LocalNodeIdAny, LocalScopeId,
+    LocalScopeMark, NodeType, ScopeKind, SymbolSpace, SymbolTable, Tree, TypeTable,
 };
 use destack_workspace::Module;
 
@@ -16,8 +16,8 @@ impl Compiler {
         module: &Module,
         ast: &Ast,
         namespace_scope: LocalScopeId,
-        global_augmentation_scope: LocalScopeId,
-        module_bindings: &mut Vec<ModuleBinding>,
+        global_scope: LocalScopeId,
+        declared_modules: &mut Vec<DeclaredModule>,
         scope: (LocalScopeId, LocalScopeMark),
         ast_block_id: ast::LocalNodeId<ast::Block>,
         parent_id: Option<LocalNodeIdAny>,
@@ -48,8 +48,8 @@ impl Compiler {
                     module,
                     ast,
                     namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
+                    global_scope,
+                    declared_modules,
                     (scope_id, symbols.get_scope_mark(scope_id)),
                     *expression,
                     Some(block_id),
@@ -65,8 +65,8 @@ impl Compiler {
                 module,
                 ast,
                 namespace_scope,
-                global_augmentation_scope,
-                module_bindings,
+                global_scope,
+                declared_modules,
                 (scope_id, symbols.get_scope_mark(scope_id)),
                 expression,
                 Some(block_id),

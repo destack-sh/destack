@@ -2,13 +2,13 @@ use crate::Compiler;
 use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
-    BindingCategory, ClassDeclaration, Declaration, DeclarationForm, DependencyItem,
-    EnumDeclaration, EnumField, EnumKind, ExportKind, Expression, ExtensionDeclaration,
-    FunctionDeclaration, GlobalDeclaration, ImportAliasDeclaration, ImportAliasTarget,
-    InterfaceDeclaration, InterfaceHeritage, LocalNodeId, LocalNodeIdAny, LocalScopeId,
-    LocalScopeMark, LocalSymbolId, ModuleBinding, ModuleDeclaration, Name, NamespaceDeclaration,
-    NamespaceForm, NodeType, ProvenanceReason, ScopeKind, StaticKey, StructDeclaration,
-    SymbolBinding, SymbolKind, SymbolSpace, SymbolTable, Tree, TypeDeclaration, TypeTable,
+    BindingScope, ClassDeclaration, Declaration, DeclaredModule, DependencyItem, EnumDeclaration,
+    EnumField, EnumKind, ExportKind, Expression, ExtensionDeclaration, FunctionDeclaration,
+    GlobalDeclaration, ImportAliasDeclaration, ImportAliasTarget, InterfaceDeclaration,
+    InterfaceHeritage, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, LocalSymbolId,
+    ModuleDeclaration, Name, NamespaceDeclaration, NamespaceForm, NodeType, ProvenanceReason,
+    ScopeKind, StaticKey, StructDeclaration, SymbolBinding, SymbolForm, SymbolRole, SymbolSpace,
+    SymbolTable, Tree, TypeDeclaration, TypeTable,
 };
 use destack_workspace::Module;
 
@@ -42,20 +42,16 @@ impl Compiler {
     }
 
     /// Return the symbol space used for one declaration form.
-    fn bind_declaration_symbol_space(
-        &self,
-        _module: &Module,
-        declaration_form: DeclarationForm,
-    ) -> SymbolSpace {
-        match declaration_form {
-            DeclarationForm::TypeAlias | DeclarationForm::Interface => SymbolSpace::Type,
-            DeclarationForm::Class
-            | DeclarationForm::Enum
-            | DeclarationForm::Struct
-            | DeclarationForm::Newtype
-            | DeclarationForm::Extension
-            | DeclarationForm::Function
-            | DeclarationForm::Void => SymbolSpace::Value,
+    fn symbol_space_for_form(&self, _module: &Module, symbol_form: SymbolForm) -> SymbolSpace {
+        match symbol_form {
+            SymbolForm::TypeAlias | SymbolForm::Interface => SymbolSpace::Type,
+            SymbolForm::Class
+            | SymbolForm::Enum
+            | SymbolForm::Struct
+            | SymbolForm::Newtype
+            | SymbolForm::Extension
+            | SymbolForm::Function
+            | SymbolForm::Value => SymbolSpace::Value,
         }
     }
 
@@ -66,8 +62,8 @@ impl Compiler {
         scope: (LocalScopeId, LocalScopeMark),
         name: Option<Name>,
         export: Option<ExportKind>,
-        kind: SymbolKind,
-        declaration_form: DeclarationForm,
+        role: SymbolRole,
+        symbol_form: SymbolForm,
         binding: SymbolBinding,
         space: SymbolSpace,
         symbols: &mut SymbolTable,
@@ -77,7 +73,7 @@ impl Compiler {
 
         // insert a fresh declaration symbol
         let symbol_id = symbols
-            .insert_symbol(kind, declaration_form, space, binding, key, scope, export)
+            .insert_symbol(role, symbol_form, space, binding, key, scope, export)
             .0;
 
         symbol_id
@@ -90,30 +86,30 @@ impl Compiler {
         scope: (LocalScopeId, LocalScopeMark),
         name: Option<Name>,
         export: Option<ExportKind>,
-        kind: SymbolKind,
-        declaration_form: DeclarationForm,
+        role: SymbolRole,
+        symbol_form: SymbolForm,
         binding: SymbolBinding,
         symbols: &mut SymbolTable,
     ) -> (LocalSymbolId, LocalScopeId) {
         // symbol space
-        let space = self.bind_declaration_symbol_space(module, declaration_form);
+        let space = self.symbol_space_for_form(module, symbol_form);
 
         // declaration key
         let key = name.map(|name| StaticKey::Name(name.string()));
 
         // insert a fresh declaration symbol
         let symbol_id = symbols
-            .insert_symbol(kind, declaration_form, space, binding, key, scope, export)
+            .insert_symbol(role, symbol_form, space, binding, key, scope, export)
             .0;
 
         // namespace declarations own their namespace scope
         let scope_id = symbols.insert_scope(ScopeKind::Namespace, Some(scope), Some(symbol_id));
 
         // namespace symbols own their namespace scope
-        if kind == SymbolKind::Namespace {
+        if role == SymbolRole::Namespace {
             let scope_mark = symbols.get_scope_mark(scope_id);
             let symbol = symbols.get_symbol_mut(symbol_id);
-            symbol.kind = SymbolKind::Namespace;
+            symbol.role = SymbolRole::Namespace;
             symbol.scope = (scope_id, scope_mark);
         }
 
@@ -155,17 +151,14 @@ impl Compiler {
     fn declaration_expression_name_is_self_scope_only(
         &self,
         name: Option<ast::Name>,
-        declaration_form: DeclarationForm,
+        symbol_form: SymbolForm,
         is_statement_declaration: bool,
     ) -> bool {
         if is_statement_declaration || name.is_none() {
             return false;
         }
 
-        matches!(
-            declaration_form,
-            DeclarationForm::Class | DeclarationForm::Function
-        )
+        matches!(symbol_form, SymbolForm::Class | SymbolForm::Function)
     }
 
     /// Insert a self binding for one named declaration expression.
@@ -173,21 +166,22 @@ impl Compiler {
         &self,
         scope_id: LocalScopeId,
         name: Name,
-        declaration_form: DeclarationForm,
+        symbol_form: SymbolForm,
         symbols: &mut SymbolTable,
     ) -> LocalSymbolId {
         let key = StaticKey::Name(name.string());
         let scope = (scope_id, LocalScopeMark::end());
 
         // keep one self binding per name
-        if let Some(symbol_id) = symbols.get_scope_by_id(scope_id).find_up_to(key, scope.1) {
+        let self_scope = symbols.get_scope_by_id(scope_id);
+        if let Some(symbol_id) = symbols.find_symbol_up_to(self_scope, key, scope.1) {
             return symbol_id;
         }
 
         symbols
             .insert_symbol(
-                SymbolKind::Local,
-                declaration_form,
+                SymbolRole::Local,
+                symbol_form,
                 SymbolSpace::Value,
                 SymbolBinding::Runtime,
                 Some(key),
@@ -206,7 +200,7 @@ impl Compiler {
         name: Option<ast::Name>,
         export: Option<ast::ExportKind>,
         is_ambient: bool,
-        declaration_form: DeclarationForm,
+        symbol_form: SymbolForm,
         is_statement_declaration: bool,
         symbols: &mut SymbolTable,
     ) -> (
@@ -219,7 +213,7 @@ impl Compiler {
     ) {
         let name_is_self_scope_only = self.declaration_expression_name_is_self_scope_only(
             name,
-            declaration_form,
+            symbol_form,
             is_statement_declaration,
         );
         let name = name.map(|name| self.bind_name(ast, name));
@@ -233,18 +227,13 @@ impl Compiler {
                 scope,
                 None,
                 export,
-                SymbolKind::Item,
-                declaration_form,
+                SymbolRole::Item,
+                symbol_form,
                 binding,
                 symbols,
             );
             let self_symbol = name.map(|name| {
-                self.bind_declaration_expression_self_name(
-                    scope_id,
-                    name,
-                    declaration_form,
-                    symbols,
-                )
+                self.bind_declaration_expression_self_name(scope_id, name, symbol_form, symbols)
             });
 
             return (name, export, binding, symbol_id, scope_id, self_symbol);
@@ -256,8 +245,8 @@ impl Compiler {
             scope,
             name,
             export,
-            SymbolKind::Item,
-            declaration_form,
+            SymbolRole::Item,
+            symbol_form,
             binding,
             symbols,
         );
@@ -271,8 +260,8 @@ impl Compiler {
         module: &Module,
         ast: &Ast,
         namespace_scope: LocalScopeId,
-        global_augmentation_scope: LocalScopeId,
-        module_bindings: &mut Vec<ModuleBinding>,
+        global_scope: LocalScopeId,
+        declared_modules: &mut Vec<DeclaredModule>,
         scope: (LocalScopeId, LocalScopeMark),
         ast_declaration_id: ast::LocalNodeId<ast::Declaration>,
         is_statement_declaration: bool,
@@ -290,7 +279,7 @@ impl Compiler {
         );
 
         // module declarations need a follow-up binding record once the declaration id is stable
-        let mut module_binding_data = None;
+        let mut declared_module_data = None;
 
         // declaration payload
         let declaration = match ast_declaration {
@@ -303,16 +292,13 @@ impl Compiler {
                     scope,
                     None,
                     None,
-                    SymbolKind::Item,
-                    DeclarationForm::Void,
+                    SymbolRole::Item,
+                    SymbolForm::Value,
                     binding,
                     SymbolSpace::Value,
                     symbols,
                 );
-                let declaration_scope = (
-                    global_augmentation_scope,
-                    symbols.get_scope_mark(global_augmentation_scope),
-                );
+                let declaration_scope = (global_scope, symbols.get_scope_mark(global_scope));
 
                 // body
                 let expressions = declaration
@@ -323,8 +309,8 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             declaration_scope,
                             *expression,
                             Some(declaration_id),
@@ -339,7 +325,7 @@ impl Compiler {
                 Declaration::Global(GlobalDeclaration {
                     is_ambient,
                     symbol,
-                    scope: global_augmentation_scope,
+                    scope: global_scope,
                     expressions,
                 })
             }
@@ -350,8 +336,8 @@ impl Compiler {
                     scope,
                     None,
                     None,
-                    SymbolKind::Item,
-                    DeclarationForm::Void,
+                    SymbolRole::Item,
+                    SymbolForm::Value,
                     SymbolBinding::Runtime,
                     SymbolSpace::Value,
                     symbols,
@@ -367,8 +353,8 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             declaration_scope,
                             *expression,
                             Some(declaration_id),
@@ -400,8 +386,8 @@ impl Compiler {
                     scope,
                     Some(name),
                     export,
-                    SymbolKind::Namespace,
-                    DeclarationForm::Void,
+                    SymbolRole::Namespace,
+                    SymbolForm::Value,
                     binding,
                     symbols,
                 );
@@ -416,8 +402,8 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             declaration_scope,
                             *parameter,
                             Some(declaration_id),
@@ -435,8 +421,8 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             declaration_scope,
                             *where_clause,
                             Some(declaration_id),
@@ -456,8 +442,8 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             declaration_scope,
                             *expression,
                             Some(declaration_id),
@@ -482,8 +468,8 @@ impl Compiler {
                     let binding = symbols.get_symbol(symbol).binding;
                     let default_symbol = symbols
                         .insert_symbol(
-                            SymbolKind::Namespace,
-                            DeclarationForm::Void,
+                            SymbolRole::Namespace,
+                            SymbolForm::Value,
                             SymbolSpace::Value,
                             binding,
                             None,
@@ -493,8 +479,8 @@ impl Compiler {
                         .0;
                     let export_assignment_symbol = symbols
                         .insert_symbol(
-                            SymbolKind::Namespace,
-                            DeclarationForm::Void,
+                            SymbolRole::Namespace,
+                            SymbolForm::Value,
                             SymbolSpace::Value,
                             binding,
                             None,
@@ -503,7 +489,7 @@ impl Compiler {
                         )
                         .0;
 
-                    module_binding_data = Some((
+                    declared_module_data = Some((
                         specifier,
                         scope_id,
                         expressions.clone(),
@@ -533,14 +519,14 @@ impl Compiler {
                 let is_ambient = self.bind_ambientness(declaration.is_ambient);
                 let binding = self.bind_declaration_binding(module, declaration.is_ambient);
                 let symbol_kind = if declaration.export.is_some() {
-                    SymbolKind::Item
+                    SymbolRole::Item
                 } else {
-                    SymbolKind::Local
+                    SymbolRole::Local
                 };
-                let declaration_form = if declaration.is_nominal {
-                    DeclarationForm::Newtype
+                let symbol_form = if declaration.is_nominal {
+                    SymbolForm::Newtype
                 } else {
-                    DeclarationForm::TypeAlias
+                    SymbolForm::TypeAlias
                 };
                 let (symbol, scope_id) = self.bind_declaration_symbol_with_scope(
                     module,
@@ -548,7 +534,7 @@ impl Compiler {
                     Some(name),
                     export,
                     symbol_kind,
-                    declaration_form,
+                    symbol_form,
                     binding,
                     symbols,
                 );
@@ -563,8 +549,8 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             declaration_scope,
                             *parameter,
                             Some(declaration_id),
@@ -582,8 +568,8 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             declaration_scope,
                             *where_clause,
                             Some(declaration_id),
@@ -602,8 +588,8 @@ impl Compiler {
                     module,
                     ast,
                     namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
+                    global_scope,
+                    declared_modules,
                     declaration_scope,
                     declaration.value,
                     Some(declaration_id),
@@ -644,8 +630,8 @@ impl Compiler {
                     scope,
                     Some(name),
                     export,
-                    SymbolKind::Item,
-                    DeclarationForm::Void,
+                    SymbolRole::Item,
+                    SymbolForm::Value,
                     binding,
                     space,
                     symbols,
@@ -717,8 +703,8 @@ impl Compiler {
                     scope,
                     Some(name),
                     export,
-                    SymbolKind::Item,
-                    DeclarationForm::Struct,
+                    SymbolRole::Item,
+                    SymbolForm::Struct,
                     binding,
                     symbols,
                 );
@@ -733,8 +719,8 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             declaration_scope,
                             *parameter,
                             Some(declaration_id),
@@ -752,8 +738,8 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             declaration_scope,
                             *where_clause,
                             Some(declaration_id),
@@ -773,8 +759,8 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             declaration_scope,
                             *ty,
                             Some(declaration_id),
@@ -793,8 +779,8 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             declaration_scope,
                             *ty,
                             Some(declaration_id),
@@ -813,8 +799,8 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             declaration_scope,
                             *member,
                             Some(declaration_id),
@@ -848,7 +834,7 @@ impl Compiler {
                         declaration.name,
                         declaration.export,
                         declaration.is_ambient,
-                        DeclarationForm::Class,
+                        SymbolForm::Class,
                         is_statement_declaration,
                         symbols,
                     );
@@ -864,8 +850,8 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             declaration_scope,
                             *parameter,
                             Some(declaration_id),
@@ -883,8 +869,8 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             declaration_scope,
                             *where_clause,
                             Some(declaration_id),
@@ -901,8 +887,8 @@ impl Compiler {
                         module,
                         ast,
                         namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
+                        global_scope,
+                        declared_modules,
                         declaration_scope,
                         expression,
                         Some(declaration_id),
@@ -920,8 +906,8 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             declaration_scope,
                             *argument,
                             Some(declaration_id),
@@ -940,8 +926,8 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             declaration_scope,
                             *ty,
                             Some(declaration_id),
@@ -960,8 +946,8 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             declaration_scope,
                             *member,
                             Some(declaration_id),
@@ -1004,8 +990,8 @@ impl Compiler {
                     scope,
                     name,
                     export,
-                    SymbolKind::Item,
-                    DeclarationForm::Enum,
+                    SymbolRole::Item,
+                    SymbolForm::Enum,
                     binding,
                     symbols,
                 );
@@ -1020,8 +1006,8 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             declaration_scope,
                             *parameter,
                             Some(declaration_id),
@@ -1039,8 +1025,8 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             declaration_scope,
                             *where_clause,
                             Some(declaration_id),
@@ -1061,8 +1047,8 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             declaration_scope,
                             *ty,
                             Some(declaration_id),
@@ -1081,8 +1067,8 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             declaration_scope,
                             *field,
                             Some(declaration_id),
@@ -1100,8 +1086,8 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             declaration_scope,
                             *member,
                             Some(declaration_id),
@@ -1139,8 +1125,8 @@ impl Compiler {
                     scope,
                     name,
                     export,
-                    SymbolKind::Item,
-                    DeclarationForm::Interface,
+                    SymbolRole::Item,
+                    SymbolForm::Interface,
                     binding,
                     symbols,
                 );
@@ -1155,8 +1141,8 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             declaration_scope,
                             *parameter,
                             Some(declaration_id),
@@ -1174,8 +1160,8 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             declaration_scope,
                             *where_clause,
                             Some(declaration_id),
@@ -1195,8 +1181,8 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             declaration_scope,
                             heritage.expression,
                             Some(declaration_id),
@@ -1213,8 +1199,8 @@ impl Compiler {
                                     module,
                                     ast,
                                     namespace_scope,
-                                    global_augmentation_scope,
-                                    module_bindings,
+                                    global_scope,
+                                    declared_modules,
                                     declaration_scope,
                                     *argument,
                                     Some(declaration_id),
@@ -1240,8 +1226,8 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             declaration_scope,
                             *member,
                             Some(declaration_id),
@@ -1279,8 +1265,8 @@ impl Compiler {
                     scope,
                     name,
                     export,
-                    SymbolKind::Item,
-                    DeclarationForm::Extension,
+                    SymbolRole::Item,
+                    SymbolForm::Extension,
                     binding,
                     symbols,
                 );
@@ -1295,8 +1281,8 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             declaration_scope,
                             *parameter,
                             Some(declaration_id),
@@ -1314,8 +1300,8 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             declaration_scope,
                             *where_clause,
                             Some(declaration_id),
@@ -1331,8 +1317,8 @@ impl Compiler {
                     module,
                     ast,
                     namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
+                    global_scope,
+                    declared_modules,
                     declaration_scope,
                     declaration.target_type,
                     Some(declaration_id),
@@ -1349,8 +1335,8 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             declaration_scope,
                             *ty,
                             Some(declaration_id),
@@ -1369,8 +1355,8 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             declaration_scope,
                             *member,
                             Some(declaration_id),
@@ -1409,7 +1395,7 @@ impl Compiler {
                         declaration.name,
                         declaration.export,
                         binding_ambient,
-                        DeclarationForm::Function,
+                        SymbolForm::Function,
                         is_statement_declaration,
                         symbols,
                     );
@@ -1421,8 +1407,8 @@ impl Compiler {
                     module,
                     ast,
                     namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
+                    global_scope,
+                    declared_modules,
                     declaration_scope,
                     &declaration.signature,
                     Some(declaration_id),
@@ -1436,8 +1422,8 @@ impl Compiler {
                         module,
                         ast,
                         namespace_scope,
-                        global_augmentation_scope,
-                        module_bindings,
+                        global_scope,
+                        declared_modules,
                         body_scope,
                         body,
                         Some(declaration_id),
@@ -1464,20 +1450,20 @@ impl Compiler {
             }
         };
 
-        // duplicate-binding category
-        let binding_category = match &declaration {
-            Declaration::Function(_) | Declaration::Class(_) => Some(BindingCategory::BlockScoped),
+        // declaration binding scope
+        let binding_scope = match &declaration {
+            Declaration::Function(_) | Declaration::Class(_) => Some(BindingScope::Block),
             _ => None,
         };
 
         let symbol_id = declaration.symbol();
         let declaration_id = tree.insert(declaration_id, declaration);
 
-        // delayed module binding registration
+        // delayed declared module registration
         if let Some((specifier, scope_id, expressions, default_symbol, export_assignment_symbol)) =
-            module_binding_data
+            declared_module_data
         {
-            let module_binding = ModuleBinding {
+            let declared_module = DeclaredModule {
                 specifier,
                 declaration: declaration_id,
                 scope: scope_id,
@@ -1485,15 +1471,15 @@ impl Compiler {
                 default_symbol,
                 export_assignment_symbol,
             };
-            module_bindings.push(module_binding);
+            declared_modules.push(declared_module);
         }
 
         // attach the declaration to the symbol
         symbols.get_symbol_mut(symbol_id).declare(declaration_id);
 
         // apply declaration category
-        if let Some(binding_category) = binding_category {
-            self.apply_binding_category(symbols, symbol_id, binding_category);
+        if let Some(binding_scope) = binding_scope {
+            self.apply_binding_scope(symbols, symbol_id, binding_scope);
         }
 
         declaration_id
@@ -1505,8 +1491,8 @@ impl Compiler {
         module: &Module,
         ast: &Ast,
         namespace_scope: LocalScopeId,
-        global_augmentation_scope: LocalScopeId,
-        module_bindings: &mut Vec<ModuleBinding>,
+        global_scope: LocalScopeId,
+        declared_modules: &mut Vec<DeclaredModule>,
         scope: (LocalScopeId, LocalScopeMark),
         ast_field_id: ast::LocalNodeId<ast::EnumField>,
         parent_id: Option<LocalNodeIdAny>,
@@ -1522,8 +1508,8 @@ impl Compiler {
         let name = self.bind_name(ast, ast_field.name);
         let key = StaticKey::Name(name.string());
         let (symbol_id, _) = symbols.insert_symbol(
-            SymbolKind::Item,
-            DeclarationForm::Void,
+            SymbolRole::Item,
+            SymbolForm::Value,
             SymbolSpace::Value,
             self.bind_declaration_binding(module, false),
             Some(key),
@@ -1535,8 +1521,8 @@ impl Compiler {
                 module,
                 ast,
                 namespace_scope,
-                global_augmentation_scope,
-                module_bindings,
+                global_scope,
+                declared_modules,
                 scope,
                 value,
                 Some(field_id),

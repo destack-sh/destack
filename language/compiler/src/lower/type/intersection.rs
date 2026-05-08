@@ -35,10 +35,10 @@ impl TypeLowerer<'_> {
                     if matches!(
                         self.symbol_form(reference.symbol),
                         Some(
-                            dir::DeclarationForm::Struct
-                                | dir::DeclarationForm::Class
-                                | dir::DeclarationForm::Enum
-                                | dir::DeclarationForm::Newtype
+                            dir::SymbolForm::Struct
+                                | dir::SymbolForm::Class
+                                | dir::SymbolForm::Enum
+                                | dir::SymbolForm::Newtype
                         )
                     ) {
                         if let Some(existing) = primary_nominal {

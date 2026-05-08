@@ -133,10 +133,8 @@ impl<'a> AddressTakenCollector<'a> {
             }
             dir::Expression::Path { .. } => {
                 let node_id = expression_id.into_global_any(self.module_id);
-                if let Some(dir::SymbolResolution::Target(symbol)) =
-                    self.types.symbol_resolution(node_id)
-                {
-                    self.locals.insert(*symbol);
+                if let Some(symbol) = self.types.symbol_resolution(node_id) {
+                    self.locals.insert(symbol);
                 }
             }
             dir::Expression::This => {
@@ -175,8 +173,8 @@ impl<'a> AddressTakenCollector<'a> {
             dir::Type::Form(form) => self.type_is_reference_like(form.base, visited),
             dir::Type::Reference(reference) => {
                 match self.symbols.get_symbol(reference.symbol.local_id).form {
-                    dir::DeclarationForm::Class | dir::DeclarationForm::Interface => true,
-                    dir::DeclarationForm::TypeAlias => self
+                    dir::SymbolForm::Class | dir::SymbolForm::Interface => true,
+                    dir::SymbolForm::TypeAlias => self
                         .types
                         .get_alias_target_type_id(reference.symbol)
                         .is_some_and(|target| self.type_is_reference_like(target, visited)),
@@ -767,7 +765,7 @@ impl ModuleLowerer<'_> {
             }
 
             let scope = self.symbols.get_scope_by_id(scope_id);
-            if let Some(owner_id) = scope.owner_id {
+            if let Some(owner_id) = scope.owner {
                 let owner_symbol = owner_id.into_global(self.module_id);
                 if let Some(owner_path) = self.symbol_path_name(owner_symbol) {
                     return Some(owner_path);
@@ -1114,7 +1112,7 @@ impl ModuleLowerer<'_> {
             let class_symbol = constructor_symbol.filter(|symbol| {
                 function_lowerer
                     .context
-                    .symbol_is(*symbol, dir::DeclarationForm::Class)
+                    .symbol_is(*symbol, dir::SymbolForm::Class)
             });
             function_lowerer.initialize_constructor(this_ty, layout.clone(), node, class_symbol)?;
         }

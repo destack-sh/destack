@@ -1,7 +1,7 @@
 use crate::{Compiler, ImportResult};
 use destack_artifact::Ast;
 use destack_dir::{
-    Expression, LocalNodeId, LocalScopeId, ModuleBinding, SymbolTable, Tree, TypeTable,
+    DeclaredModule, Expression, LocalNodeId, LocalScopeId, SymbolTable, Tree, TypeTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::ProviderContext;
@@ -13,8 +13,8 @@ impl Compiler {
         module_id: ModuleId,
         ast: &Ast,
         namespace_scope: LocalScopeId,
-        global_augmentation_scope: LocalScopeId,
-        module_bindings: &mut Vec<ModuleBinding>,
+        global_scope: LocalScopeId,
+        declared_modules: &mut Vec<DeclaredModule>,
         tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
@@ -35,8 +35,8 @@ impl Compiler {
                 module,
                 ast,
                 namespace_scope,
-                global_augmentation_scope,
-                module_bindings,
+                global_scope,
+                declared_modules,
                 tree,
                 symbols,
                 types,
@@ -53,8 +53,8 @@ impl Compiler {
                 ast,
                 scope,
                 namespace_scope,
-                global_augmentation_scope,
-                module_bindings,
+                global_scope,
+                declared_modules,
                 tree,
                 symbols,
                 types,
@@ -62,10 +62,10 @@ impl Compiler {
             );
         }
 
-        // mark global augmentation symbols
+        // mark global symbols
         {
             let module = module.as_ref();
-            self.mark_global_augmentation_symbols(module, tree, symbols, global_augmentation_scope);
+            self.mark_global_symbols(module, tree, symbols, global_scope);
         }
 
         // copy final source spans into DIR

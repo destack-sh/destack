@@ -7,30 +7,30 @@ use destack_workspace::Module;
 use crate::Compiler;
 
 impl Compiler {
-    /// Mark symbols declared within global augmentation scopes.
-    pub(super) fn mark_global_augmentation_symbols(
+    /// Mark symbols declared within global scopes.
+    pub(super) fn mark_global_symbols(
         &self,
         _module: &Module,
         tree: &Tree,
         symbols: &mut SymbolTable,
-        global_augmentation_scope: LocalScopeId,
+        global_scope: LocalScopeId,
     ) {
         let symbol_ids = symbols
             .symbol_ids()
             .filter(|symbol_id| {
-                symbol_is_within_scope(symbols, *symbol_id, global_augmentation_scope)
+                symbol_is_within_scope(symbols, *symbol_id, global_scope)
                     || symbol_declaration_is_within_global(tree, symbols, *symbol_id)
             })
             .collect::<Vec<_>>();
 
         for symbol_id in symbol_ids {
             let symbol = symbols.get_symbol_mut(symbol_id);
-            symbol.origin = SymbolOrigin::GlobalAugmentation;
+            symbol.origin = SymbolOrigin::Global;
         }
     }
 }
 
-/// Return true when a symbol declaration is nested under `declare global`.
+/// Return true when a symbol declaration is nested under `global`.
 fn symbol_declaration_is_within_global(
     tree: &Tree,
     symbols: &SymbolTable,
@@ -44,7 +44,7 @@ fn symbol_declaration_is_within_global(
     node_is_within_global(tree, declaration.local_id)
 }
 
-/// Return true when a node is nested under `declare global`.
+/// Return true when a node is nested under `global`.
 fn node_is_within_global(tree: &Tree, node_id: LocalNodeIdAny) -> bool {
     let mut current = Some(node_id);
 

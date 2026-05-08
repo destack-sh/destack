@@ -70,7 +70,7 @@ impl FunctionLowerer<'_> {
         if let dir::Type::Reference(reference) = target_type
             && self
                 .context
-                .symbol_is(reference.symbol, dir::DeclarationForm::Interface)
+                .symbol_is(reference.symbol, dir::SymbolForm::Interface)
         {
             if matches!(
                 self.context.types.get_type(source_type_id),
@@ -529,7 +529,7 @@ impl FunctionLowerer<'_> {
         if let dir::Type::Reference(reference) = target_dir_type
             && self
                 .context
-                .symbol_is(reference.symbol, dir::DeclarationForm::Interface)
+                .symbol_is(reference.symbol, dir::SymbolForm::Interface)
         {
             return self.lower_interface_upcast(
                 expression_id,
@@ -587,7 +587,7 @@ impl FunctionLowerer<'_> {
         if let dir::Type::Reference(reference) = source_dir_type
             && self
                 .context
-                .symbol_is(reference.symbol, dir::DeclarationForm::Interface)
+                .symbol_is(reference.symbol, dir::SymbolForm::Interface)
         {
             // resolve interface reference layout
             let layout = self
@@ -1030,7 +1030,7 @@ impl FunctionLowerer<'_> {
                 dir::Type::Reference(reference)
                     if self
                         .context
-                        .symbol_is(reference.symbol, dir::DeclarationForm::Interface)
+                        .symbol_is(reference.symbol, dir::SymbolForm::Interface)
             ) {
                 return Err(LowerError::UnsupportedConstruct {
                     anchor: self.diagnostic_anchor(
@@ -1221,7 +1221,7 @@ impl FunctionLowerer<'_> {
             dir::Type::Reference(reference)
                 if matches!(
                     self.context.symbol_form(reference.symbol),
-                    Some(dir::DeclarationForm::Class | dir::DeclarationForm::Struct)
+                    Some(dir::SymbolForm::Class | dir::SymbolForm::Struct)
                 ) =>
             {
                 Some(reference.symbol)
@@ -1264,9 +1264,7 @@ impl FunctionLowerer<'_> {
             dir::Expression::Path { .. } => {
                 let symbol = self.resolve_expression_symbol(expression_id).ok()?;
                 match self.context.symbol_form(symbol) {
-                    Some(dir::DeclarationForm::Class | dir::DeclarationForm::Struct) => {
-                        Some(symbol)
-                    }
+                    Some(dir::SymbolForm::Class | dir::SymbolForm::Struct) => Some(symbol),
                     _ => None,
                 }
             }

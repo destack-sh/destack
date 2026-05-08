@@ -142,16 +142,12 @@ impl<'a> TypeLowerer<'a> {
     }
 
     /// Return the declaration form for one symbol.
-    pub(crate) fn symbol_form(&self, symbol: dir::GlobalSymbolId) -> Option<dir::DeclarationForm> {
+    pub(crate) fn symbol_form(&self, symbol: dir::GlobalSymbolId) -> Option<dir::SymbolForm> {
         Some(self.symbol(symbol)?.form)
     }
 
     /// Return whether one symbol has the given declaration form.
-    pub(crate) fn symbol_is(
-        &self,
-        symbol: dir::GlobalSymbolId,
-        form: dir::DeclarationForm,
-    ) -> bool {
+    pub(crate) fn symbol_is(&self, symbol: dir::GlobalSymbolId, form: dir::SymbolForm) -> bool {
         self.symbol_form(symbol)
             .is_some_and(|actual| actual == form)
     }
@@ -371,7 +367,7 @@ impl<'a> TypeLowerer<'a> {
 
         // lower enum instance types as nominal wrappers over their backing representation
         if let Some(enum_symbol) = types.symbol_for_instance_type(type_id)
-            && self.symbol_is(enum_symbol, dir::DeclarationForm::Enum)
+            && self.symbol_is(enum_symbol, dir::SymbolForm::Enum)
         {
             let mir_type = self.lower_nominal_enum_type(types, enum_symbol, node, builder)?;
             self.type_cache
@@ -530,10 +526,10 @@ impl<'a> TypeLowerer<'a> {
             return Ok(mir_type);
         }
 
-        if self.symbol_is(symbol, dir::DeclarationForm::Interface) {
+        if self.symbol_is(symbol, dir::SymbolForm::Interface) {
             return self.lower_interface_reference_type(types, type_id, module_id, node, builder);
         }
-        if self.symbol_is(symbol, dir::DeclarationForm::Enum) {
+        if self.symbol_is(symbol, dir::SymbolForm::Enum) {
             if let Some(instance_type_id) = types.get_instance_type_id(symbol)
                 && instance_type_id != type_id
             {
@@ -547,7 +543,7 @@ impl<'a> TypeLowerer<'a> {
         }
 
         // handle vector type lowering
-        let is_alias_with_target = self.symbol_is(symbol, dir::DeclarationForm::TypeAlias)
+        let is_alias_with_target = self.symbol_is(symbol, dir::SymbolForm::TypeAlias)
             && types.get_alias_target_type_id(symbol).is_some();
 
         if !is_alias_with_target && self.is_vector_symbol(symbol) {
@@ -562,7 +558,7 @@ impl<'a> TypeLowerer<'a> {
         }
 
         // handle nominal newtypes with a transparent MIR wrapper
-        if self.symbol_is(symbol, dir::DeclarationForm::Newtype) {
+        if self.symbol_is(symbol, dir::SymbolForm::Newtype) {
             if let Some(instance_type_id) = types.get_instance_type_id(symbol)
                 && instance_type_id != type_id
             {
@@ -597,7 +593,7 @@ impl<'a> TypeLowerer<'a> {
         let instance_type = if instance_type_id == type_id {
             if !matches!(
                 self.symbol_form(symbol),
-                Some(dir::DeclarationForm::TypeAlias | dir::DeclarationForm::Newtype)
+                Some(dir::SymbolForm::TypeAlias | dir::SymbolForm::Newtype)
             ) {
                 return Err(LowerError::UnsupportedType {
                     anchor: self.diagnostic_anchor(node),
@@ -619,7 +615,7 @@ impl<'a> TypeLowerer<'a> {
             self.lower_type(types, instance_type_id, module_id, node, builder)?
         };
 
-        if self.symbol_is(symbol, dir::DeclarationForm::Class) {
+        if self.symbol_is(symbol, dir::SymbolForm::Class) {
             Ok(builder.type_managed_reference(instance_type))
         } else {
             Ok(instance_type)
@@ -634,8 +630,7 @@ impl<'a> TypeLowerer<'a> {
         node: dir::AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<Option<mir::LocalNodeId<mir::Type>>> {
-        if symbol.module_id == current_module_id
-            || !self.symbol_is(symbol, dir::DeclarationForm::Struct)
+        if symbol.module_id == current_module_id || !self.symbol_is(symbol, dir::SymbolForm::Struct)
         {
             return Ok(None);
         }
@@ -792,8 +787,8 @@ impl<'a> TypeLowerer<'a> {
         node: dir::AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<Option<mir::LocalNodeId<mir::Type>>> {
-        if !self.symbol_is(symbol, dir::DeclarationForm::TypeAlias)
-            && !self.symbol_is(symbol, dir::DeclarationForm::Newtype)
+        if !self.symbol_is(symbol, dir::SymbolForm::TypeAlias)
+            && !self.symbol_is(symbol, dir::SymbolForm::Newtype)
         {
             return Ok(None);
         }

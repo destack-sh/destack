@@ -1,3 +1,5 @@
+use destack_artifact::DirDeclared;
+use destack_core::StringId;
 use destack_source::ModuleId;
 use {destack_dir as dir, destack_mir as mir};
 
@@ -247,23 +249,122 @@ impl ModuleLowerer<'_> {
                 message: format!("missing declared DIR artifact for {:?}", symbol.module_id),
             })?;
         let symbol_entry = dir.symbols.get_symbol(symbol.local_id);
-        if let Some(name) = symbol_entry.attributes.binding_name().flatten() {
+
+        if let Some(name) = self.host_decorator_name(
+            expression_id,
+            dir.as_ref(),
+            symbol_entry,
+            dir::LanguageItem::Binding,
+        )? {
             return Ok(Some(BindingResolution {
-                name: self.strings.get(name).to_string(),
+                name,
                 is_binding: true,
             }));
         }
-        if let Some(name) = symbol_entry.attributes.extern_name().flatten() {
+
+        if let Some(name) = self.host_decorator_name(
+            expression_id,
+            dir.as_ref(),
+            symbol_entry,
+            dir::LanguageItem::Extern,
+        )? {
             return Ok(Some(BindingResolution {
-                name: self.strings.get(name).to_string(),
+                name,
                 is_binding: false,
             }));
         }
 
-        // fall back to the symbol name
-        let default_name = symbol_entry
+        Ok(None)
+    }
+
+    /// Resolve the host name carried by a host binding decorator.
+    fn host_decorator_name(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        declared: &DirDeclared,
+        symbol: &dir::Symbol,
+        language_item: dir::LanguageItem,
+    ) -> CompilerResult<Option<String>> {
+        let Some(declaration) = symbol.declaration else {
+            return Ok(None);
+        };
+        let Some(decorator_symbol) = self.language_item(language_item)? else {
+            return Ok(None);
+        };
+
+        // inspect attached decorator expressions
+        for decorator_id in declared.tree.get_decorators(declaration.local_id.id) {
+            let decorator = declared.tree.get(decorator_id);
+            let Some(name) = self.host_decorator_expression_name(
+                expression_id,
+                declared,
+                symbol,
+                decorator.expression,
+                language_item,
+                decorator_symbol,
+            )?
+            else {
+                continue;
+            };
+
+            return Ok(Some(name));
+        }
+
+        Ok(None)
+    }
+
+    /// Resolve one host decorator expression to its emitted name.
+    fn host_decorator_expression_name(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        declared: &DirDeclared,
+        symbol: &dir::Symbol,
+        decorator_expression: dir::LocalNodeId<dir::Expression>,
+        language_item: dir::LanguageItem,
+        decorator_symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Option<String>> {
+        let decorator_expression =
+            unwrap_parenthesized_expression(&declared.tree, decorator_expression);
+        let expression = declared.tree.get(decorator_expression);
+        let (callee, arguments) = match expression {
+            dir::Expression::Call {
+                left, arguments, ..
+            } => (
+                unwrap_parenthesized_expression(&declared.tree, *left),
+                Some(arguments.as_slice()),
+            ),
+            _ => (decorator_expression, None),
+        };
+        if !host_decorator_matches(
+            declared,
+            decorator_expression,
+            callee,
+            language_item,
+            decorator_symbol,
+        ) {
+            return Ok(None);
+        }
+
+        let Some(arguments) = arguments else {
+            return self
+                .default_host_name(expression_id, declared, symbol)
+                .map(Some);
+        };
+
+        self.explicit_host_name(expression_id, declared, arguments)
+            .map(Some)
+    }
+
+    /// Resolve the default emitted name for a host binding symbol.
+    fn default_host_name(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        declared: &DirDeclared,
+        symbol: &dir::Symbol,
+    ) -> CompilerResult<String> {
+        symbol
             .name()
-            .map(|name| self.strings.get(name).to_string())
+            .map(|name| declared.strings.get(name).to_string())
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(
                     expression_id
@@ -271,15 +372,45 @@ impl ModuleLowerer<'_> {
                         .into_anchored(Some(self.profile)),
                 ),
                 message: "extern symbol is missing a name".to_string(),
-            })?;
+            })
+            .map_err(Into::into)
+    }
 
-        let is_binding = symbol_entry.attributes.binding_name().is_some();
+    /// Resolve the explicit emitted name from host decorator arguments.
+    fn explicit_host_name(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        declared: &DirDeclared,
+        arguments: &[dir::LocalNodeId<dir::Argument>],
+    ) -> CompilerResult<String> {
+        let [argument_id] = arguments else {
+            return Err(LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                ),
+                message: "host binding decorators accept at most one string argument".to_string(),
+            }
+            .into());
+        };
+        let argument = declared.tree.get(*argument_id);
+        let expression = declared.tree.get(argument.value());
 
-        // return the resolved binding
-        Ok(Some(BindingResolution {
-            name: default_name,
-            is_binding,
-        }))
+        match expression {
+            dir::Expression::ScalarLiteral {
+                value: dir::ScalarLiteral::String(name),
+            } => Ok(declared.strings.get(*name).to_string()),
+            _ => Err(LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                ),
+                message: "host binding decorator argument must be a string".to_string(),
+            }
+            .into()),
+        }
     }
 
     /// Ensure the module has been checked for this profile.
@@ -294,4 +425,61 @@ impl ModuleLowerer<'_> {
 
         Err(error.into())
     }
+}
+
+/// Return whether one host decorator resolves to the requested language item.
+fn host_decorator_matches(
+    declared: &DirDeclared,
+    decorator_expression: dir::LocalNodeId<dir::Expression>,
+    callee: dir::LocalNodeId<dir::Expression>,
+    language_item: dir::LanguageItem,
+    decorator_symbol: dir::GlobalSymbolId,
+) -> bool {
+    let module_id = declared.symbols.module_id;
+    let decorator_node = decorator_expression.into_global_any(module_id);
+    if declared
+        .types
+        .symbol_resolution(decorator_node)
+        .is_some_and(|symbol| symbol == decorator_symbol)
+    {
+        return true;
+    }
+
+    let callee_node = callee.into_global_any(module_id);
+    if declared
+        .types
+        .symbol_resolution(callee_node)
+        .is_some_and(|symbol| symbol == decorator_symbol)
+    {
+        return true;
+    }
+
+    let expression = declared.tree.get(callee);
+    expression_is_unqualified_name(expression, language_item.export_name())
+}
+
+/// Unwrap parenthesized decorator expressions.
+fn unwrap_parenthesized_expression(
+    tree: &dir::Tree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> dir::LocalNodeId<dir::Expression> {
+    let mut current = expression_id;
+    loop {
+        let expression = tree.get(current);
+        let dir::Expression::Parenthesized { expression } = expression else {
+            return current;
+        };
+        current = *expression;
+    }
+}
+
+/// Return whether one expression is an unqualified reference to a name.
+fn expression_is_unqualified_name(expression: &dir::Expression, name: &str) -> bool {
+    let name = StringId::for_text(name);
+    let path = match expression {
+        dir::Expression::Path { path, .. } => path,
+        _ => return false,
+    };
+
+    path.segments.len() == 1 && path.first_segment() == Some(name)
 }

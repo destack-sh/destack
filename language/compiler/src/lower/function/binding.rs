@@ -159,7 +159,7 @@ impl FunctionLowerer<'_> {
             return false;
         };
 
-        dir.symbols.get_symbol(symbol.local_id).kind == dir::SymbolKind::Namespace
+        dir.symbols.get_symbol(symbol.local_id).role == dir::SymbolRole::Namespace
     }
 
     /// Check whether a symbol requires an addressable local.

@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use dir::{
-    Block, DeclarationForm, Expression, IfCondition, LocalNodeId, LocalScope, LocalScopeId,
-    MatchCase, MatchForm, MatchOrigin, MatchSelector, NodeType, Pattern, SymbolBinding, SymbolKind,
+    Block, Expression, IfCondition, LocalNodeId, LocalScope, LocalScopeId, MatchCase, MatchForm,
+    MatchOrigin, MatchSelector, NodeType, Pattern, SymbolBinding, SymbolForm, SymbolRole,
     SymbolSpace, Type, TypeLiteral,
 };
 
@@ -133,8 +133,8 @@ impl Compiler {
     ) -> ElaborateResult<dir::LocalSymbolId> {
         let scope_mark = state.symbols.get_scope_mark(scope_id);
         let (symbol_id, _) = state.symbols.insert_symbol(
-            SymbolKind::Item,
-            DeclarationForm::Void,
+            SymbolRole::Item,
+            SymbolForm::Value,
             SymbolSpace::Value,
             SymbolBinding::Runtime,
             None,

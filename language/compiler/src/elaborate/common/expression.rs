@@ -64,7 +64,6 @@ impl Compiler {
             TypeExpression::Reference {
                 path,
                 generic_arguments,
-                space,
             } => {
                 let generic_arguments = generic_arguments
                     .into_iter()
@@ -81,7 +80,6 @@ impl Compiler {
                 TypeExpression::Reference {
                     path,
                     generic_arguments,
-                    space,
                 }
             }
             _ => todo!("FUGU #Incomplete: clone elaborate guard type expressions"),

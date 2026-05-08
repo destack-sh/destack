@@ -76,7 +76,7 @@ impl ModuleLowerer<'_> {
             .types
             .symbol_lineage(symbol)
             .and_then(|lineage| lineage.extends)
-            .filter(|_| self.symbol_is(symbol, dir::DeclarationForm::Class));
+            .filter(|_| self.symbol_is(symbol, dir::SymbolForm::Class));
 
         // predeclare the base layout for derived classes
         if let Some(base_symbol) = base_symbol {
@@ -142,7 +142,7 @@ impl ModuleLowerer<'_> {
                 field_inputs,
                 LayoutPolicy::default(),
             )
-        } else if self.symbol_is(symbol, dir::DeclarationForm::Class) && has_vtable_header {
+        } else if self.symbol_is(symbol, dir::SymbolForm::Class) && has_vtable_header {
             let vtable_name = self.vtable_field_name;
             let vtable_type = self.builder.type_reference(
                 mir::ReferenceKind::Raw,

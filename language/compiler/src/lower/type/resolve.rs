@@ -178,21 +178,18 @@ impl FunctionLowerer<'_> {
         // resolve reference nodes directly through semantic resolution
         if matches!(expression, dir::TypeExpression::Reference { .. }) {
             let node_id = expression_id.into_global_any(self.context.module_id);
-            let Some(dir::SymbolResolution::Target(target_symbol)) =
-                self.context.types.symbol_resolution(node_id)
-            else {
+            let Some(target_symbol) = self.context.types.symbol_resolution(node_id) else {
                 return None;
             };
 
-            if let Some(instance_type_id) = self.context.types.get_instance_type_id(*target_symbol)
-            {
+            if let Some(instance_type_id) = self.context.types.get_instance_type_id(target_symbol) {
                 return Some(instance_type_id);
             }
 
             if let Some(type_id) = self
                 .context
                 .types
-                .declaration_form_id(self.context.symbols, *target_symbol)
+                .symbol_type_id(self.context.symbols, target_symbol)
             {
                 return Some(type_id);
             }
@@ -224,7 +221,7 @@ impl FunctionLowerer<'_> {
             dir::Type::Reference(reference)
                 if self
                     .context
-                    .symbol_is(reference.symbol, dir::DeclarationForm::Class) =>
+                    .symbol_is(reference.symbol, dir::SymbolForm::Class) =>
             {
                 Some(reference.symbol)
             }
@@ -303,14 +300,14 @@ impl FunctionLowerer<'_> {
         if let dir::Type::Reference(reference) = self.context.types.get_type(type_id)
             && self
                 .context
-                .symbol_is(reference.symbol, dir::DeclarationForm::Enum)
+                .symbol_is(reference.symbol, dir::SymbolForm::Enum)
         {
             return self.context.types.get_enum_backing_type(reference.symbol);
         }
 
         // accept enum instance types
         let symbol = self.context.types.symbol_for_instance_type(type_id)?;
-        if !self.context.symbol_is(symbol, dir::DeclarationForm::Enum) {
+        if !self.context.symbol_is(symbol, dir::SymbolForm::Enum) {
             return None;
         }
 

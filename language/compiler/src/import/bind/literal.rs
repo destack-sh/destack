@@ -1,9 +1,9 @@
 use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
-    FloatType, IntType, IntrinsicType, LocalNodeIdAny, LocalScopeId, LocalScopeMark, ModuleBinding,
-    PrimitiveType, ScalarLiteral, SymbolSpace, SymbolTable, TemplateLiteral, Tree, TypeLiteral,
-    TypeTable,
+    DeclaredModule, FloatType, IntType, IntrinsicType, LocalNodeIdAny, LocalScopeId,
+    LocalScopeMark, PrimitiveType, ScalarLiteral, SymbolSpace, SymbolTable, TemplateLiteral, Tree,
+    TypeLiteral, TypeTable,
 };
 use destack_workspace::Module;
 
@@ -44,8 +44,8 @@ impl Compiler {
         module: &Module,
         ast: &Ast,
         namespace_scope: LocalScopeId,
-        global_augmentation_scope: LocalScopeId,
-        module_bindings: &mut Vec<ModuleBinding>,
+        global_scope: LocalScopeId,
+        declared_modules: &mut Vec<DeclaredModule>,
         scope: (LocalScopeId, LocalScopeMark),
         template_literal: &ast::TemplateLiteral,
         parent_id: Option<LocalNodeIdAny>,
@@ -67,8 +67,8 @@ impl Compiler {
                             module,
                             ast,
                             namespace_scope,
-                            global_augmentation_scope,
-                            module_bindings,
+                            global_scope,
+                            declared_modules,
                             scope,
                             *argument,
                             parent_id,

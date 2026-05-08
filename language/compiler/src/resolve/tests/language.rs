@@ -1,7 +1,7 @@
 use super::*;
 use crate::{LANGUAGE_LIBS, LIBRARY_PACKAGES, LibraryPackage, run_to_completion};
 use destack_dir::{
-    Declaration, LanguageItem, StaticKey, SymbolSpace, DeclarationForm, WellKnownSymbol,
+    Declaration, LanguageItem, StaticKey, SymbolSpace, SymbolForm, WellKnownSymbol,
     WellKnownSymbolKey,
 };
 use destack_source::DiagnosticSeverity;
@@ -311,7 +311,7 @@ function main(): int32 {
     let declared_symbol = declared.symbols.get_symbol(string_symbol.local_id);
     assert_eq!(
         declared_symbol.ty,
-        DeclarationForm::Struct,
+        SymbolForm::Struct,
         "core String symbol: {string_symbol:?}, type sources: {string_sources:?}"
     );
 

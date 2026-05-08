@@ -381,10 +381,7 @@ impl Compiler {
 
         // otherwise fall back to reference symbol value types
         let node = value_id.into_global_any(state.module_id);
-        let symbol = match state.types.symbol_resolution(node) {
-            Some(dir::SymbolResolution::Target(symbol)) => Some(*symbol),
-            _ => None,
-        }?;
+        let symbol = state.types.symbol_resolution(node)?;
         let type_id = state.types.get_value_type_id(symbol)?;
 
         Some(state.types.unwrap_value_type_id(type_id))

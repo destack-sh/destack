@@ -9,7 +9,7 @@ Destack has two main generation paths (DIR and MIR), and they are pretty differe
 
 | Backend | Input | Output | Use Case |
 |---------|-------|--------|----------|
-| `js/` | DIR | JavaScript and TypeScript target outputs | Web, Node, Bun, Deno |
+| `js/` | DIR | JavaScript and TypeScript target outputs | Web and generic JS hosts |
 | `native/` | MIR | Native object files, WASM | Performance-critical, embedded, WASM |
 
 The JS backend works directly from DIR because its internal pipeline is semantic planning, emission, assembly, and printing.

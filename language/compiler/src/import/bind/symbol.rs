@@ -1,6 +1,6 @@
 use destack_dir::{
-    DeclarationForm, ExportKind, LocalScopeId, LocalScopeMark, LocalSymbolId, ScopeKind, StaticKey,
-    SymbolBinding, SymbolKind, SymbolSpace, SymbolTable,
+    ExportKind, LocalScopeId, LocalScopeMark, LocalSymbolId, ScopeKind, StaticKey, SymbolBinding,
+    SymbolForm, SymbolRole, SymbolSpace, SymbolTable,
 };
 
 use crate::Compiler;
@@ -44,8 +44,8 @@ impl Compiler {
         symbols: &mut SymbolTable,
     ) -> (LocalSymbolId, LocalScopeMark) {
         symbols.insert_symbol(
-            SymbolKind::Item,
-            DeclarationForm::Void,
+            SymbolRole::Item,
+            SymbolForm::Value,
             space,
             SymbolBinding::Runtime,
             Some(key),
@@ -68,8 +68,8 @@ impl Compiler {
         symbols: &mut SymbolTable,
     ) -> (LocalSymbolId, LocalScopeId) {
         let (symbol_id, _) = symbols.insert_symbol(
-            SymbolKind::Item,
-            DeclarationForm::Void,
+            SymbolRole::Item,
+            SymbolForm::Value,
             space,
             SymbolBinding::Runtime,
             Some(key),
@@ -92,8 +92,8 @@ impl Compiler {
         symbols: &mut SymbolTable,
     ) -> (LocalSymbolId, LocalScopeMark) {
         symbols.insert_symbol(
-            SymbolKind::Item,
-            DeclarationForm::Void,
+            SymbolRole::Item,
+            SymbolForm::Value,
             space,
             SymbolBinding::Runtime,
             None,
@@ -114,8 +114,8 @@ impl Compiler {
         symbols: &mut SymbolTable,
     ) -> (LocalSymbolId, LocalScopeId) {
         let (symbol_id, _) = symbols.insert_symbol(
-            SymbolKind::Item,
-            DeclarationForm::Void,
+            SymbolRole::Item,
+            SymbolForm::Value,
             SymbolSpace::Value,
             SymbolBinding::Runtime,
             None,
@@ -138,8 +138,8 @@ impl Compiler {
         symbols: &mut SymbolTable,
     ) -> (LocalSymbolId, LocalScopeMark) {
         symbols.insert_symbol(
-            SymbolKind::Local,
-            DeclarationForm::Void,
+            SymbolRole::Local,
+            SymbolForm::Value,
             space,
             SymbolBinding::Runtime,
             Some(key),
@@ -161,8 +161,8 @@ impl Compiler {
         symbols: &mut SymbolTable,
     ) -> (LocalSymbolId, LocalScopeId) {
         let (symbol_id, _) = symbols.insert_symbol(
-            SymbolKind::Local,
-            DeclarationForm::Void,
+            SymbolRole::Local,
+            SymbolForm::Value,
             space,
             SymbolBinding::Runtime,
             Some(key),
@@ -184,8 +184,8 @@ impl Compiler {
         symbols: &mut SymbolTable,
     ) -> (LocalSymbolId, LocalScopeMark) {
         symbols.insert_symbol(
-            SymbolKind::Local,
-            DeclarationForm::Void,
+            SymbolRole::Local,
+            SymbolForm::Value,
             space,
             SymbolBinding::Runtime,
             None,
@@ -205,8 +205,8 @@ impl Compiler {
         symbols: &mut SymbolTable,
     ) -> (LocalSymbolId, LocalScopeId) {
         let (symbol_id, _) = symbols.insert_symbol(
-            SymbolKind::Local,
-            DeclarationForm::Void,
+            SymbolRole::Local,
+            SymbolForm::Value,
             SymbolSpace::Value,
             SymbolBinding::Runtime,
             None,
@@ -250,13 +250,13 @@ impl Compiler {
         symbols: &mut SymbolTable,
     ) -> (LocalSymbolId, LocalScopeMark) {
         let kind = if export.is_some() {
-            SymbolKind::Item
+            SymbolRole::Item
         } else {
-            SymbolKind::Local
+            SymbolRole::Local
         };
         symbols.insert_symbol(
             kind,
-            DeclarationForm::Void,
+            SymbolForm::Value,
             space,
             binding,
             Some(key),

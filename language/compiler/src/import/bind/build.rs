@@ -1,6 +1,6 @@
 use destack_dir::{
-    Expression, LocalNodeId, LocalScopeId, LocalScopeMark, ModuleBinding, SymbolSpace, SymbolTable,
-    Tree, TypeTable,
+    DeclaredModule, Expression, LocalNodeId, LocalScopeId, LocalScopeMark, SymbolSpace,
+    SymbolTable, Tree, TypeTable,
 };
 
 use destack_artifact::Ast;
@@ -15,8 +15,8 @@ impl Compiler {
         module: &Module,
         ast: &Ast,
         namespace_scope: LocalScopeId,
-        global_augmentation_scope: LocalScopeId,
-        module_bindings: &mut Vec<ModuleBinding>,
+        global_scope: LocalScopeId,
+        declared_modules: &mut Vec<DeclaredModule>,
         tree: &mut Tree,
         symbols: &mut SymbolTable,
         types: &mut TypeTable,
@@ -29,8 +29,8 @@ impl Compiler {
                     module,
                     ast,
                     namespace_scope,
-                    global_augmentation_scope,
-                    module_bindings,
+                    global_scope,
+                    declared_modules,
                     scope,
                     *expression,
                     None,

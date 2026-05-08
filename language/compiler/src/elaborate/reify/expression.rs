@@ -110,12 +110,10 @@ impl Compiler {
 
             Expression::Path { .. } => {
                 let node = expression_id.into_global_any(state.module_id);
-                let Some(dir::SymbolResolution::Target(target_symbol)) =
-                    state.types.symbol_resolution(node)
-                else {
+                let Some(target_symbol) = state.types.symbol_resolution(node) else {
                     return Ok(());
                 };
-                self.reify_implicit_casts_in_reference(state, expression_id, *target_symbol)?;
+                self.reify_implicit_casts_in_reference(state, expression_id, target_symbol)?;
             }
 
             Expression::Let { declarators, .. } | Expression::Using { declarators, .. } => {

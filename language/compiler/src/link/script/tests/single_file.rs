@@ -2179,7 +2179,7 @@ export const panelState = "ready";
 
     let linked = test.link_single_file_js_target_with(main, "js", |target| {
         // stable exact output paths
-        target.runtime = Runtime::Node;
+        target.runtime = Runtime::Js;
         target.source_map_mode = None;
         target.bundle_output.sourcemap = None;
         target.bundle_output.asset_file_names = Some("[name].[ext]".to_string());
