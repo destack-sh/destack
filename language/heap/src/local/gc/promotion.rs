@@ -155,7 +155,7 @@ impl HeapSpace {
             .bytes(source_offset, byte_len)
             .map_err(|error| HeapError::HeapPromotionFailed {
                 reference,
-                error: Box::new(error),
+                error: Box::new(error.into()),
             })?;
         let reference_map = ReferenceMap::None;
 
@@ -174,7 +174,7 @@ impl HeapSpace {
 
             HeapPlace::Small(slot)
         } else {
-            let pages = self.allocate_page_run_zeroed(byte_len).map_err(|error| {
+            let pages = self.allocate_page_run(byte_len).map_err(|error| {
                 HeapError::HeapPromotionFailed {
                     reference,
                     error: Box::new(error),
@@ -201,10 +201,10 @@ impl HeapSpace {
                 });
             };
             self.mapping
-                .write(allocation.first_offset, &bytes)
+                .copy_bytes(allocation.first_offset, &bytes)
                 .map_err(|error| HeapError::HeapPromotionFailed {
                     reference,
-                    error: Box::new(error),
+                    error: Box::new(error.into()),
                 })?;
 
             HeapPlace::Large(allocation_id)
@@ -239,13 +239,13 @@ impl HeapSpace {
         };
 
         // copy the young bytes before relocating the allocation
-        let young_offset = self.young_range_offset(allocation);
+        let young_offset = allocation.first_offset;
         let bytes = self
             .mapping
             .bytes(young_offset, allocation.byte_len)
             .map_err(|error| HeapError::HeapPromotionFailed {
                 reference,
-                error: Box::new(error),
+                error: Box::new(error.into()),
             })?;
         let reference_map = self
             .young_range_reference_map(first_offset)
@@ -277,7 +277,7 @@ impl HeapSpace {
             HeapPlace::Small(slot)
         } else {
             let pages = self
-                .allocate_page_run_zeroed(allocation.byte_len)
+                .allocate_page_run(allocation.byte_len)
                 .map_err(|error| HeapError::HeapPromotionFailed {
                     reference,
                     error: Box::new(error),
@@ -304,10 +304,10 @@ impl HeapSpace {
                 });
             };
             self.mapping
-                .write(allocation.first_offset, &bytes)
+                .copy_bytes(allocation.first_offset, &bytes)
                 .map_err(|error| HeapError::HeapPromotionFailed {
                     reference,
-                    error: Box::new(error),
+                    error: Box::new(error.into()),
                 })?;
 
             HeapPlace::Large(allocation_id)

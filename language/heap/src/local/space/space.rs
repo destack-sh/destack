@@ -1,13 +1,14 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
+use destack_memory::AddressSpace;
 use destack_mir::ReferenceMap;
 
 use super::{
     GcState, HeapPageMapEntry, HeapPlace, LargeAllocation, LargeAllocationId, PinSet, SmallSpan,
     YoungPlace, YoungRange, YoungSpace,
 };
-use crate::allocator::{AddressSpace, Allocator, PageRun, PageRunCache, SizeClassTable};
+use crate::allocator::{Allocator, PageRun, PageRunCache, SizeClassTable};
 use crate::{
     AllocationLayout, AllocationShape, CowTable, HeapError, HeapOptions, HeapReference, HeapResult,
     HeapSpaceUsage, SmallSpanClass, TraceQueue, TraceReference, allocation_layout,
@@ -366,8 +367,8 @@ impl HeapSpace {
         self.page_run_cache.flush(&self.allocator)
     }
 
-    /// Allocate one zeroed page run through the local page-run cache.
-    pub(crate) fn allocate_page_run_zeroed(&mut self, byte_len: usize) -> HeapResult<PageRun> {
+    /// Allocate one page run through the local page-run cache.
+    pub(crate) fn allocate_page_run(&mut self, byte_len: usize) -> HeapResult<PageRun> {
         self.page_run_cache
             .allocate_pages(&self.allocator, byte_len)
     }
@@ -496,11 +497,6 @@ impl HeapSpace {
         self.small.spans.get_mut(span_index)
     }
 
-    /// Return the byte offset for one young range.
-    pub(crate) fn young_range_offset(&self, range: YoungRange) -> usize {
-        range.first_offset
-    }
-
     /// Return the reference map for one heap place.
     pub(crate) fn reference_map_for_place(&self, place: HeapPlace) -> HeapResult<ReferenceMap> {
         match place {
@@ -576,7 +572,7 @@ impl HeapSpace {
                 else {
                     return Err(HeapError::MissingYoungRange { first_offset });
                 };
-                self.young_range_offset(allocation)
+                allocation.first_offset
             }
             HeapPlace::Young(YoungPlace::Slot(slot)) => {
                 let Some(run) = self.young.run(slot.span_index()) else {
@@ -673,12 +669,10 @@ impl HeapSpace {
         let Some((_range_index, range)) = self.young_range_by_offset(first_offset) else {
             return Err(HeapError::MissingYoungRange { first_offset });
         };
-        let range_offset = self.young_range_offset(range);
-
         Ok(allocation_reference_map(
             &self.young.local_reference_bits,
             &self.young.shared_reference_bits,
-            range_offset,
+            range.first_offset,
             range.byte_len,
         ))
     }

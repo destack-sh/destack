@@ -1,3 +1,5 @@
+use std::ptr::write_bytes;
+
 use destack_mir::ReferenceMap;
 
 use super::{
@@ -26,7 +28,7 @@ impl HeapSpace {
 
         // use one traced small span when the payload still fits
         if let Some(small) = layout.class.small() {
-            if self.has_available_small_slot(&small)? {
+            if self.has_available_small_slot(&small) {
                 return Ok(0);
             }
 
@@ -305,7 +307,7 @@ impl HeapSpace {
         if let Some(slot) = self.reserve_young_run(layout)? {
             let reference = slot.reference;
             unsafe {
-                self.mapping.write_mapped(reference.offset(), bytes);
+                self.mapping.copy_mapped_bytes(reference.offset(), bytes);
             }
 
             return Ok(Some(reference));
@@ -319,7 +321,7 @@ impl HeapSpace {
         let reference = HeapReference::new(write_offset);
 
         unsafe {
-            self.mapping.write_mapped(write_offset, bytes);
+            self.mapping.copy_mapped_bytes(write_offset, bytes);
         }
 
         // objects allocated during marking start black
@@ -404,7 +406,7 @@ impl HeapSpace {
     }
 
     /// Free one heap allocation.
-    pub fn free(&mut self, reference: HeapReference) -> HeapResult<bool> {
+    pub fn free(&mut self, reference: HeapReference) -> HeapResult<()> {
         let Some(location) = self.resolve_location(reference) else {
             return Err(HeapError::InvalidHeapReference { reference });
         };
@@ -427,7 +429,7 @@ impl HeapSpace {
 
                 self.remove_shared_edge_root(reference)?;
 
-                Ok(true)
+                Ok(())
             }
 
             // retire one young fixed-size slot until the next scavenge
@@ -442,7 +444,7 @@ impl HeapSpace {
                 bits.marked.clear(slot.slot_index());
                 self.remove_shared_edge_root(reference)?;
 
-                Ok(true)
+                Ok(())
             }
 
             // release one small-span slot
@@ -450,7 +452,7 @@ impl HeapSpace {
                 self.release_small_slot(slot)?;
                 self.remove_shared_edge_root(reference)?;
 
-                Ok(true)
+                Ok(())
             }
 
             // release one allocation in large space and its allocator pages
@@ -481,7 +483,7 @@ impl HeapSpace {
                 self.unmap_page_run(first_offset, &pages);
                 self.release_page_run(pages)?;
 
-                Ok(true)
+                Ok(())
             }
         }
     }
@@ -524,7 +526,7 @@ impl HeapSpace {
         }
         // otherwise allocate one dedicated large allocation
         else {
-            let pages = self.allocate_large_pages(layout.byte_len)?;
+            let pages = self.allocate_page_run(layout.byte_len)?;
             let allocation_id = self.insert_large_allocation(
                 layout.byte_len,
                 layout.alignment,
@@ -542,10 +544,10 @@ impl HeapSpace {
             // initialize bytes before returning the allocation reference
             match payload {
                 Payload::Bytes(bytes) => unsafe {
-                    self.mapping.write_mapped(first_offset, bytes);
+                    self.mapping.copy_mapped_bytes(first_offset, bytes);
                 },
                 Payload::Zeroed => unsafe {
-                    std::ptr::write_bytes(
+                    write_bytes(
                         (self.mapping.base_address() + first_offset) as *mut u8,
                         0,
                         layout.byte_len,
@@ -634,14 +636,13 @@ impl HeapSpace {
     }
 
     /// Return whether one size class still has one live reusable slot.
-    fn has_available_small_slot(&self, small: &SmallAllocationLayout) -> HeapResult<bool> {
+    fn has_available_small_slot(&self, small: &SmallAllocationLayout) -> bool {
         let bucket_index = small.bucket_index;
 
-        Ok(self
-            .small
+        self.small
             .partial_spans
             .get(bucket_index)
-            .is_some_and(|spans| !spans.is_empty()))
+            .is_some_and(|spans| !spans.is_empty())
     }
 
     /// Report whether one byte length still fits the young-space tail.
@@ -681,7 +682,9 @@ impl HeapSpace {
 
         Some(SmallSpanClass {
             size_class: size_class.bytes,
-            span_bytes: size_class.span_bytes(self.allocator.page_bytes(), self.small.span_bytes),
+            span_bytes: size_class
+                .span_bytes(self.allocator.page_bytes(), self.small.span_bytes)
+                .max(self.small.span_bytes),
             is_noscan: !reference_map.has_reference(),
         })
     }
@@ -795,7 +798,7 @@ impl HeapSpace {
         // initialize only the touched pages
         match payload {
             Payload::Bytes(bytes) => unsafe {
-                self.mapping.write_mapped(write_offset, bytes);
+                self.mapping.copy_mapped_bytes(write_offset, bytes);
             },
             Payload::Zeroed => {}
         }
@@ -821,7 +824,7 @@ impl HeapSpace {
 
         // initialize only the touched pages
         unsafe {
-            self.mapping.write_mapped(write_offset, bytes);
+            self.mapping.copy_mapped_bytes(write_offset, bytes);
         }
 
         Ok(Some(HeapReference::new(write_offset)))
@@ -1005,11 +1008,6 @@ impl HeapSpace {
         .map(Some)
     }
 
-    /// Allocate one dedicated large-allocation page run.
-    fn allocate_large_pages(&mut self, byte_len: usize) -> HeapResult<PageRun> {
-        self.allocate_page_run_zeroed(byte_len)
-    }
-
     /// Reserve one small-span payload location for the given runtime facts.
     fn reserve_small_payload(
         &mut self,
@@ -1046,7 +1044,7 @@ impl HeapSpace {
             if span.occupied_count < span.slot_count {
                 if span.occupied_count == 0 && span.pages.is_empty() {
                     let first_offset = span.first_offset;
-                    let pages = self.allocate_page_run_zeroed(class.span_bytes)?;
+                    let pages = self.allocate_page_run(class.span_bytes)?;
 
                     self.map_page_run(first_offset, &pages, |logical_page_index| {
                         HeapPageMapEntry::Small {
@@ -1076,7 +1074,7 @@ impl HeapSpace {
         let slot_count = (class.span_bytes / class.size_class).max(1);
         let scan_word_count = class.size_class.div_ceil(std::mem::size_of::<usize>());
         let dirty_card_bytes = slot_count * class.size_class;
-        let pages = self.allocate_page_run_zeroed(class.span_bytes)?;
+        let pages = self.allocate_page_run(class.span_bytes)?;
         let first_offset = self.reserve_space_range(class.span_bytes)?;
 
         // materialize the full span before handing out slots
@@ -1131,18 +1129,18 @@ impl HeapSpace {
         // clear the full slot before publishing caller bytes
         match init {
             Payload::Bytes(bytes) if bytes.len() < class.size_class => unsafe {
-                std::ptr::write_bytes(
+                write_bytes(
                     (self.mapping.base_address() + mapping_offset) as *mut u8,
                     0,
                     class.size_class,
                 );
-                self.mapping.write_mapped(mapping_offset, bytes);
+                self.mapping.copy_mapped_bytes(mapping_offset, bytes);
             },
             Payload::Bytes(bytes) => unsafe {
-                self.mapping.write_mapped(mapping_offset, bytes);
+                self.mapping.copy_mapped_bytes(mapping_offset, bytes);
             },
             Payload::Zeroed => unsafe {
-                std::ptr::write_bytes(
+                write_bytes(
                     (self.mapping.base_address() + mapping_offset) as *mut u8,
                     0,
                     class.size_class,

@@ -246,16 +246,13 @@ impl HeapSpace {
             }
 
             // free unreachable references and charge the reclaimed bytes
-            if self
-                .free(reference)
+            self.free(reference)
                 .map_err(|error| HeapError::HeapFreeFailed {
                     reference,
                     error: Box::new(error),
-                })?
-            {
-                self.major_freed_allocations += 1;
-                self.major_freed_bytes += location.byte_len as u64;
-            }
+                })?;
+            self.major_freed_allocations += 1;
+            self.major_freed_bytes += location.byte_len as u64;
         }
 
         // finish once every candidate has been visited

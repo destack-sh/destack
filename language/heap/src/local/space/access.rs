@@ -195,14 +195,14 @@ impl HeapSpace {
                 else {
                     return Err(HeapError::MissingYoungRange { first_offset });
                 };
-                let read_offset = self.young_range_offset(allocation) + byte_offset;
+                let read_offset = allocation.first_offset + byte_offset;
 
-                self.mapping.read(read_offset, target)
+                Ok(self.mapping.read(read_offset, target)?)
             }
             HeapPlace::Young(YoungPlace::Slot(slot)) => {
                 let read_offset = self.young_run_mapping_offset(slot, byte_offset)?;
 
-                self.mapping.read(read_offset, target)
+                Ok(self.mapping.read(read_offset, target)?)
             }
             HeapPlace::Small(slot) => {
                 let Some(span) = self.span(slot.span_index()) else {
@@ -213,7 +213,7 @@ impl HeapSpace {
                 let slot_offset = small_slot_offset(span.class.size_class, slot.slot_index());
                 let read_offset = slot_offset + byte_offset;
 
-                self.mapping.read(span.first_offset + read_offset, target)
+                Ok(self.mapping.read(span.first_offset + read_offset, target)?)
             }
             HeapPlace::Large(allocation_id) => {
                 let Some(allocation) = self.large_allocation(allocation_id) else {
@@ -224,6 +224,7 @@ impl HeapSpace {
 
                 self.mapping
                     .read(allocation.first_offset + byte_offset, target)
+                    .map_err(HeapError::from)
             }
         }
     }
@@ -243,11 +244,11 @@ impl HeapSpace {
                 else {
                     return Err(HeapError::MissingYoungRange { first_offset });
                 };
-                let mapping_offset = self.young_range_offset(allocation) + byte_offset;
+                let mapping_offset = allocation.first_offset + byte_offset;
 
                 // write payload bytes
                 unsafe {
-                    self.mapping.write_mapped(mapping_offset, bytes);
+                    self.mapping.copy_mapped_bytes(mapping_offset, bytes);
                 }
 
                 Ok(())
@@ -257,7 +258,7 @@ impl HeapSpace {
 
                 // write payload bytes
                 unsafe {
-                    self.mapping.write_mapped(mapping_offset, bytes);
+                    self.mapping.copy_mapped_bytes(mapping_offset, bytes);
                 }
 
                 Ok(())
@@ -277,7 +278,7 @@ impl HeapSpace {
 
                 // write payload bytes
                 unsafe {
-                    self.mapping.write_mapped(mapping_offset, bytes);
+                    self.mapping.copy_mapped_bytes(mapping_offset, bytes);
                 }
 
                 Ok(())
@@ -292,7 +293,7 @@ impl HeapSpace {
 
                 // write payload bytes
                 unsafe {
-                    self.mapping.write_mapped(mapping_offset, bytes);
+                    self.mapping.copy_mapped_bytes(mapping_offset, bytes);
                 }
 
                 Ok(())

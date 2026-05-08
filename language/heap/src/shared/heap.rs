@@ -385,7 +385,7 @@ impl SharedHeap {
     }
 
     /// Free one shared raw allocation.
-    pub fn free_raw(&self, pointer: SharedRawPointer) -> HeapResult<bool> {
+    pub fn free_raw(&self, pointer: SharedRawPointer) -> HeapResult<()> {
         self.raw.free(pointer)
     }
 
@@ -408,43 +408,7 @@ impl SharedHeap {
         layout: &AllocationLayout<'_>,
         allocation: Payload<'_>,
     ) -> HeapResult<SharedHeapReference> {
-        if layout.is_empty() {
-            return Err(HeapError::ZeroSizeAllocation);
-        }
-
-        let is_active_collection = self.gc_phase() != SharedGcPhase::Idle;
-
-        // worker-local runs are the ordinary allocation path
-        if !is_active_collection
-            && let Some(reference) = self
-                .heap
-                .try_allocate_worker_small(allocator, layout, allocation)?
-        {
-            return Ok(reference);
-        }
-
-        // active marking needs immediately published allocations
-        if is_active_collection {
-            self.flush_allocator(allocator);
-        }
-
-        let retained_byte_delta = self.heap.retained_byte_delta(allocator, layout)?;
-        self.check_heap_retained_byte_delta(retained_byte_delta)?;
-
-        let pressure_bytes = allocator.layout_run_charge_bytes(layout);
-
-        // mark assist before acquiring another shared allocation run
-        self.assist_allocation(worker, pressure_bytes)?;
-
-        let reference = self
-            .heap
-            .allocate(allocator, layout, allocation, !is_active_collection)?;
-        if !is_active_collection {
-            self.accrue_assist_debt(pressure_bytes);
-        }
-        self.refresh_gc_request();
-
-        Ok(reference)
+        self.allocate_payload(worker, allocator, layout, allocation)
     }
 
     /// Allocate one byte-initialized shared managed heap allocation.
@@ -456,53 +420,7 @@ impl SharedHeap {
         layout: &AllocationLayout<'_>,
         bytes: &[u8],
     ) -> HeapResult<SharedHeapReference> {
-        if layout.is_empty() {
-            return Err(HeapError::ZeroSizeAllocation);
-        }
-
-        if bytes.len() != layout.byte_len {
-            return Err(HeapError::InvalidAllocationBytes {
-                expected: layout.byte_len,
-                actual: bytes.len(),
-            });
-        }
-
-        let is_active_collection = self.gc_phase() != SharedGcPhase::Idle;
-
-        // worker-local runs are the ordinary allocation path
-        if !is_active_collection
-            && let Some(reference) =
-                self.heap
-                    .try_allocate_worker_small(allocator, layout, Payload::Bytes(bytes))?
-        {
-            return Ok(reference);
-        }
-
-        // active marking needs immediately published allocations
-        if is_active_collection {
-            self.flush_allocator(allocator);
-        }
-
-        let retained_byte_delta = self.heap.retained_byte_delta(allocator, layout)?;
-        self.check_heap_retained_byte_delta(retained_byte_delta)?;
-
-        let pressure_bytes = allocator.layout_run_charge_bytes(layout);
-
-        // mark assist before acquiring another shared allocation run
-        self.assist_allocation(worker, pressure_bytes)?;
-
-        let reference = self.heap.allocate(
-            allocator,
-            layout,
-            Payload::Bytes(bytes),
-            !is_active_collection,
-        )?;
-        if !is_active_collection {
-            self.accrue_assist_debt(pressure_bytes);
-        }
-        self.refresh_gc_request();
-
-        Ok(reference)
+        self.allocate_payload(worker, allocator, layout, Payload::Bytes(bytes))
     }
 
     /// Allocate one zeroed shared managed heap allocation.
@@ -540,13 +458,38 @@ impl SharedHeap {
         allocator: &mut SharedAllocator,
         layout: &AllocationLayout<'_>,
     ) -> HeapResult<SharedHeapReference> {
+        self.allocate_payload(worker, allocator, layout, Payload::Zeroed)
+    }
+
+    /// Allocate one shared managed payload.
+    #[inline(always)]
+    fn allocate_payload(
+        &self,
+        worker: &SharedGcWorker,
+        allocator: &mut SharedAllocator,
+        layout: &AllocationLayout<'_>,
+        payload: Payload<'_>,
+    ) -> HeapResult<SharedHeapReference> {
+        if layout.is_empty() {
+            return Err(HeapError::ZeroSizeAllocation);
+        }
+
+        if let Some(actual) = payload.byte_len()
+            && actual != layout.byte_len
+        {
+            return Err(HeapError::InvalidAllocationBytes {
+                expected: layout.byte_len,
+                actual,
+            });
+        }
+
         let is_active_collection = self.gc_phase() != SharedGcPhase::Idle;
 
-        // refill the worker run or allocate through published space
+        // worker-local runs are the ordinary allocation path
         if !is_active_collection
-            && let Some(reference) =
-                self.heap
-                    .try_allocate_worker_small(allocator, layout, Payload::Zeroed)?
+            && let Some(reference) = self
+                .heap
+                .try_allocate_worker_small(allocator, layout, payload)?
         {
             return Ok(reference);
         }
@@ -564,9 +507,9 @@ impl SharedHeap {
         // mark assist before acquiring another shared allocation run
         self.assist_allocation(worker, pressure_bytes)?;
 
-        let reference =
-            self.heap
-                .allocate(allocator, layout, Payload::Zeroed, !is_active_collection)?;
+        let reference = self
+            .heap
+            .allocate(allocator, layout, payload, !is_active_collection)?;
         if !is_active_collection {
             self.accrue_assist_debt(pressure_bytes);
         }
@@ -587,8 +530,8 @@ impl SharedHeap {
     }
 
     /// Free one shared heap allocation immediately.
-    pub fn free_heap(&self, reference: SharedHeapReference) -> HeapResult<bool> {
-        self.heap.free(reference).map(|_| true)
+    pub fn free_heap(&self, reference: SharedHeapReference) -> HeapResult<()> {
+        self.heap.free(reference).map(|_| ())
     }
 
     /// Return the base native address for direct shared heap access.

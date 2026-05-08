@@ -2,12 +2,14 @@ use serde::{Deserialize, Serialize};
 
 use std::sync::Arc;
 
+use destack_memory::AddressSpace;
+
 use super::{
     CardSet, GcState, HeapPageMapEntry, HeapSpace, LargeAllocation, LargeAllocationId,
     LargeAllocationImage, SmallSpan, SmallSpanImage, YoungImage, YoungRunCursor, YoungSpace,
 };
-use crate::allocator::{AddressSpace, Allocator, PageRun, PageRunCache, SizeClassTable};
-use crate::{CowTable, HeapError, HeapResult, TraceQueue};
+use crate::allocator::{Allocator, PageRun, PageRunCache, SizeClassTable};
+use crate::{Bitmap, CowTable, HeapError, HeapResult, SmallSpanClass, TraceQueue};
 
 /// One frozen heap-space image.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -268,12 +270,12 @@ impl HeapSpace {
             .young()
             .capacity_bytes()
             .div_ceil(image.young().allocation_alignment_bytes().max(1));
-        let mut starts = crate::Bitmap::with_capacity(start_bit_capacity);
-        let mut live = crate::Bitmap::with_capacity(start_bit_capacity);
+        let mut starts = Bitmap::with_capacity(start_bit_capacity);
+        let mut live = Bitmap::with_capacity(start_bit_capacity);
         let mut byte_lens = vec![0; start_bit_capacity].into_boxed_slice();
         let runs = image.young().runs().to_vec();
         let run_bits = image.young().run_bits().to_vec();
-        let small_bucket_count = crate::SmallSpanClass::bucket_count(image.size_classes());
+        let small_bucket_count = SmallSpanClass::bucket_count(image.size_classes());
         let mut run_buckets = vec![None; small_bucket_count];
         let page_count = image
             .young()
@@ -314,7 +316,7 @@ impl HeapSpace {
             starts,
             byte_lens,
             live,
-            marked: crate::Bitmap::with_capacity(start_bit_capacity),
+            marked: Bitmap::with_capacity(start_bit_capacity),
             forwarded: vec![0; start_bit_capacity].into_boxed_slice(),
             local_reference_bits: image.young().local_reference_bits().clone(),
             shared_reference_bits: image.young().shared_reference_bits().clone(),
@@ -342,7 +344,7 @@ impl HeapSpace {
             starts: space.young.starts.clone(),
             byte_lens: space.young.byte_lens.clone(),
             live: space.young.live.clone(),
-            marked: crate::Bitmap::with_capacity(space.young.marked.capacity()),
+            marked: Bitmap::with_capacity(space.young.marked.capacity()),
             forwarded: vec![0; space.young.forwarded.len()].into_boxed_slice(),
             local_reference_bits: space.young.local_reference_bits.clone(),
             shared_reference_bits: space.young.shared_reference_bits.clone(),
@@ -360,7 +362,7 @@ impl HeapSpace {
         let small = Self::fork_small_space(space)?;
         let large = Self::fork_large_space(space)?;
         let young = Self::fork_young_space(space)?;
-        let mapping = space.mapping.fork()?;
+        let mapping = space.mapping.fork_lazy()?;
 
         Ok(Self {
             allocator: space.allocator.clone(),
@@ -453,10 +455,7 @@ impl HeapSpace {
             size_classes: image.size_classes().clone(),
             span_bytes: image.small_bytes(),
             spans: CowTable::from_vec(spans),
-            partial_spans: vec![
-                Vec::new();
-                crate::SmallSpanClass::bucket_count(image.size_classes())
-            ],
+            partial_spans: vec![Vec::new(); SmallSpanClass::bucket_count(image.size_classes())],
         };
 
         // rebuild the derived span occupancy state
@@ -481,7 +480,7 @@ impl HeapSpace {
             spans: CowTable::from_vec(spans),
             partial_spans: vec![
                 Vec::new();
-                crate::SmallSpanClass::bucket_count(&space.small.size_classes)
+                SmallSpanClass::bucket_count(&space.small.size_classes)
             ],
         };
 
@@ -530,7 +529,7 @@ impl HeapSpace {
             occupied: span.occupied.clone(),
             local_reference_bits: span.local_reference_bits.clone(),
             shared_reference_bits: span.shared_reference_bits.clone(),
-            marked: crate::Bitmap::with_capacity(span.slot_count),
+            marked: Bitmap::with_capacity(span.slot_count),
             pages,
             dirty_cards: CardSet::with_len(dirty_card_bytes),
             is_dirty_queued: false,
@@ -550,7 +549,7 @@ impl HeapSpace {
             occupied: span.occupied.clone(),
             local_reference_bits: span.local_reference_bits.clone(),
             shared_reference_bits: span.shared_reference_bits.clone(),
-            marked: crate::Bitmap::with_capacity(span.slot_count),
+            marked: Bitmap::with_capacity(span.slot_count),
             pages,
             dirty_cards: span.dirty_cards.clone(),
             is_dirty_queued: span.is_dirty_queued,
@@ -660,7 +659,7 @@ impl HeapSpace {
 
         // capture the current retained bytes into page runs
         let bytes = self.mapping.bytes(0, self.young.capacity_bytes)?;
-        let pages = self.allocator.allocate_bytes(&bytes)?;
+        let pages = self.allocator.allocate_image_bytes(&bytes)?;
 
         Ok(YoungImage::new(
             self.young.generation,
@@ -694,7 +693,7 @@ impl HeapSpace {
 
         // capture the current retained bytes into page runs
         let bytes = self.mapping.bytes(span.first_offset, byte_len)?;
-        let pages = self.allocator.allocate_bytes(&bytes)?;
+        let pages = self.allocator.allocate_image_bytes(&bytes)?;
 
         Ok(SmallSpanImage {
             first_offset: span.first_offset,
@@ -728,7 +727,7 @@ impl HeapSpace {
                 .mapping
                 .bytes(allocation.first_offset, allocation.len)?;
 
-            self.allocator.allocate_bytes(&bytes)?
+            self.allocator.allocate_image_bytes(&bytes)?
         } else {
             PageRun::empty()
         };
@@ -770,7 +769,7 @@ fn restore_image_mapping(
     if young_bytes != 0 {
         let bytes = allocator.bytes_to_vec_from(image.young().pages(), 0, young_bytes)?;
 
-        mapping.write(0, &bytes)?;
+        mapping.copy_bytes(0, &bytes)?;
     }
 
     // restore each captured small span range
@@ -782,7 +781,7 @@ fn restore_image_mapping(
 
         let bytes = allocator.bytes_to_vec_from(&span.pages, 0, byte_len)?;
 
-        mapping.write(span.first_offset, &bytes)?;
+        mapping.copy_bytes(span.first_offset, &bytes)?;
     }
 
     // restore each captured large allocation range
@@ -793,7 +792,7 @@ fn restore_image_mapping(
 
         let bytes = allocator.bytes_to_vec_from(&allocation.pages, 0, allocation.len)?;
 
-        mapping.write(allocation.first_offset, &bytes)?;
+        mapping.copy_bytes(allocation.first_offset, &bytes)?;
     }
 
     Ok(())

@@ -12,9 +12,7 @@ impl HeapSpace {
             let Some(allocation) = self.young_range(allocation_index) else {
                 break;
             };
-            let allocation_offset = self.young_range_offset(allocation);
-
-            references.push(HeapReference::new(allocation_offset));
+            references.push(HeapReference::new(allocation.first_offset));
             start = allocation_index + 1;
         }
 

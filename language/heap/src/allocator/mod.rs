@@ -6,11 +6,8 @@ mod chunk;
 mod class;
 mod constants;
 mod image;
-mod map;
 mod page;
-mod platform;
 mod run;
-mod space;
 mod span;
 
 pub use allocator::*;
@@ -21,7 +18,6 @@ pub use constants::{DEFAULT_ALLOCATOR_CHUNK_BYTES, DEFAULT_PAGE_BYTES};
 pub use image::*;
 pub use page::*;
 pub(crate) use run::*;
-pub use space::*;
 pub use span::*;
 
 pub(crate) mod test;

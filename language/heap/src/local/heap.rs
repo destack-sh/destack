@@ -155,7 +155,7 @@ impl Heap {
     }
 
     /// Free one heap allocation immediately.
-    pub fn free_heap(&mut self, reference: HeapReference) -> HeapResult<bool> {
+    pub fn free_heap(&mut self, reference: HeapReference) -> HeapResult<()> {
         self.heap.free(reference)
     }
 
@@ -550,7 +550,7 @@ impl Heap {
     }
 
     /// Free one raw allocation.
-    pub fn free_raw(&mut self, pointer: RawPointer) -> HeapResult<bool> {
+    pub fn free_raw(&mut self, pointer: RawPointer) -> HeapResult<()> {
         self.raw.free(pointer)
     }
 

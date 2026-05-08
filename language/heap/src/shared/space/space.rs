@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use destack_memory::AddressSpace;
 use destack_mir::ReferenceMap;
 use parking_lot::RwLock;
 
@@ -7,7 +8,7 @@ use super::{
     SharedAllocator, SharedHeapPageMapEntry, SharedHeapPlace, SharedLargeAllocation,
     SharedSmallSpan,
 };
-use crate::allocator::{AddressSpace, Allocator, PageRun, PageRunCache, SizeClassTable};
+use crate::allocator::{Allocator, PageRun, PageRunCache, SizeClassTable};
 use crate::shared::gc::{SharedGcPhase, SharedGcState};
 use crate::{
     AllocationLayout, AllocationShape, GcState, HeapError, HeapOptions, HeapResult,

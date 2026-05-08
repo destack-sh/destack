@@ -1,9 +1,11 @@
+use std::ptr::write_bytes;
 use std::sync::Arc;
 
+use destack_memory::AddressSpace;
 use parking_lot::{Mutex, RwLock};
 
 use super::{SharedRawAllocation, SharedRawLocation, SharedRawPageMapEntry};
-use crate::allocator::{AddressSpace, PageRun, PageRunCache};
+use crate::allocator::{PageRun, PageRunCache};
 use crate::{
     AllocationUsage, Allocator, HeapError, HeapOptions, HeapResult, Payload, RawAllocationShape,
     SharedRawPointer, SharedRawSpaceUsage,
@@ -150,7 +152,7 @@ impl SharedRawSpace {
         {
             self.release_pages(pages)?;
 
-            return Err(error);
+            return Err(error.into());
         }
 
         let mut allocations = self.allocations.write();
@@ -161,10 +163,10 @@ impl SharedRawSpace {
         let mapping = self.mapping.write();
         match allocation {
             Payload::Bytes(bytes) => unsafe {
-                mapping.write_mapped(first_offset, bytes);
+                mapping.copy_mapped_bytes(first_offset, bytes);
             },
             Payload::Zeroed => unsafe {
-                std::ptr::write_bytes(
+                write_bytes(
                     (mapping.base_address() + first_offset) as *mut u8,
                     0,
                     shape.byte_len,
@@ -231,6 +233,7 @@ impl SharedRawSpace {
         self.mapping
             .read()
             .bytes(location.base.offset() + location.byte_offset, byte_len)
+            .map_err(HeapError::from)
     }
 
     /// Fill one caller-provided buffer from one shared raw pointer at one offset.
@@ -245,6 +248,7 @@ impl SharedRawSpace {
         self.mapping
             .read()
             .read(location.base.offset() + byte_offset, target)
+            .map_err(HeapError::from)
     }
 
     /// Return one checked address for a shared raw byte range.
@@ -259,6 +263,7 @@ impl SharedRawSpace {
         self.mapping
             .read()
             .address(location.base.offset() + byte_offset, byte_len)
+            .map_err(HeapError::from)
     }
 
     /// Return one checked mutable address for a shared raw byte range.
@@ -273,6 +278,7 @@ impl SharedRawSpace {
         self.mapping
             .write()
             .address(location.base.offset() + byte_offset, byte_len)
+            .map_err(HeapError::from)
     }
 
     /// Overwrite one byte range for one live shared raw pointer.
@@ -286,7 +292,7 @@ impl SharedRawSpace {
 
         self.mapping
             .write()
-            .write(location.base.offset() + byte_offset, bytes)?;
+            .copy_bytes(location.base.offset() + byte_offset, bytes)?;
 
         Ok(())
     }
@@ -327,14 +333,14 @@ impl SharedRawSpace {
                 .page_run_cache
                 .release_page_run(&self.allocator, next_pages)?;
 
-            return Err(error);
+            return Err(error.into());
         }
 
         // write replacement bytes before publishing the new page run
         {
             let mapping = self.mapping.write();
             unsafe {
-                mapping.write_mapped(first_offset, bytes);
+                mapping.copy_mapped_bytes(first_offset, bytes);
             }
         }
 
@@ -359,7 +365,7 @@ impl SharedRawSpace {
     }
 
     /// Free one shared raw-space allocation.
-    pub fn free(&self, pointer: SharedRawPointer) -> HeapResult<bool> {
+    pub fn free(&self, pointer: SharedRawPointer) -> HeapResult<()> {
         let location = self.resolve_location(pointer)?;
         let allocation = self.allocation(pointer, location.allocation_index)?;
         let mut state = self.state.lock();
@@ -384,7 +390,7 @@ impl SharedRawSpace {
             .page_run_cache
             .release_page_run(&self.allocator, pages)?;
 
-        Ok(true)
+        Ok(())
     }
 
     /// Return the projected retained-byte delta for one shared replacement.

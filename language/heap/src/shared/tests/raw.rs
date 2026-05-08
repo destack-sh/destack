@@ -26,7 +26,7 @@ fn test_free_shared_reclaims_live_allocation() {
 
     // freeing one live allocation should retire it immediately
     assert!(shared.is_live(pointer));
-    assert!(shared.free(pointer).expect("shared free should succeed"));
+    shared.free(pointer).expect("shared free should succeed");
     assert!(!shared.is_live(pointer));
 
     let next_pointer = shared
@@ -46,7 +46,7 @@ fn test_allocate_zeroed_shared_raw_clears_reused_allocation() {
         .expect("shared allocation should succeed");
 
     // reuse the freed allocation with zeroed payload
-    assert!(shared.free(pointer).expect("shared free should succeed"));
+    shared.free(pointer).expect("shared free should succeed");
     let pointer = shared
         .allocate(RawAllocationShape::bytes(2), Payload::Zeroed)
         .expect("zeroed shared allocation should succeed");

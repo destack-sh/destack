@@ -2,11 +2,13 @@ use serde::{Deserialize, Serialize};
 
 use std::sync::Arc;
 
+use destack_memory::AddressSpace;
+
 use super::{
     LargeAllocation, LargeAllocationId, LargeAllocationImage, RawPageMapEntry, RawSpace, SmallSpan,
     SmallSpanImage,
 };
-use crate::allocator::{AddressSpace, Allocator, PageRun, PageRunCache, SizeClassTable};
+use crate::allocator::{Allocator, PageRun, PageRunCache, SizeClassTable};
 use crate::{AllocationUsage, CowTable, HeapError, HeapResult};
 
 /// One frozen raw-space image.
@@ -130,7 +132,7 @@ impl RawSpace {
     /// Call this only from a safepoint where the raw space cannot mutate.
     pub(crate) fn fork(&mut self) -> Result<Self, HeapError> {
         self.flush_branch_boundary()?;
-        let mapping = self.mapping.fork()?;
+        let mapping = self.mapping.fork_lazy()?;
         let spans = self.fork_spans()?;
         let allocations = self.fork_large_allocations()?;
 
@@ -280,8 +282,8 @@ impl RawSpace {
 
     /// Restore one raw span from one frozen span image.
     fn restore_span(&mut self, span: &SmallSpanImage) -> Result<SmallSpan, HeapError> {
-        let pages = self.allocate_page_run_zeroed(span.bytes.len())?;
-        self.mapping.write(span.first_offset, &span.bytes)?;
+        let pages = self.allocate_page_run(span.bytes.len())?;
+        self.mapping.copy_bytes(span.first_offset, &span.bytes)?;
 
         Ok(SmallSpan {
             first_offset: span.first_offset,
@@ -301,9 +303,9 @@ impl RawSpace {
     ) -> Result<LargeAllocation, HeapError> {
         let pages = if allocation.is_live {
             self.mapping
-                .write(allocation.first_offset, &allocation.bytes)?;
+                .copy_bytes(allocation.first_offset, &allocation.bytes)?;
 
-            self.allocate_page_run_zeroed(allocation.bytes.len())?
+            self.allocate_page_run(allocation.bytes.len())?
         } else {
             PageRun::empty()
         };

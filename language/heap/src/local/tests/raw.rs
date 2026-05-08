@@ -15,7 +15,7 @@ fn test_free_raw_reclaims_live_allocation() {
 
     // freeing one live allocation should retire it immediately
     assert!(raw.is_live(pointer));
-    assert!(raw.free(pointer).expect("raw free should succeed"));
+    raw.free(pointer).expect("raw free should succeed");
     assert!(!raw.is_live(pointer));
 }
 
@@ -30,7 +30,7 @@ fn test_allocate_zeroed_raw_clears_reused_slot() {
         .expect("raw allocation should succeed");
 
     // reuse the freed slot with zeroed payload
-    assert!(raw.free(pointer).expect("raw free should succeed"));
+    raw.free(pointer).expect("raw free should succeed");
     let pointer = raw
         .allocate(RawAllocationShape::bytes(2), Payload::Zeroed)
         .expect("zeroed raw allocation should succeed");
@@ -124,7 +124,7 @@ fn test_free_raw_reclaims_large_allocation() {
         .expect("raw large allocation should succeed");
 
     // freeing one large allocation should retire its pointer
-    assert!(raw.free(pointer).expect("raw large free should succeed"));
+    raw.free(pointer).expect("raw large free should succeed");
     assert!(!raw.is_live(pointer));
 
     let next_pointer = raw
