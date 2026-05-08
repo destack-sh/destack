@@ -1,4 +1,3 @@
-use destack_core::StringPool;
 use destack_mir::{self as mir};
 use serde::{Deserialize, Serialize};
 
@@ -7,8 +6,6 @@ use serde::{Deserialize, Serialize};
 pub struct MirLowered {
     /// The MIR tree.
     pub tree: mir::Tree,
-    /// The MIR string pool.
-    pub strings: StringPool,
 }
 
 impl MirLowered {
@@ -16,7 +13,6 @@ impl MirLowered {
     pub fn new() -> Self {
         Self {
             tree: mir::Tree::new(),
-            strings: StringPool::new(),
         }
     }
 }
@@ -32,8 +28,6 @@ impl Default for MirLowered {
 pub struct MirOptimized {
     /// The optimized MIR tree.
     pub tree: mir::Tree,
-    /// The MIR string pool.
-    pub strings: StringPool,
 }
 
 impl MirOptimized {
@@ -41,7 +35,6 @@ impl MirOptimized {
     pub fn new() -> Self {
         Self {
             tree: mir::Tree::new(),
-            strings: StringPool::new(),
         }
     }
 }

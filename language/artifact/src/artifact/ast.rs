@@ -1,5 +1,4 @@
 use destack_ast::{self as ast};
-use destack_core::StringPool;
 use serde::{Deserialize, Serialize};
 
 /// AST payload for one parsed module.
@@ -12,8 +11,6 @@ pub struct Ast {
     pub parents: ast::NodeParentIndex,
     /// The top-level AST expressions.
     pub roots: Vec<ast::LocalNodeId<ast::Expression>>,
-    /// The module string pool.
-    pub strings: StringPool,
     /// The module tokens.
     pub tokens: Vec<ast::TokenSpan>,
     /// The module side tokens.
@@ -27,7 +24,6 @@ impl Ast {
     pub fn from_tree(
         tree: ast::Tree,
         roots: Vec<ast::LocalNodeId<ast::Expression>>,
-        strings: StringPool,
         tokens: Vec<ast::TokenSpan>,
         side_tokens: Vec<ast::TokenSpan>,
         anchor_expression: ast::LocalNodeId<ast::Expression>,
@@ -40,7 +36,6 @@ impl Ast {
             tree,
             parents,
             roots,
-            strings,
             tokens,
             side_tokens,
             anchor_expression,
