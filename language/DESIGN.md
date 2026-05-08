@@ -368,13 +368,13 @@ Unfortunately, not much syntax was left here, so we had to adopt the slightly no
 
 | Forms | Meaning |
 |------|---------|
-| `T[]`, `Array<T>` | Dynamic, homogeneous, dense array |
+| `T[]`, `Array<T>` | Dynamic, homogeneous, dense managed array |
 | `[T]`, `Slice<T>` | Runtime-length homogeneous view into dense storage |
 | `[T; N]`, `FixedArray<T, N>` | Fixed, owned sequence of values |
 | `(A, B)` | Sequence of heterogeneous, owned values |
 
-Unlike JavaScript, Destack does not permit holes in arrays or any other sequences.
-Indexing into `T[]` therefore returns `T`, not `T | undefined`; out-of-bounds indexing traps or errors depending on compiler options.
+Dynamic arrays are managed objects with identity, while slices, fixed arrays, and tuples are semantically `struct`s (value/view forms).
+Unlike JavaScript, Destack does not permit holes in arrays or any other sequences, and indexing into `T[]` therefore returns `T`, not `T | undefined` (out-of-bounds indexing traps or errors depending on compiler options).
 
 ```ds
 let xs: int32[] = [1, 2, 3];
