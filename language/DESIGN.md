@@ -2063,6 +2063,49 @@ PlaceOf<typeof localBuffer> satisfies "ambient";
 PlaceOf<typeof sharedBuffer> satisfies "shared";
 ```
 
+### Form Polymorphism
+
+Since ownership, access, lifetime, and placement are all part of `Form`, contracts and implementors get to be polymorphic and (somewhat) conditional over their ownership, space, and access, even on the receiver type.
+That lets types expose one natural operation when only the projected form changes, and separate operations when the semantics actually differ.
+The caller chooses the level of control by writing the expression / providing the type they mean:
+
+```ds
+process(user);            // managed/default value
+process(&readonly user);  // readonly borrowed access
+process(&user);           // mutable borrowed access
+process(&exclusive user); // exclusive borrowed access
+process(^user);           // owned value
+```
+
+Dispatch resolution uses the actual form during overload resolution, so container interfaces like `Iterable<T>` can support ordinary TypeScript iteration and borrowed iteration without adding Rust-style method family explosion (if they don't need want to):
+
+```ds
+// ordinary "managed" iteration
+for (const point of points) {
+    point satisfies Point;
+}
+
+// readonly borrowed iteration
+for (const point of &readonly points) {
+    point satisfies &readonly Point;
+}
+
+// mutable borrowed iteration
+for (const point of &points) {
+    point satisfies &Point;
+}
+
+// exclusive borrowed iteration
+for (const point of &exclusive points) {
+    point satisfies &exclusive Point;
+}
+
+// moved iteration
+for (const point of ^points) {
+    point satisfies Point;
+}
+```
+
 ### Synchronisation
 
 The standard library provides the usual memory and synchronisation primitives on top of this unified memory system.
