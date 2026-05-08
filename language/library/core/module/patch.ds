@@ -42,10 +42,17 @@ export interface MaterializationContext extends PatchContext {
 }
 
 /// Protocol for decorator values that provide macro behavior.
-export newtype interface Patcher<Target> {
+///
+/// `State` is serializable static data carried from expansion to materialization.
+export newtype interface Patcher<Target, State = void> {
     /// Expand declarations for the decorated target.
-    static expand(target: Target, context: ExpansionContext, config: this): void;
+    static expand?(target: Target, context: ExpansionContext, config: this): State;
 
     /// Materialize checked implementation details for the decorated target.
-    static materialize(target: Target, context: MaterializationContext, config: this): void;
+    static materialize?(
+        target: Target,
+        context: MaterializationContext,
+        config: this,
+        state: State,
+    ): void;
 }
