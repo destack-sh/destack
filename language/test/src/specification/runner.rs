@@ -367,7 +367,7 @@ fn apply_destack_config_for_spec(
             .map_err(|error| format!("failed to load destack.json: {error}"))?
             .map(|config| config.as_ref().clone())
             .ok_or_else(|| "failed to load destack.json".to_string())?
-            .package_options()
+            .as_ref()
             .targets
             .is_empty()
     } else {

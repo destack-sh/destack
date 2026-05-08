@@ -192,8 +192,8 @@ fn run_emit_case(test: &Case, context: &RunContext<'_>) -> CaseResult {
     };
 
     // extract targets
-    let package_options = config.package_options();
-    let targets: Vec<(String, Target)> = package_options
+    let config = config.as_ref();
+    let targets: Vec<(String, Target)> = config
         .targets
         .iter()
         .map(|(name, opts)| (name.clone(), opts.to_target(name)))
