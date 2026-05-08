@@ -34,20 +34,20 @@ export interface ExpansionContext extends PatchContext {
     /// Add a generated child to the decorated declaration.
     addChild(child: Member): void;
 
-    /// Replace the decorated symbol with a generated declaration.
-    replace(declaration: Declaration): void;
+    /// Replace the decorated target with a generated declaration.
+    replaceTarget(declaration: Declaration): void;
 
-    /// Rename the decorated symbol.
-    rename(name: string): void;
+    /// Rename the decorated target.
+    renameTarget(name: string): void;
 
-    /// Remove the decorated symbol from the visible declaration set.
-    remove(): void;
+    /// Remove the decorated target from the visible declaration set.
+    removeTarget(): void;
 }
 
 /// Context for checked implementation materialization.
 export interface MaterializationContext extends PatchContext {
-    /// Replace the decorated declaration with a checked generated declaration.
-    replace(declaration: Declaration): void;
+    /// Replace the decorated target with a checked generated declaration.
+    replaceTarget(declaration: Declaration): void;
 }
 
 /// Protocol for decorator values that provide macro behavior.
