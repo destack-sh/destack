@@ -1,4 +1,5 @@
-use destack_heap::{AddressSpace, DEFAULT_PAGE_BYTES};
+use destack_heap::DEFAULT_PAGE_BYTES;
+use destack_memory::AddressSpace;
 
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 
@@ -46,7 +47,7 @@ impl Stack {
     pub(crate) fn fork(&self) -> RuntimeResult<Self> {
         // fork the page map, not the bytes
         let stack = Self {
-            space: self.space.fork().map_err(Error::from)?,
+            space: self.space.fork_lazy().map_err(Error::from)?,
             len: self.len,
             byte_len: self.byte_len,
         };
@@ -129,9 +130,9 @@ impl Stack {
         Some(address - self.space.base_address())
     }
 
-    /// Write bytes into one live byte range.
+    /// Copy bytes into one live byte range.
     #[inline]
-    pub(crate) fn write(&self, offset: usize, bytes: &[u8]) -> RuntimeResult<()> {
-        Ok(self.space.write(offset, bytes).map_err(Error::from)?)
+    pub(crate) fn copy_bytes(&self, offset: usize, bytes: &[u8]) -> RuntimeResult<()> {
+        Ok(self.space.copy_bytes(offset, bytes).map_err(Error::from)?)
     }
 }
