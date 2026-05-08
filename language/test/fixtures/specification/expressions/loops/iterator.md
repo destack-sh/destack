@@ -60,6 +60,57 @@ for (const value of [1, 2, 3]) {
 }
 ```
 
+### readonly array receiver yields readonly element access
+
+Readonly borrowed array iteration yields readonly access to each element.
+
+```ds
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+declare const points: Point[];
+
+for (const point of &readonly points) {
+    point satisfies &readonly Point;
+}
+```
+
+### exclusive array receiver yields exclusive element access
+
+Exclusive borrowed array iteration yields exclusive access to each element.
+
+```ds
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+declare const points: Point[];
+
+for (const point of &exclusive points) {
+    point satisfies &exclusive Point;
+}
+```
+
+### owned receiver yields values
+
+Owned iteration consumes the source.
+
+```ds
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+declare let points: Point[];
+
+for (const point of ^points) {
+    point satisfies ^Point;
+}
+```
+
 ### for in rejects non-object values
 
 For-in loops reject primitives without enumerable key spaces.
@@ -80,6 +131,18 @@ For-in keys remain string typed for union object sources.
 let target: { a: int32 } | { b: int32 } = { a: 1 };
 
 for (const key in target) {
+    key satisfies string;
+}
+```
+
+### for in enumerates borrowed keys
+
+For-in stays key enumeration for borrowed sources.
+
+```ds
+let target = { a: 1, b: 2 };
+
+for (const key in &readonly target) {
     key satisfies string;
 }
 ```
