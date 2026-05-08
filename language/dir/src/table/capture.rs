@@ -27,14 +27,14 @@ impl CaptureTable {
         // preserve capture metadata when it already exists
         match self.captures_by_function.entry(symbol) {
             Entry::Occupied(mut entry) => {
-                entry.get_mut().directive = directive;
+                entry.get_mut().directive = Some(directive);
             }
             Entry::Vacant(entry) => {
                 entry.insert(CaptureSet {
                     captures: Vec::new(),
                     reference_locals: Vec::new(),
                     this_symbol: None,
-                    directive,
+                    directive: Some(directive),
                 });
             }
         }
@@ -44,7 +44,7 @@ impl CaptureTable {
     pub fn capture_directive(&self, symbol: GlobalSymbolId) -> Option<&CaptureDirective> {
         self.captures_by_function
             .get(&symbol)
-            .map(|capture| &capture.directive)
+            .and_then(|capture| capture.directive.as_ref())
     }
 
     /// Get capture set for a function symbol.
@@ -64,7 +64,7 @@ impl CaptureTable {
                     captures: Vec::new(),
                     reference_locals: locals,
                     this_symbol: None,
-                    directive: CaptureDirective::default(),
+                    directive: None,
                 });
             }
         }
@@ -107,15 +107,6 @@ pub struct CaptureDirective {
     pub rules: Vec<CaptureRule>,
 }
 
-impl Default for CaptureDirective {
-    fn default() -> Self {
-        Self {
-            default: CaptureMode::Borrow,
-            rules: Vec::new(),
-        }
-    }
-}
-
 impl CaptureDirective {
     /// Return the capture mode for the given binding name.
     pub fn mode_for_name(&self, name: StringId) -> CaptureMode {
@@ -146,5 +137,5 @@ pub struct CaptureSet {
     /// The symbol bound to `this` when captured.
     pub this_symbol: Option<GlobalSymbolId>,
     /// The capture directive applied to this function.
-    pub directive: CaptureDirective,
+    pub directive: Option<CaptureDirective>,
 }

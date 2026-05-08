@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-/// The symbol kind expected for one language item.
+/// The declaration form expected for one language item.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum LanguageItemKind {
+pub enum LanguageItemForm {
     /// A `newtype interface` declaration.
     Interface,
     /// A `struct` declaration.
@@ -24,7 +24,7 @@ macro_rules! define_language_items {
             $category:ident {
                 $(
                     $(#[$item_attr:meta])*
-                    $name:ident => ($kind:ident, $module:literal, $export:literal),
+                    $name:ident => ($form:ident, $module:literal, $export:literal),
                 )*
             }
         )*
@@ -54,10 +54,10 @@ macro_rules! define_language_items {
                 }
             }
 
-            /// Return the expected symbol kind.
-            pub fn kind(&self) -> LanguageItemKind {
+            /// Return the expected declaration form.
+            pub fn form(&self) -> LanguageItemForm {
                 match self {
-                    $($(Self::$name => LanguageItemKind::$kind,)*)*
+                    $($(Self::$name => LanguageItemForm::$form,)*)*
                 }
             }
 
@@ -398,6 +398,6 @@ mod tests {
     fn test_add_properties() {
         assert_eq!(LanguageItem::Add.module(), "operator/plus");
         assert_eq!(LanguageItem::Add.export_name(), "Add");
-        assert_eq!(LanguageItem::Add.kind(), LanguageItemKind::Interface);
+        assert_eq!(LanguageItem::Add.form(), LanguageItemForm::Interface);
     }
 }

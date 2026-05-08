@@ -1,4 +1,3 @@
-mod attribute;
 mod export;
 mod key;
 mod known;
@@ -7,7 +6,6 @@ mod module;
 mod scope;
 mod symbol;
 
-pub use attribute::*;
 pub use export::*;
 pub use key::*;
 pub use known::*;

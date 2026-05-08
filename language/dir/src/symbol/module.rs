@@ -1,12 +1,13 @@
 use crate::{
-    Declaration, DependencySpace, Expression, LocalNodeId, LocalScopeId, LocalSymbolId, StringId,
+    Declaration, DependencySpace, Expression, GlobalNodeIdAny, LocalNodeId, LocalScopeId,
+    LocalSymbolId, StringId,
 };
 use destack_source::{Loader, ModuleEdgeRelation, ModuleId};
 use serde::{Deserialize, Serialize};
 
-/// A module binding entry from `declare module "name" { ... }`.
+/// A string-named module declaration surface.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ModuleBinding {
+pub struct DeclaredModule {
     /// The module specifier string.
     pub specifier: StringId,
     /// The declaration node id.
@@ -26,8 +27,8 @@ pub struct ModuleBinding {
 pub enum ModuleTarget {
     /// A file or library module.
     Module(ModuleId),
-    /// A module binding declared by `declare module "name"`.
-    Binding(StringId),
+    /// A string-named module declaration.
+    Declared(StringId),
     /// An external module specifier preserved for link.
     External(StringId),
 }
@@ -38,7 +39,7 @@ impl ModuleTarget {
     pub fn module_id(self) -> Option<ModuleId> {
         match self {
             Self::Module(module_id) => Some(module_id),
-            Self::Binding(_) | Self::External(_) => None,
+            Self::Declared(_) | Self::External(_) => None,
         }
     }
 }
@@ -70,32 +71,17 @@ impl ModuleResolution {
     }
 }
 
-/// Key for one resolved import specifier edge.
+/// One resolved module dependency edge.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ImportResolutionKey {
-    /// The source module when the edge is module-relative.
-    pub source_module: Option<ModuleId>,
+pub struct ModuleDependency {
+    /// The DIR node that declared the dependency.
+    pub source: GlobalNodeIdAny,
     /// The static import specifier.
     pub specifier: StringId,
     /// The import edge relation.
     pub relation: ModuleEdgeRelation,
     /// The loader override selected for the import.
     pub loader: Option<Loader>,
-}
-
-impl ImportResolutionKey {
-    /// Create one import resolution key.
-    pub fn new(
-        source_module: Option<ModuleId>,
-        specifier: StringId,
-        relation: ModuleEdgeRelation,
-        loader: Option<Loader>,
-    ) -> Self {
-        Self {
-            source_module,
-            specifier,
-            relation,
-            loader,
-        }
-    }
+    /// The resolved module targets.
+    pub resolution: ModuleResolution,
 }

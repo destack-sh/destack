@@ -4,9 +4,9 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Arena, BindingCategory, DeclarationForm, ExportKind, LocalNodeId, LocalScopeId, LocalScopeMark,
-    LocalSymbolId, Node, Scope, ScopeKind, StaticKey, Symbol, SymbolAttributes, SymbolBinding,
-    SymbolKind, SymbolOrigin, SymbolSpace, Tree,
+    Arena, ExportKind, LocalNodeId, LocalScopeId, LocalScopeMark, LocalSymbolId, Node, Scope,
+    ScopeKind, StaticKey, Symbol, SymbolBinding, SymbolForm, SymbolOrigin, SymbolRole, SymbolSpace,
+    Tree,
 };
 
 /// A symbol table maps local symbols and scopes.
@@ -64,8 +64,8 @@ impl SymbolTable {
     /// Insert a new symbol.
     pub fn insert_symbol(
         &mut self,
-        kind: SymbolKind,
-        form: DeclarationForm,
+        role: SymbolRole,
+        form: SymbolForm,
         space: SymbolSpace,
         binding: SymbolBinding,
         key: Option<StaticKey>,
@@ -74,19 +74,18 @@ impl SymbolTable {
     ) -> (LocalSymbolId, LocalScopeMark) {
         let symbol_id = LocalSymbolId::new(self.symbols.len() as u32);
         let symbol = Symbol {
-            kind,
+            role,
             form,
             space,
             binding,
             binding_mutability: None,
-            binding_category: BindingCategory::Unclassified,
-            origin: SymbolOrigin::Primary,
+            binding_scope: None,
+            origin: SymbolOrigin::Module,
             key,
             scope,
             module_id: self.module_id,
             export,
             declaration: None,
-            attributes: SymbolAttributes::default(),
         };
         self.symbols.allocate(symbol);
         let mark = self.scopes.get_mut(scope.0.0).append(key, symbol_id);
@@ -103,9 +102,8 @@ impl SymbolTable {
         let scope_id = LocalScopeId::new(self.scopes.len() as u32);
         let scope = Scope {
             kind,
-            owner_id: owner,
+            owner,
             parent,
-            module_id: self.module_id,
             named_symbols: Vec::new(),
             anonymous_symbols: Vec::new(),
             children: Vec::new(),
