@@ -37,7 +37,7 @@ export interface PathImportAliasTarget {
     path: string;
 }
 
-/// Global augmentation declaration.
+/// Global declaration block.
 export interface GlobalDeclaration extends Node {
     /// The node kind.
     nodeKind: "declaration";
