@@ -6,32 +6,32 @@ use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 /// Page-backed byte stack for one interpreter.
 #[derive(Debug)]
 pub(crate) struct Stack {
-    /// The reserved stack address space.
+    /// The stack address space.
     space: AddressSpace,
     /// The live byte length.
     len: usize,
-    /// The reserved byte length.
-    byte_len: usize,
+    /// The hard byte limit.
+    limit_bytes: usize,
 }
 
 impl Stack {
-    /// Reserve one empty stack.
-    pub(crate) fn reserve(byte_len: usize) -> RuntimeResult<Self> {
-        // reserve page-backed virtual memory
-        let space = AddressSpace::reserve(byte_len, DEFAULT_PAGE_BYTES).map_err(Error::from)?;
+    /// Create one empty stack with a hard byte limit.
+    pub(crate) fn new(limit_bytes: usize) -> RuntimeResult<Self> {
+        // create the backing address space once
+        let space = AddressSpace::reserve(limit_bytes, DEFAULT_PAGE_BYTES).map_err(Error::from)?;
 
         Ok(Self {
             space,
             len: 0,
-            byte_len,
+            limit_bytes,
         })
     }
 
-    /// Reserve a replacement stack when the requested capacity changed.
-    pub(crate) fn reset(&mut self, byte_len: usize) -> RuntimeResult<()> {
+    /// Reset this stack for one byte limit.
+    pub(crate) fn reset(&mut self, limit_bytes: usize) -> RuntimeResult<()> {
         // replace the mapping when the limit changed
-        if self.byte_len != byte_len {
-            *self = Self::reserve(byte_len)?;
+        if self.limit_bytes != limit_bytes {
+            *self = Self::new(limit_bytes)?;
 
             Ok(())
         }
@@ -49,7 +49,7 @@ impl Stack {
         let stack = Self {
             space: self.space.fork_lazy().map_err(Error::from)?,
             len: self.len,
-            byte_len: self.byte_len,
+            limit_bytes: self.limit_bytes,
         };
 
         Ok(stack)
@@ -70,11 +70,11 @@ impl Stack {
 
     /// Allocate one aligned byte range.
     pub(crate) fn allocate(&mut self, byte_len: usize, alignment: usize) -> RuntimeResult<usize> {
-        // reserve the next aligned byte range
+        // grow to the next aligned byte range
         let old_len = self.len;
         let base = Self::align_len(self.len, alignment);
         let end = base + byte_len;
-        if end > self.byte_len {
+        if end > self.limit_bytes {
             return Err(RuntimeError::new(Error::StackOverflow));
         }
 
@@ -106,7 +106,10 @@ impl Stack {
     /// Return the native address for one live byte range.
     #[inline]
     pub(crate) fn address(&self, offset: usize, byte_len: usize) -> RuntimeResult<*mut u8> {
-        Ok(self.space.address(offset, byte_len).map_err(Error::from)?)
+        self.space
+            .address(offset, byte_len)
+            .map_err(Error::from)
+            .map_err(RuntimeError::new)
     }
 
     /// Return whether one native address range belongs to this stack.
@@ -133,6 +136,9 @@ impl Stack {
     /// Copy bytes into one live byte range.
     #[inline]
     pub(crate) fn copy_bytes(&self, offset: usize, bytes: &[u8]) -> RuntimeResult<()> {
-        Ok(self.space.copy_bytes(offset, bytes).map_err(Error::from)?)
+        self.space
+            .write_bytes(offset, bytes)
+            .map_err(Error::from)
+            .map_err(RuntimeError::new)
     }
 }
