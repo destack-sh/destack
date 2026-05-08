@@ -2143,7 +2143,7 @@ When a mode extends other modes, the inherited modes are included "before" the e
 | `import.meta.output` | output artifact format | `Output` | `"js"`, `"wasm"`, `"native"` |
 | `import.meta.platform` | target platform | `Platform` | `"linux"`, `"windows"`, `"web"` |
 | `import.meta.target` | target family and ABI | `Target` | `{ family: "unix", arch: "x64", abi: "gnu" }` |
-| `import.meta.runtime` | runtime environment | `Runtime` | `"browser"`, `"node"`, `"native-managed"` |
+| `import.meta.runtime` | semantic runtime | `Runtime` | `"destack"`, `"js"` |
 | `import.meta.modes` | active source graph modes | `readonly string[]` | `["test"]`, `["dev", "lint"]` |
 | `import.meta.debug` | `debug` mode shorthand | `bool` | `true`, `false` |
 | `import.meta.dev` | `dev` mode shorthand | `bool` | `true`, `false` |

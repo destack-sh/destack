@@ -332,14 +332,6 @@ publish-swift dry="--dry-run":
         echo "SwiftPM package publishing is tag based, push tag v${version} to publish"; \
     fi
 
-# publish bun bridge package dry by default
-publish-bun dry="--dry-run":
-    cd bun && npm publish {{dry}} --access public
-
-# publish vite bridge package dry by default
-publish-vite dry="--dry-run":
-    cd vite && npm publish {{dry}} --access public
-
 # publish vscode extension dry by default
 publish-vscode dry="--dry-run":
     cd vscode && bun run package
@@ -368,6 +360,4 @@ publish dry="--dry-run":
     just publish-hex "{{dry}}"
     just publish-pub "{{dry}}"
     just publish-swift "{{dry}}"
-    just publish-bun "{{dry}}"
-    just publish-vite "{{dry}}"
     just publish-vscode "{{dry}}"
