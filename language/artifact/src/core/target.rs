@@ -1,31 +1,17 @@
 use serde::{Deserialize, Serialize};
 
-/// Runtime environment that actually executes the compiled code.
+/// Semantic runtime contract for compiled code.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize,
 )]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "kebab-case")]
 pub enum Runtime {
-    /// Web browser.
-    Browser,
-    /// Node.js.
+    /// Destack semantic runtime.
     #[default]
-    Node,
-    /// Deno.
-    Deno,
-    /// Bun.
-    Bun,
-    /// Web Worker style host.
-    Worker,
-    /// WASM running in a JS host.
-    WasmJs,
-    /// WASM with WASI.
-    WasmWasi,
-    /// Native managed runtime.
-    NativeManaged,
-    /// Native freestanding runtime.
-    NativeFreestanding,
-    /// Native embedded runtime.
-    NativeEmbedded,
+    Destack,
+    /// JavaScript host runtime.
+    Js,
 }
 
 impl std::str::FromStr for Runtime {
@@ -33,16 +19,8 @@ impl std::str::FromStr for Runtime {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "browser" => Ok(Self::Browser),
-            "node" => Ok(Self::Node),
-            "deno" => Ok(Self::Deno),
-            "bun" => Ok(Self::Bun),
-            "worker" => Ok(Self::Worker),
-            "wasm_js" | "wasm-js" | "wasmjs" => Ok(Self::WasmJs),
-            "wasm_wasi" | "wasm-wasi" | "wasmwasi" | "wasi" => Ok(Self::WasmWasi),
-            "native" | "native_managed" | "native-managed" => Ok(Self::NativeManaged),
-            "native_freestanding" | "native-freestanding" => Ok(Self::NativeFreestanding),
-            "native_embedded" | "native-embedded" => Ok(Self::NativeEmbedded),
+            "destack" => Ok(Self::Destack),
+            "js" | "javascript" => Ok(Self::Js),
             _ => Err(()),
         }
     }
@@ -56,42 +34,7 @@ impl Runtime {
 
     /// Whether this runtime is a JS engine.
     pub fn is_js(&self) -> bool {
-        matches!(
-            self,
-            Self::Browser | Self::Node | Self::Deno | Self::Bun | Self::Worker
-        )
-    }
-
-    /// Whether this runtime is a WASM host.
-    pub fn is_wasm(&self) -> bool {
-        matches!(self, Self::WasmJs | Self::WasmWasi)
-    }
-
-    /// Whether this runtime is a native runtime.
-    pub fn is_native(&self) -> bool {
-        matches!(
-            self,
-            Self::NativeManaged | Self::NativeFreestanding | Self::NativeEmbedded
-        )
-    }
-
-    /// Whether this runtime is browser-like.
-    pub fn is_browser_like(&self) -> bool {
-        matches!(self, Self::Browser | Self::WasmJs)
-    }
-
-    /// Whether this runtime is server-side.
-    pub fn is_server(&self) -> bool {
-        matches!(
-            self,
-            Self::Node
-                | Self::Deno
-                | Self::Bun
-                | Self::WasmWasi
-                | Self::NativeManaged
-                | Self::NativeFreestanding
-                | Self::NativeEmbedded
-        )
+        matches!(self, Self::Js)
     }
 }
 
