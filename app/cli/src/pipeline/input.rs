@@ -6,7 +6,7 @@ use destack_workspace::TargetDiscovery;
 
 use crate::common::{InputArgs, InputSource, ProgramArgs};
 use crate::error::CliResult;
-use crate::pipeline::workspace::{load_destack_declaration_for_program, workspace_context};
+use crate::pipeline::workspace::{load_destack_config_for_program, workspace_context};
 
 /// Errors returned while resolving input sources.
 #[derive(Debug)]
@@ -52,43 +52,43 @@ pub fn collect_sources_from_destack_config(
 ) -> CliResult<Vec<InputSource>> {
     // resolve workspace context and config
     let context = workspace_context(program_args, None)?;
-    let declaration = load_destack_declaration_for_program(
+    let config = load_destack_config_for_program(
         program_args,
+        &context.resolver,
         &context.repository,
         context.revision,
         context.repository.workspace_root(),
     )?;
-    let package_options = declaration.package_options();
 
     // select target options from explicit or default target name
     let selected_target = target_name
         .map(str::to_string)
-        .or_else(|| package_options.default_target.clone());
+        .or_else(|| config.default_target.clone());
     let target_options = selected_target
         .as_deref()
-        .and_then(|name| package_options.targets.get(name));
+        .and_then(|name| config.targets.get(name));
 
     // pick discovery rules from target when available
     let (entries, includes, excludes, discovery) = if let Some(target) = target_options {
         let includes = if target.include.is_empty() {
-            package_options.include.clone()
+            config.include.clone()
         } else {
             target.include.clone()
         };
-        let mut excludes = package_options.exclude.clone();
+        let mut excludes = config.exclude.clone();
         excludes.extend(target.exclude.iter().cloned());
         (target.entry.clone(), includes, excludes, target.discovery)
     } else {
         (
             Vec::new(),
-            package_options.include.clone(),
-            package_options.exclude.clone(),
+            config.include.clone(),
+            config.exclude.clone(),
             TargetDiscovery::Include,
         )
     };
 
     // build paths from entry, files, or include globs
-    let base_dir = declaration.directory.clone();
+    let base_dir = config.directory.clone();
     let mut paths = BTreeSet::new();
 
     // include explicit entry points for entry discovery
@@ -104,8 +104,8 @@ pub fn collect_sources_from_destack_config(
     }
 
     // include explicit files from the config
-    if paths.is_empty() && !package_options.files.is_empty() {
-        for file in &package_options.files {
+    if paths.is_empty() && !config.files.is_empty() {
+        for file in &config.files {
             let path = base_dir.join(file);
             paths.insert(path);
         }

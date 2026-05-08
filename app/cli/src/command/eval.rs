@@ -22,9 +22,9 @@ pub struct EvalArgs {
     #[arg(long)]
     pub stdin: bool,
 
-    /// Source format for eval input (ds|ts|tsx|js|jsx, default: ds).
-    #[arg(id = "source_type", long = "type", value_name = "TYPE")]
-    pub source_type: Option<String>,
+    /// File format for eval input (ds|ts|tsx|js|jsx, default: ds).
+    #[arg(id = "file_type", long = "type", value_name = "TYPE")]
+    pub file_type: Option<String>,
 
     /// Print the evaluated result.
     #[arg(short = 'p', long = "print")]
@@ -98,7 +98,7 @@ pub fn run(args: &EvalArgs) -> i32 {
         eval: code.map(|code| vec![code]).unwrap_or_default(),
         module: Vec::new(),
         stdin,
-        source_type: args.source_type.clone(),
+        file_type: args.file_type.clone(),
     };
 
     // execute the eval request

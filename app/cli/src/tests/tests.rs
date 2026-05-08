@@ -167,12 +167,6 @@ impl TestProgram {
         // write the config file
         self.write_destack_config(value);
     }
-
-    /// Write a package.json file with the provided json value.
-    pub(super) fn write_package_json(&self, value: Value) {
-        // write the package json file
-        self.write_json("package.json", value);
-    }
 }
 
 /// Build a unique in memory root path for tests.

@@ -277,6 +277,7 @@ where
         repository,
         mut state,
     } = prepared;
+    let rescan_repository = repository.clone();
 
     run_daemon_watch_command(
         command_name,
@@ -287,7 +288,9 @@ where
         watch_loop_options,
         &mut state,
         move |_state| on_start(),
-        |state, session| refresh_run_watch_state(request, state, session),
+        move |state, _repository| {
+            refresh_run_watch_state(request, state, rescan_repository.clone())
+        },
         move |daemon, root, reporter, state, reason, batch_id, updated, requires_rescan| {
             compile(
                 request,
@@ -393,7 +396,7 @@ fn compile_and_run_daemon(
     exit_code
 }
 
-/// Attempt to run a destack.json or package.json script when input is not a file.
+/// Attempt to run a destack.json task when input is not a file.
 fn try_run_script(request: &RunRequest, fs: &dyn FileSystem, cwd: &Path) -> Option<i32> {
     let command_name = request.command_name;
 
@@ -419,7 +422,7 @@ fn try_run_script(request: &RunRequest, fs: &dyn FileSystem, cwd: &Path) -> Opti
         return None;
     }
 
-    // resolve script command from destack.json or package.json
+    // resolve script command from destack.json
     let script_name = candidate.to_string_lossy().to_string();
     let script = match resolve_script_command(&request.program, &script_name) {
         Ok(Some(script)) => script,
@@ -459,7 +462,6 @@ fn try_run_script(request: &RunRequest, fs: &dyn FileSystem, cwd: &Path) -> Opti
     if request.report.is_json() {
         let source = match script.source {
             ScriptSource::Destack => "destack",
-            ScriptSource::PackageJson => "package.json",
         };
         let data = serde_json::json!({
             "script": script.name,
@@ -493,7 +495,7 @@ fn prepare_run_execution(request: &RunRequest) -> Result<RunExecutionPlan, i32> 
 
     // resolve a single entry source for the run
     let sources = resolve_run_sources_or_report(request)?;
-    let target_name = resolve_run_target_name_or_report(request, &repository)?;
+    let target_name = resolve_run_target_name_or_report(request, repository.clone())?;
     let (common, payload) = build_run_command(request, &sources, &target_name)
         .map_err(|error| report_error(request.command_name, &request.report, &error.to_string()))?;
 
@@ -551,7 +553,7 @@ fn prepare_run_watch(request: &RunRequest) -> Result<PreparedRunWatch, i32> {
     }
 
     let sources = resolve_run_sources_or_report(request)?;
-    let target_name = resolve_run_target_name_for_watch(request, &repository)?;
+    let target_name = resolve_run_target_name_for_watch(request, repository.clone())?;
 
     Ok(PreparedRunWatch {
         repository,
@@ -566,7 +568,7 @@ fn prepare_run_watch(request: &RunRequest) -> Result<PreparedRunWatch, i32> {
 fn refresh_run_watch_state(
     request: &RunRequest,
     state: &mut RunWatchState,
-    repository: &Repository,
+    repository: Arc<Repository>,
 ) -> CliResult<()> {
     state.sources = resolve_run_sources_for_watch(request)?;
     let target_name = resolve_run_target_name(request, repository).map_err(|message| {
@@ -627,7 +629,7 @@ fn resolve_run_sources_for_watch(request: &RunRequest) -> CliResult<Vec<InputSou
 /// Resolve the target name for a run command.
 fn resolve_run_target_name(
     request: &RunRequest,
-    repository: &Repository,
+    repository: Arc<Repository>,
 ) -> Result<String, String> {
     let default_target = default_target_for_repository(&request.program, repository)
         .map_err(|error| error.to_string())?;
@@ -639,7 +641,7 @@ fn resolve_run_target_name(
 /// Resolve the target name for one shot execution.
 fn resolve_run_target_name_or_report(
     request: &RunRequest,
-    repository: &Repository,
+    repository: Arc<Repository>,
 ) -> Result<String, i32> {
     resolve_run_target_name(request, repository)
         .map_err(|message| report_error(request.command_name, &request.report, &message))
@@ -648,7 +650,7 @@ fn resolve_run_target_name_or_report(
 /// Resolve the target name for watch execution.
 fn resolve_run_target_name_for_watch(
     request: &RunRequest,
-    repository: &Repository,
+    repository: Arc<Repository>,
 ) -> Result<String, i32> {
     resolve_run_target_name(request, repository).map_err(|message| {
         let message = watch_error(&message);

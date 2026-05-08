@@ -11,7 +11,7 @@ fn test_eval_rejects_conflicting_inputs() {
         code: Some("1 + 1".to_string()),
         eval: Some("2 + 2".to_string()),
         stdin: false,
-        source_type: None,
+        file_type: None,
         print: false,
         entry: "main".to_string(),
         program: ProgramArgs::default(),

@@ -101,7 +101,7 @@ pub fn run(args: &TaskArgs) -> i32 {
         |default_exit_code, payload| {
             if let Some(tasks) = payload.tasks {
                 if tasks.is_empty() {
-                    console::info("task: no tasks or scripts defined");
+                    console::info("task: no tasks defined");
                 } else {
                     let list_entries = tasks
                         .iter()
@@ -143,29 +143,21 @@ pub fn run(args: &TaskArgs) -> i32 {
 
 /// Build one display detail for one task list entry.
 fn task_list_detail(task: &CommandTaskEntry) -> Option<String> {
-    let is_package_script = task.source.as_deref() == Some("package.json");
     let project_prefix = if task.project.is_empty() {
         String::new()
     } else {
         format!("[{}] ", task.project)
     };
 
-    match (task.description.as_deref(), is_package_script) {
-        (Some(description), true) => Some(format!("{project_prefix}{description} [package.json]")),
-        (Some(description), false) => Some(format!("{project_prefix}{description}")),
-        (None, true) => Some(format!("{project_prefix}package.json script")),
-        (None, false) if !project_prefix.is_empty() => Some(project_prefix.trim_end().to_string()),
-        (None, false) => None,
+    match task.description.as_deref() {
+        Some(description) => Some(format!("{project_prefix}{description}")),
+        None if !project_prefix.is_empty() => Some(project_prefix.trim_end().to_string()),
+        None => None,
     }
 }
 
 /// Build one summary line for one task execution result.
 fn task_result_summary(result: &destack_daemon::protocol::CommandTaskResult) -> String {
-    let source_suffix = if result.source == "package.json" {
-        " [package.json]"
-    } else {
-        ""
-    };
     let status_suffix = if result.dry_run {
         " (dry run)".to_string()
     } else if let Some(exit_code) = result.exit_code {
@@ -174,8 +166,5 @@ fn task_result_summary(result: &destack_daemon::protocol::CommandTaskResult) -> 
         String::new()
     };
 
-    format!(
-        "[{}] {}{}{}",
-        result.project, result.task, source_suffix, status_suffix
-    )
+    format!("[{}] {}{}", result.project, result.task, status_suffix)
 }

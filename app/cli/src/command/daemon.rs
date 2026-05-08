@@ -77,8 +77,8 @@ fn run_serve(args: &DaemonServeArgs) -> i32 {
         instance.socket_path = socket.clone();
     }
 
-    // build server options from the repository
-    let mut server_options = DaemonServerOptions::from_repository(&repository);
+    // build server options
+    let mut server_options = DaemonServerOptions::default();
     server_options.worker_limit = args.program.workers as usize;
     let server = DaemonServer::with_options(repository, instance, server_options);
 

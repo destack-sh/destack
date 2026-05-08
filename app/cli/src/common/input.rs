@@ -30,9 +30,9 @@ pub struct SingleInputArgs {
     #[arg(short = 'e', long = "eval")]
     pub eval: Option<String>,
 
-    /// Source format (ds|ts|tsx|js|jsx, default: ds).
-    #[arg(id = "source_type", long = "type", value_name = "TYPE")]
-    pub source_type: Option<String>,
+    /// File format (ds|ts|tsx|js|jsx, default: ds).
+    #[arg(id = "file_type", long = "type", value_name = "TYPE")]
+    pub file_type: Option<String>,
 }
 
 impl SingleInputArgs {
@@ -41,7 +41,7 @@ impl SingleInputArgs {
         if let Some(ref path) = self.file {
             Ok(InputSource::File(path.clone()))
         } else if let Some(ref code) = self.eval {
-            let extension = self.source_type.as_deref().unwrap_or("ds");
+            let extension = self.file_type.as_deref().unwrap_or("ds");
             Ok(InputSource::Inline {
                 code: code.clone(),
                 name: format!("<eval>.{extension}"),
@@ -53,7 +53,7 @@ impl SingleInputArgs {
 
     /// Get the file type from format argument.
     pub fn file_type(&self) -> FileType {
-        let format_name = self.source_type.as_deref().unwrap_or("ds");
+        let format_name = self.file_type.as_deref().unwrap_or("ds");
         FileType::from_extension_or_unknown(format_name)
     }
 }
@@ -79,9 +79,9 @@ pub struct InputArgs {
     #[arg(long)]
     pub stdin: bool,
 
-    /// Source format for --eval/--stdin (ds|ts|tsx|js|jsx, default: ds).
-    #[arg(id = "source_type", long = "type", value_name = "TYPE")]
-    pub source_type: Option<String>,
+    /// File format for --eval/--stdin (ds|ts|tsx|js|jsx, default: ds).
+    #[arg(id = "file_type", long = "type", value_name = "TYPE")]
+    pub file_type: Option<String>,
 }
 
 impl InputArgs {
@@ -93,7 +93,7 @@ impl InputArgs {
     /// Convert arguments to input sources.
     pub fn to_sources(&self) -> CliResult<Vec<InputSource>> {
         let mut sources = Vec::new();
-        let default_extension = self.source_type.as_deref().unwrap_or("ds");
+        let default_extension = self.file_type.as_deref().unwrap_or("ds");
 
         // files first
         for path in &self.files {
@@ -130,7 +130,7 @@ impl InputArgs {
 
     /// Get the file type from format argument.
     pub fn file_type(&self) -> FileType {
-        let format_name = self.source_type.as_deref().unwrap_or("ds");
+        let format_name = self.file_type.as_deref().unwrap_or("ds");
         FileType::from_extension_or_unknown(format_name)
     }
 }
