@@ -56,11 +56,11 @@ impl Repository {
                 package: package_id,
             });
         };
-        let package_options = self.package_options(revision, package_id)?;
+        let config = self.destack_config_for_package_id(revision, package_id)?;
 
         // honor one explicit default target from config
-        if let Some(package_options) = package_options.as_ref()
-            && let Some(default_target) = package_options.default_target.as_ref()
+        if let Some(config) = config.as_ref()
+            && let Some(default_target) = config.default_target.as_ref()
         {
             let target_id = TargetId::new(package_id, default_target);
             if let Some(target) = package.targets.get(&target_id) {

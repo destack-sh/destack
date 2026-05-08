@@ -1,5 +1,6 @@
 mod diagnostic;
 mod effect;
+mod execution;
 mod heap;
 mod platform;
 mod random;
@@ -14,6 +15,7 @@ mod trace;
 
 pub use diagnostic::*;
 pub use effect::*;
+pub use execution::*;
 pub use heap::*;
 pub use platform::*;
 pub use random::*;

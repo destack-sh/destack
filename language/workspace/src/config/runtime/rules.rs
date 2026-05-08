@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::super::policy::{ReplayPayloadMode, ReplayPayloadModeJson};
-use super::{RuntimeSelector, RuntimeSelectorJson};
+use super::{ReplayPayloadMode, ReplayPayloadModeJson, RuntimeSelector, RuntimeSelectorJson};
 
 /// Runtime world selection for external bindings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]

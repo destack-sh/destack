@@ -4,7 +4,7 @@ use serde::Deserialize;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub enum TargetNativeOutputKind {
+pub enum NativeOutputKind {
     /// Emit one executable program.
     #[default]
     Executable,
@@ -18,7 +18,7 @@ pub enum TargetNativeOutputKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub enum TargetLinkerFlavor {
+pub enum LinkerFlavor {
     /// Use the compiler default linker driver.
     #[default]
     Auto,
@@ -42,7 +42,7 @@ pub enum TargetLinkerFlavor {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub enum TargetPositionIndependentMode {
+pub enum PositionIndependentMode {
     /// Use the default policy for the target platform.
     #[default]
     Default,
@@ -58,7 +58,7 @@ pub enum TargetPositionIndependentMode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub enum TargetCrtLinkage {
+pub enum CrtLinkage {
     /// Use the toolchain default runtime linkage.
     #[default]
     Default,
@@ -72,7 +72,7 @@ pub enum TargetCrtLinkage {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub enum TargetSymbolVisibility {
+pub enum SymbolVisibility {
     /// Use the toolchain default visibility policy.
     #[default]
     Default,

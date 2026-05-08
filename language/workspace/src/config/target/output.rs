@@ -1,8 +1,5 @@
-use std::hash::{Hash, Hasher};
-
-use destack_artifact::{EmitFormat, TargetOutputKind};
-use indexmap::IndexMap;
-use serde::{Deserialize, Serialize};
+use destack_artifact::EmitFormat;
+use serde::Deserialize;
 
 /// How modules are discovered for a build target.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -54,135 +51,6 @@ impl SourceMapMode {
     }
 }
 
-/// Extra artifacts to emit for debugging or inspection.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum EmitArtifact {
-    /// Lowered MIR for the module.
-    Mir,
-    /// Backend IR (LLVM/Cranelift).
-    Ir,
-    /// Assembly output.
-    Asm,
-    /// Object file output.
-    Object,
-    /// Symbol table output.
-    Symbols,
-}
-
-impl std::str::FromStr for EmitArtifact {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().replace('-', "_").as_str() {
-            "mir" => Ok(Self::Mir),
-            "ir" | "llvm_ir" | "llvm" | "cranelift_ir" | "clif" => Ok(Self::Ir),
-            "asm" | "assembly" => Ok(Self::Asm),
-            "object" | "obj" => Ok(Self::Object),
-            "symbols" | "sym" | "symtab" => Ok(Self::Symbols),
-            _ => Err(()),
-        }
-    }
-}
-
-impl EmitArtifact {
-    /// Parse from a string value.
-    pub fn parse(s: &str) -> Option<Self> {
-        s.parse().ok()
-    }
-}
-
-/// Formal target output group options.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
-pub struct TargetOutputOptions {
-    /// Published output kind.
-    pub kind: TargetOutputKind,
-    /// Output topology.
-    pub topology: TargetOutputTopology,
-    /// Whether the output is intended for publication.
-    pub is_public: bool,
-}
-
-/// Formal target output topology.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub enum TargetOutputTopology {
-    /// One single output file.
-    File,
-    /// One mirrored directory tree of outputs.
-    Directory,
-    /// One logical collection of related output files.
-    #[default]
-    Collection,
-}
-
-impl TargetOutputTopology {
-    /// Return the default topology for one output kind.
-    pub fn default_for_kind(kind: TargetOutputKind) -> Self {
-        match kind {
-            TargetOutputKind::Module
-            | TargetOutputKind::Entry
-            | TargetOutputKind::Document
-            | TargetOutputKind::Types
-            | TargetOutputKind::Maps => Self::Directory,
-            TargetOutputKind::Assets | TargetOutputKind::Manifest | TargetOutputKind::Metadata => {
-                Self::Collection
-            }
-            TargetOutputKind::Binary => Self::File,
-        }
-    }
-}
-
-/// Formal named target outputs.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct TargetOutputs {
-    /// Named output groups.
-    pub groups: IndexMap<String, TargetOutputOptions>,
-}
-
-impl TargetOutputs {
-    /// Create one empty target output set.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Insert one named output group.
-    pub fn insert(&mut self, name: impl Into<String>, output: TargetOutputOptions) {
-        self.groups.insert(name.into(), output);
-    }
-
-    /// Return one output group by name.
-    pub fn get(&self, name: &str) -> Option<&TargetOutputOptions> {
-        self.groups.get(name)
-    }
-
-    /// Return whether the set is empty.
-    pub fn is_empty(&self) -> bool {
-        self.groups.is_empty()
-    }
-
-    /// Return an iterator over the named output groups.
-    pub fn iter(&self) -> indexmap::map::Iter<'_, String, TargetOutputOptions> {
-        self.groups.iter()
-    }
-
-    /// Return whether any output matches the requested kind.
-    pub fn contains_kind(&self, kind: TargetOutputKind) -> bool {
-        self.groups.values().any(|output| output.kind == kind)
-    }
-}
-
-impl Hash for TargetOutputs {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.groups.len().hash(state);
-
-        for (name, output) in &self.groups {
-            name.hash(state);
-            output.hash(state);
-        }
-    }
-}
-
 /// Emit family for JSON deserialization.
 #[derive(Debug, Clone, Copy, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -212,35 +80,6 @@ impl From<EmitFormatJson> for EmitFormat {
             EmitFormatJson::Html => EmitFormat::Html,
             EmitFormatJson::Wasm => EmitFormat::Wasm,
             EmitFormatJson::Native => EmitFormat::Native,
-        }
-    }
-}
-
-/// Extra artifacts to emit for JSON deserialization.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
-pub enum EmitArtifactJson {
-    /// Lowered MIR.
-    Mir,
-    /// Backend IR.
-    Ir,
-    /// Assembly output.
-    Asm,
-    /// Object file output.
-    Object,
-    /// Symbol table output.
-    Symbols,
-}
-
-impl From<EmitArtifactJson> for EmitArtifact {
-    fn from(value: EmitArtifactJson) -> Self {
-        match value {
-            EmitArtifactJson::Mir => EmitArtifact::Mir,
-            EmitArtifactJson::Ir => EmitArtifact::Ir,
-            EmitArtifactJson::Asm => EmitArtifact::Asm,
-            EmitArtifactJson::Object => EmitArtifact::Object,
-            EmitArtifactJson::Symbols => EmitArtifact::Symbols,
         }
     }
 }

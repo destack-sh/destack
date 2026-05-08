@@ -8,28 +8,25 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::config::{
-    PackageOptions, ProfileOptions, ProfileOptionsJson, TargetOptions, WorkspaceOptions,
+    CompilerOptions, EnvironmentOptions, FormatterOptions, LinterOptions, ModeOptions,
+    ProfileOptions, ProfileOptionsJson, RuntimeOptions, TargetOptions,
     environment_options_from_json, extend_environment_options, parse_jsonc_file,
-    runtime_options_with_base,
+    runtime_options_from_json, runtime_options_with_base, validate_modes,
 };
 
-use super::cache::CacheJson;
 use super::compiler::CompilerOptionsJson;
-use super::daemon::DaemonJson;
 use super::environment::EnvironmentJson;
 use super::formatter::FormatterJson;
 use super::linter::LinterJson;
 use super::mode::ModeJson;
 use super::runtime::RuntimeConfigJson;
 use super::target::TargetJson;
-use super::watch::WatchJson;
-use super::workspace::WorkspaceJson;
 
-/// Destack config JSON, usually from `destack.json`.
+/// Top-level options parsed from `destack.json`.
 #[derive(Debug, Deserialize, Clone, Default)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct DestackJson {
+pub struct DestackOptions {
     /// Package name.
     pub name: Option<String>,
     /// Package version.
@@ -47,10 +44,10 @@ pub struct DestackJson {
     pub homepage: Option<String>,
     /// Package keywords.
     pub keywords: Option<Vec<String>>,
-    /// Repository wide workspace membership.
-    pub workspace: Option<WorkspaceJson>,
-    /// Extends other Destack configs by path.
-    pub extends: Option<ExtendsFieldJson>,
+    /// Repository wide workspace package and group configuration.
+    workspace: Option<WorkspaceLayout>,
+    /// Config path inherited before this config.
+    pub extends: Option<String>,
     /// Specific files to include in the project.
     pub files: Option<Vec<String>>,
     /// Glob patterns for files to include.
@@ -69,81 +66,104 @@ pub struct DestackJson {
     /// Linter options.
     #[serde(default)]
     pub linter: LinterJson,
-    /// Cache options.
-    #[serde(default)]
-    pub cache: CacheJson,
-    /// Watch options.
-    #[serde(default)]
-    pub watch: WatchJson,
-    /// Daemon options.
-    #[serde(default)]
-    pub daemon: DaemonJson,
     /// Build targets.
     pub targets: Option<IndexMap<String, TargetJson>>,
     /// Named reusable toolchain and runtime environments.
     pub environments: Option<IndexMap<String, EnvironmentJson>>,
     /// Named profiles for semantic configuration.
     pub profiles: Option<IndexMap<String, ProfileOptionsJson>>,
-    /// Named modes for emitted output policy.
+    /// Named source graph modes.
     pub modes: Option<IndexMap<String, ModeJson>>,
     /// Default target for the package.
     pub default_target: Option<String>,
 }
 
-impl DestackJson {
+impl DestackOptions {
     /// Return the declared `extends` specifiers in order.
     pub fn extends(&self) -> impl Iterator<Item = &str> {
-        let specifiers = match &self.extends {
-            Some(ExtendsFieldJson::Single(specifier)) => {
-                vec![specifier.as_str()]
-            }
-            Some(ExtendsFieldJson::Multiple(specifiers)) => {
-                specifiers.iter().map(String::as_str).collect()
-            }
-            None => Vec::new(),
-        };
-
-        specifiers.into_iter()
+        self.extends.iter().map(String::as_str)
     }
 }
 
-/// Value for the "extends" field of a Destack config.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+/// Workspace package layout.
+#[derive(Debug, Default, Deserialize, Clone)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(untagged)]
-pub enum ExtendsFieldJson {
-    /// Extend a single config path.
-    Single(String),
-    /// Extend multiple config paths.
-    Multiple(Vec<String>),
+#[serde(rename_all = "camelCase")]
+struct WorkspaceLayout {
+    /// Package root glob patterns.
+    packages: Option<Vec<String>>,
+    /// Named groups of package paths.
+    groups: Option<IndexMap<String, Vec<String>>>,
 }
 
-/// Parsed `destack.json` declaration.
+/// Parsed `destack.json` config.
 #[derive(Debug, Clone)]
-pub struct DestackDeclaration {
+pub struct DestackConfig {
     /// The id of the `destack.json` file.
     pub file_id: FileId,
     /// Path to the `destack.json` file.
     pub path: PathBuf,
     /// The directory containing the `destack.json` file.
     pub directory: PathBuf,
-    /// The raw JSON content of the `destack.json` file.
-    pub json: DestackJson,
-    /// The raw declaration JSON for exact child over parent merging.
-    raw_json: Value,
-    /// The effective package options after declaration inheritance.
-    package_options: PackageOptions,
-    /// The effective workspace options after declaration inheritance.
-    workspace_options: WorkspaceOptions,
+    /// The raw options parsed from the `destack.json` file.
+    pub options: DestackOptions,
+    /// The raw config JSON for exact child over parent merging.
+    raw_options: Value,
+
+    /// Package name.
+    pub name: Option<String>,
+    /// Package version.
+    pub version: Option<String>,
+    /// Whether the package is private.
+    pub is_private: Option<bool>,
+    /// Package description.
+    pub description: Option<String>,
+    /// Package license identifier.
+    pub license: Option<String>,
+    /// Package repository metadata.
+    pub repository: Option<Value>,
+    /// Package homepage.
+    pub homepage: Option<String>,
+    /// Package keywords.
+    pub keywords: Vec<String>,
+    /// Specific files to include in the project.
+    pub files: Vec<String>,
+    /// Glob patterns for files to include.
+    pub include: Vec<String>,
+    /// Glob patterns for files to exclude.
+    pub exclude: Vec<String>,
+    /// Compiler options.
+    pub compiler: CompilerOptions,
+    /// Runtime options.
+    pub runtime: RuntimeOptions,
+    /// Formatter options.
+    pub formatter: FormatterOptions,
+    /// Linter options.
+    pub linter: LinterOptions,
+    /// Build targets.
+    pub targets: IndexMap<String, TargetOptions>,
+    /// Named reusable toolchain and runtime environments.
+    pub environments: IndexMap<String, EnvironmentOptions>,
+    /// Named profiles for semantic configuration.
+    pub profiles: IndexMap<String, ProfileOptions>,
+    /// Named source graph modes.
+    pub modes: IndexMap<String, ModeOptions>,
+    /// Default target for the package.
+    pub default_target: Option<String>,
+    /// Workspace package root glob patterns when discovery is explicit.
+    pub workspace_packages: Option<Vec<String>>,
+    /// Workspace member groups.
+    pub workspace_groups: IndexMap<String, Vec<String>>,
 }
 
-impl DestackDeclaration {
-    /// Parse one `destack.json` declaration from one file.
+impl DestackConfig {
+    /// Parse one `destack.json` config from one file.
     pub fn parse(file: &Arc<File>) -> Result<Self, serde_json::Error> {
-        let raw_json = parse_jsonc_file(file)?;
-        let json: DestackJson = serde_json::from_value(raw_json.clone())?;
+        let raw_options = parse_jsonc_file(file)?;
+        let options: DestackOptions = serde_json::from_value(raw_options.clone())?;
 
-        json.linter
+        options
+            .linter
             .validate()
             .map_err(|error| serde_json::Error::io(Error::new(ErrorKind::InvalidData, error)))?;
 
@@ -163,89 +183,161 @@ impl DestackDeclaration {
                 "destack.json must have a parent directory",
             ))
         })?;
-        let package_options = PackageOptions::from(&json);
-        let workspace_options = WorkspaceOptions::from(&json);
+        let compiler = CompilerOptions::from(&options.compiler);
+        let runtime = runtime_options_from_json(Some(&options.runtime));
+        let targets = options
+            .targets
+            .as_ref()
+            .map(|target_map| {
+                target_map
+                    .iter()
+                    .map(|(name, target_json)| {
+                        (
+                            name.clone(),
+                            TargetOptions::from_json_with_runtime(target_json, &runtime),
+                        )
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        let mut formatter = FormatterOptions::default();
+        options.formatter.apply(&mut formatter);
+        let mut linter = LinterOptions::default();
+        options.linter.apply(&mut linter);
 
+        // source graph modes
+        let modes = options
+            .modes
+            .as_ref()
+            .map(|mode_map| {
+                mode_map
+                    .iter()
+                    .map(|(name, mode_json)| (name.clone(), ModeOptions::from_json(mode_json)))
+                    .collect()
+            })
+            .unwrap_or_default();
         Ok(Self {
             file_id: file.id,
             path,
             directory,
-            json,
-            raw_json,
-            package_options,
-            workspace_options,
+            raw_options,
+            name: options.name.clone(),
+            version: options.version.clone(),
+            is_private: options.r#private,
+            description: options.description.clone(),
+            license: options.license.clone(),
+            repository: options.repository.clone(),
+            homepage: options.homepage.clone(),
+            keywords: options.keywords.clone().unwrap_or_default(),
+            files: options.files.clone().unwrap_or_default(),
+            include: options.include.clone().unwrap_or_default(),
+            exclude: options.exclude.clone().unwrap_or_default(),
+            compiler,
+            runtime,
+            formatter,
+            linter,
+            targets,
+            environments: environment_options_from_json(&options.environments),
+            profiles: options
+                .profiles
+                .as_ref()
+                .map(|profile_map| {
+                    profile_map
+                        .iter()
+                        .map(|(name, profile_json)| {
+                            (name.clone(), ProfileOptions::from_json(profile_json))
+                        })
+                        .collect()
+                })
+                .unwrap_or_default(),
+            modes,
+            default_target: options.default_target.clone(),
+            workspace_packages: options
+                .workspace
+                .as_ref()
+                .and_then(|workspace| workspace.packages.clone()),
+            workspace_groups: options
+                .workspace
+                .as_ref()
+                .and_then(|workspace| workspace.groups.clone())
+                .unwrap_or_default(),
+            options,
         })
     }
 
     /// Return the declared `extends` specifiers in order.
     pub fn extends(&self) -> impl Iterator<Item = &str> {
-        self.json.extends()
+        self.options.extends()
     }
 
-    /// Inherit settings from one parent declaration.
+    /// Validate resolved config invariants.
+    pub fn validate(&self) -> Result<(), serde_json::Error> {
+        validate_modes(&self.modes)
+            .map_err(|error| serde_json::Error::io(Error::new(ErrorKind::InvalidData, error)))
+    }
+
+    /// Inherit settings from one parent config.
     #[allow(clippy::cognitive_complexity, clippy::too_many_lines)]
     pub fn extend_from(&mut self, parent: &Self) -> Result<(), serde_json::Error> {
-        let parent_package = &parent.package_options;
-        let parent_workspace = &parent.workspace_options;
-
         // package metadata
-        if self.json.name.is_none() {
-            self.package_options.name = parent_package.name.clone();
+        if self.options.name.is_none() {
+            self.name = parent.name.clone();
         }
-        if self.json.version.is_none() {
-            self.package_options.version = parent_package.version.clone();
+        if self.options.version.is_none() {
+            self.version = parent.version.clone();
         }
-        if self.json.r#private.is_none() {
-            self.package_options.is_private = parent_package.is_private;
+        if self.options.r#private.is_none() {
+            self.is_private = parent.is_private;
         }
-        if self.json.description.is_none() {
-            self.package_options.description = parent_package.description.clone();
+        if self.options.description.is_none() {
+            self.description = parent.description.clone();
         }
-        if self.json.license.is_none() {
-            self.package_options.license = parent_package.license.clone();
+        if self.options.license.is_none() {
+            self.license = parent.license.clone();
         }
-        if self.json.repository.is_none() {
-            self.package_options.repository = parent_package.repository.clone();
+        if self.options.repository.is_none() {
+            self.repository = parent.repository.clone();
         }
-        if self.json.homepage.is_none() {
-            self.package_options.homepage = parent_package.homepage.clone();
+        if self.options.homepage.is_none() {
+            self.homepage = parent.homepage.clone();
         }
-        if self.json.keywords.is_none() {
-            self.package_options.keywords = parent_package.keywords.clone();
+        if self.options.keywords.is_none() {
+            self.keywords = parent.keywords.clone();
         }
 
-        // workspace membership
-        if let Some(workspace) = self.json.workspace.as_ref() {
-            let mut membership = self.workspace_options.membership.clone();
-            membership.extend_from(&parent_workspace.membership);
-            self.workspace_options.membership = membership;
-
-            if workspace.members.is_none() {
-                self.workspace_options.membership.members =
-                    parent_workspace.membership.members.clone();
+        // workspace
+        if let Some(workspace) = self.options.workspace.as_ref() {
+            if workspace.packages.is_none() {
+                self.workspace_packages = parent.workspace_packages.clone();
             }
             if workspace.groups.is_none() {
-                self.workspace_options.membership.groups =
-                    parent_workspace.membership.groups.clone();
+                self.workspace_groups = parent.workspace_groups.clone();
+            } else {
+                for (name, members) in &parent.workspace_groups {
+                    if !self.workspace_groups.contains_key(name) {
+                        self.workspace_groups.insert(name.clone(), members.clone());
+                    }
+                }
             }
         } else {
-            self.workspace_options.membership = parent_workspace.membership.clone();
+            self.workspace_packages = parent.workspace_packages.clone();
+            self.workspace_groups = parent.workspace_groups.clone();
         }
 
         // source selection
-        if self.package_options.files.is_empty() {
-            self.package_options.files = parent_package.files.clone();
+        if self.files.is_empty() {
+            self.files = parent.files.clone();
         }
-        if self.package_options.include.is_empty() {
-            self.package_options.include = parent_package.include.clone();
+        if self.include.is_empty() {
+            self.include = parent.include.clone();
         }
-        if self.package_options.exclude.is_empty() {
-            self.package_options.exclude = parent_package.exclude.clone();
+        if self.exclude.is_empty() {
+            self.exclude = parent.exclude.clone();
         }
 
         // compiler
-        let parent_compiler = &parent_package.compiler;
-        let compiler = &mut self.package_options.compiler;
+        let parent_compiler = &parent.compiler;
+        let compiler = &mut self.compiler;
 
         if compiler.environment.is_none() {
             compiler.environment = parent_compiler.environment.clone();
@@ -262,10 +354,10 @@ impl DestackDeclaration {
         if compiler.tree.is_none() {
             compiler.tree = parent_compiler.tree.clone();
         }
-        if self.json.compiler.globals.is_none() {
+        if self.options.compiler.globals.is_none() {
             compiler.globals = parent_compiler.globals.clone();
         }
-        if self.json.compiler.derive.is_none() {
+        if self.options.compiler.derive.is_none() {
             compiler.derive = parent_compiler.derive.clone();
         }
         if parent_compiler
@@ -307,17 +399,17 @@ impl DestackDeclaration {
         if compiler.declaration_dir.is_none() {
             compiler.declaration_dir = parent_compiler.declaration_dir.clone();
         }
-        if self.json.compiler.declaration_map.is_none() {
+        if self.options.compiler.declaration_map.is_none() {
             compiler.declaration_map = parent_compiler.declaration_map;
         }
-        if self.json.compiler.no_emit.is_none() {
+        if self.options.compiler.no_emit.is_none() {
             compiler.no_emit = parent_compiler.no_emit;
         }
 
         // formatter
-        let child_formatter = &self.json.formatter;
-        let formatter = &mut self.package_options.formatter;
-        let parent_formatter = &parent_package.formatter;
+        let child_formatter = &self.options.formatter;
+        let formatter = &mut self.formatter;
+        let parent_formatter = &parent.formatter;
 
         if child_formatter.line_ending.is_none() {
             formatter.line_ending = parent_formatter.line_ending;
@@ -360,9 +452,9 @@ impl DestackDeclaration {
         }
 
         // linter
-        let child_linter = &self.json.linter;
-        let linter = &mut self.package_options.linter;
-        let parent_linter = &parent_package.linter;
+        let child_linter = &self.options.linter;
+        let linter = &mut self.linter;
+        let parent_linter = &parent.linter;
 
         if child_linter.enabled.is_none() {
             linter.enabled = parent_linter.enabled;
@@ -384,93 +476,54 @@ impl DestackDeclaration {
             }
         }
 
-        // cache
-        if self.json.cache.mode.is_none() {
-            self.workspace_options.cache.mode = parent_workspace.cache.mode;
-        }
-
         // runtime
-        self.package_options.runtime =
-            runtime_options_with_base(&parent_package.runtime, Some(&self.json.runtime));
+        self.runtime = runtime_options_with_base(&parent.runtime, Some(&self.options.runtime));
 
         // declaration maps
-        let mut environments = environment_options_from_json(&self.json.environments);
-        extend_environment_options(&mut environments, &parent_package.environments);
-        self.package_options.environments = environments;
-
-        // watch and daemon
-        if self.json.watch.debounce_ms.is_none() {
-            self.package_options.watch.debounce_ms = parent_package.watch.debounce_ms;
-        }
-        if self.json.watch.poll_interval_ms.is_none() {
-            self.package_options.watch.poll_interval_ms = parent_package.watch.poll_interval_ms;
-        }
-        if self.json.daemon.idle_shutdown_ms.is_none() {
-            self.package_options.daemon.idle_shutdown_ms = parent_package.daemon.idle_shutdown_ms;
-        }
+        let mut environments = environment_options_from_json(&self.options.environments);
+        extend_environment_options(&mut environments, &parent.environments);
+        self.environments = environments;
 
         // targets
-        if let Some(targets) = &self.json.targets {
+        if let Some(targets) = &self.options.targets {
             for name in targets.keys() {
                 let target_json = self.merged_target_json(parent, name)?;
-                let options = TargetOptions::from_json_with_runtime(
-                    &target_json,
-                    &self.package_options.runtime,
-                );
-                self.package_options.targets.insert(name.clone(), options);
+                let options = TargetOptions::from_json_with_runtime(&target_json, &self.runtime);
+                self.targets.insert(name.clone(), options);
             }
         }
-        for (name, target) in &parent_package.targets {
-            if !self.package_options.targets.contains_key(name) {
-                self.package_options
-                    .targets
-                    .insert(name.clone(), target.clone());
+        for (name, target) in &parent.targets {
+            if !self.targets.contains_key(name) {
+                self.targets.insert(name.clone(), target.clone());
             }
         }
 
         // profiles
-        if let Some(profiles) = &self.json.profiles {
+        if let Some(profiles) = &self.options.profiles {
             for name in profiles.keys() {
                 let profile_json = self.merged_profile_json(parent, name)?;
                 let profile = ProfileOptions::from_json(&profile_json);
-                self.package_options.profiles.insert(name.clone(), profile);
+                self.profiles.insert(name.clone(), profile);
             }
         }
-        for (name, profile) in &parent_package.profiles {
-            if !self.package_options.profiles.contains_key(name) {
-                self.package_options
-                    .profiles
-                    .insert(name.clone(), profile.clone());
+        for (name, profile) in &parent.profiles {
+            if !self.profiles.contains_key(name) {
+                self.profiles.insert(name.clone(), profile.clone());
             }
         }
-        for (name, mode) in &parent_package.modes {
-            if !self.package_options.modes.contains_key(name) {
-                self.package_options
-                    .modes
-                    .insert(name.clone(), mode.clone());
+        for (name, mode) in &parent.modes {
+            if !self.modes.contains_key(name) {
+                self.modes.insert(name.clone(), mode.clone());
             }
         }
-        if self.package_options.default_target.is_none() {
-            self.package_options.default_target = parent_package.default_target.clone();
+        if self.default_target.is_none() {
+            self.default_target = parent.default_target.clone();
         }
-
-        // keep the workspace package defaults aligned
-        self.workspace_options.package = self.package_options.clone();
 
         Ok(())
     }
 
-    /// Derive effective package options from this declaration.
-    pub fn package_options(&self) -> PackageOptions {
-        self.package_options.clone()
-    }
-
-    /// Derive effective workspace options from this declaration.
-    pub fn workspace_options(&self) -> WorkspaceOptions {
-        self.workspace_options.clone()
-    }
-
-    /// Return one merged target declaration JSON for one inherited target name.
+    /// Return one merged target JSON object for one inherited target name.
     fn merged_target_json(
         &self,
         parent: &Self,
@@ -479,7 +532,7 @@ impl DestackDeclaration {
         let child_json = self.raw_named_json("targets", name).ok_or_else(|| {
             serde_json::Error::io(Error::new(
                 ErrorKind::InvalidData,
-                format!("failed to find target declaration during inheritance: target={name}"),
+                format!("failed to find target config during inheritance: target={name}"),
             ))
         })?;
         let merged_json = if let Some(parent_json) = parent.raw_named_json("targets", name) {
@@ -491,7 +544,7 @@ impl DestackDeclaration {
         serde_json::from_value(merged_json)
     }
 
-    /// Return one merged profile declaration JSON for one inherited profile name.
+    /// Return one merged profile JSON object for one inherited profile name.
     fn merged_profile_json(
         &self,
         parent: &Self,
@@ -500,7 +553,7 @@ impl DestackDeclaration {
         let child_json = self.raw_named_json("profiles", name).ok_or_else(|| {
             serde_json::Error::io(Error::new(
                 ErrorKind::InvalidData,
-                format!("failed to find profile declaration during inheritance: profile={name}"),
+                format!("failed to find profile config during inheritance: profile={name}"),
             ))
         })?;
         let merged_json = if let Some(parent_json) = parent.raw_named_json("profiles", name) {
@@ -512,9 +565,9 @@ impl DestackDeclaration {
         serde_json::from_value(merged_json)
     }
 
-    /// Return one named raw JSON entry from one declaration section.
+    /// Return one named raw JSON entry from one config section.
     fn raw_named_json<'a>(&'a self, section: &str, name: &str) -> Option<&'a Value> {
-        self.raw_json.get(section)?.get(name)
+        self.raw_options.get(section)?.get(name)
     }
 
     /// Merge one child JSON value over one parent JSON value.

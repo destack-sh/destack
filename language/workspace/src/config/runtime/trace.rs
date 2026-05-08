@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use super::super::policy::{ReplayPayloadMode, ReplayPayloadModeJson};
+use super::{ReplayPayloadMode, ReplayPayloadModeJson};
 
 /// Trace recording mode for one world.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]

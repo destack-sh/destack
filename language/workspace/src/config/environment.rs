@@ -1,20 +1,15 @@
-use indexmap::IndexMap;
 use serde::Deserialize;
+
+use indexmap::IndexMap;
 
 use crate::config::runtime::{RuntimeConfigJson, RuntimeOptionsJson};
 
 /// Environment options.
 #[derive(Debug, Clone, Default)]
 pub struct EnvironmentOptions {
-    /// Selection labels.
-    pub labels: IndexMap<String, String>,
-    /// Non-identifying metadata.
-    pub annotations: IndexMap<String, String>,
-    /// Whether this environment is ephemeral.
-    pub ephemeral: Option<bool>,
     /// Default profile selection for this environment.
     pub profile: Option<String>,
-    /// Default mode selection for this environment.
+    /// Default source graph mode for this environment.
     pub mode: Option<String>,
     /// Runtime overrides for this environment.
     pub runtime: Option<RuntimeOptionsJson>,
@@ -23,21 +18,6 @@ pub struct EnvironmentOptions {
 impl EnvironmentOptions {
     /// Inherit unset environment settings from one parent config.
     pub fn extend_from(&mut self, parent: &Self) {
-        for (name, value) in &parent.labels {
-            self.labels
-                .entry(name.clone())
-                .or_insert_with(|| value.clone());
-        }
-
-        for (name, value) in &parent.annotations {
-            self.annotations
-                .entry(name.clone())
-                .or_insert_with(|| value.clone());
-        }
-
-        if self.ephemeral.is_none() {
-            self.ephemeral = parent.ephemeral;
-        }
         if self.profile.is_none() {
             self.profile = parent.profile.clone();
         }
@@ -58,9 +38,6 @@ impl EnvironmentOptions {
 impl From<&EnvironmentJson> for EnvironmentOptions {
     fn from(json: &EnvironmentJson) -> Self {
         Self {
-            labels: json.labels.clone().unwrap_or_default(),
-            annotations: json.annotations.clone().unwrap_or_default(),
-            ephemeral: json.ephemeral,
             profile: json.profile.clone(),
             mode: json.mode.clone(),
             runtime: json
@@ -107,15 +84,9 @@ pub fn extend_environment_options(
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct EnvironmentJson {
-    /// Selection labels.
-    pub labels: Option<IndexMap<String, String>>,
-    /// Non-identifying metadata.
-    pub annotations: Option<IndexMap<String, String>>,
-    /// Whether this environment is ephemeral.
-    pub ephemeral: Option<bool>,
     /// Default profile selection for this environment.
     pub profile: Option<String>,
-    /// Default mode selection for this environment.
+    /// Default source graph mode for this environment.
     pub mode: Option<String>,
     /// Runtime overrides for this environment.
     pub runtime: Option<RuntimeConfigJson>,

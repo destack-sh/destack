@@ -127,7 +127,7 @@ impl Repository {
             return Ok(Arc::clone(workspace));
         }
 
-        let workspace_declaration = self.destack_declaration_for_workspace(revision)?;
+        let workspace_config = self.destack_config_for_workspace(revision)?;
         let packages = self.package_index(revision)?;
         let kind = if packages.len() > 1 {
             WorkspaceKind::Monorepo
@@ -136,9 +136,7 @@ impl Repository {
         };
 
         let workspace = Arc::new(Workspace {
-            file_id: workspace_declaration
-                .as_ref()
-                .map(|declaration| declaration.file_id),
+            file_id: workspace_config.as_ref().map(|config| config.file_id),
             root: self.root.clone(),
             kind,
         });

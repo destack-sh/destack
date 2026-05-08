@@ -13,11 +13,11 @@ Consumers use a revision to ask repository questions or to request artifacts thr
 
 ## Configuration
 
-The configuration model describes toolchain inputs loaded from `destack.json`, `package.json`, and `tsconfig.json`.
-The effective model is expressed as typed options for compiler, runtime, formatter, linter, cache, daemon, package, workspace, and targets.
+The configuration model describes toolchain inputs loaded from `destack.json`.
+The effective model is expressed as typed options for compiler, runtime, formatter, linter, packages, workspaces, and targets.
 
 `destack.json` is the native manifest format.
-Compatibility readers for TypeScript and npm metadata exist only to translate external project metadata into the same typed model.
+External project metadata should be translated before it reaches this crate.
 
 ## Boundaries
 

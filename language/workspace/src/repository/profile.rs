@@ -56,9 +56,9 @@ impl Repository {
         };
 
         let compiler_options = self.module_compiler_options(revision, &package, &module)?;
-        let package_options = self.package_options(revision, package.id)?;
+        let config = self.destack_config_for_package_id(revision, package.id)?;
 
-        let (target, profile_config) = if let Some(package_options) = package_options.as_ref() {
+        let (target, profile_config) = if let Some(config) = config.as_ref() {
             let target = self
                 .package_default_target(revision, package.id)?
                 .map(|(_, target)| target)
@@ -66,7 +66,7 @@ impl Repository {
             let profile_config = compiler_options
                 .profile
                 .as_ref()
-                .and_then(|name| package_options.profiles.get(name));
+                .and_then(|name| config.profiles.get(name));
             (target, profile_config)
         } else {
             (Target::default(), None)
@@ -94,22 +94,22 @@ impl Repository {
                 package: package_id,
             });
         };
-        let package_options = self.package_options(revision, package.id)?;
-        let compiler_options = package_options
+        let config = self.destack_config_for_package_id(revision, package.id)?;
+        let compiler_options = config
             .as_ref()
-            .map(|package_options| package_options.compiler.clone())
+            .map(|config| config.compiler.clone())
             .unwrap_or_default();
 
         let target = self
             .package_default_target(revision, package.id)?
             .map(|(_, target)| target)
             .unwrap_or_default();
-        let profile_config = package_options.as_ref().and_then(|package_options| {
+        let profile_config = config.as_ref().and_then(|config| {
             target
                 .profile
                 .as_ref()
                 .or(compiler_options.profile.as_ref())
-                .and_then(|name| package_options.profiles.get(name))
+                .and_then(|name| config.profiles.get(name))
         });
 
         let profile = self.profile_from_target(
@@ -147,13 +147,13 @@ impl Repository {
         };
 
         let compiler_options = self.module_compiler_options(revision, &package, &module)?;
-        let package_options = self.package_options(revision, package.id)?;
-        let profile_config = package_options.as_ref().and_then(|package_options| {
+        let config = self.destack_config_for_package_id(revision, package.id)?;
+        let profile_config = config.as_ref().and_then(|config| {
             target
                 .profile
                 .as_ref()
                 .or(compiler_options.profile.as_ref())
-                .and_then(|name| package_options.profiles.get(name))
+                .and_then(|name| config.profiles.get(name))
         });
 
         let profile = self.profile_from_target(
@@ -290,8 +290,8 @@ impl Repository {
         _module: &Module,
     ) -> Result<CompilerOptions, RepositoryError> {
         let compiler_options = self
-            .package_options(revision, package.id)?
-            .map(|package_options| package_options.compiler)
+            .destack_config_for_package_id(revision, package.id)?
+            .map(|config| config.compiler.clone())
             .unwrap_or_default();
 
         Ok(compiler_options)

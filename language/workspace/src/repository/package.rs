@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_source::{FileId, PackageId, TargetId, Uri};
+use destack_source::{FileId, PackageId, TargetId, Uri, matches as glob_matches};
 use im::OrdMap;
 use indexmap::IndexMap;
 
@@ -28,18 +28,16 @@ impl Repository {
             .path
             .as_ref()
             .and_then(|path| self.tracked_file_id(files, &path.join("destack.json")));
-        let destack_declaration = match destack_file_id {
-            Some(file_id) => self.destack_declaration_for_file(revision, file_id)?,
+        let destack_config = match destack_file_id {
+            Some(file_id) => self.destack_config_for_file(revision, file_id)?,
             None => None,
         };
-        let package_options = destack_declaration
-            .as_ref()
-            .map(|declaration| declaration.package_options());
+        let config = destack_config.as_deref();
         let mut targets = IndexMap::new();
 
         // explicit targets
-        if let Some(package_options) = package_options.as_ref() {
-            for (name, options) in &package_options.targets {
+        if let Some(config) = config {
+            for (name, options) in &config.targets {
                 let target_id = TargetId::new(package.id, name);
                 let target = options.to_target(name);
 
@@ -52,12 +50,8 @@ impl Repository {
             kind: package.kind,
             uri: package.uri.clone(),
             path: package.path.clone(),
-            name: package_options
-                .as_ref()
-                .and_then(|options| options.name.clone()),
-            version: package_options
-                .as_ref()
-                .and_then(|options| options.version.clone()),
+            name: config.and_then(|config| config.name.clone()),
+            version: config.and_then(|config| config.version.clone()),
             destack_file_id,
             targets,
         };
@@ -71,10 +65,46 @@ impl Repository {
         revision: Revision,
         files: &OrdMap<FileId, FileEntry>,
     ) -> Result<PackageIndex, RepositoryError> {
-        let mut physical_roots = HashSet::new();
-        let mut base_packages = OrdMap::new();
+        let package_roots = self.package_roots_for_files(revision, files)?;
+        let mut packages = OrdMap::new();
 
-        // package roots
+        // config enrichment
+        for (package_root, kind) in package_roots {
+            let package = self.base_package(kind, &package_root);
+            let package = self.build_package(revision, files, &package)?;
+
+            packages.insert(package.id, package);
+        }
+
+        Ok(PackageIndex::new(packages))
+    }
+
+    /// Return package roots for one file map.
+    fn package_roots_for_files(
+        &self,
+        revision: Revision,
+        files: &OrdMap<FileId, FileEntry>,
+    ) -> Result<Vec<(PathBuf, PackageKind)>, RepositoryError> {
+        let workspace_config = self.destack_config_for_workspace(revision)?;
+        let workspace_packages = workspace_config
+            .as_ref()
+            .and_then(|config| config.workspace_packages.as_deref());
+        let mut package_roots = Vec::new();
+        let mut seen = HashSet::new();
+
+        // default workspace package
+        if workspace_packages.is_none() {
+            let kind = if workspace_config.is_some() {
+                PackageKind::Declared
+            } else {
+                PackageKind::Implicit
+            };
+            Self::push_package_root(&mut package_roots, &mut seen, self.root.clone(), kind);
+
+            return Ok(package_roots);
+        }
+
+        // explicit workspace packages
         for entry in files.values() {
             let path = self.root.join(&entry.logical_path);
             let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
@@ -83,24 +113,19 @@ impl Repository {
 
             if file_name == "destack.json" {
                 let package_root = path.parent().unwrap_or(self.root.as_path()).to_path_buf();
-                physical_roots.insert(package_root);
+
+                if self.is_workspace_package_root(&package_root, workspace_packages) {
+                    Self::push_package_root(
+                        &mut package_roots,
+                        &mut seen,
+                        package_root,
+                        PackageKind::Declared,
+                    );
+                }
             }
         }
 
-        // base packages
-        for entry in files.values() {
-            let package = self.base_package(&physical_roots, &entry.logical_path);
-            base_packages.insert(package.id, package);
-        }
-
-        // config enrichment
-        let mut packages = OrdMap::new();
-        for package in base_packages.values() {
-            let package = self.build_package(revision, files, package)?;
-            packages.insert(package.id, package);
-        }
-
-        Ok(PackageIndex::new(packages))
+        Ok(package_roots)
     }
 
     /// Return the package index for one revision.
@@ -171,27 +196,6 @@ impl Repository {
         Ok(package_ids)
     }
 
-    /// Return the package root and ownership kind for one workspace file path.
-    fn package_scope(
-        &self,
-        declared_roots: &HashSet<PathBuf>,
-        path: &Path,
-    ) -> (PackageKind, PathBuf) {
-        let directory = path.parent().unwrap_or(self.root.as_path()).to_path_buf();
-
-        for ancestor in directory.ancestors() {
-            if !ancestor.starts_with(&self.root) {
-                break;
-            }
-
-            if declared_roots.contains(ancestor) {
-                return (PackageKind::Declared, ancestor.to_path_buf());
-            }
-        }
-
-        (PackageKind::Implicit, directory)
-    }
-
     /// Return the package id for one package root.
     fn package_id(&self, kind: PackageKind, root: &Path) -> PackageId {
         match kind {
@@ -200,20 +204,71 @@ impl Repository {
         }
     }
 
-    /// Return one base package for one logical path.
-    fn base_package(&self, declared_roots: &HashSet<PathBuf>, logical_path: &str) -> Package {
-        let path = self.root.join(logical_path);
-        let (kind, package_root) = self.package_scope(declared_roots, &path);
-
+    /// Return one base package for one package root.
+    fn base_package(&self, kind: PackageKind, package_root: &Path) -> Package {
         Package {
-            id: self.package_id(kind, &package_root),
+            id: self.package_id(kind, package_root),
             kind,
-            uri: Uri::from_path(&package_root),
-            path: Some(package_root),
+            uri: Uri::from_path(package_root),
+            path: Some(package_root.to_path_buf()),
             name: None,
             version: None,
             destack_file_id: None,
             targets: IndexMap::new(),
+        }
+    }
+
+    /// Return true when one package root is selected by workspace config.
+    fn is_workspace_package_root(
+        &self,
+        package_root: &Path,
+        workspace_packages: Option<&[String]>,
+    ) -> bool {
+        match workspace_packages {
+            Some(patterns) => patterns
+                .iter()
+                .any(|pattern| self.matches_workspace_package_pattern(package_root, pattern)),
+            None => package_root == self.root,
+        }
+    }
+
+    /// Return true when one workspace package pattern matches one root.
+    fn matches_workspace_package_pattern(&self, package_root: &Path, pattern: &str) -> bool {
+        let relative_root = package_root
+            .strip_prefix(&self.root)
+            .unwrap_or(package_root)
+            .to_string_lossy()
+            .replace('\\', "/");
+        let relative_root = if relative_root.is_empty() {
+            "."
+        } else {
+            relative_root.as_str()
+        };
+        let config_path = format!("{relative_root}/destack.json");
+        let config_path = if relative_root == "." {
+            "destack.json"
+        } else {
+            config_path.as_str()
+        };
+
+        Self::matches_workspace_glob(pattern, relative_root)
+            || Self::matches_workspace_glob(pattern, config_path)
+    }
+
+    /// Match one workspace glob pattern.
+    fn matches_workspace_glob(pattern: &str, path: &str) -> bool {
+        glob_matches(pattern.as_bytes(), 0, path.as_bytes(), 0)
+    }
+
+    /// Push one package root when it has not been seen before.
+    fn push_package_root(
+        package_roots: &mut Vec<(PathBuf, PackageKind)>,
+        seen: &mut HashSet<PathBuf>,
+        package_root: PathBuf,
+        kind: PackageKind,
+    ) {
+        if seen.insert(package_root.clone()) {
+            package_roots.push((package_root, kind));
         }
     }
 }
