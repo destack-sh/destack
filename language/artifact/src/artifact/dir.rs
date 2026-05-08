@@ -22,23 +22,21 @@ pub struct DirDeclared {
     pub namespace_symbol: dir::LocalSymbolId,
     /// The module namespace scope.
     pub namespace_scope: dir::LocalScopeId,
-    /// The global augmentation scope within this module.
-    pub global_augmentation_scope: dir::LocalScopeId,
     /// The module default symbol.
     pub default_symbol: dir::LocalSymbolId,
     /// The module export assignment symbol.
     pub export_assignment_symbol: dir::LocalSymbolId,
     /// Export assignment item when present.
     pub export_assignment: Option<dir::LocalNodeId<dir::DependencyItem>>,
-    /// Module bindings declared in the module.
-    pub module_bindings: Vec<dir::ModuleBinding>,
+    /// String-named modules declared in the module.
+    pub declared_modules: Vec<dir::DeclaredModule>,
 }
 
 /// Imported name surface for one profile-scoped module.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirImported {
-    /// Resolved module imports.
-    pub imports: dir::ImportTable,
+    /// Resolved module dependency edges.
+    pub dependencies: Vec<dir::ModuleDependency>,
 }
 
 /// Expanded declaration graph for one profile-scoped module.
