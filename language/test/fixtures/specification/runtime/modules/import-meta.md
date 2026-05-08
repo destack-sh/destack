@@ -82,13 +82,17 @@ const abi: string | undefined = import.meta.target.abi;
 const arch: string | undefined = import.meta.target.arch;
 ```
 
-### debug and test are booleans
+### builtin modes have boolean shorthands
 
-`import.meta.debug` and `import.meta.test` are booleans.
+Built-in modes are exposed as boolean shorthands.
 
 ```ds
 const debug: boolean = import.meta.debug;
+const dev: boolean = import.meta.dev;
+const prod: boolean = import.meta.prod;
 const test: boolean = import.meta.test;
+const bench: boolean = import.meta.bench;
+const lint: boolean = import.meta.lint;
 ```
 
 ### module paths are typed

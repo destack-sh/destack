@@ -11,7 +11,7 @@ use destack_linter::Linter;
 use destack_query::Query;
 use destack_session::Session;
 use destack_source::{FileSystem, MemoryFileSystem, ModuleId};
-use destack_workspace::{HostEnvironment, Profile, Ref, Repository, Revision};
+use destack_workspace::{HostEnvironment, MODE_DEBUG, Profile, Ref, Repository, Revision};
 
 use crate::core::{CaseResult, discover_file_cases, load_expected_failures};
 
@@ -42,7 +42,7 @@ struct MdTestProfileOverrides {
     pub runtime_version: Option<String>,
     /// Platform override for import.meta.
     pub platform: Option<Platform>,
-    /// Debug override for import.meta.
+    /// Debug mode override for import.meta.
     pub debug: Option<bool>,
 }
 
@@ -137,8 +137,6 @@ pub fn select_profile_for_mdtest(
     // seed override state
     let mut load_libraries = default_load_libraries;
     let mut key = base_profile.key.clone();
-    let mut recompute_test = false;
-
     // apply runtime overrides
     if let Some(emit) = overrides.emit {
         key.emit = emit;
@@ -150,8 +148,7 @@ pub fn select_profile_for_mdtest(
         key.platform = platform;
     }
     if let Some(debug) = overrides.debug {
-        key.debug = debug;
-        recompute_test = true;
+        set_mode(&mut key.modes, MODE_DEBUG, debug);
     }
 
     // validate runtime version usage
@@ -179,14 +176,6 @@ pub fn select_profile_for_mdtest(
         }
     }
 
-    // recompute test flag when needed
-    if recompute_test {
-        let profile = repository
-            .profile_from_key(revision, key.clone())
-            .unwrap_or_else(|error| panic!("failed to resolve profile: {error}"));
-        key.test = profile.env.test;
-    }
-
     // return the resolved profile
     if key != base_profile.key {
         let profile = repository
@@ -196,6 +185,17 @@ pub fn select_profile_for_mdtest(
         (profile, load_libraries)
     } else {
         ((*base_profile).clone(), load_libraries)
+    }
+}
+
+/// Add or remove one profile mode.
+fn set_mode(modes: &mut Vec<String>, mode: &str, enabled: bool) {
+    let has_mode = modes.iter().any(|active| active == mode);
+
+    if enabled && !has_mode {
+        modes.push(mode.to_string());
+    } else if !enabled {
+        modes.retain(|active| active != mode);
     }
 }
 
