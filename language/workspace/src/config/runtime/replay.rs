@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use super::super::policy::{ReplayPayloadMode, ReplayPayloadModeJson};
+use super::{ReplayPayloadMode, ReplayPayloadModeJson};
 
 /// Replay configuration for runtime record/replay.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

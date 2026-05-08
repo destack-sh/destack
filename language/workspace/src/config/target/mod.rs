@@ -1,15 +1,17 @@
 mod app;
-mod bundle;
-mod execution;
+mod codegen;
+mod js;
+mod link;
 mod native;
-mod optimization;
 mod output;
+mod policy;
 mod target;
 
 pub use app::*;
-pub use bundle::*;
-pub use execution::*;
+pub use codegen::*;
+pub use js::*;
+pub use link::*;
 pub use native::*;
-pub use optimization::*;
 pub use output::*;
+pub use policy::*;
 pub use target::*;

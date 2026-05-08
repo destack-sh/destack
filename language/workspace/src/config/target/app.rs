@@ -2,41 +2,41 @@ use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 
 use indexmap::IndexMap;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-/// Target-scoped app declaration for app packaging and runtime capability planning.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct TargetAppDeclaration {
+/// App model for packaging and runtime capability planning.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct AppOptions {
     /// Stable app identity for packaging and host-facing integration.
-    pub identity: TargetAppIdentityDeclaration,
-    /// Permission declarations keyed by permission selector.
-    pub permissions: IndexMap<TargetAppPermission, TargetAppPermissionDeclaration>,
-    /// Intent declaration for app activation and routing.
-    pub intents: TargetAppIntentDeclaration,
-    /// Notification declaration for local and remote notifications.
-    pub notifications: TargetAppNotificationDeclaration,
-    /// Background execution declaration.
-    pub background: TargetAppBackgroundDeclaration,
-    /// Host-managed foreground service declaration.
-    pub services: TargetAppServiceDeclaration,
-    /// Document-provider and picker declaration.
-    pub document: TargetAppDocumentDeclaration,
-    /// Credential and secure-store declaration.
-    pub credentials: TargetAppCredentialDeclaration,
-    /// Location declaration beyond permission usage strings.
-    pub location: TargetAppLocationDeclaration,
+    pub identity: AppIdentityOptions,
+    /// Permission options keyed by permission selector.
+    pub permissions: IndexMap<AppPermission, AppPermissionOptions>,
+    /// Intent options for app activation and routing.
+    pub intents: AppIntentOptions,
+    /// Notification options for local and remote notifications.
+    pub notifications: AppNotificationOptions,
+    /// Background execution options.
+    pub background: AppBackgroundOptions,
+    /// Host-managed foreground service options.
+    pub services: AppServiceOptions,
+    /// Document-provider and picker options.
+    pub document: AppDocumentOptions,
+    /// Credential and secure-store options.
+    pub credentials: AppCredentialOptions,
+    /// Location options beyond permission usage strings.
+    pub location: AppLocationOptions,
 }
 
-impl Hash for TargetAppDeclaration {
+impl Hash for AppOptions {
     fn hash<H: Hasher>(&self, state: &mut H) {
         // identity
         self.identity.hash(state);
 
         // permissions
         self.permissions.len().hash(state);
-        for (permission, declaration) in &self.permissions {
+        for (permission, options) in &self.permissions {
             permission.hash(state);
-            declaration.hash(state);
+            options.hash(state);
         }
 
         // remaining semantic sections
@@ -50,20 +50,20 @@ impl Hash for TargetAppDeclaration {
     }
 }
 
-impl TargetAppDeclaration {
-    /// Return whether the declaration contains no app specific settings.
+impl AppOptions {
+    /// Return whether the app model contains no app-specific settings.
     pub fn is_empty(&self) -> bool {
         self == &Self::default()
     }
 }
 
-impl From<&TargetAppDeclarationJson> for TargetAppDeclaration {
-    fn from(json: &TargetAppDeclarationJson) -> Self {
+impl From<&AppOptionsJson> for AppOptions {
+    fn from(json: &AppOptionsJson) -> Self {
         Self {
             identity: json
                 .identity
                 .as_ref()
-                .map(TargetAppIdentityDeclaration::from)
+                .map(AppIdentityOptions::from)
                 .unwrap_or_default(),
             permissions: json
                 .permissions
@@ -71,77 +71,77 @@ impl From<&TargetAppDeclarationJson> for TargetAppDeclaration {
                 .map(|permissions| {
                     permissions
                         .iter()
-                        .map(|(permission, declaration)| (*permission, declaration.into()))
+                        .map(|(permission, options)| (*permission, options.into()))
                         .collect()
                 })
                 .unwrap_or_default(),
             intents: json
                 .intents
                 .as_ref()
-                .map(TargetAppIntentDeclaration::from)
+                .map(AppIntentOptions::from)
                 .unwrap_or_default(),
             notifications: json
                 .notifications
                 .as_ref()
-                .map(TargetAppNotificationDeclaration::from)
+                .map(AppNotificationOptions::from)
                 .unwrap_or_default(),
             background: json
                 .background
                 .as_ref()
-                .map(TargetAppBackgroundDeclaration::from)
+                .map(AppBackgroundOptions::from)
                 .unwrap_or_default(),
             services: json
                 .services
                 .as_ref()
-                .map(TargetAppServiceDeclaration::from)
+                .map(AppServiceOptions::from)
                 .unwrap_or_default(),
             document: json
                 .document
                 .as_ref()
-                .map(TargetAppDocumentDeclaration::from)
+                .map(AppDocumentOptions::from)
                 .unwrap_or_default(),
             credentials: json
                 .credentials
                 .as_ref()
-                .map(TargetAppCredentialDeclaration::from)
+                .map(AppCredentialOptions::from)
                 .unwrap_or_default(),
             location: json
                 .location
                 .as_ref()
-                .map(TargetAppLocationDeclaration::from)
+                .map(AppLocationOptions::from)
                 .unwrap_or_default(),
         }
     }
 }
 
-/// Target-scoped app declaration JSON.
+/// App options JSON.
 #[derive(Debug, Clone, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct TargetAppDeclarationJson {
+pub struct AppOptionsJson {
     /// Stable app identity for packaging and host-facing integration.
-    pub identity: Option<TargetAppIdentityDeclarationJson>,
-    /// Permission declarations keyed by permission selector.
-    pub permissions: Option<IndexMap<TargetAppPermission, TargetAppPermissionDeclarationJson>>,
-    /// Intent declaration for app activation and routing.
-    pub intents: Option<TargetAppIntentDeclarationJson>,
-    /// Notification declaration for local and remote notifications.
-    pub notifications: Option<TargetAppNotificationDeclarationJson>,
-    /// Background execution declaration.
-    pub background: Option<TargetAppBackgroundDeclarationJson>,
-    /// Host-managed foreground service declaration.
-    pub services: Option<TargetAppServiceDeclarationJson>,
-    /// Document-provider and picker declaration.
-    pub document: Option<TargetAppDocumentDeclarationJson>,
-    /// Credential and secure-store declaration.
-    pub credentials: Option<TargetAppCredentialDeclarationJson>,
-    /// Location declaration beyond permission usage strings.
-    pub location: Option<TargetAppLocationDeclarationJson>,
+    pub identity: Option<AppIdentityOptionsJson>,
+    /// Permission options keyed by permission selector.
+    pub permissions: Option<IndexMap<AppPermission, AppPermissionOptionsJson>>,
+    /// Intent options for app activation and routing.
+    pub intents: Option<AppIntentOptionsJson>,
+    /// Notification options for local and remote notifications.
+    pub notifications: Option<AppNotificationOptionsJson>,
+    /// Background execution options.
+    pub background: Option<AppBackgroundOptionsJson>,
+    /// Host-managed foreground service options.
+    pub services: Option<AppServiceOptionsJson>,
+    /// Document-provider and picker options.
+    pub document: Option<AppDocumentOptionsJson>,
+    /// Credential and secure-store options.
+    pub credentials: Option<AppCredentialOptionsJson>,
+    /// Location options beyond permission usage strings.
+    pub location: Option<AppLocationOptionsJson>,
 }
 
-/// Stable app identity declaration for one target.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
-pub struct TargetAppIdentityDeclaration {
+/// Stable app identity options.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct AppIdentityOptions {
     /// Stable application identifier, ideally reverse-DNS style.
     pub identifier: Option<String>,
     /// Human-facing app display name.
@@ -150,8 +150,8 @@ pub struct TargetAppIdentityDeclaration {
     pub icon_path: Option<PathBuf>,
 }
 
-impl From<&TargetAppIdentityDeclarationJson> for TargetAppIdentityDeclaration {
-    fn from(json: &TargetAppIdentityDeclarationJson) -> Self {
+impl From<&AppIdentityOptionsJson> for AppIdentityOptions {
+    fn from(json: &AppIdentityOptionsJson) -> Self {
         Self {
             identifier: json.identifier.clone(),
             display_name: json.display_name.clone(),
@@ -160,11 +160,11 @@ impl From<&TargetAppIdentityDeclarationJson> for TargetAppIdentityDeclaration {
     }
 }
 
-/// Stable app identity declaration JSON for one target.
+/// Stable app identity options JSON.
 #[derive(Debug, Clone, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct TargetAppIdentityDeclarationJson {
+pub struct AppIdentityOptionsJson {
     /// Stable application identifier, ideally reverse-DNS style.
     pub identifier: Option<String>,
     /// Human-facing app display name.
@@ -173,11 +173,11 @@ pub struct TargetAppIdentityDeclarationJson {
     pub icon_path: Option<PathBuf>,
 }
 
-/// App permission selector for target declarations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
+/// App permission selector.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub enum TargetAppPermission {
+pub enum AppPermission {
     /// Foreground location access.
     Location,
     /// Background location access.
@@ -208,33 +208,33 @@ pub enum TargetAppPermission {
     CalendarWrite,
 }
 
-/// Permission declaration details for one app permission.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
-pub struct TargetAppPermissionDeclaration {
-    /// Human-facing usage text for platforms that require one declaration string.
+/// Permission options for one app permission.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct AppPermissionOptions {
+    /// Human-facing usage text for platforms that require one permission string.
     pub usage: Option<String>,
 }
 
-impl From<&TargetAppPermissionDeclarationJson> for TargetAppPermissionDeclaration {
-    fn from(json: &TargetAppPermissionDeclarationJson) -> Self {
+impl From<&AppPermissionOptionsJson> for AppPermissionOptions {
+    fn from(json: &AppPermissionOptionsJson) -> Self {
         Self {
             usage: json.usage.clone(),
         }
     }
 }
 
-/// Permission declaration JSON for one app permission.
+/// Permission options JSON for one app permission.
 #[derive(Debug, Clone, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct TargetAppPermissionDeclarationJson {
-    /// Human-facing usage text for platforms that require one declaration string.
+pub struct AppPermissionOptionsJson {
+    /// Human-facing usage text for platforms that require one permission string.
     pub usage: Option<String>,
 }
 
-/// Intent declaration for one target app.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
-pub struct TargetAppIntentDeclaration {
+/// Intent options for one app.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct AppIntentOptions {
     /// URL schemes the app may query for outbound routing.
     pub query_schemes: Vec<String>,
     /// Whether the app may share local files through outbound host routes.
@@ -253,8 +253,8 @@ pub struct TargetAppIntentDeclaration {
     pub custom_actions: Vec<String>,
 }
 
-impl From<&TargetAppIntentDeclarationJson> for TargetAppIntentDeclaration {
-    fn from(json: &TargetAppIntentDeclarationJson) -> Self {
+impl From<&AppIntentOptionsJson> for AppIntentOptions {
+    fn from(json: &AppIntentOptionsJson) -> Self {
         Self {
             query_schemes: json.query_schemes.clone().unwrap_or_default(),
             shares_files: json.shares_files.unwrap_or(false),
@@ -268,11 +268,11 @@ impl From<&TargetAppIntentDeclarationJson> for TargetAppIntentDeclaration {
     }
 }
 
-/// Intent declaration JSON for one target app.
+/// Intent options JSON for one app.
 #[derive(Debug, Clone, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct TargetAppIntentDeclarationJson {
+pub struct AppIntentOptionsJson {
     /// URL schemes the app may query for outbound routing.
     pub query_schemes: Option<Vec<String>>,
     /// Whether the app may share local files through outbound host routes.
@@ -291,9 +291,9 @@ pub struct TargetAppIntentDeclarationJson {
     pub custom_actions: Option<Vec<String>>,
 }
 
-/// Notification declaration for one target app.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
-pub struct TargetAppNotificationDeclaration {
+/// Notification options for one app.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct AppNotificationOptions {
     /// Whether the app declares local notification support.
     pub enabled: bool,
     /// Whether the app declares remote or push notification support.
@@ -307,11 +307,11 @@ pub struct TargetAppNotificationDeclaration {
     /// Whether the app declares critical-alert support.
     pub critical_alerts: bool,
     /// Declared notification categories.
-    pub categories: Vec<TargetAppNotificationCategoryDeclaration>,
+    pub categories: Vec<AppNotificationCategoryOptions>,
 }
 
-impl From<&TargetAppNotificationDeclarationJson> for TargetAppNotificationDeclaration {
-    fn from(json: &TargetAppNotificationDeclarationJson) -> Self {
+impl From<&AppNotificationOptionsJson> for AppNotificationOptions {
+    fn from(json: &AppNotificationOptionsJson) -> Self {
         Self {
             enabled: json.enabled.unwrap_or(false),
             remote: json.remote.unwrap_or(false),
@@ -328,11 +328,11 @@ impl From<&TargetAppNotificationDeclarationJson> for TargetAppNotificationDeclar
     }
 }
 
-/// Notification declaration JSON for one target app.
+/// Notification options JSON for one app.
 #[derive(Debug, Clone, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct TargetAppNotificationDeclarationJson {
+pub struct AppNotificationOptionsJson {
     /// Whether the app declares local notification support.
     pub enabled: Option<bool>,
     /// Whether the app declares remote or push notification support.
@@ -346,22 +346,20 @@ pub struct TargetAppNotificationDeclarationJson {
     /// Whether the app declares critical-alert support.
     pub critical_alerts: Option<bool>,
     /// Declared notification categories.
-    pub categories: Option<Vec<TargetAppNotificationCategoryDeclarationJson>>,
+    pub categories: Option<Vec<AppNotificationCategoryOptionsJson>>,
 }
 
 /// Notification category declaration.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct TargetAppNotificationCategoryDeclaration {
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct AppNotificationCategoryOptions {
     /// Stable notification category identifier.
     pub identifier: String,
     /// Actions available for this category.
-    pub actions: Vec<TargetAppNotificationActionDeclaration>,
+    pub actions: Vec<AppNotificationActionOptions>,
 }
 
-impl From<&TargetAppNotificationCategoryDeclarationJson>
-    for TargetAppNotificationCategoryDeclaration
-{
-    fn from(json: &TargetAppNotificationCategoryDeclarationJson) -> Self {
+impl From<&AppNotificationCategoryOptionsJson> for AppNotificationCategoryOptions {
+    fn from(json: &AppNotificationCategoryOptionsJson) -> Self {
         Self {
             identifier: json.identifier.clone(),
             actions: json.actions.iter().map(Into::into).collect(),
@@ -373,23 +371,23 @@ impl From<&TargetAppNotificationCategoryDeclarationJson>
 #[derive(Debug, Clone, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct TargetAppNotificationCategoryDeclarationJson {
+pub struct AppNotificationCategoryOptionsJson {
     /// Stable notification category identifier.
     pub identifier: String,
     /// Actions available for this category.
     #[serde(default)]
-    pub actions: Vec<TargetAppNotificationActionDeclarationJson>,
+    pub actions: Vec<AppNotificationActionOptionsJson>,
 }
 
 /// Notification action declaration.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct TargetAppNotificationActionDeclaration {
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct AppNotificationActionOptions {
     /// Stable notification action identifier.
     pub identifier: String,
     /// Human-facing title for the action.
     pub title: Option<String>,
     /// Platform presentation style for the action.
-    pub style: TargetAppNotificationActionStyle,
+    pub style: AppNotificationActionStyle,
     /// Whether the action should foreground the app when activated.
     pub foreground: bool,
     /// Button title for text-input actions.
@@ -398,8 +396,8 @@ pub struct TargetAppNotificationActionDeclaration {
     pub text_input_placeholder: Option<String>,
 }
 
-impl From<&TargetAppNotificationActionDeclarationJson> for TargetAppNotificationActionDeclaration {
-    fn from(json: &TargetAppNotificationActionDeclarationJson) -> Self {
+impl From<&AppNotificationActionOptionsJson> for AppNotificationActionOptions {
+    fn from(json: &AppNotificationActionOptionsJson) -> Self {
         Self {
             identifier: json.identifier.clone(),
             title: json.title.clone(),
@@ -415,13 +413,13 @@ impl From<&TargetAppNotificationActionDeclarationJson> for TargetAppNotification
 #[derive(Debug, Clone, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct TargetAppNotificationActionDeclarationJson {
+pub struct AppNotificationActionOptionsJson {
     /// Stable notification action identifier.
     pub identifier: String,
     /// Human-facing title for the action.
     pub title: Option<String>,
     /// Platform presentation style for the action.
-    pub style: Option<TargetAppNotificationActionStyle>,
+    pub style: Option<AppNotificationActionStyle>,
     /// Whether the action should foreground the app when activated.
     pub foreground: Option<bool>,
     /// Button title for text-input actions.
@@ -431,10 +429,10 @@ pub struct TargetAppNotificationActionDeclarationJson {
 }
 
 /// Notification action style for app declarations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub enum TargetAppNotificationActionStyle {
+pub enum AppNotificationActionStyle {
     /// Default action presentation.
     #[default]
     Default,
@@ -445,16 +443,16 @@ pub enum TargetAppNotificationActionStyle {
 }
 
 /// Background execution declaration for one target app.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
-pub struct TargetAppBackgroundDeclaration {
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct AppBackgroundOptions {
     /// Declared background execution modes.
-    pub modes: Vec<TargetAppBackgroundMode>,
+    pub modes: Vec<AppBackgroundMode>,
     /// Declared stable background task identifiers.
     pub task_identifiers: Vec<String>,
 }
 
-impl From<&TargetAppBackgroundDeclarationJson> for TargetAppBackgroundDeclaration {
-    fn from(json: &TargetAppBackgroundDeclarationJson) -> Self {
+impl From<&AppBackgroundOptionsJson> for AppBackgroundOptions {
+    fn from(json: &AppBackgroundOptionsJson) -> Self {
         Self {
             modes: json.modes.clone().unwrap_or_default(),
             task_identifiers: json.task_identifiers.clone().unwrap_or_default(),
@@ -466,18 +464,18 @@ impl From<&TargetAppBackgroundDeclarationJson> for TargetAppBackgroundDeclaratio
 #[derive(Debug, Clone, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct TargetAppBackgroundDeclarationJson {
+pub struct AppBackgroundOptionsJson {
     /// Declared background execution modes.
-    pub modes: Option<Vec<TargetAppBackgroundMode>>,
+    pub modes: Option<Vec<AppBackgroundMode>>,
     /// Declared stable background task identifiers.
     pub task_identifiers: Option<Vec<String>>,
 }
 
 /// Background execution mode for one app declaration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub enum TargetAppBackgroundMode {
+pub enum AppBackgroundMode {
     /// Audio playback or capture in the background.
     Audio,
     /// Location updates in the background.
@@ -501,14 +499,14 @@ pub enum TargetAppBackgroundMode {
 }
 
 /// Foreground or persistent service declaration for one target app.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
-pub struct TargetAppServiceDeclaration {
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct AppServiceOptions {
     /// Declared foreground service classes.
-    pub foreground_modes: Vec<TargetAppForegroundMode>,
+    pub foreground_modes: Vec<AppForegroundMode>,
 }
 
-impl From<&TargetAppServiceDeclarationJson> for TargetAppServiceDeclaration {
-    fn from(json: &TargetAppServiceDeclarationJson) -> Self {
+impl From<&AppServiceOptionsJson> for AppServiceOptions {
+    fn from(json: &AppServiceOptionsJson) -> Self {
         Self {
             foreground_modes: json.foreground_modes.clone().unwrap_or_default(),
         }
@@ -519,16 +517,16 @@ impl From<&TargetAppServiceDeclarationJson> for TargetAppServiceDeclaration {
 #[derive(Debug, Clone, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct TargetAppServiceDeclarationJson {
+pub struct AppServiceOptionsJson {
     /// Declared foreground service classes.
-    pub foreground_modes: Option<Vec<TargetAppForegroundMode>>,
+    pub foreground_modes: Option<Vec<AppForegroundMode>>,
 }
 
 /// Foreground or persistent service class for one app declaration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub enum TargetAppForegroundMode {
+pub enum AppForegroundMode {
     /// Audio playback or long-running audio work.
     Audio,
     /// Location tracking or navigation work.
@@ -552,8 +550,8 @@ pub enum TargetAppForegroundMode {
 }
 
 /// Document-provider declaration for one target app.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
-pub struct TargetAppDocumentDeclaration {
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct AppDocumentOptions {
     /// File or content types the app can open from document providers.
     pub open_types: Vec<String>,
     /// File or content types the app can save or export through the host.
@@ -562,8 +560,8 @@ pub struct TargetAppDocumentDeclaration {
     pub supports_open_in_place: bool,
 }
 
-impl From<&TargetAppDocumentDeclarationJson> for TargetAppDocumentDeclaration {
-    fn from(json: &TargetAppDocumentDeclarationJson) -> Self {
+impl From<&AppDocumentOptionsJson> for AppDocumentOptions {
+    fn from(json: &AppDocumentOptionsJson) -> Self {
         Self {
             open_types: json.open_types.clone().unwrap_or_default(),
             save_types: json.save_types.clone().unwrap_or_default(),
@@ -576,7 +574,7 @@ impl From<&TargetAppDocumentDeclarationJson> for TargetAppDocumentDeclaration {
 #[derive(Debug, Clone, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct TargetAppDocumentDeclarationJson {
+pub struct AppDocumentOptionsJson {
     /// File or content types the app can open from document providers.
     pub open_types: Option<Vec<String>>,
     /// File or content types the app can save or export through the host.
@@ -586,8 +584,8 @@ pub struct TargetAppDocumentDeclarationJson {
 }
 
 /// Credential and secure-store declaration for one target app.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
-pub struct TargetAppCredentialDeclaration {
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct AppCredentialOptions {
     /// Human-facing usage text for biometric authentication on hosts that require one.
     pub biometric_usage: Option<String>,
     /// Shared secure-store access groups.
@@ -596,8 +594,8 @@ pub struct TargetAppCredentialDeclaration {
     pub credential_domains: Vec<String>,
 }
 
-impl From<&TargetAppCredentialDeclarationJson> for TargetAppCredentialDeclaration {
-    fn from(json: &TargetAppCredentialDeclarationJson) -> Self {
+impl From<&AppCredentialOptionsJson> for AppCredentialOptions {
+    fn from(json: &AppCredentialOptionsJson) -> Self {
         Self {
             biometric_usage: json.biometric_usage.clone(),
             access_groups: json.access_groups.clone().unwrap_or_default(),
@@ -610,7 +608,7 @@ impl From<&TargetAppCredentialDeclarationJson> for TargetAppCredentialDeclaratio
 #[derive(Debug, Clone, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct TargetAppCredentialDeclarationJson {
+pub struct AppCredentialOptionsJson {
     /// Human-facing usage text for biometric authentication on hosts that require one.
     pub biometric_usage: Option<String>,
     /// Shared secure-store access groups.
@@ -620,8 +618,8 @@ pub struct TargetAppCredentialDeclarationJson {
 }
 
 /// Location declaration for one target app.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
-pub struct TargetAppLocationDeclaration {
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct AppLocationOptions {
     /// Whether the app expects background location updates.
     pub allows_background_updates: bool,
     /// Whether the app expects precise location by default.
@@ -630,8 +628,8 @@ pub struct TargetAppLocationDeclaration {
     pub temporary_precise_purposes: Vec<String>,
 }
 
-impl From<&TargetAppLocationDeclarationJson> for TargetAppLocationDeclaration {
-    fn from(json: &TargetAppLocationDeclarationJson) -> Self {
+impl From<&AppLocationOptionsJson> for AppLocationOptions {
+    fn from(json: &AppLocationOptionsJson) -> Self {
         Self {
             allows_background_updates: json.allows_background_updates.unwrap_or(false),
             precise_by_default: json.precise_by_default.unwrap_or(false),
@@ -644,7 +642,7 @@ impl From<&TargetAppLocationDeclarationJson> for TargetAppLocationDeclaration {
 #[derive(Debug, Clone, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct TargetAppLocationDeclarationJson {
+pub struct AppLocationOptionsJson {
     /// Whether the app expects background location updates.
     pub allows_background_updates: Option<bool>,
     /// Whether the app expects precise location by default.

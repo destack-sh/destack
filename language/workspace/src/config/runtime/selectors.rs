@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use super::super::policy::{ExecutionMode, ExecutionModeJson};
+use super::{ExecutionMode, ExecutionModeJson};
 
 /// Engine selector for runtime rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

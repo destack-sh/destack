@@ -169,10 +169,6 @@ pub struct PlatformDeviceOptions {
     pub deny_classes: Vec<String>,
 }
 
-/// Debug runtime options.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct PlatformDebugOptions {}
-
 /// Display runtime options.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct PlatformDisplayOptions {
@@ -182,36 +178,12 @@ pub struct PlatformDisplayOptions {
     pub stream_wait_slice_ns: Option<u64>,
 }
 
-/// Error runtime options.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct PlatformErrorOptions {}
-
-/// FFI runtime options.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct PlatformFfiOptions {}
-
-/// I/O runtime options.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct PlatformIoOptions {}
-
 /// IPC runtime options.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct PlatformIpcOptions {
     /// Optional Unix semaphore poll interval in nanoseconds.
     pub unix_semaphore_poll_interval_ns: Option<u64>,
 }
-
-/// Resource runtime options.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct PlatformResourceOptions {}
-
-/// Thread runtime options.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct PlatformThreadOptions {}
-
-/// TTY runtime options.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct PlatformTtyOptions {}
 
 /// Windows packet backend selection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
@@ -819,17 +791,6 @@ impl PlatformDeviceOptionsJson {
     }
 }
 
-/// Debug runtime options.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct PlatformDebugOptionsJson {}
-
-impl PlatformDebugOptionsJson {
-    /// Apply debug overrides to a base set of options.
-    pub fn apply_to(&self, _options: &mut PlatformDebugOptions) {}
-}
-
 /// Display runtime options.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -856,39 +817,6 @@ impl PlatformDisplayOptionsJson {
     }
 }
 
-/// Error runtime options.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct PlatformErrorOptionsJson {}
-
-impl PlatformErrorOptionsJson {
-    /// Apply error overrides to a base set of options.
-    pub fn apply_to(&self, _options: &mut PlatformErrorOptions) {}
-}
-
-/// FFI runtime options.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct PlatformFfiOptionsJson {}
-
-impl PlatformFfiOptionsJson {
-    /// Apply ffi overrides to a base set of options.
-    pub fn apply_to(&self, _options: &mut PlatformFfiOptions) {}
-}
-
-/// I/O runtime options.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct PlatformIoOptionsJson {}
-
-impl PlatformIoOptionsJson {
-    /// Apply io overrides to a base set of options.
-    pub fn apply_to(&self, _options: &mut PlatformIoOptions) {}
-}
-
 /// IPC runtime options.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -905,39 +833,6 @@ impl PlatformIpcOptionsJson {
             options.unix_semaphore_poll_interval_ns = Some(unix_semaphore_poll_interval_ns);
         }
     }
-}
-
-/// Resource runtime options.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct PlatformResourceOptionsJson {}
-
-impl PlatformResourceOptionsJson {
-    /// Apply resource overrides to a base set of options.
-    pub fn apply_to(&self, _options: &mut PlatformResourceOptions) {}
-}
-
-/// Thread runtime options.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct PlatformThreadOptionsJson {}
-
-impl PlatformThreadOptionsJson {
-    /// Apply thread overrides to a base set of options.
-    pub fn apply_to(&self, _options: &mut PlatformThreadOptions) {}
-}
-
-/// TTY runtime options.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct PlatformTtyOptionsJson {}
-
-impl PlatformTtyOptionsJson {
-    /// Apply tty overrides to a base set of options.
-    pub fn apply_to(&self, _options: &mut PlatformTtyOptions) {}
 }
 
 /// Host runtime options.

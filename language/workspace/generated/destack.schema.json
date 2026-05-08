@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "DestackJson",
-  "description": "Destack config JSON, usually from `destack.json`.",
+  "title": "DestackOptions",
+  "description": "Top-level options parsed from `destack.json`.",
   "type": "object",
   "properties": {
     "name": {
@@ -60,10 +60,10 @@
       }
     },
     "workspace": {
-      "description": "Repository wide workspace membership.",
+      "description": "Repository wide workspace package and group configuration.",
       "anyOf": [
         {
-          "$ref": "#/$defs/WorkspaceJson"
+          "$ref": "#/$defs/WorkspaceLayout"
         },
         {
           "type": "null"
@@ -71,14 +71,10 @@
       ]
     },
     "extends": {
-      "description": "Extends other Destack configs by path.",
-      "anyOf": [
-        {
-          "$ref": "#/$defs/ExtendsFieldJson"
-        },
-        {
-          "type": "null"
-        }
+      "description": "Config path inherited before this config.",
+      "type": [
+        "string",
+        "null"
       ]
     },
     "files": {
@@ -141,15 +137,8 @@
         "os": null,
         "device": null,
         "crypto": null,
-        "debug": null,
         "display": null,
-        "error": null,
-        "ffi": null,
-        "io": null,
         "ipc": null,
-        "resource": null,
-        "thread": null,
-        "tty": null,
         "platform": null
       }
     },
@@ -160,18 +149,6 @@
     "linter": {
       "description": "Linter options.",
       "$ref": "#/$defs/LinterJson"
-    },
-    "cache": {
-      "description": "Cache options.",
-      "$ref": "#/$defs/CacheJson"
-    },
-    "watch": {
-      "description": "Watch options.",
-      "$ref": "#/$defs/WatchJson"
-    },
-    "daemon": {
-      "description": "Daemon options.",
-      "$ref": "#/$defs/DaemonJson"
     },
     "targets": {
       "description": "Build targets.",
@@ -204,7 +181,7 @@
       }
     },
     "modes": {
-      "description": "Named modes for emitted output policy.",
+      "description": "Named source graph modes.",
       "type": [
         "object",
         "null"
@@ -222,12 +199,12 @@
     }
   },
   "$defs": {
-    "WorkspaceJson": {
-      "description": "Workspace membership declarations.\n\nInputs: member root patterns and optional named groups.\nOutputs: a repository wide project membership graph used for discovery.",
+    "WorkspaceLayout": {
+      "description": "Workspace package layout.",
       "type": "object",
       "properties": {
-        "members": {
-          "description": "Member root patterns within the repository.",
+        "packages": {
+          "description": "Package root glob patterns.",
           "type": [
             "array",
             "null"
@@ -237,7 +214,7 @@
           }
         },
         "groups": {
-          "description": "Named groups of member paths.",
+          "description": "Named groups of package paths.",
           "type": [
             "object",
             "null"
@@ -251,28 +228,12 @@
         }
       }
     },
-    "ExtendsFieldJson": {
-      "description": "Value for the \"extends\" field of a Destack config.",
-      "anyOf": [
-        {
-          "description": "Extend a single config path.",
-          "type": "string"
-        },
-        {
-          "description": "Extend multiple config paths.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      ]
-    },
     "CompilerOptionsJson": {
       "description": "Destack configuration compiler options.",
       "type": "object",
       "properties": {
         "module": {
-          "description": "Module format for output (e.g., \"esnext\", \"commonjs\").",
+          "description": "Module format for output (e.g., \"esnext\").",
           "type": [
             "string",
             "null"
@@ -300,7 +261,7 @@
           ]
         },
         "mode": {
-          "description": "Default mode for IDEs and CLI usage.",
+          "description": "Default source graph mode for IDEs and CLI usage.",
           "type": [
             "string",
             "null"
@@ -712,17 +673,6 @@
             }
           ]
         },
-        "debug": {
-          "description": "Global debug runtime defaults.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PlatformDebugOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "display": {
           "description": "Global display runtime defaults.",
           "anyOf": [
@@ -734,77 +684,11 @@
             }
           ]
         },
-        "error": {
-          "description": "Global error runtime defaults.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PlatformErrorOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "ffi": {
-          "description": "Global ffi runtime defaults.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PlatformFfiOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "io": {
-          "description": "Global io runtime defaults.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PlatformIoOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "ipc": {
           "description": "Global ipc runtime defaults.",
           "anyOf": [
             {
               "$ref": "#/$defs/PlatformIpcOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "resource": {
-          "description": "Global resource runtime defaults.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PlatformResourceOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "thread": {
-          "description": "Global thread runtime defaults.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PlatformThreadOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "tty": {
-          "description": "Global tty runtime defaults.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PlatformTtyOptionsJson"
             },
             {
               "type": "null"
@@ -2444,10 +2328,6 @@
         }
       }
     },
-    "PlatformDebugOptionsJson": {
-      "description": "Debug runtime options.",
-      "type": "object"
-    },
     "PlatformDisplayOptionsJson": {
       "description": "Display runtime options.",
       "type": "object",
@@ -2472,18 +2352,6 @@
         }
       }
     },
-    "PlatformErrorOptionsJson": {
-      "description": "Error runtime options.",
-      "type": "object"
-    },
-    "PlatformFfiOptionsJson": {
-      "description": "FFI runtime options.",
-      "type": "object"
-    },
-    "PlatformIoOptionsJson": {
-      "description": "I/O runtime options.",
-      "type": "object"
-    },
     "PlatformIpcOptionsJson": {
       "description": "IPC runtime options.",
       "type": "object",
@@ -2498,18 +2366,6 @@
           "minimum": 0
         }
       }
-    },
-    "PlatformResourceOptionsJson": {
-      "description": "Resource runtime options.",
-      "type": "object"
-    },
-    "PlatformThreadOptionsJson": {
-      "description": "Thread runtime options.",
-      "type": "object"
-    },
-    "PlatformTtyOptionsJson": {
-      "description": "TTY runtime options.",
-      "type": "object"
     },
     "PlatformOptionsJson": {
       "description": "Platform-specific host runtime overrides.",
@@ -4688,101 +4544,10 @@
         "to"
       ]
     },
-    "CacheJson": {
-      "description": "Artifact cache options from `destack.json`.",
-      "type": "object",
-      "properties": {
-        "mode": {
-          "description": "The configured artifact cache mode.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/CacheModeJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        }
-      }
-    },
-    "CacheModeJson": {
-      "description": "Artifact cache mode for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Disable artifact caching.",
-          "type": "string",
-          "const": "off"
-        },
-        {
-          "description": "Use persisted artifact caching.",
-          "type": "string",
-          "const": "disk"
-        }
-      ]
-    },
-    "WatchJson": {
-      "description": "Watch options (top-level).",
-      "type": "object",
-      "properties": {
-        "debounceMs": {
-          "description": "Debounce interval in milliseconds.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "pollIntervalMs": {
-          "description": "Poll interval in milliseconds for polling watchers.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        }
-      }
-    },
-    "DaemonJson": {
-      "description": "Daemon options (top-level).",
-      "type": "object",
-      "properties": {
-        "idleShutdownMs": {
-          "description": "Idle shutdown timeout in milliseconds.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        }
-      }
-    },
     "TargetJson": {
       "description": "A build artifact node.\n\nInputs: source discovery, build settings, runtime selection, and packaging declarations.\nOutputs: built artifacts and target metadata consumed by deployment tooling.",
       "type": "object",
       "properties": {
-        "labels": {
-          "description": "Selection labels.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "annotations": {
-          "description": "Non-identifying metadata.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
         "entry": {
           "description": "Entry points for entry-based discovery (bundled/executable targets).\nIf set, discovery mode is Entry; otherwise it's Include.",
           "type": [
@@ -4907,33 +4672,11 @@
             "type": "string"
           }
         },
-        "relocationModel": {
-          "description": "Relocation model.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RelocationModelJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "nativeOutput": {
           "description": "Native output kind for this target.",
           "anyOf": [
             {
-              "$ref": "#/$defs/TargetNativeOutputKind"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "linkMode": {
-          "description": "Link mode for native targets.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/LinkModeJson"
+              "$ref": "#/$defs/NativeOutputKind"
             },
             {
               "type": "null"
@@ -4951,7 +4694,7 @@
           "description": "Linker driver family.",
           "anyOf": [
             {
-              "$ref": "#/$defs/TargetLinkerFlavor"
+              "$ref": "#/$defs/LinkerFlavor"
             },
             {
               "type": "null"
@@ -5056,7 +4799,7 @@
           "description": "Symbol visibility policy.",
           "anyOf": [
             {
-              "$ref": "#/$defs/TargetSymbolVisibility"
+              "$ref": "#/$defs/SymbolVisibility"
             },
             {
               "type": "null"
@@ -5081,7 +4824,7 @@
           "description": "Position independent code policy.",
           "anyOf": [
             {
-              "$ref": "#/$defs/TargetPositionIndependentMode"
+              "$ref": "#/$defs/PositionIndependentMode"
             },
             {
               "type": "null"
@@ -5092,7 +4835,7 @@
           "description": "C runtime linkage policy.",
           "anyOf": [
             {
-              "$ref": "#/$defs/TargetCrtLinkage"
+              "$ref": "#/$defs/CrtLinkage"
             },
             {
               "type": "null"
@@ -5117,16 +4860,6 @@
           "description": "Emit declaration files (e.g., `.d.ts` alongside `.js` output).",
           "type": "boolean",
           "default": false
-        },
-        "artifacts": {
-          "description": "Extra sidecar artifacts to emit.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "$ref": "#/$defs/EmitArtifactJson"
-          }
         },
         "outDir": {
           "description": "Output directory for this target (overrides compiler.outDir).",
@@ -5171,7 +4904,7 @@
           ]
         },
         "mode": {
-          "description": "Explicit mode name for this target.",
+          "description": "Explicit source graph mode name for this target.",
           "type": [
             "string",
             "null"
@@ -5226,7 +4959,7 @@
           "description": "Dependency and resolution options.",
           "anyOf": [
             {
-              "$ref": "#/$defs/TargetDependencyOptionsJson"
+              "$ref": "#/$defs/BundleDependencyOptionsJson"
             },
             {
               "type": "null"
@@ -5237,18 +4970,7 @@
           "description": "Asset handling options.",
           "anyOf": [
             {
-              "$ref": "#/$defs/TargetAssetOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "treeshake": {
-          "description": "Tree shaking options.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/TargetTreeshakeOptionsJson"
+              "$ref": "#/$defs/BundleAssetOptionsJson"
             },
             {
               "type": "null"
@@ -5259,28 +4981,18 @@
           "description": "Output options for assembled bundle files.",
           "anyOf": [
             {
-              "$ref": "#/$defs/TargetOutputPolicyJson"
+              "$ref": "#/$defs/BundleOutputOptionsJson"
             },
             {
               "type": "null"
             }
           ]
         },
-        "define": {
-          "description": "Compile time define replacements.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
         "minify": {
           "description": "Minification options.",
           "anyOf": [
             {
-              "$ref": "#/$defs/TargetMinifyOptionsJson"
+              "$ref": "#/$defs/BundleMinifyOptionsJson"
             },
             {
               "type": "null"
@@ -5291,7 +5003,7 @@
           "description": "App declaration for packaging and runtime capability planning.",
           "anyOf": [
             {
-              "$ref": "#/$defs/TargetAppDeclarationJson"
+              "$ref": "#/$defs/AppOptionsJson"
             },
             {
               "type": "null"
@@ -5329,16 +5041,6 @@
             }
           ]
         },
-        "shrinkLevel": {
-          "description": "Shrink level (0-3).",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint8",
-          "minimum": 0,
-          "maximum": 3
-        },
         "floatMath": {
           "description": "Floating point math optimization policy.",
           "anyOf": [
@@ -5361,17 +5063,6 @@
             }
           ]
         },
-        "debugMode": {
-          "description": "Debug execution mode for VM/native targets.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DebugModeJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "execution": {
           "description": "Execution mode for runtime scheduling and replay.",
           "anyOf": [
@@ -5383,11 +5074,22 @@
             }
           ]
         },
-        "trustPolicy": {
-          "description": "Trust policy for runtime execution.",
+        "panic": {
+          "description": "Panic behavior for unrecoverable program failures.",
           "anyOf": [
             {
-              "$ref": "#/$defs/TrustPolicyJson"
+              "$ref": "#/$defs/PanicPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unwind": {
+          "description": "Native unwind metadata format.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UnwindFormatJson"
             },
             {
               "type": "null"
@@ -5399,28 +5101,6 @@
           "anyOf": [
             {
               "$ref": "#/$defs/StripLevelJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "panic": {
-          "description": "Panic policy.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PanicPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "unwind": {
-          "description": "Unwind info format.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/UnwindFormatJson"
             },
             {
               "type": "null"
@@ -5503,17 +5183,6 @@
               "type": "null"
             }
           ]
-        },
-        "allocator": {
-          "description": "Global allocator selection.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/AllocatorJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
         }
       }
     },
@@ -5547,27 +5216,7 @@
         }
       ]
     },
-    "RelocationModelJson": {
-      "description": "Relocation model for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Static relocation model.",
-          "type": "string",
-          "const": "static"
-        },
-        {
-          "description": "Position-independent code.",
-          "type": "string",
-          "const": "pic"
-        },
-        {
-          "description": "Position-independent executable.",
-          "type": "string",
-          "const": "pie"
-        }
-      ]
-    },
-    "TargetNativeOutputKind": {
+    "NativeOutputKind": {
       "description": "Native output kind for one target.",
       "oneOf": [
         {
@@ -5587,22 +5236,7 @@
         }
       ]
     },
-    "LinkModeJson": {
-      "description": "Link mode for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Prefer static linking.",
-          "type": "string",
-          "const": "static"
-        },
-        {
-          "description": "Prefer dynamic linking.",
-          "type": "string",
-          "const": "dynamic"
-        }
-      ]
-    },
-    "TargetLinkerFlavor": {
+    "LinkerFlavor": {
       "description": "Linker driver family for one native target.",
       "oneOf": [
         {
@@ -5647,7 +5281,7 @@
         }
       ]
     },
-    "TargetSymbolVisibility": {
+    "SymbolVisibility": {
       "description": "Symbol visibility policy for one native target.",
       "oneOf": [
         {
@@ -5667,7 +5301,7 @@
         }
       ]
     },
-    "TargetPositionIndependentMode": {
+    "PositionIndependentMode": {
       "description": "Position independent code policy for one native target.",
       "oneOf": [
         {
@@ -5692,7 +5326,7 @@
         }
       ]
     },
-    "TargetCrtLinkage": {
+    "CrtLinkage": {
       "description": "C runtime linkage policy for one native target.",
       "oneOf": [
         {
@@ -5709,36 +5343,6 @@
           "description": "Link against one static C runtime.",
           "type": "string",
           "const": "static"
-        }
-      ]
-    },
-    "EmitArtifactJson": {
-      "description": "Extra artifacts to emit for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Lowered MIR.",
-          "type": "string",
-          "const": "mir"
-        },
-        {
-          "description": "Backend IR.",
-          "type": "string",
-          "const": "ir"
-        },
-        {
-          "description": "Assembly output.",
-          "type": "string",
-          "const": "asm"
-        },
-        {
-          "description": "Object file output.",
-          "type": "string",
-          "const": "object"
-        },
-        {
-          "description": "Symbol table output.",
-          "type": "string",
-          "const": "symbols"
         }
       ]
     },
@@ -5762,7 +5366,7 @@
         }
       ]
     },
-    "TargetDependencyOptionsJson": {
+    "BundleDependencyOptionsJson": {
       "description": "Bundler dependency options in `destack.json`.",
       "type": "object",
       "properties": {
@@ -5808,7 +5412,7 @@
         }
       }
     },
-    "TargetAssetOptionsJson": {
+    "BundleAssetOptionsJson": {
       "description": "Bundler asset handling options in `destack.json`.",
       "type": "object",
       "properties": {
@@ -5854,73 +5458,7 @@
         }
       ]
     },
-    "TargetTreeshakeOptionsJson": {
-      "description": "Bundler tree shaking options in `destack.json`.",
-      "anyOf": [
-        {
-          "description": "Enable or disable tree shaking with one boolean.",
-          "type": "boolean"
-        },
-        {
-          "description": "Configure tree shaking with one explicit options object.",
-          "$ref": "#/$defs/TargetTreeshakeConfigJson"
-        }
-      ]
-    },
-    "TargetTreeshakeConfigJson": {
-      "description": "Bundler tree shaking options in `destack.json`.",
-      "type": "object",
-      "properties": {
-        "enabled": {
-          "description": "Whether to tree shake unused modules and exports.",
-          "type": "boolean",
-          "default": false
-        },
-        "moduleSideEffects": {
-          "description": "Side effect policy for individual modules.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/BundleSideEffectMode"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "packageSideEffects": {
-          "description": "Side effect policy for packages and dependency boundaries.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/BundleSideEffectMode"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        }
-      }
-    },
-    "BundleSideEffectMode": {
-      "description": "Side effect policy for tree shaking.",
-      "oneOf": [
-        {
-          "description": "Respect package and module side effect metadata.",
-          "type": "string",
-          "const": "auto"
-        },
-        {
-          "description": "Treat every reachable module as side effectful.",
-          "type": "string",
-          "const": "keep"
-        },
-        {
-          "description": "Treat modules as side effect free unless Destack marks them otherwise.",
-          "type": "string",
-          "const": "drop"
-        }
-      ]
-    },
-    "TargetOutputPolicyJson": {
+    "BundleOutputOptionsJson": {
       "description": "Bundler output options in `destack.json`.",
       "type": "object",
       "properties": {
@@ -6000,71 +5538,16 @@
             "null"
           ]
         },
-        "exports": {
-          "description": "Export mode for the assembled output.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/BundleExportsMode"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "interop": {
-          "description": "Interop mode for external modules.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/BundleInteropMode"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "generatedCode": {
           "description": "Generated code controls for final output rendering.",
           "anyOf": [
             {
-              "$ref": "#/$defs/TargetGeneratedCodeOptionsJson"
+              "$ref": "#/$defs/BundleGeneratedCodeOptionsJson"
             },
             {
               "type": "null"
             }
           ]
-        },
-        "freeze": {
-          "description": "Whether to freeze namespace imports and export objects.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "esModule": {
-          "description": "Whether to emit `__esModule` markers for CommonJS output.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/TargetEsModulePolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "externalLiveBindings": {
-          "description": "Whether to preserve external live bindings in output wrappers.",
-          "type": "boolean",
-          "default": false
-        },
-        "hoistTransitiveImports": {
-          "description": "Whether to hoist transitive imports on entry facades.",
-          "type": "boolean",
-          "default": false
-        },
-        "minifyInternalExports": {
-          "description": "Whether to minify internal export names.",
-          "type": "boolean",
-          "default": false
         },
         "sourcemap": {
           "description": "Source map emission policy.",
@@ -6086,16 +5569,6 @@
           "description": "Whether to include debug ids in source maps.",
           "type": "boolean",
           "default": false
-        },
-        "globals": {
-          "description": "Global names for externals in IIFE format.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "type": "string"
-          }
         }
       }
     },
@@ -6106,11 +5579,6 @@
           "description": "Emit ECMAScript modules.",
           "type": "string",
           "const": "esm"
-        },
-        {
-          "description": "Emit CommonJS modules.",
-          "type": "string",
-          "const": "cjs"
         },
         {
           "description": "Emit one self executing bundle.",
@@ -6139,118 +5607,10 @@
         }
       ]
     },
-    "BundleExportsMode": {
-      "description": "Export mode for one assembled bundle.",
-      "oneOf": [
-        {
-          "description": "Infer the best export mode from the bundle shape.",
-          "type": "string",
-          "const": "auto"
-        },
-        {
-          "description": "Prefer a default export wrapper.",
-          "type": "string",
-          "const": "default"
-        },
-        {
-          "description": "Prefer named export bindings.",
-          "type": "string",
-          "const": "named"
-        },
-        {
-          "description": "Omit export bindings entirely.",
-          "type": "string",
-          "const": "none"
-        }
-      ]
-    },
-    "BundleInteropMode": {
-      "description": "Interop mode for external modules.",
-      "oneOf": [
-        {
-          "description": "Use compatibility interop.",
-          "type": "string",
-          "const": "compat"
-        },
-        {
-          "description": "Infer interop from the dependency shape.",
-          "type": "string",
-          "const": "auto"
-        },
-        {
-          "description": "Treat externals as ES modules.",
-          "type": "string",
-          "const": "esModule"
-        },
-        {
-          "description": "Prefer default interop helpers.",
-          "type": "string",
-          "const": "default"
-        },
-        {
-          "description": "Only allow default interop.",
-          "type": "string",
-          "const": "defaultOnly"
-        }
-      ]
-    },
-    "TargetGeneratedCodeOptionsJson": {
-      "description": "Generated code controls in `destack.json`.",
-      "anyOf": [
-        {
-          "description": "Select one named generated code preset.",
-          "$ref": "#/$defs/TargetGeneratedCodePreset"
-        },
-        {
-          "description": "Configure generated code with one explicit options object.",
-          "$ref": "#/$defs/TargetGeneratedCodeConfigJson"
-        }
-      ]
-    },
-    "TargetGeneratedCodePreset": {
-      "description": "Generated code preset for one output.",
-      "oneOf": [
-        {
-          "description": "Favor ES5 compatible output forms.",
-          "type": "string",
-          "const": "es5"
-        },
-        {
-          "description": "Favor ES2015 compatible output forms.",
-          "type": "string",
-          "const": "es2015"
-        }
-      ]
-    },
-    "TargetGeneratedCodeConfigJson": {
+    "BundleGeneratedCodeOptionsJson": {
       "description": "Generated code options in `destack.json`.",
       "type": "object",
       "properties": {
-        "preset": {
-          "description": "Base preset for generated code features.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/TargetGeneratedCodePreset"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "arrowFunctions": {
-          "description": "Whether to emit arrow functions where possible.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "constBindings": {
-          "description": "Whether to emit `const` bindings where possible.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
         "objectShorthand": {
           "description": "Whether to emit object shorthand properties.",
           "type": [
@@ -6264,48 +5624,8 @@
             "boolean",
             "null"
           ]
-        },
-        "symbols": {
-          "description": "Whether to emit symbol based helpers.",
-          "type": [
-            "boolean",
-            "null"
-          ]
         }
       }
-    },
-    "TargetEsModulePolicyJson": {
-      "description": "`esModule` output mode in `destack.json`.",
-      "anyOf": [
-        {
-          "description": "Enable or disable `__esModule` emission with one boolean.",
-          "type": "boolean"
-        },
-        {
-          "description": "Select one explicit `esModule` policy.",
-          "$ref": "#/$defs/BundleEsModuleMode"
-        }
-      ]
-    },
-    "BundleEsModuleMode": {
-      "description": "`esModule` output mode for CommonJS style bundles.",
-      "oneOf": [
-        {
-          "description": "Always emit `__esModule`.",
-          "type": "string",
-          "const": "always"
-        },
-        {
-          "description": "Never emit `__esModule`.",
-          "type": "string",
-          "const": "never"
-        },
-        {
-          "description": "Emit `__esModule` only for default property cases.",
-          "type": "string",
-          "const": "if-default-prop"
-        }
-      ]
     },
     "TargetSourceMapPolicyJson": {
       "description": "Bundler source map policy in `destack.json`.",
@@ -6340,7 +5660,7 @@
         }
       ]
     },
-    "TargetMinifyOptionsJson": {
+    "BundleMinifyOptionsJson": {
       "description": "Bundler minification options in `destack.json`.",
       "anyOf": [
         {
@@ -6349,11 +5669,11 @@
         },
         {
           "description": "Configure minification with one explicit options object.",
-          "$ref": "#/$defs/TargetMinifyConfigJson"
+          "$ref": "#/$defs/BundleMinifyConfigJson"
         }
       ]
     },
-    "TargetMinifyConfigJson": {
+    "BundleMinifyConfigJson": {
       "description": "Bundler minification options in `destack.json`.",
       "type": "object",
       "properties": {
@@ -6384,15 +5704,15 @@
         }
       }
     },
-    "TargetAppDeclarationJson": {
-      "description": "Target-scoped app declaration JSON.",
+    "AppOptionsJson": {
+      "description": "App options JSON.",
       "type": "object",
       "properties": {
         "identity": {
           "description": "Stable app identity for packaging and host-facing integration.",
           "anyOf": [
             {
-              "$ref": "#/$defs/TargetAppIdentityDeclarationJson"
+              "$ref": "#/$defs/AppIdentityOptionsJson"
             },
             {
               "type": "null"
@@ -6400,20 +5720,20 @@
           ]
         },
         "permissions": {
-          "description": "Permission declarations keyed by permission selector.",
+          "description": "Permission options keyed by permission selector.",
           "type": [
             "object",
             "null"
           ],
           "additionalProperties": {
-            "$ref": "#/$defs/TargetAppPermissionDeclarationJson"
+            "$ref": "#/$defs/AppPermissionOptionsJson"
           }
         },
         "intents": {
-          "description": "Intent declaration for app activation and routing.",
+          "description": "Intent options for app activation and routing.",
           "anyOf": [
             {
-              "$ref": "#/$defs/TargetAppIntentDeclarationJson"
+              "$ref": "#/$defs/AppIntentOptionsJson"
             },
             {
               "type": "null"
@@ -6421,10 +5741,10 @@
           ]
         },
         "notifications": {
-          "description": "Notification declaration for local and remote notifications.",
+          "description": "Notification options for local and remote notifications.",
           "anyOf": [
             {
-              "$ref": "#/$defs/TargetAppNotificationDeclarationJson"
+              "$ref": "#/$defs/AppNotificationOptionsJson"
             },
             {
               "type": "null"
@@ -6432,10 +5752,10 @@
           ]
         },
         "background": {
-          "description": "Background execution declaration.",
+          "description": "Background execution options.",
           "anyOf": [
             {
-              "$ref": "#/$defs/TargetAppBackgroundDeclarationJson"
+              "$ref": "#/$defs/AppBackgroundOptionsJson"
             },
             {
               "type": "null"
@@ -6443,10 +5763,10 @@
           ]
         },
         "services": {
-          "description": "Host-managed foreground service declaration.",
+          "description": "Host-managed foreground service options.",
           "anyOf": [
             {
-              "$ref": "#/$defs/TargetAppServiceDeclarationJson"
+              "$ref": "#/$defs/AppServiceOptionsJson"
             },
             {
               "type": "null"
@@ -6454,10 +5774,10 @@
           ]
         },
         "document": {
-          "description": "Document-provider and picker declaration.",
+          "description": "Document-provider and picker options.",
           "anyOf": [
             {
-              "$ref": "#/$defs/TargetAppDocumentDeclarationJson"
+              "$ref": "#/$defs/AppDocumentOptionsJson"
             },
             {
               "type": "null"
@@ -6465,10 +5785,10 @@
           ]
         },
         "credentials": {
-          "description": "Credential and secure-store declaration.",
+          "description": "Credential and secure-store options.",
           "anyOf": [
             {
-              "$ref": "#/$defs/TargetAppCredentialDeclarationJson"
+              "$ref": "#/$defs/AppCredentialOptionsJson"
             },
             {
               "type": "null"
@@ -6476,10 +5796,10 @@
           ]
         },
         "location": {
-          "description": "Location declaration beyond permission usage strings.",
+          "description": "Location options beyond permission usage strings.",
           "anyOf": [
             {
-              "$ref": "#/$defs/TargetAppLocationDeclarationJson"
+              "$ref": "#/$defs/AppLocationOptionsJson"
             },
             {
               "type": "null"
@@ -6488,8 +5808,8 @@
         }
       }
     },
-    "TargetAppIdentityDeclarationJson": {
-      "description": "Stable app identity declaration JSON for one target.",
+    "AppIdentityOptionsJson": {
+      "description": "Stable app identity options JSON.",
       "type": "object",
       "properties": {
         "identifier": {
@@ -6515,12 +5835,12 @@
         }
       }
     },
-    "TargetAppPermissionDeclarationJson": {
-      "description": "Permission declaration JSON for one app permission.",
+    "AppPermissionOptionsJson": {
+      "description": "Permission options JSON for one app permission.",
       "type": "object",
       "properties": {
         "usage": {
-          "description": "Human-facing usage text for platforms that require one declaration string.",
+          "description": "Human-facing usage text for platforms that require one permission string.",
           "type": [
             "string",
             "null"
@@ -6528,8 +5848,8 @@
         }
       }
     },
-    "TargetAppIntentDeclarationJson": {
-      "description": "Intent declaration JSON for one target app.",
+    "AppIntentOptionsJson": {
+      "description": "Intent options JSON for one app.",
       "type": "object",
       "properties": {
         "querySchemes": {
@@ -6608,8 +5928,8 @@
         }
       }
     },
-    "TargetAppNotificationDeclarationJson": {
-      "description": "Notification declaration JSON for one target app.",
+    "AppNotificationOptionsJson": {
+      "description": "Notification options JSON for one app.",
       "type": "object",
       "properties": {
         "enabled": {
@@ -6661,12 +5981,12 @@
             "null"
           ],
           "items": {
-            "$ref": "#/$defs/TargetAppNotificationCategoryDeclarationJson"
+            "$ref": "#/$defs/AppNotificationCategoryOptionsJson"
           }
         }
       }
     },
-    "TargetAppNotificationCategoryDeclarationJson": {
+    "AppNotificationCategoryOptionsJson": {
       "description": "Notification category declaration JSON.",
       "type": "object",
       "properties": {
@@ -6678,7 +5998,7 @@
           "description": "Actions available for this category.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/TargetAppNotificationActionDeclarationJson"
+            "$ref": "#/$defs/AppNotificationActionOptionsJson"
           }
         }
       },
@@ -6686,7 +6006,7 @@
         "identifier"
       ]
     },
-    "TargetAppNotificationActionDeclarationJson": {
+    "AppNotificationActionOptionsJson": {
       "description": "Notification action declaration JSON.",
       "type": "object",
       "properties": {
@@ -6705,7 +6025,7 @@
           "description": "Platform presentation style for the action.",
           "anyOf": [
             {
-              "$ref": "#/$defs/TargetAppNotificationActionStyle"
+              "$ref": "#/$defs/AppNotificationActionStyle"
             },
             {
               "type": "null"
@@ -6738,7 +6058,7 @@
         "identifier"
       ]
     },
-    "TargetAppNotificationActionStyle": {
+    "AppNotificationActionStyle": {
       "description": "Notification action style for app declarations.",
       "oneOf": [
         {
@@ -6758,7 +6078,7 @@
         }
       ]
     },
-    "TargetAppBackgroundDeclarationJson": {
+    "AppBackgroundOptionsJson": {
       "description": "Background execution declaration JSON for one target app.",
       "type": "object",
       "properties": {
@@ -6769,7 +6089,7 @@
             "null"
           ],
           "items": {
-            "$ref": "#/$defs/TargetAppBackgroundMode"
+            "$ref": "#/$defs/AppBackgroundMode"
           }
         },
         "taskIdentifiers": {
@@ -6784,7 +6104,7 @@
         }
       }
     },
-    "TargetAppBackgroundMode": {
+    "AppBackgroundMode": {
       "description": "Background execution mode for one app declaration.",
       "oneOf": [
         {
@@ -6839,7 +6159,7 @@
         }
       ]
     },
-    "TargetAppServiceDeclarationJson": {
+    "AppServiceOptionsJson": {
       "description": "Foreground or persistent service declaration JSON for one target app.",
       "type": "object",
       "properties": {
@@ -6850,12 +6170,12 @@
             "null"
           ],
           "items": {
-            "$ref": "#/$defs/TargetAppForegroundMode"
+            "$ref": "#/$defs/AppForegroundMode"
           }
         }
       }
     },
-    "TargetAppForegroundMode": {
+    "AppForegroundMode": {
       "description": "Foreground or persistent service class for one app declaration.",
       "oneOf": [
         {
@@ -6910,7 +6230,7 @@
         }
       ]
     },
-    "TargetAppDocumentDeclarationJson": {
+    "AppDocumentOptionsJson": {
       "description": "Document-provider declaration JSON for one target app.",
       "type": "object",
       "properties": {
@@ -6943,7 +6263,7 @@
         }
       }
     },
-    "TargetAppCredentialDeclarationJson": {
+    "AppCredentialOptionsJson": {
       "description": "Credential and secure-store declaration JSON for one target app.",
       "type": "object",
       "properties": {
@@ -6976,7 +6296,7 @@
         }
       }
     },
-    "TargetAppLocationDeclarationJson": {
+    "AppLocationOptionsJson": {
       "description": "Location declaration JSON for one target app.",
       "type": "object",
       "properties": {
@@ -7071,48 +6391,38 @@
         }
       ]
     },
-    "DebugModeJson": {
-      "description": "Debug execution mode for JSON deserialization.",
+    "PanicPolicyJson": {
+      "description": "Panic policy for JSON deserialization.",
       "oneOf": [
         {
-          "description": "Choose mode based on target debug settings.",
+          "description": "Abort immediately.",
           "type": "string",
-          "const": "auto"
+          "const": "abort"
         },
         {
-          "description": "Always run the interpreter.",
+          "description": "Unwind the stack.",
           "type": "string",
-          "const": "vm"
-        },
-        {
-          "description": "Run native with deopt-first debugging.",
-          "type": "string",
-          "const": "deopt"
-        },
-        {
-          "description": "Run native only (no deopt).",
-          "type": "string",
-          "const": "native"
+          "const": "unwind"
         }
       ]
     },
-    "TrustPolicyJson": {
-      "description": "Trust policy for JSON deserialization.",
+    "UnwindFormatJson": {
+      "description": "Unwind metadata format for JSON deserialization.",
       "oneOf": [
         {
-          "description": "Untrusted code with strict limits and validation.",
+          "description": "Emit no unwind metadata.",
           "type": "string",
-          "const": "untrusted"
+          "const": "none"
         },
         {
-          "description": "Trusted code with relaxed limits.",
+          "description": "Emit DWARF unwind metadata.",
           "type": "string",
-          "const": "trusted"
+          "const": "dwarf"
         },
         {
-          "description": "Internal toolchain code with full privileges.",
+          "description": "Emit Windows SEH unwind metadata.",
           "type": "string",
-          "const": "internal"
+          "const": "seh"
         }
       ]
     },
@@ -7133,41 +6443,6 @@
           "description": "Strip all symbols.",
           "type": "string",
           "const": "full"
-        }
-      ]
-    },
-    "PanicPolicyJson": {
-      "description": "Panic policy for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Abort immediately.",
-          "type": "string",
-          "const": "abort"
-        },
-        {
-          "description": "Unwind the stack.",
-          "type": "string",
-          "const": "unwind"
-        }
-      ]
-    },
-    "UnwindFormatJson": {
-      "description": "Unwind info format for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Unwind info is omitted.",
-          "type": "string",
-          "const": "none"
-        },
-        {
-          "description": "DWARF unwind info.",
-          "type": "string",
-          "const": "dwarf"
-        },
-        {
-          "description": "Windows SEH unwind info.",
-          "type": "string",
-          "const": "seh"
         }
       ]
     },
@@ -7316,62 +6591,10 @@
         }
       ]
     },
-    "AllocatorJson": {
-      "description": "Allocator selection for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Use the platform default allocator.",
-          "type": "string",
-          "const": "system"
-        },
-        {
-          "description": "Use mimalloc.",
-          "type": "string",
-          "const": "mimalloc"
-        },
-        {
-          "description": "Use jemalloc.",
-          "type": "string",
-          "const": "jemalloc"
-        },
-        {
-          "description": "Use a custom allocator provided by the runtime.",
-          "type": "string",
-          "const": "custom"
-        }
-      ]
-    },
     "EnvironmentJson": {
       "description": "A reusable toolchain and runtime environment.\n\nInputs: toolchain selections, runtime overrides, and reusable policy references.\nOutputs: one named context for checking, building, and running the package.",
       "type": "object",
       "properties": {
-        "labels": {
-          "description": "Selection labels.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "annotations": {
-          "description": "Non-identifying metadata.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "ephemeral": {
-          "description": "Whether this environment is ephemeral.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
         "profile": {
           "description": "Default profile selection for this environment.",
           "type": [
@@ -7380,7 +6603,7 @@
           ]
         },
         "mode": {
-          "description": "Default mode selection for this environment.",
+          "description": "Default source graph mode for this environment.",
           "type": [
             "string",
             "null"
@@ -7468,121 +6691,14 @@
       }
     },
     "ModeJson": {
-      "description": "Build mode JSON (from destack.json).",
+      "description": "Source graph mode JSON from `destack.json`.",
       "type": "object",
       "properties": {
-        "sourceMapMode": {
-          "description": "Source map emission mode for this build mode.",
+        "extends": {
+          "description": "Mode names inherited before this mode.",
           "anyOf": [
             {
-              "$ref": "#/$defs/SourceMapMode"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "sourceMapExcludeSources": {
-          "description": "Whether to omit source contents from emitted source maps.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "sourceMapDebugIds": {
-          "description": "Whether to include debug ids in emitted source maps.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "legalComments": {
-          "description": "Legal comment handling policy for bundled output.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/BundleLegalComment"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "treeshake": {
-          "description": "Bundled output tree shaking policy for this build mode.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/TargetTreeshakeOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "minify": {
-          "description": "Bundled output minification policy for this build mode.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/TargetMinifyOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "optimize": {
-          "description": "Whether this mode enables optimized code generation.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "optimizeLevel": {
-          "description": "Optimization level (0-4).",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint8",
-          "minimum": 0,
-          "maximum": 4
-        },
-        "ltoMode": {
-          "description": "Link time optimization mode.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/LtoModeJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "shrinkLevel": {
-          "description": "Shrink level (0-3).",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint8",
-          "minimum": 0,
-          "maximum": 3
-        },
-        "debugInfo": {
-          "description": "Debug info emission policy for this mode.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DebugInfoLevelJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "strip": {
-          "description": "Symbol stripping policy for this mode.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/StripLevelJson"
+              "$ref": "#/$defs/ModeExtends"
             },
             {
               "type": "null"
@@ -7590,6 +6706,22 @@
           ]
         }
       }
+    },
+    "ModeExtends": {
+      "description": "Mode extends field from `destack.json`.",
+      "anyOf": [
+        {
+          "description": "Extend one mode.",
+          "type": "string"
+        },
+        {
+          "description": "Extend many modes in order.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
     }
   }
 }

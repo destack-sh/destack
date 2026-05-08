@@ -1,6 +1,6 @@
 mod artifact;
 mod cache;
-mod declaration;
+mod config;
 mod discovery;
 mod edit;
 mod error;

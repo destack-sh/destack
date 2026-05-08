@@ -1,68 +1,8 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use destack_source::{FileId, LanguageType, Loader, ModuleId, PackageId, Uri};
 use im::OrdMap;
-
-use crate::config::SourceType;
-
-/// The runtime module system format.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
-pub enum ModuleFormat {
-    /// ECMAScript module format.
-    #[default]
-    Esm,
-    /// CommonJS module format.
-    CommonJs,
-}
-
-impl ModuleFormat {
-    /// Detect a module format from extension and package context.
-    pub fn detect(
-        path: Option<&Path>,
-        language_type: Option<LanguageType>,
-        source_type: SourceType,
-    ) -> Self {
-        // destack modules always use esm semantics
-        if language_type.is_some_and(|language_type| language_type.is_destack()) {
-            return Self::Esm;
-        }
-
-        // extension based module formats are authoritative
-        if let Some(path) = path
-            && let Some(format) = Self::from_extension(path)
-        {
-            return format;
-        }
-
-        // default typescript modules to esm semantics
-        if language_type.is_some_and(|language_type| language_type.is_typescript()) {
-            return Self::Esm;
-        }
-
-        // fall back to script or module source semantics
-        if source_type.is_module() {
-            Self::Esm
-        } else {
-            Self::CommonJs
-        }
-    }
-
-    /// Detect a module format from one file extension.
-    pub fn from_extension(path: &Path) -> Option<Self> {
-        let extension = path.extension()?.to_str()?;
-        match extension {
-            "mjs" | "mts" | "ds" => Some(Self::Esm),
-            "cjs" | "cts" => Some(Self::CommonJs),
-            _ => None,
-        }
-    }
-
-    /// Return true when this module format is CommonJS.
-    pub fn is_commonjs(self) -> bool {
-        matches!(self, Self::CommonJs)
-    }
-}
 
 /// One source module.
 #[derive(Debug, Clone)]
@@ -79,10 +19,6 @@ pub struct Module {
     pub package_id: PackageId,
     /// The source language type for code modules.
     pub language_type: Option<LanguageType>,
-    /// The active source type.
-    pub source_type: SourceType,
-    /// The active runtime module format.
-    pub module_format: ModuleFormat,
     /// The loader used to interpret the module.
     pub loader: Loader,
 }
@@ -105,8 +41,6 @@ impl Module {
             path,
             package_id,
             language_type,
-            source_type: SourceType::default(),
-            module_format: ModuleFormat::default(),
             loader,
         }
     }

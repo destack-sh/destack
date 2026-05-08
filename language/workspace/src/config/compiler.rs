@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use serde::Deserialize;
 
-use crate::config::{EsTarget, JsModuleFormat};
+use crate::config::target::{EsTarget, JsModuleFormat};
 
 /// Normalized Destack compiler options.
 ///
@@ -19,7 +19,7 @@ pub struct CompilerOptions {
     pub environment: Option<String>,
     /// Default profile for IDEs and CLI usage.
     pub profile: Option<String>,
-    /// Default mode for IDEs and CLI usage.
+    /// Default source graph mode for IDEs and CLI usage.
     pub mode: Option<String>,
     /// Comptime environment whitelist (if omitted, all env keys are visible).
     pub comptime_env: Option<Vec<String>>,
@@ -210,7 +210,7 @@ impl DiagnosticPolicy {
 #[serde(rename_all = "camelCase")]
 pub struct CompilerOptionsJson {
     // module & target
-    /// Module format for output (e.g., "esnext", "commonjs").
+    /// Module format for output (e.g., "esnext").
     pub module: Option<String>,
     /// ECMAScript target version (e.g., "es2022", "esnext").
     pub target: Option<String>,
@@ -218,7 +218,7 @@ pub struct CompilerOptionsJson {
     pub environment: Option<String>,
     /// Default profile for IDEs and CLI usage.
     pub profile: Option<String>,
-    /// Default mode for IDEs and CLI usage.
+    /// Default source graph mode for IDEs and CLI usage.
     pub mode: Option<String>,
     /// Comptime environment whitelist (if omitted, all env keys are visible).
     pub comptime_env: Option<Vec<String>>,

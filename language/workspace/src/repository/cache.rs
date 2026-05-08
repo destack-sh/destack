@@ -7,7 +7,7 @@ use destack_source::{FileContentId, ProfileId};
 use im::OrdMap;
 use rustc_hash::FxHashSet;
 
-use crate::{DestackDeclaration, ModuleIndex, PackageIndex, Profile, Workspace};
+use crate::{DestackConfig, ModuleIndex, PackageIndex, Profile, Workspace};
 
 /// Lazily derived data for one revision identity.
 #[derive(Debug, Default)]
@@ -34,9 +34,8 @@ impl RevisionCache {
 /// Parsed file data keyed by exact file content.
 #[derive(Debug, Default)]
 pub(crate) struct FileCache {
-    /// The destack declaration parse result by exact content.
-    pub(crate) destack_declarations:
-        DashMap<FileContentId, Result<Arc<DestackDeclaration>, String>>,
+    /// The destack config parse result by exact content.
+    pub(crate) destack_configs: DashMap<FileContentId, Result<Arc<DestackConfig>, String>>,
 }
 
 impl FileCache {
@@ -47,7 +46,7 @@ impl FileCache {
 
     /// Drop entries for file contents that are no longer reachable.
     pub(crate) fn retain_file_contents(&self, reachable: &HashSet<FileContentId>) {
-        self.destack_declarations
+        self.destack_configs
             .retain(|content_id, _| reachable.contains(content_id));
     }
 }

@@ -1,9 +1,86 @@
 use std::hash::{Hash, Hasher};
 
-use indexmap::IndexMap;
 use serde::Deserialize;
 
 use super::output::SourceMapMode;
+
+/// Module format for generated JavaScript output.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum JsModuleFormat {
+    /// ES2015 modules.
+    Es2015,
+    /// ES2020 modules.
+    Es2020,
+    /// ES2022 modules.
+    Es2022,
+    /// ESNext modules.
+    #[default]
+    EsNext,
+}
+
+impl JsModuleFormat {
+    /// Parse a JavaScript module format from config text.
+    pub fn parse(value: &str) -> Option<Self> {
+        match value.to_lowercase().as_str() {
+            "es2015" | "es6" => Some(Self::Es2015),
+            "es2020" => Some(Self::Es2020),
+            "es2022" => Some(Self::Es2022),
+            "esnext" => Some(Self::EsNext),
+            _ => None,
+        }
+    }
+}
+
+/// ECMAScript target for generated JavaScript output.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum EsTarget {
+    /// ES5.
+    Es5,
+    /// ES2015.
+    Es2015,
+    /// ES2016.
+    Es2016,
+    /// ES2017.
+    Es2017,
+    /// ES2018.
+    Es2018,
+    /// ES2019.
+    Es2019,
+    /// ES2020.
+    Es2020,
+    /// ES2021.
+    Es2021,
+    /// ES2022.
+    Es2022,
+    /// ES2023.
+    Es2023,
+    /// ES2024.
+    Es2024,
+    /// ESNext.
+    #[default]
+    EsNext,
+}
+
+impl EsTarget {
+    /// Parse an ECMAScript target from config text.
+    pub fn parse(value: &str) -> Option<Self> {
+        match value.to_lowercase().as_str() {
+            "es5" => Some(Self::Es5),
+            "es2015" | "es6" => Some(Self::Es2015),
+            "es2016" => Some(Self::Es2016),
+            "es2017" => Some(Self::Es2017),
+            "es2018" => Some(Self::Es2018),
+            "es2019" => Some(Self::Es2019),
+            "es2020" => Some(Self::Es2020),
+            "es2021" => Some(Self::Es2021),
+            "es2022" => Some(Self::Es2022),
+            "es2023" => Some(Self::Es2023),
+            "es2024" => Some(Self::Es2024),
+            "esnext" => Some(Self::EsNext),
+            _ => None,
+        }
+    }
+}
 
 /// Bundler format for assembled JavaScript outputs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Deserialize)]
@@ -13,8 +90,6 @@ pub enum BundleFormat {
     /// Emit ECMAScript modules.
     #[default]
     Esm,
-    /// Emit CommonJS modules.
-    Cjs,
     /// Emit one self executing bundle.
     Iife,
 }
@@ -54,79 +129,6 @@ pub enum BundleLegalComment {
     None,
 }
 
-/// Export mode for one assembled bundle.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
-pub enum BundleExportsMode {
-    /// Infer the best export mode from the bundle shape.
-    #[default]
-    Auto,
-    /// Prefer a default export wrapper.
-    Default,
-    /// Prefer named export bindings.
-    Named,
-    /// Omit export bindings entirely.
-    None,
-}
-
-/// Interop mode for external modules.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub enum BundleInteropMode {
-    /// Use compatibility interop.
-    Compat,
-    /// Infer interop from the dependency shape.
-    #[default]
-    Auto,
-    /// Treat externals as ES modules.
-    EsModule,
-    /// Prefer default interop helpers.
-    Default,
-    /// Only allow default interop.
-    DefaultOnly,
-}
-
-/// `esModule` output mode for CommonJS style bundles.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "kebab-case")]
-pub enum BundleEsModuleMode {
-    /// Always emit `__esModule`.
-    Always,
-    /// Never emit `__esModule`.
-    Never,
-    /// Emit `__esModule` only for default property cases.
-    IfDefaultProp,
-}
-
-/// Generated code preset for one output.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
-pub enum TargetGeneratedCodePreset {
-    /// Favor ES5 compatible output forms.
-    Es5,
-    /// Favor ES2015 compatible output forms.
-    #[default]
-    Es2015,
-}
-
-/// Side effect policy for tree shaking.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub enum BundleSideEffectMode {
-    /// Respect package and module side effect metadata.
-    #[default]
-    Auto,
-    /// Treat every reachable module as side effectful.
-    Keep,
-    /// Treat modules as side effect free unless Destack marks them otherwise.
-    Drop,
-}
-
 /// Asset handling policy for one script target.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -143,7 +145,7 @@ pub enum BundleAssetMode {
 
 /// Bundler dependency options.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct TargetDependencyOptions {
+pub struct BundleDependencyOptions {
     /// Module specifiers to leave external.
     pub external: Vec<String>,
     /// Module specifiers that must remain external.
@@ -154,7 +156,7 @@ pub struct TargetDependencyOptions {
     pub only_bundle: Vec<String>,
 }
 
-impl Hash for TargetDependencyOptions {
+impl Hash for BundleDependencyOptions {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.external.hash(state);
         self.never_bundle.hash(state);
@@ -165,34 +167,16 @@ impl Hash for TargetDependencyOptions {
 
 /// Bundler asset handling options.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
-pub struct TargetAssetOptions {
+pub struct BundleAssetOptions {
     /// Asset handling mode for referenced assets.
     pub mode: BundleAssetMode,
     /// Inline asset payloads smaller than this many bytes.
     pub inline_limit: Option<u64>,
 }
 
-/// Bundler tree shaking options.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
-pub struct TargetTreeshakeOptions {
-    /// Whether to tree shake unused modules and exports.
-    pub enabled: bool,
-    /// Side effect policy for individual modules.
-    pub module_side_effects: BundleSideEffectMode,
-    /// Side effect policy for packages and dependency boundaries.
-    pub package_side_effects: BundleSideEffectMode,
-}
-
-impl TargetTreeshakeOptions {
-    /// Return whether tree shaking is active.
-    pub fn is_enabled(&self) -> bool {
-        self.enabled
-    }
-}
-
 /// Bundler minification options.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
-pub struct TargetMinifyOptions {
+pub struct BundleMinifyOptions {
     /// Whether to minify final bundled output.
     pub enabled: bool,
     /// Whether to minify syntax forms.
@@ -205,7 +189,7 @@ pub struct TargetMinifyOptions {
     pub keep_names: bool,
 }
 
-impl TargetMinifyOptions {
+impl BundleMinifyOptions {
     /// Return whether any minification pass is enabled.
     pub fn is_enabled(&self) -> bool {
         self.enabled || self.syntax || self.whitespace || self.identifiers
@@ -219,24 +203,16 @@ impl TargetMinifyOptions {
 
 /// Generated code controls for one output.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
-pub struct TargetGeneratedCodeOptions {
-    /// Base preset for generated code features.
-    pub preset: Option<TargetGeneratedCodePreset>,
-    /// Whether to emit arrow functions where possible.
-    pub arrow_functions: Option<bool>,
-    /// Whether to emit `const` bindings where possible.
-    pub const_bindings: Option<bool>,
+pub struct BundleGeneratedCodeOptions {
     /// Whether to emit object shorthand properties.
     pub object_shorthand: Option<bool>,
     /// Whether to preserve reserved names as properties.
     pub reserved_names_as_props: Option<bool>,
-    /// Whether to emit symbol based helpers.
-    pub symbols: Option<bool>,
 }
 
 /// Bundler output options.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct TargetOutputPolicy {
+pub struct BundleOutputOptions {
     /// Bundle format for assembled JavaScript outputs.
     pub format: Option<BundleFormat>,
     /// Global name for IIFE bundles.
@@ -257,33 +233,17 @@ pub struct TargetOutputPolicy {
     pub banner: Option<String>,
     /// Footer text to append to each emitted bundle.
     pub footer: Option<String>,
-    /// Export mode for the assembled output.
-    pub exports: Option<BundleExportsMode>,
-    /// Interop mode for external modules.
-    pub interop: Option<BundleInteropMode>,
     /// Generated code controls for final output rendering.
-    pub generated_code: Option<TargetGeneratedCodeOptions>,
-    /// Whether to freeze namespace imports and export objects.
-    pub freeze: Option<bool>,
-    /// Whether to emit `__esModule` markers for CommonJS output.
-    pub es_module: Option<BundleEsModuleMode>,
-    /// Whether to preserve external live bindings in output wrappers.
-    pub external_live_bindings: bool,
-    /// Whether to hoist transitive imports on entry facades.
-    pub hoist_transitive_imports: bool,
-    /// Whether to minify internal export names.
-    pub minify_internal_exports: bool,
+    pub generated_code: Option<BundleGeneratedCodeOptions>,
     /// Source map emission mode for bundled script output.
     pub sourcemap: Option<SourceMapMode>,
     /// Whether to omit source contents from source maps.
     pub sourcemap_exclude_sources: bool,
     /// Whether to include debug ids in source maps.
     pub sourcemap_debug_ids: bool,
-    /// Global names for externals in IIFE format.
-    pub globals: IndexMap<String, String>,
 }
 
-impl Hash for TargetOutputPolicy {
+impl Hash for BundleOutputOptions {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.format.hash(state);
         self.name.hash(state);
@@ -295,23 +255,10 @@ impl Hash for TargetOutputPolicy {
         self.legal_comments.hash(state);
         self.banner.hash(state);
         self.footer.hash(state);
-        self.exports.hash(state);
-        self.interop.hash(state);
         self.generated_code.hash(state);
-        self.freeze.hash(state);
-        self.es_module.hash(state);
-        self.external_live_bindings.hash(state);
-        self.hoist_transitive_imports.hash(state);
-        self.minify_internal_exports.hash(state);
         self.sourcemap.hash(state);
         self.sourcemap_exclude_sources.hash(state);
         self.sourcemap_debug_ids.hash(state);
-
-        self.globals.len().hash(state);
-        for (name, value) in &self.globals {
-            name.hash(state);
-            value.hash(state);
-        }
     }
 }
 
@@ -319,7 +266,7 @@ impl Hash for TargetOutputPolicy {
 #[derive(Debug, Clone, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct TargetDependencyOptionsJson {
+pub struct BundleDependencyOptionsJson {
     /// Module specifiers to leave external.
     pub external: Option<Vec<String>>,
     /// Module specifiers that must remain external.
@@ -330,8 +277,8 @@ pub struct TargetDependencyOptionsJson {
     pub only_bundle: Option<Vec<String>>,
 }
 
-impl From<&TargetDependencyOptionsJson> for TargetDependencyOptions {
-    fn from(json: &TargetDependencyOptionsJson) -> Self {
+impl From<&BundleDependencyOptionsJson> for BundleDependencyOptions {
+    fn from(json: &BundleDependencyOptionsJson) -> Self {
         Self {
             external: json.external.clone().unwrap_or_default(),
             never_bundle: json.never_bundle.clone().unwrap_or_default(),
@@ -345,59 +292,18 @@ impl From<&TargetDependencyOptionsJson> for TargetDependencyOptions {
 #[derive(Debug, Clone, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct TargetAssetOptionsJson {
+pub struct BundleAssetOptionsJson {
     /// Asset handling mode for referenced assets.
     pub mode: Option<BundleAssetMode>,
     /// Inline asset payloads smaller than this many bytes.
     pub inline_limit: Option<u64>,
 }
 
-impl From<&TargetAssetOptionsJson> for TargetAssetOptions {
-    fn from(json: &TargetAssetOptionsJson) -> Self {
+impl From<&BundleAssetOptionsJson> for BundleAssetOptions {
+    fn from(json: &BundleAssetOptionsJson) -> Self {
         Self {
             mode: json.mode.unwrap_or_default(),
             inline_limit: json.inline_limit,
-        }
-    }
-}
-
-/// Bundler tree shaking options in `destack.json`.
-#[derive(Debug, Clone, Default, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct TargetTreeshakeConfigJson {
-    /// Whether to tree shake unused modules and exports.
-    #[serde(default)]
-    pub enabled: bool,
-    /// Side effect policy for individual modules.
-    pub module_side_effects: Option<BundleSideEffectMode>,
-    /// Side effect policy for packages and dependency boundaries.
-    pub package_side_effects: Option<BundleSideEffectMode>,
-}
-
-/// Bundler tree shaking options in `destack.json`.
-#[derive(Debug, Clone, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(untagged)]
-pub enum TargetTreeshakeOptionsJson {
-    /// Enable or disable tree shaking with one boolean.
-    Enabled(bool),
-    /// Configure tree shaking with one explicit options object.
-    Options(TargetTreeshakeConfigJson),
-}
-
-impl From<&TargetTreeshakeOptionsJson> for TargetTreeshakeOptions {
-    fn from(json: &TargetTreeshakeOptionsJson) -> Self {
-        match json {
-            TargetTreeshakeOptionsJson::Enabled(enabled) => Self {
-                enabled: *enabled,
-                ..Self::default()
-            },
-            TargetTreeshakeOptionsJson::Options(options) => Self {
-                enabled: options.enabled,
-                module_side_effects: options.module_side_effects.unwrap_or_default(),
-                package_side_effects: options.package_side_effects.unwrap_or_default(),
-            },
         }
     }
 }
@@ -424,73 +330,22 @@ impl TargetSourceMapPolicyJson {
     }
 }
 
-/// `esModule` output mode in `destack.json`.
-#[derive(Debug, Clone, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(untagged)]
-pub enum TargetEsModulePolicyJson {
-    /// Enable or disable `__esModule` emission with one boolean.
-    Enabled(bool),
-    /// Select one explicit `esModule` policy.
-    Mode(BundleEsModuleMode),
-}
-
-impl TargetEsModulePolicyJson {
-    /// Convert this JSON surface into one normalized `esModule` policy.
-    pub fn mode(&self) -> BundleEsModuleMode {
-        match self {
-            Self::Enabled(true) => BundleEsModuleMode::Always,
-            Self::Enabled(false) => BundleEsModuleMode::Never,
-            Self::Mode(mode) => *mode,
-        }
-    }
-}
-
 /// Generated code options in `destack.json`.
 #[derive(Debug, Clone, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct TargetGeneratedCodeConfigJson {
-    /// Base preset for generated code features.
-    pub preset: Option<TargetGeneratedCodePreset>,
-    /// Whether to emit arrow functions where possible.
-    pub arrow_functions: Option<bool>,
-    /// Whether to emit `const` bindings where possible.
-    pub const_bindings: Option<bool>,
+pub struct BundleGeneratedCodeOptionsJson {
     /// Whether to emit object shorthand properties.
     pub object_shorthand: Option<bool>,
     /// Whether to preserve reserved names as properties.
     pub reserved_names_as_props: Option<bool>,
-    /// Whether to emit symbol based helpers.
-    pub symbols: Option<bool>,
 }
 
-/// Generated code controls in `destack.json`.
-#[derive(Debug, Clone, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(untagged)]
-pub enum TargetGeneratedCodeOptionsJson {
-    /// Select one named generated code preset.
-    Preset(TargetGeneratedCodePreset),
-    /// Configure generated code with one explicit options object.
-    Options(TargetGeneratedCodeConfigJson),
-}
-
-impl From<&TargetGeneratedCodeOptionsJson> for TargetGeneratedCodeOptions {
-    fn from(json: &TargetGeneratedCodeOptionsJson) -> Self {
-        match json {
-            TargetGeneratedCodeOptionsJson::Preset(preset) => Self {
-                preset: Some(*preset),
-                ..Self::default()
-            },
-            TargetGeneratedCodeOptionsJson::Options(options) => Self {
-                preset: options.preset,
-                arrow_functions: options.arrow_functions,
-                const_bindings: options.const_bindings,
-                object_shorthand: options.object_shorthand,
-                reserved_names_as_props: options.reserved_names_as_props,
-                symbols: options.symbols,
-            },
+impl From<&BundleGeneratedCodeOptionsJson> for BundleGeneratedCodeOptions {
+    fn from(json: &BundleGeneratedCodeOptionsJson) -> Self {
+        Self {
+            object_shorthand: json.object_shorthand,
+            reserved_names_as_props: json.reserved_names_as_props,
         }
     }
 }
@@ -499,7 +354,7 @@ impl From<&TargetGeneratedCodeOptionsJson> for TargetGeneratedCodeOptions {
 #[derive(Debug, Clone, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct TargetOutputPolicyJson {
+pub struct BundleOutputOptionsJson {
     /// Bundle format for assembled JavaScript outputs.
     pub format: Option<BundleFormat>,
     /// Global name for IIFE bundles.
@@ -521,25 +376,8 @@ pub struct TargetOutputPolicyJson {
     pub banner: Option<String>,
     /// Footer text to append to each emitted bundle.
     pub footer: Option<String>,
-    /// Export mode for the assembled output.
-    pub exports: Option<BundleExportsMode>,
-    /// Interop mode for external modules.
-    pub interop: Option<BundleInteropMode>,
     /// Generated code controls for final output rendering.
-    pub generated_code: Option<TargetGeneratedCodeOptionsJson>,
-    /// Whether to freeze namespace imports and export objects.
-    pub freeze: Option<bool>,
-    /// Whether to emit `__esModule` markers for CommonJS output.
-    pub es_module: Option<TargetEsModulePolicyJson>,
-    /// Whether to preserve external live bindings in output wrappers.
-    #[serde(default)]
-    pub external_live_bindings: bool,
-    /// Whether to hoist transitive imports on entry facades.
-    #[serde(default)]
-    pub hoist_transitive_imports: bool,
-    /// Whether to minify internal export names.
-    #[serde(default)]
-    pub minify_internal_exports: bool,
+    pub generated_code: Option<BundleGeneratedCodeOptionsJson>,
     /// Source map emission policy.
     pub sourcemap: Option<TargetSourceMapPolicyJson>,
     /// Whether to omit source contents from source maps.
@@ -548,12 +386,10 @@ pub struct TargetOutputPolicyJson {
     /// Whether to include debug ids in source maps.
     #[serde(default)]
     pub sourcemap_debug_ids: bool,
-    /// Global names for externals in IIFE format.
-    pub globals: Option<IndexMap<String, String>>,
 }
 
-impl From<&TargetOutputPolicyJson> for TargetOutputPolicy {
-    fn from(json: &TargetOutputPolicyJson) -> Self {
+impl From<&BundleOutputOptionsJson> for BundleOutputOptions {
+    fn from(json: &BundleOutputOptionsJson) -> Self {
         Self {
             format: json.format,
             name: json.name.clone(),
@@ -565,24 +401,16 @@ impl From<&TargetOutputPolicyJson> for TargetOutputPolicy {
             legal_comments: json.legal_comments.unwrap_or_default(),
             banner: json.banner.clone(),
             footer: json.footer.clone(),
-            exports: json.exports,
-            interop: json.interop,
             generated_code: json
                 .generated_code
                 .as_ref()
-                .map(TargetGeneratedCodeOptions::from),
-            freeze: json.freeze,
-            es_module: json.es_module.as_ref().map(TargetEsModulePolicyJson::mode),
-            external_live_bindings: json.external_live_bindings,
-            hoist_transitive_imports: json.hoist_transitive_imports,
-            minify_internal_exports: json.minify_internal_exports,
+                .map(BundleGeneratedCodeOptions::from),
             sourcemap: json
                 .sourcemap
                 .as_ref()
                 .and_then(TargetSourceMapPolicyJson::mode),
             sourcemap_exclude_sources: json.sourcemap_exclude_sources,
             sourcemap_debug_ids: json.sourcemap_debug_ids,
-            globals: json.globals.clone().unwrap_or_default(),
         }
     }
 }
@@ -591,7 +419,7 @@ impl From<&TargetOutputPolicyJson> for TargetOutputPolicy {
 #[derive(Debug, Clone, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct TargetMinifyConfigJson {
+pub struct BundleMinifyConfigJson {
     /// Whether to minify final bundled output.
     #[serde(default)]
     pub enabled: bool,
@@ -613,17 +441,17 @@ pub struct TargetMinifyConfigJson {
 #[derive(Debug, Clone, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(untagged)]
-pub enum TargetMinifyOptionsJson {
+pub enum BundleMinifyOptionsJson {
     /// Enable or disable full minification with one boolean.
     Enabled(bool),
     /// Configure minification with one explicit options object.
-    Options(TargetMinifyConfigJson),
+    Options(BundleMinifyConfigJson),
 }
 
-impl From<&TargetMinifyOptionsJson> for TargetMinifyOptions {
-    fn from(json: &TargetMinifyOptionsJson) -> Self {
+impl From<&BundleMinifyOptionsJson> for BundleMinifyOptions {
+    fn from(json: &BundleMinifyOptionsJson) -> Self {
         match json {
-            TargetMinifyOptionsJson::Enabled(enabled) => {
+            BundleMinifyOptionsJson::Enabled(enabled) => {
                 if !enabled {
                     return Self::default();
                 }
@@ -636,7 +464,7 @@ impl From<&TargetMinifyOptionsJson> for TargetMinifyOptions {
                     keep_names: false,
                 }
             }
-            TargetMinifyOptionsJson::Options(options) => Self {
+            BundleMinifyOptionsJson::Options(options) => Self {
                 enabled: options.enabled,
                 syntax: options.syntax,
                 whitespace: options.whitespace,

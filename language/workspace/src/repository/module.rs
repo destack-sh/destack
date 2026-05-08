@@ -1,54 +1,20 @@
+use destack_source::{FileId, FileType, LanguageType, Loader, ModuleId, PackageId, Uri};
+use im::OrdMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_source::{FileId, FileType, LanguageType, Loader, ModuleId, PackageId, Uri};
-use im::OrdMap;
-
 use crate::repository::{FileEntry, Repository, RepositoryError, Revision};
-use crate::{Module, ModuleFormat, ModuleIndex, Package, PackageIndex, SourceType};
+use crate::{Module, ModuleIndex, PackageIndex};
 
 impl Repository {
-    /// Build one shared module with package configuration applied.
-    fn build_module(
-        &self,
-        revision: Revision,
-        module: &Module,
-        packages: &PackageIndex,
-    ) -> Result<Arc<Module>, RepositoryError> {
-        let mut module = module.clone();
-        let package =
-            packages
-                .package(module.package_id)
-                .ok_or(RepositoryError::MissingPackage {
-                    package: module.package_id,
-                })?;
-        let source_type = self.detect_module_source_type_for_package(
-            module.path.as_deref(),
-            package.as_ref(),
-            false,
-        )?;
-        let module_format = self.detect_module_format_for_package(
-            revision,
-            module.path.as_deref(),
-            module.language_type,
-            source_type,
-            package.as_ref(),
-        )?;
-
-        module.source_type = source_type;
-        module.module_format = module_format;
-
-        Ok(Arc::new(module))
-    }
-
     /// Build the module index from one file map.
     pub(crate) fn module_index_for_files(
         &self,
-        revision: Revision,
+        _revision: Revision,
         files: &OrdMap<FileId, FileEntry>,
         packages: &PackageIndex,
     ) -> Result<ModuleIndex, RepositoryError> {
-        let mut modules = OrdMap::new();
+        let mut module_index = OrdMap::new();
 
         for (file_id, entry) in files.iter() {
             let path = self.root.join(&entry.logical_path);
@@ -56,13 +22,7 @@ impl Repository {
                 continue;
             };
 
-            modules.insert(module.id, module);
-        }
-
-        let mut module_index = OrdMap::new();
-        for module in modules.values() {
-            let module = self.build_module(revision, module, packages)?;
-            module_index.insert(module.id, module);
+            module_index.insert(module.id, Arc::new(module));
         }
 
         Ok(ModuleIndex::new(module_index))
@@ -215,36 +175,6 @@ impl Repository {
         }
 
         Ok(None)
-    }
-
-    /// Detect source type for one module file in one revision.
-    fn detect_module_source_type_for_package(
-        &self,
-        path: Option<&Path>,
-        _package: &Package,
-        has_import_export: bool,
-    ) -> Result<SourceType, RepositoryError> {
-        if let Some(path) = path {
-            return Ok(SourceType::detect(path, has_import_export));
-        }
-
-        if has_import_export {
-            Ok(SourceType::Module)
-        } else {
-            Ok(SourceType::Script)
-        }
-    }
-
-    /// Detect module format for one module file in one revision.
-    fn detect_module_format_for_package(
-        &self,
-        _revision: Revision,
-        path: Option<&Path>,
-        language_type: Option<LanguageType>,
-        source_type: SourceType,
-        _package: &Package,
-    ) -> Result<ModuleFormat, RepositoryError> {
-        Ok(ModuleFormat::detect(path, language_type, source_type))
     }
 
     /// Return whether one workspace file should materialize as a module.

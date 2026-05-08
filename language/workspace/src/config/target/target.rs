@@ -1,29 +1,23 @@
 use std::path::{Path, PathBuf};
 
-use destack_artifact::{EmitFormat, TargetOutputKind, TargetOutputName};
+use destack_artifact::{EmitFormat, Platform, Runtime, TargetAbi, TargetArch, TargetVendor};
 use destack_source::TargetId;
-use indexmap::IndexMap;
 use serde::Deserialize;
 
-use crate::{CompilerOptions, EsTarget, JsModuleFormat};
+use indexmap::IndexMap;
 
-use super::super::policy::{
-    BoundsCheckPolicy, BoundsCheckPolicyJson, CheckFailurePolicy, CheckFailurePolicyJson,
-    DivisionCheckPolicy, DivisionCheckPolicyJson, ExecutionMode, ExecutionModeJson,
-    FloatMathPolicy, FloatMathPolicyJson, NullCheckPolicy, NullCheckPolicyJson,
-    OverflowCheckPolicy, OverflowCheckPolicyJson, PanicPolicy, PanicPolicyJson, SafetyPreset,
-    SafetyPresetJson, SandboxPolicy, ShiftCheckPolicy, ShiftCheckPolicyJson, TrustPolicy,
-    TrustPolicyJson, UnwindFormat, UnwindFormatJson,
-};
+use crate::CompilerOptions;
+
 use super::super::runtime::{
-    RuntimeAppDeclaration, RuntimeConfigJson, RuntimeOptions, runtime_options_with_base,
+    ExecutionMode, ExecutionModeJson, RuntimeConfigJson, RuntimeOptions, runtime_options_with_base,
 };
 use super::app::*;
-use super::bundle::*;
-use super::execution::*;
+use super::codegen::*;
+use super::js::*;
+use super::link::*;
 use super::native::*;
-use super::optimization::*;
 use super::output::*;
+use super::policy::*;
 
 /// Default output directory for targets.
 const DEFAULT_TARGET_OUT_DIR: &str = "dist";
@@ -60,7 +54,7 @@ pub struct Target {
     pub es_target: EsTarget,
     /// Explicit profile name for this target.
     pub profile: Option<String>,
-    /// Explicit mode name for this target.
+    /// Explicit source graph mode name for this target.
     pub mode: Option<String>,
     /// Assembly topology for this script target.
     pub assembly: BundleMode,
@@ -73,21 +67,15 @@ pub struct Target {
     /// Whether to only honor explicit manual chunk declarations.
     pub only_explicit_manual_chunks: bool,
     /// Dependency and resolution options.
-    pub bundle_dependencies: TargetDependencyOptions,
+    pub bundle_dependencies: BundleDependencyOptions,
     /// Asset handling options.
-    pub bundle_assets: TargetAssetOptions,
-    /// Tree shaking options.
-    pub treeshake: TargetTreeshakeOptions,
+    pub bundle_assets: BundleAssetOptions,
     /// Output configuration for bundled products.
-    pub bundle_output: TargetOutputPolicy,
-    /// Compile time define replacements.
-    pub define: IndexMap<String, String>,
+    pub bundle_output: BundleOutputOptions,
     /// Minification options.
-    pub minify: TargetMinifyOptions,
+    pub minify: BundleMinifyOptions,
     /// App declaration for packaging and runtime capability planning.
-    pub app: TargetAppDeclaration,
-    /// Formal named outputs published by this target.
-    pub outputs: TargetOutputs,
+    pub app: AppOptions,
     /// Emitted artifact family (js, ts, html, wasm, native).
     pub emit: EmitFormat,
     /// Runtime environment (browser, node, wasm-wasi, native-managed, etc.).
@@ -106,16 +94,12 @@ pub struct Target {
     pub cpu: Option<String>,
     /// CPU feature flags for native codegen (e.g., "+sse4.2", "+aes").
     pub cpu_features: Vec<String>,
-    /// Relocation model for native codegen.
-    pub relocation_model: RelocationModel,
     /// Native output kind for this target.
-    pub native_output: TargetNativeOutputKind,
-    /// Link mode for native targets.
-    pub link_mode: LinkMode,
+    pub native_output: NativeOutputKind,
     /// Explicit linker executable for native targets.
     pub linker: Option<String>,
     /// Linker driver family.
-    pub linker_flavor: TargetLinkerFlavor,
+    pub linker_flavor: LinkerFlavor,
     /// Extra linker arguments for native targets.
     pub link_args: Vec<String>,
     /// Sysroot path for native toolchains.
@@ -137,15 +121,15 @@ pub struct Target {
     /// Explicitly exported symbol names.
     pub export_symbols: Vec<String>,
     /// Symbol visibility policy.
-    pub symbol_visibility: TargetSymbolVisibility,
+    pub symbol_visibility: SymbolVisibility,
     /// Version script for exported symbols.
     pub version_script: Option<PathBuf>,
     /// Linker script for the final link.
     pub linker_script: Option<PathBuf>,
     /// Position independent code policy.
-    pub position_independent: TargetPositionIndependentMode,
+    pub position_independent: PositionIndependentMode,
     /// C runtime linkage policy.
-    pub crt: TargetCrtLinkage,
+    pub crt: CrtLinkage,
     /// Shared object soname.
     pub soname: Option<String>,
     /// Darwin install name.
@@ -154,8 +138,6 @@ pub struct Target {
     pub declaration: bool,
     /// Source map emission mode.
     pub source_map_mode: Option<SourceMapMode>,
-    /// Extra sidecar artifacts to emit.
-    pub artifacts: Vec<EmitArtifact>,
 
     // optimization
     /// Whether this is a debug build.
@@ -170,34 +152,18 @@ pub struct Target {
     pub inline_budget_scale_percent: Option<u64>,
     /// Link time optimization mode.
     pub lto_mode: LtoMode,
-    /// Shrink level (code size reduction).
-    pub shrink_level: ShrinkLevel,
     /// Floating point math optimization policy.
     pub float_math: FloatMathPolicy,
     /// Debug info emission policy.
     pub debug_info: DebugInfoLevel,
-    /// Debug execution mode for VM/native targets.
-    pub debug_mode: DebugMode,
-    /// Safepoint insertion mode for native execution.
-    pub safepoint_mode: SafepointMode,
-    /// Instruction interval for safepoint polling (when enabled).
-    pub safepoint_interval: Option<u64>,
-    /// Speculation mode for native optimization.
-    pub speculation_mode: SpeculationMode,
-    /// Profiling mode for tiering and optimization.
-    pub profiling_mode: ProfilingMode,
     /// Runtime execution options.
     pub runtime_options: RuntimeOptions,
-    /// Trust policy for runtime execution.
-    pub trust_policy: TrustPolicy,
-    /// Sandbox policy for runtime isolation.
-    pub sandbox_policy: SandboxPolicy,
+    /// Panic behavior for unrecoverable program failures.
+    pub panic: PanicPolicy,
+    /// Native unwind metadata format.
+    pub unwind: UnwindFormat,
     /// Symbol stripping policy.
     pub strip: StripLevel,
-    /// Panic policy for unrecoverable errors.
-    pub panic: PanicPolicy,
-    /// Unwind info format for native targets.
-    pub unwind: UnwindFormat,
     /// Safety preset that configures runtime checks.
     pub safety_preset: Option<SafetyPreset>,
     /// Integer overflow checking policy.
@@ -212,8 +178,6 @@ pub struct Target {
     pub shift_checks: ShiftCheckPolicy,
     /// Check failure behavior.
     pub check_failure: CheckFailurePolicy,
-    /// Global allocator selection for native targets.
-    pub allocator: Allocator,
 
     // output paths
     /// Output directory for this target (relative to package, defaults to "dist").
@@ -244,11 +208,9 @@ impl std::hash::Hash for Target {
         self.only_explicit_manual_chunks.hash(state);
         self.bundle_dependencies.hash(state);
         self.bundle_assets.hash(state);
-        self.treeshake.hash(state);
         self.bundle_output.hash(state);
         self.minify.hash(state);
         self.app.hash(state);
-        self.outputs.hash(state);
         self.emit.hash(state);
         self.runtime.hash(state);
         self.runtime_version.hash(state);
@@ -258,9 +220,7 @@ impl std::hash::Hash for Target {
         self.target_abi.hash(state);
         self.cpu.hash(state);
         self.cpu_features.hash(state);
-        self.relocation_model.hash(state);
         self.native_output.hash(state);
-        self.link_mode.hash(state);
         self.linker.hash(state);
         self.linker_flavor.hash(state);
         self.link_args.hash(state);
@@ -282,27 +242,18 @@ impl std::hash::Hash for Target {
         self.install_name.hash(state);
         self.declaration.hash(state);
         self.source_map_mode.hash(state);
-        self.artifacts.hash(state);
         self.debug.hash(state);
         self.optimize.hash(state);
         self.optimize_level.hash(state);
         self.unroll_threshold.hash(state);
         self.inline_budget_scale_percent.hash(state);
         self.lto_mode.hash(state);
-        self.shrink_level.hash(state);
         self.float_math.hash(state);
         self.debug_info.hash(state);
-        self.debug_mode.hash(state);
-        self.safepoint_mode.hash(state);
-        self.safepoint_interval.hash(state);
-        self.speculation_mode.hash(state);
-        self.profiling_mode.hash(state);
         self.runtime_options.hash(state);
-        self.trust_policy.hash(state);
-        self.sandbox_policy.hash(state);
-        self.strip.hash(state);
         self.panic.hash(state);
         self.unwind.hash(state);
+        self.strip.hash(state);
         self.safety_preset.hash(state);
         self.overflow_checks.hash(state);
         self.bounds_checks.hash(state);
@@ -310,7 +261,6 @@ impl std::hash::Hash for Target {
         self.division_checks.hash(state);
         self.shift_checks.hash(state);
         self.check_failure.hash(state);
-        self.allocator.hash(state);
         self.out_dir.hash(state);
         self.out_file.hash(state);
         self.declaration_dir.hash(state);
@@ -319,12 +269,6 @@ impl std::hash::Hash for Target {
         for (name, modules) in &self.manual_chunks {
             name.hash(state);
             modules.hash(state);
-        }
-
-        self.define.len().hash(state);
-        for (name, value) in &self.define {
-            name.hash(state);
-            value.hash(state);
         }
     }
 }
@@ -376,7 +320,6 @@ impl Target {
     /// Create a new target with the given name and default JS output.
     pub fn js(name: impl Into<String>) -> Self {
         let mut target = Self::from_default_options(name);
-        target.outputs = default_target_outputs(EmitFormat::Js, false, true, None, false);
         target.emit = EmitFormat::Js;
         target.runtime = Runtime::Node;
         target.runtime_options.host = Runtime::Node;
@@ -389,7 +332,6 @@ impl Target {
     /// Create a new target with the given name and TypeScript output.
     pub fn ts(name: impl Into<String>) -> Self {
         let mut target = Self::from_default_options(name);
-        target.outputs = default_target_outputs(EmitFormat::Ts, false, false, None, false);
         target.emit = EmitFormat::Ts;
         target.runtime = Runtime::Node;
         target.runtime_options.host = Runtime::Node;
@@ -401,7 +343,6 @@ impl Target {
     /// Create a new target with the given name and HTML document output.
     pub fn html(name: impl Into<String>) -> Self {
         let mut target = Self::from_default_options(name);
-        target.outputs = default_target_outputs(EmitFormat::Html, true, false, None, false);
         target.emit = EmitFormat::Html;
         target.runtime = Runtime::Browser;
         target.runtime_options.host = Runtime::Browser;
@@ -413,7 +354,6 @@ impl Target {
     /// Create a new target with the given name and JS output for Node.js.
     pub fn node(name: impl Into<String>) -> Self {
         let mut target = Self::from_default_options(name);
-        target.outputs = default_target_outputs(EmitFormat::Js, false, true, None, false);
         target.emit = EmitFormat::Js;
         target.runtime = Runtime::Node;
         target.runtime_options.host = Runtime::Node;
@@ -426,7 +366,6 @@ impl Target {
     /// Create a new target with the given name and WASM output for JS host.
     pub fn wasm_js(name: impl Into<String>) -> Self {
         let mut target = Self::from_default_options(name);
-        target.outputs = default_target_outputs(EmitFormat::Wasm, true, false, None, false);
         target.emit = EmitFormat::Wasm;
         target.runtime = Runtime::WasmJs;
         target.runtime_options.host = Runtime::WasmJs;
@@ -439,7 +378,6 @@ impl Target {
     /// Create a new target with the given name and WASM output for WASI.
     pub fn wasm_wasi(name: impl Into<String>) -> Self {
         let mut target = Self::from_default_options(name);
-        target.outputs = default_target_outputs(EmitFormat::Wasm, true, false, None, false);
         target.emit = EmitFormat::Wasm;
         target.runtime = Runtime::WasmWasi;
         target.runtime_options.host = Runtime::WasmWasi;
@@ -452,7 +390,6 @@ impl Target {
     /// Create a new target with the given name and native output.
     pub fn native(name: impl Into<String>) -> Self {
         let mut target = Self::from_default_options(name);
-        target.outputs = default_target_outputs(EmitFormat::Native, true, false, None, false);
         target.emit = EmitFormat::Native;
         target.runtime = Runtime::NativeManaged;
         target.runtime_options.host = Runtime::NativeManaged;
@@ -464,10 +401,7 @@ impl Target {
 
     /// Create a new target for comptime execution.
     pub fn comptime(name: impl Into<String>) -> Self {
-        let mut target = Self::native(name);
-        target.trust_policy = TrustPolicy::Internal;
-
-        target
+        Self::native(name)
     }
 
     /// Create a new target with the given name and native freestanding output.
@@ -621,7 +555,7 @@ impl Target {
 
     /// Return whether this target publishes one binary payload.
     pub fn publishes_binary_output(&self) -> bool {
-        self.outputs.contains_kind(TargetOutputKind::Binary)
+        self.emit.is_native_family()
     }
 
     /// Return the normalized source map mode for this target.
@@ -703,7 +637,7 @@ impl Target {
         self
     }
 
-    /// Set an explicit mode name for this target.
+    /// Set an explicit source graph mode name for this target.
     pub fn with_mode(mut self, mode: impl Into<String>) -> Self {
         self.mode = Some(mode.into());
         self
@@ -730,15 +664,15 @@ impl Target {
         self
     }
 
-    /// Set the trust policy for runtime execution.
-    pub fn with_trust_policy(mut self, trust_policy: TrustPolicy) -> Self {
-        self.trust_policy = trust_policy;
+    /// Set the panic behavior.
+    pub fn with_panic(mut self, panic: PanicPolicy) -> Self {
+        self.panic = panic;
         self
     }
 
-    /// Set the sandbox policy for runtime isolation.
-    pub fn with_sandbox_policy(mut self, sandbox_policy: SandboxPolicy) -> Self {
-        self.sandbox_policy = sandbox_policy;
+    /// Set the native unwind metadata format.
+    pub fn with_unwind(mut self, unwind: UnwindFormat) -> Self {
+        self.unwind = unwind;
         self
     }
 
@@ -769,18 +703,6 @@ impl Target {
     /// Set CPU feature flags for native codegen.
     pub fn with_cpu_features(mut self, cpu_features: Vec<String>) -> Self {
         self.cpu_features = cpu_features;
-        self
-    }
-
-    /// Set relocation model for native codegen.
-    pub fn with_relocation_model(mut self, relocation_model: RelocationModel) -> Self {
-        self.relocation_model = relocation_model;
-        self
-    }
-
-    /// Set link mode for native targets.
-    pub fn with_link_mode(mut self, link_mode: LinkMode) -> Self {
-        self.link_mode = link_mode;
         self
     }
 
@@ -851,24 +773,6 @@ impl Target {
         self
     }
 
-    /// Set panic strategy.
-    pub fn with_panic(mut self, panic: PanicPolicy) -> Self {
-        self.panic = panic;
-        self
-    }
-
-    /// Set unwind info format.
-    pub fn with_unwind(mut self, unwind: UnwindFormat) -> Self {
-        self.unwind = unwind;
-        self
-    }
-
-    /// Set global allocator selection.
-    pub fn with_allocator(mut self, allocator: Allocator) -> Self {
-        self.allocator = allocator;
-        self
-    }
-
     /// Set whether optimization is enabled.
     pub fn with_optimize(mut self, optimize: bool) -> Self {
         self.optimize = optimize;
@@ -896,12 +800,6 @@ impl Target {
     /// Set the link time optimization mode.
     pub fn with_lto_mode(mut self, mode: LtoMode) -> Self {
         self.lto_mode = mode;
-        self
-    }
-
-    /// Set the shrink level.
-    pub fn with_shrink_level(mut self, level: ShrinkLevel) -> Self {
-        self.shrink_level = level;
         self
     }
 
@@ -1028,10 +926,6 @@ impl Target {
 /// Normalized Destack build target options.
 #[derive(Debug, Clone)]
 pub struct TargetOptions {
-    /// Selection labels.
-    pub labels: IndexMap<String, String>,
-    /// Non-identifying metadata.
-    pub annotations: IndexMap<String, String>,
     // discovery
     /// How modules are discovered for this target.
     pub discovery: TargetDiscovery,
@@ -1067,16 +961,12 @@ pub struct TargetOptions {
     pub cpu: Option<String>,
     /// CPU feature flags for native codegen.
     pub cpu_features: Vec<String>,
-    /// Relocation model for native codegen.
-    pub relocation_model: RelocationModel,
     /// Native output kind for this target.
-    pub native_output: TargetNativeOutputKind,
-    /// Link mode for native targets.
-    pub link_mode: LinkMode,
+    pub native_output: NativeOutputKind,
     /// Explicit linker executable for native targets.
     pub linker: Option<String>,
     /// Linker driver family.
-    pub linker_flavor: TargetLinkerFlavor,
+    pub linker_flavor: LinkerFlavor,
     /// Extra linker arguments for native targets.
     pub link_args: Vec<String>,
     /// Sysroot path for native toolchains.
@@ -1098,15 +988,15 @@ pub struct TargetOptions {
     /// Explicitly exported symbol names.
     pub export_symbols: Vec<String>,
     /// Symbol visibility policy.
-    pub symbol_visibility: TargetSymbolVisibility,
+    pub symbol_visibility: SymbolVisibility,
     /// Version script for exported symbols.
     pub version_script: Option<PathBuf>,
     /// Linker script for the final link.
     pub linker_script: Option<PathBuf>,
     /// Position independent code policy.
-    pub position_independent: TargetPositionIndependentMode,
+    pub position_independent: PositionIndependentMode,
     /// C runtime linkage policy.
-    pub crt: TargetCrtLinkage,
+    pub crt: CrtLinkage,
     /// Shared object soname.
     pub soname: Option<String>,
     /// Darwin install name.
@@ -1115,8 +1005,6 @@ pub struct TargetOptions {
     pub declaration: bool,
     /// Source map emission mode.
     pub source_map_mode: Option<SourceMapMode>,
-    /// Extra sidecar artifacts to emit.
-    pub artifacts: Vec<EmitArtifact>,
 
     // output paths
     /// Output directory for this target (defaults to "dist").
@@ -1133,7 +1021,7 @@ pub struct TargetOptions {
     pub es_target: EsTarget,
     /// Explicit profile name for this target.
     pub profile: Option<String>,
-    /// Explicit mode name for this target.
+    /// Explicit source graph mode name for this target.
     pub mode: Option<String>,
     /// Assembly topology for this script target.
     pub assembly: BundleMode,
@@ -1146,21 +1034,15 @@ pub struct TargetOptions {
     /// Whether to only honor explicit manual chunk declarations.
     pub only_explicit_manual_chunks: bool,
     /// Dependency and resolution options.
-    pub bundle_dependencies: TargetDependencyOptions,
+    pub bundle_dependencies: BundleDependencyOptions,
     /// Asset handling options.
-    pub bundle_assets: TargetAssetOptions,
-    /// Tree shaking options.
-    pub treeshake: TargetTreeshakeOptions,
+    pub bundle_assets: BundleAssetOptions,
     /// Output configuration for bundled products.
-    pub bundle_output: TargetOutputPolicy,
-    /// Compile time define replacements.
-    pub define: IndexMap<String, String>,
+    pub bundle_output: BundleOutputOptions,
     /// Minification options.
-    pub minify: TargetMinifyOptions,
+    pub minify: BundleMinifyOptions,
     /// App declaration for packaging and runtime capability planning.
-    pub app: TargetAppDeclaration,
-    /// Formal named outputs published by this target.
-    pub outputs: TargetOutputs,
+    pub app: AppOptions,
 
     // optimization
     /// Whether this is a debug build.
@@ -1175,34 +1057,18 @@ pub struct TargetOptions {
     pub inline_budget_scale_percent: Option<u64>,
     /// Link time optimization mode.
     pub lto_mode: LtoMode,
-    /// Shrink level (code size reduction).
-    pub shrink_level: ShrinkLevel,
     /// Floating point math optimization policy.
     pub float_math: FloatMathPolicy,
     /// Debug info emission policy.
     pub debug_info: DebugInfoLevel,
-    /// Debug execution mode for VM/native targets.
-    pub debug_mode: DebugMode,
-    /// Safepoint insertion mode for native execution.
-    pub safepoint_mode: SafepointMode,
-    /// Instruction interval for safepoint polling (when enabled).
-    pub safepoint_interval: Option<u64>,
-    /// Speculation mode for native optimization.
-    pub speculation_mode: SpeculationMode,
-    /// Profiling mode for tiering and optimization.
-    pub profiling_mode: ProfilingMode,
     /// Runtime execution options.
     pub runtime_options: RuntimeOptions,
-    /// Trust policy for runtime execution.
-    pub trust_policy: TrustPolicy,
-    /// Sandbox policy for runtime isolation.
-    pub sandbox_policy: SandboxPolicy,
+    /// Panic behavior for unrecoverable program failures.
+    pub panic: PanicPolicy,
+    /// Native unwind metadata format.
+    pub unwind: UnwindFormat,
     /// Symbol stripping policy.
     pub strip: StripLevel,
-    /// Panic policy for unrecoverable errors.
-    pub panic: PanicPolicy,
-    /// Unwind info format for native targets.
-    pub unwind: UnwindFormat,
     /// Safety preset that configures runtime checks.
     pub safety_preset: Option<SafetyPreset>,
     /// Integer overflow checking policy.
@@ -1217,15 +1083,11 @@ pub struct TargetOptions {
     pub shift_checks: ShiftCheckPolicy,
     /// Check failure behavior.
     pub check_failure: CheckFailurePolicy,
-    /// Global allocator selection for native targets.
-    pub allocator: Allocator,
 }
 
 impl Default for TargetOptions {
     fn default() -> Self {
         Self {
-            labels: IndexMap::new(),
-            annotations: IndexMap::new(),
             discovery: TargetDiscovery::default(),
             entry: Vec::new(),
             globals: Vec::new(),
@@ -1242,11 +1104,9 @@ impl Default for TargetOptions {
             target_abi: None,
             cpu: None,
             cpu_features: Vec::new(),
-            relocation_model: RelocationModel::default(),
-            native_output: TargetNativeOutputKind::default(),
-            link_mode: LinkMode::default(),
+            native_output: NativeOutputKind::default(),
             linker: None,
-            linker_flavor: TargetLinkerFlavor::default(),
+            linker_flavor: LinkerFlavor::default(),
             link_args: Vec::new(),
             sysroot: None,
             library_search_paths: Vec::new(),
@@ -1257,16 +1117,15 @@ impl Default for TargetOptions {
             runpath: Vec::new(),
             entry_symbol: None,
             export_symbols: Vec::new(),
-            symbol_visibility: TargetSymbolVisibility::default(),
+            symbol_visibility: SymbolVisibility::default(),
             version_script: None,
             linker_script: None,
-            position_independent: TargetPositionIndependentMode::default(),
-            crt: TargetCrtLinkage::default(),
+            position_independent: PositionIndependentMode::default(),
+            crt: CrtLinkage::default(),
             soname: None,
             install_name: None,
             declaration: false,
             source_map_mode: None,
-            artifacts: Vec::new(),
             out_dir: PathBuf::from(DEFAULT_TARGET_OUT_DIR),
             out_file: None,
             declaration_dir: None,
@@ -1279,34 +1138,23 @@ impl Default for TargetOptions {
             preserve_modules_root: None,
             manual_chunks: IndexMap::new(),
             only_explicit_manual_chunks: false,
-            bundle_dependencies: TargetDependencyOptions::default(),
-            bundle_assets: TargetAssetOptions::default(),
-            treeshake: TargetTreeshakeOptions::default(),
-            bundle_output: TargetOutputPolicy::default(),
-            define: IndexMap::new(),
-            minify: TargetMinifyOptions::default(),
-            app: TargetAppDeclaration::default(),
-            outputs: TargetOutputs::new(),
+            bundle_dependencies: BundleDependencyOptions::default(),
+            bundle_assets: BundleAssetOptions::default(),
+            bundle_output: BundleOutputOptions::default(),
+            minify: BundleMinifyOptions::default(),
+            app: AppOptions::default(),
             debug: true,
             optimize: false,
             optimize_level: OptimizeLevel::O0,
             unroll_threshold: None,
             inline_budget_scale_percent: None,
             lto_mode: LtoMode::default(),
-            shrink_level: ShrinkLevel::S0,
             float_math: FloatMathPolicy::default(),
             debug_info: DebugInfoLevel::default(),
-            debug_mode: DebugMode::default(),
-            safepoint_mode: SafepointMode::default(),
-            safepoint_interval: None,
-            speculation_mode: SpeculationMode::default(),
-            profiling_mode: ProfilingMode::default(),
             runtime_options: RuntimeOptions::default(),
-            trust_policy: TrustPolicy::default(),
-            sandbox_policy: SandboxPolicy::default(),
-            strip: StripLevel::default(),
             panic: PanicPolicy::default(),
             unwind: UnwindFormat::default(),
+            strip: StripLevel::default(),
             safety_preset: None,
             overflow_checks: OverflowCheckPolicy::default(),
             bounds_checks: BoundsCheckPolicy::default(),
@@ -1314,7 +1162,6 @@ impl Default for TargetOptions {
             division_checks: DivisionCheckPolicy::default(),
             shift_checks: ShiftCheckPolicy::default(),
             check_failure: CheckFailurePolicy::default(),
-            allocator: Allocator::default(),
         }
     }
 }
@@ -1359,9 +1206,7 @@ impl TargetOptions {
             target_abi: self.target_abi.clone(),
             cpu: self.cpu.clone(),
             cpu_features: self.cpu_features.clone(),
-            relocation_model: self.relocation_model,
             native_output: self.native_output,
-            link_mode: self.link_mode,
             linker: self.linker.clone(),
             linker_flavor: self.linker_flavor,
             link_args: self.link_args.clone(),
@@ -1383,7 +1228,6 @@ impl TargetOptions {
             install_name: self.install_name.clone(),
             declaration: self.declaration,
             source_map_mode: self.source_map_mode,
-            artifacts: self.artifacts.clone(),
             out_dir: self.out_dir.clone(),
             out_file: self.out_file.clone(),
             declaration_dir: self.declaration_dir.clone(),
@@ -1398,32 +1242,21 @@ impl TargetOptions {
             only_explicit_manual_chunks: self.only_explicit_manual_chunks,
             bundle_dependencies: self.bundle_dependencies.clone(),
             bundle_assets: self.bundle_assets.clone(),
-            treeshake: self.treeshake.clone(),
             bundle_output: self.bundle_output.clone(),
-            define: self.define.clone(),
             minify: self.minify.clone(),
             app: self.app.clone(),
-            outputs: self.outputs.clone(),
             debug: self.debug,
             optimize: self.optimize,
             optimize_level: self.optimize_level,
             unroll_threshold: self.unroll_threshold,
             inline_budget_scale_percent: self.inline_budget_scale_percent,
             lto_mode: self.lto_mode,
-            shrink_level: self.shrink_level,
             float_math: self.float_math,
             debug_info: self.debug_info,
-            debug_mode: self.debug_mode,
-            safepoint_mode: self.safepoint_mode,
-            safepoint_interval: self.safepoint_interval,
-            speculation_mode: self.speculation_mode,
-            profiling_mode: self.profiling_mode,
             runtime_options: self.runtime_options.clone(),
-            trust_policy: self.trust_policy,
-            sandbox_policy: self.sandbox_policy,
-            strip: self.strip,
             panic: self.panic,
             unwind: self.unwind,
+            strip: self.strip,
             safety_preset: self.safety_preset,
             overflow_checks: self.overflow_checks,
             bounds_checks: self.bounds_checks,
@@ -1431,7 +1264,6 @@ impl TargetOptions {
             division_checks: self.division_checks,
             shift_checks: self.shift_checks,
             check_failure: self.check_failure,
-            allocator: self.allocator,
         }
     }
 
@@ -1465,11 +1297,7 @@ impl TargetOptions {
         }
 
         // resolve one target app declaration for runtime host planning
-        let app = json
-            .app
-            .as_ref()
-            .map(TargetAppDeclaration::from)
-            .unwrap_or_default();
+        let app = json.app.as_ref().map(AppOptions::from).unwrap_or_default();
 
         // derive the emit family early so output defaults can reuse the target shape
         let emit = json.emit.map(EmitFormat::from).unwrap_or_default();
@@ -1482,28 +1310,22 @@ impl TargetOptions {
         let bundle_dependencies = json
             .dependencies
             .as_ref()
-            .map(TargetDependencyOptions::from)
+            .map(BundleDependencyOptions::from)
             .unwrap_or_default();
         let bundle_assets = json
             .assets
             .as_ref()
-            .map(TargetAssetOptions::from)
-            .unwrap_or_default();
-        let treeshake = json
-            .treeshake
-            .as_ref()
-            .map(TargetTreeshakeOptions::from)
+            .map(BundleAssetOptions::from)
             .unwrap_or_default();
         let bundle_output = json
             .output
             .as_ref()
-            .map(TargetOutputPolicy::from)
+            .map(BundleOutputOptions::from)
             .unwrap_or_default();
-        let define = json.define.clone().unwrap_or_default();
         let minify = json
             .minify
             .as_ref()
-            .map(TargetMinifyOptions::from)
+            .map(BundleMinifyOptions::from)
             .unwrap_or_default();
         let source_map_mode = bundle_output.sourcemap;
         let assembly = resolved_bundle_mode(
@@ -1515,28 +1337,8 @@ impl TargetOptions {
             preserve_modules,
             manual_chunks.is_empty(),
         );
-        let is_assembled = is_assembled_target(
-            json.assembly,
-            discovery,
-            entry.len(),
-            &app,
-            emit,
-            preserve_modules,
-            manual_chunks.is_empty(),
-            json.out_file.is_some(),
-        );
-
-        // derive the formal target outputs from the target shape
-        let outputs = default_target_outputs(
-            emit,
-            is_assembled,
-            json.declaration,
-            source_map_mode,
-            bundle_output.manifest,
-        );
-
         // seed runtime options with the resolved target app declaration
-        runtime_options.app = RuntimeAppDeclaration::from(&app);
+        runtime_options.app = app.clone();
 
         let safety_preset = json.safety_preset.map(SafetyPreset::from);
         let default_checks = safety_preset
@@ -1547,8 +1349,6 @@ impl TargetOptions {
             .unwrap_or_default();
 
         Self {
-            labels: json.labels.clone().unwrap_or_default(),
-            annotations: json.annotations.clone().unwrap_or_default(),
             discovery,
             entry,
             globals,
@@ -1569,12 +1369,7 @@ impl TargetOptions {
             target_abi: json.env.as_deref().and_then(TargetAbi::parse),
             cpu: json.cpu.clone(),
             cpu_features: json.cpu_features.clone().unwrap_or_default(),
-            relocation_model: json
-                .relocation_model
-                .map(RelocationModel::from)
-                .unwrap_or_default(),
             native_output: json.native_output.unwrap_or_default(),
-            link_mode: json.link_mode.map(LinkMode::from).unwrap_or_default(),
             linker: json.linker.clone(),
             linker_flavor: json.linker_flavor.unwrap_or_default(),
             link_args: json.link_args.clone().unwrap_or_default(),
@@ -1604,11 +1399,6 @@ impl TargetOptions {
             install_name: json.install_name.clone(),
             declaration: json.declaration,
             source_map_mode,
-            artifacts: json
-                .artifacts
-                .as_ref()
-                .map(|artifacts| artifacts.iter().copied().map(EmitArtifact::from).collect())
-                .unwrap_or_default(),
             out_dir: json
                 .out_dir
                 .as_ref()
@@ -1635,12 +1425,9 @@ impl TargetOptions {
             only_explicit_manual_chunks,
             bundle_dependencies,
             bundle_assets,
-            treeshake,
             bundle_output,
-            define,
             minify,
             app,
-            outputs,
             debug: json.debug,
             optimize: json.optimize,
             optimize_level: json
@@ -1650,7 +1437,6 @@ impl TargetOptions {
             unroll_threshold: None,
             inline_budget_scale_percent: None,
             lto_mode: json.lto_mode.map(LtoMode::from).unwrap_or_default(),
-            shrink_level: json.shrink_level.map(ShrinkLevel::from).unwrap_or_default(),
             float_math: json
                 .float_math
                 .map(FloatMathPolicy::from)
@@ -1659,17 +1445,10 @@ impl TargetOptions {
                 .debug_info
                 .map(DebugInfoLevel::from)
                 .unwrap_or_default(),
-            debug_mode: json.debug_mode.map(DebugMode::from).unwrap_or_default(),
-            safepoint_mode: SafepointMode::default(),
-            safepoint_interval: None,
-            speculation_mode: SpeculationMode::default(),
-            profiling_mode: ProfilingMode::default(),
             runtime_options,
-            trust_policy: json.trust_policy.map(TrustPolicy::from).unwrap_or_default(),
-            sandbox_policy: SandboxPolicy::default(),
-            strip: json.strip.map(StripLevel::from).unwrap_or_default(),
             panic: json.panic.map(PanicPolicy::from).unwrap_or_default(),
             unwind: json.unwind.map(UnwindFormat::from).unwrap_or_default(),
+            strip: json.strip.map(StripLevel::from).unwrap_or_default(),
             safety_preset,
             overflow_checks: json
                 .overflow_checks
@@ -1695,7 +1474,6 @@ impl TargetOptions {
                 .check_failure
                 .map(CheckFailurePolicy::from)
                 .unwrap_or_default(),
-            allocator: json.allocator.map(Allocator::from).unwrap_or_default(),
         }
     }
 }
@@ -1714,10 +1492,6 @@ impl From<&TargetJson> for TargetOptions {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct TargetJson {
-    /// Selection labels.
-    pub labels: Option<IndexMap<String, String>>,
-    /// Non-identifying metadata.
-    pub annotations: Option<IndexMap<String, String>>,
     // discovery
     /// Entry points for entry-based discovery (bundled/executable targets).
     /// If set, discovery mode is Entry; otherwise it's Include.
@@ -1750,16 +1524,12 @@ pub struct TargetJson {
     pub cpu: Option<String>,
     /// CPU feature flags for native codegen (e.g., "+sse4.2", "+aes").
     pub cpu_features: Option<Vec<String>>,
-    /// Relocation model.
-    pub relocation_model: Option<RelocationModelJson>,
     /// Native output kind for this target.
-    pub native_output: Option<TargetNativeOutputKind>,
-    /// Link mode for native targets.
-    pub link_mode: Option<LinkModeJson>,
+    pub native_output: Option<NativeOutputKind>,
     /// Explicit linker executable for native targets.
     pub linker: Option<String>,
     /// Linker driver family.
-    pub linker_flavor: Option<TargetLinkerFlavor>,
+    pub linker_flavor: Option<LinkerFlavor>,
     /// Extra linker arguments for native targets.
     pub link_args: Option<Vec<String>>,
     /// Sysroot path for native toolchains.
@@ -1781,15 +1551,15 @@ pub struct TargetJson {
     /// Explicitly exported symbol names.
     pub export_symbols: Option<Vec<String>>,
     /// Symbol visibility policy.
-    pub symbol_visibility: Option<TargetSymbolVisibility>,
+    pub symbol_visibility: Option<SymbolVisibility>,
     /// Version script for exported symbols.
     pub version_script: Option<String>,
     /// Linker script for the final link.
     pub linker_script: Option<String>,
     /// Position independent code policy.
-    pub position_independent: Option<TargetPositionIndependentMode>,
+    pub position_independent: Option<PositionIndependentMode>,
     /// C runtime linkage policy.
-    pub crt: Option<TargetCrtLinkage>,
+    pub crt: Option<CrtLinkage>,
     /// Shared object soname.
     pub soname: Option<String>,
     /// Darwin install name.
@@ -1797,8 +1567,6 @@ pub struct TargetJson {
     /// Emit declaration files (e.g., `.d.ts` alongside `.js` output).
     #[serde(default)]
     pub declaration: bool,
-    /// Extra sidecar artifacts to emit.
-    pub artifacts: Option<Vec<EmitArtifactJson>>,
 
     // output paths
     /// Output directory for this target (overrides compiler.outDir).
@@ -1815,7 +1583,7 @@ pub struct TargetJson {
     pub target: Option<String>,
     /// Explicit profile name for this target.
     pub profile: Option<String>,
-    /// Explicit mode name for this target.
+    /// Explicit source graph mode name for this target.
     pub mode: Option<String>,
     /// Assembly topology for this script target.
     pub assembly: Option<BundleMode>,
@@ -1829,19 +1597,15 @@ pub struct TargetJson {
     pub only_explicit_manual_chunks: Option<bool>,
     /// Dependency and resolution options.
     #[serde(alias = "deps")]
-    pub dependencies: Option<TargetDependencyOptionsJson>,
+    pub dependencies: Option<BundleDependencyOptionsJson>,
     /// Asset handling options.
-    pub assets: Option<TargetAssetOptionsJson>,
-    /// Tree shaking options.
-    pub treeshake: Option<TargetTreeshakeOptionsJson>,
+    pub assets: Option<BundleAssetOptionsJson>,
     /// Output options for assembled bundle files.
-    pub output: Option<TargetOutputPolicyJson>,
-    /// Compile time define replacements.
-    pub define: Option<IndexMap<String, String>>,
+    pub output: Option<BundleOutputOptionsJson>,
     /// Minification options.
-    pub minify: Option<TargetMinifyOptionsJson>,
+    pub minify: Option<BundleMinifyOptionsJson>,
     /// App declaration for packaging and runtime capability planning.
-    pub app: Option<TargetAppDeclarationJson>,
+    pub app: Option<AppOptionsJson>,
     // optimization
     /// Whether this is a debug build.
     #[serde(default)]
@@ -1854,27 +1618,20 @@ pub struct TargetJson {
     pub optimize_level: Option<u8>,
     /// Link time optimization mode.
     pub lto_mode: Option<LtoModeJson>,
-    /// Shrink level (0-3).
-    #[cfg_attr(feature = "schema", schemars(range(min = 0, max = 3)))]
-    pub shrink_level: Option<u8>,
     /// Floating point math optimization policy.
     pub float_math: Option<FloatMathPolicyJson>,
     /// Debug info emission policy.
     pub debug_info: Option<DebugInfoLevelJson>,
-    /// Debug execution mode for VM/native targets.
-    pub debug_mode: Option<DebugModeJson>,
     /// Execution mode for runtime scheduling and replay.
     #[serde(alias = "executionMode")]
     #[serde(alias = "execution_mode")]
     pub execution: Option<ExecutionModeJson>,
-    /// Trust policy for runtime execution.
-    pub trust_policy: Option<TrustPolicyJson>,
+    /// Panic behavior for unrecoverable program failures.
+    pub panic: Option<PanicPolicyJson>,
+    /// Native unwind metadata format.
+    pub unwind: Option<UnwindFormatJson>,
     /// Symbol stripping policy.
     pub strip: Option<StripLevelJson>,
-    /// Panic policy.
-    pub panic: Option<PanicPolicyJson>,
-    /// Unwind info format.
-    pub unwind: Option<UnwindFormatJson>,
     /// Safety preset that configures runtime checks.
     pub safety_preset: Option<SafetyPresetJson>,
     /// Overflow checking policy.
@@ -1889,88 +1646,6 @@ pub struct TargetJson {
     pub shift_checks: Option<ShiftCheckPolicyJson>,
     /// Check failure behavior.
     pub check_failure: Option<CheckFailurePolicyJson>,
-    /// Global allocator selection.
-    pub allocator: Option<AllocatorJson>,
-}
-
-/// Returns the default target outputs for a given emit configuration.
-fn default_target_outputs(
-    emit: EmitFormat,
-    is_assembled: bool,
-    declaration: bool,
-    source_map_mode: Option<SourceMapMode>,
-    has_manifest: bool,
-) -> TargetOutputs {
-    let mut outputs = TargetOutputs::new();
-
-    // primary emitted surface
-    let primary_name = match emit {
-        EmitFormat::Native | EmitFormat::Wasm => TargetOutputName::Binary,
-        EmitFormat::Html => TargetOutputName::Document,
-        EmitFormat::Js | EmitFormat::Ts => {
-            if is_assembled {
-                TargetOutputName::Entry
-            } else {
-                TargetOutputName::Module
-            }
-        }
-    };
-    let primary_topology = match emit {
-        EmitFormat::Native | EmitFormat::Wasm | EmitFormat::Html => TargetOutputTopology::File,
-        EmitFormat::Js | EmitFormat::Ts => {
-            if is_assembled {
-                TargetOutputTopology::Collection
-            } else {
-                TargetOutputTopology::Directory
-            }
-        }
-    };
-    outputs.insert(
-        primary_name.as_str(),
-        TargetOutputOptions {
-            kind: primary_name.kind(),
-            topology: primary_topology,
-            is_public: true,
-        },
-    );
-
-    // declarations
-    if declaration {
-        outputs.insert(
-            TargetOutputName::Types.as_str(),
-            TargetOutputOptions {
-                kind: TargetOutputKind::Types,
-                topology: primary_topology,
-                is_public: true,
-            },
-        );
-    }
-
-    // source maps
-    if source_map_mode.is_some_and(SourceMapMode::emits_output) {
-        outputs.insert(
-            TargetOutputName::Maps.as_str(),
-            TargetOutputOptions {
-                kind: TargetOutputKind::Maps,
-                topology: primary_topology,
-                is_public: false,
-            },
-        );
-    }
-
-    // manifest sidecar
-    if has_manifest {
-        outputs.insert(
-            TargetOutputName::Manifest.as_str(),
-            TargetOutputOptions {
-                kind: TargetOutputKind::Manifest,
-                topology: TargetOutputTopology::Collection,
-                is_public: true,
-            },
-        );
-    }
-
-    outputs
 }
 
 /// Resolves the bundle mode for a target.
@@ -2014,7 +1689,7 @@ fn is_assembled_target(
     explicit_bundle_mode: Option<BundleMode>,
     discovery: TargetDiscovery,
     entry_count: usize,
-    app: &TargetAppDeclaration,
+    app: &AppOptions,
     emit: EmitFormat,
     preserve_modules: bool,
     manual_chunks_is_empty: bool,
