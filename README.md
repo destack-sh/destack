@@ -45,8 +45,8 @@ We do provide some common [apps](app/README.md) and [templates](template/README.
 > Things may change or break or vanish.
 
 **Get started with Destack**:
-- Install Destack via `curl -fsSL https://destack.sh/install | sh` or `npm i -g @destack/cli`.
-- Create a new Destack app with `npm create destack@latest my-destack-app` or `bun create destack my-destack-app`.
+- Install Destack via `curl -fsSL https://destack.sh/install | sh`.
+- Create a new Destack app with `destack new my-destack-app`.
 
 ## Rationale
 

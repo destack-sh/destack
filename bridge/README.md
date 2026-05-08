@@ -11,8 +11,6 @@ Destack bridge into and out of the existing universe.
 | [`typescript`](typescript/README.md) | Alpha | Primary runtime client package published as `@destack/runtime` |
 | [`napi`](napi/README.md) | Experimental | Node-API bindings package and crate |
 | [`wasm`](wasm/README.md) | Experimental | WebAssembly bindings package and crate |
-| [`bun`](bun/README.md) | Experimental | Bun plugin and loader for `.ds` files |
-| [`vite`](vite/README.md) | Experimental | Vite plugin for Destack projects |
 | [`rust`](rust/README.md) | Experimental | Rust client crate published as `destack` |
 | [`python`](python/README.md) | Experimental | Python client package published as `destack` |
 | [`go`](go/README.md) | Experimental | Go client module intended for `go.destack.sh/destack` |

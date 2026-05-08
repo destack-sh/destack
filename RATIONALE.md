@@ -42,12 +42,12 @@ However, it is still rather early, it is definitely quite radical, and there are
 
 ## Some Questions Worth Considering
 
-Destack is pretty weird and quite unlike how software production has traditionally worked, with its own new _experimental_ way of thinking about the processes of programming. 
+Destack is pretty weird and quite unlike how software production has traditionally worked, with its own new _experimental_ way of thinking about the processes of programming.
 If you have gotten this far through reading the README, you probably have some, all of, or - maybe most curiously - none of the following questions:
 
-1. **What even _is_ Destack? Is it a TypeScript dialect (like TSX), a JS family language (like Rescript), a JavaScript runtime (like V8), a Node runtime (like Deno), an NPM library (like vitest), a service (like Antithesis), ...?** 
+1. **What even _is_ Destack? Is it a TypeScript dialect (like TSX), a JS family language (like Rescript), a JavaScript runtime (like V8), a package manager, a service (like Antithesis), ...?**
 All of it, none of it.
-Mechanically, Destack _is_ a TSX-family language and toolchain with a VM, AOT compiler, Web/Node-shaped platform libraries, formatter, linter, rich standard libraries, and a set of common services and apps.
+Mechanically, Destack _is_ a TSX-family language and toolchain with a VM, AOT compiler, Web-shaped platform libraries, formatter, linter, rich standard libraries, and a set of common services and apps.
 Conceptually, Destack is a new kind of thing: a fully integrated computing stack, a software toolkit, the building blocks you need to build your own stack.
 
 2. **Why is Destack built on TypeScript and not some other language like Python or Rust?**
@@ -63,13 +63,13 @@ However, Destack is intentionally not strictly ECMAScript compliant because dyna
 4. **How does Destack interact with the existing JavaScript/TypeScript/Node/web ecosystem?**
 Destack runs "strict modern" TS directly, and "TS++" (`.ds` files) can transpile into `.js`/`.ts` for browsers and other JS-only runtimes. 
 Destack is not a browser, and has no renderer (yet).
-On the backend, Destack supports selected Node-shaped APIs, similar to other Node-derived runtimes like Bun or Deno.
+On the backend, Destack provides its own standard library over first-party platform bindings.
 Just like Destack does not intend to fully support arbitrary JS code, we also do not intend to fully support _all_ web standards.
 
 5. **Why not support both a JavaScript "slow mode" and a TypeScript "fast mode"?**
 Running "regular" Javascript _well_ is complex as it's essentially a whole second lane alongside the strict TypeScript AOT model (see [Static Hermes](https://github.com/facebook/hermes/)). 
 Further, _just_ supporting untyped JS is not that useful - we would also need a full web surface for the many frontend JS libraries.
-Modern backend code predominantly uses TypeScript and Node APIs already, while frontend doesn't work well natively anyway without also implementing a whole browser.
+Modern backend code predominantly uses TypeScript already, while frontend doesn't work well natively anyway without also implementing a whole browser.
 
 6. **Why can't we just use TypeScript/web for frontend and Rust/C++/Go for backend?** 
 We can and that will continue to work pretty well, though with some friction, as the traditional distinction between "frontend" and "backend" blurs further and clients become increasingly powerful. 
