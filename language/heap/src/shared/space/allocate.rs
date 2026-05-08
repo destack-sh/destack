@@ -91,7 +91,7 @@ impl SharedHeapSpace {
             && let Some(reference) = run.reserve_reference(small.class.size_class)
         {
             unsafe {
-                self.mapping.copy_mapped_bytes(reference.offset(), bytes);
+                self.mapping.write_mapped_bytes(reference.offset(), bytes);
             }
 
             bucket.publish_run(run);
@@ -297,7 +297,7 @@ impl SharedHeapSpace {
         // initialize bytes before returning the allocation reference
         match payload {
             Payload::Bytes(bytes) => unsafe {
-                self.mapping.copy_mapped_bytes(first_offset, bytes);
+                self.mapping.write_mapped_bytes(first_offset, bytes);
             },
             Payload::Zeroed => unsafe {
                 write_bytes(
@@ -646,7 +646,7 @@ impl SharedHeapSpace {
 
         // copy the payload before publishing the initialized slot
         unsafe {
-            self.mapping.copy_mapped_bytes(reference.offset(), bytes);
+            self.mapping.write_mapped_bytes(reference.offset(), bytes);
         }
         if let Some(span) = &span {
             span.clear_needs_zero(slot_index);
@@ -703,10 +703,10 @@ impl SharedHeapSpace {
                     0,
                     bucket.class.size_class,
                 );
-                self.mapping.copy_mapped_bytes(mapping_offset, bytes);
+                self.mapping.write_mapped_bytes(mapping_offset, bytes);
             },
             Payload::Bytes(bytes) => unsafe {
-                self.mapping.copy_mapped_bytes(mapping_offset, bytes);
+                self.mapping.write_mapped_bytes(mapping_offset, bytes);
             },
             Payload::Zeroed => {
                 if let Some(span) = &span

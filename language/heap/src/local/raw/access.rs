@@ -65,7 +65,7 @@ impl RawSpace {
     ) -> HeapResult<Vec<u8>> {
         let offset = location.base.offset() + byte_offset;
 
-        Ok(self.mapping.bytes(offset, byte_len)?)
+        Ok(self.mapping.read_bytes(offset, byte_len)?)
     }
 
     /// Return the remaining byte length for one raw allocation.
@@ -86,7 +86,7 @@ impl RawSpace {
     ) -> HeapResult<()> {
         let offset = location.base.offset() + byte_offset;
 
-        Ok(self.mapping.read(offset, target)?)
+        Ok(self.mapping.read_bytes_into(offset, target)?)
     }
 
     /// Overwrite one raw byte range.
@@ -127,7 +127,7 @@ impl RawSpace {
         let offset = location.base.offset() + byte_offset;
 
         unsafe {
-            self.mapping.copy_mapped_bytes(offset, bytes);
+            self.mapping.write_mapped_bytes(offset, bytes);
         }
 
         Ok(())
@@ -176,7 +176,7 @@ impl RawSpace {
                     let offset = span.first_offset + slot_offset;
 
                     unsafe {
-                        self.mapping.copy_mapped_bytes(offset, bytes);
+                        self.mapping.write_mapped_bytes(offset, bytes);
                     }
 
                     self.usage.resize(previous_byte_len, bytes.len());
@@ -198,7 +198,7 @@ impl RawSpace {
                         let first_offset = allocation.first_offset;
 
                         unsafe {
-                            self.mapping.copy_mapped_bytes(first_offset, bytes);
+                            self.mapping.write_mapped_bytes(first_offset, bytes);
                         }
 
                         RawPlace::Large(allocation_id)

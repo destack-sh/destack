@@ -5,11 +5,11 @@ use crate::{HeapError, HeapResult};
 impl Allocator {
     /// Return one byte vector for one logical byte range over one page run.
     pub fn read_bytes(&self, page_run: &PageRun, byte_len: usize) -> HeapResult<Vec<u8>> {
-        self.bytes_to_vec_from(page_run, 0, byte_len)
+        self.read_bytes_from(page_run, 0, byte_len)
     }
 
-    /// Fill one caller-provided buffer from one logical byte range.
-    pub fn fill_bytes_from(
+    /// Read one logical byte range into a caller-provided buffer.
+    pub fn read_bytes_into(
         &self,
         page_run: &PageRun,
         start: usize,
@@ -38,7 +38,7 @@ impl Allocator {
             }
 
             // copy the visible page slice
-            let page = self.page_bytes_box(page_id)?;
+            let page = self.page_image_bytes(page_id)?;
             let chunk = &page[slice_start..slice_end];
             let chunk_end = copied_bytes + chunk.len();
 
@@ -65,7 +65,7 @@ impl Allocator {
     }
 
     /// Return one byte vector for one logical byte range starting at one offset.
-    pub fn bytes_to_vec_from(
+    pub fn read_bytes_from(
         &self,
         page_run: &PageRun,
         start: usize,
@@ -74,7 +74,7 @@ impl Allocator {
         let mut bytes = vec![0; byte_len];
 
         // materialize the requested range into one owned buffer
-        self.fill_bytes_from(page_run, start, &mut bytes)?;
+        self.read_bytes_into(page_run, start, &mut bytes)?;
 
         Ok(bytes)
     }
@@ -110,10 +110,10 @@ impl Allocator {
             // copy the matching caller bytes into an owned image page
             let slice_len = slice_end - slice_start;
             let byte_end = byte_offset + slice_len;
-            let mut page = self.page_bytes_box(page_id)?;
+            let mut page = self.page_image_bytes(page_id)?;
 
             page[slice_start..slice_end].copy_from_slice(&bytes[byte_offset..byte_end]);
-            self.store_page_bytes(page_id, page)?;
+            self.write_page_image(page_id, page)?;
             byte_offset = byte_end;
         }
 

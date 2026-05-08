@@ -152,7 +152,7 @@ impl HeapSpace {
         let source_offset = run.slot_offset(slot.slot_index());
         let bytes = self
             .mapping
-            .bytes(source_offset, byte_len)
+            .read_bytes(source_offset, byte_len)
             .map_err(|error| HeapError::HeapPromotionFailed {
                 reference,
                 error: Box::new(error.into()),
@@ -201,7 +201,7 @@ impl HeapSpace {
                 });
             };
             self.mapping
-                .copy_bytes(allocation.first_offset, &bytes)
+                .write_bytes(allocation.first_offset, &bytes)
                 .map_err(|error| HeapError::HeapPromotionFailed {
                     reference,
                     error: Box::new(error.into()),
@@ -242,7 +242,7 @@ impl HeapSpace {
         let young_offset = allocation.first_offset;
         let bytes = self
             .mapping
-            .bytes(young_offset, allocation.byte_len)
+            .read_bytes(young_offset, allocation.byte_len)
             .map_err(|error| HeapError::HeapPromotionFailed {
                 reference,
                 error: Box::new(error.into()),
@@ -304,7 +304,7 @@ impl HeapSpace {
                 });
             };
             self.mapping
-                .copy_bytes(allocation.first_offset, &bytes)
+                .write_bytes(allocation.first_offset, &bytes)
                 .map_err(|error| HeapError::HeapPromotionFailed {
                     reference,
                     error: Box::new(error.into()),

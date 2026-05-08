@@ -151,7 +151,9 @@ impl SharedHeapSpace {
                 let slot_offset = small_slot_offset(span.class.size_class, slot.slot_index());
                 let read_offset = slot_offset + byte_offset;
 
-                Ok(self.mapping.read(span.first_offset + read_offset, target)?)
+                Ok(self
+                    .mapping
+                    .read_bytes_into(span.first_offset + read_offset, target)?)
             }
             SharedHeapPlace::Large(allocation_id) => {
                 // resolve the large allocation
@@ -171,7 +173,7 @@ impl SharedHeapSpace {
                 }
 
                 self.mapping
-                    .read(allocation.first_offset + byte_offset, target)
+                    .read_bytes_into(allocation.first_offset + byte_offset, target)
                     .map_err(HeapError::from)
             }
         }

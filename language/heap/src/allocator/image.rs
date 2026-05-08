@@ -72,7 +72,7 @@ impl Allocator {
                 });
             }
 
-            self.store_page_bytes(page.id, page.bytes.clone())?;
+            self.write_page_image(page.id, page.bytes.clone())?;
 
             let (chunk_index, chunk_page_index) = self.chunk_position(page.id);
             let chunk_high_watermark = chunk_high_watermarks.entry(chunk_index).or_default();
@@ -106,7 +106,7 @@ impl Allocator {
         // capture the exact bytes for each reachable allocator page
         for page in page_run.page_ids() {
             let bytes = self
-                .page_bytes_box(page)
+                .page_image_bytes(page)
                 .map_err(|_| HeapError::ImageMissingPage { page_id: page })?;
 
             pages.push(AllocatorPageImage { id: page, bytes });
@@ -122,7 +122,7 @@ impl Allocator {
         // capture the exact bytes for each explicit allocator page
         for page in pages {
             let bytes = self
-                .page_bytes_box(*page)
+                .page_image_bytes(*page)
                 .map_err(|_| HeapError::ImageMissingPage { page_id: *page })?;
 
             image_pages.push(AllocatorPageImage { id: *page, bytes });

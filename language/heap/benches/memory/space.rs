@@ -54,7 +54,7 @@ impl AddressSpaceShape {
         for page_index in 0..page_count {
             let offset = page_index * PAGE_BYTES;
             space
-                .copy_bytes(offset, &page)
+                .write_bytes(offset, &page)
                 .expect("address space page write should succeed");
         }
 
@@ -173,7 +173,7 @@ impl ForkLineage {
         let leaf = spaces.last().expect("fork lineage should keep one leaf");
         for page_index in 0..dirty_page_count {
             let offset = page_index * PAGE_BYTES;
-            leaf.copy_bytes(offset, black_box(&page))
+            leaf.write_bytes(offset, black_box(&page))
                 .expect("forked address space write should succeed");
         }
 

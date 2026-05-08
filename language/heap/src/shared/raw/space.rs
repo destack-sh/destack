@@ -163,7 +163,7 @@ impl SharedRawSpace {
         let mapping = self.mapping.write();
         match allocation {
             Payload::Bytes(bytes) => unsafe {
-                mapping.copy_mapped_bytes(first_offset, bytes);
+                mapping.write_mapped_bytes(first_offset, bytes);
             },
             Payload::Zeroed => unsafe {
                 write_bytes(
@@ -232,7 +232,7 @@ impl SharedRawSpace {
 
         self.mapping
             .read()
-            .bytes(location.base.offset() + location.byte_offset, byte_len)
+            .read_bytes(location.base.offset() + location.byte_offset, byte_len)
             .map_err(HeapError::from)
     }
 
@@ -247,7 +247,7 @@ impl SharedRawSpace {
 
         self.mapping
             .read()
-            .read(location.base.offset() + byte_offset, target)
+            .read_bytes_into(location.base.offset() + byte_offset, target)
             .map_err(HeapError::from)
     }
 
@@ -292,7 +292,7 @@ impl SharedRawSpace {
 
         self.mapping
             .write()
-            .copy_bytes(location.base.offset() + byte_offset, bytes)?;
+            .write_bytes(location.base.offset() + byte_offset, bytes)?;
 
         Ok(())
     }
@@ -340,7 +340,7 @@ impl SharedRawSpace {
         {
             let mapping = self.mapping.write();
             unsafe {
-                mapping.copy_mapped_bytes(first_offset, bytes);
+                mapping.write_mapped_bytes(first_offset, bytes);
             }
         }
 

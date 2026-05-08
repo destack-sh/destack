@@ -144,7 +144,7 @@ impl RawSpace {
             // initialize bytes before returning the raw pointer
             match payload {
                 Payload::Bytes(bytes) => unsafe {
-                    self.mapping.copy_mapped_bytes(first_offset, bytes);
+                    self.mapping.write_mapped_bytes(first_offset, bytes);
                 },
                 Payload::Zeroed => unsafe {
                     write_bytes(
@@ -344,7 +344,7 @@ impl RawSpace {
 
         match allocation {
             Payload::Bytes(bytes) => unsafe {
-                self.mapping.copy_mapped_bytes(mapping_offset, bytes);
+                self.mapping.write_mapped_bytes(mapping_offset, bytes);
             },
             Payload::Zeroed => unsafe {
                 write_bytes(

@@ -12,7 +12,7 @@ const TEST_ALLOCATOR_CHUNK_BYTES: usize = 1024 * 1024;
 /// Return the bytes from one shared image page run.
 fn read_page_run_bytes(allocator: &Allocator, page_run: &PageRun, byte_len: usize) -> Vec<u8> {
     allocator
-        .bytes_to_vec_from(page_run, 0, byte_len)
+        .read_bytes_from(page_run, 0, byte_len)
         .expect("shared image bytes should resolve")
 }
 

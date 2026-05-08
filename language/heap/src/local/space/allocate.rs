@@ -307,7 +307,7 @@ impl HeapSpace {
         if let Some(slot) = self.reserve_young_run(layout)? {
             let reference = slot.reference;
             unsafe {
-                self.mapping.copy_mapped_bytes(reference.offset(), bytes);
+                self.mapping.write_mapped_bytes(reference.offset(), bytes);
             }
 
             return Ok(Some(reference));
@@ -321,7 +321,7 @@ impl HeapSpace {
         let reference = HeapReference::new(write_offset);
 
         unsafe {
-            self.mapping.copy_mapped_bytes(write_offset, bytes);
+            self.mapping.write_mapped_bytes(write_offset, bytes);
         }
 
         // objects allocated during marking start black
@@ -544,7 +544,7 @@ impl HeapSpace {
             // initialize bytes before returning the allocation reference
             match payload {
                 Payload::Bytes(bytes) => unsafe {
-                    self.mapping.copy_mapped_bytes(first_offset, bytes);
+                    self.mapping.write_mapped_bytes(first_offset, bytes);
                 },
                 Payload::Zeroed => unsafe {
                     write_bytes(
@@ -798,7 +798,7 @@ impl HeapSpace {
         // initialize only the touched pages
         match payload {
             Payload::Bytes(bytes) => unsafe {
-                self.mapping.copy_mapped_bytes(write_offset, bytes);
+                self.mapping.write_mapped_bytes(write_offset, bytes);
             },
             Payload::Zeroed => {}
         }
@@ -824,7 +824,7 @@ impl HeapSpace {
 
         // initialize only the touched pages
         unsafe {
-            self.mapping.copy_mapped_bytes(write_offset, bytes);
+            self.mapping.write_mapped_bytes(write_offset, bytes);
         }
 
         Ok(Some(HeapReference::new(write_offset)))
@@ -1134,10 +1134,10 @@ impl HeapSpace {
                     0,
                     class.size_class,
                 );
-                self.mapping.copy_mapped_bytes(mapping_offset, bytes);
+                self.mapping.write_mapped_bytes(mapping_offset, bytes);
             },
             Payload::Bytes(bytes) => unsafe {
-                self.mapping.copy_mapped_bytes(mapping_offset, bytes);
+                self.mapping.write_mapped_bytes(mapping_offset, bytes);
             },
             Payload::Zeroed => unsafe {
                 write_bytes(
