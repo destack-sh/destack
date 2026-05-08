@@ -15,12 +15,21 @@ export interface PatchContext {
 
     /// The local name of the decorated target when one exists.
     readonly name?: string;
+
+    /// Resolve a visible symbol in the current scope.
+    resolve(name: string): Symbol | undefined;
+
+    /// Ensure an import used by generated code.
+    ensureImport(source: string, name: string, alias?: string): Symbol;
 }
 
 /// Context for declaration expansion.
 export interface ExpansionContext extends PatchContext {
     /// Add a generated declaration to the current scope.
     add(declaration: Declaration): void;
+
+    /// Ensure a generated declaration exists in the current scope.
+    ensureDeclaration(name: string, declaration: () => Declaration): Symbol;
 
     /// Add a generated child to the decorated declaration.
     addChild(child: Member): void;
