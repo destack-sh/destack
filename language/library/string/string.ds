@@ -1,24 +1,24 @@
 /// Immutable UTF-8 string with cached UTF-16 length for TS compatibility.
-export struct String {
+export class String {
     /// UTF-16 code unit count (for .length compatibility with JS/TS).
-    lengthUtf16: uint32;
+    lengthUtf16: uint32 = 0;
     /// Byte length of UTF-8 data.
-    lengthBytes: uint32;
+    lengthBytes: uint32 = 0;
     /// Raw UTF-8 byte storage owned by this string.
-    data: *uint8;
+    data: *uint8 = null as *uint8;
 }
 
 /// Mutable UTF-8 string builder with growable backing storage.
 /// growing, clearing, and freeing it.
-export struct StringBuilder {
+export class StringBuilder {
     /// UTF-16 code unit count for the current contents.
-    lengthUtf16: uint32;
+    lengthUtf16: uint32 = 0;
     /// Byte length of the current UTF-8 contents.
-    lengthBytes: uint32;
+    lengthBytes: uint32 = 0;
     /// Allocated byte capacity.
-    capacityBytes: uint32;
+    capacityBytes: uint32 = 0;
     /// Raw UTF-8 byte storage owned by this builder.
-    data: *uint8;
+    data: *uint8 = null as *uint8;
 }
 
 // TODO #Incomplete: implement String and StringBuilder operations

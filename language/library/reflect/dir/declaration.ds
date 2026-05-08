@@ -49,7 +49,7 @@ export interface GlobalDeclaration extends Node {
     symbol: Symbol;
     /// The declaration scope.
     scope: Scope;
-    /// The expressions inside the global augmentation body.
+    /// The expressions inside the global body.
     expressions: readonly Expression[];
 }
 

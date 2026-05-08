@@ -4,19 +4,19 @@
 /// itself.
 /// `Set<T>` is responsible for value lifetime and tracing over stored values,
 /// while heap forking and CoW stay below this type.
-export struct Set<T> {
+export class Set<T> {
     /// Number of elements in the set.
-    length: uint32;
+    length: uint32 = 0;
     /// Number of allocated hash slots.
-    tableCapacity: uint32;
+    tableCapacity: uint32 = 0;
     /// Number of allocated entry slots.
-    entryCapacity: uint32;
+    entryCapacity: uint32 = 0;
     /// Raw control-byte storage owned by this set.
-    control: *uint8;
+    control: *uint8 = null as *uint8;
     /// Raw bucket-to-entry index storage owned by this set.
-    buckets: *uint32;
+    buckets: *uint32 = null as *uint32;
     /// Raw ordered entry storage owned by this set.
-    entries: *SetEntry<T>;
+    entries: *SetEntry<T> = null as *SetEntry<T>;
 }
 
 /// One stored set value in insertion order.
@@ -30,14 +30,7 @@ struct SetEntry<T> {
 extension<T> of Set<T> implements Iterable<T> {
     /// Create an empty set.
     static new(): Set<T> {
-        Set {
-            length: 0,
-            tableCapacity: 0,
-            entryCapacity: 0,
-            control: null as *uint8,
-            buckets: null as *uint32,
-            entries: null as *SetEntry<T>,
-        }
+        new Set<T>()
     }
 
     /// Get the number of elements.
@@ -101,14 +94,7 @@ extension<T> of Set<T> implements Iterable<T> {
     /// Intersection of two sets.
     intersection(other: Set<T>): Set<T> {
         // #Incomplete
-        Set {
-            length: 0,
-            tableCapacity: 0,
-            entryCapacity: 0,
-            control: null as *uint8,
-            buckets: null as *uint32,
-            entries: null as *SetEntry<T>,
-        }
+        new Set<T>()
     }
 
     /// Difference (this - other).
@@ -150,7 +136,7 @@ extension<T> of Set<T> implements Iterable<T> {
     /// Create an empty set.
     static new<T>(): Set<T> {
         // #Incomplete
-        undefined!
+        new Set<T>()
     }
 
     /// Create a set with pre-allocated capacity.
