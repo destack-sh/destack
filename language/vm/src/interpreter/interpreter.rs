@@ -34,7 +34,7 @@ pub struct InterpreterImage {
 impl Interpreter {
     /// Create a new interpreter engine.
     pub(crate) fn new(options: &IsolateOptions) -> RuntimeResult<Self> {
-        let stack = Stack::reserve(options.limits.max_stack_bytes)?;
+        let stack = Stack::new(options.limits.stack_bytes)?;
 
         Ok(Self {
             frames: Vec::new(),
@@ -45,7 +45,7 @@ impl Interpreter {
     /// Prepare the stack arena for one top-level run.
     pub(crate) fn reset_stack(&mut self, options: &IsolateOptions) -> RuntimeResult<()> {
         self.frames.clear();
-        self.stack.reset(options.limits.max_stack_bytes)?;
+        self.stack.reset(options.limits.stack_bytes)?;
 
         Ok(())
     }

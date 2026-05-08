@@ -22,10 +22,7 @@ impl Interpreter {
         options: &IsolateOptions,
     ) -> RuntimeResult<Continuation> {
         // move execution stack into the continuation
-        let stack = mem::replace(
-            &mut self.stack,
-            Stack::reserve(options.limits.max_stack_bytes)?,
-        );
+        let stack = mem::replace(&mut self.stack, Stack::new(options.limits.stack_bytes)?);
         let frames = mem::take(&mut self.frames);
 
         Ok(Continuation {

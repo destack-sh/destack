@@ -163,7 +163,7 @@ impl Continuation {
             return Err(RuntimeError::new(Error::InvalidContinuation));
         }
 
-        let mut stack = Stack::reserve(options.limits.max_stack_bytes)?;
+        let mut stack = Stack::new(options.limits.stack_bytes)?;
         let mut frames = Vec::with_capacity(image.frames.len());
 
         for frame_image in &image.frames {
