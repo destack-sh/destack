@@ -171,6 +171,7 @@ impl ModuleLowerer<'_> {
                 .get(&(concrete, interface))
                 .copied()
                 .ok_or_else(|| LowerError::Internal {
+                    anchor: self.diagnostic_anchor(declaration_id),
                     module: self.module_id,
                     message: "missing itab global for interface pair".to_string(),
                 })?;
@@ -422,9 +423,11 @@ impl ModuleLowerer<'_> {
             64 => mir::Constant::uint64(u64::from(offset)),
             width => {
                 return Err(LowerError::Internal {
+                    anchor: (self.module_id).into(),
                     module: self.module_id,
                     message: format!("unsupported pointer width for itab offset: {width}"),
-                });
+                }
+                .into());
             }
         };
 

@@ -721,9 +721,11 @@ impl<'a> ModuleLowerer<'a> {
         // record the lowered vtable once
         if !self.lowered_vtables.insert(symbol) {
             return Err(LowerError::Internal {
+                anchor: (self.module_id).into(),
                 module: self.module_id,
                 message: format!("duplicate vtable for class {symbol:?}"),
-            });
+            }
+            .into());
         }
 
         Ok(())
@@ -778,9 +780,11 @@ impl<'a> ModuleLowerer<'a> {
         // record the lowered itab once
         if !self.lowered_itabs.insert(pair) {
             return Err(LowerError::Internal {
+                anchor: (self.module_id).into(),
                 module: self.module_id,
                 message: "duplicate itab for interface pair".to_string(),
-            });
+            }
+            .into());
         }
 
         Ok(())

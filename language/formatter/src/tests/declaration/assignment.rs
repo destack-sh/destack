@@ -110,7 +110,7 @@ class A {
     );
 }
 
-/// CommonJS require initializers should keep the call attached to `=`.
+/// Require initializers should keep the call attached to `=`.
 #[test]
 fn test_format_assignment_require_initializer_stays_attached() {
     assert_format_program_reference_widths(

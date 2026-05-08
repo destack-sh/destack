@@ -219,8 +219,8 @@ pub(crate) fn expression_precedence(expr: &Expression) -> u16 {
         | Expression::AwaitMaybe { .. }
         | Expression::Comptime { .. }
         | Expression::Yield { .. }
-        | Expression::ValueOf { .. }
-        | Expression::ReferenceOf { .. }
+        | Expression::MoveOf { .. }
+        | Expression::BorrowOf { .. }
         | Expression::PointerOf { .. }
         | Expression::Delete { .. }
         | Expression::Throw { .. }

@@ -382,8 +382,8 @@ fn expression_is_class_declaration(
     )
 }
 
-/// Return whether one rhs expression is a CommonJS `require(...)` call.
-pub(crate) fn expression_is_commonjs_require_call(
+/// Return whether one rhs expression is a `require(...)` call.
+pub(crate) fn expression_is_require_call(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -1168,8 +1168,8 @@ impl AssignmentLike {
             return Ok(layout);
         }
 
-        // compact CommonJS require calls stay attached to `=`
-        if expression_is_commonjs_require_call(f.context(), right)
+        // compact require calls stay attached to `=`
+        if expression_is_require_call(f.context(), right)
             && !f
                 .context()
                 .comments()

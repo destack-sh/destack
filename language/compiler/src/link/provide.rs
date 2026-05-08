@@ -46,9 +46,9 @@ impl Compiler {
     ) -> CompilerResult<PackageOutput> {
         // load package and target configuration
         let package = self.package(context.revision(), package_id);
-        let package_options = self.package_options(context, package_id);
+        let config = self.destack_config_for_package(context, package_id);
         let package_path = package.path.clone();
-        let root_directory = package_options
+        let root_directory = config
             .as_ref()
             .and_then(|config| config.compiler.root_dir.clone());
         let target =
@@ -59,7 +59,7 @@ impl Compiler {
                     target: *target_id,
                 })?;
         let mut modules = self
-            .target_module_ids(context, package_id, &package_path, &target, target_id)
+            .target_module_ids(context, target_id)
             .map_err(Self::target_discovery_error)?;
         modules.sort_unstable();
         let package_directory = self.package_directory(package_path);
@@ -99,7 +99,7 @@ impl Compiler {
     /// Map one target discovery failure into a link error.
     fn target_discovery_error(error: TargetDiscoveryError) -> LinkError {
         match error {
-            TargetDiscoveryError::Repository {
+            TargetDiscoveryError::RepositoryRead {
                 package,
                 target,
                 message,

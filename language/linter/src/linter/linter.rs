@@ -148,15 +148,15 @@ impl Linter {
 
     /// Return workspace scoped lint options for one revision.
     fn workspace_linter_options(&self, revision: Revision) -> Result<LinterOptions, LinterError> {
-        let workspace_options = self
+        let destack_config_for_workspace = self
             .repository
-            .workspace_options(revision)
+            .destack_config_for_workspace(revision)
             .map_err(|error| LinterError::Repository {
-                message: error.to_string(),
-            })?;
+            message: error.to_string(),
+        })?;
 
-        Ok(workspace_options
-            .map(|options| options.package.linter)
+        Ok(destack_config_for_workspace
+            .map(|options| options.linter.clone())
             .unwrap_or_default())
     }
 
@@ -166,15 +166,15 @@ impl Linter {
         revision: Revision,
         package_id: PackageId,
     ) -> Result<LinterOptions, LinterError> {
-        let package_options = self
+        let config = self
             .repository
-            .package_options(revision, package_id)
+            .destack_config_for_package_id(revision, package_id)
             .map_err(|error| LinterError::Repository {
                 message: error.to_string(),
             })?;
 
-        if let Some(package_options) = package_options {
-            return Ok(package_options.linter);
+        if let Some(config) = config {
+            return Ok(config.linter.clone());
         }
 
         self.workspace_linter_options(revision)

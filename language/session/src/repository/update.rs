@@ -4,8 +4,7 @@ use std::path::{Path, PathBuf};
 
 use destack_source::{FileContent, FileId, Uri};
 use destack_workspace::{
-    ConfigOverride, Edit, Ref, Repository, Revision, apply_config_overrides_to_json,
-    parse_jsonc_text,
+    ConfigPatch, Edit, Ref, Repository, Revision, apply_config_patches_to_json, parse_jsonc_text,
 };
 use serde_json::{Map, Value};
 
@@ -126,15 +125,15 @@ impl Session {
         Ok(files)
     }
 
-    /// Apply workspace config overrides through one coherent session mutation.
-    pub fn apply_workspace_config_overrides(
+    /// Apply workspace config patches through one coherent session mutation.
+    pub fn apply_workspace_config_patches(
         &self,
         reference: &Ref,
-        overrides: &[ConfigOverride],
+        patches: &[ConfigPatch],
     ) -> Result<Vec<FileUpdate>, SessionError> {
         let _mutation_guard = self.enter_mutation();
 
-        if overrides.is_empty() {
+        if patches.is_empty() {
             return Ok(Vec::new());
         }
 
@@ -150,7 +149,7 @@ impl Session {
 
         for path in config_paths {
             let mut json = self.load_workspace_config_json(repository.as_ref(), before, &path)?;
-            apply_config_overrides_to_json(&mut json, overrides).map_err(|detail| {
+            apply_config_patches_to_json(&mut json, patches).map_err(|detail| {
                 SessionError::UpdatePathFailed {
                     path: path.clone(),
                     detail,

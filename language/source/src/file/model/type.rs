@@ -120,9 +120,9 @@ impl FileType {
             "dsb" => FileType::DestackBinary,
 
             // javascript/typescript
-            "js" | "mjs" | "cjs" => FileType::JavaScript,
+            "js" => FileType::JavaScript,
             "jsx" => FileType::JavaScriptXml,
-            "ts" | "mts" | "cts" => FileType::TypeScript,
+            "ts" => FileType::TypeScript,
             "tsx" => FileType::TypeScriptXml,
             "d.ts" => FileType::TypeScriptDeclaration,
 
@@ -193,12 +193,6 @@ impl FileType {
                 return Some(FileType::DestackDeclaration);
             }
             if file_name.ends_with(".d.ts") {
-                return Some(FileType::TypeScriptDeclaration);
-            }
-            if file_name.ends_with(".d.mts") {
-                return Some(FileType::TypeScriptDeclaration);
-            }
-            if file_name.ends_with(".d.cts") {
                 return Some(FileType::TypeScriptDeclaration);
             }
         }
@@ -333,18 +327,18 @@ impl FileType {
 
     /// Get glob patterns for a file type.
     ///
-    /// Some file types expand into multiple glob patterns (for example, `.mjs` and `.cjs`).
+    /// Some file types expand into multiple glob patterns.
     pub fn globs(&self) -> &'static [&'static str] {
         match self {
             FileType::Destack => &["**/*.ds"],
             FileType::DestackDeclaration => &["**/*.d.ds"],
             FileType::DestackText => &["**/*.dst"],
             FileType::DestackBinary => &["**/*.dsb"],
-            FileType::JavaScript => &["**/*.js", "**/*.mjs", "**/*.cjs"],
+            FileType::JavaScript => &["**/*.js"],
             FileType::JavaScriptXml => &["**/*.jsx"],
-            FileType::TypeScript => &["**/*.ts", "**/*.mts", "**/*.cts"],
+            FileType::TypeScript => &["**/*.ts"],
             FileType::TypeScriptXml => &["**/*.tsx"],
-            FileType::TypeScriptDeclaration => &["**/*.d.ts", "**/*.d.mts", "**/*.d.cts"],
+            FileType::TypeScriptDeclaration => &["**/*.d.ts"],
             FileType::Text => &["**/*.txt"],
             FileType::Toml => &["**/*.toml"],
             FileType::Yaml => &["**/*.yaml", "**/*.yml"],

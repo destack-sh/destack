@@ -686,10 +686,7 @@ fn split_alias_prefix(specifier: &str) -> Option<(&str, &str)> {
 
 /// Strip one code module extension from an import path.
 fn strip_module_extension(path: &str) -> String {
-    let extensions = [
-        ".d.ts", ".d.mts", ".d.cts", ".d.ds", ".tsx", ".ts", ".mts", ".cts", ".jsx", ".js", ".mjs",
-        ".cjs", ".ds",
-    ];
+    let extensions = [".d.ts", ".d.ds", ".tsx", ".ts", ".jsx", ".js", ".ds"];
 
     for extension in extensions {
         if let Some(stripped) = path.strip_suffix(extension) {

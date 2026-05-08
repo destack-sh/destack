@@ -1,13 +1,12 @@
 use std::hash::Hash;
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use destack_artifact::{ArtifactDependency, TargetKey};
 use destack_core::StableHasher;
 use destack_source::{File, FileId, ModuleId, PackageId, ProfileId, TargetId};
 use destack_workspace::{
-    CompilerOptions, EntryResolutionMode, Module, Package, PackageOptions, ProviderContext,
-    Revision, Target, TargetDiscoveryError, TargetDiscoveryOptions,
+    CompilerOptions, DestackConfig, Module, Package, ProviderContext, Revision, Target,
+    TargetDiscoveryError,
 };
 
 use crate::{Compiler, LowerOptions};
@@ -55,29 +54,27 @@ impl Compiler {
         self.module(revision, module_id).is_code()
     }
 
-    /// Load package config options for one package and record its config dependency.
-    pub(crate) fn package_options(
+    /// Load one package Destack config and record its file dependency.
+    pub(crate) fn destack_config_for_package(
         &self,
         context: &dyn ProviderContext,
         package_id: PackageId,
-    ) -> Option<PackageOptions> {
+    ) -> Option<Arc<DestackConfig>> {
         let revision = context.revision();
         let package = self.package(revision, package_id);
         if let Some(file_id) = package.destack_file_id {
             let content_id = self
                 .repository
                 .file_content_id(revision, file_id)
-                .unwrap_or_else(|error| {
-                    panic!("failed to load package options content id: {error}")
-                })
-                .unwrap_or_else(|| panic!("missing package options content id for {package_id:?}"));
+                .unwrap_or_else(|error| panic!("failed to load package config content id: {error}"))
+                .unwrap_or_else(|| panic!("missing package config content id for {package_id:?}"));
 
             context.track(ArtifactDependency::file_content(file_id, content_id));
         }
 
         self.repository
-            .package_options(revision, package_id)
-            .unwrap_or_else(|error| panic!("failed to load package options: {error}"))
+            .destack_config_for_package_id(revision, package_id)
+            .unwrap_or_else(|error| panic!("failed to load package config: {error}"))
     }
 
     /// Return one effective target and record its configuration dependency.
@@ -103,17 +100,11 @@ impl Compiler {
     pub(crate) fn target_module_ids(
         &self,
         context: &dyn ProviderContext,
-        _package_id: PackageId,
-        _package_path: &Option<PathBuf>,
-        _target: &Target,
         target_id: &TargetId,
     ) -> Result<Vec<ModuleId>, TargetDiscoveryError> {
-        let options = TargetDiscoveryOptions {
-            entry_resolution: EntryResolutionMode::Strict,
-        };
-        let mut module_ids =
-            self.repository
-                .target_module_ids(context.revision(), *target_id, &options)?;
+        let mut module_ids = self
+            .repository
+            .target_module_ids(context.revision(), *target_id)?;
 
         module_ids.sort_unstable();
         module_ids.dedup();
@@ -125,14 +116,14 @@ impl Compiler {
         Ok(module_ids)
     }
 
-    /// Load workspace compiler configuration for one module and record its package config dependency.
+    /// Load workspace compiler configuration for one module and record its Destack config dependency.
     pub(crate) fn workspace_compiler_options(
         &self,
         context: &dyn ProviderContext,
         module: &Module,
     ) -> Option<CompilerOptions> {
-        self.package_options(context, module.package_id)
-            .map(|options| options.compiler)
+        self.destack_config_for_package(context, module.package_id)
+            .map(|config| config.compiler.clone())
     }
 
     /// Resolve lower options for one module.

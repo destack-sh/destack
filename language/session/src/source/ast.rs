@@ -3,7 +3,7 @@ use std::sync::Arc;
 use destack_artifact::{ArtifactPayload, Ast};
 use destack_ast as ast;
 use destack_core::StringPool;
-use destack_parser::{Parser, ParserSettings};
+use destack_parser::{Parser, ParserOptions};
 use destack_source::{File, LanguageType, ModuleId, PackageId, Span};
 use destack_workspace::ProviderContext;
 
@@ -66,7 +66,7 @@ impl SessionState {
             })?;
         // parse and forward parser diagnostics
         let mut parser =
-            Parser::lex_file_with_settings(file.clone(), language_type, ParserSettings::default());
+            Parser::lex_file_with_options(file.clone(), language_type, ParserOptions::default());
         let expressions = parser.parse();
         context.emit_collection(parser.diagnostics.collect());
 

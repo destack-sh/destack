@@ -81,7 +81,6 @@ impl<'a> ScriptLinker<'a> {
     fn bundle_format_name(format: BundleFormat) -> &'static str {
         match format {
             BundleFormat::Esm => "esm",
-            BundleFormat::Cjs => "cjs",
             BundleFormat::Iife => "iife",
         }
     }

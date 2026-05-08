@@ -69,9 +69,10 @@ impl FunctionLowerer<'_> {
             }
             mir::Type::Atomic { .. } => {
                 return Err(LowerError::UnsupportedConstruct {
-                    node,
+                    anchor: self.diagnostic_anchor(node),
                     message: "constructor cannot initialize atomic storage values".to_string(),
-                });
+                }
+                .into());
             }
             mir::Type::Reference { .. } => {
                 let pointer_bits = self.context.type_lowerer.pointer_bytes() * 8;

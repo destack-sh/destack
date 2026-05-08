@@ -28,7 +28,7 @@ impl ModuleLowerer<'_> {
         let base_name =
             self.qualified_symbol_name(symbol)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    node: anchor,
+                    anchor: self.diagnostic_anchor(anchor),
                     message: "missing qualified name for vtable global".to_string(),
                 })?;
         let name = format!("{base_name}{VTABLE_GLOBAL_SUFFIX}");
@@ -75,13 +75,13 @@ impl ModuleLowerer<'_> {
         // table name
         let concrete_name = self.qualified_symbol_name(concrete).ok_or_else(|| {
             LowerError::UnsupportedConstruct {
-                node: anchor,
+                anchor: self.diagnostic_anchor(anchor),
                 message: "missing qualified name for itab concrete type".to_string(),
             }
         })?;
         let interface_name = self.qualified_symbol_name(interface).ok_or_else(|| {
             LowerError::UnsupportedConstruct {
-                node: anchor,
+                anchor: self.diagnostic_anchor(anchor),
                 message: "missing qualified name for itab interface type".to_string(),
             }
         })?;

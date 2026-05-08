@@ -533,7 +533,7 @@ mod tests {
     #[test]
     fn test_reject_duplicate_named_export() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.add_module("test.mjs", "export {a}; export const a = 1;");
+        let module_id = test.add_module("test.js", "export {a}; export const a = 1;");
         test.import_module(module_id);
         test.compile();
         test.check_has_diagnostic("EI201");
@@ -543,7 +543,7 @@ mod tests {
     #[test]
     fn test_reject_duplicate_default_export() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.add_module("test.mjs", "export default 1; export default 2;");
+        let module_id = test.add_module("test.js", "export default 1; export default 2;");
         test.import_module(module_id);
         test.compile();
         test.check_has_diagnostic("EI202");
@@ -799,7 +799,7 @@ export class URL {}
     #[test]
     fn test_reject_nested_export_declaration_not_top_level() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.add_module("test.mjs", "{ export {a}; }");
+        let module_id = test.add_module("test.js", "{ export {a}; }");
         test.import_module(module_id);
         test.compile();
         test.check_has_diagnostic("EI305");
@@ -819,7 +819,7 @@ export class URL {}
     #[test]
     fn test_reject_export_missing_local_binding() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.add_module("test.mjs", "export {a};");
+        let module_id = test.add_module("test.js", "export {a};");
         test.resolve_module(module_id);
         test.compile();
         test.check_has_diagnostic("ER104");
@@ -829,7 +829,7 @@ export class URL {}
     #[test]
     fn test_reject_export_missing_local_binding_alias() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.add_module("test.mjs", "let a; export {b as a};");
+        let module_id = test.add_module("test.js", "let a; export {b as a};");
         test.resolve_module(module_id);
         test.compile();
         test.check_has_diagnostic("ER104");
@@ -839,7 +839,7 @@ export class URL {}
     #[test]
     fn test_reject_export_reserved_keyword_local_name() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.add_module("test.mjs", "export {if};");
+        let module_id = test.add_module("test.js", "export {if};");
         test.import_module(module_id);
         test.compile();
         test.check_has_diagnostic("EI302");
@@ -849,7 +849,7 @@ export class URL {}
     #[test]
     fn test_reject_export_reserved_keyword_local_name_with_alias() {
         let test = TestProgram::memory_sequential();
-        let module_id = test.add_module("test.mjs", "export {if as foo};");
+        let module_id = test.add_module("test.js", "export {if as foo};");
         test.import_module(module_id);
         test.compile();
         test.check_has_diagnostic("EI302");

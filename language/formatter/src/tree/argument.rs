@@ -1,8 +1,9 @@
 use super::attribute::format_tree_attribute_value;
 use super::child::{
     expression_chain_has_separator_comment, format_inline_stub_comments,
-    format_multiline_stub_comment_nodes, tree_argument_has_outer_line_comment,
-    tree_child_should_inline_braced_expression, tree_control_child_should_expand,
+    format_multiline_stub_comment_nodes, node_has_line_comment,
+    tree_argument_has_outer_line_comment, tree_child_should_inline_braced_expression,
+    tree_control_child_should_expand,
 };
 use crate::annotation::{
     FormatTrailingComments, format_trailing_comments, infix_or_postfix_annotations,

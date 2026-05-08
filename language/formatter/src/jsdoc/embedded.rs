@@ -54,9 +54,9 @@ pub(super) fn fenced_code_file_type(lang: &str) -> Option<FileType> {
     let file_type = match lang {
         "ds" | "destack" => FileType::Destack,
         "d.ds" | "destack-declaration" => FileType::DestackDeclaration,
-        "js" | "javascript" | "mjs" | "cjs" => FileType::JavaScript,
+        "js" | "javascript" => FileType::JavaScript,
         "jsx" => FileType::JavaScriptXml,
-        "ts" | "typescript" | "mts" | "cts" => FileType::TypeScript,
+        "ts" | "typescript" => FileType::TypeScript,
         "d.ts" => FileType::TypeScriptDeclaration,
         "tsx" => FileType::TypeScriptXml,
         _ => return None,
