@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_source::{File, FileId, FileType, PathExt, Uri};
-use destack_workspace::DestackDeclaration;
+use destack_workspace::DestackConfig;
 
 use crate::{CachePolicy, Resolver, ResolverContext, ResolverError, ResolverResult};
 
@@ -14,8 +14,8 @@ impl Resolver {
         path: &Path,
         ctx: &mut ResolverContext,
         cache_policy: CachePolicy,
-    ) -> ResolverResult<DestackDeclaration> {
-        // parse the local declaration first
+    ) -> ResolverResult<DestackConfig> {
+        // parse the local config first
         let mut config = self.parse_destack(path, ctx, cache_policy)?;
 
         // reject circular extends chains
@@ -47,6 +47,13 @@ impl Resolver {
             })?;
         }
 
+        // validate invariants that depend on inherited config
+        config
+            .validate()
+            .map_err(|_| ResolverError::DestackInvalid {
+                path: config.path.clone(),
+            })?;
+
         Ok(config)
     }
 
@@ -56,22 +63,22 @@ impl Resolver {
         path: &Path,
         ctx: &mut ResolverContext,
         cache_policy: CachePolicy,
-    ) -> ResolverResult<DestackDeclaration> {
+    ) -> ResolverResult<DestackConfig> {
         // normalize the input into a concrete config path
         let destack_config_path = self.materialize_destack_path(path, ctx)?;
 
-        // reuse the cached declaration when allowed
+        // reuse the cached config when allowed
         if cache_policy.use_cache()
-            && let Some(config) = ctx.destack_declaration(&destack_config_path)
+            && let Some(config) = ctx.destack_config(&destack_config_path)
         {
             return Ok(config.clone());
         }
 
-        // prefer revision backed declarations inside the workspace
+        // prefer revision backed configs inside the workspace
         let (repository, revision) = self.repository_revision(ctx);
         if destack_config_path.starts_with(repository.workspace_root())
             && let Some(config) = repository
-                .destack_declaration_for_path(revision, &destack_config_path)
+                .destack_config_for_path(revision, &destack_config_path)
                 .map_err(|error| ResolverError::RepositoryError {
                     path: destack_config_path.to_path_buf(),
                     message: error.to_string(),
@@ -79,7 +86,7 @@ impl Resolver {
         {
             let config = config.as_ref().clone();
             self.track_file_dependency(&config.path, ctx)?;
-            ctx.cache_destack_declaration(config.clone());
+            ctx.cache_destack_config(config.clone());
             return Ok(config);
         }
 
@@ -112,12 +119,11 @@ impl Resolver {
         let file = Arc::new(file);
 
         // parse the Destack config from the local file
-        let config =
-            DestackDeclaration::parse(&file).map_err(|_| ResolverError::DestackInvalid {
-                path: destack_config_path.to_path_buf(),
-            })?;
+        let config = DestackConfig::parse(&file).map_err(|_| ResolverError::DestackInvalid {
+            path: destack_config_path.to_path_buf(),
+        })?;
 
-        ctx.cache_destack_declaration(config.clone());
+        ctx.cache_destack_config(config.clone());
 
         Ok(config)
     }

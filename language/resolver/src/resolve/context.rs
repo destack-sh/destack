@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use destack_artifact::{ArtifactDependency, ArtifactPathState};
 use destack_source::{FileContentId, FileId, FileMetadata};
-use destack_workspace::{DestackDeclaration, Revision};
+use destack_workspace::{DestackConfig, Revision};
 
 use crate::ResolverResult;
 
@@ -20,8 +20,8 @@ pub struct ResolverContext {
 
     /// The memoized path metadata for this request.
     path_metadata_cache: HashMap<PathBuf, Option<FileMetadata>>,
-    /// The parsed destack declarations by path for this request.
-    destack_declarations_by_path: HashMap<PathBuf, DestackDeclaration>,
+    /// The parsed destack configs by path for this request.
+    destack_configs_by_path: HashMap<PathBuf, DestackConfig>,
     /// The active destack extends stack for this request.
     extended_destack_configs: Vec<PathBuf>,
 }
@@ -34,7 +34,7 @@ impl ResolverContext {
             dependencies: Vec::new(),
             dependency_set: HashSet::new(),
             path_metadata_cache: HashMap::new(),
-            destack_declarations_by_path: HashMap::new(),
+            destack_configs_by_path: HashMap::new(),
             extended_destack_configs: Vec::new(),
         }
     }
@@ -82,15 +82,15 @@ impl ResolverContext {
             .insert(path.to_path_buf(), metadata);
     }
 
-    /// Return one cached declaration by path when present.
-    pub(crate) fn destack_declaration(&self, path: &Path) -> Option<&DestackDeclaration> {
-        self.destack_declarations_by_path.get(path)
+    /// Return one cached config by path when present.
+    pub(crate) fn destack_config(&self, path: &Path) -> Option<&DestackConfig> {
+        self.destack_configs_by_path.get(path)
     }
 
-    /// Cache one parsed destack declaration.
-    pub(crate) fn cache_destack_declaration(&mut self, declaration: DestackDeclaration) {
-        self.destack_declarations_by_path
-            .insert(declaration.path.clone(), declaration);
+    /// Cache one parsed destack config.
+    pub(crate) fn cache_destack_config(&mut self, config: DestackConfig) {
+        self.destack_configs_by_path
+            .insert(config.path.clone(), config);
     }
 
     /// Execute a closure with one extended destack config pushed on the stack.
