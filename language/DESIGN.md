@@ -1604,7 +1604,7 @@ As explained in the annotations and decorator piece, `memoize` by itself is just
 The general `Patcher` protocol is based on three rules:
  1. Patchers must not generate or implement other `Patcher`s, so expansion cannot recursively change the macro system itself.
  2. Patchers are run in two phases during compilation: `expand` may contribute new symbols before final inference, while `materialize` fills in the implementation with full type information.
- 3. Patchers interact with their containing module through phase-specific context methods (`resolve`, `ensureImport`, `add`, `ensureDeclaration`, `addChild`, `replace`, `rename`, `remove`).
+ 3. Patchers interact with their containing module through phase-specific context methods (`resolve`, `ensureImport`, `add`, `ensureDeclaration`, `addChild`, `replaceTarget`, `renameTarget`, `removeTarget`).
 
 | Operation | Example | Meaning |
 |-----------|---------|---------|
@@ -1613,9 +1613,9 @@ The general `Patcher` protocol is based on three rules:
 | `add` | `context.add(declaration)` | add a generated declaration to the current scope |
 | `ensureDeclaration` | `context.ensureDeclaration("RouteDefinition", () => declaration)` | ensure a generated helper declaration exists |
 | `addChild` | `context.addChild(member)` | add a generated child to the target declaration |
-| `replace` | `context.replace(declaration)` | redirect the target symbol to a generated declaration |
-| `rename` | `context.rename(name)` | keep the target declaration but change its visible name |
-| `remove` | `context.remove()` | remove the target symbol from the visible declaration set |
+| `replaceTarget` | `context.replaceTarget(declaration)` | redirect the target symbol to a generated declaration |
+| `renameTarget` | `context.renameTarget(name)` | keep the target declaration but change its visible name |
+| `removeTarget` | `context.removeTarget()` | remove the target symbol from the visible declaration set |
 
 Most basic wrapper-shaped decorators are just `rename` plus `add`.
 
@@ -1639,7 +1639,7 @@ extension of memoize implements Patcher<FunctionDeclaration, MemoizeState>
             }
         `);
 
-        context.rename(innerName);
+        context.renameTarget(innerName);
         context.add(wrapper);
 
         return {
@@ -1667,7 +1667,7 @@ extension of memoize implements Patcher<FunctionDeclaration, MemoizeState>
             }
         `);
 
-        context.replace(implementation);
+        context.replaceTarget(implementation);
     }
 }
 ```
