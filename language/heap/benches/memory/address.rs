@@ -1,4 +1,6 @@
 use std::hint::black_box;
+use std::ptr::write_volatile;
+use std::time::{Duration, Instant};
 
 use criterion::{BatchSize, BenchmarkId, Criterion, Throughput};
 
@@ -42,7 +44,13 @@ pub(crate) fn bench_address_space(criterion: &mut Criterion) {
             |bencher, page_count| {
                 bencher.iter_batched(
                     || AddressSpaceShape::materialized_pages(*page_count).materialize(),
-                    |space| black_box(space.fork().expect("address space fork should succeed")),
+                    |space| {
+                        black_box(
+                            space
+                                .fork_lazy()
+                                .expect("address space fork should succeed"),
+                        )
+                    },
                     BatchSize::SmallInput,
                 );
             },
@@ -115,10 +123,10 @@ pub(crate) fn bench_address_space(criterion: &mut Criterion) {
         }
     }
 
-    // measure the first child write after one fork
+    // measure the first bulk child copy after one fork
     for page_count in FORK_MATERIALIZED_PAGES {
         group.bench_with_input(
-            BenchmarkId::new("fork_write_first_page", page_count),
+            BenchmarkId::new("fork_copy_first_page", page_count),
             page_count,
             |bencher, page_count| {
                 let page = vec![0xEF; PAGE_BYTES];
@@ -126,19 +134,257 @@ pub(crate) fn bench_address_space(criterion: &mut Criterion) {
                 bencher.iter_batched(
                     || {
                         let shape = AddressSpaceShape::materialized_pages(*page_count);
-                        let parent = shape.materialize();
 
-                        parent.fork().expect("address space fork should succeed")
+                        shape.fork_lazy_pair()
                     },
-                    |child| {
+                    |(parent, child)| {
                         child
                             .copy_bytes(0, black_box(&page))
-                            .expect("forked address space write should succeed")
+                            .expect("forked address space write should succeed");
+
+                        black_box(parent);
+                        black_box(child);
                     },
                     BatchSize::SmallInput,
                 );
             },
         );
+    }
+
+    // measure the first scalar child store after one fork
+    for page_count in FORK_MATERIALIZED_PAGES {
+        group.bench_with_input(
+            BenchmarkId::new("fork_store_first_page", page_count),
+            page_count,
+            |bencher, page_count| {
+                bencher.iter_batched(
+                    || {
+                        let shape = AddressSpaceShape::materialized_pages(*page_count);
+
+                        shape.fork_lazy_word()
+                    },
+                    |(parent, child, address)| {
+                        // write through the exposed pointer to exercise the fault path
+                        unsafe {
+                            write_volatile(address, black_box(0xEFEF_EFEF_EFEF_EFEF));
+                        }
+
+                        black_box(parent);
+                        black_box(child);
+                    },
+                    BatchSize::SmallInput,
+                );
+            },
+        );
+    }
+
+    // measure distinct first scalar stores after one fork
+    for page_count in FORK_MATERIALIZED_PAGES {
+        for store_count in dirty_page_counts(*page_count) {
+            if store_count == 0 {
+                continue;
+            }
+
+            let name = store_page_name(*page_count, store_count);
+            group.bench_with_input(
+                BenchmarkId::new("fork_store_pages", name),
+                &(*page_count, store_count),
+                |bencher, &(page_count, store_count)| {
+                    bencher.iter_batched(
+                        || {
+                            let shape = AddressSpaceShape::materialized_pages(page_count);
+
+                            shape.fork_lazy_pages(store_count)
+                        },
+                        |(parent, child, base_address)| {
+                            // write one word per page to measure first-write fault count
+                            for page_index in 0..store_count {
+                                let byte_offset = page_index * PAGE_BYTES;
+                                let address = unsafe { base_address.byte_add(byte_offset) };
+
+                                unsafe {
+                                    write_volatile(
+                                        address,
+                                        black_box(0xEFEF_EFEF_EFEF_EFEF ^ page_index),
+                                    );
+                                }
+                            }
+
+                            black_box(parent);
+                            black_box(child);
+                        },
+                        BatchSize::SmallInput,
+                    );
+                },
+            );
+        }
+    }
+
+    // isolate fork, drop, fault, and steady-store phases
+    for page_count in FORK_MATERIALIZED_PAGES {
+        group.bench_with_input(
+            BenchmarkId::new("fork_phase/fork_eager", page_count),
+            page_count,
+            |bencher, page_count| {
+                bencher.iter_batched(
+                    || AddressSpaceShape::materialized_pages(*page_count).materialize(),
+                    |space| {
+                        black_box(space.fork_eager(..).expect("eager fork should succeed"));
+                    },
+                    BatchSize::SmallInput,
+                );
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("fork_phase/drop_child", page_count),
+            page_count,
+            |bencher, page_count| {
+                bencher.iter_custom(|iterations| {
+                    let mut elapsed = Duration::ZERO;
+
+                    for _ in 0..iterations {
+                        let shape = AddressSpaceShape::materialized_pages(*page_count);
+                        let (parent, child) = shape.fork_lazy_pair();
+                        let start = Instant::now();
+
+                        drop(black_box(child));
+                        elapsed += start.elapsed();
+                        black_box(parent);
+                    }
+
+                    elapsed
+                });
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("fork_phase/first_fault", page_count),
+            page_count,
+            |bencher, page_count| {
+                bencher.iter_custom(|iterations| {
+                    let mut elapsed = Duration::ZERO;
+
+                    for _ in 0..iterations {
+                        let shape = AddressSpaceShape::materialized_pages(*page_count);
+                        let (parent, child, address) = shape.fork_lazy_word();
+                        let start = Instant::now();
+
+                        // write through the exposed pointer to time only the fault path
+                        unsafe {
+                            write_volatile(address, black_box(0xEFEF_EFEF_EFEF_EFEF));
+                        }
+
+                        elapsed += start.elapsed();
+                        black_box(parent);
+                        black_box(child);
+                    }
+
+                    elapsed
+                });
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("fork_phase/steady_store", page_count),
+            page_count,
+            |bencher, page_count| {
+                bencher.iter_custom(|iterations| {
+                    let mut elapsed = Duration::ZERO;
+
+                    for _ in 0..iterations {
+                        let shape = AddressSpaceShape::materialized_pages(*page_count);
+                        let (parent, child, address) = shape.fork_lazy_word();
+
+                        // dirty the page before timing the second store
+                        unsafe {
+                            write_volatile(address, black_box(0xAAAA_AAAA_AAAA_AAAA));
+                        }
+                        let start = Instant::now();
+
+                        // write again after the page is writable
+                        unsafe {
+                            write_volatile(address, black_box(0xBBBB_BBBB_BBBB_BBBB));
+                        }
+
+                        elapsed += start.elapsed();
+                        black_box(parent);
+                        black_box(child);
+                    }
+
+                    elapsed
+                });
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("fork_phase/eager_first_store", page_count),
+            page_count,
+            |bencher, page_count| {
+                bencher.iter_custom(|iterations| {
+                    let mut elapsed = Duration::ZERO;
+
+                    for _ in 0..iterations {
+                        let shape = AddressSpaceShape::materialized_pages(*page_count);
+                        let (parent, child, address) = shape.fork_eager_word();
+                        let start = Instant::now();
+
+                        // eager fork should already make this page writable
+                        unsafe {
+                            write_volatile(address, black_box(0xDDDD_DDDD_DDDD_DDDD));
+                        }
+
+                        elapsed += start.elapsed();
+                        black_box(parent);
+                        black_box(child);
+                    }
+
+                    elapsed
+                });
+            },
+        );
+
+        for store_count in dirty_page_counts(*page_count) {
+            if store_count == 0 {
+                continue;
+            }
+
+            let name = store_page_name(*page_count, store_count);
+            group.bench_with_input(
+                BenchmarkId::new("fork_phase/fault_pages", name),
+                &(*page_count, store_count),
+                |bencher, &(page_count, store_count)| {
+                    bencher.iter_custom(|iterations| {
+                        let mut elapsed = Duration::ZERO;
+
+                        for _ in 0..iterations {
+                            let shape = AddressSpaceShape::materialized_pages(page_count);
+                            let (parent, child, base_address) = shape.fork_lazy_pages(store_count);
+                            let start = Instant::now();
+
+                            // write one word per page to time only first-write faults
+                            for page_index in 0..store_count {
+                                let byte_offset = page_index * PAGE_BYTES;
+                                let address = unsafe { base_address.byte_add(byte_offset) };
+
+                                unsafe {
+                                    write_volatile(
+                                        address,
+                                        black_box(0xCFCF_CFCF_CFCF_CFCF ^ page_index),
+                                    );
+                                }
+                            }
+
+                            elapsed += start.elapsed();
+                            black_box(parent);
+                            black_box(child);
+                        }
+
+                        elapsed
+                    });
+                },
+            );
+        }
     }
 
     group.finish();
@@ -155,6 +401,11 @@ fn dirty_page_counts(page_count: usize) -> impl Iterator<Item = usize> {
 /// Return the page-lineage benchmark label.
 fn page_lineage_name(page_count: usize, ancestor_count: usize, dirty_page_count: usize) -> String {
     format!("pages={page_count}/ancestors={ancestor_count}/dirty={dirty_page_count}")
+}
+
+/// Return the store-page benchmark label.
+fn store_page_name(page_count: usize, store_count: usize) -> String {
+    format!("pages={page_count}/stores={store_count}")
 }
 
 /// Return dirty byte counts that fit inside one active byte count.
