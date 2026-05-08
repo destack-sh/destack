@@ -1,5 +1,5 @@
 use destack_vm as vm;
-use destack_workspace::{RuntimeAppPermission, RuntimeOptions};
+use destack_workspace::{AppPermission, RuntimeOptions};
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::os::abi_generated::LocationSampleValue;
@@ -14,7 +14,7 @@ pub(super) fn enable_location_declaration(options: &mut RuntimeOptions) {
     options
         .app
         .permissions
-        .insert(RuntimeAppPermission::Location);
+        .insert(AppPermission::Location, Default::default());
 }
 
 /// Build one location watch-open payload for the active harness.

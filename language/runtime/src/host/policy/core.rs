@@ -1,5 +1,5 @@
 use destack_artifact::Platform;
-use destack_workspace::{RuntimeAppDeclaration, RuntimeAppPermission};
+use destack_workspace::{AppOptions, AppPermission};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::core::request::HostRequest;
@@ -12,7 +12,7 @@ use super::{declaration, request_requirements};
 /// Require that one host request is declared for the active target app.
 pub(crate) fn require_declared_request(
     platform: Platform,
-    app: &RuntimeAppDeclaration,
+    app: &AppOptions,
     request: &HostRequest,
 ) -> RuntimeResult<()> {
     // request requirements
@@ -27,42 +27,42 @@ pub(crate) fn require_declared_request(
 }
 
 /// Return the runtime app permission selector for one runtime permission.
-pub(super) fn runtime_app_permission(permission: Permission) -> RuntimeAppPermission {
+pub(super) fn runtime_app_permission(permission: Permission) -> AppPermission {
     match permission {
-        Permission::Location => RuntimeAppPermission::Location,
-        Permission::LocationBackground => RuntimeAppPermission::LocationBackground,
-        Permission::Camera => RuntimeAppPermission::Camera,
-        Permission::Microphone => RuntimeAppPermission::Microphone,
-        Permission::Bluetooth => RuntimeAppPermission::Bluetooth,
-        Permission::Notifications => RuntimeAppPermission::Notifications,
-        Permission::ContactsRead => RuntimeAppPermission::ContactsRead,
-        Permission::ContactsWrite => RuntimeAppPermission::ContactsWrite,
-        Permission::MediaRead => RuntimeAppPermission::MediaRead,
-        Permission::MediaWrite => RuntimeAppPermission::MediaWrite,
-        Permission::Motion => RuntimeAppPermission::Motion,
-        Permission::ClipboardRead => RuntimeAppPermission::ClipboardRead,
-        Permission::CalendarRead => RuntimeAppPermission::CalendarRead,
-        Permission::CalendarWrite => RuntimeAppPermission::CalendarWrite,
+        Permission::Location => AppPermission::Location,
+        Permission::LocationBackground => AppPermission::LocationBackground,
+        Permission::Camera => AppPermission::Camera,
+        Permission::Microphone => AppPermission::Microphone,
+        Permission::Bluetooth => AppPermission::Bluetooth,
+        Permission::Notifications => AppPermission::Notifications,
+        Permission::ContactsRead => AppPermission::ContactsRead,
+        Permission::ContactsWrite => AppPermission::ContactsWrite,
+        Permission::MediaRead => AppPermission::MediaRead,
+        Permission::MediaWrite => AppPermission::MediaWrite,
+        Permission::Motion => AppPermission::Motion,
+        Permission::ClipboardRead => AppPermission::ClipboardRead,
+        Permission::CalendarRead => AppPermission::CalendarRead,
+        Permission::CalendarWrite => AppPermission::CalendarWrite,
     }
 }
 
 /// Return the config field name for one runtime app permission.
-pub(super) fn permission_name(permission: RuntimeAppPermission) -> &'static str {
+pub(super) fn permission_name(permission: AppPermission) -> &'static str {
     match permission {
-        RuntimeAppPermission::Location => "location",
-        RuntimeAppPermission::LocationBackground => "locationBackground",
-        RuntimeAppPermission::Camera => "camera",
-        RuntimeAppPermission::Microphone => "microphone",
-        RuntimeAppPermission::Bluetooth => "bluetooth",
-        RuntimeAppPermission::Notifications => "notifications",
-        RuntimeAppPermission::ContactsRead => "contactsRead",
-        RuntimeAppPermission::ContactsWrite => "contactsWrite",
-        RuntimeAppPermission::MediaRead => "mediaRead",
-        RuntimeAppPermission::MediaWrite => "mediaWrite",
-        RuntimeAppPermission::Motion => "motion",
-        RuntimeAppPermission::ClipboardRead => "clipboardRead",
-        RuntimeAppPermission::CalendarRead => "calendarRead",
-        RuntimeAppPermission::CalendarWrite => "calendarWrite",
+        AppPermission::Location => "location",
+        AppPermission::LocationBackground => "locationBackground",
+        AppPermission::Camera => "camera",
+        AppPermission::Microphone => "microphone",
+        AppPermission::Bluetooth => "bluetooth",
+        AppPermission::Notifications => "notifications",
+        AppPermission::ContactsRead => "contactsRead",
+        AppPermission::ContactsWrite => "contactsWrite",
+        AppPermission::MediaRead => "mediaRead",
+        AppPermission::MediaWrite => "mediaWrite",
+        AppPermission::Motion => "motion",
+        AppPermission::ClipboardRead => "clipboardRead",
+        AppPermission::CalendarRead => "calendarRead",
+        AppPermission::CalendarWrite => "calendarWrite",
     }
 }
 

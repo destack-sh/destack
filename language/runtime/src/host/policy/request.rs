@@ -1,5 +1,5 @@
 use destack_artifact::Platform;
-use destack_workspace::RuntimeAppPermission;
+use destack_workspace::AppPermission;
 
 use crate::host::HostRequest;
 
@@ -13,7 +13,7 @@ pub(crate) enum HostRequestRequirement {
     /// Require one declared background task identifier.
     BackgroundTaskIdentifier(String),
     /// Require one declared app permission.
-    Permission(RuntimeAppPermission),
+    Permission(AppPermission),
     /// Require one declared notification authorization lane.
     NotificationAuthorization,
     /// Require one declared outbound URL query scheme.
@@ -69,28 +69,28 @@ pub(crate) fn request_requirements(
         | HostRequest::OsCalendarEventList { .. }
         | HostRequest::OsCalendarEventRead { .. } => {
             vec![HostRequestRequirement::Permission(
-                RuntimeAppPermission::CalendarRead,
+                AppPermission::CalendarRead,
             )]
         }
         HostRequest::OsCalendarEventCreate { .. }
         | HostRequest::OsCalendarEventUpdate { .. }
         | HostRequest::OsCalendarEventDelete { .. } => {
             vec![HostRequestRequirement::Permission(
-                RuntimeAppPermission::CalendarWrite,
+                AppPermission::CalendarWrite,
             )]
         }
         HostRequest::OsContactList { .. }
         | HostRequest::OsContactSearch { .. }
         | HostRequest::OsContactRead { .. } => {
             vec![HostRequestRequirement::Permission(
-                RuntimeAppPermission::ContactsRead,
+                AppPermission::ContactsRead,
             )]
         }
         HostRequest::OsContactCreate { .. }
         | HostRequest::OsContactUpdate { .. }
         | HostRequest::OsContactDelete { .. } => {
             vec![HostRequestRequirement::Permission(
-                RuntimeAppPermission::ContactsWrite,
+                AppPermission::ContactsWrite,
             )]
         }
         HostRequest::OsIntentCanOpenUrl { url } => {
@@ -140,18 +140,14 @@ pub(crate) fn request_requirements(
         | HostRequest::OsLocationLastKnown
         | HostRequest::OsLocationWatchOpen { .. }
         | HostRequest::OsLocationWatchClose { .. } => {
-            vec![HostRequestRequirement::Permission(
-                RuntimeAppPermission::Location,
-            )]
+            vec![HostRequestRequirement::Permission(AppPermission::Location)]
         }
         HostRequest::OsMediaList { .. } | HostRequest::OsMediaRead { .. } => {
-            vec![HostRequestRequirement::Permission(
-                RuntimeAppPermission::MediaRead,
-            )]
+            vec![HostRequestRequirement::Permission(AppPermission::MediaRead)]
         }
         HostRequest::OsMediaImportPath { .. } | HostRequest::OsMediaDelete { .. } => {
             vec![HostRequestRequirement::Permission(
-                RuntimeAppPermission::MediaWrite,
+                AppPermission::MediaWrite,
             )]
         }
     }

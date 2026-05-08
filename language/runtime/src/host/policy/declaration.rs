@@ -1,4 +1,4 @@
-use destack_workspace::{RuntimeAppDeclaration, RuntimeAppPermission};
+use destack_workspace::{AppOptions, AppPermission};
 
 use super::HostRequestRequirement;
 use super::core::{missing_declaration, permission_name};
@@ -6,7 +6,7 @@ use crate::diagnostic::RuntimeResult;
 
 /// Require that one resolved requirement is satisfied by the target app declaration.
 pub(super) fn require_request_requirement(
-    app: &RuntimeAppDeclaration,
+    app: &AppOptions,
     operation: &'static str,
     requirement: &HostRequestRequirement,
 ) -> RuntimeResult<()> {
@@ -24,21 +24,15 @@ pub(super) fn require_request_requirement(
 }
 
 /// Return whether one target app declaration satisfies one request requirement.
-fn requirement_satisfied(
-    app: &RuntimeAppDeclaration,
-    requirement: &HostRequestRequirement,
-) -> bool {
+fn requirement_satisfied(app: &AppOptions, requirement: &HostRequestRequirement) -> bool {
     match requirement {
         HostRequestRequirement::BackgroundExecution => !app.background.modes.is_empty(),
         HostRequestRequirement::BackgroundTaskIdentifier(identifier) => {
             app.background.task_identifiers.contains(identifier)
         }
-        HostRequestRequirement::Permission(permission) => app.permissions.contains(permission),
+        HostRequestRequirement::Permission(permission) => app.permissions.contains_key(permission),
         HostRequestRequirement::NotificationAuthorization => {
-            app.notifications.enabled
-                || app
-                    .permissions
-                    .contains(&RuntimeAppPermission::Notifications)
+            app.notifications.enabled || app.permissions.contains_key(&AppPermission::Notifications)
         }
         HostRequestRequirement::IntentQueryScheme(scheme) => {
             app.intents.query_schemes.contains(scheme)

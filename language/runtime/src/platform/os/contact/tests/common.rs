@@ -1,7 +1,7 @@
 use std::sync::{Mutex, OnceLock};
 
 use destack_vm::{BindingContext, StringHandle};
-use destack_workspace::{RuntimeAppPermission, RuntimeOptions};
+use destack_workspace::{AppPermission, RuntimeOptions};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 #[cfg(target_os = "linux")]
@@ -57,11 +57,11 @@ pub(super) fn enable_contact_declarations(options: &mut RuntimeOptions) {
     options
         .app
         .permissions
-        .insert(RuntimeAppPermission::ContactsRead);
+        .insert(AppPermission::ContactsRead, Default::default());
     options
         .app
         .permissions
-        .insert(RuntimeAppPermission::ContactsWrite);
+        .insert(AppPermission::ContactsWrite, Default::default());
 }
 
 /// Install one scoped desktop contact hook set.

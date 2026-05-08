@@ -12,7 +12,7 @@ use crate::runtime::world::{RuntimeId, Wake, WorldScope};
 use crate::runtime::{DropCounts, DropReason};
 use destack_core::CaptureMode;
 use destack_workspace::{
-    ExecutionMode, PlatformHostOptions, PlatformOsOptions, PollerBackend, RuntimeAppDeclaration,
+    AppOptions, ExecutionMode, PlatformHostOptions, PlatformOsOptions, PollerBackend,
     RuntimeOptions,
 };
 use std::collections::BTreeMap;
@@ -30,7 +30,7 @@ pub struct RuntimeHostOptions {
     /// Captured OS service options for runtime restore.
     pub os_options: PlatformOsOptions,
     /// Captured app declaration for runtime restore.
-    pub app_declaration: RuntimeAppDeclaration,
+    pub app_declaration: AppOptions,
     /// Captured poller backend for runtime restore.
     pub poller_backend: PollerBackend,
 }
