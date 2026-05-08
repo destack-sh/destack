@@ -10,14 +10,14 @@ use crate::platform::PageFrame;
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PageTag {
-    /// No page frame is currently mapped.
-    Absent = 0,
+    /// Virtual address space is reserved, but no frame is mapped.
+    Reserved = 0,
     /// One writable owner has current bytes in the backing frame.
-    Exclusive = 1,
+    Owned = 1,
     /// One fork-shared page has current bytes in the backing frame.
-    Clean = 2,
+    Shared = 2,
     /// One fork-shared page may have private bytes outside the backing frame.
-    Dirty = 3,
+    Modified = 3,
 }
 
 impl PageTag {
@@ -29,10 +29,10 @@ impl PageTag {
     /// Return the page tag represented by one atomic byte.
     fn from_byte(byte: u8) -> Self {
         match byte {
-            0 => Self::Absent,
-            1 => Self::Exclusive,
-            2 => Self::Clean,
-            3 => Self::Dirty,
+            0 => Self::Reserved,
+            1 => Self::Owned,
+            2 => Self::Shared,
+            3 => Self::Modified,
             _ => unreachable!("invalid page tag"),
         }
     }
@@ -41,22 +41,22 @@ impl PageTag {
 /// The mapping state for one materialized page.
 #[derive(Debug, Clone, Copy)]
 pub(super) enum PageState {
-    /// The page is not mapped.
-    Absent,
-    /// The page is shared writable and the backing frame is current.
-    Exclusive(PageFrame),
-    /// The page is private read-only and the backing frame is current.
-    Clean(PageFrame),
-    /// The page is private writable and may differ from the backing frame.
-    Dirty(PageFrame),
+    /// The page is reserved but not mapped.
+    Reserved,
+    /// The page is writable by this map and the backing frame is current.
+    Owned(PageFrame),
+    /// The page is fork-shared and the backing frame is current.
+    Shared(PageFrame),
+    /// The page is writable by this map and may differ from the backing frame.
+    Modified(PageFrame),
 }
 
 impl PageState {
     /// Return the backing frame for mapped page states.
     pub(super) fn frame(self) -> Option<PageFrame> {
         match self {
-            Self::Absent => None,
-            Self::Exclusive(frame) | Self::Clean(frame) | Self::Dirty(frame) => Some(frame),
+            Self::Reserved => None,
+            Self::Owned(frame) | Self::Shared(frame) | Self::Modified(frame) => Some(frame),
         }
     }
 }
@@ -124,12 +124,12 @@ impl PageTable {
             .iter()
             .enumerate()
             .filter_map(|(page_index, entry)| match entry.state() {
-                PageState::Absent => None,
+                PageState::Reserved => None,
                 state => Some((page_index, state)),
             })
     }
 
-    /// Mark the watched clean page dirty and writable.
+    /// Mark the watched shared page modified and writable.
     #[cfg(not(target_arch = "wasm32"))]
     fn handle_write_watch(&self, address: usize) -> bool {
         if address < self.base_address || address >= self.base_address + self.byte_len {
@@ -138,25 +138,30 @@ impl PageTable {
 
         let page_index = (address - self.base_address) / self.frame_bytes;
         let entry = self.entry(page_index);
-        if !entry.is_clean() {
+        if !entry.is_shared() {
             return false;
         }
 
         let base = self.base_address as *mut u8;
 
-        if platform::make_clean_pages_writable(base, page_index, self.frame_bytes, self.frame_bytes)
-            .is_err()
+        if platform::make_shared_pages_writable(
+            base,
+            page_index,
+            self.frame_bytes,
+            self.frame_bytes,
+        )
+        .is_err()
         {
             return false;
         }
 
-        entry.mark_dirty();
+        entry.mark_modified();
 
         true
     }
 }
 
-/// Mark one watched page dirty.
+/// Mark one watched page modified.
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) unsafe fn watch_page_write(context: *const (), address: usize) -> bool {
     let pages = unsafe { &*(context.cast::<PageTable>()) };
@@ -183,7 +188,7 @@ impl PageEntry {
     /// Create one empty page entry.
     fn empty() -> Self {
         Self {
-            state: AtomicU8::new(PageTag::Absent.byte()),
+            state: AtomicU8::new(PageTag::Reserved.byte()),
             frame: UnsafeCell::new(MaybeUninit::uninit()),
         }
     }
@@ -193,46 +198,46 @@ impl PageEntry {
         let tag = PageTag::from_byte(self.state.load(Ordering::Acquire));
 
         match tag {
-            PageTag::Absent => PageState::Absent,
-            PageTag::Exclusive => PageState::Exclusive(self.frame()),
-            PageTag::Clean => PageState::Clean(self.frame()),
-            PageTag::Dirty => PageState::Dirty(self.frame()),
+            PageTag::Reserved => PageState::Reserved,
+            PageTag::Owned => PageState::Owned(self.frame()),
+            PageTag::Shared => PageState::Shared(self.frame()),
+            PageTag::Modified => PageState::Modified(self.frame()),
         }
     }
 
     /// Return true when a page frame is mapped.
     fn is_mapped(&self) -> bool {
-        self.tag() != PageTag::Absent
+        self.tag() != PageTag::Reserved
     }
 
     /// Store one page state.
     pub(super) fn set_state(&self, state: PageState) {
         match state {
-            PageState::Absent => {
-                self.set_tag(PageTag::Absent);
+            PageState::Reserved => {
+                self.set_tag(PageTag::Reserved);
             }
-            PageState::Exclusive(frame) => {
-                self.set_frame(frame, PageTag::Exclusive);
+            PageState::Owned(frame) => {
+                self.set_frame(frame, PageTag::Owned);
             }
-            PageState::Clean(frame) => {
-                self.set_frame(frame, PageTag::Clean);
+            PageState::Shared(frame) => {
+                self.set_frame(frame, PageTag::Shared);
             }
-            PageState::Dirty(frame) => {
-                self.set_frame(frame, PageTag::Dirty);
+            PageState::Modified(frame) => {
+                self.set_frame(frame, PageTag::Modified);
             }
         }
     }
 
-    /// Return true when this page is clean.
+    /// Return true when this page is fork-shared.
     #[cfg(not(target_arch = "wasm32"))]
-    fn is_clean(&self) -> bool {
-        self.tag() == PageTag::Clean
+    fn is_shared(&self) -> bool {
+        self.tag() == PageTag::Shared
     }
 
-    /// Mark one clean page dirty.
+    /// Mark one fork-shared page modified.
     #[cfg(not(target_arch = "wasm32"))]
-    fn mark_dirty(&self) {
-        self.set_tag(PageTag::Dirty);
+    fn mark_modified(&self) {
+        self.set_tag(PageTag::Modified);
     }
 
     /// Store one mapped frame and state.

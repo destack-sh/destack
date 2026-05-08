@@ -1,18 +1,24 @@
 use std::mem::zeroed;
 use std::os::fd::RawFd;
-#[cfg(not(any(target_os = "macos", target_os = "ios")))]
-use std::ptr::copy_nonoverlapping;
 use std::ptr::{null_mut, write_bytes};
 use std::sync::OnceLock;
 
 use parking_lot::Mutex;
 
 use crate::address::watch_page_write;
-pub(crate) use crate::core::{WriteWatchRegistration, pages, register, unregister};
+pub(crate) use crate::core::{WriteWatchRegistration, register, unregister, watch_pages};
 use crate::{MemoryError, MemoryResult};
 
 /// Whether mapped spaces can share page frames directly.
 pub(crate) const SUPPORTS_SHARED_PAGE_FRAMES: bool = true;
+/// Anonymous mapping flag on Darwin targets.
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+const MAP_ANONYMOUS: libc::c_int = libc::MAP_ANON;
+/// Anonymous mapping flag on non-Darwin Unix targets.
+#[cfg(not(any(target_os = "macos", target_os = "ios")))]
+const MAP_ANONYMOUS: libc::c_int = libc::MAP_ANONYMOUS;
+/// Private anonymous mapping flags for reserved address ranges.
+const MAP_PRIVATE_ANONYMOUS: libc::c_int = libc::MAP_PRIVATE | MAP_ANONYMOUS;
 /// The previously installed Unix memory fault handlers.
 static SIGNAL_HANDLERS: OnceLock<SignalHandlers> = OnceLock::new();
 
@@ -70,15 +76,15 @@ impl Drop for PageFrameAllocator {
     }
 }
 
-/// The page-frame file frontier, free ranges, and live references.
+/// The page-frame file frontier, free ranges, and live reference counts.
 #[derive(Debug)]
 struct PageFrameAllocatorState {
     /// The next never-allocated byte offset.
     next_offset: u64,
     /// The free page-frame byte ranges.
     free_ranges: Vec<PageFrameRange>,
-    /// The live references keyed by page-frame index.
-    references: Vec<u32>,
+    /// The live reference counts keyed by page-frame index.
+    frame_ref_counts: Vec<u32>,
 }
 
 /// One reusable range inside the page-frame file.
@@ -115,7 +121,7 @@ pub(crate) fn create_page_frame_allocator_from_fd(
         state: Mutex::new(PageFrameAllocatorState {
             next_offset: 0,
             free_ranges: Vec::new(),
-            references: Vec::new(),
+            frame_ref_counts: Vec::new(),
         }),
     })
 }
@@ -135,7 +141,7 @@ pub(crate) fn allocate_frame_range(
 ) -> MemoryResult<PageFrame> {
     let (frame, is_reused) = allocate_frame_storage(allocator, byte_len, page_bytes)?;
 
-    // reused frame-file ranges must regain sparse-page zero semantics
+    // reused frame-file ranges must regain reserved-page zero semantics
     if is_reused {
         zero_frame_range(allocator, frame, byte_len)?;
     }
@@ -152,9 +158,9 @@ where
 
     for frame in frames {
         let index = frame_index(frame, page_bytes);
-        let references = &mut state.references[index];
+        let ref_count = &mut state.frame_ref_counts[index];
 
-        *references += 1;
+        *ref_count += 1;
     }
 }
 
@@ -167,11 +173,11 @@ where
 
     for frame in frames {
         let index = frame_index(frame, page_bytes);
-        let references = &mut state.references[index];
+        let ref_count = &mut state.frame_ref_counts[index];
 
         // keep shared frames live until the last mapping drops
-        *references -= 1;
-        if *references != 0 {
+        *ref_count -= 1;
+        if *ref_count != 0 {
             continue;
         }
 
@@ -209,12 +215,12 @@ pub(crate) fn copy_frame_range(
     Ok(frame)
 }
 
-/// Return the operating-system page byte width.
-pub(crate) fn system_page_bytes() -> MemoryResult<usize> {
+/// Return the platform frame byte width for fixed-address mappings.
+pub(crate) fn system_frame_bytes() -> MemoryResult<usize> {
     let page_bytes = unsafe { libc::sysconf(libc::_SC_PAGESIZE) };
     if page_bytes <= 0 {
         return Err(MemoryError::InvariantViolation {
-            context: "system page size",
+            context: "system frame size",
         });
     }
 
@@ -231,39 +237,39 @@ pub(crate) fn reserve_virtual_space(byte_len: usize) -> MemoryResult<VirtualSpac
     }
 
     // reserve address space without committing mapped pages
-    let data = unsafe {
+    let address = unsafe {
         libc::mmap(
             null_mut(),
             byte_len,
             libc::PROT_NONE,
-            mmap_private_anonymous_flags(),
+            MAP_PRIVATE_ANONYMOUS,
             -1,
             0,
         )
     };
-    if data == libc::MAP_FAILED {
+    if address == libc::MAP_FAILED {
         return Err(MemoryError::AddressSpaceFailed { byte_len });
     }
 
     Ok(VirtualSpace {
-        base: data.cast(),
+        base: address.cast(),
         byte_len,
     })
 }
 
-/// Map one page frame as shared writable memory.
-pub(crate) fn map_page_shared(
+/// Map one page frame as writable memory.
+pub(crate) fn map_page_writable(
     base: *mut u8,
     page_index: usize,
     page_bytes: usize,
     allocator: &PageFrameAllocator,
     frame: PageFrame,
 ) -> MemoryResult<()> {
-    map_frame_range_shared(base, page_index, page_bytes, page_bytes, allocator, frame)
+    map_frame_range_writable(base, page_index, page_bytes, page_bytes, allocator, frame)
 }
 
-/// Map one page-frame range as clean private memory.
-pub(crate) fn map_frame_range_clean(
+/// Map one page-frame range as copy-on-write memory.
+pub(crate) fn map_frame_range_cow(
     base: *mut u8,
     first_page: usize,
     page_bytes: usize,
@@ -283,8 +289,8 @@ pub(crate) fn map_frame_range_clean(
     )
 }
 
-/// Map one page-frame range as shared writable memory.
-pub(crate) fn map_frame_range_shared(
+/// Map one page-frame range as writable memory.
+pub(crate) fn map_frame_range_writable(
     base: *mut u8,
     first_page: usize,
     page_bytes: usize,
@@ -304,19 +310,8 @@ pub(crate) fn map_frame_range_shared(
     )
 }
 
-/// Fork current dirty bytes into one child byte range.
-pub(crate) fn fork_dirty_pages(
-    base: *mut u8,
-    first_page: usize,
-    page_bytes: usize,
-    byte_len: usize,
-    source: *mut u8,
-) -> MemoryResult<()> {
-    fork_dirty_pages_platform(base, first_page, page_bytes, byte_len, source)
-}
-
-/// Make clean private pages writable after a watched write.
-pub(crate) fn make_clean_pages_writable(
+/// Make shared pages writable after a watched write.
+pub(crate) fn make_shared_pages_writable(
     base: *mut u8,
     first_page: usize,
     page_bytes: usize,
@@ -418,11 +413,11 @@ fn initialize_frame_references(
         let frame = frame_at(frame, page_offset, page_bytes);
         let index = frame_index(frame, page_bytes);
 
-        if index >= state.references.len() {
-            state.references.resize(index + 1, 0);
+        if index >= state.frame_ref_counts.len() {
+            state.frame_ref_counts.resize(index + 1, 0);
         }
 
-        state.references[index] = 1;
+        state.frame_ref_counts[index] = 1;
     }
 }
 
@@ -463,7 +458,7 @@ fn map_frame_range(
 ) -> MemoryResult<()> {
     // replace the reserved range with a file-backed view
     let address = unsafe { base.add(first_page * page_bytes) };
-    let data = unsafe {
+    let mapped = unsafe {
         libc::mmap(
             address.cast(),
             byte_len,
@@ -473,85 +468,11 @@ fn map_frame_range(
             frame.offset as libc::off_t,
         )
     };
-    if data == libc::MAP_FAILED {
+    if mapped == libc::MAP_FAILED {
         return Err(MemoryError::AddressSpaceFailed { byte_len });
     }
 
     Ok(())
-}
-
-/// Fork current dirty bytes into one child byte range.
-#[cfg(any(target_os = "macos", target_os = "ios"))]
-fn fork_dirty_pages_platform(
-    base: *mut u8,
-    first_page: usize,
-    page_bytes: usize,
-    byte_len: usize,
-    source: *mut u8,
-) -> MemoryResult<()> {
-    let target = unsafe { base.add(first_page * page_bytes) };
-    let task = unsafe { MACH_TASK_SELF };
-
-    // mach copy installs the current bytes into the child mapping
-    map_private_writable(base, first_page, page_bytes, byte_len)?;
-    let result = unsafe {
-        mach_vm_copy(
-            task,
-            source as libc::mach_vm_address_t,
-            byte_len as libc::mach_vm_size_t,
-            target as libc::mach_vm_address_t,
-        )
-    };
-    if result != libc::KERN_SUCCESS {
-        return Err(MemoryError::AddressSpaceFailed { byte_len });
-    }
-
-    Ok(())
-}
-
-/// Fork current dirty bytes into one child byte range.
-#[cfg(not(any(target_os = "macos", target_os = "ios")))]
-fn fork_dirty_pages_platform(
-    base: *mut u8,
-    first_page: usize,
-    page_bytes: usize,
-    byte_len: usize,
-    source: *mut u8,
-) -> MemoryResult<()> {
-    let address = map_private_writable(base, first_page, page_bytes, byte_len)?;
-
-    unsafe {
-        copy_nonoverlapping(source, address, byte_len);
-    }
-
-    Ok(())
-}
-
-/// Map one private writable byte range.
-fn map_private_writable(
-    base: *mut u8,
-    first_page: usize,
-    page_bytes: usize,
-    byte_len: usize,
-) -> MemoryResult<*mut u8> {
-    let address = unsafe { base.add(first_page * page_bytes) };
-
-    // replace the reserved range with private committed pages
-    let data = unsafe {
-        libc::mmap(
-            address.cast(),
-            byte_len,
-            libc::PROT_READ | libc::PROT_WRITE,
-            mmap_private_anonymous_flags() | libc::MAP_FIXED,
-            -1,
-            0,
-        )
-    };
-    if data == libc::MAP_FAILED {
-        return Err(MemoryError::AddressSpaceFailed { byte_len });
-    }
-
-    Ok(address)
 }
 
 /// Map one frame range at any available address.
@@ -560,7 +481,7 @@ fn map_frame_range_anywhere(
     frame: PageFrame,
     byte_len: usize,
 ) -> MemoryResult<*mut u8> {
-    let data = unsafe {
+    let address = unsafe {
         libc::mmap(
             null_mut(),
             byte_len,
@@ -570,11 +491,11 @@ fn map_frame_range_anywhere(
             frame.offset as libc::off_t,
         )
     };
-    if data == libc::MAP_FAILED {
+    if address == libc::MAP_FAILED {
         return Err(MemoryError::AddressSpaceFailed { byte_len });
     }
 
-    Ok(data.cast())
+    Ok(address.cast())
 }
 
 /// Zero one reusable frame range.
@@ -639,16 +560,6 @@ fn extend_frame_file(fd: RawFd, byte_len: u64, page_bytes: usize) -> MemoryResul
     })
 }
 
-/// Return anonymous private mmap flags.
-fn mmap_private_anonymous_flags() -> i32 {
-    libc::MAP_PRIVATE
-        | if cfg!(any(target_os = "macos", target_os = "ios")) {
-            libc::MAP_ANON
-        } else {
-            libc::MAP_ANONYMOUS
-        }
-}
-
 /// Install the write fault handler once.
 fn install_write_fault_handler() {
     SIGNAL_HANDLERS.get_or_init(|| {
@@ -708,7 +619,7 @@ unsafe extern "C" fn handle_write_watch(
     let address = unsafe { (*signal_info).si_addr() as usize };
 
     // scan watched ranges without signal-unsafe locks
-    for page in pages() {
+    for page in watch_pages() {
         let Some(entries) = page.entries() else {
             continue;
         };
@@ -726,19 +637,4 @@ unsafe extern "C" fn handle_write_watch(
 
     // raise unrelated signals through the previous platform handler
     raise_unhandled_signal(signal);
-}
-
-#[cfg(any(target_os = "macos", target_os = "ios"))]
-unsafe extern "C" {
-    /// The current Mach task port.
-    #[link_name = "mach_task_self_"]
-    static MACH_TASK_SELF: libc::mach_port_t;
-
-    /// Copy one virtual memory range inside one Mach task.
-    fn mach_vm_copy(
-        target_task: libc::vm_map_t,
-        source_address: libc::mach_vm_address_t,
-        size: libc::mach_vm_size_t,
-        target_address: libc::mach_vm_address_t,
-    ) -> libc::kern_return_t;
 }

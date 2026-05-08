@@ -4,11 +4,11 @@ use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
 use crate::{MemoryError, MemoryResult};
 
 /// The maximum number of concurrently watched address spaces.
-const WATCH_ENTRY_COUNT: usize = 16 * 1024;
-/// The number of watch entries allocated in one table page.
-const WATCH_PAGE_ENTRIES: usize = 256;
+const MAX_WRITE_WATCH_ENTRIES: usize = 16 * 1024;
+/// The number of watch entries allocated together.
+const WRITE_WATCH_ENTRY_PAGE_LEN: usize = 256;
 /// The number of lazily allocated watch table pages.
-const WATCH_PAGE_COUNT: usize = WATCH_ENTRY_COUNT / WATCH_PAGE_ENTRIES;
+const WRITE_WATCH_PAGE_COUNT: usize = MAX_WRITE_WATCH_ENTRIES / WRITE_WATCH_ENTRY_PAGE_LEN;
 
 /// The process-wide write watch pages.
 ///
@@ -66,7 +66,7 @@ impl WatchPage {
     /// Allocate the entries for this page if needed.
     fn allocate_entries(&self) -> &[WriteWatchEntry] {
         self.entries.get_or_init(|| {
-            (0..WATCH_PAGE_ENTRIES)
+            (0..WRITE_WATCH_ENTRY_PAGE_LEN)
                 .map(|_| WriteWatchEntry::empty())
                 .collect::<Vec<_>>()
                 .into_boxed_slice()
@@ -148,9 +148,9 @@ impl WriteWatchEntry {
 }
 
 /// Return the process-wide write watch pages.
-pub(crate) fn pages() -> &'static [WatchPage] {
+pub(crate) fn watch_pages() -> &'static [WatchPage] {
     WATCH_PAGES.get_or_init(|| {
-        (0..WATCH_PAGE_COUNT)
+        (0..WRITE_WATCH_PAGE_COUNT)
             .map(|_| WatchPage::empty())
             .collect::<Vec<_>>()
             .into_boxed_slice()
@@ -167,7 +167,7 @@ pub(crate) fn register(
     let end = base + byte_len;
 
     // reuse already allocated pages before growing the table
-    for (page_index, page) in pages().iter().enumerate() {
+    for (page_index, page) in watch_pages().iter().enumerate() {
         let Some(entries) = page.entries() else {
             continue;
         };
@@ -181,7 +181,7 @@ pub(crate) fn register(
     }
 
     // allocate exactly one new page when no existing entry is free
-    for (page_index, page) in pages().iter().enumerate() {
+    for (page_index, page) in watch_pages().iter().enumerate() {
         if page.entries().is_some() {
             continue;
         }
@@ -200,7 +200,7 @@ pub(crate) fn register(
 
 /// Unregister one write watched virtual range.
 pub(crate) fn unregister(registration: &WriteWatchRegistration) {
-    let Some(entries) = pages()[registration.page].entries() else {
+    let Some(entries) = watch_pages()[registration.page].entries() else {
         return;
     };
     let entry = &entries[registration.entry];
