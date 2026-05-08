@@ -14,13 +14,13 @@ pub(crate) const SUPPORTS_SHARED_PAGE_FRAMES: bool = false;
 #[derive(Debug)]
 pub(crate) struct VirtualSpace {
     /// The owned byte range.
-    data: Box<[u8]>,
+    bytes: Box<[u8]>,
 }
 
 impl VirtualSpace {
     /// Return the reserved base address.
     pub(crate) fn base(&self) -> *mut u8 {
-        self.data.as_ptr().cast_mut()
+        self.bytes.as_ptr().cast_mut()
     }
 
     /// Unmap this virtual byte space.
@@ -28,7 +28,7 @@ impl VirtualSpace {
     where
         I: IntoIterator<Item = usize>,
     {
-        self.data = Box::new([]);
+        self.bytes = Box::new([]);
     }
 }
 
@@ -50,15 +50,15 @@ pub(crate) struct PageFrameAllocator {
 #[derive(Debug)]
 pub(crate) struct WriteWatchRegistration;
 
-/// The linear-memory frame store, free ranges, and live references.
+/// The linear-memory frame store, free ranges, and live reference counts.
 #[derive(Debug)]
 struct PageFrameAllocatorState {
     /// The owned page frames.
     frames: Vec<Box<[u8]>>,
     /// The free frame index ranges.
     free_ranges: Vec<PageFrameRange>,
-    /// The live references keyed by frame index.
-    references: Vec<u32>,
+    /// The live reference counts keyed by frame index.
+    frame_ref_counts: Vec<u32>,
 }
 
 /// One reusable page-frame range.
@@ -83,7 +83,7 @@ pub(crate) fn create_page_frame_allocator(_byte_len: usize) -> MemoryResult<Page
         state: Mutex::new(PageFrameAllocatorState {
             frames: Vec::new(),
             free_ranges: Vec::new(),
-            references: Vec::new(),
+            frame_ref_counts: Vec::new(),
         }),
     })
 }
@@ -113,9 +113,9 @@ where
     let mut state = allocator.state.lock();
 
     for frame in frames {
-        let references = &mut state.references[frame.index];
+        let ref_count = &mut state.frame_ref_counts[frame.index];
 
-        *references += 1;
+        *ref_count += 1;
     }
 }
 
@@ -127,11 +127,11 @@ where
     let mut state = allocator.state.lock();
 
     for frame in frames {
-        let references = &mut state.references[frame.index];
+        let ref_count = &mut state.frame_ref_counts[frame.index];
 
         // keep copied frames live until the last map drops
-        *references -= 1;
-        if *references != 0 {
+        *ref_count -= 1;
+        if *ref_count != 0 {
             continue;
         }
 
@@ -208,20 +208,20 @@ fn allocate_frame_storage(
     (frame, is_reused)
 }
 
-/// Return the operating-system page byte width.
-pub(crate) const fn system_page_bytes() -> MemoryResult<usize> {
+/// Return the platform frame byte width for linear-memory mappings.
+pub(crate) const fn system_frame_bytes() -> MemoryResult<usize> {
     Ok(WASM_PAGE_BYTES)
 }
 
 /// Reserve one virtual byte range.
 pub(crate) fn reserve_virtual_space(byte_len: usize) -> MemoryResult<VirtualSpace> {
     Ok(VirtualSpace {
-        data: vec![0; byte_len].into_boxed_slice(),
+        bytes: vec![0; byte_len].into_boxed_slice(),
     })
 }
 
-/// Map one page frame as shared writable memory.
-pub(crate) fn map_page_shared(
+/// Map one page frame as writable memory.
+pub(crate) fn map_page_writable(
     base: *mut u8,
     page_index: usize,
     page_bytes: usize,
@@ -232,7 +232,7 @@ pub(crate) fn map_page_shared(
 }
 
 /// Copy one page-frame range into linear memory.
-pub(crate) fn map_frame_range_clean(
+pub(crate) fn map_frame_range_cow(
     base: *mut u8,
     first_page: usize,
     page_bytes: usize,
@@ -241,27 +241,10 @@ pub(crate) fn map_frame_range_clean(
     frame: PageFrame,
 ) -> MemoryResult<()> {
     map_frame_range(base, first_page, page_bytes, byte_len, allocator, frame)
-}
-
-/// Fork current dirty bytes into one child byte range.
-pub(crate) fn fork_dirty_pages(
-    base: *mut u8,
-    first_page: usize,
-    page_bytes: usize,
-    byte_len: usize,
-    source: *mut u8,
-) -> MemoryResult<()> {
-    let target = unsafe { base.add(first_page * page_bytes) };
-
-    unsafe {
-        copy_nonoverlapping(source, target, byte_len);
-    }
-
-    Ok(())
 }
 
 /// Copy one page-frame range into linear memory.
-pub(crate) fn map_frame_range_shared(
+pub(crate) fn map_frame_range_writable(
     base: *mut u8,
     first_page: usize,
     page_bytes: usize,
@@ -272,8 +255,8 @@ pub(crate) fn map_frame_range_shared(
     map_frame_range(base, first_page, page_bytes, byte_len, allocator, frame)
 }
 
-/// Make clean private pages writable after a watched write.
-pub(crate) fn make_clean_pages_writable(
+/// Prepare copied linear-memory pages for writes.
+pub(crate) fn make_shared_pages_writable(
     _base: *mut u8,
     _first_page: usize,
     _page_bytes: usize,
@@ -385,11 +368,11 @@ fn initialize_frame_references(
     for page_offset in 0..frame_count {
         let index = frame.index + page_offset;
 
-        if index >= state.references.len() {
-            state.references.resize(index + 1, 0);
+        if index >= state.frame_ref_counts.len() {
+            state.frame_ref_counts.resize(index + 1, 0);
         }
 
-        state.references[index] = 1;
+        state.frame_ref_counts[index] = 1;
     }
 }
 

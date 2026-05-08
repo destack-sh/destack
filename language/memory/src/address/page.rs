@@ -31,7 +31,7 @@ impl PageMap {
     /// Reserve one forkable page map.
     pub(super) fn reserve(byte_len: usize, page_bytes: usize) -> MemoryResult<Self> {
         // align requested pages to native page frames
-        let frame_bytes = page_bytes.max(platform::system_page_bytes()?);
+        let frame_bytes = page_bytes.max(platform::system_frame_bytes()?);
         let page_count = byte_len.div_ceil(frame_bytes);
         let byte_len = page_count * frame_bytes;
 
@@ -48,7 +48,7 @@ impl PageMap {
         let space = platform::reserve_virtual_space(self.byte_len)?;
         let fork = Self::new(space, self.byte_len, self.frame_bytes, self.frames.clone())?;
 
-        // native targets use read-only private mappings for clean pages
+        // native targets use read-only cow mappings for shared pages
         if platform::SUPPORTS_SHARED_PAGE_FRAMES {
             self.fork_shared_frames(&fork)?;
         }
@@ -107,8 +107,8 @@ impl PageMap {
         Ok(())
     }
 
-    /// Fill one caller-provided buffer from this page map.
-    pub(super) fn read(&self, offset: usize, target: &mut [u8]) -> MemoryResult<()> {
+    /// Read bytes into a caller-provided buffer.
+    pub(super) fn read_bytes_into(&self, offset: usize, target: &mut [u8]) -> MemoryResult<()> {
         let (first_frame, end_frame) = self.frame_range(offset, target.len())?;
 
         // empty reads only validate the range
@@ -118,7 +118,7 @@ impl PageMap {
 
         let mut written = 0;
 
-        // copy mapped pages and synthesize zeroes for sparse pages
+        // copy mapped pages and synthesize zeroes for reserved pages
         for page_index in first_frame..end_frame {
             let page_start = page_index * self.frame_bytes;
             let page_end = page_start + self.frame_bytes;
@@ -139,7 +139,7 @@ impl PageMap {
                 continue;
             }
 
-            // sparse pages are logically zero
+            // reserved pages are logically zero
             target[target_start..target_start + copy_len].fill(0);
             written += copy_len;
         }
@@ -150,11 +150,11 @@ impl PageMap {
     }
 
     /// Return one owned byte vector from this page map.
-    pub(super) fn bytes(&self, offset: usize, byte_len: usize) -> MemoryResult<Vec<u8>> {
+    pub(super) fn read_bytes(&self, offset: usize, byte_len: usize) -> MemoryResult<Vec<u8>> {
         let mut bytes = vec![0; byte_len];
 
         // fill the owned buffer from the mapped range
-        self.read(offset, &mut bytes)?;
+        self.read_bytes_into(offset, &mut bytes)?;
 
         Ok(bytes)
     }
@@ -172,7 +172,7 @@ impl PageMap {
         let _lock = self.lock.lock();
         let mut page_index = first_frame;
 
-        // allocate contiguous frame ranges for sparse page runs
+        // allocate contiguous frame ranges for reserved page runs
         while page_index < end_frame {
             if self.pages.is_mapped(page_index) {
                 page_index += 1;
@@ -188,8 +188,8 @@ impl PageMap {
             let byte_len = page_count * self.frame_bytes;
             let frame = platform::allocate_frame_range(&self.frames, byte_len, self.frame_bytes)?;
 
-            // new pages start as exclusive writable mappings
-            platform::map_frame_range_shared(
+            // new pages start as owned writable mappings
+            platform::map_frame_range_writable(
                 self.space.base(),
                 range_start,
                 self.frame_bytes,
@@ -204,7 +204,7 @@ impl PageMap {
 
                 self.pages
                     .entry(range_start + page_offset)
-                    .set_state(PageState::Exclusive(page_frame));
+                    .set_state(PageState::Owned(page_frame));
             }
         }
 
@@ -220,7 +220,7 @@ impl PageMap {
             return Ok(());
         }
 
-        // absent pages need backing frames before protection changes
+        // reserved pages need backing frames before protection changes
         self.materialize(offset, byte_len)?;
 
         self.make_mapped_frame_range_writable(first_frame, end_frame)
@@ -238,8 +238,8 @@ impl PageMap {
         self.make_mapped_frame_range_writable(first_frame, end_frame)
     }
 
-    /// Copy caller-provided bytes directly into this page map.
-    pub(super) fn copy_bytes(&self, offset: usize, bytes: &[u8]) -> MemoryResult<()> {
+    /// Write caller-provided bytes directly into this page map.
+    pub(super) fn write_bytes(&self, offset: usize, bytes: &[u8]) -> MemoryResult<()> {
         self.make_writable(offset, bytes.len())?;
         let target = unsafe { self.space.base().add(offset) };
 
@@ -251,7 +251,7 @@ impl PageMap {
         Ok(())
     }
 
-    /// Make already mapped clean pages in one page-frame range writable.
+    /// Make already mapped shared pages in one page-frame range writable.
     fn make_mapped_frame_range_writable(
         &self,
         first_frame: usize,
@@ -260,9 +260,9 @@ impl PageMap {
         let _lock = self.lock.lock();
         let mut page_index = first_frame;
 
-        // make clean page runs writable in one platform call
+        // make shared page runs writable in one platform call
         while page_index < end_frame {
-            let PageState::Clean(_) = self.pages.entry(page_index).state() else {
+            let PageState::Shared(_) = self.pages.entry(page_index).state() else {
                 page_index += 1;
                 continue;
             };
@@ -270,7 +270,7 @@ impl PageMap {
             page_index += 1;
 
             while page_index < end_frame {
-                let PageState::Clean(_) = self.pages.entry(page_index).state() else {
+                let PageState::Shared(_) = self.pages.entry(page_index).state() else {
                     break;
                 };
 
@@ -280,7 +280,7 @@ impl PageMap {
             let run_len = page_index - run_start;
             let byte_len = run_len * self.frame_bytes;
 
-            platform::make_clean_pages_writable(
+            platform::make_shared_pages_writable(
                 self.space.base(),
                 run_start,
                 self.frame_bytes,
@@ -301,16 +301,16 @@ impl PageMap {
                 }
             }
 
-            // publish the dirty state after the protection change succeeds
+            // publish the modified state after the protection change succeeds
             for page_offset in 0..run_len {
                 let page_index = run_start + page_offset;
-                let PageState::Clean(frame) = self.pages.entry(page_index).state() else {
+                let PageState::Shared(frame) = self.pages.entry(page_index).state() else {
                     continue;
                 };
 
                 self.pages
                     .entry(page_index)
-                    .set_state(PageState::Dirty(frame));
+                    .set_state(PageState::Modified(frame));
             }
         }
 
@@ -358,26 +358,26 @@ impl PageMap {
         let mut parent_frames = Vec::new();
         let mut child_frames = Vec::with_capacity(pages.len());
 
-        // copy dirty runs and queue shareable frames for remapping
+        // copy modified runs and queue shareable frames for remapping
         self.collect_shared_fork_frames(&pages, fork, &mut parent_frames, &mut child_frames)?;
 
-        // parent exclusive pages become clean shared pages
-        self.map_clean_frame_runs(self.space.base(), &parent_frames)?;
-        self.set_clean_frame_states(&parent_frames);
+        // parent owned pages become shared pages
+        self.map_cow_frame_runs(self.space.base(), &parent_frames)?;
+        self.set_shared_frame_states(&parent_frames);
 
-        // child clean pages share backing frames with the parent
-        self.map_clean_frame_runs(fork.space.base(), &child_frames)?;
+        // child shared pages use the same backing frames as the parent
+        self.map_cow_frame_runs(fork.space.base(), &child_frames)?;
         platform::retain_frames(
             &self.frames,
             child_frames.iter().map(|(_, frame)| *frame),
             self.frame_bytes,
         );
-        fork.set_clean_frame_states(&child_frames);
+        fork.set_shared_frame_states(&child_frames);
 
         Ok(())
     }
 
-    /// Collect shared fork frame mappings and copy dirty page runs.
+    /// Collect shared fork frame mappings and copy modified page runs.
     fn collect_shared_fork_frames(
         &self,
         pages: &[(usize, PageState)],
@@ -390,25 +390,25 @@ impl PageMap {
             let (page_index, state) = pages[page_offset];
 
             match state {
-                // absent pages are filtered out by mapped_states
-                PageState::Absent => {
+                // reserved pages are filtered out by mapped_states
+                PageState::Reserved => {
                     page_offset += 1;
                 }
-                // exclusive pages become read only shared frames in both maps
-                PageState::Exclusive(frame) => {
+                // owned pages become read-only cow frames in both maps
+                PageState::Owned(frame) => {
                     parent_frames.push((page_index, frame));
                     child_frames.push((page_index, frame));
                     page_offset += 1;
                 }
-                // clean pages are already shareable, so only the child needs mapping
-                PageState::Clean(frame) => {
+                // shared pages are already shareable, so only the child needs mapping
+                PageState::Shared(frame) => {
                     child_frames.push((page_index, frame));
                     page_offset += 1;
                 }
-                // dirty pages need private child mappings with the parent's visible bytes
-                PageState::Dirty(frame) => {
-                    let run_len = self.dirty_run_len(pages, page_offset, page_index, frame);
-                    self.fork_dirty_frame_run(fork, page_index, frame, run_len)?;
+                // modified pages need fresh child frames with the parent's visible bytes
+                PageState::Modified(frame) => {
+                    let run_len = self.modified_run_len(pages, page_offset, page_index, frame);
+                    self.fork_modified_frame_run(fork, page_index, run_len)?;
                     page_offset += run_len;
                 }
             }
@@ -417,8 +417,8 @@ impl PageMap {
         Ok(())
     }
 
-    /// Return the contiguous dirty run length from one mapped page state.
-    fn dirty_run_len(
+    /// Return the contiguous modified run length from one mapped page state.
+    fn modified_run_len(
         &self,
         pages: &[(usize, PageState)],
         start_offset: usize,
@@ -432,9 +432,12 @@ impl PageMap {
             let (page_index, state) = pages[page_offset];
             let expected_page = start_page + page_run_offset;
             let expected_frame = platform::frame_at(start_frame, page_run_offset, self.frame_bytes);
+            let PageState::Modified(frame) = state else {
+                break;
+            };
 
-            // stop when either page numbering or frame numbering breaks
-            if page_index != expected_page || state.frame() != Some(expected_frame) {
+            // stop when modified page or frame continuity breaks
+            if page_index != expected_page || frame != expected_frame {
                 break;
             }
 
@@ -444,53 +447,46 @@ impl PageMap {
         page_offset - start_offset
     }
 
-    /// Fork one contiguous dirty frame run into the child map.
-    fn fork_dirty_frame_run(
+    /// Fork one contiguous modified frame run into the child map.
+    fn fork_modified_frame_run(
         &self,
         fork: &Self,
         first_page: usize,
-        first_frame: PageFrame,
         page_count: usize,
     ) -> MemoryResult<()> {
         let byte_len = page_count * self.frame_bytes;
         let source = unsafe { self.space.base().add(first_page * self.frame_bytes) };
 
-        // child receives private pages with current parent bytes
-        platform::fork_dirty_pages(
+        // child receives a fresh writable frame with current parent bytes
+        let frame = platform::copy_frame_range(&self.frames, source, byte_len, self.frame_bytes)?;
+        platform::map_frame_range_writable(
             fork.space.base(),
             first_page,
             self.frame_bytes,
             byte_len,
-            source,
+            &self.frames,
+            frame,
         )?;
 
-        // publish child dirty states after the mappings exist
+        // publish child owned states after the mappings exist
         for page_offset in 0..page_count {
             let page_index = first_page + page_offset;
-            let frame = platform::frame_at(first_frame, page_offset, self.frame_bytes);
+            let frame = platform::frame_at(frame, page_offset, self.frame_bytes);
 
             fork.pages
                 .entry(page_index)
-                .set_state(PageState::Dirty(frame));
+                .set_state(PageState::Owned(frame));
         }
-
-        // keep dirty frame references live until the child map drops
-        platform::retain_frames(
-            &self.frames,
-            (0..page_count)
-                .map(|page_offset| platform::frame_at(first_frame, page_offset, self.frame_bytes)),
-            self.frame_bytes,
-        );
 
         Ok(())
     }
 
-    /// Mark mapped frame entries as clean.
-    fn set_clean_frame_states(&self, frames: &[(usize, PageFrame)]) {
+    /// Mark mapped frame entries as shared.
+    fn set_shared_frame_states(&self, frames: &[(usize, PageFrame)]) {
         for (page_index, frame) in frames {
             self.pages
                 .entry(*page_index)
-                .set_state(PageState::Clean(*frame));
+                .set_state(PageState::Shared(*frame));
         }
     }
 
@@ -505,7 +501,7 @@ impl PageMap {
             let frame = platform::copy_page(&self.frames, source, self.frame_bytes)?;
 
             // copy the frame into the child linear memory
-            platform::map_page_shared(
+            platform::map_page_writable(
                 fork.space.base(),
                 page_index,
                 self.frame_bytes,
@@ -515,18 +511,14 @@ impl PageMap {
 
             fork.pages
                 .entry(page_index)
-                .set_state(PageState::Exclusive(frame));
+                .set_state(PageState::Owned(frame));
         }
 
         Ok(())
     }
 
-    /// Map contiguous page frames as clean private runs.
-    fn map_clean_frame_runs(
-        &self,
-        base: *mut u8,
-        frames: &[(usize, PageFrame)],
-    ) -> MemoryResult<()> {
+    /// Map contiguous page frames as cow runs.
+    fn map_cow_frame_runs(&self, base: *mut u8, frames: &[(usize, PageFrame)]) -> MemoryResult<()> {
         let Some((first_page, first_frame)) = frames.first().copied() else {
             return Ok(());
         };
@@ -542,8 +534,8 @@ impl PageMap {
                 continue;
             }
 
-            // map the completed clean run
-            platform::map_frame_range_clean(
+            // map the completed cow run
+            platform::map_frame_range_cow(
                 base,
                 run_page,
                 self.frame_bytes,
@@ -557,8 +549,8 @@ impl PageMap {
             run_len = 1;
         }
 
-        // map the trailing clean run
-        platform::map_frame_range_clean(
+        // map the trailing cow run
+        platform::map_frame_range_cow(
             base,
             run_page,
             self.frame_bytes,

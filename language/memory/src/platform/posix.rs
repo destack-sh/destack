@@ -5,9 +5,9 @@ use crate::{MemoryError, MemoryResult};
 
 pub(crate) use super::unix::{
     PageFrame, PageFrameAllocator, SUPPORTS_SHARED_PAGE_FRAMES, VirtualSpace,
-    WriteWatchRegistration, allocate_frame_range, copy_page, fork_dirty_pages, frame_at,
-    make_clean_pages_writable, map_frame_range_clean, map_frame_range_shared, map_page_shared,
-    register_write_watch, release_frames, reserve_virtual_space, retain_frames, system_page_bytes,
+    WriteWatchRegistration, allocate_frame_range, copy_frame_range, copy_page, frame_at,
+    make_shared_pages_writable, map_frame_range_cow, map_frame_range_writable, map_page_writable,
+    register_write_watch, release_frames, reserve_virtual_space, retain_frames, system_frame_bytes,
     unregister_write_watch,
 };
 
