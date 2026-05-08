@@ -228,8 +228,8 @@ impl RuntimeOptions {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum RuntimeConfigJson {
-    /// Runtime host shorthand.
-    Host(String),
+    /// Runtime contract shorthand.
+    Host(Runtime),
     /// Full runtime configuration object.
     Options(Box<RuntimeOptionsJson>),
 }
@@ -245,7 +245,7 @@ impl RuntimeConfigJson {
     pub fn as_options_json(&self) -> RuntimeOptionsJson {
         match self {
             Self::Host(host) => RuntimeOptionsJson {
-                host: Some(host.clone()),
+                host: Some(*host),
                 ..RuntimeOptionsJson::default()
             },
             Self::Options(options) => options.as_ref().clone(),
@@ -279,7 +279,7 @@ pub(crate) fn runtime_options_with_base(
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeOptionsJson {
     /// Execution host semantics for this runtime.
-    pub host: Option<String>,
+    pub host: Option<Runtime>,
     /// Runtime version for versioned library selection.
     pub version: Option<String>,
     /// Stable runtime name for policy selection.
@@ -459,9 +459,7 @@ impl RuntimeOptionsJson {
     /// Apply runtime option overrides to a base set of options.
     pub fn apply_to(&self, options: &mut RuntimeOptions) {
         // host and version
-        if let Some(host) = &self.host
-            && let Some(host) = Runtime::parse(host)
-        {
+        if let Some(host) = self.host {
             options.host = host;
         }
         if let Some(version) = &self.version {

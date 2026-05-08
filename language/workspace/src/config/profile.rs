@@ -8,7 +8,7 @@ use crate::config::{RuntimeConfigJson, RuntimeOptions, runtime_options_from_json
 /// Normalized profile options.
 #[derive(Debug, Clone, Default)]
 pub struct ProfileOptions {
-    /// Runtime environment for this profile.
+    /// Runtime contract for this profile.
     pub runtime: Option<RuntimeOptions>,
     /// Target platform / operating system for this profile.
     pub platform: Option<Platform>,
@@ -51,7 +51,7 @@ impl ProfileOptions {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct ProfileOptionsJson {
-    /// Runtime environment (browser, node, wasm-wasi, native-managed, etc.).
+    /// Runtime contract for this profile.
     pub runtime: Option<RuntimeConfigJson>,
     /// Target platform / operating system.
     pub platform: Option<String>,
