@@ -169,10 +169,10 @@ impl SharedRawSpace {
             .map(|allocation| -> HeapResult<_> {
                 let allocation = if allocation.is_live {
                     let byte_len = allocation.pages.len() * allocator.page_bytes();
-                    let bytes = allocator.bytes_to_vec_from(&allocation.pages, 0, byte_len)?;
+                    let bytes = allocator.read_bytes_from(&allocation.pages, 0, byte_len)?;
                     let pages = allocator.allocate_pages(byte_len)?;
 
-                    mapping.copy_bytes(allocation.first_offset, &bytes[..allocation.len])?;
+                    mapping.write_bytes(allocation.first_offset, &bytes[..allocation.len])?;
 
                     Arc::new(RwLock::new(SharedRawAllocation::new(
                         allocation.first_offset,
@@ -222,7 +222,7 @@ impl SharedRawSpace {
                             let bytes = self
                                 .mapping
                                 .read()
-                                .bytes(allocation.first_offset, byte_len)?;
+                                .read_bytes(allocation.first_offset, byte_len)?;
 
                             // images own the captured bytes
                             self.allocator.allocate_image_bytes(&bytes)?

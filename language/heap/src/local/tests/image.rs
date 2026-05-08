@@ -53,7 +53,7 @@ fn read_page_run_bytes(
     byte_len: usize,
 ) -> Vec<u8> {
     allocator
-        .bytes_to_vec_from(page_run, start, byte_len)
+        .read_bytes_from(page_run, start, byte_len)
         .expect("image bytes should resolve")
 }
 

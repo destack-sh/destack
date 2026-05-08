@@ -96,7 +96,7 @@ impl HeapImage {
         let raw = snapshot.raw.clone();
         let page_runs = heap.page_runs().into_boxed_slice();
 
-        allocator.restore_page_run_refs(&page_runs)?;
+        allocator.restore_page_run_references(&page_runs)?;
 
         let state = HeapImageState {
             allocator,

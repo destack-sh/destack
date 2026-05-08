@@ -29,7 +29,7 @@ pub(crate) fn bench_address_space(criterion: &mut Criterion) {
             || AddressSpaceShape::reserved().reserve(),
             |space| {
                 space
-                    .copy_bytes(0, black_box(&page))
+                    .write_bytes(0, black_box(&page))
                     .expect("address space write should succeed")
             },
             BatchSize::SmallInput,
@@ -139,7 +139,7 @@ pub(crate) fn bench_address_space(criterion: &mut Criterion) {
                     },
                     |(parent, child)| {
                         child
-                            .copy_bytes(0, black_box(&page))
+                            .write_bytes(0, black_box(&page))
                             .expect("forked address space write should succeed");
 
                         black_box(parent);

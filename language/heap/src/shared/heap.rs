@@ -119,7 +119,7 @@ impl SharedHeapImage {
         allocator.restore_image_pages(&snapshot.allocator)?;
         let mut page_runs = snapshot.heap.page_runs();
         page_runs.extend(snapshot.raw.page_runs());
-        allocator.restore_page_run_refs(&page_runs)?;
+        allocator.restore_page_run_references(&page_runs)?;
 
         Self::new(
             allocator,

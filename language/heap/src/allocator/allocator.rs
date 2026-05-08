@@ -123,7 +123,7 @@ impl Allocator {
     }
 
     /// Restore image-owned page-run reference counts.
-    pub(crate) fn restore_page_run_refs(&self, page_runs: &[PageRun]) -> HeapResult<()> {
+    pub(crate) fn restore_page_run_references(&self, page_runs: &[PageRun]) -> HeapResult<()> {
         for page_run in page_runs {
             if page_run.is_empty() {
                 continue;
@@ -453,7 +453,7 @@ impl Allocator {
     }
 
     /// Return one owned image page.
-    pub(crate) fn page_bytes_box(&self, page_id: PageId) -> HeapResult<Box<[u8]>> {
+    pub(crate) fn page_image_bytes(&self, page_id: PageId) -> HeapResult<Box<[u8]>> {
         self.check_page_id(page_id)?;
         let state = self.state.lock();
 
@@ -464,8 +464,8 @@ impl Allocator {
             .unwrap_or_else(|| vec![0; self.page_bytes()].into_boxed_slice()))
     }
 
-    /// Store one owned image page.
-    pub(crate) fn store_page_bytes(&self, page_id: PageId, bytes: Box<[u8]>) -> HeapResult<()> {
+    /// Write one owned image page.
+    pub(crate) fn write_page_image(&self, page_id: PageId, bytes: Box<[u8]>) -> HeapResult<()> {
         if bytes.len() != self.page_bytes() {
             return Err(HeapError::ImageInvalidPageBytes {
                 page_id,

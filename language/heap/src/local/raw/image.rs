@@ -283,7 +283,7 @@ impl RawSpace {
     /// Restore one raw span from one frozen span image.
     fn restore_span(&mut self, span: &SmallSpanImage) -> Result<SmallSpan, HeapError> {
         let pages = self.allocate_page_run(span.bytes.len())?;
-        self.mapping.copy_bytes(span.first_offset, &span.bytes)?;
+        self.mapping.write_bytes(span.first_offset, &span.bytes)?;
 
         Ok(SmallSpan {
             first_offset: span.first_offset,
@@ -303,7 +303,7 @@ impl RawSpace {
     ) -> Result<LargeAllocation, HeapError> {
         let pages = if allocation.is_live {
             self.mapping
-                .copy_bytes(allocation.first_offset, &allocation.bytes)?;
+                .write_bytes(allocation.first_offset, &allocation.bytes)?;
 
             self.allocate_page_run(allocation.bytes.len())?
         } else {
@@ -384,7 +384,7 @@ impl RawSpace {
         let byte_len = span.pages.len() * self.allocator.page_bytes();
         let bytes = self
             .mapping
-            .bytes(span.first_offset, byte_len)?
+            .read_bytes(span.first_offset, byte_len)?
             .into_boxed_slice();
 
         Ok(SmallSpanImage {
@@ -413,7 +413,7 @@ impl RawSpace {
     ) -> HeapResult<LargeAllocationImage> {
         let bytes = if allocation.is_live {
             self.mapping
-                .bytes(allocation.first_offset, allocation.len)?
+                .read_bytes(allocation.first_offset, allocation.len)?
                 .into_boxed_slice()
         } else {
             Box::new([])

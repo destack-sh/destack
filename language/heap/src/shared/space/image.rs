@@ -180,9 +180,9 @@ fn restore_shared_mapping(
             continue;
         }
 
-        let bytes = allocator.bytes_to_vec_from(&span.pages, 0, byte_len)?;
+        let bytes = allocator.read_bytes_from(&span.pages, 0, byte_len)?;
 
-        mapping.copy_bytes(span.first_offset, &bytes)?;
+        mapping.write_bytes(span.first_offset, &bytes)?;
     }
 
     // restore each captured large allocation range
@@ -191,9 +191,9 @@ fn restore_shared_mapping(
             continue;
         }
 
-        let bytes = allocator.bytes_to_vec_from(&allocation.pages, 0, allocation.len)?;
+        let bytes = allocator.read_bytes_from(&allocation.pages, 0, allocation.len)?;
 
-        mapping.copy_bytes(allocation.first_offset, &bytes)?;
+        mapping.write_bytes(allocation.first_offset, &bytes)?;
     }
 
     Ok(())
@@ -314,7 +314,7 @@ impl SharedHeapSpace {
         // capture small spans from the live mapping
         for span in &store.small.spans {
             let byte_len = span.page_count() * self.allocator.page_bytes();
-            let bytes = self.mapping.bytes(span.first_offset, byte_len)?;
+            let bytes = self.mapping.read_bytes(span.first_offset, byte_len)?;
             let pages = self.allocator.allocate_image_bytes(&bytes)?;
 
             spans.push(SharedHeapSmallSpanImage {
@@ -334,7 +334,7 @@ impl SharedHeapSpace {
             let pages = if allocation.is_live {
                 let bytes = self
                     .mapping
-                    .bytes(allocation.first_offset, allocation.len)?;
+                    .read_bytes(allocation.first_offset, allocation.len)?;
 
                 self.allocator.allocate_image_bytes(&bytes)?
             } else {
