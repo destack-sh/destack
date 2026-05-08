@@ -4,8 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Argument, Declaration, Expression, FunctionSignature, GenericArgument, GenericParameter, Key,
     LocalNodeId, LocalSymbolId, MappedTypeModifier, Mutability, Node, NodeType, Parameter, Path,
-    ScalarLiteral, StringId, SymbolSpace, Tree, TupleElement, TypeLiteral, VarianceBound,
-    WhereClause,
+    ScalarLiteral, StringId, Tree, TupleElement, TypeLiteral, VarianceBound, WhereClause,
 };
 
 /// One type-surface member.
@@ -239,7 +238,6 @@ pub enum TypeExpression {
     Reference {
         path: Path,
         generic_arguments: Vec<LocalNodeId<GenericArgument>>,
-        space: SymbolSpace,
     },
 
     /// Type member projection with optional generic arguments.

@@ -3,11 +3,11 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Addressability, Arena, ControlResolution, DeclarationForm, DependencyResolution,
-    EnumBackingType, EnumFieldValue, Extension, GlobalNodeIdAny, GlobalSymbolId, Instantiation,
-    IntersectionType, Lineage, LiteralType, LocalExtensionId, LocalInstantiationId, LocalLineageId,
-    LocalNodeId, LocalNodeIdAny, LocalTypeId, Node, Resolution, StaticExpression, SymbolResolution,
-    SymbolTable, Type, TypeLiteral, UnionType, VarianceModifier,
+    Addressability, Arena, ControlResolution, DependencyResolution, EnumBackingType,
+    EnumFieldValue, Extension, GlobalNodeIdAny, GlobalSymbolId, Instantiation, IntersectionType,
+    Lineage, LiteralType, LocalExtensionId, LocalInstantiationId, LocalLineageId, LocalNodeId,
+    LocalNodeIdAny, LocalTypeId, Node, Resolution, StaticExpression, SymbolForm, SymbolTable, Type,
+    TypeLiteral, UnionType, VarianceModifier,
 };
 
 /// Append-only type slots and relations for one DIR artifact.
@@ -353,18 +353,14 @@ impl TypeTable {
     }
 
     /// Set the lexical symbol resolution for a node.
-    pub fn set_symbol_resolution(
-        &mut self,
-        node_id: GlobalNodeIdAny,
-        resolution: SymbolResolution,
-    ) {
-        self.set_resolution(node_id, Resolution::Symbol(resolution));
+    pub fn set_symbol_resolution(&mut self, node_id: GlobalNodeIdAny, symbol_id: GlobalSymbolId) {
+        self.set_resolution(node_id, Resolution::Symbol(symbol_id));
     }
 
     /// Get the lexical symbol resolution for a node.
-    pub fn symbol_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&SymbolResolution> {
+    pub fn symbol_resolution(&self, node_id: GlobalNodeIdAny) -> Option<GlobalSymbolId> {
         match self.resolution(node_id) {
-            Some(Resolution::Symbol(resolution)) => Some(resolution),
+            Some(Resolution::Symbol(symbol_id)) => Some(*symbol_id),
             _ => None,
         }
     }
@@ -545,8 +541,8 @@ impl TypeTable {
             .and_then(|entry| entry.enum_field_value)
     }
 
-    /// Get the type id for a symbol through its declaration form.
-    pub fn declaration_form_id(
+    /// Get the type id for a symbol through its semantic form.
+    pub fn symbol_type_id(
         &self,
         symbols: &SymbolTable,
         symbol_id: GlobalSymbolId,
@@ -554,8 +550,8 @@ impl TypeTable {
         let symbol = symbols.get_symbol(symbol_id.local_id);
 
         match symbol.form {
-            DeclarationForm::TypeAlias => self.get_alias_target_type_id(symbol_id),
-            DeclarationForm::Newtype => self
+            SymbolForm::TypeAlias => self.get_alias_target_type_id(symbol_id),
+            SymbolForm::Newtype => self
                 .get_instance_type_id(symbol_id)
                 .or_else(|| self.get_alias_target_type_id(symbol_id)),
             _ => self
@@ -687,9 +683,9 @@ impl TypeTable {
     }
 }
 
-/// The kind of argument accepted by one generic parameter.
+/// The argument space accepted by one generic parameter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum GenericParameterKind {
+pub enum GenericParameterSpace {
     /// The parameter accepts a type argument.
     Type,
     /// The parameter accepts a value argument.
@@ -701,8 +697,8 @@ pub enum GenericParameterKind {
 /// Semantic table entry for one generic parameter symbol.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct GenericParameterEntry {
-    /// The kind of generic argument accepted by this parameter.
-    pub kind: GenericParameterKind,
+    /// The argument space accepted by this parameter.
+    pub space: GenericParameterSpace,
     /// The constraint type for this parameter.
     pub constraint: Option<LocalTypeId>,
     /// The variance for this parameter.
@@ -737,6 +733,7 @@ pub struct SymbolEntry {
     pub generic_parameter: Option<GenericParameterEntry>,
     /// Generic parameter symbols declared by this symbol.
     pub generic_parameter_symbols: Option<Vec<GlobalSymbolId>>,
+
     /// The instance type for nominal declarations.
     pub instance: Option<LocalTypeId>,
     /// The value type for value declarations.
@@ -745,10 +742,12 @@ pub struct SymbolEntry {
     pub alias_target: Option<LocalTypeId>,
     /// Static constant value for comptime declarations.
     pub static_value: Option<StaticExpression>,
+
     /// The backing type for enum declarations.
     pub enum_backing: Option<EnumBackingType>,
     /// The resolved enum field value.
     pub enum_field_value: Option<EnumFieldValue>,
+
     /// The nominal lineage for this declaration.
     pub lineage: Option<LocalLineageId>,
     /// The extension declared by this symbol.

@@ -107,13 +107,11 @@ pub struct Scope {
     pub kind: ScopeKind,
     /// The parent scope.
     pub parent: Option<(LocalScopeId, LocalScopeMark)>,
-    /// The module id of the scope.
-    pub module_id: ModuleId,
     /// The owner of the scope.
-    pub owner_id: Option<LocalSymbolId>,
+    pub owner: Option<LocalSymbolId>,
     /// The symbols in the scope.
     pub named_symbols: Vec<(StaticKey, LocalSymbolId)>,
-    /// THe anonymous symbols in the scope.
+    /// The anonymous symbols in the scope.
     pub anonymous_symbols: Vec<LocalSymbolId>,
     /// The children scopes.
     pub children: Vec<LocalScopeId>,
@@ -143,27 +141,6 @@ impl Scope {
             }
         }
         mark
-    }
-
-    /// Get a symbol from the scope by its key.
-    pub fn find(&self, key: StaticKey) -> Option<LocalSymbolId> {
-        for (candidate_key, id) in self.named_symbols.iter().rev() {
-            if *candidate_key == key {
-                return Some(*id);
-            }
-        }
-        None
-    }
-
-    /// Get a symbol from the scope by its id up to a given mark.
-    pub fn find_up_to(&self, key: StaticKey, mark: LocalScopeMark) -> Option<LocalSymbolId> {
-        let limit = mark.0 as usize;
-        for (candidate_key, id) in self.named_symbols.iter().take(limit).rev() {
-            if *candidate_key == key {
-                return Some(*id);
-            }
-        }
-        None
     }
 
     /// Insert a child scope into the scope.

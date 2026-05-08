@@ -61,9 +61,9 @@ impl Display for LocalExtensionId {
     }
 }
 
-/// How an extension relates to its target type (determines visibility).
+/// How an extension declaration relates to its target type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ExtensionKind {
+pub enum ExtensionForm {
     /// Inherent extension defined in same module as target type.
     /// Automatically visible wherever the type is used.
     Inherent,
@@ -105,8 +105,8 @@ pub enum ExtensionKind {
 pub struct Extension {
     /// The extension declaration's symbol.
     pub symbol: GlobalSymbolId,
-    /// What kind of extension this is (affects visibility).
-    pub kind: ExtensionKind,
+    /// The extension declaration form.
+    pub form: ExtensionForm,
     /// The target type symbol being extended.
     pub target: GlobalSymbolId,
     /// Lineage added by this extension directly.
@@ -118,13 +118,13 @@ impl Extension {
     /// Create a new extension.
     pub fn new(
         symbol: GlobalSymbolId,
-        kind: ExtensionKind,
+        form: ExtensionForm,
         target: GlobalSymbolId,
         lineage: Option<LocalLineageId>,
     ) -> Self {
         Self {
             symbol,
-            kind,
+            form,
             target,
             lineage,
         }
@@ -132,16 +132,16 @@ impl Extension {
 
     /// Check if this extension is inherent.
     pub fn is_inherent(&self) -> bool {
-        matches!(self.kind, ExtensionKind::Inherent)
+        matches!(self.form, ExtensionForm::Inherent)
     }
 
     /// Check if this extension is named (can be exported/imported).
     pub fn is_named(&self) -> bool {
-        matches!(self.kind, ExtensionKind::Named)
+        matches!(self.form, ExtensionForm::Named)
     }
 
     /// Check if this extension is local.
     pub fn is_local(&self) -> bool {
-        matches!(self.kind, ExtensionKind::Local)
+        matches!(self.form, ExtensionForm::Local)
     }
 }

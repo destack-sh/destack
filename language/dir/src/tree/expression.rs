@@ -6,8 +6,8 @@ use crate::{
     CastOrigin, Declaration, Declarator, DependencyItem, DependencySpace, ExportKind,
     GenericArgument, ImportAttributeClause, ImportSource, ImportTarget, LocalNodeId, LocalScopeId,
     LocalSymbolId, LocalTypeId, MatchCase, MatchForm, MatchOrigin, Mutability, Node, NodeType,
-    Path, Pattern, Property, ScalarLiteral, StaticArgument, StaticProperty, SymbolSpace,
-    TemplateLiteral, Tree, TypeExpression, TypeLiteral, UnaryOperator, VarianceBound,
+    Path, Pattern, Property, ScalarLiteral, StaticArgument, StaticProperty, TemplateLiteral, Tree,
+    TypeExpression, TypeLiteral, UnaryOperator, VarianceBound,
 };
 use destack_source::{NodeSpanList, NodeSpanType};
 
@@ -189,7 +189,6 @@ pub enum Expression {
     Path {
         path: Path,
         generic_arguments: Vec<LocalNodeId<GenericArgument>>,
-        space: SymbolSpace,
     },
     /// Private identifier.
     PrivateIdentifier { name: StringId },
@@ -457,9 +456,12 @@ impl Expression {
     /// Get the symbol of the expression.
     pub fn symbol(&self) -> Option<LocalSymbolId> {
         match self {
-            Expression::Let { .. } => None,
-            Expression::LetElse { .. } => None,
-            Expression::Using { .. } => None,
+            Expression::Labelled { symbol, .. }
+            | Expression::Loop { symbol, .. }
+            | Expression::ForEach { symbol, .. }
+            | Expression::For { symbol, .. }
+            | Expression::Try { symbol, .. }
+            | Expression::Match { symbol, .. } => Some(*symbol),
             _ => None,
         }
     }

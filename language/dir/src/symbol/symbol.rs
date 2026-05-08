@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     ExportKind, GlobalNodeIdAny, LocalNodeId, LocalScopeId, LocalScopeMark, Mutability, Node,
-    NodeType, StaticKey, StringId, SymbolAttributes,
+    NodeType, StaticKey, StringId,
 };
 
 /// The space of a symbol.
@@ -31,14 +31,14 @@ impl SymbolSpace {
     }
 }
 
-/// The kind of a symbol (scope behavior).
+/// The scope lookup role of a symbol.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-pub enum SymbolKind {
-    /// Namespace.
+pub enum SymbolRole {
+    /// Namespace symbol with an owned scope.
     Namespace,
-    /// Item (must be unique within its scope).
+    /// Item symbol that must be unique within its scope.
     Item,
-    /// Local (may be shadowed within its scope).
+    /// Local symbol that may be shadowed within its scope.
     Local,
 }
 
@@ -61,68 +61,61 @@ pub enum SymbolBinding {
 pub enum SymbolOrigin {
     /// Declaration in module scope.
     #[default]
-    Primary,
-    /// Declaration inside a `declare global` block.
-    GlobalAugmentation,
+    Module,
+    /// Declaration inside a `global` block.
+    Global,
 }
 
 impl SymbolOrigin {
-    /// Check if this symbol originates from a global augmentation.
+    /// Check if this symbol originates from a global block.
     #[inline]
-    pub fn is_global_augmentation(self) -> bool {
-        matches!(self, SymbolOrigin::GlobalAugmentation)
+    pub fn is_global(self) -> bool {
+        matches!(self, SymbolOrigin::Global)
     }
 }
 
-/// The binding category used for early duplicate-binding validation.
-#[derive(
-    Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize,
-)]
-pub enum BindingCategory {
-    /// Category has not been assigned yet.
-    #[default]
-    Unclassified,
-    /// Symbol does not participate in duplicate-binding early errors.
-    NonBinding,
-    /// Function-scoped declaration category (`var`-style).
-    FunctionScoped,
-    /// Block-scoped declaration category (`let` and `const`-style).
-    BlockScoped,
-    /// Formal parameter declaration category (including catch parameters).
+/// The lexical scope form used by a binding declaration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum BindingScope {
+    /// Function-scoped declaration (`var`-style).
+    Function,
+    /// Block-scoped declaration (`let` and `const`-style).
+    Block,
+    /// Formal parameter declaration, including catch parameters.
     Parameter,
 }
 
-/// The declaration form that produced a symbol.
+/// The semantic form of a symbol.
 #[derive(
     Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize,
 )]
-pub enum DeclarationForm {
-    /// Not a type declaration (variables, labels, namespaces, extensions, imports).
+pub enum SymbolForm {
+    /// Plain value binding without a more specific form.
     #[default]
-    Void,
-    /// A class declaration.
+    Value,
+    /// Class symbol.
     Class,
-    /// A struct declaration.
+    /// Struct symbol.
     Struct,
-    /// An interface declaration.
+    /// Interface symbol.
     Interface,
-    /// An enum declaration.
+    /// Enum symbol.
     Enum,
-    /// A function declaration.
+    /// Function symbol.
     Function,
-    /// An extension declaration.
+    /// Extension symbol.
     Extension,
-    /// A type alias declaration (transparent, structural equivalence).
+    /// Transparent type alias symbol.
     TypeAlias,
-    /// A newtype declaration (nominal, distinct type).
+    /// Nominal newtype symbol.
     Newtype,
 }
 
-impl DeclarationForm {
+impl SymbolForm {
     /// Check if this is an interface.
     #[inline]
     pub fn is_interface(self) -> bool {
-        self == DeclarationForm::Interface
+        self == SymbolForm::Interface
     }
 }
 
@@ -179,21 +172,21 @@ impl From<GlobalSymbolId> for LocalSymbolId {
     }
 }
 
-/// A Symbol is a bindable item or local in a scope (which may also declare a scope).
+/// A bindable item or local in a scope.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Symbol {
-    /// The kind of the symbol.
-    pub kind: SymbolKind,
-    /// The declaration form of the symbol.
-    pub form: DeclarationForm,
-    /// The "space" of the symbol.
+    /// The scope lookup role of the symbol.
+    pub role: SymbolRole,
+    /// The semantic form of the symbol.
+    pub form: SymbolForm,
+    /// The lookup space of the symbol.
     pub space: SymbolSpace,
     /// How this symbol was introduced/bound.
     pub binding: SymbolBinding,
     /// The mutability for value bindings when known.
     pub binding_mutability: Option<Mutability>,
-    /// The binding category used for early duplicate-binding checks.
-    pub binding_category: BindingCategory,
+    /// The lexical scope form for declarations that bind into source scopes.
+    pub binding_scope: Option<BindingScope>,
 
     /// Where this symbol was introduced.
     pub origin: SymbolOrigin,
@@ -208,9 +201,6 @@ pub struct Symbol {
     pub export: Option<ExportKind>,
     /// The declaration node that introduced this symbol.
     pub declaration: Option<GlobalNodeIdAny>,
-
-    /// Semantic attributes attached to the symbol.
-    pub attributes: SymbolAttributes,
 }
 
 impl Symbol {

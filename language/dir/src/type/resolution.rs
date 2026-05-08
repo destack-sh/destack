@@ -6,7 +6,7 @@ use crate::{GlobalSymbolId, LocalInstantiationId, LocalTypeId, ModuleResolution,
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Resolution {
     /// Lexical symbol binding.
-    Symbol(SymbolResolution),
+    Symbol(GlobalSymbolId),
     /// Dependency binding.
     Dependency(DependencyResolution),
     /// Control flow target binding.
@@ -15,22 +15,13 @@ pub enum Resolution {
     Dispatch(DispatchResolution),
 }
 
-/// Target selected by lexical reference binding.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum SymbolResolution {
-    /// Exactly one symbol target.
-    Target(GlobalSymbolId),
-    /// Candidate symbols when the reference remains overloaded or ambiguous.
-    Candidates(Vec<GlobalSymbolId>),
-}
-
 /// Target selected by a dependency edge.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DependencyResolution {
     /// A module import target.
     Module(ModuleResolution),
     /// A resolved exported or imported binding.
-    Binding(GlobalSymbolId),
+    Symbol(GlobalSymbolId),
 }
 
 /// Target selected by a control flow transfer.

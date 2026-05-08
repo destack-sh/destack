@@ -20,12 +20,6 @@ pub enum ImportSource {
     ImportEquals,
     /// Dynamic import call (`import("mod")`).
     ImportCall,
-    /// Re-export statement (like `export { bar } from "foo"`).
-    ExportStatement,
-    /// Require call (like `require("foo")`).
-    RequireCall,
-    /// Value expression dependency (like `export = foo`).
-    ValueExpression,
 }
 
 /// The target of an import declaration.

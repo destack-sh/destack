@@ -319,7 +319,6 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
         TypeExpression::Reference {
             path: _,
             generic_arguments,
-            space: _,
         } => {
             for argument_id in generic_arguments {
                 let argument = tree.get(*argument_id);
@@ -875,7 +874,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             Expression::Path {
                 path: _,
                 generic_arguments,
-                space: _,
             } => {
                 for argument_id in generic_arguments {
                     let argument = tree.get(*argument_id);
