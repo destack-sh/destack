@@ -20,12 +20,7 @@ use crate::{Keyword, TokenType};
 /// &&                               // logical and
 /// ||                               // logical or
 /// ??                               // nullish coalescing
-/// =                                // assignment
-/// *= /= %= **= *%= *|=             // assignment multiplication
-/// += -= +%= -%= +|= -|=            // assignment addition
-/// <<= >>= <<|=                     // assignment shift
-/// &= ^= |=                         // assignment elementwise
-/// &&= ||=                          // assignment logical
+/// = += -= *= /= %= **= <<= >>= >>>= &= ^= |= &&= ||= ??= // assignment
 /// ```
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum OperatorPrecedence {
@@ -72,23 +67,8 @@ pub enum OperatorPrecedence {
     /// `??`
     NullishCoalescing = 1180,
     /// Assignment-related binary operators.
-    /// `=`
+    /// `= += -= *= /= %= **= <<= >>= >>>= &= ^= |= &&= ||= ??=`
     Assignment = 800,
-    /// Assignment multiplication-related binary operators.
-    /// `*= /= %= **= *%= *|=`
-    AssignmentMultiplication = 700,
-    /// Assignment addition-related binary operators.
-    /// `+= -= +%= -%= +|= -|=`
-    AssignmentAddition = 600,
-    /// Assignment shift-related binary operators.
-    /// `<<= >>= <<|=`
-    AssignmentShift = 500,
-    /// Assignment elementwise-related binary operators.
-    /// `&= ^= |=`
-    AssignmentElementwise = 400,
-    /// Assignment logical-related binary operators.
-    /// `&&= ||= ??=`
-    AssignmentBoolean = 300,
 }
 
 /// A UnaryOperator is unary operator.
@@ -405,8 +385,8 @@ impl BinaryOperator {
     }
 }
 
-/// An AssignOperator is assignment type.
-/// Relative order matches precedence. Also see OperatorPrecedence.
+/// An AssignOperator is an assignment type.
+/// All assignment operators share one right-associative precedence.
 ///
 /// Examples:
 /// ```
@@ -419,116 +399,78 @@ impl BinaryOperator {
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AssignOperator {
     /// `=`
-    Assign = 800,
+    Assign,
 
-    // assignment multiplication
+    // multiplication assignment
     /// `*=`
-    MultiplyAssign = 708,
+    MultiplyAssign,
     /// `*%=`
-    WrappingMultiplyAssign = 707,
+    WrappingMultiplyAssign,
     /// `*|=`
-    SaturatingMultiplyAssign = 706,
+    SaturatingMultiplyAssign,
     /// `**=`
-    ExponentAssign = 705,
+    ExponentAssign,
     /// `**%=`
-    WrappingExponentAssign = 704,
+    WrappingExponentAssign,
     /// `**|`
-    SaturatingExponentAssign = 703,
+    SaturatingExponentAssign,
     /// `/=`
-    DivideAssign = 702,
+    DivideAssign,
     /// `%=`
-    RemainderAssign = 701,
+    RemainderAssign,
 
-    // assignment addition
+    // addition assignment
     /// `+=`
-    AddAssign = 606,
+    AddAssign,
     /// `+%=`
-    WrappingAddAssign = 605,
+    WrappingAddAssign,
     /// `+|=`
-    SaturatingAddAssign = 604,
+    SaturatingAddAssign,
     /// `-=`
-    SubtractAssign = 603,
+    SubtractAssign,
     /// `-%=`
-    WrappingSubtractAssign = 602,
+    WrappingSubtractAssign,
     /// `-|=`
-    SaturatingSubtractAssign = 601,
+    SaturatingSubtractAssign,
 
-    // assignment shift
+    // shift assignment
     /// `<<=`
-    ShiftLeftAssign = 503,
+    ShiftLeftAssign,
     /// `<<|=`
-    SaturatingShiftLeftAssign = 502,
+    SaturatingShiftLeftAssign,
     /// `>>=`
-    ShiftRightAssign = 501,
+    ShiftRightAssign,
     /// `>>>=`
-    UnsignedShiftRightAssign = 500,
+    UnsignedShiftRightAssign,
 
-    // assignment elementwise
+    // elementwise assignment
     /// `&=`
-    ElementwiseAndAssign = 403,
+    ElementwiseAndAssign,
     /// `^=`
-    ElementwiseXorAssign = 402,
+    ElementwiseXorAssign,
     /// `|=`
-    ElementwiseOrAssign = 401,
+    ElementwiseOrAssign,
 
-    // assignment logical
+    // logical assignment
     /// `&&=`
-    AndAssign = 303,
+    AndAssign,
     /// `||=`
-    OrAssign = 302,
+    OrAssign,
     /// `??=`
-    CoalesceAssign = 301,
+    CoalesceAssign,
 }
 
 impl AssignOperator {
-    /// Get the precedence of the assignment type.
+    /// Return the shared assignment precedence.
     #[inline]
     pub fn precedence_group(&self) -> OperatorPrecedence {
-        match self {
-            // assignment
-            AssignOperator::Assign => OperatorPrecedence::Assignment,
-
-            // assignment multiplication
-            AssignOperator::MultiplyAssign
-            | AssignOperator::WrappingMultiplyAssign
-            | AssignOperator::SaturatingMultiplyAssign
-            | AssignOperator::ExponentAssign
-            | AssignOperator::WrappingExponentAssign
-            | AssignOperator::SaturatingExponentAssign
-            | AssignOperator::DivideAssign
-            | AssignOperator::RemainderAssign => OperatorPrecedence::AssignmentMultiplication,
-
-            // assignment addition
-            AssignOperator::AddAssign
-            | AssignOperator::WrappingAddAssign
-            | AssignOperator::SaturatingAddAssign
-            | AssignOperator::SubtractAssign
-            | AssignOperator::WrappingSubtractAssign
-            | AssignOperator::SaturatingSubtractAssign => OperatorPrecedence::AssignmentAddition,
-
-            // assignment shift
-            AssignOperator::ShiftLeftAssign
-            | AssignOperator::SaturatingShiftLeftAssign
-            | AssignOperator::ShiftRightAssign
-            | AssignOperator::UnsignedShiftRightAssign => OperatorPrecedence::AssignmentShift,
-
-            // assignment elementwise
-            AssignOperator::ElementwiseAndAssign
-            | AssignOperator::ElementwiseXorAssign
-            | AssignOperator::ElementwiseOrAssign => OperatorPrecedence::AssignmentElementwise,
-
-            // assignment logical
-            AssignOperator::AndAssign
-            | AssignOperator::OrAssign
-            | AssignOperator::CoalesceAssign => OperatorPrecedence::AssignmentBoolean,
-        }
+        OperatorPrecedence::Assignment
     }
 
-    /// Get the precedence of the assignment type.
+    /// Return the shared assignment precedence value.
     #[inline]
     pub fn precedence(self) -> u16 {
-        // just transmute the enum value to an u16
-        self as u16
+        self.precedence_group() as u16
     }
 
     /// Convert a TokenType to an AssignOperator (if a direct mapping exists).
