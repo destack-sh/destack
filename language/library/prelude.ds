@@ -3,6 +3,7 @@ export * from "./reflect/index.ds";
 
 // memory
 export {
+    type StaticLifetime,
     type Lifetime,
     type Space,
     type Place,

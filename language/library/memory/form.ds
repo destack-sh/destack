@@ -1,5 +1,8 @@
+/// Builtin lifetime root for static storage.
+export type StaticLifetime = "static";
+
 /// Lifetime marker for borrowed validity.
-export type Lifetime = intrinsic;
+export type Lifetime = StaticLifetime | intrinsic;
 
 /// Concrete memory space tag kind.
 export type Space = intrinsic;
