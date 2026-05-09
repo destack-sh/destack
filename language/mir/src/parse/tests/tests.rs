@@ -1,4 +1,4 @@
-use destack_core::ImmutableStringPool;
+use destack_core::StringPool;
 use destack_source::{DiagnosticCollection, FileId, Span};
 
 use crate::parse::{ParseOptions, Parser};
@@ -51,7 +51,7 @@ impl<'a> TestParser<'a> {
     }
 
     /// Parse one fixture and require full validation.
-    pub(crate) fn parse(self) -> (Tree, ImmutableStringPool) {
+    pub(crate) fn parse(self) -> (Tree, StringPool) {
         Parser::parse(FileId::new(0), self.source, ParseOptions::default())
             .validate()
             .expect("parse failed")

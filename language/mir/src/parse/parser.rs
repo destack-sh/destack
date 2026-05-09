@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use destack_core::{ImmutableStringPool, StringPool};
+use destack_core::StringPool;
 use destack_source::{
     DiagnosticCollection, DiagnosticCollector, DiagnosticSeverity, FileContentId, FileId,
     NodeSpanList, NodeSpanType, Span,
@@ -22,19 +22,19 @@ pub struct ParsedMir {
     /// The parsed MIR tree.
     pub tree: Tree,
     /// The parsed string pool.
-    pub strings: ImmutableStringPool,
+    pub strings: StringPool,
     /// The collected parse diagnostics.
     pub diagnostics: DiagnosticCollection,
 }
 
 impl ParsedMir {
     /// Return the parsed tree, strings, and diagnostics.
-    pub fn into_parts(self) -> (Tree, ImmutableStringPool, DiagnosticCollection) {
+    pub fn into_parts(self) -> (Tree, StringPool, DiagnosticCollection) {
         (self.tree, self.strings, self.diagnostics)
     }
 
     /// Return the parsed MIR when no parse errors were emitted.
-    pub fn validate(self) -> ParseResult<(Tree, ImmutableStringPool)> {
+    pub fn validate(self) -> ParseResult<(Tree, StringPool)> {
         let Self {
             tree,
             strings,
@@ -168,7 +168,7 @@ impl Parser {
 
         ParsedMir {
             tree: parser.tree,
-            strings: parser.strings.into_immutable(),
+            strings: parser.strings,
             diagnostics: parser.diagnostics.take_collection(),
         }
     }

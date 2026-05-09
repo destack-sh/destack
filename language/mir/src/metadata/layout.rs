@@ -895,14 +895,11 @@ mod tests {
     use super::*;
     use crate::parse::{ParseOptions, Parser};
     use crate::{DataLayout, TypeAlias};
-    use destack_core::ImmutableStringPool;
+    use destack_core::StringPool;
     use destack_source::FileId;
 
     /// Parse one MIR module with layout metadata.
-    fn parse_tree_with_layout(
-        mir_text: &str,
-        data_layout: DataLayout,
-    ) -> (Tree, ImmutableStringPool) {
+    fn parse_tree_with_layout(mir_text: &str, data_layout: DataLayout) -> (Tree, StringPool) {
         let (mut tree, strings) = Parser::parse(
             FileId::new(0),
             mir_text,
@@ -918,11 +915,7 @@ mod tests {
     }
 
     /// Look up one aliased type by name.
-    fn lookup_type_alias(
-        tree: &Tree,
-        strings: &ImmutableStringPool,
-        name: &str,
-    ) -> LocalNodeId<Type> {
+    fn lookup_type_alias(tree: &Tree, strings: &StringPool, name: &str) -> LocalNodeId<Type> {
         for (_, type_alias) in tree.iter_nodes::<TypeAlias>() {
             if strings.get(type_alias.name) == name {
                 return type_alias
