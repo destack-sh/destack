@@ -425,7 +425,9 @@ impl FunctionLowerer<'_> {
             mir::Type::Usize => Some(ScalarType::UnsignedInt {
                 width: self.context.type_lowerer.pointer_width_bits(),
             }),
-            mir::Type::Float { width } => Some(ScalarType::Float { width: *width }),
+            mir::Type::Float(float_type) => Some(ScalarType::Float {
+                width: float_type.width(),
+            }),
             _ => None,
         }
     }

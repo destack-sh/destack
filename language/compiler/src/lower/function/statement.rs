@@ -979,8 +979,8 @@ impl FunctionLowerer<'_> {
                 {
                     Ok(self.context.type_lowerer.ty_usize)
                 }
-                ScalarType::Float { width: 32 } => Ok(self.context.type_lowerer.ty_f32),
-                ScalarType::Float { width: 64 } => Ok(self.context.type_lowerer.ty_f64),
+                ScalarType::FLOAT32 => Ok(self.context.type_lowerer.ty_f32),
+                ScalarType::FLOAT64 => Ok(self.context.type_lowerer.ty_f64),
                 _ => Err(self.missing_type_error(expression_id).into()),
             };
         }

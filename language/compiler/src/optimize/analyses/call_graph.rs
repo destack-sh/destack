@@ -301,7 +301,9 @@ impl SignatureType {
             },
             mir::Type::Isize => SignatureType::Isize,
             mir::Type::Usize => SignatureType::Usize,
-            mir::Type::Float { width } => SignatureType::Float { width: *width },
+            mir::Type::Float(float_type) => SignatureType::Float {
+                width: float_type.width(),
+            },
             mir::Type::TypeDescriptor => SignatureType::TypeDescriptor,
             mir::Type::TypeId => SignatureType::TypeId,
             mir::Type::Atomic { value } => SignatureType::Atomic {

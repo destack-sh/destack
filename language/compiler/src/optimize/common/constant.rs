@@ -80,8 +80,8 @@ pub fn constant_matches_type(
             };
             width == ty_width && signed == ty_signed
         }
-        (ConstantType::Float { width }, Type::Float { width: ty_width }) => {
-            u16::from(width) == *ty_width
+        (ConstantType::Float { width }, Type::Float(float_type)) => {
+            u16::from(width) == float_type.width()
         }
         (
             ConstantType::Char,
@@ -313,9 +313,9 @@ pub fn constant_zero_for_type(ty: &Type, pointer_width_bits: u16) -> Option<Cons
     let Some((width, signed)) = ty.int_info_with_pointer_width(pointer_width_bits) else {
         // handle non integer scalar types
         return match ty {
-            Type::Float { width } => Some(Constant::Float {
+            Type::Float(float_type) => Some(Constant::Float {
                 bits: 0,
-                width: *width as u8,
+                width: float_type.width() as u8,
             }),
             Type::Boolean => Some(Constant::Boolean { value: false }),
             _ => None,
@@ -785,9 +785,9 @@ fn constant_tree_from_zero(
             value: 0,
             width: pointer_width_bits,
         }),
-        Type::Float { width } => ConstantTree::Scalar(Constant::Float {
+        Type::Float(float_type) => ConstantTree::Scalar(Constant::Float {
             bits: 0,
-            width: *width as u8,
+            width: float_type.width() as u8,
         }),
         Type::Newtype { inner, .. } => {
             constant_tree_from_zero(*inner, tree, max_aggregate_elements, pointer_width_bits)
@@ -1430,7 +1430,7 @@ pub fn fold_cast(
         CastOperator::SignedIntToFloat => {
             // read target float width
             let target_width = match target_type {
-                Type::Float { width } => *width,
+                Type::Float(float_type) => float_type.width(),
                 _ => 64,
             };
 
@@ -1451,7 +1451,7 @@ pub fn fold_cast(
         CastOperator::UnsignedIntToFloat => {
             // read target float width
             let target_width = match target_type {
-                Type::Float { width } => *width,
+                Type::Float(float_type) => float_type.width(),
                 _ => 64,
             };
 

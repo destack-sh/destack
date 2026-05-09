@@ -5,7 +5,6 @@ use destack_workspace::Module;
 
 use super::UnbindContext;
 use crate::Compiler;
-use crate::import::DEFAULT_FLOAT_WIDTH;
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
@@ -55,11 +54,10 @@ impl Compiler {
                 dir::PrimitiveType::Character => ast::TypeLiteral::Character,
                 dir::PrimitiveType::String => ast::TypeLiteral::String,
                 dir::PrimitiveType::Bigint => ast::TypeLiteral::Bigint,
-                dir::PrimitiveType::Number => ast::TypeLiteral::Number,
                 dir::PrimitiveType::Symbol => ast::TypeLiteral::Symbol,
                 dir::PrimitiveType::UniqueSymbol => ast::TypeLiteral::UniqueSymbol,
-                dir::PrimitiveType::Int(int_type) => {
-                    ast::TypeLiteral::Int(self.unbind_int_type(int_type, context))
+                dir::PrimitiveType::Integer(int_type) => {
+                    ast::TypeLiteral::Integer(self.unbind_integer_type(int_type, context))
                 }
                 dir::PrimitiveType::Float(float_type) => {
                     ast::TypeLiteral::Float(self.unbind_float_type(float_type, context))
@@ -71,14 +69,14 @@ impl Compiler {
             dir::TypeLiteral::ScalarLiteral(scalar) => match scalar {
                 dir::ScalarLiteral::Null => ast::TypeLiteral::Null,
                 dir::ScalarLiteral::Boolean(_) => ast::TypeLiteral::Boolean,
-                dir::ScalarLiteral::Integer(_) => ast::TypeLiteral::Int(ast::IntType::Arbitrary {
-                    width: Some(32),
-                    is_signed: true,
-                }),
-                dir::ScalarLiteral::Bigint(_) => ast::TypeLiteral::Bigint,
-                dir::ScalarLiteral::Float(_) => {
-                    ast::TypeLiteral::Float(ast::FloatType { width: Some(64) })
+                dir::ScalarLiteral::Integer(_) => {
+                    ast::TypeLiteral::Integer(ast::IntegerType::Fixed {
+                        width: 32,
+                        is_signed: true,
+                    })
                 }
+                dir::ScalarLiteral::Bigint(_) => ast::TypeLiteral::Bigint,
+                dir::ScalarLiteral::Float(_) => ast::TypeLiteral::Float(ast::FloatType::Float64),
                 dir::ScalarLiteral::Character(_) => ast::TypeLiteral::Character,
                 dir::ScalarLiteral::String(_) => ast::TypeLiteral::String,
                 dir::ScalarLiteral::RegexString { .. } => ast::TypeLiteral::String,
@@ -102,65 +100,18 @@ impl Compiler {
         }
     }
 
-    /// Unbind a DIR int type to an AST int type.
-    fn unbind_int_type(
+    /// Unbind a DIR integer type to an AST integer type.
+    fn unbind_integer_type(
         &self,
-        int_type: &dir::IntType,
+        int_type: &dir::IntegerType,
         _context: &mut UnbindContext,
-    ) -> ast::IntType {
+    ) -> ast::IntegerType {
         match int_type {
-            dir::IntType::Isize => ast::IntType::Pointer { is_signed: true },
-            dir::IntType::Usize => ast::IntType::Pointer { is_signed: false },
-            dir::IntType::Int8 => ast::IntType::Arbitrary {
-                width: Some(8),
-                is_signed: true,
+            dir::IntegerType::Fixed { width, is_signed } => ast::IntegerType::Fixed {
+                width: *width,
+                is_signed: *is_signed,
             },
-            dir::IntType::Int16 => ast::IntType::Arbitrary {
-                width: Some(16),
-                is_signed: true,
-            },
-            dir::IntType::Int32 => ast::IntType::Arbitrary {
-                width: Some(32),
-                is_signed: true,
-            },
-            dir::IntType::Int64 => ast::IntType::Arbitrary {
-                width: Some(64),
-                is_signed: true,
-            },
-            dir::IntType::Int128 => ast::IntType::Arbitrary {
-                width: Some(128),
-                is_signed: true,
-            },
-            dir::IntType::Int256 => ast::IntType::Arbitrary {
-                width: Some(256),
-                is_signed: true,
-            },
-            dir::IntType::Uint8 => ast::IntType::Arbitrary {
-                width: Some(8),
-                is_signed: false,
-            },
-            dir::IntType::Uint16 => ast::IntType::Arbitrary {
-                width: Some(16),
-                is_signed: false,
-            },
-            dir::IntType::Uint32 => ast::IntType::Arbitrary {
-                width: Some(32),
-                is_signed: false,
-            },
-            dir::IntType::Uint64 => ast::IntType::Arbitrary {
-                width: Some(64),
-                is_signed: false,
-            },
-            dir::IntType::Uint128 => ast::IntType::Arbitrary {
-                width: Some(128),
-                is_signed: false,
-            },
-            dir::IntType::Uint256 => ast::IntType::Arbitrary {
-                width: Some(256),
-                is_signed: false,
-            },
-            dir::IntType::Arbitrary { width, is_signed } => ast::IntType::Arbitrary {
-                width: Some(*width),
+            dir::IntegerType::Pointer { is_signed } => ast::IntegerType::Pointer {
                 is_signed: *is_signed,
             },
         }
@@ -173,17 +124,8 @@ impl Compiler {
         _context: &mut UnbindContext,
     ) -> ast::FloatType {
         match float_type {
-            dir::FloatType::Float32 => ast::FloatType { width: Some(32) },
-            dir::FloatType::Float64 => ast::FloatType { width: Some(64) },
-            dir::FloatType::Arbitrary { width } => {
-                if *width == DEFAULT_FLOAT_WIDTH {
-                    ast::FloatType { width: None }
-                } else {
-                    ast::FloatType {
-                        width: Some(*width),
-                    }
-                }
-            }
+            dir::FloatType::Float32 => ast::FloatType::Float32,
+            dir::FloatType::Float64 => ast::FloatType::Float64,
         }
     }
 

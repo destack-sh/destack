@@ -609,7 +609,7 @@ impl Compiler {
         // enum to primitive
         if let Some(backing) = backing_for_type(source) {
             match backing {
-                EnumBackingType::Int(_) if is_integer_type(target) => {
+                EnumBackingType::Integer(_) if is_integer_type(target) => {
                     return Some(CastOperator::EnumToInt);
                 }
                 EnumBackingType::String if is_string_type(target) => {
@@ -622,7 +622,7 @@ impl Compiler {
         // primitive to enum
         if let Some(backing) = backing_for_type(target) {
             match backing {
-                EnumBackingType::Int(_) if is_integer_type(source) => {
+                EnumBackingType::Integer(_) if is_integer_type(source) => {
                     return Some(CastOperator::IntToEnum);
                 }
                 EnumBackingType::String if is_string_type(source) => {

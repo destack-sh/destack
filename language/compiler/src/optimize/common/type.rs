@@ -148,7 +148,9 @@ impl TypeKey {
             },
             mir::Type::Isize => TypeKey::Isize,
             mir::Type::Usize => TypeKey::Usize,
-            mir::Type::Float { width } => TypeKey::Float { width: *width },
+            mir::Type::Float(float_type) => TypeKey::Float {
+                width: float_type.width(),
+            },
             mir::Type::TypeDescriptor => TypeKey::TypeDescriptor,
             mir::Type::TypeId => TypeKey::TypeId,
             mir::Type::Atomic { value } => TypeKey::Atomic {
@@ -414,7 +416,7 @@ fn types_are_equal_inner(
         ) => w1 == w2 && s1 == s2,
         (mir::Type::Isize, mir::Type::Isize) => true,
         (mir::Type::Usize, mir::Type::Usize) => true,
-        (mir::Type::Float { width: w1 }, mir::Type::Float { width: w2 }) => w1 == w2,
+        (mir::Type::Float(left), mir::Type::Float(right)) => left == right,
         (mir::Type::TypeDescriptor, mir::Type::TypeDescriptor)
         | (mir::Type::TypeId, mir::Type::TypeId) => true,
 

@@ -166,17 +166,17 @@ fn numeric_kind_for_type(ty: &Type) -> Option<NumericKind> {
     };
 
     match value {
-        TypeLiteral::Primitive(PrimitiveType::Number) => Some(NumericKind::Float { width: 64 }),
-        TypeLiteral::Primitive(PrimitiveType::Int(int_type)) => {
+        TypeLiteral::Primitive(PrimitiveType::Integer(int_type)) => {
             let width = int_type.width()?;
             Some(NumericKind::Int {
                 width,
                 is_signed: int_type.is_signed(),
             })
         }
-        TypeLiteral::Primitive(PrimitiveType::Float(float_type)) => Some(NumericKind::Float {
-            width: float_type.width(),
-        }),
+        TypeLiteral::Primitive(PrimitiveType::Float(float_type)) => {
+            let width = float_type.width()?;
+            Some(NumericKind::Float { width })
+        }
         TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(_)) => Some(NumericKind::Int {
             width: 64,
             is_signed: true,
@@ -265,7 +265,7 @@ pub(super) fn common_numeric_type_id_for_binary(
     // widen literal only expressions to number
     if left_is_literal && right_is_literal {
         let ty = Type::Literal(dir::LiteralType {
-            value: TypeLiteral::Primitive(PrimitiveType::Number),
+            value: TypeLiteral::Primitive(PrimitiveType::Float(dir::FloatType::Float64)),
         });
         let type_id = types.insert_type_from(ty, source_id);
         return Some(type_id);
@@ -287,7 +287,7 @@ pub(super) fn is_integer_type(ty: &Type) -> bool {
     matches!(
         ty,
         Type::Literal(dir::LiteralType {
-            value: TypeLiteral::Primitive(PrimitiveType::Int(_))
+            value: TypeLiteral::Primitive(PrimitiveType::Integer(_))
         }) | Type::Literal(dir::LiteralType {
             value: TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(_))
         })
@@ -420,10 +420,10 @@ pub(super) fn has_matching_implicit_value_runtime_family(source: &Type, target: 
         (source, target),
         (
             Type::Literal(dir::LiteralType {
-                value: TypeLiteral::Primitive(PrimitiveType::Int(_) | PrimitiveType::Float(_)),
+                value: TypeLiteral::Primitive(PrimitiveType::Integer(_) | PrimitiveType::Float(_)),
             }),
             Type::Literal(dir::LiteralType {
-                value: TypeLiteral::Primitive(PrimitiveType::Number),
+                value: TypeLiteral::Primitive(PrimitiveType::Float(dir::FloatType::Float64)),
             }),
         ) | (
             Type::Literal(dir::LiteralType {
@@ -432,7 +432,7 @@ pub(super) fn has_matching_implicit_value_runtime_family(source: &Type, target: 
                 ),
             }),
             Type::Literal(dir::LiteralType {
-                value: TypeLiteral::Primitive(PrimitiveType::Number),
+                value: TypeLiteral::Primitive(PrimitiveType::Float(dir::FloatType::Float64)),
             }),
         )
     )

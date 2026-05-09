@@ -729,7 +729,7 @@ mod tests {
     #[test]
     fn test_reference_is_borrowed_tensor_view() {
         let mut tree = mir::Tree::new();
-        let element = tree.insert_type(mir::Type::Float { width: 32 });
+        let element = tree.insert_type(mir::Type::FLOAT32);
         let tensor_ref = tree.insert_type(mir::Type::TensorView {
             kind: mir::ReferenceKind::Borrowed,
             address_space: mir::AddressSpace::Stack,

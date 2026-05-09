@@ -333,8 +333,8 @@ impl TypeLowerer<'_> {
                 let align = bytes.min(8);
                 Some((bytes, align))
             }
-            mir::Type::Float { width } => {
-                let bytes = u32::from(*width).div_ceil(8);
+            mir::Type::Float(float_type) => {
+                let bytes = u32::from(float_type.width()).div_ceil(8);
                 let align = bytes.min(8);
                 Some((bytes, align))
             }

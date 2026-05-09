@@ -49,7 +49,7 @@ impl FunctionLowerer<'_> {
 
         // build the literal value for the backing type
         let value = match (backing, value) {
-            (dir::EnumBackingType::Int(_), dir::EnumFieldValue::Int(value)) => {
+            (dir::EnumBackingType::Integer(_), dir::EnumFieldValue::Int(value)) => {
                 self.enum_int_constant(value, backing, node)?
             }
             (dir::EnumBackingType::String, dir::EnumFieldValue::String(value)) => {

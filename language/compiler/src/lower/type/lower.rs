@@ -473,7 +473,7 @@ impl<'a> TypeLowerer<'a> {
 
         // map backing types to mir
         match backing_type {
-            dir::EnumBackingType::Int(int_type) => {
+            dir::EnumBackingType::Integer(int_type) => {
                 Ok(self.mir_type_for_int_type(int_type, builder))
             }
             dir::EnumBackingType::String => {
@@ -1059,28 +1059,16 @@ impl<'a> TypeLowerer<'a> {
         self.lower_type(types, primary, module_id, node, builder)
     }
 
-    /// Lower a DIR int type into a MIR type.
+    /// Lower a DIR integer type into a MIR type.
     fn mir_type_for_int_type(
         &mut self,
-        int_type: dir::IntType,
+        int_type: dir::IntegerType,
         builder: &mut mir::ModuleBuilder,
     ) -> mir::LocalNodeId<mir::Type> {
-        match int_type.simplify() {
-            dir::IntType::Int8 => builder.type_int(8, true),
-            dir::IntType::Int16 => builder.type_int(16, true),
-            dir::IntType::Int32 => self.ty_i32,
-            dir::IntType::Int64 => self.ty_i64,
-            dir::IntType::Int128 => builder.type_int(128, true),
-            dir::IntType::Int256 => builder.type_int(256, true),
-            dir::IntType::Isize => self.ty_isize,
-            dir::IntType::Uint8 => builder.type_int(8, false),
-            dir::IntType::Uint16 => builder.type_int(16, false),
-            dir::IntType::Uint32 => self.ty_u32,
-            dir::IntType::Uint64 => builder.type_int(64, false),
-            dir::IntType::Uint128 => builder.type_int(128, false),
-            dir::IntType::Uint256 => builder.type_int(256, false),
-            dir::IntType::Usize => self.ty_usize,
-            dir::IntType::Arbitrary { width, is_signed } => builder.type_int(width, is_signed),
+        match int_type {
+            dir::IntegerType::Fixed { width, is_signed } => builder.type_int(width, is_signed),
+            dir::IntegerType::Pointer { is_signed: true } => self.ty_isize,
+            dir::IntegerType::Pointer { is_signed: false } => self.ty_usize,
         }
     }
 }

@@ -191,13 +191,13 @@ impl ModuleLowerer<'_> {
                     width,
                 }
             }
-            (dir::ScalarLiteral::Float(f), mir::Type::Float { width }) => mir::Constant::Float {
-                bits: if *width == 32 {
+            (dir::ScalarLiteral::Float(f), mir::Type::Float(float_type)) => mir::Constant::Float {
+                bits: if float_type.width() == 32 {
                     (*f as f32).to_bits() as u64
                 } else {
                     f.to_bits()
                 },
-                width: *width as u8,
+                width: float_type.width() as u8,
             },
             _ => return None,
         };

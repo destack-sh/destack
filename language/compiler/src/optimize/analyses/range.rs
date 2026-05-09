@@ -836,11 +836,11 @@ fn range_for_cast(
         }
         mir::CastOperator::SignedIntToFloat | mir::CastOperator::UnsignedIntToFloat => {
             // require a float target type
-            let mir::Type::Float { width } = to_type else {
+            let mir::Type::Float(float_type) = to_type else {
                 return None;
             };
 
-            float_range_from_integer(argument, *width, operator)
+            float_range_from_integer(argument, float_type.width(), operator)
         }
         mir::CastOperator::FloatToSignedInt
         | mir::CastOperator::FloatToUnsignedInt
@@ -853,11 +853,11 @@ fn range_for_cast(
         }
         mir::CastOperator::FloatTruncate | mir::CastOperator::FloatExtend => {
             // require a float target type
-            let mir::Type::Float { width } = to_type else {
+            let mir::Type::Float(float_type) = to_type else {
                 return None;
             };
 
-            float_range_cast(argument, *width)
+            float_range_cast(argument, float_type.width())
         }
         _ => None,
     }
