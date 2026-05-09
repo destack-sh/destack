@@ -64,8 +64,12 @@ impl<'a> BinaryOutputGenerator<'a> {
         // compile
         let module = self.module.as_ref();
         let name = module.uri.last_segment().unwrap_or("module");
-        let compile_output = if let Some(mir) = self.mir_optimized.as_ref() {
-            backend.compile_module(&mir.tree, self.strings.as_ref(), name)?
+        let compile_output = if let Some(tree) = self
+            .mir_optimized
+            .as_ref()
+            .and_then(|mir| mir.latest_patch_tree())
+        {
+            backend.compile_module(tree, self.strings.as_ref(), name)?
         } else if let Some(mir) = self.mir_lowered.as_ref() {
             backend.compile_module(&mir.tree, self.strings.as_ref(), name)?
         } else {

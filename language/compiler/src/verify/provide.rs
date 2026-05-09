@@ -24,7 +24,12 @@ impl Compiler {
                 state.target,
             ))
             .map_err(CompilerError::from)?;
+        let lowered = self
+            .mir_lowered(state.context, state.module, state.profile, &state.target)
+            .map_err(CompilerError::from)?;
 
-        Ok(ArtifactPayload::MirVerified(MirVerified))
+        Ok(ArtifactPayload::MirVerified(MirVerified::new(
+            &lowered.tree,
+        )))
     }
 }

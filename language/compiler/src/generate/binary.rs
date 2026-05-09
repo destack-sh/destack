@@ -31,14 +31,19 @@ impl Compiler {
         let mir_lowered = self
             .mir_lowered(context, module_id, profile, &target_id)
             .map_err(CompilerError::from)?;
-        let state = GenerateState::new(module_id, &mir_optimized.tree);
+        let state = GenerateState::new(
+            module_id,
+            mir_optimized
+                .latest_patch_tree()
+                .unwrap_or(&mir_lowered.tree),
+        );
 
         // generate one binary output through the current backend
         let (artifact, warnings, errors) = destack_codegen_native::BinaryOutputGenerator::new(
             module.clone(),
             self.repository.string_pool().clone(),
             Some(mir_optimized.clone()),
-            Some(mir_lowered),
+            Some(mir_lowered.clone()),
             target,
         )
         .generate()
