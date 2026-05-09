@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 
 use crate::common::mir::analysis::{AvailableExpressions, ControlFlowGraph, DominatorTree};
@@ -14,7 +14,7 @@ use crate::optimize::{
     apply_substitutions_in_function, expression_key_from_instruction, expression_key_substitute,
 };
 
-declare_pass! {
+declare_mir_pass! {
     /// Eliminate partially redundant expressions by inserting computations.
     ///
     /// This pass computes SSA like phi values for pure expressions at join points.

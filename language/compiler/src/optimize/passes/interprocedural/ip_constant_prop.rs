@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 
 use crate::common::mir::{
@@ -9,7 +9,7 @@ use crate::common::mir::{
 };
 use crate::optimize::{AnalysisPreservation, ModulePass, PipelineContext};
 
-declare_pass! {
+declare_mir_pass! {
     /// Propagate constants across direct callsites.
     ///
     /// This pass substitutes parameters in a callee when all direct callsites

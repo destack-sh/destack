@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 
 use crate::common::mir::analysis::{
@@ -13,7 +13,7 @@ use crate::common::mir::{
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
-declare_pass! {
+declare_mir_pass! {
     /// Move loop invariant computations outside of loops.
     ///
     /// An instruction is loop invariant if all its operands are defined outside the loop or by other loop invariant instructions.

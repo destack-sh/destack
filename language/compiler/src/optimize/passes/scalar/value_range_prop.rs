@@ -1,11 +1,11 @@
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 
 use crate::common::mir::analysis::RangeAnalysis;
 use crate::common::mir::instruction_is_pure;
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
-declare_pass! {
+declare_mir_pass! {
     /// Fold values that range analysis proves constant.
     ///
     /// Range analysis can prove that some comparisons are always true or false.

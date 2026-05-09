@@ -1,11 +1,11 @@
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 
 use crate::common::mir::analysis::RangeAnalysis;
 use crate::common::mir::constraint_truth_value;
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
-declare_pass! {
+declare_mir_pass! {
     /// Eliminate redundant guard checks when conditions are proven.
     ///
     /// Uses control flow facts, assume instructions, and range analysis to

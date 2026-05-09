@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 
 use crate::common::mir::analysis::{RangeAnalysis, RangeMap, ValueRange};
 use crate::common::mir::{ValueTypeMap, is_comparison_operator};
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
-declare_pass! {
+declare_mir_pass! {
     /// Narrow integer operands for comparisons and bounds checks.
     ///
     /// This pass inserts truncating casts where the upper bits are provably unused.

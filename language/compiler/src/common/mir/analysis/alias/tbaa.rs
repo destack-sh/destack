@@ -458,8 +458,9 @@ mod tests {
 
         let ref_i32 = TypeKey::Reference {
             kind: destack_mir::ReferenceKind::Raw,
+            lifetime: destack_mir::Lifetime::empty(),
             address_space: destack_mir::AddressSpace::Local,
-            mutability: destack_mir::Mutability::Mutable,
+            access: destack_mir::Access::Mutable,
             pointee: Box::new(TypeKey::Int {
                 width: 32,
                 signed: true,
@@ -468,8 +469,9 @@ mod tests {
         };
         let ref_f64 = TypeKey::Reference {
             kind: destack_mir::ReferenceKind::Raw,
+            lifetime: destack_mir::Lifetime::empty(),
             address_space: destack_mir::AddressSpace::Local,
-            mutability: destack_mir::Mutability::Mutable,
+            access: destack_mir::Access::Mutable,
             pointee: Box::new(TypeKey::Float { width: 64 }),
             is_nullable: false,
         };
@@ -514,8 +516,9 @@ mod tests {
 
         let ref_ty = TypeKey::Reference {
             kind: destack_mir::ReferenceKind::Raw,
+            lifetime: destack_mir::Lifetime::empty(),
             address_space: destack_mir::AddressSpace::Local,
-            mutability: destack_mir::Mutability::Mutable,
+            access: destack_mir::Access::Mutable,
             pointee: Box::new(TypeKey::Int {
                 width: 32,
                 signed: true,
@@ -540,8 +543,9 @@ mod tests {
 
         let ref_ty = TypeKey::Reference {
             kind: destack_mir::ReferenceKind::Raw,
+            lifetime: destack_mir::Lifetime::empty(),
             address_space: destack_mir::AddressSpace::Local,
-            mutability: destack_mir::Mutability::Mutable,
+            access: destack_mir::Access::Mutable,
             pointee: Box::new(TypeKey::Int {
                 width: 32,
                 signed: true,
@@ -563,8 +567,9 @@ mod tests {
 
         let ref_generic = TypeKey::Reference {
             kind: destack_mir::ReferenceKind::Raw,
+            lifetime: destack_mir::Lifetime::empty(),
             address_space: destack_mir::AddressSpace::Local,
-            mutability: destack_mir::Mutability::Mutable,
+            access: destack_mir::Access::Mutable,
             pointee: Box::new(TypeKey::Int {
                 width: 32,
                 signed: true,
@@ -573,8 +578,9 @@ mod tests {
         };
         let ref_shared = TypeKey::Reference {
             kind: destack_mir::ReferenceKind::Raw,
+            lifetime: destack_mir::Lifetime::empty(),
             address_space: destack_mir::AddressSpace::Shared,
-            mutability: destack_mir::Mutability::Mutable,
+            access: destack_mir::Access::Mutable,
             pointee: Box::new(TypeKey::Int {
                 width: 32,
                 signed: true,

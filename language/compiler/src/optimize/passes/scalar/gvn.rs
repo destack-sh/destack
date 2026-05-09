@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 
 use crate::common::mir::analysis::{
@@ -17,7 +17,7 @@ use crate::optimize::{
     instruction_has_side_effects, resolve_substitution_chains,
 };
 
-declare_pass! {
+declare_mir_pass! {
     /// Global Value Numbering.
     ///
     /// Eliminates redundant computations across basic blocks by walking the dominator

@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 
 use crate::common::mir::analysis::{
@@ -15,7 +15,7 @@ use crate::common::mir::{
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
-declare_pass! {
+declare_mir_pass! {
     /// Unroll loops with a constant trip count.
     ///
     /// Replaces the loop backedge with a chain of unrolled iterations.
@@ -73,7 +73,7 @@ declare_pass! {
     "Unroll loops with constant trip counts"
 }
 
-declare_pass! {
+declare_mir_pass! {
     /// Unroll and jam perfectly nested loops.
     ///
     /// The outer loop is unrolled and the inner loop body is duplicated so that

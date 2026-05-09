@@ -39,8 +39,9 @@ pub enum TypeKey {
     /// Reference or pointer type.
     Reference {
         kind: mir::ReferenceKind,
+        lifetime: mir::Lifetime,
         address_space: mir::AddressSpace,
-        mutability: mir::Mutability,
+        access: mir::Access,
         pointee: Box<TypeKey>,
         is_nullable: bool,
     },
@@ -53,9 +54,10 @@ pub enum TypeKey {
     /// Slice type.
     Slice {
         kind: mir::ReferenceKind,
+        lifetime: mir::Lifetime,
         element: Box<TypeKey>,
         address_space: mir::AddressSpace,
-        mutability: mir::Mutability,
+        access: mir::Access,
     },
     /// Tuple type with ordered elements.
     Tuple {
@@ -88,8 +90,9 @@ pub enum TypeKey {
     /// Tensor view type.
     TensorView {
         kind: mir::ReferenceKind,
+        lifetime: mir::Lifetime,
         address_space: mir::AddressSpace,
-        mutability: mir::Mutability,
+        access: mir::Access,
         element: Box<TypeKey>,
         shape: Vec<mir::TensorDimension>,
         layout: mir::TensorLayout,
@@ -159,14 +162,16 @@ impl TypeKey {
 
             mir::Type::Reference {
                 kind,
+                lifetime,
                 address_space,
-                mutability,
+                access,
                 pointee,
                 is_nullable,
             } => TypeKey::Reference {
                 kind: *kind,
+                lifetime: lifetime.clone(),
                 address_space: address_space.clone(),
-                mutability: *mutability,
+                access: *access,
                 pointee: Box::new(Self::from_type_reference(*pointee, tree)),
                 is_nullable: *is_nullable,
             },
@@ -182,14 +187,16 @@ impl TypeKey {
             },
             mir::Type::Slice {
                 kind,
+                lifetime,
                 element,
                 address_space,
-                mutability,
+                access,
             } => TypeKey::Slice {
                 kind: *kind,
+                lifetime: lifetime.clone(),
                 element: Box::new(Self::from_type_reference(*element, tree)),
                 address_space: address_space.clone(),
-                mutability: *mutability,
+                access: *access,
             },
 
             mir::Type::Tuple { elements, copy } => {
@@ -247,16 +254,18 @@ impl TypeKey {
 
             mir::Type::TensorView {
                 kind,
+                lifetime,
                 address_space,
-                mutability,
+                access,
                 element,
                 shape,
                 layout,
                 is_nullable,
             } => TypeKey::TensorView {
                 kind: *kind,
+                lifetime: lifetime.clone(),
                 address_space: address_space.clone(),
-                mutability: *mutability,
+                access: *access,
                 element: Box::new(Self::from_type_reference(*element, tree)),
                 shape: shape.clone(),
                 layout: layout.clone(),
@@ -424,20 +433,23 @@ fn types_are_equal_inner(
         (
             mir::Type::Reference {
                 kind: k1,
+                lifetime: l1,
                 address_space: a1,
-                mutability: m1,
+                access: m1,
                 pointee: p1,
                 is_nullable: n1,
             },
             mir::Type::Reference {
                 kind: k2,
+                lifetime: l2,
                 address_space: a2,
-                mutability: m2,
+                access: m2,
                 pointee: p2,
                 is_nullable: n2,
             },
         ) => {
             k1 == k2
+                && l1 == l2
                 && a1 == a2
                 && m1 == m2
                 && n1 == n2
@@ -460,18 +472,24 @@ fn types_are_equal_inner(
         (
             mir::Type::Slice {
                 kind: k1,
+                lifetime: l1,
                 element: e1,
                 address_space: a1,
-                mutability: m1,
+                access: m1,
             },
             mir::Type::Slice {
                 kind: k2,
+                lifetime: l2,
                 element: e2,
                 address_space: a2,
-                mutability: m2,
+                access: m2,
             },
         ) => {
-            k1 == k2 && a1 == a2 && m1 == m2 && type_references_are_equal(*e1, *e2, tree, visiting)
+            k1 == k2
+                && l1 == l2
+                && a1 == a2
+                && m1 == m2
+                && type_references_are_equal(*e1, *e2, tree, visiting)
         }
 
         // tuples: compare element types

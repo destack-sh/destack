@@ -18,11 +18,11 @@ use crate::{DiagnosticAnchor, OptimizeError, OptimizeWarning};
 /// Shared diagnostics state for pipeline contexts.
 #[derive(Debug)]
 pub struct PipelineDiagnostics {
-    /// Accumulated errors from verification passes.
+    /// Accumulated errors from pipeline passes.
     errors: Mutex<Vec<DiagnosticBuilder<OptimizeError>>>,
-    /// Accumulated warnings from verification passes.
+    /// Accumulated warnings from pipeline passes.
     warnings: Mutex<Vec<DiagnosticBuilder<OptimizeWarning>>>,
-    /// Whether all verification passed with no aliasing violations.
+    /// Whether all strict aliasing checks passed.
     is_strict_safe: AtomicBool,
     /// Whether type layouts have been validated for this pipeline run.
     type_layouts_validated: AtomicBool,

@@ -1,15 +1,15 @@
 use crate::CompositePipeline;
 use crate::optimize::passes::{
-    ArgumentSpecialize, BorrowCheck, BoundsCheckEliminate, CfgLayout, CodeHoisting, ConstantFold,
-    CopyPropagate, CorrelatedValueProp, DeadArgEliminate, DeadCodeEliminate, DeadStoreEliminate,
-    DropInsert, FunctionAttrs, GlobalOpt, GlobalValueNumbering, GuardEliminate, IfConvert,
-    InductionVariableSimplify, Inline, InstructionCombine, InterproceduralConstantPropagation,
-    InterproceduralDceCleanup, InterproceduralSccp, Licm, LifetimeCheck, LoadPre, LoadStoreForward,
-    LocalCse, LoopBoundsCheckEliminate, LoopDelete, LoopDistribute, LoopFusion, LoopIdiomRecognize,
-    LoopInterchange, LoopPeel, LoopRotate, LoopSimplify, LoopStrengthReduce, LoopUnroll,
-    LoopUnrollAndJam, LoopUnswitch, LoopVersioning, Mem2Reg, MemCse, MoveCheck, Narrow,
-    PartialRedundancyElim, Reassociate, SimplifyCfg, Sink, SparseConditionalConstantPropagation,
-    Sroa, StackCheck, StorePre, StoreSink, TailCallElim, ValueRangePropagation,
+    ArgumentSpecialize, BoundsCheckEliminate, CfgLayout, CodeHoisting, ConstantFold, CopyPropagate,
+    CorrelatedValueProp, DeadArgEliminate, DeadCodeEliminate, DeadStoreEliminate, FunctionAttrs,
+    GlobalOpt, GlobalValueNumbering, GuardEliminate, IfConvert, InductionVariableSimplify, Inline,
+    InstructionCombine, InterproceduralConstantPropagation, InterproceduralDceCleanup,
+    InterproceduralSccp, Licm, LoadPre, LoadStoreForward, LocalCse, LoopBoundsCheckEliminate,
+    LoopDelete, LoopDistribute, LoopFusion, LoopIdiomRecognize, LoopInterchange, LoopPeel,
+    LoopRotate, LoopSimplify, LoopStrengthReduce, LoopUnroll, LoopUnrollAndJam, LoopUnswitch,
+    LoopVersioning, Mem2Reg, MemCse, Narrow, PartialRedundancyElim, Reassociate, SimplifyCfg, Sink,
+    SparseConditionalConstantPropagation, Sroa, StorePre, StoreSink, TailCallElim,
+    ValueRangePropagation,
 };
 use crate::optimize::{FunctionPass, OptimizationLevel};
 
@@ -58,25 +58,12 @@ pub fn default_program_pipeline(is_native_target: bool) -> ProgramCompositePipel
     ProgramPipelineBuilder::new().pipeline(pipeline).build()
 }
 
-// pass bundles: each returns a fresh vec of boxed passes
-
-/// Return verification passes for early pipeline stages.
-fn verify() -> Vec<Box<dyn FunctionPass>> {
-    vec![
-        Box::new(MoveCheck),
-        Box::new(BorrowCheck),
-        Box::new(StackCheck),
-        Box::new(LifetimeCheck),
-    ]
-}
-
 /// Return canonicalization passes that normalize MIR shape.
 fn canonicalize(is_native_target: bool) -> Vec<Box<dyn FunctionPass>> {
     let mut passes: Vec<Box<dyn FunctionPass>> = vec![Box::new(Sroa)];
     if is_native_target {
         passes.push(Box::new(Mem2Reg));
     }
-    passes.push(Box::new(DropInsert));
     passes
 }
 
@@ -213,7 +200,6 @@ fn cleanup() -> Vec<Box<dyn FunctionPass>> {
 /// O0: Verification and correctness only.
 fn o0_pipeline(is_native_target: bool) -> CompositePipeline {
     PipelineBuilder::new()
-        .function_passes(verify())
         .function_passes(canonicalize(is_native_target))
         .build()
 }
@@ -221,7 +207,6 @@ fn o0_pipeline(is_native_target: bool) -> CompositePipeline {
 /// O1: Fast compilation with essential optimizations.
 fn o1_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
     PipelineBuilder::new()
-        .function_passes(verify())
         .function_passes(canonicalize(is_native_target))
         .function_passes(scalar_island_light())
         .function_passes(optimize_types())
@@ -235,7 +220,6 @@ fn o1_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
 /// Each major phase is followed by simplification to expose new opportunities.
 fn o2_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
     PipelineBuilder::new()
-        .function_passes(verify())
         .function_passes(canonicalize(is_native_target))
         // early scalar fixed point island
         .repeat(
@@ -279,7 +263,6 @@ fn o2_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
 /// More iterations, aggressive loop transforms, extra cleanup rounds.
 fn o3_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
     PipelineBuilder::new()
-        .function_passes(verify())
         .function_passes(canonicalize(is_native_target))
         // early scalar fixed point island (more iterations)
         .repeat(
@@ -327,7 +310,6 @@ fn o3_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
 /// This adds more fixed point iterations to expose secondary effects.
 fn o4_pipeline(is_native_target: bool) -> super::module::CompositePipeline {
     PipelineBuilder::new()
-        .function_passes(verify())
         .function_passes(canonicalize(is_native_target))
         // early scalar fixed point island (extra iterations)
         .repeat(

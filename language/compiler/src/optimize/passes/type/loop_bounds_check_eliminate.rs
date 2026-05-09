@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 
 use crate::common::mir::analysis::{
@@ -10,7 +10,7 @@ use crate::common::mir::analysis::{
 use crate::common::mir::{BlockParamForwarding, constant_zero_like};
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
-declare_pass! {
+declare_mir_pass! {
     /// Eliminate bounds checks dominated by loop guards.
     ///
     /// Uses loop guard comparisons to remove redundant bounds checks inside

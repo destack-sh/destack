@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 use destack_workspace::FloatMathPolicy;
 
@@ -8,7 +8,7 @@ use crate::common::mir::analysis::{ConstantMap, ConstantPropagation};
 use crate::common::mir::{InstructionRef, ValueTypeMap, build_value_instruction_refs, fold_binary};
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
-declare_pass! {
+declare_mir_pass! {
     /// Reassociate associative expressions to expose constant folding.
     ///
     /// This pass combines constants across associative binary chains,

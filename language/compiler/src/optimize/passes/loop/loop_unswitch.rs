@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 
 use crate::common::mir::analysis::{
@@ -14,7 +14,7 @@ use crate::common::mir::{
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
-declare_pass! {
+declare_mir_pass! {
     /// Move loop invariant conditionals outside of loops by duplicating the loop.
     ///
     /// This eliminates the branch inside the loop, improving branch prediction

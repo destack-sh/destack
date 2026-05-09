@@ -1,12 +1,12 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 
 use crate::common::mir::build_value_definition_map;
 use crate::optimize::{AnalysisPreservation, ModulePass, PipelineContext};
 
-declare_pass! {
+declare_mir_pass! {
     /// Mark private globals readonly when no write can reach them.
     ///
     /// This pass promotes mutable globals to immutable when they are never written.

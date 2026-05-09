@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 
 use crate::common::mir::analysis::{ControlFlowGraph, DominatorTree, Loop, LoopAnalysis};
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
-declare_pass! {
+declare_mir_pass! {
     /// Rotate loops to expose optimization opportunities.
     ///
     /// Loop rotation transforms a while-loop (test-at-top) into a do-while loop

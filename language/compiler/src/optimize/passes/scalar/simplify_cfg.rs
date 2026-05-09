@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 
 use crate::common::mir::analysis::{
@@ -38,7 +38,7 @@ const TAIL_DUP_MIN_EIGE_RATIO: f64 = 0.20;
 /// Maximum rounds of CFG simplification before reanalysis.
 const MAX_SIMPLIFY_CFG_ITERATIONS: usize = 8;
 
-declare_pass! {
+declare_mir_pass! {
     /// Simplify the control flow graph.
     ///
     /// This pass performs several CFG simplifications:

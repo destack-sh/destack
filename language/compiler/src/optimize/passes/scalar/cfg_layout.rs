@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 
 use crate::common::mir::analysis::{ControlFlowGraph, DominatorTree};
@@ -13,7 +13,7 @@ use crate::common::mir::{
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
-declare_pass! {
+declare_mir_pass! {
     /// Reorder blocks based on profile hotness.
     ///
     /// Hot paths are laid out contiguously and cold blocks are placed last.

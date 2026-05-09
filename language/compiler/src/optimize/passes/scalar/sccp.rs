@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 
 use crate::common::mir::{
@@ -10,7 +10,7 @@ use crate::common::mir::{
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext, TypeContext};
 
-declare_pass! {
+declare_mir_pass! {
     /// Perform sparse conditional constant propagation.
     ///
     /// This pass tracks constant values along executable paths and folds

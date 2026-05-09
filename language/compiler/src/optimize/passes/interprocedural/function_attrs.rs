@@ -1,12 +1,12 @@
 use std::collections::{HashMap, VecDeque};
 
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 
 use crate::common::mir::analysis::CallGraph;
 use crate::optimize::{AnalysisPreservation, ModuleAnalyses, ModulePass, PipelineContext};
 
-declare_pass! {
+declare_mir_pass! {
     /// Infer memory and behavior attributes for functions and callsites.
     ///
     /// This pass aggregates memory effects, allocation behavior, and convergence from instruction semantics and direct callees.

@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 
 use crate::optimize::{AnalysisPreservation, ModulePass, PipelineContext};
 
-declare_pass! {
+declare_mir_pass! {
     /// Remove unused local globals from the module.
     ///
     /// ```mir

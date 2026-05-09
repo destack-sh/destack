@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 
 use crate::common::mir::analysis::AliasAnalysis;
@@ -9,7 +9,7 @@ use crate::optimize::{
     AnalysisPreservation, FunctionPass, PipelineContext, instruction_has_side_effects,
 };
 
-declare_pass! {
+declare_mir_pass! {
     /// Aggressive Dead Code Elimination (ADCE).
     ///
     /// Uses LLVM-style reverse dataflow analysis to efficiently identify and remove dead

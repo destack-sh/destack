@@ -75,14 +75,14 @@ impl Compiler {
         let level = self.optimization_level_for_target_config(&target_config);
         let pipeline = default_pipeline(level, target_config.uses_native_generate_pipeline());
 
-        // read committed MIR artifact truth
+        // read verified MIR artifact truth
         let source_mir = context
-            .require(ArtifactKey::mir_lowered(module, profile, *target))
+            .require(ArtifactKey::mir_verified(module, profile, *target))
             .map_err(CompilerError::from)?;
-        let mir = self
-            .mir_lowered(context, module, profile, target)
+        let verified = self
+            .mir_verified(context, module, profile, target)
             .map_err(CompilerError::from)?;
-        let mut tree = mir.tree.clone();
+        let mut tree = verified.patch.tree.clone();
         let strings = self.repository.string_pool().clone();
 
         // resolve pipeline options

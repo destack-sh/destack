@@ -177,10 +177,12 @@ enum SignatureType {
     Reference {
         /// Reference kind for the pointer.
         kind: mir::ReferenceKind,
+        /// Escaping lifetime root.
+        lifetime: mir::Lifetime,
         /// Address space for the reference.
         address_space: mir::AddressSpace,
-        /// Mutability for the reference.
-        mutability: mir::Mutability,
+        /// Access for the reference.
+        access: mir::Access,
         /// Pointee type signature.
         pointee: Box<SignatureType>,
         /// Nullability for the reference.
@@ -199,12 +201,14 @@ enum SignatureType {
     Slice {
         /// Reference kind for the slice base.
         kind: mir::ReferenceKind,
+        /// Escaping lifetime root.
+        lifetime: mir::Lifetime,
         /// Element type signature.
         element: Box<SignatureType>,
         /// Address space for the slice base.
         address_space: mir::AddressSpace,
-        /// Mutability exposed by the slice.
-        mutability: mir::Mutability,
+        /// Access exposed by the slice.
+        access: mir::Access,
     },
     /// Tuple type signature.
     Tuple {
@@ -251,10 +255,12 @@ enum SignatureType {
     TensorView {
         /// Reference kind for the view.
         kind: mir::ReferenceKind,
+        /// Escaping lifetime root.
+        lifetime: mir::Lifetime,
         /// Address space for the view.
         address_space: mir::AddressSpace,
-        /// Mutability for the view.
-        mutability: mir::Mutability,
+        /// Access for the view.
+        access: mir::Access,
         /// Element type signature.
         element: Box<SignatureType>,
         /// Tensor shape.
@@ -312,14 +318,16 @@ impl SignatureType {
             },
             mir::Type::Reference {
                 kind,
+                lifetime,
                 address_space,
-                mutability,
+                access,
                 pointee,
                 is_nullable,
             } => SignatureType::Reference {
                 kind: *kind,
+                lifetime: lifetime.clone(),
                 address_space: address_space.clone(),
-                mutability: *mutability,
+                access: *access,
                 pointee: Box::new(SignatureType::from_type(tree, pointee.ty()?)?),
                 is_nullable: *is_nullable,
             },
@@ -334,14 +342,16 @@ impl SignatureType {
             },
             mir::Type::Slice {
                 kind,
+                lifetime,
                 element,
                 address_space,
-                mutability,
+                access,
             } => SignatureType::Slice {
                 kind: *kind,
+                lifetime: lifetime.clone(),
                 element: Box::new(SignatureType::from_type(tree, element.ty()?)?),
                 address_space: address_space.clone(),
-                mutability: *mutability,
+                access: *access,
             },
             mir::Type::Tuple { elements, copy } => {
                 // convert tuple elements to signature types
@@ -393,16 +403,18 @@ impl SignatureType {
             },
             mir::Type::TensorView {
                 kind,
+                lifetime,
                 address_space,
-                mutability,
+                access,
                 element,
                 shape,
                 layout,
                 is_nullable,
             } => SignatureType::TensorView {
                 kind: *kind,
+                lifetime: lifetime.clone(),
                 address_space: address_space.clone(),
-                mutability: *mutability,
+                access: *access,
                 element: Box::new(SignatureType::from_type(tree, element.ty()?)?),
                 shape: shape.clone(),
                 layout: layout.clone(),

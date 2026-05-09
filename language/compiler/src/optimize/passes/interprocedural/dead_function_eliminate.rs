@@ -1,13 +1,13 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 
 use crate::common::mir::SignatureKey;
 use crate::common::mir::analysis::CallGraph;
 use crate::optimize::{AnalysisPreservation, ModuleAnalyses, ModulePass, PipelineContext};
 
-declare_pass! {
+declare_mir_pass! {
     /// Remove functions that are not reachable from exported roots.
     ///
     /// This pass keeps exported functions and anything reachable via direct calls, plus any signatures reachable from unresolved indirect calls.

@@ -65,13 +65,13 @@ impl ScopedNoAliasAA {
             return false;
         }
 
-        // check if the parameter type is a mutable borrow
+        // check if the parameter type is an exclusive borrow
         let Some(parameter) = parameter.typed_value() else {
             return false;
         };
 
         let ty = tree.get(parameter.ty);
-        ty.is_mutable_borrowed_reference()
+        ty.is_exclusive_borrowed_reference()
     }
 
     /// Query if two memory locations may alias.

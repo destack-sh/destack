@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 use mir::Terminator;
 
@@ -9,7 +9,7 @@ use crate::optimize::{
     remap_instruction_memory_accesses, resolve_substitution_chains, terminator_substitute_uses,
 };
 
-declare_pass! {
+declare_mir_pass! {
     /// Copy propagation pass.
     ///
     /// Replaces uses of block parameters that are copies of another value.
