@@ -106,7 +106,6 @@ fn phase_letter(phase: &Ident) -> Result<char> {
         "Optimize" => 'O',
         "Generate" => 'G',
         "Link" => 'K',
-        "Emit" => 'W',
         "Lint" => 'L',
         other => {
             return Err(Error::new(
