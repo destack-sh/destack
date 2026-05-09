@@ -41,7 +41,6 @@
         "out/extension.js",
         "destack.json",
         "destack.tmLanguage.json",
-        "destack.tmTheme.json",
         "destack-mir.tmLanguage.json",
         "destack-mir.json",
         "destack.schema.json",
