@@ -1,8 +1,7 @@
 use crate::resolve::ResolveState;
 use crate::{Compiler, CompilerResult};
 use destack_artifact::{ArtifactKey, ArtifactPayload, DirExpanded};
-use destack_core::StringPool;
-use destack_dir::{Patch, SymbolTable};
+use destack_dir::{BindingTable, DependencyTable, Patch, TypeTable};
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, ProviderContext};
 
@@ -48,7 +47,7 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
         let state = ResolveState::module(profile, context);
-        self.require_dir_imported(state.context, module, state.profile)?;
+        let _imported = self.require_dir_imported(state.context, module, state.profile)?;
         let declared = self.require_dir_declared(state.context, module, state.profile)?;
 
         let artifact_key = ArtifactKey::dir_expanded(module, state.profile);
@@ -60,8 +59,10 @@ impl Compiler {
 
         Ok(ArtifactPayload::DirExpanded(DirExpanded {
             patch: Patch::new(&declared.tree),
-            strings: StringPool::new(),
-            symbols: SymbolTable::new(module),
+            bindings: BindingTable::from_base(&declared.bindings),
+            dependencies: DependencyTable::new(module),
+            types: TypeTable::from_base(&declared.types),
+            roots: declared.roots.clone(),
         }))
     }
 

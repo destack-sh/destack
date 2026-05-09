@@ -3,11 +3,11 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Addressability, Arena, ControlResolution, DependencyResolution, EnumBackingType,
+    Addressability, Arena, BindingTable, ControlResolution, DependencyResolution, EnumBackingType,
     EnumFieldValue, Extension, GlobalNodeIdAny, GlobalSymbolId, Instantiation, IntersectionType,
     Lineage, LiteralType, LocalExtensionId, LocalInstantiationId, LocalLineageId, LocalNodeId,
-    LocalNodeIdAny, LocalTypeId, Node, Resolution, StaticExpression, SymbolForm, SymbolTable, Type,
-    TypeLiteral, UnionType, VarianceModifier,
+    LocalNodeIdAny, LocalTypeId, Node, Resolution, StaticExpression, SymbolForm, Type, TypeLiteral,
+    UnionType, VarianceModifier,
 };
 
 /// Append-only type slots and relations for one DIR artifact.
@@ -15,11 +15,19 @@ use crate::{
 pub struct TypeTable {
     /// The module id of the type store.
     pub module_id: ModuleId,
+    /// The first type id owned by this table segment.
+    pub(crate) first_type_id: u32,
+    /// The first instantiation id owned by this table segment.
+    pub(crate) first_instantiation_id: u32,
+    /// The first lineage id owned by this table segment.
+    pub(crate) first_lineage_id: u32,
+    /// The first extension id owned by this table segment.
+    pub(crate) first_extension_id: u32,
     /// Canonical type entries.
     pub(crate) types: Arena<Type>,
 
     /// The provenance for each type id.
-    pub(crate) provenances: Vec<TypeProvenance>,
+    pub(crate) provenances: Arena<TypeProvenance>,
     /// Semantic attachments keyed by DIR node.
     pub(crate) nodes: IndexMap<GlobalNodeIdAny, NodeEntry>,
     /// Semantic attachments keyed by DIR symbol.
@@ -42,8 +50,31 @@ impl TypeTable {
     pub fn new(module_id: ModuleId) -> Self {
         Self {
             module_id,
+            first_type_id: 0,
+            first_instantiation_id: 0,
+            first_lineage_id: 0,
+            first_extension_id: 0,
             types: Arena::new(),
-            provenances: Vec::new(),
+            provenances: Arena::new(),
+            nodes: IndexMap::new(),
+            symbols: IndexMap::new(),
+            instantiations: Arena::new(),
+            lineages: Arena::new(),
+            extensions: Arena::new(),
+            extensions_by_target_symbol: IndexMap::new(),
+        }
+    }
+
+    /// Create a new empty segment after an existing type table segment.
+    pub fn from_base(base: &Self) -> Self {
+        Self {
+            module_id: base.module_id,
+            first_type_id: base.type_count(),
+            first_instantiation_id: base.instantiation_count(),
+            first_lineage_id: base.lineage_count(),
+            first_extension_id: base.extension_count(),
+            types: Arena::new(),
+            provenances: Arena::new(),
             nodes: IndexMap::new(),
             symbols: IndexMap::new(),
             instantiations: Arena::new(),
@@ -62,10 +93,11 @@ impl TypeTable {
     ) -> LocalTypeId {
         self.assert_type_table_invariants_debug("allocate_type:start");
 
-        let type_id = LocalTypeId::new(self.types.len() as u32);
+        let type_id = LocalTypeId::new(self.type_count());
 
         self.types.allocate(ty);
-        self.provenances.push(TypeProvenance { source_id, origin });
+        self.provenances
+            .allocate(TypeProvenance { source_id, origin });
         self.assert_type_table_invariants_debug("allocate_type:end");
 
         type_id
@@ -105,11 +137,11 @@ impl TypeTable {
         literal: TypeLiteral,
     ) -> LocalTypeId {
         // reuse an existing literal type when available
-        for (index, ty) in self.types.iter().enumerate() {
-            if let Type::Literal(value) = ty
+        for type_id in self.iter_type_ids() {
+            if let Type::Literal(value) = self.get_type(type_id)
                 && value.value == literal
             {
-                return LocalTypeId::new(index as u32);
+                return type_id;
             }
         }
 
@@ -125,11 +157,11 @@ impl TypeTable {
         source_type_id: LocalTypeId,
         elements: Vec<LocalTypeId>,
     ) -> LocalTypeId {
-        for (index, ty) in self.types.iter().enumerate() {
-            if let Type::Union(existing) = ty
+        for type_id in self.iter_type_ids() {
+            if let Type::Union(existing) = self.get_type(type_id)
                 && existing.elements == elements
             {
-                return LocalTypeId::new(index as u32);
+                return type_id;
             }
         }
 
@@ -142,11 +174,11 @@ impl TypeTable {
         source_type_id: LocalTypeId,
         elements: Vec<LocalTypeId>,
     ) -> LocalTypeId {
-        for (index, ty) in self.types.iter().enumerate() {
-            if let Type::Intersection(existing) = ty
+        for type_id in self.iter_type_ids() {
+            if let Type::Intersection(existing) = self.get_type(type_id)
                 && existing.elements == elements
             {
-                return LocalTypeId::new(index as u32);
+                return type_id;
             }
         }
 
@@ -196,7 +228,7 @@ impl TypeTable {
             return instantiation_id;
         }
 
-        let instantiation_id = LocalInstantiationId::new(self.instantiations.len() as u32);
+        let instantiation_id = LocalInstantiationId::new(self.instantiation_count());
         self.instantiations.allocate(instantiation);
 
         instantiation_id
@@ -204,17 +236,20 @@ impl TypeTable {
 
     /// Get an instantiation by id.
     pub fn get_instantiation(&self, instantiation_id: LocalInstantiationId) -> &Instantiation {
-        self.instantiations.get(instantiation_id.0)
+        self.get_local_instantiation(instantiation_id)
+            .unwrap_or_else(|| {
+                panic!("DIR instantiation {instantiation_id:?} is not allocated in this segment")
+            })
     }
 
     /// Iterate committed instantiations with their local ids.
     pub fn iter_instantiations(
         &self,
     ) -> impl Iterator<Item = (LocalInstantiationId, &Instantiation)> + '_ {
-        self.instantiations
-            .iter()
-            .enumerate()
-            .map(|(index, instantiation)| (LocalInstantiationId::new(index as u32), instantiation))
+        (self.first_instantiation_id..self.instantiation_count()).map(|index| {
+            let instantiation_id = LocalInstantiationId::new(index);
+            (instantiation_id, self.get_instantiation(instantiation_id))
+        })
     }
 
     /// Attach an instantiation to a source node.
@@ -234,9 +269,9 @@ impl TypeTable {
 
     /// Find one exact instantiation by shape.
     pub fn find_instantiation(&self, expected: &Instantiation) -> Option<LocalInstantiationId> {
-        for (index, instantiation) in self.instantiations.iter().enumerate() {
+        for (instantiation_id, instantiation) in self.iter_instantiations() {
             if instantiation == expected {
-                return Some(LocalInstantiationId::new(index as u32));
+                return Some(instantiation_id);
             }
         }
 
@@ -245,7 +280,7 @@ impl TypeTable {
 
     /// Insert a new lineage.
     pub fn insert_lineage(&mut self, lineage: Lineage) -> LocalLineageId {
-        let lineage_id = LocalLineageId::new(self.lineages.len() as u32);
+        let lineage_id = LocalLineageId::new(self.lineage_count());
         self.lineages.allocate(lineage);
 
         lineage_id
@@ -253,42 +288,55 @@ impl TypeTable {
 
     /// Get a lineage by its id.
     pub fn get_lineage(&self, lineage_id: LocalLineageId) -> &Lineage {
-        self.lineages.get(lineage_id.0)
+        self.get_local_lineage(lineage_id).unwrap_or_else(|| {
+            panic!("DIR lineage {lineage_id:?} is not allocated in this segment")
+        })
     }
 
     /// Get a mutable lineage by its id.
     pub fn get_lineage_mut(&mut self, lineage_id: LocalLineageId) -> &mut Lineage {
-        self.lineages.get_mut(lineage_id.0)
+        assert!(
+            self.contains_lineage_id(lineage_id),
+            "DIR lineage {lineage_id:?} is not mutable in this segment"
+        );
+
+        let slot = lineage_id.0 - self.first_lineage_id;
+
+        self.lineages.get_mut(slot)
     }
 
     /// Set the lineage for a symbol.
     pub fn set_symbol_lineage(&mut self, symbol_id: GlobalSymbolId, lineage_id: LocalLineageId) {
-        self.symbol_entry_mut(symbol_id).lineage = Some(lineage_id);
+        self.symbol_entry_mut(symbol_id).lineage_id = Some(lineage_id);
     }
 
     /// Get the lineage id for a symbol.
     pub fn symbol_lineage_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalLineageId> {
-        self.symbol_entry(symbol_id).and_then(|entry| entry.lineage)
+        self.symbol_entry(symbol_id)
+            .and_then(|entry| entry.lineage_id)
     }
 
     /// Get the lineage for a symbol directly.
     pub fn symbol_lineage(&self, symbol_id: GlobalSymbolId) -> Option<&Lineage> {
         self.symbol_lineage_id(symbol_id)
-            .map(|id| self.lineages.get(id.0))
+            .map(|id| self.get_lineage(id))
     }
 
     /// Iterate over all lineages with their associated symbol ids.
-    pub fn iter_lineages(&self) -> impl Iterator<Item = (GlobalSymbolId, &Lineage)> {
-        self.symbols.iter().filter_map(|(symbol_id, entry)| {
-            entry
-                .lineage
-                .map(|lineage_id| (*symbol_id, self.lineages.get(lineage_id.0)))
-        })
+    pub fn iter_lineages(&self) -> Box<dyn Iterator<Item = (GlobalSymbolId, &Lineage)> + '_> {
+        let local = self.symbols.iter().filter_map(|(symbol_id, entry)| {
+            entry.lineage_id.map(|lineage_id| {
+                let lineage = self.get_lineage(lineage_id);
+                (*symbol_id, lineage)
+            })
+        });
+
+        Box::new(local)
     }
 
     /// Insert a new extension.
     pub fn insert_extension(&mut self, extension: Extension) -> LocalExtensionId {
-        let extension_id = LocalExtensionId::new(self.extensions.len() as u32);
+        let extension_id = LocalExtensionId::new(self.extension_count());
         let extension_symbol = extension.symbol;
 
         // index by target symbol for member lookup
@@ -299,7 +347,7 @@ impl TypeTable {
             .push(extension_id);
 
         // attach to the declaring symbol
-        self.symbol_entry_mut(extension_symbol).extension = Some(extension_id);
+        self.symbol_entry_mut(extension_symbol).extension_id = Some(extension_id);
 
         self.extensions.allocate(extension);
 
@@ -308,7 +356,9 @@ impl TypeTable {
 
     /// Get an extension by its id.
     pub fn get_extension(&self, extension_id: LocalExtensionId) -> &Extension {
-        self.extensions.get(extension_id.0)
+        self.get_local_extension(extension_id).unwrap_or_else(|| {
+            panic!("DIR extension {extension_id:?} is not allocated in this segment")
+        })
     }
 
     /// Get an extension id by its symbol.
@@ -317,12 +367,19 @@ impl TypeTable {
         extension_symbol: GlobalSymbolId,
     ) -> Option<LocalExtensionId> {
         self.symbol_entry(extension_symbol)
-            .and_then(|entry| entry.extension)
+            .and_then(|entry| entry.extension_id)
     }
 
     /// Get a mutable extension by its id.
     pub fn get_extension_mut(&mut self, extension_id: LocalExtensionId) -> &mut Extension {
-        self.extensions.get_mut(extension_id.0)
+        assert!(
+            self.contains_extension_id(extension_id),
+            "DIR extension {extension_id:?} is not mutable in this segment"
+        );
+
+        let slot = extension_id.0 - self.first_extension_id;
+
+        self.extensions.get_mut(slot)
     }
 
     /// Get all extensions targeting a specific type symbol.
@@ -334,11 +391,11 @@ impl TypeTable {
     }
 
     /// Iterate over all extensions.
-    pub fn iter_extensions(&self) -> impl Iterator<Item = (LocalExtensionId, &Extension)> {
-        self.extensions
-            .iter()
-            .enumerate()
-            .map(|(index, extension)| (LocalExtensionId::new(index as u32), extension))
+    pub fn iter_extensions(&self) -> impl Iterator<Item = (LocalExtensionId, &Extension)> + '_ {
+        (self.first_extension_id..self.extension_count()).map(|index| {
+            let extension_id = LocalExtensionId::new(index);
+            (extension_id, self.get_extension(extension_id))
+        })
     }
 
     /// Set the semantic resolution for a node.
@@ -472,20 +529,20 @@ impl TypeTable {
 
     /// Copy node-owned relations from one node to another.
     pub fn copy_node_relations(&mut self, source: GlobalNodeIdAny, target: GlobalNodeIdAny) {
-        if let Some(entry) = self.nodes.get(&source).cloned() {
+        if let Some(entry) = self.node_entry(source).cloned() {
             self.nodes.insert(target, entry);
         }
     }
 
     /// Set the instance type for a symbol.
     pub fn set_instance_type(&mut self, symbol_id: GlobalSymbolId, ty: LocalTypeId) {
-        self.symbol_entry_mut(symbol_id).instance = Some(ty);
+        self.symbol_entry_mut(symbol_id).instance_type = Some(ty);
     }
 
     /// Get the instance type id for a symbol.
     pub fn get_instance_type_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalTypeId> {
         self.symbol_entry(symbol_id)
-            .and_then(|entry| entry.instance)
+            .and_then(|entry| entry.instance_type)
     }
 
     /// Find the symbol that owns an instance type id.
@@ -493,30 +550,31 @@ impl TypeTable {
         &self,
         instance_type_id: LocalTypeId,
     ) -> Option<GlobalSymbolId> {
-        self.symbols.iter().find_map(|(symbol, entry)| {
-            (entry.instance == Some(instance_type_id)).then_some(*symbol)
+        self.iter_symbol_entries().find_map(|(symbol, entry)| {
+            (entry.instance_type == Some(instance_type_id)).then_some(symbol)
         })
     }
 
     /// Set the value type for a symbol.
     pub fn set_value_type(&mut self, symbol_id: GlobalSymbolId, ty: LocalTypeId) {
-        self.symbol_entry_mut(symbol_id).value = Some(ty);
+        self.symbol_entry_mut(symbol_id).value_type = Some(ty);
     }
 
     /// Get the value type id for a symbol.
     pub fn get_value_type_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalTypeId> {
-        self.symbol_entry(symbol_id).and_then(|entry| entry.value)
+        self.symbol_entry(symbol_id)
+            .and_then(|entry| entry.value_type)
     }
 
     /// Set the declared target type id for an alias symbol.
     pub fn set_alias_target_type_id(&mut self, symbol_id: GlobalSymbolId, ty: LocalTypeId) {
-        self.symbol_entry_mut(symbol_id).alias_target = Some(ty);
+        self.symbol_entry_mut(symbol_id).alias_target_type = Some(ty);
     }
 
     /// Get the declared target type id for an alias symbol.
     pub fn get_alias_target_type_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalTypeId> {
         self.symbol_entry(symbol_id)
-            .and_then(|entry| entry.alias_target)
+            .and_then(|entry| entry.alias_target_type)
     }
 
     /// Set the backing type for an enum symbol.
@@ -544,7 +602,7 @@ impl TypeTable {
     /// Get the type id for a symbol through its semantic form.
     pub fn symbol_type_id(
         &self,
-        symbols: &SymbolTable,
+        symbols: &BindingTable,
         symbol_id: GlobalSymbolId,
     ) -> Option<LocalTypeId> {
         let symbol = symbols.get_symbol(symbol_id.local_id);
@@ -562,12 +620,14 @@ impl TypeTable {
 
     /// Get a type by its id.
     pub fn get_type(&self, type_id: LocalTypeId) -> &Type {
-        self.types.get(self.local_slot(type_id))
+        self.get_type_maybe(type_id)
+            .unwrap_or_else(|| panic!("DIR type {type_id:?} is not allocated in this segment"))
     }
 
     /// Get a type by its id when present.
     pub fn get_type_maybe(&self, type_id: LocalTypeId) -> Option<&Type> {
-        self.types.get_maybe(self.local_slot(type_id))
+        self.contains_type_id(type_id)
+            .then(|| self.types.get(type_id.0 - self.first_type_id))
     }
 
     /// Strip value wrapper types to reach the underlying type id.
@@ -585,27 +645,33 @@ impl TypeTable {
     pub fn iter_type_ids(&self) -> impl Iterator<Item = LocalTypeId> + '_ {
         let end = self.type_count();
 
-        (0..end).map(LocalTypeId::new)
+        (self.first_type_id..end).map(LocalTypeId::new)
     }
 
     /// Get a mutable type by its id.
     pub fn get_type_mut(&mut self, type_id: LocalTypeId) -> &mut Type {
-        self.types.get_mut(self.local_slot(type_id))
+        assert!(
+            self.contains_type_id(type_id),
+            "DIR type {type_id:?} is not mutable in this segment"
+        );
+
+        self.types.get_mut(type_id.0 - self.first_type_id)
     }
 
     /// Return provenance for a type id.
     fn type_provenance(&self, type_id: LocalTypeId) -> TypeProvenance {
-        let slot = self.local_slot(type_id) as usize;
+        if self.contains_type_id(type_id) {
+            let slot = type_id.0 - self.first_type_id;
+            return *self.provenances.get(slot);
+        }
 
-        self.provenances.get(slot).copied().unwrap_or_else(|| {
-            panic!("missing type provenance for type id {type_id:?}");
-        })
+        panic!("missing type provenance for type id {type_id:?}");
     }
 
     /// Update a type in place.
     pub fn update_type(&mut self, type_id: LocalTypeId, ty: Type) {
         self.assert_type_table_invariants_debug("update_type:start");
-        *self.types.get_mut(self.local_slot(type_id)) = ty;
+        *self.get_type_mut(type_id) = ty;
         self.assert_type_table_invariants_debug("update_type:end");
     }
 
@@ -626,22 +692,78 @@ impl TypeTable {
 
     /// Get the number of types in the table.
     pub fn type_count(&self) -> u32 {
-        self.types.len() as u32
+        self.first_type_id + self.types.len() as u32
+    }
+
+    /// Get the number of instantiations in the table.
+    pub fn instantiation_count(&self) -> u32 {
+        self.first_instantiation_id + self.instantiations.len() as u32
+    }
+
+    /// Get the number of lineages in the table.
+    pub fn lineage_count(&self) -> u32 {
+        self.first_lineage_id + self.lineages.len() as u32
+    }
+
+    /// Get the number of extensions in the table.
+    pub fn extension_count(&self) -> u32 {
+        self.first_extension_id + self.extensions.len() as u32
     }
 
     /// Return the number of entries in this table.
     pub fn len(&self) -> u32 {
-        self.types.len() as u32
+        self.type_count()
     }
 
     /// Return true when this table has no entries.
     pub fn is_empty(&self) -> bool {
-        self.types.len() == 0
+        self.types.is_empty()
     }
 
-    /// Convert a type id into a local slot.
-    fn local_slot(&self, type_id: LocalTypeId) -> u32 {
-        type_id.0
+    /// Get an instantiation owned by this table segment.
+    pub(crate) fn get_local_instantiation(
+        &self,
+        instantiation_id: LocalInstantiationId,
+    ) -> Option<&Instantiation> {
+        self.contains_instantiation_id(instantiation_id).then(|| {
+            self.instantiations
+                .get(instantiation_id.0 - self.first_instantiation_id)
+        })
+    }
+
+    /// Get a lineage owned by this table segment.
+    pub(crate) fn get_local_lineage(&self, lineage_id: LocalLineageId) -> Option<&Lineage> {
+        self.contains_lineage_id(lineage_id)
+            .then(|| self.lineages.get(lineage_id.0 - self.first_lineage_id))
+    }
+
+    /// Get an extension owned by this table segment.
+    pub(crate) fn get_local_extension(&self, extension_id: LocalExtensionId) -> Option<&Extension> {
+        self.contains_extension_id(extension_id).then(|| {
+            self.extensions
+                .get(extension_id.0 - self.first_extension_id)
+        })
+    }
+
+    /// Return whether this segment contains the given type id.
+    fn contains_type_id(&self, type_id: LocalTypeId) -> bool {
+        type_id.0 >= self.first_type_id && type_id.0 < self.type_count()
+    }
+
+    /// Return whether this segment contains the given instantiation id.
+    fn contains_instantiation_id(&self, instantiation_id: LocalInstantiationId) -> bool {
+        instantiation_id.0 >= self.first_instantiation_id
+            && instantiation_id.0 < self.instantiation_count()
+    }
+
+    /// Return whether this segment contains the given lineage id.
+    fn contains_lineage_id(&self, lineage_id: LocalLineageId) -> bool {
+        lineage_id.0 >= self.first_lineage_id && lineage_id.0 < self.lineage_count()
+    }
+
+    /// Return whether this segment contains the given extension id.
+    fn contains_extension_id(&self, extension_id: LocalExtensionId) -> bool {
+        extension_id.0 >= self.first_extension_id && extension_id.0 < self.extension_count()
     }
 
     /// Return a node entry when present.
@@ -662,6 +784,16 @@ impl TypeTable {
     /// Return a mutable symbol entry, creating it when needed.
     fn symbol_entry_mut(&mut self, symbol_id: GlobalSymbolId) -> &mut SymbolEntry {
         self.symbols.entry(symbol_id).or_default()
+    }
+
+    /// Iterate visible symbol entries with local overrides applied.
+    fn iter_symbol_entries(&self) -> Box<dyn Iterator<Item = (GlobalSymbolId, &SymbolEntry)> + '_> {
+        let local = self
+            .symbols
+            .iter()
+            .map(|(symbol_id, entry)| (*symbol_id, entry));
+
+        Box::new(local)
     }
 
     /// Assert internal table invariants only in debug builds.
@@ -735,11 +867,11 @@ pub struct SymbolEntry {
     pub generic_parameter_symbols: Option<Vec<GlobalSymbolId>>,
 
     /// The instance type for nominal declarations.
-    pub instance: Option<LocalTypeId>,
+    pub instance_type: Option<LocalTypeId>,
     /// The value type for value declarations.
-    pub value: Option<LocalTypeId>,
+    pub value_type: Option<LocalTypeId>,
     /// The target type for alias declarations.
-    pub alias_target: Option<LocalTypeId>,
+    pub alias_target_type: Option<LocalTypeId>,
     /// Static constant value for comptime declarations.
     pub static_value: Option<StaticExpression>,
 
@@ -749,9 +881,9 @@ pub struct SymbolEntry {
     pub enum_field_value: Option<EnumFieldValue>,
 
     /// The nominal lineage for this declaration.
-    pub lineage: Option<LocalLineageId>,
+    pub lineage_id: Option<LocalLineageId>,
     /// The extension declared by this symbol.
-    pub extension: Option<LocalExtensionId>,
+    pub extension_id: Option<LocalExtensionId>,
 }
 
 /// The provenance of one type slot in the table.

@@ -137,7 +137,7 @@ pub struct Tree {
     /// (Unlike in AST, we can index parents here directly since we have the shape up front.)
     parent_id_by_node_id: Vec<Option<u32>>,
     /// The scopes by node id. Index is the global node id.
-    /// (Main data is in SymbolTable, but indexed here for efficiency since *every* node needs a scope.)
+    /// (Main data is in BindingTable, but indexed here for efficiency since *every* node needs a scope.)
     scopes_by_node_id: Vec<(LocalScopeId, LocalScopeMark)>,
     /// Provenance metadata for all nodes.
     provenance: Provenance,
@@ -344,9 +344,9 @@ impl Tree {
     pub fn insert<T>(&mut self, node_id: LocalNodeIdAny, node: T) -> LocalNodeId<T>
     where
         T: Node,
-        Self: TreeImpl<T>,
+        Self: TreeStore<T>,
     {
-        let local_id = <Self as TreeImpl<T>>::allocate(self, node);
+        let local_id = <Self as TreeStore<T>>::allocate(self, node);
         let index = self.node_index(node_id.id);
         self.node_index_by_node_id[index] = NodeIndexEntry::new(local_id, T::TYPE);
 
@@ -357,7 +357,7 @@ impl Tree {
     pub fn insert_as_owner<T>(&mut self, node_id: LocalNodeIdAny, node: T) -> LocalNodeId<T>
     where
         T: Node,
-        Self: TreeImpl<T>,
+        Self: TreeStore<T>,
     {
         let node_id = self.insert(node_id, node);
         self.adopt_direct_children(LocalNodeIdAny::new(node_id.id, T::TYPE));
@@ -369,7 +369,7 @@ impl Tree {
     pub fn alias_from_source<T>(&mut self, ast_id: u32, alias: LocalNodeId<T>)
     where
         T: Node,
-        Self: TreeImpl<T>,
+        Self: TreeStore<T>,
     {
         self.alias_node_id_by_source_id.insert(ast_id, alias.id);
     }
@@ -378,7 +378,7 @@ impl Tree {
     pub fn alias_from<T>(&mut self, dir_id: u32, alias: LocalNodeId<T>)
     where
         T: Node,
-        Self: TreeImpl<T>,
+        Self: TreeStore<T>,
     {
         self.alias_node_id_by_node_id.insert(dir_id, alias.id);
     }
@@ -423,10 +423,10 @@ impl Tree {
     pub fn get<T>(&self, id: LocalNodeId<T>) -> &T
     where
         T: Node,
-        Self: TreeImpl<T>,
+        Self: TreeStore<T>,
     {
         let local_id = self.node_index_by_node_id[self.node_index(id.id)].local_id();
-        <Self as TreeImpl<T>>::get(self, local_id)
+        <Self as TreeStore<T>>::get(self, local_id)
     }
 
     /// Get a mutable reference to the node with the given NodeId.
@@ -434,10 +434,10 @@ impl Tree {
     pub fn get_mut<T>(&mut self, id: LocalNodeId<T>) -> &mut T
     where
         T: Node,
-        Self: TreeImpl<T>,
+        Self: TreeStore<T>,
     {
         let local_id = self.node_index_by_node_id[self.node_index(id.id)].local_id();
-        <Self as TreeImpl<T>>::get_mut(self, local_id)
+        <Self as TreeStore<T>>::get_mut(self, local_id)
     }
 
     /// Replace a node in-place, preserving the original at a new ID:
@@ -449,7 +449,7 @@ impl Tree {
     pub fn replace<T>(&mut self, id: LocalNodeId<T>, replacement: T) -> LocalNodeId<T>
     where
         T: Node + Clone,
-        Self: TreeImpl<T>,
+        Self: TreeStore<T>,
     {
         let scope = self.get_scope(id);
         let original = self.get(id).clone();
@@ -481,7 +481,7 @@ impl Tree {
     ) -> LocalNodeId<T>
     where
         T: Node + Clone,
-        Self: TreeImpl<T>,
+        Self: TreeStore<T>,
     {
         let replacement = self.get(source_id).clone();
         let preserved_id = self.replace(id, replacement);
@@ -496,7 +496,7 @@ impl Tree {
     pub fn iter_nodes_of_type<'a, T>(&'a self) -> impl Iterator<Item = (LocalNodeId<T>, &'a T)> + 'a
     where
         T: Node + 'a,
-        Self: TreeImpl<T>,
+        Self: TreeStore<T>,
     {
         self.node_index_by_node_id
             .iter()
@@ -504,7 +504,7 @@ impl Tree {
             .filter_map(|(index, entry)| {
                 if entry.node_type() == T::TYPE {
                     let node_id = LocalNodeId::new(self.first_global_id + index as u32);
-                    let node = <Self as TreeImpl<T>>::get(self, entry.local_id());
+                    let node = <Self as TreeStore<T>>::get(self, entry.local_id());
                     Some((node_id, node))
                 } else {
                     None
@@ -526,7 +526,7 @@ impl Tree {
     pub fn iter_node_ids_of_type<T>(&self) -> Vec<LocalNodeId<T>>
     where
         T: Node,
-        Self: TreeImpl<T>,
+        Self: TreeStore<T>,
     {
         self.node_index_by_node_id
             .iter()
@@ -1388,7 +1388,7 @@ impl Tree {
 }
 
 /// Map node types to arenas.
-pub trait TreeImpl<T: Node> {
+pub trait TreeStore<T: Node> {
     /// Allocate a node into the relevant arena.
     fn allocate(tree: &mut Tree, node: T) -> u32;
     /// Get a node from the relevant arena.
@@ -1399,7 +1399,7 @@ pub trait TreeImpl<T: Node> {
 
 macro_rules! impl_tree_store {
     ($ty:ty, $field:ident) => {
-        impl TreeImpl<$ty> for Tree {
+        impl TreeStore<$ty> for Tree {
             #[inline]
             fn allocate(tree: &mut Tree, node: $ty) -> u32 {
                 tree.$field.allocate(node)

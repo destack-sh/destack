@@ -1,6 +1,5 @@
 use crate::{
-    Declaration, DependencySpace, Expression, GlobalNodeIdAny, LocalNodeId, LocalScopeId,
-    LocalSymbolId, StringId,
+    Declaration, Expression, GlobalNodeIdAny, LocalNodeId, LocalScopeId, LocalSymbolId, StringId,
 };
 use destack_source::{Loader, ModuleEdgeRelation, ModuleId};
 use serde::{Deserialize, Serialize};
@@ -22,9 +21,9 @@ pub struct DeclaredModule {
     pub export_assignment_symbol: LocalSymbolId,
 }
 
-/// The target of a resolved module import.
+/// The target of a resolved dependency.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum ModuleTarget {
+pub enum DependencyTarget {
     /// A file or library module.
     Module(ModuleId),
     /// A string-named module declaration.
@@ -33,7 +32,7 @@ pub enum ModuleTarget {
     External(StringId),
 }
 
-impl ModuleTarget {
+impl DependencyTarget {
     /// Get the module id if this target is a concrete module.
     #[inline]
     pub fn module_id(self) -> Option<ModuleId> {
@@ -44,36 +43,9 @@ impl ModuleTarget {
     }
 }
 
-/// Resolved module targets for value and type spaces.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
-pub struct ModuleResolution {
-    /// Target for value space resolution.
-    pub value: Option<ModuleTarget>,
-    /// Target for type space resolution.
-    pub type_target: Option<ModuleTarget>,
-}
-
-impl ModuleResolution {
-    /// Create targets that use the same module target for both spaces.
-    pub fn from_target(target: ModuleTarget) -> Self {
-        Self {
-            value: Some(target),
-            type_target: Some(target),
-        }
-    }
-
-    /// Return the exact target for a dependency space.
-    pub fn for_space(&self, space: DependencySpace) -> Option<ModuleTarget> {
-        match space {
-            DependencySpace::Value => self.value,
-            DependencySpace::Type => self.type_target,
-        }
-    }
-}
-
 /// One resolved module dependency edge.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ModuleDependency {
+pub struct DependencyEdge {
     /// The DIR node that declared the dependency.
     pub source: GlobalNodeIdAny,
     /// The static import specifier.
@@ -82,6 +54,6 @@ pub struct ModuleDependency {
     pub relation: ModuleEdgeRelation,
     /// The loader override selected for the import.
     pub loader: Option<Loader>,
-    /// The resolved module targets.
-    pub resolution: ModuleResolution,
+    /// The resolved dependency target.
+    pub target: DependencyTarget,
 }

@@ -3,6 +3,10 @@ use serde::{Deserialize, Serialize};
 /// The declaration form expected for one language item.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum LanguageItemForm {
+    /// A variable-like value declaration.
+    Variable,
+    /// A `class` declaration.
+    Class,
     /// A `newtype interface` declaration.
     Interface,
     /// A `struct` declaration.

@@ -1,7 +1,7 @@
 use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
-use crate::{Expression, LocalNodeId, LocalSymbolId, ModuleTarget, Name, Node, NodeType};
+use crate::{DependencyTarget, Expression, LocalNodeId, LocalSymbolId, Name, Node, NodeType};
 
 /// How one dependency item binds into the local module.
 #[derive(Debug, Clone, Copy, PartialEq, Hash, Eq, Serialize, Deserialize)]
@@ -60,7 +60,7 @@ impl Node for DependencyItem {
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct NamespaceExport {
     /// The target module.
-    pub module_id: ModuleTarget,
+    pub target: DependencyTarget,
     /// The dependency space for the export.
     pub space: DependencySpace,
     /// The dependency item node that declared the export.

@@ -1,5 +1,4 @@
 use indexmap::IndexMap;
-use indexmap::map::Entry;
 use serde::{Deserialize, Serialize};
 
 use crate::{GlobalSymbolId, StringId};
@@ -7,8 +6,8 @@ use crate::{GlobalSymbolId, StringId};
 /// Capture side table keyed by function symbols.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct CaptureTable {
-    /// Capture sets for each function symbol.
-    pub captures_by_function: IndexMap<GlobalSymbolId, CaptureSet>,
+    /// Capture for each function symbol.
+    pub capture_by_function: IndexMap<GlobalSymbolId, Capture>,
 }
 
 impl CaptureTable {
@@ -17,64 +16,27 @@ impl CaptureTable {
         Self::default()
     }
 
-    /// Store capture set for a function symbol.
-    pub fn set_capture_set(&mut self, symbol: GlobalSymbolId, capture_set: CaptureSet) {
-        self.captures_by_function.insert(symbol, capture_set);
+    /// Store capture for a function symbol.
+    pub fn set_capture(&mut self, symbol: GlobalSymbolId, capture: Capture) {
+        self.capture_by_function.insert(symbol, capture);
     }
 
     /// Store capture directive for a function symbol.
     pub fn set_capture_directive(&mut self, symbol: GlobalSymbolId, directive: CaptureDirective) {
-        // preserve capture metadata when it already exists
-        match self.captures_by_function.entry(symbol) {
-            Entry::Occupied(mut entry) => {
-                entry.get_mut().directive = Some(directive);
-            }
-            Entry::Vacant(entry) => {
-                entry.insert(CaptureSet {
-                    captures: Vec::new(),
-                    reference_locals: Vec::new(),
-                    this_symbol: None,
-                    directive: Some(directive),
-                });
-            }
-        }
+        let capture = self.capture_by_function.entry(symbol).or_default();
+        capture.directive = Some(directive);
     }
 
     /// Get capture directive for a function symbol.
     pub fn capture_directive(&self, symbol: GlobalSymbolId) -> Option<&CaptureDirective> {
-        self.captures_by_function
+        self.capture_by_function
             .get(&symbol)
             .and_then(|capture| capture.directive.as_ref())
     }
 
-    /// Get capture set for a function symbol.
-    pub fn capture_set(&self, symbol: GlobalSymbolId) -> Option<&CaptureSet> {
-        self.captures_by_function.get(&symbol)
-    }
-
-    /// Store by-reference locals for an owner function symbol.
-    pub fn set_reference_locals(&mut self, symbol: GlobalSymbolId, locals: Vec<GlobalSymbolId>) {
-        // preserve capture metadata when it already exists
-        match self.captures_by_function.entry(symbol) {
-            Entry::Occupied(mut entry) => {
-                entry.get_mut().reference_locals = locals;
-            }
-            Entry::Vacant(entry) => {
-                entry.insert(CaptureSet {
-                    captures: Vec::new(),
-                    reference_locals: locals,
-                    this_symbol: None,
-                    directive: None,
-                });
-            }
-        }
-    }
-
-    /// Get by-reference locals for an owner function symbol.
-    pub fn reference_locals(&self, symbol: GlobalSymbolId) -> Option<&[GlobalSymbolId]> {
-        self.captures_by_function
-            .get(&symbol)
-            .map(|capture| capture.reference_locals.as_slice())
+    /// Get capture for a function symbol.
+    pub fn capture(&self, symbol: GlobalSymbolId) -> Option<&Capture> {
+        self.capture_by_function.get(&symbol)
     }
 }
 
@@ -127,15 +89,13 @@ pub struct CapturedBinding {
     pub mode: CaptureMode,
 }
 
-/// Capture set for a function declaration.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CaptureSet {
+/// Captures for a function declaration.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct Capture {
     /// The resolved captures in discovery order.
     pub captures: Vec<CapturedBinding>,
-    /// Locals captured by reference.
-    pub reference_locals: Vec<GlobalSymbolId>,
-    /// The symbol bound to `this` when captured.
-    pub this_symbol: Option<GlobalSymbolId>,
+    /// The captured `this` binding.
+    pub this: Option<CapturedBinding>,
     /// The capture directive applied to this function.
     pub directive: Option<CaptureDirective>,
 }

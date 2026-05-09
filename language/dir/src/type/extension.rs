@@ -76,31 +76,6 @@ pub enum ExtensionForm {
 }
 
 /// A resolved extension declaration.
-///
-/// Extensions add methods and optionally nominal relationships (via `implements`)
-/// to an existing nominal type without modifying its definition.
-///
-/// ## Nominal Types Only
-///
-/// Extensions require **nominal types**—types with declaration identity.
-/// This includes `struct`, `class`, `enum`, `newtype`, and primitive types
-/// declared in the prelude (`int32`, `string`, etc.).
-/// Type aliases (`type X = ...`) and inline structural types cannot be extended.
-///
-/// ## Example
-///
-/// ```
-/// // inherent extension (same module as Vector2)
-/// struct Vector2 { x: float, y: float }
-/// extension of Vector2 implements Add<Vector2> {
-///     add(other: Vector2): Vector2 { ... }
-/// }
-///
-/// // named extension (on foreign type)
-/// export extension DateHelpers of Date {
-///     isWeekend(): boolean { ... }
-/// }
-/// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Extension {
     /// The extension declaration's symbol.

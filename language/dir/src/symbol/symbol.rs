@@ -2,8 +2,8 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ExportKind, GlobalNodeIdAny, LocalNodeId, LocalScopeId, LocalScopeMark, Mutability, Node,
-    NodeType, StaticKey, StringId,
+    ExportKind, GlobalNodeIdAny, LocalScopeId, LocalScopeMark, Mutability, NodeType, StaticKey,
+    StringId,
 };
 
 /// The space of a symbol.
@@ -90,9 +90,9 @@ pub enum BindingScope {
     Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize,
 )]
 pub enum SymbolForm {
-    /// Plain value binding without a more specific form.
+    /// Plain variable-like value symbol without a more specific form.
     #[default]
-    Value,
+    Variable,
     /// Class symbol.
     Class,
     /// Struct symbol.
@@ -195,10 +195,8 @@ pub struct Symbol {
     /// The scope that introduces the symbol.
     pub scope: (LocalScopeId, LocalScopeMark),
 
-    /// The module id of the scope.
-    pub module_id: ModuleId,
     /// The export kind of the symbol.
-    pub export: Option<ExportKind>,
+    pub export_kind: Option<ExportKind>,
     /// The declaration node that introduced this symbol.
     pub declaration: Option<GlobalNodeIdAny>,
 }
@@ -219,10 +217,5 @@ impl Symbol {
             && self
                 .declaration
                 .is_some_and(|declaration| declaration.local_id.ty == NodeType::Parameter)
-    }
-
-    /// Declare this symbol from a declaration node.
-    pub fn declare<T: Node>(&mut self, node_id: LocalNodeId<T>) {
-        self.declaration = Some(node_id.into_global_any(self.module_id));
     }
 }
