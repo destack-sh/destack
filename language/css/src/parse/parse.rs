@@ -245,11 +245,7 @@ impl<'a> Parser<'a> {
             return false;
         };
 
-        if !strings
-            .get(*important)
-            .as_ref()
-            .eq_ignore_ascii_case("important")
-        {
+        if !strings.get(*important).eq_ignore_ascii_case("important") {
             return false;
         }
 
@@ -601,7 +597,7 @@ impl<'a> Parser<'a> {
                         )?;
                         Ok(ComponentValueList { values })
                     })?;
-                    let url_resource = if strings.get(name).as_ref() == "url" {
+                    let url_resource = if strings.get(name) == "url" {
                         Some(Self::build_function_url_resource(
                             &arguments,
                             next_resource_id,

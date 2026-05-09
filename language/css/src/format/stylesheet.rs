@@ -28,7 +28,7 @@ pub fn format_stylesheet(
     stylesheet: LocalNodeId<Stylesheet>,
     options: CssFormatOptions,
 ) -> FormatResult<String> {
-    let context = CssFormatContext::new(options, tree.strings.clone());
+    let context = CssFormatContext::new(options, &tree.strings);
     let formatted = format(
         context,
         destack_fir::format_args![format_with(|f| write_stylesheet(tree, stylesheet, f))],
@@ -39,18 +39,18 @@ pub fn format_stylesheet(
 
 /// One CSS FIR formatting context.
 #[derive(Debug, Clone)]
-struct CssFormatContext {
+struct CssFormatContext<'a> {
     /// The format options.
     options: CssFormatOptions,
     /// The virtual CSS file used by FIR printing.
     file: File,
     /// The pooled css strings for this formatting pass.
-    strings: StringPool,
+    strings: &'a StringPool,
 }
 
-impl CssFormatContext {
+impl<'a> CssFormatContext<'a> {
     /// Create one CSS formatting context.
-    fn new(options: CssFormatOptions, strings: StringPool) -> Self {
+    fn new(options: CssFormatOptions, strings: &'a StringPool) -> Self {
         Self {
             options,
             file: File::empty_text(FileType::Css),
@@ -67,11 +67,11 @@ impl CssFormatContext {
 
     /// Render one component token as canonical CSS.
     fn render_component_token(&self, token: &Token) -> String {
-        TokenRenderer::new(&self.strings).render_token(token)
+        TokenRenderer::new(self.strings).render_token(token)
     }
 }
 
-impl FormatContext for CssFormatContext {
+impl FormatContext for CssFormatContext<'_> {
     type Options = CssFormatOptions;
 
     fn options(&self) -> &Self::Options {
@@ -87,7 +87,7 @@ impl FormatContext for CssFormatContext {
 fn write_stylesheet(
     tree: &Tree,
     stylesheet_id: LocalNodeId<Stylesheet>,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     let stylesheet = tree.get(stylesheet_id);
 
@@ -112,7 +112,7 @@ fn write_stylesheet(
 fn write_rule(
     tree: &Tree,
     rule_id: LocalNodeId<Rule>,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     let rule = tree.get(rule_id);
 
@@ -188,7 +188,7 @@ fn write_selector_block_rule(
     selectors: LocalNodeId<SelectorList>,
     declarations: Option<LocalNodeId<DeclarationBlock>>,
     rules: &[LocalNodeId<Rule>],
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     // prelude
     write_selector_list(tree, selectors, f)?;
@@ -202,7 +202,7 @@ fn write_media_rule(
     tree: &Tree,
     media: LocalNodeId<MediaQueryList>,
     rules: &[LocalNodeId<Rule>],
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     // prelude
     write!(f, [text("@media"), space()])?;
@@ -217,7 +217,7 @@ fn write_supports_rule(
     tree: &Tree,
     condition: LocalNodeId<SupportsCondition>,
     rules: &[LocalNodeId<Rule>],
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     // prelude
     write!(f, [text("@supports"), space()])?;
@@ -232,7 +232,7 @@ fn write_layer_block_rule(
     tree: &Tree,
     rule: &LayerBlockRule,
     rules: &[LocalNodeId<Rule>],
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     write!(f, [text("@layer")])?;
 
@@ -249,7 +249,7 @@ fn write_container_rule(
     tree: &Tree,
     rule: &ContainerRule,
     rules: &[LocalNodeId<Rule>],
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     // prelude
     write!(f, [text("@container")])?;
@@ -272,7 +272,7 @@ fn write_scope_rule(
     tree: &Tree,
     rule: &ScopeRule,
     rules: &[LocalNodeId<Rule>],
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     // prelude
     write!(f, [text("@scope")])?;
@@ -300,7 +300,7 @@ fn write_scope_rule(
 fn write_custom_media_rule(
     tree: &Tree,
     rule: &CustomMediaRule,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     // prelude
     write!(
@@ -322,7 +322,7 @@ fn write_custom_media_rule(
 fn write_group_block_rule_body(
     tree: &Tree,
     rules: &[LocalNodeId<Rule>],
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     write!(f, [space(), token("{")])?;
 
@@ -344,7 +344,7 @@ fn write_block_rule_body(
     tree: &Tree,
     declarations: Option<LocalNodeId<DeclarationBlock>>,
     rules: &[LocalNodeId<Rule>],
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     write!(f, [space(), token("{")])?;
 
@@ -371,7 +371,7 @@ fn write_block_rule_body(
 fn write_selector_list(
     tree: &Tree,
     selectors: LocalNodeId<SelectorList>,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     let selectors = tree.get(selectors);
 
@@ -387,7 +387,7 @@ fn write_selector_list(
 }
 
 /// Write one identifier token.
-fn write_identifier(value: &str, f: &mut Formatter<'_, CssFormatContext>) -> FormatResult<()> {
+fn write_identifier(value: &str, f: &mut Formatter<'_, CssFormatContext<'_>>) -> FormatResult<()> {
     let source = TokenRenderer::render_identifier_source(value);
 
     write!(f, [text(&source)])
@@ -397,7 +397,7 @@ fn write_identifier(value: &str, f: &mut Formatter<'_, CssFormatContext>) -> For
 fn write_selector(
     tree: &Tree,
     selector: LocalNodeId<Selector>,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     let selector = tree.get(selector);
 
@@ -412,7 +412,7 @@ fn write_selector(
 fn write_selector_component(
     tree: &Tree,
     component: LocalNodeId<SelectorComponent>,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     match tree.get(component) {
         SelectorComponent::Combinator(combinator) => write_selector_combinator(*combinator, f),
@@ -423,7 +423,7 @@ fn write_selector_component(
 /// Write one selector combinator.
 fn write_selector_combinator(
     combinator: Combinator,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     match combinator {
         Combinator::Child => write!(f, [space(), token(">"), soft_line_break_or_space()]),
@@ -446,7 +446,7 @@ fn write_selector_combinator(
 fn write_simple_selector(
     tree: &Tree,
     selector: LocalNodeId<SimpleSelector>,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     match tree.get(selector) {
         SimpleSelector::ExplicitAnyNamespace => write!(f, [token("*|")]),
@@ -543,7 +543,7 @@ fn write_simple_selector(
 fn write_pseudo_class(
     tree: &Tree,
     selector: LocalNodeId<PseudoClass>,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     let selector = tree.get(selector);
 
@@ -562,7 +562,7 @@ fn write_pseudo_class(
 fn write_pseudo_element(
     tree: &Tree,
     selector: LocalNodeId<PseudoElement>,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     let selector = tree.get(selector);
 
@@ -581,7 +581,7 @@ fn write_pseudo_element(
 fn write_any_selector(
     tree: &Tree,
     selector: LocalNodeId<AnySelector>,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     let selector = tree.get(selector);
     let prefix = match selector.vendor_prefix {
@@ -602,7 +602,7 @@ fn write_any_selector(
 fn write_pseudo_argument(
     tree: &Tree,
     argument: &PseudoArgument,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     match argument {
         PseudoArgument::Components(arguments) => write_component_value_list(arguments, f),
@@ -625,7 +625,7 @@ fn write_pseudo_argument(
 fn write_nth_selector(
     tree: &Tree,
     selector: LocalNodeId<NthSelector>,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     let selector = tree.get(selector);
     let name = match selector.kind {
@@ -657,7 +657,7 @@ fn write_nth_selector(
 fn write_nth_of_selector(
     tree: &Tree,
     selector: LocalNodeId<NthOfSelector>,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     let selector = tree.get(selector);
     let nth = tree.get(selector.nth);
@@ -680,7 +680,7 @@ fn write_nth_of_selector(
 }
 
 /// Write one affine nth expression.
-fn write_affine(a: i32, b: i32, f: &mut Formatter<'_, CssFormatContext>) -> FormatResult<()> {
+fn write_affine(a: i32, b: i32, f: &mut Formatter<'_, CssFormatContext<'_>>) -> FormatResult<()> {
     // special forms
     match (a, b) {
         (0, 0) => return write!(f, [text("0")]),
@@ -716,7 +716,7 @@ fn write_affine(a: i32, b: i32, f: &mut Formatter<'_, CssFormatContext>) -> Form
 fn write_media_query_list(
     tree: &Tree,
     media: LocalNodeId<MediaQueryList>,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     let media = tree.get(media);
 
@@ -735,7 +735,7 @@ fn write_media_query_list(
 fn write_media_query(
     tree: &Tree,
     query: LocalNodeId<MediaQuery>,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     let query = tree.get(query);
     let mut has_prefix = false;
@@ -775,7 +775,7 @@ fn write_media_query(
 fn write_media_condition(
     tree: &Tree,
     condition: LocalNodeId<MediaCondition>,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     match tree.get(condition) {
         MediaCondition::Feature(feature) => write_query_feature(tree, *feature, f),
@@ -803,7 +803,7 @@ fn write_media_condition(
 fn write_parenthesized_media(
     tree: &Tree,
     condition: LocalNodeId<MediaCondition>,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     match tree.get(condition) {
         MediaCondition::Feature(_) | MediaCondition::Unknown(_) => {
@@ -821,7 +821,7 @@ fn write_parenthesized_media(
 fn write_supports_condition(
     tree: &Tree,
     condition: LocalNodeId<SupportsCondition>,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     match tree.get(condition) {
         SupportsCondition::Not(condition) => {
@@ -866,7 +866,7 @@ fn write_supports_condition(
 fn write_parenthesized_supports(
     tree: &Tree,
     condition: LocalNodeId<SupportsCondition>,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     match tree.get(condition) {
         SupportsCondition::Declaration { .. }
@@ -884,7 +884,7 @@ fn write_parenthesized_supports(
 fn write_container_condition(
     tree: &Tree,
     condition: LocalNodeId<ContainerCondition>,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     match tree.get(condition) {
         ContainerCondition::Feature(feature) => write_query_feature(tree, *feature, f),
@@ -924,7 +924,7 @@ fn write_container_condition(
 fn write_parenthesized_container(
     tree: &Tree,
     condition: LocalNodeId<ContainerCondition>,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     match tree.get(condition) {
         ContainerCondition::Feature(_)
@@ -943,8 +943,8 @@ fn write_parenthesized_container(
 fn write_condition_sequence<T>(
     conditions: &[T],
     operator: &str,
-    f: &mut Formatter<'_, CssFormatContext>,
-    mut write_condition: impl FnMut(&T, &mut Formatter<'_, CssFormatContext>) -> FormatResult<()>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
+    mut write_condition: impl FnMut(&T, &mut Formatter<'_, CssFormatContext<'_>>) -> FormatResult<()>,
 ) -> FormatResult<()> {
     for (index, condition) in conditions.iter().enumerate() {
         if index > 0 {
@@ -968,7 +968,7 @@ fn write_condition_sequence<T>(
 fn write_query_feature(
     tree: &Tree,
     feature: LocalNodeId<QueryFeature>,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     match tree.get(feature) {
         QueryFeature::Plain { name, value } => {
@@ -1016,7 +1016,7 @@ fn write_query_feature(
 fn write_feature_name(
     tree: &Tree,
     name: LocalNodeId<FeatureName>,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     match tree.get(name) {
         FeatureName::Standard(name) | FeatureName::Custom(name) | FeatureName::Unknown(name) => {
@@ -1028,7 +1028,7 @@ fn write_feature_name(
 /// Write one feature comparison.
 fn write_feature_comparison(
     comparison: FeatureComparison,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     let source = match comparison {
         FeatureComparison::Equal => " = ",
@@ -1045,7 +1045,7 @@ fn write_feature_comparison(
 fn write_feature_value(
     tree: &Tree,
     value: LocalNodeId<FeatureValue>,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     match tree.get(value) {
         FeatureValue::Length(value) | FeatureValue::Resolution(value) => {
@@ -1066,7 +1066,7 @@ fn write_feature_value(
 fn write_ratio_value(
     tree: &Tree,
     value: LocalNodeId<RatioValue>,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     let value = tree.get(value);
 
@@ -1079,7 +1079,7 @@ fn write_ratio_value(
 fn write_environment_variable(
     tree: &Tree,
     value: LocalNodeId<EnvironmentVariable>,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     let value = tree.get(value);
 
@@ -1101,7 +1101,7 @@ fn write_environment_variable(
 /// Write one environment variable name.
 fn write_environment_variable_name(
     name: &EnvironmentVariableName,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     match name {
         EnvironmentVariableName::Ua(value)
@@ -1114,7 +1114,7 @@ fn write_environment_variable_name(
 fn write_container_style_query(
     tree: &Tree,
     query: LocalNodeId<ContainerStyleQuery>,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     match tree.get(query) {
         ContainerStyleQuery::Declaration { property, value } => {
@@ -1163,7 +1163,7 @@ fn write_container_style_query(
 fn write_container_scroll_state_query(
     tree: &Tree,
     query: LocalNodeId<ContainerScrollStateQuery>,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     match tree.get(query) {
         ContainerScrollStateQuery::Feature(feature) => write_query_feature(tree, *feature, f),
@@ -1190,7 +1190,7 @@ fn write_container_scroll_state_query(
 fn write_parenthesized_style_query(
     tree: &Tree,
     query: LocalNodeId<ContainerStyleQuery>,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     match tree.get(query) {
         ContainerStyleQuery::Declaration { .. } | ContainerStyleQuery::Property(_) => {
@@ -1208,7 +1208,7 @@ fn write_parenthesized_style_query(
 fn write_parenthesized_scroll_state_query(
     tree: &Tree,
     query: LocalNodeId<ContainerScrollStateQuery>,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     match tree.get(query) {
         ContainerScrollStateQuery::Feature(_) => write_container_scroll_state_query(tree, query, f),
@@ -1224,7 +1224,7 @@ fn write_parenthesized_scroll_state_query(
 fn write_import_rule(
     tree: &Tree,
     rule: &ImportRule,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     // import url
     write!(
@@ -1262,7 +1262,7 @@ fn write_group_block_rule(
     tree: &Tree,
     prelude: &str,
     rules: &[LocalNodeId<Rule>],
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     write!(f, [text(prelude), space(), token("{")])?;
 
@@ -1284,7 +1284,7 @@ fn write_keyframes_group_rule(
     tree: &Tree,
     rule: &KeyframesRule,
     rules: &[LocalNodeId<Rule>],
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     // prefix
     write!(f, [text("@")])?;
@@ -1329,7 +1329,7 @@ fn write_named_declaration_rule(
     prefix: &str,
     name: &str,
     declarations: Option<LocalNodeId<DeclarationBlock>>,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     write!(f, [text(prefix)])?;
 
@@ -1344,7 +1344,7 @@ fn write_named_declaration_rule(
 fn write_declaration_only_block_body(
     tree: &Tree,
     declarations: Option<LocalNodeId<DeclarationBlock>>,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     write!(f, [space(), token("{")])?;
 
@@ -1367,7 +1367,7 @@ fn write_declaration_only_block_body(
 /// Write one layer statement rule.
 fn write_layer_statement_rule(
     rule: &LayerStatementRule,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     write!(f, [text("@layer"), space()])?;
 
@@ -1385,7 +1385,7 @@ fn write_layer_statement_rule(
 /// Write one namespace rule.
 fn write_namespace_rule(
     rule: &NamespaceRule,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     write!(f, [text("@namespace"), space()])?;
 
@@ -1408,7 +1408,7 @@ fn write_namespace_rule(
 /// Write one property rule.
 fn write_property_rule(
     rule: &PropertyRule,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     write!(
         f,
@@ -1474,7 +1474,7 @@ fn write_property_rule(
 /// Write one unknown at-rule.
 fn write_unknown_rule(
     rule: &UnknownRule,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     if let Some(block) = &rule.block {
         if rule.prelude.values.is_empty() {
@@ -1523,7 +1523,7 @@ fn write_unknown_rule(
 /// Write one font feature values rule.
 fn write_font_feature_values_rule(
     rule: &FontFeatureValuesRule,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     write!(f, [text("@font-feature-values"), space()])?;
 
@@ -1541,63 +1541,65 @@ fn write_font_feature_values_rule(
         write!(
             f,
             [
-                indent(&format_with(|f: &mut Formatter<'_, CssFormatContext>| {
-                    for (subrule_index, subrule) in rule.subrules.iter().enumerate() {
-                        write!(f, [hard_line_break()])?;
-
-                        if subrule_index > 0 {
+                indent(&format_with(
+                    |f: &mut Formatter<'_, CssFormatContext<'_>>| {
+                        for (subrule_index, subrule) in rule.subrules.iter().enumerate() {
                             write!(f, [hard_line_break()])?;
-                        }
 
-                        write_font_feature_subrule_kind(subrule.kind, f)?;
-                        write!(f, [space(), token("{")])?;
+                            if subrule_index > 0 {
+                                write!(f, [hard_line_break()])?;
+                            }
 
-                        if !subrule.declarations.is_empty() {
-                            write!(
-                                f,
-                                [
-                                    indent(&format_with(
-                                        |f: &mut Formatter<'_, CssFormatContext>| {
-                                            for (declaration_index, declaration) in
-                                                subrule.declarations.iter().enumerate()
-                                            {
-                                                write!(f, [hard_line_break()])?;
+                            write_font_feature_subrule_kind(subrule.kind, f)?;
+                            write!(f, [space(), token("{")])?;
 
-                                                if declaration_index > 0 {
+                            if !subrule.declarations.is_empty() {
+                                write!(
+                                    f,
+                                    [
+                                        indent(&format_with(
+                                            |f: &mut Formatter<'_, CssFormatContext<'_>>| {
+                                                for (declaration_index, declaration) in
+                                                    subrule.declarations.iter().enumerate()
+                                                {
                                                     write!(f, [hard_line_break()])?;
+
+                                                    if declaration_index > 0 {
+                                                        write!(f, [hard_line_break()])?;
+                                                    }
+
+                                                    let values = declaration
+                                                        .values
+                                                        .iter()
+                                                        .map(ToString::to_string)
+                                                        .collect::<Vec<_>>()
+                                                        .join(" ");
+                                                    write!(
+                                                        f,
+                                                        [
+                                                            text(&declaration.name),
+                                                            token(":"),
+                                                            space(),
+                                                            text(&values),
+                                                            token(";")
+                                                        ]
+                                                    )?;
                                                 }
 
-                                                let values = declaration
-                                                    .values
-                                                    .iter()
-                                                    .map(ToString::to_string)
-                                                    .collect::<Vec<_>>()
-                                                    .join(" ");
-                                                write!(
-                                                    f,
-                                                    [
-                                                        text(&declaration.name),
-                                                        token(":"),
-                                                        space(),
-                                                        text(&values),
-                                                        token(";")
-                                                    ]
-                                                )?;
+                                                Ok(())
                                             }
+                                        )),
+                                        hard_line_break()
+                                    ]
+                                )?;
+                            }
 
-                                            Ok(())
-                                        }
-                                    )),
-                                    hard_line_break()
-                                ]
-                            )?;
+                            write!(f, [token("}")])?;
                         }
 
-                        write!(f, [token("}")])?;
+                        Ok(())
                     }
-
-                    Ok(())
-                })),
+                )),
                 hard_line_break()
             ]
         )?;
@@ -1610,7 +1612,7 @@ fn write_font_feature_values_rule(
 fn write_page_rule(
     tree: &Tree,
     rule: &PageRule,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     write!(f, [text("@page")])?;
 
@@ -1660,7 +1662,7 @@ fn write_page_rule(
 fn write_keyframe_rule(
     tree: &Tree,
     rule: &KeyframeRule,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     write_keyframe_selector_list(&rule.selectors, f)?;
     write_declaration_only_block_body(tree, rule.declarations, f)
@@ -1669,7 +1671,7 @@ fn write_keyframe_rule(
 /// Write one keyframe selector list.
 fn write_keyframe_selector_list(
     selectors: &KeyframeSelectorList,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     for (index, selector) in selectors.selectors.iter().enumerate() {
         if index > 0 {
@@ -1685,7 +1687,7 @@ fn write_keyframe_selector_list(
 /// Write one keyframe selector.
 fn write_keyframe_selector(
     selector: &KeyframeSelector,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     match selector {
         KeyframeSelector::Percentage(number) => {
@@ -1715,7 +1717,7 @@ fn write_keyframe_selector(
 fn write_page_margin_rule(
     tree: &Tree,
     rule_id: LocalNodeId<PageMarginRule>,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     let rule = tree.get(rule_id);
     write_page_margin_box(rule.margin_box, f)?;
@@ -1742,7 +1744,7 @@ fn write_rule_body(
     tree: &Tree,
     declarations: Option<LocalNodeId<DeclarationBlock>>,
     rules: &[LocalNodeId<Rule>],
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     let mut is_first = true;
 
@@ -1768,7 +1770,7 @@ fn write_rule_body(
 /// Write one layer name list.
 fn write_layer_name_list(
     name: &LayerNameList,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     for (index, segment) in name.names.iter().enumerate() {
         if index > 0 {
@@ -1784,7 +1786,7 @@ fn write_layer_name_list(
 /// Write one import layer clause.
 fn write_import_layer(
     layer: &ImportLayer,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     match &layer.name {
         Some(name) => {
@@ -1799,7 +1801,7 @@ fn write_import_layer(
 /// Write one property syntax definition.
 fn write_property_syntax(
     syntax: &PropertySyntax,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     match syntax {
         PropertySyntax::Universal => write!(f, [token("*")]),
@@ -1820,7 +1822,7 @@ fn write_property_syntax(
 /// Write one property syntax component.
 fn write_property_syntax_component(
     component: &PropertySyntaxComponent,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     write_property_syntax_component_kind(&component.kind, f)?;
 
@@ -1840,7 +1842,7 @@ fn write_property_syntax_component(
 /// Write one property syntax component kind.
 fn write_property_syntax_component_kind(
     kind: &PropertySyntaxComponentKind,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     let source = match kind {
         PropertySyntaxComponentKind::Length => "<length>",
@@ -1867,7 +1869,7 @@ fn write_property_syntax_component_kind(
 /// Write one font feature values subrule kind.
 fn write_font_feature_subrule_kind(
     kind: FontFeatureSubruleKind,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     let source = match kind {
         FontFeatureSubruleKind::Stylistic => "stylistic",
@@ -1885,7 +1887,7 @@ fn write_font_feature_subrule_kind(
 /// Write one page selector list.
 fn write_page_selector_list(
     selectors: &PageSelectorList,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     for (index, selector) in selectors.selectors.iter().enumerate() {
         if index > 0 {
@@ -1901,7 +1903,7 @@ fn write_page_selector_list(
 /// Write one page selector.
 fn write_page_selector(
     selector: &PageSelector,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     if let Some(name) = &selector.name {
         write!(f, [text(name)])?;
@@ -1929,7 +1931,7 @@ fn write_page_selector(
 /// Write one page margin box.
 fn write_page_margin_box(
     margin_box: PageMarginBox,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     let source = match margin_box {
         PageMarginBox::TopLeftCorner => "@top-left-corner",
@@ -1957,7 +1959,7 @@ fn write_page_margin_box(
 fn write_declaration_block(
     tree: &Tree,
     declaration_block_id: LocalNodeId<DeclarationBlock>,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     let declaration_block = tree.get(declaration_block_id);
 
@@ -1995,7 +1997,7 @@ fn write_declaration_block(
 /// Write one component value list.
 fn write_component_value_list(
     components: &ComponentValueList,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     // component values
     for value in &components.values {
@@ -2008,7 +2010,7 @@ fn write_component_value_list(
 /// Write one component value.
 fn write_component_value(
     value: &ComponentValue,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     match value {
         ComponentValue::Token(token) => write_component_token(token, f),
@@ -2020,7 +2022,7 @@ fn write_component_value(
 /// Write one function component value.
 fn write_component_function(
     function: &Function,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     let function_name = f.context().strings.get(function.name).to_string();
     write!(f, [text(&function_name), token("(")])?;
@@ -2034,7 +2036,7 @@ fn write_component_function(
 /// Write one simple block component value.
 fn write_component_block(
     block: &SimpleBlock,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     let (start, end) = match block.kind {
         BlockKind::Parenthesis => ("(", ")"),
@@ -2053,7 +2055,7 @@ fn write_component_block(
 /// Write one token component value.
 fn write_component_token(
     token_value: &Token,
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     let source = f.context().render_component_token(token_value);
 
@@ -2061,7 +2063,7 @@ fn write_component_token(
 }
 
 /// Write one number token payload.
-fn write_number(number: Number, f: &mut Formatter<'_, CssFormatContext>) -> FormatResult<()> {
+fn write_number(number: Number, f: &mut Formatter<'_, CssFormatContext<'_>>) -> FormatResult<()> {
     write_component_token(&Token::Number(number), f)
 }
 
@@ -2070,7 +2072,7 @@ fn write_number(number: Number, f: &mut Formatter<'_, CssFormatContext>) -> Form
 fn write_rule_list(
     tree: &Tree,
     rules: &[LocalNodeId<Rule>],
-    f: &mut Formatter<'_, CssFormatContext>,
+    f: &mut Formatter<'_, CssFormatContext<'_>>,
 ) -> FormatResult<()> {
     for (index, rule_id) in rules.iter().enumerate() {
         write!(f, [hard_line_break()])?;
