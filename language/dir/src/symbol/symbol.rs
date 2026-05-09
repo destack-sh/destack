@@ -47,10 +47,10 @@ pub enum SymbolRole {
     Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize,
 )]
 pub enum SymbolBinding {
-    /// A runtime definition (let, const, var, class, function, etc.)
+    /// A runtime definition (let, const, class, function, etc.)
     #[default]
     Runtime,
-    /// An ambient declaration (declare var, declare function, .d.ts)
+    /// An ambient declaration (declare const, declare function, .d.ts)
     Ambient,
 }
 
@@ -77,7 +77,7 @@ impl SymbolOrigin {
 /// The lexical scope form used by a binding declaration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum BindingScope {
-    /// Function-scoped declaration (`var`-style).
+    /// Function-scoped declaration.
     Function,
     /// Block-scoped declaration (`let` and `const`-style).
     Block,

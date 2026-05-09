@@ -4,10 +4,10 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block, CastOperator,
     CastOrigin, Declaration, Declarator, DependencyItem, DependencySpace, ExportKind,
-    GenericArgument, ImportAttributeClause, ImportSource, ImportTarget, LocalNodeId, LocalScopeId,
-    LocalSymbolId, LocalTypeId, MatchCase, MatchForm, MatchOrigin, Mutability, Node, NodeType,
-    Path, Pattern, Property, ScalarLiteral, StaticArgument, StaticProperty, TemplateLiteral, Tree,
-    TypeExpression, TypeLiteral, UnaryOperator, VarianceBound,
+    GenericArgument, ImportAttributeClause, LocalNodeId, LocalScopeId, LocalSymbolId, LocalTypeId,
+    MatchCase, MatchForm, MatchOrigin, Mutability, Node, NodeType, Path, Pattern, Property,
+    ScalarLiteral, StaticArgument, StaticProperty, TemplateLiteral, Tree, TypeExpression,
+    TypeLiteral, UnaryOperator, VarianceBound,
 };
 use destack_source::{NodeSpanList, NodeSpanType};
 
@@ -29,12 +29,10 @@ pub enum Expression {
 
     /// Import dependency declaration.
     Import {
-        source: ImportSource,
         space: DependencySpace,
-        target: ImportTarget,
+        target: StringId,
         items: Option<Vec<LocalNodeId<DependencyItem>>>,
         attributes: Option<ImportAttributeClause>,
-        arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
     /// Re-export dependency declaration.
     ReExport {
@@ -43,16 +41,14 @@ pub enum Expression {
         items: Vec<LocalNodeId<DependencyItem>>,
         attributes: Option<ImportAttributeClause>,
     },
-    /// Export dependency (like `export { bar }` or `export = foo`).
+    /// Export dependency.
     Export {
         space: DependencySpace,
         items: Vec<LocalNodeId<DependencyItem>>,
         attributes: Option<ImportAttributeClause>,
     },
-    /// Export the module namespace as a global name (declaration files only).
-    ExportNamespace { name: StringId },
 
-    /// Let or var binding for constant or mutable variables (without a value, i.e. not a condition).
+    /// Let binding for mutable and immutable variables.
     Let {
         export: Option<ExportKind>,
         mutability: Mutability,
@@ -178,9 +174,6 @@ pub enum Expression {
         generic_arguments: Vec<LocalNodeId<GenericArgument>>,
         arguments: Vec<LocalNodeId<Argument>>,
     },
-    /// Delete expression.
-    Delete { value: LocalNodeId<Expression> },
-
     /// --------------------------------
     /// Values.
     /// --------------------------------
@@ -367,7 +360,6 @@ impl Expression {
             Expression::Import { .. } => "import",
             Expression::ReExport { .. } => "re-export",
             Expression::Export { .. } => "export",
-            Expression::ExportNamespace { .. } => "export namespace",
 
             Expression::Block(..) => "block",
             Expression::Labelled { .. } => "labelled",
@@ -394,7 +386,6 @@ impl Expression {
             Expression::Maybe { .. } => "maybe",
             Expression::Must { .. } => "must",
             Expression::New { .. } => "new",
-            Expression::Delete { .. } => "delete",
 
             Expression::Path { .. } => "path",
             Expression::PrivateIdentifier { .. } => "private identifier",
@@ -603,13 +594,11 @@ pub enum IfForm {
     Ternary,
 }
 
-/// The kind of a let/var/const binding.
+/// The kind of a let or const binding.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum LetKind {
     /// `let` binding.
     Let,
-    /// `var` binding.
-    Var,
     /// `const` binding.
     Const,
 }
@@ -651,8 +640,6 @@ pub enum ForEachOperator {
 /// The declaration keyword used by a for each pattern binding.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum BindingKeyword {
-    /// `var` declaration keyword.
-    Var,
     /// `let` declaration keyword.
     Let,
     /// `const` declaration keyword.

@@ -29,7 +29,6 @@ pub enum Pattern {
     },
     /// Binding pattern (like `x`).
     Binding {
-        mutability: Option<Mutability>,
         name: StringId,
         pattern: Option<LocalNodeId<Pattern>>,
         symbol: LocalSymbolId,
@@ -84,7 +83,6 @@ impl Pattern {
 pub enum PatternField {
     /// Named field, maybe shorthand and maybe with a nested pattern.
     Named {
-        mutability: Option<Mutability>,
         name: StringId,
         pattern: Option<LocalNodeId<Pattern>>,
         symbol: Option<LocalSymbolId>,
@@ -92,7 +90,6 @@ pub enum PatternField {
     },
     /// Computed field (like `[key]: value`).
     Computed {
-        mutability: Option<Mutability>,
         key: LocalNodeId<Expression>,
         pattern: LocalNodeId<Pattern>,
     },
@@ -100,7 +97,6 @@ pub enum PatternField {
     Positional { pattern: LocalNodeId<Pattern> },
     /// Spread field (like `...x` or `...[a, b]`).
     Spread {
-        mutability: Option<Mutability>,
         pattern: Option<LocalNodeId<Pattern>>,
     },
     /// Elision in a sequence pattern like `[,a]` or `[,,b]`.

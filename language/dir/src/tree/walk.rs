@@ -1,9 +1,9 @@
 use crate::{
     Argument, AssignPattern, AssignPatternField, Block, Declaration, Declarator, Decorator,
     DependencyItem, EnumField, Expression, ForEachBinding, FunctionSignature, GenericArgument,
-    GenericParameter, IfCondition, ImportAliasTarget, ImportTarget, Key, LocalNodeId, MatchCase,
-    MatchSelector, Member, NodeType, NodeVisitor, Parameter, Pattern, PatternField, Property,
-    TemplateLiteral, Tree, TupleElement, TypeExpression, TypeMember, WhereClause,
+    GenericParameter, IfCondition, Key, LocalNodeId, MatchCase, MatchSelector, Member, NodeType,
+    NodeVisitor, Parameter, Pattern, PatternField, Property, TemplateLiteral, Tree, TupleElement,
+    TypeExpression, TypeMember, WhereClause,
 };
 
 /// Walk any node.
@@ -338,25 +338,6 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_generic_argument(tree, *argument_id, argument);
             }
         }
-        TypeExpression::Import {
-            target,
-            arguments,
-            qualifier: _,
-            generic_arguments,
-        } => {
-            let target_node = tree.get(*target);
-            visitor.visit_expression(tree, *target, target_node);
-
-            for argument_id in arguments {
-                let argument = tree.get(*argument_id);
-                visitor.visit_argument(tree, *argument_id, argument);
-            }
-
-            for argument_id in generic_arguments {
-                let argument = tree.get(*argument_id);
-                visitor.visit_generic_argument(tree, *argument_id, argument);
-            }
-        }
         TypeExpression::Readonly {
             target_type: right, ..
         }
@@ -645,27 +626,15 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_expression(tree, *body, body_expr);
             }
             Expression::Import {
-                source: _,
                 space: _,
-                target,
+                target: _,
                 items,
                 attributes: _,
-                arguments,
             } => {
-                if let ImportTarget::Expression { target } = target {
-                    let target_expression = tree.get(*target);
-                    visitor.visit_expression(tree, *target, target_expression);
-                }
                 if let Some(items) = items {
                     for item_id in items {
                         let item = tree.get(*item_id);
                         visitor.visit_dependency_item(tree, *item_id, item);
-                    }
-                }
-                if let Some(arguments) = arguments {
-                    for argument_id in arguments {
-                        let argument = tree.get(*argument_id);
-                        visitor.visit_argument(tree, *argument_id, argument);
                     }
                 }
             }
@@ -690,7 +659,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                     visitor.visit_dependency_item(tree, *item_id, item);
                 }
             }
-            Expression::ExportNamespace { name: _ } => {}
             Expression::Let {
                 export: _,
                 is_ambient: _,
@@ -850,10 +818,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                     let argument = tree.get(*argument_id);
                     visitor.visit_argument(tree, *argument_id, argument);
                 }
-            }
-            Expression::Delete { value } => {
-                let value_expression = tree.get(*value);
-                visitor.visit_expression(tree, *value, value_expression);
             }
             Expression::Index { left, right } => {
                 let left_expression = tree.get(*left);
@@ -1257,11 +1221,6 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
                 }
                 let value_expression = tree.get(declaration.value);
                 visitor.visit_type_expression(tree, declaration.value, value_expression);
-            }
-            Declaration::ImportAlias(declaration) => {
-                if let ImportAliasTarget::Path { path: _ } = &declaration.target {
-                    // no child nodes to visit
-                }
             }
             Declaration::Struct(declaration) => {
                 for generic_parameter_id in &declaration.generic_parameters {
@@ -1771,7 +1730,6 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
                 visitor.visit_pattern(tree, *right, right_pattern);
             }
             Pattern::Binding {
-                mutability: _,
                 name: _,
                 pattern,
                 symbol: _,
@@ -1850,7 +1808,6 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::PatternField, id.id);
     match pattern_field {
         PatternField::Named {
-            mutability: _,
             name: _,
             symbol: _,
             is_shorthand: _,
@@ -1861,11 +1818,7 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
                 visitor.visit_pattern(tree, *pattern_id, pattern_node);
             }
         }
-        PatternField::Computed {
-            mutability: _,
-            key,
-            pattern,
-        } => {
+        PatternField::Computed { key, pattern } => {
             let key_expression = tree.get(*key);
             visitor.visit_expression(tree, *key, key_expression);
             let pattern_node = tree.get(*pattern);
@@ -1875,10 +1828,7 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
             let pattern_node = tree.get(*pattern);
             visitor.visit_pattern(tree, *pattern, pattern_node);
         }
-        PatternField::Spread {
-            mutability: _,
-            pattern,
-        } => {
+        PatternField::Spread { pattern } => {
             if let Some(pattern_id) = pattern {
                 let pattern_node = tree.get(*pattern_id);
                 visitor.visit_pattern(tree, *pattern_id, pattern_node);
