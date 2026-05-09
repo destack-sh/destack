@@ -503,8 +503,8 @@ fn raw_scalar_size_alignment(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) 
 
             (byte_len, byte_len.clamp(1, 8))
         }
-        mir::Type::Float { width } => {
-            let byte_len = (*width as usize).div_ceil(8);
+        mir::Type::Float(float_type) => {
+            let byte_len = (float_type.width() as usize).div_ceil(8);
 
             (byte_len, byte_len.clamp(1, 8))
         }
@@ -1148,10 +1148,7 @@ mod tests {
     use destack_source::FileId;
 
     /// Parse one MIR program with the given target metadata.
-    fn parse_tree_with_layout(
-        mir_text: &str,
-        data_layout: DataLayout,
-    ) -> (Tree, StringPool) {
+    fn parse_tree_with_layout(mir_text: &str, data_layout: DataLayout) -> (Tree, StringPool) {
         let (mut tree, strings) = Parser::parse(
             FileId::new(0),
             mir_text,
@@ -1166,11 +1163,7 @@ mod tests {
     }
 
     /// Look up one aliased type by name.
-    fn lookup_type_alias(
-        tree: &Tree,
-        strings: &StringPool,
-        name: &str,
-    ) -> mir::LocalNodeId<Type> {
+    fn lookup_type_alias(tree: &Tree, strings: &StringPool, name: &str) -> mir::LocalNodeId<Type> {
         for (_, type_alias) in tree.iter_nodes::<TypeAlias>() {
             if strings.get(type_alias.name) == name {
                 return type_alias
