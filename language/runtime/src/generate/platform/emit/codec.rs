@@ -109,7 +109,7 @@ impl<'a> ModuleCodegen<'a> {
                 backing,
                 variants,
             } => match backing {
-                EnumBackingType::Int(_) => self.render_encode_expr(
+                EnumBackingType::Integer(_) => self.render_encode_expr(
                     &super::enum_backing_binding_type(*backing),
                     &format!("{value_expr} as {}", Self::enum_backing_rust_type(*backing)),
                 ),
@@ -336,8 +336,8 @@ impl<'a> ModuleCodegen<'a> {
             self.render_decode_value_lines(&raw_name, &backing_type, value_expr, expected);
 
         let match_expr = match backing {
-            EnumBackingType::Int(int_type) => {
-                let suffix = Self::enum_backing_rust_type(EnumBackingType::Int(int_type));
+            EnumBackingType::Integer(int_type) => {
+                let suffix = Self::enum_backing_rust_type(EnumBackingType::Integer(int_type));
                 let mut arms = Vec::new();
                 for variant in variants {
                     if let BindingEnumValue::Int(value) = variant.value {

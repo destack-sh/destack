@@ -688,32 +688,29 @@ fn binding_type_from_primitive(primitive: PrimitiveType, type_text: &str) -> Bin
     match primitive {
         PrimitiveType::Boolean => BindingType::Bool,
         PrimitiveType::String => BindingType::String,
-        PrimitiveType::Int(int_type) => binding_type_from_int(int_type, type_text),
+        PrimitiveType::Integer(int_type) => binding_type_from_int(int_type, type_text),
         PrimitiveType::Float(float_type) => binding_type_from_float(float_type, type_text),
-        PrimitiveType::Number => BindingType::Float(64),
         _ => unsupported_binding_type(type_text, "unsupported primitive type"),
     }
 }
 
 /// Map an integer primitive into a binding type.
-fn binding_type_from_int(int_type: dir::IntType, type_text: &str) -> BindingType {
-    let int_type = int_type.simplify();
+fn binding_type_from_int(int_type: dir::IntegerType, type_text: &str) -> BindingType {
     match int_type {
-        dir::IntType::Int8 => BindingType::Int(8),
-        dir::IntType::Int16 => BindingType::Int(16),
-        dir::IntType::Int32 => BindingType::Int(32),
-        dir::IntType::Int64 => BindingType::Int(64),
-        dir::IntType::Uint8 => BindingType::UInt(8),
-        dir::IntType::Uint16 => BindingType::UInt(16),
-        dir::IntType::Uint32 => BindingType::UInt(32),
-        dir::IntType::Uint64 => BindingType::UInt(64),
+        dir::IntegerType::Fixed {
+            width,
+            is_signed: true,
+        } if matches!(width, 8 | 16 | 32 | 64) => BindingType::Int(width),
+        dir::IntegerType::Fixed {
+            width,
+            is_signed: false,
+        } if matches!(width, 8 | 16 | 32 | 64) => BindingType::UInt(width),
         _ => unsupported_binding_type(type_text, "unsupported integer width"),
     }
 }
 
 /// Map a float primitive into a binding type.
 fn binding_type_from_float(float_type: dir::FloatType, type_text: &str) -> BindingType {
-    let float_type = float_type.simplify();
     match float_type {
         dir::FloatType::Float32 => BindingType::Float(32),
         dir::FloatType::Float64 => BindingType::Float(64),
@@ -1347,28 +1344,52 @@ fn infer_enum_backing(
 
     if min_value < 0 {
         if min_value >= i8::MIN as i128 && max_value <= i8::MAX as i128 {
-            return dir::EnumBackingType::Int(dir::IntType::Int8);
+            return dir::EnumBackingType::Integer(dir::IntegerType::Fixed {
+                width: 8,
+                is_signed: true,
+            });
         }
         if min_value >= i16::MIN as i128 && max_value <= i16::MAX as i128 {
-            return dir::EnumBackingType::Int(dir::IntType::Int16);
+            return dir::EnumBackingType::Integer(dir::IntegerType::Fixed {
+                width: 16,
+                is_signed: true,
+            });
         }
         if min_value >= i32::MIN as i128 && max_value <= i32::MAX as i128 {
-            return dir::EnumBackingType::Int(dir::IntType::Int32);
+            return dir::EnumBackingType::Integer(dir::IntegerType::Fixed {
+                width: 32,
+                is_signed: true,
+            });
         }
-        return dir::EnumBackingType::Int(dir::IntType::Int64);
+        return dir::EnumBackingType::Integer(dir::IntegerType::Fixed {
+            width: 64,
+            is_signed: true,
+        });
     }
 
     if max_value <= u8::MAX as i128 {
-        return dir::EnumBackingType::Int(dir::IntType::Uint8);
+        return dir::EnumBackingType::Integer(dir::IntegerType::Fixed {
+            width: 8,
+            is_signed: false,
+        });
     }
     if max_value <= u16::MAX as i128 {
-        return dir::EnumBackingType::Int(dir::IntType::Uint16);
+        return dir::EnumBackingType::Integer(dir::IntegerType::Fixed {
+            width: 16,
+            is_signed: false,
+        });
     }
     if max_value <= u32::MAX as i128 {
-        return dir::EnumBackingType::Int(dir::IntType::Uint32);
+        return dir::EnumBackingType::Integer(dir::IntegerType::Fixed {
+            width: 32,
+            is_signed: false,
+        });
     }
 
-    dir::EnumBackingType::Int(dir::IntType::Uint64)
+    dir::EnumBackingType::Integer(dir::IntegerType::Fixed {
+        width: 64,
+        is_signed: false,
+    })
 }
 
 /// Resolve enum field literal values directly from the AST.
