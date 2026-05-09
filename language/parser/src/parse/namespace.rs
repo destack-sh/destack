@@ -336,7 +336,7 @@ declare module A {
             r###"
 declare module "buffer" {
     global {
-        var Buffer: BufferConstructor;
+        let Buffer: BufferConstructor;
     }
 }
 "###,
@@ -370,7 +370,7 @@ declare module "buffer" {
             r###"
 declare module "m" {
     global {
-        var x: number;
+        let x: number;
     }
 }
 "###,

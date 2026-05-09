@@ -70,7 +70,6 @@ impl Parser {
     fn let_kind_and_mutability_for_keyword(keyword: Keyword) -> Option<(LetKind, Mutability)> {
         match keyword {
             Keyword::Let => Some((LetKind::Let, Mutability::Mutable)),
-            Keyword::Var => Some((LetKind::Var, Mutability::Mutable)),
             Keyword::Const | Keyword::Readonly => Some((LetKind::Const, Mutability::Immutable)),
             _ => None,
         }
@@ -181,10 +180,10 @@ impl Parser {
             return false;
         };
 
-        keyword == Keyword::Var || keyword == Keyword::Const || keyword == Keyword::Readonly
+        keyword == Keyword::Const || keyword == Keyword::Readonly
     }
 
-    /// Eat a let/var/const keyword and return the kind and mutability.
+    /// Eat a let or const keyword and return the kind and mutability.
     pub fn eat_let_kind(&mut self) -> ParseResult<(LetKind, Mutability)> {
         let keyword = self.peek_any_keyword()?;
         if let Some((kind, mutability)) = Self::let_kind_and_mutability_for_keyword(keyword) {
@@ -216,33 +215,6 @@ impl Parser {
         self.eat_let_after_keyword(start, header, kind, mutability)
     }
 
-    /// Eat a mutability modifier.
-    pub fn eat_mutability(&mut self) -> ParseResult<Mutability> {
-        let (_, mutability) = self.eat_let_kind()?;
-        Ok(mutability)
-    }
-
-    /// Eat a mutability modifier maybe.
-    pub fn eat_mutability_maybe(&mut self) -> ParseResult<Option<Mutability>> {
-        let Ok(keyword) = self.peek_any_keyword() else {
-            return Ok(None);
-        };
-        // mutable
-        if keyword == Keyword::Var {
-            self.bump(); // eat mutability
-            Ok(Some(Mutability::Mutable))
-        }
-        // immutable
-        else if keyword == Keyword::Let || keyword == Keyword::Const {
-            self.bump(); // eat mutability
-            Ok(Some(Mutability::Immutable))
-        }
-        // nothing
-        else {
-            Ok(None)
-        }
-    }
-
     /// Eat a reference mutability modifier, defaulting to mutable.
     pub fn eat_reference_mutability_maybe(&mut self) -> ParseResult<Option<Mutability>> {
         let Ok(keyword) = self.peek_any_keyword() else {
@@ -260,25 +232,18 @@ impl Parser {
         }
     }
 
-    /// Eat a let or var binding (incl. `let` or `var` keyword).
+    /// Eat a let or const binding.
     ///
     /// Examples:
     /// ```
     /// const x = 1
     /// const x: int32 = 1
-    /// var x = 1
-    /// var x: int32 = 1
-    /// var x: int32 // implicitly uninitialized, must be set before use
     /// let a: T1 = v1, b: T2  // multiple declarators
     ///
     /// const Some(x) = someFunction()
-    /// var Point { x, .. } = someFunction()
     /// const t = foo() ?? return;
     ///
-    /// if const Some(x) = someFunction() {
-    ///     ...
-    /// }
-    /// if const Some(x) = someFunction() {
+    /// if (const Some(x) = someFunction()) {
     ///     ...
     /// }
     /// ```
@@ -382,9 +347,8 @@ impl Parser {
             });
             if can_use_simple_let_path {
                 let keyword = self.current_keyword();
-                let is_mutability_keyword =
-                    matches!(keyword, Some(Keyword::Var | Keyword::Const | Keyword::Let))
-                        || self.language.is_destack() && keyword == Some(Keyword::Readonly);
+                let is_mutability_keyword = matches!(keyword, Some(Keyword::Const | Keyword::Let))
+                    || self.language.is_destack() && keyword == Some(Keyword::Readonly);
                 let allow_underscore_binding =
                     self.language.is_javascript() || self.language.is_typescript();
                 let is_underscore_identifier = if allow_underscore_binding {
@@ -397,7 +361,6 @@ impl Parser {
                     let (name, name_span) = self.eat_binding_identifier_with_span()?;
                     let pattern_id = self.insert_node(
                         Pattern::Binding {
-                            mutability: None,
                             name,
                             pattern: None,
                         },
@@ -539,9 +502,8 @@ impl Parser {
 mod tests {
     use destack_ast::{
         Asynchrony, Declaration, Declarator, Expression, FloatType, FunctionDeclaration,
-        FunctionForm, GenericArgument, GenericParameter, IntegerType, Key, LetKind, Mutability,
-        Name, Parameter, Pattern, PatternField, ScalarLiteral, TypeExpression, TypeLiteral,
-        TypeMember,
+        FunctionForm, GenericArgument, GenericParameter, IntegerType, Key, LetKind, Name,
+        Parameter, Pattern, PatternField, ScalarLiteral, TypeExpression, TypeLiteral, TypeMember,
     };
     use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
@@ -564,8 +526,7 @@ const x: int32 = 1
             .eat_let(&start, DeclarationHeader::default())
             .unwrap();
 
-        assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability, .. } => {
-            assert_eq!(*mutability, Mutability::Immutable);
+        assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability: _, .. } => {
             assert_eq!(declarators.len(), 1);
 
             assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, value } => {
@@ -722,8 +683,7 @@ using x = open()
         let expr_id = parser.eat_expression(parser.flags).unwrap();
 
         // const foo: Tmp = <T,>(str: T): T => { return str; }
-        assert_node!(parser.tree, expr_id, Expression::Let { declarators, mutability, .. } => {
-            assert_eq!(*mutability, Mutability::Immutable);
+        assert_node!(parser.tree, expr_id, Expression::Let { declarators, mutability: _, .. } => {
             assert_eq!(declarators.len(), 1);
             assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, value } => {
                 assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
@@ -769,8 +729,7 @@ using x = open()
             .eat_let(&start, DeclarationHeader::default())
             .unwrap();
 
-        assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability, .. } => {
-            assert_eq!(*mutability, Mutability::Immutable);
+        assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability: _, .. } => {
             assert_eq!(declarators.len(), 1);
             assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, value } => {
                 assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
@@ -803,10 +762,10 @@ using x = open()
             assert_node!(parser.tree, declarators[0], Declarator { pattern, value, .. } => {
                 assert_node!(parser.tree, *pattern, Pattern::Sequence { fields } => {
                     assert_eq!(fields.len(), 2);
-                    assert_node!(parser.tree, fields[0], PatternField::Named { name, mutability: None, is_shorthand: true, pattern: None } => {
+                    assert_node!(parser.tree, fields[0], PatternField::Named { name, is_shorthand: true, pattern: None } => {
                         assert_name!(parser, *name, "readonly");
                     });
-                    assert_node!(parser.tree, fields[1], PatternField::Named { name, mutability: None, is_shorthand: true, pattern: None } => {
+                    assert_node!(parser.tree, fields[1], PatternField::Named { name, is_shorthand: true, pattern: None } => {
                         assert_name!(parser, *name, "setReadonly");
                     });
                 });
@@ -857,10 +816,10 @@ using a = openA(), b = openB()
     }
 
     #[test]
-    fn test_parse_var_array_undefined() {
+    fn test_parse_let_array_undefined() {
         let mut test = TestParser::new(
             r###"
-var x: float64[3] = undefined
+let x: float64[3] = undefined
 "###,
         );
         let mut parser = test.prepare();
@@ -870,9 +829,8 @@ var x: float64[3] = undefined
             .eat_let(&start, DeclarationHeader::default())
             .unwrap();
 
-        // var x: float64[3] = undefined
-        assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability, .. } => {
-            assert_eq!(*mutability, Mutability::Mutable);
+        // let x: float64[3] = undefined
+        assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability: _, .. } => {
             assert_eq!(declarators.len(), 1);
 
             assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, .. } => {
@@ -908,8 +866,7 @@ const (x, y) = foo()
             .unwrap();
 
         // const (x, y) = foo()
-        assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability, .. } => {
-            assert_eq!(*mutability, Mutability::Immutable);
+        assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability: _, .. } => {
             assert_eq!(declarators.len(), 1);
 
             assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, value } => {
@@ -963,8 +920,7 @@ const (x, y) = foo()
             .unwrap();
 
         // let x: int32
-        assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability, .. } => {
-            assert_eq!(*mutability, Mutability::Immutable);
+        assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability: _, .. } => {
             assert_eq!(declarators.len(), 1);
             assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, value } => {
                 // x
@@ -993,8 +949,7 @@ const x =
             .unwrap();
 
         // const x = foo.parse()
-        assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability, .. } => {
-            assert_eq!(*mutability, Mutability::Immutable);
+        assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability: _, .. } => {
             assert_eq!(declarators.len(), 1);
             assert_node!(parser.tree, declarators[0], Declarator { pattern, value, .. } => {
                 // x
@@ -1025,8 +980,7 @@ const registry: Map<
         let let_id = parser.eat_expression(parser.flags).unwrap();
 
         // const registry: Map<..., ...> = new Map()
-        assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability, .. } => {
-            assert_eq!(*mutability, Mutability::Immutable);
+        assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability: _, .. } => {
             assert_eq!(declarators.len(), 1);
 
             assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, value } => {
@@ -1080,8 +1034,7 @@ const registry: Map<
             .eat_let(&start, DeclarationHeader::default())
             .unwrap();
         // let a: int32 = 1, b: string = "hello"
-        assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability, .. } => {
-            assert_eq!(*mutability, Mutability::Mutable);
+        assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability: _, .. } => {
             assert_eq!(declarators.len(), 2);
 
             // a: int32 = 1
@@ -1104,9 +1057,9 @@ const registry: Map<
     }
 
     #[test]
-    fn test_parse_var_declarators_with_leading_comma_newline() {
+    fn test_parse_let_declarators_with_leading_comma_newline() {
         let mut test = TestParser::new_with_language(
-            r#"var args = new Array(arguments.length - 1)
+            r#"let args = new Array(arguments.length - 1)
   , callbacks = this._callbacks['$' + event]"#,
             LanguageType::JavaScript,
         );
@@ -1116,11 +1069,10 @@ const registry: Map<
             .eat_let(&start, DeclarationHeader::default())
             .unwrap();
 
-        // var args = new Array(arguments.length - 1)
+        // let args = new Array(arguments.length - 1)
         //   , callbacks = this._callbacks['$' + event]
-        assert_node!(parser.tree, let_id, Expression::Let { kind, mutability, declarators, .. } => {
-            assert_eq!(*kind, LetKind::Var);
-            assert_eq!(*mutability, Mutability::Mutable);
+        assert_node!(parser.tree, let_id, Expression::Let { kind, mutability: _, declarators, .. } => {
+            assert_eq!(*kind, LetKind::Let);
             assert_eq!(declarators.len(), 2);
 
             assert_node!(parser.tree, declarators[0], Declarator { pattern, .. } => {
@@ -1154,9 +1106,8 @@ const registry: Map<
         // const
         //   first = 1,
         //   second = 2
-        assert_node!(parser.tree, let_id, Expression::Let { kind, mutability, declarators, .. } => {
+        assert_node!(parser.tree, let_id, Expression::Let { kind, mutability: _, declarators, .. } => {
             assert_eq!(*kind, LetKind::Const);
-            assert_eq!(*mutability, Mutability::Immutable);
             assert_eq!(declarators.len(), 2);
 
             assert_node!(parser.tree, declarators[0], Declarator { pattern, .. } => {
@@ -1211,9 +1162,8 @@ const registry: Map<
             .unwrap();
 
         // let { x } = value else { return }
-        assert_node!(parser.tree, expression_id, Expression::LetElse { kind, mutability, declarator, else_branch } => {
+        assert_node!(parser.tree, expression_id, Expression::LetElse { kind, mutability: _, declarator, else_branch } => {
             assert_eq!(*kind, LetKind::Let);
-            assert_eq!(*mutability, Mutability::Mutable);
 
             let else_span = parser
                 .tree
@@ -1273,8 +1223,8 @@ const registry: Map<
 
     #[test]
     fn test_reject_indexed_declarator_target_in_untyped_source() {
-        // var a[0] = 0
-        let mut test = TestParser::new_with_language("var a[0]=0;", LanguageType::JavaScript);
+        // let a[0] = 0
+        let mut test = TestParser::new_with_language("let a[0]=0;", LanguageType::JavaScript);
         let mut parser = test.prepare();
         let start = parser.span_start();
         let error = parser

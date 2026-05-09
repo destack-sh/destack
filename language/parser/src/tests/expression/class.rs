@@ -104,13 +104,13 @@ fn test_parse_new_unparenthesized_class_expression_with_extends() {
 #[test]
 fn test_parse_class_expression_with_parenthesized_sequence_extends() {
     let mut test =
-        TestParser::new_with_language("var a = class extends (b,c) {};", LanguageType::JavaScript);
+        TestParser::new_with_language("let a = class extends (b,c) {};", LanguageType::JavaScript);
     let mut parser = test.prepare();
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     test.assert_no_errors(&parser);
 
-    // var a = class extends (b, c) {};
+    // let a = class extends (b, c) {};
     assert_node!(parser.tree, expression_id, Expression::Let { declarators, .. } => {
         assert_eq!(declarators.len(), 1);
         assert_node!(parser.tree, declarators[0], Declarator { value: Some(value), .. } => {

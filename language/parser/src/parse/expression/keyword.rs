@@ -357,11 +357,6 @@ impl Parser {
                     self.insert_type_keyword_expression(type_expression_id),
                 ))
             }
-            Keyword::Import
-                if next_token_type == TokenType::OpenParenthesis && !next_is_on_new_line =>
-            {
-                Ok(Some(self.eat_import_call_expression(start)?))
-            }
             Keyword::Import => {
                 // special import member forms
                 if self.keyword_member_access_is_any(&["meta"], true)? {
@@ -415,9 +410,7 @@ impl Parser {
             }
             Keyword::Yield if self.flags.is_in_generator() => Ok(Some(self.eat_yield()?)),
             Keyword::Comptime if self.language.is_destack() => Ok(Some(self.eat_comptime()?)),
-            Keyword::Let | Keyword::Var => {
-                Ok(Some(self.eat_let_from_keyword(start, header, keyword)?))
-            }
+            Keyword::Let => Ok(Some(self.eat_let_from_keyword(start, header, keyword)?)),
             Keyword::Const => {
                 if next_keyword == Some(Keyword::Enum) && !next_is_on_new_line {
                     self.eat_keyword(Keyword::Const)?;
@@ -721,15 +714,6 @@ impl Parser {
                 )))
             }
 
-            // import type expression
-            Keyword::Import
-                if next_token_type == TokenType::OpenParenthesis && !next_has_line_break =>
-            {
-                let type_expression_id = self.eat_type_import_expression()?;
-
-                Ok(Some(type_expression_id))
-            }
-
             // infer type expression
             Keyword::Infer => {
                 let type_expression_id = self.eat_type_infer_expression()?;
@@ -793,7 +777,6 @@ impl Parser {
     /// async () => value
     /// function named() {}
     /// import.meta
-    /// import("pkg")
     /// export { a, b }
     /// class Box<T> {}
     /// ```
@@ -1047,14 +1030,6 @@ impl Parser {
                     Err(ParseError::unexpected(self.peek()?.span))
                 }
             }
-            // delete expression
-            Keyword::Delete if next_token_type != TokenType::Colon => Ok(Some(self.eat_delete()?)),
-            // import call expression
-            Keyword::Import
-                if next_token_type == TokenType::OpenParenthesis && !next_has_line_break =>
-            {
-                Ok(Some(self.eat_import_call_expression(start)?))
-            }
             // import declaration or import meta
             Keyword::Import => {
                 // special import member forms
@@ -1083,17 +1058,10 @@ impl Parser {
                     return Err(ParseError::unexpected(self.peek()?.span));
                 }
 
-                // parse import or export import equals declaration
-                if header.export.is_some() && self.peek_import_equals_after_import() {
-                    Ok(Some(self.eat_export_import_equals(start, header)?))
-                } else {
-                    Ok(Some(self.eat_import()?))
-                }
+                Ok(Some(self.eat_import()?))
             }
-            // let or var binding declaration
-            Keyword::Let | Keyword::Var => {
-                Ok(Some(self.eat_let_from_keyword(start, header, keyword)?))
-            }
+            // let binding declaration
+            Keyword::Let => Ok(Some(self.eat_let_from_keyword(start, header, keyword)?)),
             // using declaration
             Keyword::Using => {
                 if self.can_parse_using_declaration(&header, Asynchrony::Sync) {

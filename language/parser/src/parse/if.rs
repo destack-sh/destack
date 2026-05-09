@@ -175,9 +175,7 @@ impl Parser {
                 .with_ambient_context(ambient_context)
                 .with_expression_context(expression_context),
             |parser| {
-                if matches!(parser.peek_any_keyword().ok(), Some(Keyword::Let))
-                    || parser.peek_mutability_is()
-                {
+                if matches!(parser.peek_any_keyword().ok(), Some(Keyword::Let)) {
                     parser.eat_let_kind().and_then(|(kind, mutability)| {
                         parser
                             .eat_declarator(true, true)
@@ -247,7 +245,7 @@ impl Parser {
 mod tests {
     use destack_ast::{
         BinaryOperator, Block, CommentKind, Declaration, Declarator, Expression,
-        FunctionDeclaration, FunctionForm, IfCondition, LetKind, Mutability, Pattern, PatternField,
+        FunctionDeclaration, FunctionForm, IfCondition, LetKind, Pattern, PatternField,
         ScalarLiteral,
     };
     use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
@@ -815,11 +813,10 @@ else
             let declarator_id = match condition {
                 IfCondition::Let {
                     kind,
-                    mutability,
+                    mutability: _,
                     declarator,
                 } => {
                     assert_eq!(*kind, LetKind::Let);
-                    assert_eq!(*mutability, Mutability::Mutable);
                     *declarator
                 }
                 IfCondition::Expression { .. } => panic!("expected if let condition"),
@@ -847,11 +844,10 @@ else
             let declarator_id = match condition {
                 IfCondition::Let {
                     kind,
-                    mutability,
+                    mutability: _,
                     declarator,
                 } => {
                     assert_eq!(*kind, LetKind::Let);
-                    assert_eq!(*mutability, Mutability::Mutable);
                     *declarator
                 }
                 IfCondition::Expression { .. } => panic!("expected if let condition"),

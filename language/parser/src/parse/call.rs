@@ -174,32 +174,6 @@ impl Parser {
         Ok(call_id)
     }
 
-    /// Eat a delete expression.
-    ///
-    /// Examples:
-    /// ```
-    /// delete
-    /// delete foo
-    /// delete foo.bar
-    /// delete foo['result']
-    /// ```
-    pub fn eat_delete(&mut self) -> ParseResult<LocalNodeId<Expression>> {
-        let start = self.span_start();
-
-        // keyword
-        self.eat_keyword(Keyword::Delete)?;
-
-        // value
-        let value_flags = self.flags.not_in_position();
-        let value = self.with_flags(value_flags, |parser| parser.eat_expression(parser.flags))?;
-
-        // delete
-        let delete_id = self
-            .tree
-            .insert(Expression::Delete { value }, self.get_span_from(&start));
-        Ok(delete_id)
-    }
-
     /// Eat a call (postfix, excluding the receiver).
     ///
     /// Examples:

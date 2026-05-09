@@ -304,11 +304,11 @@ fn test_parse_lambda_function_value_with_pattern_parameters() {
                 assert_node!(parser.tree, *pattern, Pattern::Object { fields, .. } => {
                     assert_eq!(fields.len(), 2);
                     // x
-                    assert_node!(parser.tree, fields[0], PatternField::Named { name, mutability: None, is_shorthand: true, pattern: None } => {
+                    assert_node!(parser.tree, fields[0], PatternField::Named { name, is_shorthand: true, pattern: None } => {
                         assert_name!(parser, *name, "x");
                     });
                     // y
-                    assert_node!(parser.tree, fields[1], PatternField::Named { name, mutability: None, is_shorthand: true, pattern: None } => {
+                    assert_node!(parser.tree, fields[1], PatternField::Named { name, is_shorthand: true, pattern: None } => {
                         assert_name!(parser, *name, "y");
                     });
                 });

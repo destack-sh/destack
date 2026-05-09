@@ -82,7 +82,7 @@ fn test_parse_async_generic_false_positive() {
 #[test]
 fn test_parse_async_generic_arrow_asi() {
     let mut test = TestParser::new_with_language(
-        "var a = {}\nasync<T,>() => {}\n\n(a as any).b = 1;\n",
+        "let a = {}\nasync<T,>() => {}\n\n(a as any).b = 1;\n",
         LanguageType::TypeScript,
     );
     let mut parser = test.prepare();
@@ -91,7 +91,7 @@ fn test_parse_async_generic_arrow_asi() {
     assert_eq!(expressions.len(), 3);
 
     assert_node!(parser.tree, expressions[0], Expression::Let { kind, declarators, .. } => {
-        assert_eq!(*kind, LetKind::Var);
+        assert_eq!(*kind, LetKind::Let);
         assert_eq!(declarators.len(), 1);
     });
 

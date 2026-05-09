@@ -220,7 +220,7 @@ interface IteratorConstructor {
 }
 
 declare global {
-    var Iterator: IteratorConstructor;
+    let Iterator: IteratorConstructor;
 }
 ```
 
@@ -240,7 +240,7 @@ declare abstract class Iterator<T> {
 }
 
 declare global {
-    var Iterator: {
+    let Iterator: {
         new<T>(): Iterator<T>;
     };
 }

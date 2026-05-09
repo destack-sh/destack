@@ -475,7 +475,7 @@ match (x) {
             // case 2: x => x
             assert_node!(parser.tree, cases[2], MatchCase::Expression { selector: MatchSelector::Pattern { pattern, guard }, body: _ } => {
                 assert!(guard.is_none());
-                assert_node!(parser.tree, *pattern, Pattern::Binding { mutability: None, name, pattern: _ } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: _ } => {
                     assert_string!(parser, *name, "x");
                 });
             });

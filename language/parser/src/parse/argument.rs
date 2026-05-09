@@ -233,7 +233,6 @@ impl Parser {
                 | Keyword::Type
                 | Keyword::Try
                 | Keyword::Using
-                | Keyword::Var
                 | Keyword::While
         )
     }
@@ -2145,7 +2144,7 @@ mod tests {
         assert_node!(parser.tree, parameter_id, Parameter::Pattern { pattern, declared_type: Some(declared_type), default: Some(default), .. } => {
             // { x = 4 }
             assert_node!(parser.tree, *pattern, Pattern::Object { fields } => {
-                assert_node!(parser.tree, fields[0], PatternField::Named { mutability: None, name, is_shorthand: true, pattern: Some(pattern) } => {
+                assert_node!(parser.tree, fields[0], PatternField::Named { name, is_shorthand: true, pattern: Some(pattern) } => {
                     // x
                     assert_name!(parser, *name, "x");
 
@@ -3026,16 +3025,16 @@ class Test {
 
     #[test]
     fn test_parse_dynamic_arguments_recover_missing_close_before_next_statement() {
-        // (a,b var
-        let source = "(a,b var";
+        // (a,b const
+        let source = "(a,b const";
         let mut test = TestParser::new(source);
         let mut parser = test.prepare();
         let arguments = parser.eat_dynamic_arguments().unwrap();
 
         // diagnostics
-        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "var")]);
+        test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "const")]);
 
-        // (a,b var
+        // (a,b const
         assert_eq!(arguments.len(), 2);
         assert_node!(parser.tree, arguments[0], Argument::Positional { value, .. } => {
             assert_expression_path!(parser, parser.tree.get(*value), "a");
@@ -3141,8 +3140,8 @@ class Test {
     }
 
     #[test]
-    fn test_parse_malformed_call_statement_before_var_keeps_call_shape() {
-        let mut test = TestParser::new_with_language("foo(a,b var;", LanguageType::JavaScript);
+    fn test_parse_malformed_call_statement_before_const_keeps_call_shape() {
+        let mut test = TestParser::new_with_language("foo(a,b const;", LanguageType::JavaScript);
         let mut parser = test.prepare();
         let expressions = parser.parse();
 
@@ -3150,13 +3149,13 @@ class Test {
         test.assert_error_leaves(
             &parser,
             &[
-                (Some(NodeType::Expression), None, "var"),
-                (None, None, "var"),
+                (Some(NodeType::Expression), None, "const"),
+                (None, None, "const"),
                 (Some(NodeType::Expression), None, ";"),
             ],
         );
 
-        // foo(a,b var;
+        // foo(a,b const;
         assert_eq!(expressions.len(), 2);
         let call_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, call_id, Expression::Call { arguments, .. } => {
@@ -3205,7 +3204,7 @@ class Test {
     #[test]
     fn test_parse_malformed_call_before_empty_slots_call_preserves_following_statement_shape() {
         let source = r#"
-foo(a,b var;
+foo(a,b const;
 foo (,,b);
 "#;
         let mut test = TestParser::new_with_language(source, LanguageType::JavaScript);
@@ -3216,15 +3215,15 @@ foo (,,b);
         test.assert_error_leaves(
             &parser,
             &[
-                (Some(NodeType::Expression), None, "var"),
-                (None, None, "var"),
+                (Some(NodeType::Expression), None, "const"),
+                (None, None, "const"),
                 (Some(NodeType::Expression), None, ";"),
                 (None, None, ","),
                 (None, None, ","),
             ],
         );
 
-        // foo(a,b var;
+        // foo(a,b const;
         // Error
         // foo (,,b);
         assert_eq!(expressions.len(), 3);
@@ -3245,7 +3244,7 @@ foo (,,b);
     #[test]
     fn test_parse_malformed_call_before_trailing_spread_call_preserves_following_statement_shape() {
         let source = r#"
-foo(a,b var;
+foo(a,b const;
 foo (a, ...);
 "#;
         let mut test = TestParser::new_with_language(source, LanguageType::JavaScript);
@@ -3256,8 +3255,8 @@ foo (a, ...);
         test.assert_error_leaves(
             &parser,
             &[
-                (Some(NodeType::Expression), None, "var"),
-                (None, None, "var"),
+                (Some(NodeType::Expression), None, "const"),
+                (None, None, "const"),
                 (Some(NodeType::Expression), None, ";"),
                 (None, None, ")"),
             ],
@@ -3265,7 +3264,7 @@ foo (a, ...);
 
         assert_eq!(expressions.len(), 3);
 
-        // foo(a,b var;
+        // foo(a,b const;
         let first_call_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, first_call_id, Expression::Call { arguments, .. } => {
             assert_eq!(arguments.len(), 2);

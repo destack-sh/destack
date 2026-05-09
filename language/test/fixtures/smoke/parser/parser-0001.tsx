@@ -653,7 +653,7 @@ DISK: ${chalk.yellow('70%')}
 		onPayloadChange={(index, value) => {
 			const currentPayloads = { ...featureFlag.filters.payloads };
 			if (value === undefined) {
-				delete currentPayloads[index];
+				currentPayloads[index] = undefined;
 			} else {
 				currentPayloads[index] = value;
 			}

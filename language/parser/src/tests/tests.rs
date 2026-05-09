@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_ast::{
-    AssignPattern, Block, Expression, ImportTarget, LocalNodeId, NodeType, StringId, TokenType,
-    TypeExpression, normalize_comment_payload,
+    AssignPattern, Block, Expression, LocalNodeId, NodeType, StringId, TokenType, TypeExpression,
+    normalize_comment_payload,
 };
 use destack_core::StringPool;
 use destack_source::{File, FileId, FileType, LanguageType, Uri};
@@ -98,17 +98,6 @@ impl TestParser {
 /// Collect block expressions in source order for test assertions.
 pub(crate) fn block_expression_ids(block: &Block) -> Vec<LocalNodeId<Expression>> {
     block.iter_expressions().collect()
-}
-
-/// Assert one import target string directly against an expected string.
-pub(crate) fn assert_import_target_string(parser: &Parser, target: &ImportTarget, expected: &str) {
-    match target {
-        ImportTarget::String(target) => {
-            let actual = parser.strings.get(*target).to_string();
-            assert_eq!(actual, expected, "expected import target string");
-        }
-        other => panic!("expected string import target, got {other:?}"),
-    }
 }
 
 /// Assert that `tree.get(id)` matches one node pattern, including type-space nodes.

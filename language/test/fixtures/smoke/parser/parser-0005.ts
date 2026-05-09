@@ -7,7 +7,7 @@ import { runAsync } from "./Processes.js";
 
 const { default: JsonFile } = Module.createRequire(import.meta.url)(
   "@expo/json-file",
-) as typeof import("@expo/json-file");
+) as unknown;
 
 let cachedPackages: Package[] | null = null;
 

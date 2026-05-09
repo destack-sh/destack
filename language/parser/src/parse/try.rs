@@ -243,7 +243,7 @@ try {
                 });
             });
             // catch (e)
-            assert_node!(parser.tree, *catch_pattern, Pattern::Binding { mutability: _, name, pattern: _ } => {
+            assert_node!(parser.tree, *catch_pattern, Pattern::Binding { name, pattern: _ } => {
                 assert_string!(parser, *name, "e");
             });
             // catch expression

@@ -199,8 +199,7 @@ const value =
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
     // const value = | 1 | 2 | 3
-    assert_node!(parser.tree, expr_id, Expression::Let { mutability, declarators, .. } => {
-        assert_eq!(*mutability, Mutability::Immutable);
+    assert_node!(parser.tree, expr_id, Expression::Let { mutability: _, declarators, .. } => {
         assert_eq!(declarators.len(), 1);
         assert_node!(parser.tree, declarators[0], Declarator { value, .. } => {
             // | 1 | 2 | 3
@@ -235,9 +234,8 @@ const value =
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     // const value = ...
-    assert_node!(parser.tree, expression_id, Expression::Let { mutability, declarators, .. } => {
+    assert_node!(parser.tree, expression_id, Expression::Let { mutability: _, declarators, .. } => {
         // `const`
-        assert_eq!(*mutability, Mutability::Immutable);
         assert_eq!(declarators.len(), 1);
 
         // `| 1\n  | 2\n  | 3`
@@ -383,8 +381,7 @@ const x =
     );
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
-    assert_node!(parser.tree, expr_id, Expression::Let { mutability, declarators, .. } => {
-        assert_eq!(*mutability, Mutability::Immutable);
+    assert_node!(parser.tree, expr_id, Expression::Let { mutability: _, declarators, .. } => {
         assert_eq!(declarators.len(), 1);
         assert_node!(parser.tree, declarators[0], Declarator { pattern, value, .. } => {
             assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {

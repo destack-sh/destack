@@ -232,7 +232,7 @@ export async function transformMain(
     !descriptor.script?.src // only normal script can have src
   ) {
     // @ts-ignore Rolldown-specific
-    const { transformWithOxc } = await import("vite");
+    const { transformWithOxc } = await loadModule("vite");
     if (transformWithOxc) {
       const { code, map } = await transformWithOxc(
         resolvedCode,

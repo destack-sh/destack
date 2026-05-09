@@ -1,6 +1,6 @@
 use destack_ast::{
     Block, BlockContext, BlockForm, Declaration, Expression, FunctionDeclaration, FunctionForm,
-    Keyword, LetKind, LocalNodeId, NodeType, TokenType, YieldCardinality,
+    Keyword, LocalNodeId, NodeType, TokenType, YieldCardinality,
 };
 use destack_core::StringId;
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
@@ -465,9 +465,8 @@ impl Parser {
             Expression::LetElse { .. }
             | Expression::Using { .. }
             | Expression::Import { .. }
-            | Expression::Export { .. }
-            | Expression::ExportNamespace { .. } => true,
-            Expression::Let { kind, .. } => *kind != LetKind::Var,
+            | Expression::Export { .. } => true,
+            Expression::Let { .. } => true,
             _ => false,
         }
     }
