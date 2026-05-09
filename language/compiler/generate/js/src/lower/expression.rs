@@ -404,7 +404,7 @@ impl ModuleLowerer<'_> {
                                 expression_id,
                             );
                             let target_module =
-                                self.dependency_target_module(expression_id.into_any(), *space);
+                                self.dependency_target_module(expression_id.into_any());
 
                             (target_expression, target_module)
                         }
@@ -466,8 +466,7 @@ impl ModuleLowerer<'_> {
                             self.lower_import_attributes(expression_id.into_any(), attributes)
                         })
                         .transpose()?;
-                    let target_module =
-                        self.dependency_target_module(expression_id.into_any(), *space);
+                    let target_module = self.dependency_target_module(expression_id.into_any());
                     let space = self.lower_dependency_space(*space);
                     let statement = js::Statement::Import {
                         space,
@@ -495,7 +494,7 @@ impl ModuleLowerer<'_> {
                         self.lower_import_attributes(expression_id.into_any(), attributes)
                     })
                     .transpose()?;
-                let target_module = self.dependency_target_module(expression_id.into_any(), *space);
+                let target_module = self.dependency_target_module(expression_id.into_any());
                 let space = self.lower_dependency_space(*space);
                 let statement = js::Statement::Export {
                     space,

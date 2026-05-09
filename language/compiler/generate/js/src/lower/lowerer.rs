@@ -5,7 +5,7 @@
 
 use destack_artifact::{Ast, DirChecked, DirDeclared};
 use destack_core::StringPool;
-use destack_dir::{GlobalSymbolId, SymbolTable, TypeTable};
+use destack_dir::{GlobalSymbolId, BindingTable, TypeTable};
 use destack_workspace::{Module, Target};
 use {destack_dir as dir, destack_js as js};
 
@@ -27,7 +27,7 @@ pub struct ModuleLowerer<'a> {
     /// The DIR tree.
     pub(crate) dir_tree: &'a dir::Tree,
     /// The symbol table.
-    pub(crate) symbols: &'a SymbolTable,
+    pub(crate) symbols: &'a BindingTable,
     /// The type table.
     pub(crate) types: &'a TypeTable,
     /// The target configuration.
@@ -105,7 +105,7 @@ impl<'a> ModuleLowerer<'a> {
             source_strings,
             dir_tree: &declared.tree,
             dir_roots: declared.roots.as_ref(),
-            symbols: &declared.symbols,
+            symbols: &declared.bindings,
             types: &checked.types,
             target,
             tree: js::Tree::new(),

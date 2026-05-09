@@ -38,12 +38,11 @@ pub fn print_script_module_minified(
     module: &js::Module,
 ) -> CodegenJsResult<PrintedScriptModule> {
     let source_map = CodegenJsSourceMap { ast, declared };
-    let strings = module.strings.clone().into_immutable();
     let printed = js::print_roots_minified_with_source_map(
         options.file_type,
         &module.tree,
         &module.roots,
-        &strings,
+        &module.strings,
         &source_map,
     )
     .map_err(|error| match error {})?;
@@ -123,14 +122,13 @@ fn print_script_module_pretty(
     module: &js::Module,
 ) -> CodegenJsResult<PrintedScriptModule> {
     let source_map = CodegenJsSourceMap { ast, declared };
-    let strings = module.strings.clone().into_immutable();
     let roots = module.roots.as_slice();
     let context = js::JsFormatContext {
         options,
         file: source_file,
         tree: &module.tree,
         roots,
-        strings: &strings,
+        strings: &module.strings,
         source_map: &source_map,
     };
     let mut state = FormatState::new(context);
