@@ -19,9 +19,6 @@ default()
 return()
 // <- entity.name.function.call.ds
 
-import()
-// <- entity.name.function.call.ds
-
 // function definitions
 function compose() {}
 //       ^^^^^^^ entity.name.function.definition.ds

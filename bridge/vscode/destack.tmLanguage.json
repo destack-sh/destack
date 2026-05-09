@@ -68,33 +68,6 @@
     "comment": {
       "patterns": [
         {
-          "name": "comment.line.triple-slash.directive.ds",
-          "match": "(?x)^([ \\t]*)(///)\\s*(<)(reference)\\s+(path|types|lib)(=)(\"[^\"]*\"|'[^']*')(\\s*/>)\\s*$",
-          "captures": {
-            "2": {
-              "name": "punctuation.definition.comment.ds"
-            },
-            "3": {
-              "name": "punctuation.definition.tag.begin.ds"
-            },
-            "4": {
-              "name": "keyword.declaration.import.ds"
-            },
-            "5": {
-              "name": "variable.other.property.ds"
-            },
-            "6": {
-              "name": "keyword.operator.assignment.ds"
-            },
-            "7": {
-              "name": "string.quoted.double.ds"
-            },
-            "8": {
-              "name": "punctuation.definition.tag.end.ds"
-            }
-          }
-        },
-        {
           "name": "comment.line.double-slash.ds",
           "match": "//.*$"
         },
@@ -183,11 +156,11 @@
         },
         {
           "name": "keyword.declaration.type.ds",
-          "match": "\\b(?:const|let|var|module|global|namespace|type|newtype|struct|class|enum|union|interface|function|extension|declare|constructor)\\b"
+          "match": "\\b(?:const|let|module|global|namespace|type|newtype|struct|class|enum|union|interface|function|extension|declare|constructor)\\b"
         },
         {
           "name": "keyword.operator.new.ds",
-          "match": "\\b(?:new|delete)\\b"
+          "match": "\\bnew\\b"
         },
         {
           "name": "keyword.operator.type.ds",

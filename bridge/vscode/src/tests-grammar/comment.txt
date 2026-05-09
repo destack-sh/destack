@@ -5,19 +5,3 @@ value = 1 // trailing comment
 
 /* block comment */
 // <- comment.block.ds
-
-/// <reference path="./global.d.ts" />
-// <- punctuation.definition.comment.ds
-//     ^ keyword.declaration.import.ds
-//               ^ variable.other.property.ds
-//                    ^ string.quoted.double.ds
-
-/// <reference types="node" />
-// <- punctuation.definition.comment.ds
-//               ^ variable.other.property.ds
-//                     ^ string.quoted.double.ds
-
-/// <reference lib="dom" />
-// <- punctuation.definition.comment.ds
-//               ^ variable.other.property.ds
-//                   ^ string.quoted.double.ds

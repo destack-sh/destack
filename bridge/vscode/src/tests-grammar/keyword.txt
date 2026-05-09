@@ -71,9 +71,6 @@ const
 let
 // <- keyword.declaration.type.ds
 
-var
-// <- keyword.declaration.type.ds
-
 module
 // <- keyword.declaration.type.ds
 
@@ -117,9 +114,6 @@ constructor
 // <- keyword.declaration.type.ds
 
 new
-// <- keyword.operator.new.ds
-
-delete
 // <- keyword.operator.new.ds
 
 where

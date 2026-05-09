@@ -128,26 +128,6 @@ type ReadonlyTuple = readonly [Foo, Bar]
 //                             ^^^ entity.name.type.ds
 //                                  ^^^ entity.name.type.ds
 
-type Imported = import("pkg").Type
-//   ^^^^^^^^ entity.name.type.definition.ds
-//              ^^^^^^ keyword.declaration.import.ds
-//                      ^^^ string.quoted.double.ds
-//                            ^^^^ entity.name.type.ds
-
-type ImportedTypeof = typeof import("pkg")
-//   ^^^^^^^^^^^^^^ entity.name.type.definition.ds
-//                    ^^^^^^ keyword.operator.type.unary.ds
-//                           ^^^^^^ keyword.declaration.import.ds
-//                                   ^^^ string.quoted.double.ds
-
-type ImportKeyof = keyof typeof import("pkg").Thing
-//   ^^^^^^^^^^^ entity.name.type.definition.ds
-//                 ^^^^^ keyword.operator.type.unary.ds
-//                       ^^^^^^ keyword.operator.type.unary.ds
-//                              ^^^^^^ keyword.declaration.import.ds
-//                                     ^^^ string.quoted.double.ds
-//                                            ^^^^^ entity.name.type.ds
-
 type MappedReadonly<T> = { readonly [K in keyof T]?: T[K] }
 //   ^^^^^^^^^^^^^^ entity.name.type.definition.ds
 //                  ^ entity.name.type.parameter.ds
