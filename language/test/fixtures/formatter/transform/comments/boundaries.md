@@ -436,24 +436,6 @@ export {
 };
 ```
 
-### dynamic import source comment
-
-Comments on dynamic import sources stay attached to the same source argument.
-
-```ts:main.ts
-const mod = import(
-  // dynamic-source
-  "module"
-)
-```
-
-```ts expected
-const mod = import(
-    // dynamic-source
-    "module"
-);
-```
-
 ## Other Boundaries
 
 ### try catch boundary comments

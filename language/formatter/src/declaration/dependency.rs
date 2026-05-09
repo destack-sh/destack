@@ -1,16 +1,15 @@
 use crate::annotation::{
-    block_infix_annotations, format_comment, format_dangling_comments,
-    infix_or_postfix_annotations, prefix_annotations, prefix_comment_nodes,
+    block_infix_annotations, format_comment, infix_or_postfix_annotations, prefix_annotations,
+    prefix_comment_nodes,
 };
 use crate::collection::TrailingSeparator;
 use crate::collection::literal::format_scalar_literal;
 use crate::collection::property::{format_name_with_quotes, is_identifier_for_quotes};
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    Argument, DecoratorPosition, DependencyBinding, DependencyItem, DependencySpace, Expression,
+    DecoratorPosition, DependencyBinding, DependencyItem, DependencySpace, Expression,
     ImportAttribute, ImportAttributeClause, ImportAttributeClauseKind, ImportAttributeValue,
-    ImportSource, ImportTarget, Keyword, LocalNodeId, Name, ScalarLiteral, TokenSpan, TokenType,
-    Tree,
+    Keyword, LocalNodeId, Name, ScalarLiteral, TokenSpan, TokenType, Tree,
 };
 use destack_core::{StringId, StringPool};
 use destack_fir::format::{FormatError, FormatResult};
@@ -111,17 +110,7 @@ pub(crate) fn import_expression(
 ) -> Option<&Expression> {
     let expr = tree.get(expr_id);
     match expr {
-        Expression::Import {
-            source: ImportSource::ImportCall,
-            ..
-        } => None,
-        Expression::Import { target, .. } => {
-            if matches!(target, ImportTarget::String(_)) {
-                Some(expr)
-            } else {
-                None
-            }
-        }
+        Expression::Import { .. } => Some(expr),
         _ => None,
     }
 }
@@ -129,36 +118,6 @@ pub(crate) fn import_expression(
 /// Check if an expression is an import (unwrapping Statement if needed).
 pub(crate) fn is_import(expr_id: LocalNodeId<Expression>, tree: &Tree) -> bool {
     import_expression(expr_id, tree).is_some()
-}
-
-/// Return whether one import source is a triple-slash reference directive.
-pub(crate) fn import_source_is_reference_directive(source: ImportSource) -> bool {
-    matches!(
-        source,
-        ImportSource::ReferencePathDirective
-            | ImportSource::ReferenceTypesDirective
-            | ImportSource::ReferenceLibDirective
-            | ImportSource::ReferenceNoDefaultLibDirective
-    )
-}
-
-/// Format one `export as namespace` statement.
-pub(crate) fn format_export_namespace_statement<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    name: StringId,
-) -> FormatResult<()> {
-    write!(
-        f,
-        [
-            Keyword::Export,
-            space(),
-            Keyword::As,
-            space(),
-            Keyword::Namespace,
-            space(),
-            name
-        ]
-    )
 }
 
 /// Format one dependency-shaped statement expression.
@@ -169,22 +128,18 @@ pub(crate) fn format_dependency_statement_expression<'ast>(
 ) -> FormatResult<bool> {
     match expression {
         Expression::Import {
-            source,
             space,
             target,
             items,
             attributes,
-            arguments,
         } => {
             format_import_expression(
                 f,
                 node_id,
-                *source,
                 *space,
-                target,
+                *target,
                 items.as_deref(),
                 attributes.as_ref(),
-                arguments.as_deref(),
             )?;
             Ok(true)
         }
@@ -195,10 +150,6 @@ pub(crate) fn format_dependency_statement_expression<'ast>(
             attributes,
         } => {
             format_export_expression(f, node_id, *space, *target, items, attributes.as_ref())?;
-            Ok(true)
-        }
-        Expression::ExportNamespace { name } => {
-            format_export_namespace_statement(f, *name)?;
             Ok(true)
         }
         _ => Ok(false),
@@ -219,10 +170,6 @@ pub(crate) fn sort_imports(
     // collect sortable declaration keys
     for &expr_id in imports {
         if let Some(Expression::Import { items, target, .. }) = import_expression(expr_id, tree) {
-            let ImportTarget::String(target) = target else {
-                continue;
-            };
-
             let target_str = strings.get(*target);
             expression_ids.push(expr_id);
             order_keys.push(ImportDeclarationKey {
@@ -263,9 +210,6 @@ pub(crate) fn should_insert_blank_between(
 ) -> bool {
     let (prev_is_side_effect, prev_group) = match import_expression(prev_expr_id, tree) {
         Some(Expression::Import { items, target, .. }) => {
-            let ImportTarget::String(target) = target else {
-                return false;
-            };
             let target_str = strings.get(*target);
             (items.is_none(), categorize_import(target_str))
         }
@@ -274,9 +218,6 @@ pub(crate) fn should_insert_blank_between(
 
     let (curr_is_side_effect, curr_group) = match import_expression(curr_expr_id, tree) {
         Some(Expression::Import { items, target, .. }) => {
-            let ImportTarget::String(target) = target else {
-                return false;
-            };
             let target_str = strings.get(*target);
             (items.is_none(), categorize_import(target_str))
         }
@@ -1371,119 +1312,6 @@ fn write_export_clause<'ast>(
 
     Ok(false)
 }
-
-/// Write one import-call target in either string or expression form.
-fn write_import_call_target<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    target: &ImportTarget,
-) -> FormatResult<()> {
-    match target {
-        ImportTarget::String(target) => write_dependency_target(f, *target),
-        ImportTarget::Expression { target } => write!(f, [*target]),
-    }
-}
-
-/// Format one dynamic `import(...)` call expression and report whether it handled output.
-fn format_import_call_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Expression>,
-    source: ImportSource,
-    target: &ImportTarget,
-    arguments: Option<&[LocalNodeId<Argument>]>,
-) -> FormatResult<bool> {
-    if source != ImportSource::ImportCall {
-        return Ok(false);
-    }
-
-    let format_arguments = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        write_import_call_target(f, target)?;
-
-        if let Some(arguments) = arguments {
-            for argument in arguments {
-                write!(f, [token(","), soft_line_break_or_space(), *argument])?;
-            }
-        }
-
-        Ok(())
-    });
-
-    let format_call = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        write!(
-            f,
-            [
-                token("("),
-                soft_block_indent(&format_arguments),
-                format_dangling_comments(f.context().span(node_id)).with_soft_block_indent(),
-                token(")")
-            ]
-        )
-    });
-
-    write!(f, [Keyword::Import, group(&format_call)])?;
-
-    Ok(true)
-}
-
-/// Format one triple-slash reference directive and report whether it handled output.
-fn format_reference_directive_import_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Expression>,
-    source: ImportSource,
-) -> FormatResult<bool> {
-    if !import_source_is_reference_directive(source) {
-        return Ok(false);
-    }
-
-    let span = f.context().span(node_id);
-    f.context_mut()
-        .comments_mut()
-        .skip_comments_before(span.end);
-    write!(f, [source_text_slice(span)])?;
-
-    Ok(true)
-}
-
-/// Write one `import = require(...)` statement body.
-fn write_import_equals_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    dependency_space: DependencySpace,
-    target: StringId,
-    items: &[LocalNodeId<DependencyItem>],
-) -> FormatResult<()> {
-    let tree = f.context().tree;
-
-    write!(f, [Keyword::Import, space()])?;
-
-    if dependency_space == DependencySpace::Type {
-        write!(f, [Keyword::Type, space()])?;
-    }
-
-    let alias = items
-        .first()
-        .and_then(|item| dependency_item_alias(tree.get(*item)))
-        .ok_or(FormatError::SyntaxError {
-            message: "import equals requires an alias",
-        })?;
-
-    write!(
-        f,
-        [
-            alias,
-            space(),
-            token("="),
-            space(),
-            token("require"),
-            token("("),
-            token("\""),
-            target,
-            token("\""),
-            token(")")
-        ]
-    )?;
-
-    Ok(())
-}
-
 /// Write one ordinary import statement body.
 fn write_import_declaration_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -1529,36 +1357,13 @@ fn write_import_declaration_expression<'ast>(
 pub(crate) fn format_import_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
-    source: ImportSource,
     dependency_space: DependencySpace,
-    target: &ImportTarget,
+    target: StringId,
     items: Option<&[LocalNodeId<DependencyItem>]>,
     attributes: Option<&ImportAttributeClause>,
-    arguments: Option<&[LocalNodeId<Argument>]>,
 ) -> FormatResult<()> {
     let has_item_clause = items.is_some();
     let items = items.unwrap_or(&[]);
-
-    if format_import_call_expression(f, node_id, source, target, arguments)? {
-        return Ok(());
-    }
-
-    if format_reference_directive_import_expression(f, node_id, source)? {
-        return Ok(());
-    }
-
-    let target = match target {
-        ImportTarget::String(target) => *target,
-        ImportTarget::Expression { .. } => {
-            return Err(FormatError::SyntaxError {
-                message: "import declarations require string targets",
-            });
-        }
-    };
-
-    if source == ImportSource::ImportEquals {
-        return write_import_equals_expression(f, dependency_space, target, items);
-    }
 
     write_import_declaration_expression(
         f,

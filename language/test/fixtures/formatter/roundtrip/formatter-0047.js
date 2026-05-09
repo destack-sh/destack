@@ -7,8 +7,8 @@
  * This module provides a reusable function for detecting changed files.
  */
 
-const https = require("https");
-const process = require("process");
+import https from "https";
+import process from "process";
 
 /**
  * Make a GitHub API request
@@ -102,10 +102,10 @@ async function getChangedFiles() {
     return files;
 }
 
-module.exports = { getChangedFiles };
+export { getChangedFiles };
 
 // If run directly as a script, output changed files as JSON
-if (require.main === module) {
+if (process.argv[1] === new URL(import.meta.url).pathname) {
     getChangedFiles()
         .then((files) => {
             console.log(JSON.stringify(files));

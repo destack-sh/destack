@@ -26,11 +26,10 @@ use crate::operator::{
 };
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    Asynchrony, Comment, Declaration, Declarator, DependencySpace, ExportKind, Expression,
-    ExtensionDeclaration, FunctionDeclaration, FunctionForm, GenericParameter, GlobalDeclaration,
-    ImportAliasDeclaration, ImportAliasTarget, Keyword, LetKind, LocalNodeId, Member, Mutability,
-    Name, NamespaceDeclaration, NamespaceForm, NodeType, ScalarLiteral, TokenSpan, TokenType,
-    TypeDeclaration, TypeExpression, WhereClause,
+    Asynchrony, Comment, Declaration, Declarator, ExportKind, Expression, ExtensionDeclaration,
+    FunctionDeclaration, FunctionForm, GenericParameter, GlobalDeclaration, Keyword, LetKind,
+    LocalNodeId, Member, Mutability, Name, NamespaceDeclaration, NamespaceForm, NodeType,
+    ScalarLiteral, TokenSpan, TokenType, TypeDeclaration, TypeExpression, WhereClause,
 };
 use destack_fir::format::{
     FormatError, FormatNode as FirNode, FormatNodes, FormatResult, Formatter as FirFormatter,
@@ -293,9 +292,6 @@ fn type_expression_is_assignment_like_generic_condition(
             generic_arguments, ..
         }
         | TypeExpression::Member {
-            generic_arguments, ..
-        }
-        | TypeExpression::Import {
             generic_arguments, ..
         } => !generic_arguments.is_empty(),
 
@@ -618,7 +614,6 @@ pub(crate) fn format_let_statement_expression<'ast>(
             // binding keyword
             match kind {
                 LetKind::Let => write!(f, [Keyword::Let])?,
-                LetKind::Var => write!(f, [Keyword::Var])?,
                 LetKind::Const => write!(f, [Keyword::Const])?,
             }
 
@@ -677,7 +672,6 @@ pub(crate) fn format_let_else_statement_expression<'ast>(
                 // binding head
                 match kind {
                     LetKind::Let => write!(f, [Keyword::Let])?,
-                    LetKind::Var => write!(f, [Keyword::Var])?,
                     LetKind::Const => write!(f, [Keyword::Const])?,
                 }
 
@@ -882,51 +876,6 @@ fn format_type_declaration<'ast>(
     write_statement_terminator_after_anchor(f, f.context().span(declaration.value).end)
 }
 
-/// Format one import alias declaration.
-fn format_import_alias_declaration<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Declaration>,
-    declaration: &ImportAliasDeclaration,
-) -> FormatResult<()> {
-    // prefixes
-    format_declaration_export_modifier(f, node_id, declaration.export)?;
-    write_ambient_prefix(f, declaration.is_ambient)?;
-
-    // head
-    write!(f, [Keyword::Import, space()])?;
-    if declaration.space == DependencySpace::Type {
-        write!(f, [Keyword::Type, space()])?;
-    }
-
-    write!(f, [declaration.name, space(), token("="), space()])?;
-
-    // target
-    match &declaration.target {
-        ImportAliasTarget::Require { target } => {
-            write!(
-                f,
-                [
-                    token("require"),
-                    token("("),
-                    token("\""),
-                    *target,
-                    token("\""),
-                    token(")")
-                ]
-            )?;
-        }
-        ImportAliasTarget::Path { path } => {
-            write!(f, [path.clone()])?;
-        }
-    }
-
-    // postfix annotations
-    write!(f, [postfix_annotations(f.context(), node_id)])?;
-
-    // terminator
-    write_statement_terminator_after_anchor(f, f.context().span(node_id).end)
-}
-
 /// Format one extension declaration.
 fn format_extension_declaration<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -985,9 +934,6 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
             }
             Declaration::Type(declaration) => {
                 format_type_declaration(f, node_id, declaration)?;
-            }
-            Declaration::ImportAlias(declaration) => {
-                format_import_alias_declaration(f, node_id, declaration)?;
             }
             Declaration::Struct(declaration) => {
                 format_struct_declaration(f, node_id, declaration)?;

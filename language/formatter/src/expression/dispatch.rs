@@ -36,7 +36,6 @@ fn write_expression_trailing_annotations<'ast>(
         | Expression::Labelled { .. }
         | Expression::Import { .. }
         | Expression::Export { .. }
-        | Expression::ExportNamespace { .. }
         | Expression::Let { .. }
         | Expression::LetElse { .. }
         | Expression::Using { .. }
@@ -89,7 +88,6 @@ fn write_expression_trailing_annotations<'ast>(
         | Expression::Instantiation { .. }
         | Expression::Call { .. }
         | Expression::New { .. }
-        | Expression::Delete { .. }
         | Expression::Maybe { .. }
         | Expression::Must { .. }
         | Expression::Binary { .. }
@@ -200,7 +198,6 @@ fn format_expression_body<'ast>(
         | Expression::Labelled { .. }
         | Expression::Import { .. }
         | Expression::Export { .. }
-        | Expression::ExportNamespace { .. }
         | Expression::Let { .. }
         | Expression::LetElse { .. }
         | Expression::Using { .. }
@@ -255,7 +252,6 @@ fn format_expression_body<'ast>(
         | Expression::Instantiation { .. }
         | Expression::Call { .. }
         | Expression::New { .. }
-        | Expression::Delete { .. }
         | Expression::Maybe { .. }
         | Expression::Must { .. }
         | Expression::Binary { .. }

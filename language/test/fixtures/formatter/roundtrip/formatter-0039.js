@@ -1,7 +1,6 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
-require("dotenv").config();
+import "dotenv/config";
+import kebabCase from "just-kebab-case";
 
-const kebabCase = require("just-kebab-case");
 const getAnchor = (value) => {
     return typeof value === "string" ? kebabCase(value.toLowerCase().replaceAll("'", "")) : "";
 };
@@ -87,7 +86,7 @@ const queries = [
     },
 ];
 
-module.exports = {
+export default {
     siteMetadata: {
         title: `Jotai, primitive and flexible state management for React`,
         description: `Jotai takes a bottom-up approach to global React state management with an atomic model inspired by Recoil. One can build state by combining atoms and renders are optimized based on atom dependency. This solves the extra re-render issue of React context and eliminates the need for memoization.`,

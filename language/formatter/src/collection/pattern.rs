@@ -19,10 +19,7 @@ use destack_workspace::TrailingComma;
 
 impl<'ast> Format<DestackFormatContext<'ast>> for Mutability {
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
-        match self {
-            Mutability::Immutable => write!(f, [token("const")]),
-            Mutability::Mutable => write!(f, [token("var")]),
-        }
+        write!(f, [self.to_keyword()])
     }
 }
 
@@ -782,18 +779,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
                 format_prefixed_pattern(f, "^", *right, *mutability)?;
             }
 
-            Pattern::Binding {
-                mutability,
-                name,
-                pattern,
-            } => {
-                // mutable binding
-                if let Some(mutability) = mutability
-                    && *mutability == Mutability::Mutable
-                {
-                    write!(f, [mutability, space()])?;
-                }
-
+            Pattern::Binding { name, pattern } => {
                 // binding name
                 write!(f, [name])?;
 
@@ -852,16 +838,10 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
 
         match self {
             PatternField::Named {
-                mutability,
                 name,
                 is_shorthand,
                 pattern,
             } => {
-                // mutable field
-                if let Some(mutability) = mutability {
-                    write!(f, [mutability, space()])?;
-                }
-
                 // expanded field
                 if !is_shorthand {
                     let pattern = pattern.expect("expanded named pattern field");
@@ -878,16 +858,7 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
                 }
             }
 
-            PatternField::Computed {
-                mutability,
-                key,
-                pattern,
-            } => {
-                // mutable field
-                if let Some(mutability) = mutability {
-                    write!(f, [mutability, space()])?;
-                }
-
+            PatternField::Computed { key, pattern } => {
                 // computed key and value
                 write!(f, [token("["), key, token("]")])?;
                 write!(f, [token(":"), space(), pattern])?;
@@ -897,15 +868,7 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
                 write!(f, [pattern])?;
             }
 
-            PatternField::Spread {
-                mutability,
-                pattern,
-            } => {
-                // mutable field
-                if let Some(mutability) = mutability {
-                    write!(f, [mutability, space()])?;
-                }
-
+            PatternField::Spread { pattern } => {
                 // spread value
                 write!(f, [token("...")])?;
 

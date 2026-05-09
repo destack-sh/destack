@@ -207,20 +207,6 @@ type Result = typeof someValue
 type Result = typeof someValue;
 ```
 
-### type import expression
-
-Type import expressions keep the module target separate from additional arguments.
-
-```ts:main.ts
-type BlobRef = import("buffer").Blob
-type JsonRef = import("vite", {with: {"resolution-mode": "import"}}).Plugin
-```
-
-```ts expected
-type BlobRef = import("buffer").Blob;
-type JsonRef = import("vite", { with: { "resolution-mode": "import" } }).Plugin;
-```
-
 ## Conditional Types
 
 ### conditional with union branches

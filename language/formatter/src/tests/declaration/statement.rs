@@ -313,12 +313,12 @@ fn test_format_program_keeps_adjacent_doc_comments_leading() {
  * console.log(value); // Output: "value"
  * ```
  */
-declare var sessionStorage: Storage;
+declare let sessionStorage: Storage;
 /** @category Cache */
 /**
  * Provides access to the Cache API.
  */
-declare var caches: CacheStorage;
+declare let caches: CacheStorage;
 "#,
         r#"/**
  * Deno's `sessionStorage` API operates similarly to the {@linkcode localStorage} API.
@@ -329,12 +329,12 @@ declare var caches: CacheStorage;
  * console.log(value); // Output: "value"
  * ```
  */
-declare var sessionStorage: Storage;
+declare let sessionStorage: Storage;
 /** @category Cache */
 /**
  * Provides access to the Cache API.
  */
-declare var caches: CacheStorage;
+declare let caches: CacheStorage;
 "#,
         FileType::TypeScriptDeclaration,
     );
@@ -362,13 +362,13 @@ fn test_format_nested_global_preserves_declare_spelling() {
     assert_format_program!(
         r#"declare module "buffer" {
     global {
-        var Buffer: BufferConstructor;
+        let Buffer: BufferConstructor;
     }
 }
 "#,
         r#"declare module "buffer" {
     global {
-        var Buffer: BufferConstructor;
+        let Buffer: BufferConstructor;
     }
 }
 "#,
@@ -377,11 +377,11 @@ fn test_format_nested_global_preserves_declare_spelling() {
 
     assert_format_program!(
         r#"declare global {
-    var Buffer: BufferConstructor;
+    let Buffer: BufferConstructor;
 }
 "#,
         r#"declare global {
-    var Buffer: BufferConstructor;
+    let Buffer: BufferConstructor;
 }
 "#,
         FileType::TypeScriptDeclaration,

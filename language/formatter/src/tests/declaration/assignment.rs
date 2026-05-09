@@ -52,12 +52,12 @@ Alpha | Beta;
 #[test]
 fn test_format_assignment_comments() {
     assert_format_program_reference_widths(
-        r#"var longlonglonglonglonglong = /*#__PURE__*/_interopDefaultLegacy(aaaaaaaaaaaaaaa);
-var short = /*#__PURE__*/_interopDefaultLegacy(b);
+        r#"let longlonglonglonglonglong = /*#__PURE__*/_interopDefaultLegacy(aaaaaaaaaaaaaaa);
+let short = /*#__PURE__*/_interopDefaultLegacy(b);
 
 const jestPackageJson =
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  require(jestPath);
+  // load package metadata
+  loadPackage(jestPath);
 
 class A {
   #testerConfig;
@@ -71,13 +71,13 @@ class A {
         &[
             (
                 80,
-                r#"var longlonglonglonglonglong =
+                r#"let longlonglonglonglonglong =
   /*#__PURE__*/ _interopDefaultLegacy(aaaaaaaaaaaaaaa);
-var short = /*#__PURE__*/ _interopDefaultLegacy(b);
+let short = /*#__PURE__*/ _interopDefaultLegacy(b);
 
 const jestPackageJson =
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  require(jestPath);
+  // load package metadata
+  loadPackage(jestPath);
 
 class A {
   #testerConfig;
@@ -90,12 +90,12 @@ class A {
             ),
             (
                 100,
-                r#"var longlonglonglonglonglong = /*#__PURE__*/ _interopDefaultLegacy(aaaaaaaaaaaaaaa);
-var short = /*#__PURE__*/ _interopDefaultLegacy(b);
+                r#"let longlonglonglonglonglong = /*#__PURE__*/ _interopDefaultLegacy(aaaaaaaaaaaaaaa);
+let short = /*#__PURE__*/ _interopDefaultLegacy(b);
 
 const jestPackageJson =
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  require(jestPath);
+  // load package metadata
+  loadPackage(jestPath);
 
 class A {
   #testerConfig;
@@ -107,23 +107,6 @@ class A {
 "#,
             ),
         ],
-    );
-}
-
-/// Require initializers should keep the call attached to `=`.
-#[test]
-fn test_format_assignment_require_initializer_stays_attached() {
-    assert_format_program_reference_widths(
-        r#"const veryLongPackageBindingName = require(jestPath)
-"#,
-        FileType::TypeScript,
-        &[(
-            30,
-            r#"const veryLongPackageBindingName = require(
-  jestPath,
-);
-"#,
-        )],
     );
 }
 

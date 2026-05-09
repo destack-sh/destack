@@ -108,7 +108,6 @@ fn type_cast_like_needs_parentheses(
 
         // unary-like rhs
         Expression::Unary { right, .. }
-        | Expression::Delete { value: right }
         | Expression::Await { expression: right }
         | Expression::AwaitMaybe { expression: right }
         | Expression::Must { left: right, .. } => *right == parent_child_id,
@@ -453,7 +452,6 @@ fn expression_await_like_needs_parentheses_in_parent(
     if matches!(
         parent_expression,
         Expression::Unary { .. }
-            | Expression::Delete { .. }
             | Expression::As { .. }
             | Expression::Satisfies { .. }
             | Expression::Binary { .. }
@@ -653,7 +651,6 @@ fn expression_is_update_or_lower_precedence(
         Expression::Declaration(_)
             | Expression::ObjectExpression { .. }
             | Expression::Unary { .. }
-            | Expression::Delete { .. }
             | Expression::Await { .. }
             | Expression::AwaitMaybe { .. }
             | Expression::Comptime { .. }

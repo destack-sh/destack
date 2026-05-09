@@ -346,17 +346,17 @@ fn test_format_grouped_first_function_expression_argument_layout() {
     );
 }
 
-/// Require calls should let the outer call break before a complex single argument.
+/// Calls should let the outer call break before a complex single argument.
 #[test]
-fn test_format_require_single_argument_call_layout() {
+fn test_format_nested_single_argument_call_layout() {
     assert_format_program_reference_widths(
-        r#"const value = require(path.join(__dirname, "very-long-relative/path/that/forces/layout", "another-long-segment"));
+        r#"const value = load(path.join(__dirname, "very-long-relative/path/that/forces/layout", "another-long-segment"));
 "#,
         FileType::JavaScript,
         &[
             (
                 40,
-                r#"const value = require(
+                r#"const value = load(
   path.join(
     __dirname,
     "very-long-relative/path/that/forces/layout",
@@ -367,7 +367,7 @@ fn test_format_require_single_argument_call_layout() {
             ),
             (
                 60,
-                r#"const value = require(
+                r#"const value = load(
   path.join(
     __dirname,
     "very-long-relative/path/that/forces/layout",

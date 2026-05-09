@@ -221,7 +221,6 @@ pub(crate) fn expression_precedence(expr: &Expression) -> u16 {
         | Expression::Yield { .. }
         | Expression::MoveOf { .. }
         | Expression::BorrowOf { .. }
-        | Expression::Delete { .. }
         | Expression::Throw { .. }
         | Expression::Return { .. } => OperatorPrecedence::Prefix as u16,
 

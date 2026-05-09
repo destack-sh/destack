@@ -86,7 +86,7 @@ fn test_format_signature_trailing_separator_line_comment_is_idempotent() {
 #[test]
 fn test_format_signature_trailing_separator_block_comment_is_idempotent() {
     assert_format_program_idempotent!(
-        r#"var x = {
+        r#"let x = {
   getSectionMode(
     pageMetaData: PageMetaData,
     sectionMetaData: SectionMetaData

@@ -1,6 +1,6 @@
-const path = require("path");
-const os = require("os");
-const fs = require("fs");
+import path from "path";
+import os from "os";
+import fs from "fs";
 
 const benchTitle = "Page Load Tests";
 const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "next-stats"));
@@ -10,7 +10,7 @@ const statsAppDir = path.join(workDir, "stats-app");
 const diffingDir = path.join(workDir, "diff");
 const allowedConfigLocations = ["./", ".stats-app", "test/.stats-app", ".github/.stats-app"];
 
-module.exports = {
+export default {
     benchTitle,
     workDir,
     diffingDir,

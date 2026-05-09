@@ -145,9 +145,6 @@ fn is_simple_type_expression(
         }
         | TypeExpression::Member {
             generic_arguments, ..
-        }
-        | TypeExpression::Import {
-            generic_arguments, ..
         } => generic_arguments.is_empty(),
         _ => false,
     }
@@ -182,9 +179,6 @@ fn extract_single_generic_argument_type_expression(
             generic_arguments, ..
         }
         | TypeExpression::Member {
-            generic_arguments, ..
-        }
-        | TypeExpression::Import {
             generic_arguments, ..
         } => generic_arguments,
         _ => return expression_id,

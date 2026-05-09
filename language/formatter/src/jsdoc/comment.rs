@@ -90,7 +90,6 @@ fn node_documents_declaration(context: &DestackFormatContext<'_>, node_id: u32) 
                 context.tree.get(node_id),
                 Expression::Declaration(_)
                     | Expression::Export { .. }
-                    | Expression::ExportNamespace { .. }
                     | Expression::Import { .. }
                     | Expression::Let { .. }
                     | Expression::Using { .. }

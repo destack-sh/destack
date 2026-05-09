@@ -10,7 +10,7 @@ class Foo {
         return this;
     }
     test() {
-        var _o$Foo, _o$Foo2, _o$Foo3, _o$Foo4, _o$Foo$self, _fn, _fn$Foo$self;
+        let _o$Foo, _o$Foo2, _o$Foo3, _o$Foo4, _o$Foo$self, _fn, _fn$Foo$self;
         const Foo = this;
         const o = { Foo };
         const fn = function () {
