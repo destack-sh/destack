@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use crate::format_file_source;
+use destack_core::StringPool;
 use destack_parser::{Parser, ParserOptions, source_colorizer};
 use destack_source::{
     DiagnosticCollection, DiffOptions, File, FileId, FileType, LanguageType, PrintOptions, Uri,
@@ -176,6 +177,7 @@ fn print_library_parse_diagnostics(path: &Path, source: &str) {
             preserve_parenthesized_wrappers: false,
             ..ParserOptions::default()
         },
+        Arc::new(StringPool::new()),
     );
     parser.parse();
 

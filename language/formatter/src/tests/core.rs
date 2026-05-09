@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{DestackFormatContext, DestackFormatOptions, format_file_source};
 use destack_ast::{NodeParentIndex, TokenSpan, Tree};
-use destack_core::ImmutableStringPool;
+use destack_core::StringPool;
 use destack_fir::format;
 use destack_fir::format::Format;
 use destack_parser::{ParseResult, Parser, ParserOptions};
@@ -19,7 +19,7 @@ pub(crate) struct TestFormatter {
     side_tokens: Vec<TokenSpan>,
     side_span: MultiSpan,
     tree: Tree,
-    strings: ImmutableStringPool,
+    strings: Arc<StringPool>,
 }
 
 impl TestFormatter {
@@ -75,6 +75,7 @@ impl TestFormatter {
                     preserve_parenthesized_wrappers: false,
                     ..ParserOptions::default()
                 },
+                Arc::new(StringPool::new()),
             );
             let n = parse_fn(&mut parser)?;
 
@@ -87,7 +88,7 @@ impl TestFormatter {
                 parser.tree,
                 tokens,
                 side_tokens,
-                parser.strings.into_immutable(),
+                parser.strings,
                 n,
             )
         };

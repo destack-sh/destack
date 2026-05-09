@@ -4,6 +4,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use destack_ast::NodeParentIndex;
+use destack_core::StringPool;
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_parser::{Parser, ParserOptions};
@@ -35,6 +36,7 @@ fuzz_target!(|data: &[u8]| {
             preserve_parenthesized_wrappers: false,
             ..ParserOptions::default()
         },
+        Arc::new(StringPool::new()),
     );
     let expressions = parser.parse();
 
@@ -48,7 +50,7 @@ fuzz_target!(|data: &[u8]| {
 
     // format without panicking
     let side_span = parser.compute_side_span();
-    let strings = parser.strings.clone().into_immutable();
+    let strings = parser.strings.as_ref();
     let parents = NodeParentIndex::from_expression_roots(&parser.tree, &expressions);
     let (tokens, side_tokens) = parser.take_tokens();
     let format_options = DestackFormatOptions::default();
@@ -60,7 +62,7 @@ fuzz_target!(|data: &[u8]| {
         &tokens,
         &side_tokens,
         &side_span,
-        &strings,
+        strings,
         parents,
     );
 
