@@ -24,7 +24,7 @@ Open source cross-platform TypeScript(++) toolchain, VM, AOT compiler, runtime, 
 ## The Destack
 
 **Destack is a universal software engine with a language, compiler, toolchain, runtime, libraries, services, and apps built on top of TypeScript and the open web ecosystem.**
-Mechanically, Destack is a complete stack for building full software systems extremely well, but conceptually, Destack is the antithesis to the very idea of a "stack":
+Mechanically, Destack is a fully integrated stack for building eventually all software systems extremely well, but conceptually, Destack is the antithesis to the very idea of a "stack":
 instead of wrangling many disparate languages, tools, libraries, approaches, runtimes, services, and apps, Destack unifies the processes of software production into _one_ universal computing stack:
 
 - [**Destack Language**](language/README.md): TypeScript(++) toolchain, VM, AOT compiler, runtime.
@@ -35,8 +35,9 @@ instead of wrangling many disparate languages, tools, libraries, approaches, run
 - [**Destack Bridge**](bridge/README.md): Two-way bridges for integrating the Destack universe.
 - [**Destack Platform**](platform/README.md): First-party site, apps, and services (hosting the above).
 
-The architecture of Destack is optimized for "do-it-yourself software" over "ready-to-wear software", providing a sort of meta-framework for developing and maintaining correct, optimal, integrated software stacks.
-We do provide some common [apps](app/README.md) and [templates](template/README.md) built on top of our [incrementally granular](https://caseymuratori.com/blog_0016) building blocks, but the entire Destack is optimized for programmers of all kinds building their _own_ software processes in one integrated system.
+The whole point of Destack is to make software systems - including itself - fully [homoiconic](https://en.wikipedia.org/wiki/Homoiconicity) and hackable with [incrementally granular](https://caseymuratori.com/blog_0016) building blocks.
+The architecture is modeled around "do-it-yourself software" over "ready-to-wear software", providing a sort of meta-stack for developing correct, optimal, integrated software stacks.
+We do provide _some_ common [apps](app/README.md) and [templates](template/README.md), but Destack is optimized for programmers of all kinds building their _own_ software processes in one integrated system.
 
 ## Usage
 
