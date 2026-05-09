@@ -138,23 +138,22 @@ fn document_links_with_dir(
         let mut links = Vec::new();
         for (expr_id, expr) in dir_tree.iter_nodes_of_type::<Expression>() {
             match expr {
-                Expression::Import { target, space, .. } => {
+                Expression::Import { target, .. } => {
                     let dir::ImportTarget::String(target) = target else {
                         continue;
                     };
 
                     // skip declared modules for document links
                     let node_id = expr_id.into_global_any(ctx.module_id());
-                    let Some(dir::DependencyResolution::Module(resolution)) =
+                    let Some(dir::DependencyResolution::Module(dependency_target)) =
                         ctx.dir().types().dependency_resolution(node_id)
                     else {
                         continue;
                     };
-                    let Some(dir::ModuleTarget::Module(target_module_id)) =
-                        resolution.for_space(*space)
-                    else {
+                    let dir::DependencyTarget::Module(target_module_id) = dependency_target else {
                         continue;
                     };
+                    let target_module_id = *target_module_id;
 
                     // get the target module's file path
                     let Some(target_module) =
@@ -187,19 +186,18 @@ fn document_links_with_dir(
                             .with_tooltip(format!("Go to {import_path}")),
                     );
                 }
-                Expression::ReExport { target, space, .. } => {
+                Expression::ReExport { target, .. } => {
                     // skip declared modules for document links
                     let node_id = expr_id.into_global_any(ctx.module_id());
-                    let Some(dir::DependencyResolution::Module(resolution)) =
+                    let Some(dir::DependencyResolution::Module(dependency_target)) =
                         ctx.dir().types().dependency_resolution(node_id)
                     else {
                         continue;
                     };
-                    let Some(dir::ModuleTarget::Module(target_module_id)) =
-                        resolution.for_space(*space)
-                    else {
+                    let dir::DependencyTarget::Module(target_module_id) = dependency_target else {
                         continue;
                     };
+                    let target_module_id = *target_module_id;
 
                     // get the target module's file path
                     let Some(target_module) =

@@ -1,5 +1,5 @@
 use destack_dir::{
-    LocalScopeId, LocalScopeMark, LocalSymbolId, StaticKey, Symbol, SymbolSpace, SymbolTable,
+    BindingTable, LocalScopeId, LocalScopeMark, LocalSymbolId, StaticKey, Symbol, SymbolSpace,
 };
 
 use super::matches_symbol_space_filter;
@@ -26,7 +26,7 @@ pub(crate) struct VisibleSymbol<'a> {
 /// * `mark` - Scope mark (position within the scope)
 /// * `space_filter` - Optional filter for symbol space.
 pub(crate) fn visible_symbols<'a>(
-    symbols: &'a SymbolTable,
+    symbols: &'a BindingTable,
     scope_id: LocalScopeId,
     mark: LocalScopeMark,
     space_filter: Option<SymbolSpace>,
@@ -42,7 +42,7 @@ pub(crate) fn visible_symbols<'a>(
 
 /// Iterator for walking visible symbols up the scope chain.
 struct VisibleSymbolIterator<'a> {
-    symbols: &'a SymbolTable,
+    symbols: &'a BindingTable,
     current_scope_id: Option<LocalScopeId>,
     current_mark: LocalScopeMark,
     space_filter: Option<SymbolSpace>,
@@ -57,14 +57,18 @@ impl<'a> Iterator for VisibleSymbolIterator<'a> {
             let scope_id = self.current_scope_id?;
             let scope = self.symbols.get_scope_by_id(scope_id);
 
-            // get symbols up to the mark
+            // get named bindings up to the mark
             let limit = self.current_mark.0 as usize;
-            let named_symbols = &scope.named_symbols[..limit.min(scope.named_symbols.len())];
+            let bindings = &scope.bindings[..limit.min(scope.bindings.len())];
 
             // try to find next valid symbol in current scope
-            while self.seen_index < named_symbols.len() {
-                let (key, symbol_id) = named_symbols[self.seen_index];
+            while self.seen_index < bindings.len() {
+                let binding = bindings[self.seen_index];
                 self.seen_index += 1;
+                let Some(key) = binding.key else {
+                    continue;
+                };
+                let symbol_id = binding.symbol;
 
                 let symbol = self.symbols.get_symbol(symbol_id);
 

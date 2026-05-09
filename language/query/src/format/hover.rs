@@ -66,7 +66,7 @@ pub fn format_member_hover(
             dir::Key::Name(name) => Some(strings.get(name.string()).to_string()),
             dir::Key::Private(string_id) => {
                 let name = strings.get(*string_id);
-                Some(format!("#{}", name.as_ref()))
+                Some(format!("#{name}"))
             }
             dir::Key::Expression(_) => None,
         })
@@ -208,7 +208,7 @@ pub fn format_parameter_hover(
 pub fn format_local_variable_hover(
     name: Option<&str>,
     symbol_id: dir::GlobalSymbolId,
-    symbols: &dir::SymbolTable,
+    symbols: &dir::BindingTable,
     types: &dir::TypeTable,
     repository: &Repository,
     revision: Revision,
@@ -232,7 +232,7 @@ pub fn format_simple_signature(symbol_form: dir::SymbolForm, name: Option<&str>)
     let name = name.unwrap_or("<anonymous>");
 
     match symbol_form {
-        dir::SymbolForm::Value => format!("let {name}"),
+        dir::SymbolForm::Variable => format!("let {name}"),
         dir::SymbolForm::Class => format!("class {name}"),
         dir::SymbolForm::Struct => format!("struct {name}"),
         dir::SymbolForm::Interface => format!("interface {name}"),

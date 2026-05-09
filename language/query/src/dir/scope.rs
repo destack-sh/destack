@@ -377,18 +377,18 @@ fn scope_mark_at_offset(
     scope_id: dir::LocalScopeId,
     offset: u32,
     dir_tree: dir::View<'_>,
-    symbols: &dir::SymbolTable,
+    symbols: &dir::BindingTable,
 ) -> dir::LocalScopeMark {
     let scope = symbols.get_scope_by_id(scope_id);
-    if scope.named_symbols.is_empty() {
+    if scope.bindings.is_empty() {
         return dir::LocalScopeMark(0);
     }
 
     // count symbols whose declaration begins before the cursor
     let mut mark_index = 0u32;
 
-    for (index, (_, symbol_id)) in scope.named_symbols.iter().enumerate() {
-        let symbol = symbols.get_symbol(*symbol_id);
+    for (index, binding) in scope.bindings.iter().enumerate() {
+        let symbol = symbols.get_symbol(binding.symbol);
         let Some(declaration) = symbol.declaration else {
             mark_index = (index + 1) as u32;
             continue;
@@ -410,7 +410,7 @@ fn scope_mark_at_offset(
 
 /// Resolve the owned scope for one declaration id.
 fn owned_scope_for_declaration_id(
-    symbols: &dir::SymbolTable,
+    symbols: &dir::BindingTable,
     declaration_id: u32,
 ) -> Option<dir::LocalScopeId> {
     for (index, scope) in symbols.scopes().enumerate() {
@@ -433,7 +433,7 @@ fn owned_scope_for_declaration_id(
 
 /// Resolve the owned scope for one ast declaration id.
 fn owned_scope_for_ast_declaration_id(
-    symbols: &dir::SymbolTable,
+    symbols: &dir::BindingTable,
     dir_tree: dir::View<'_>,
     ast_id: u32,
 ) -> Option<dir::LocalScopeId> {

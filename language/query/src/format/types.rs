@@ -127,7 +127,7 @@ pub fn format_type(
         }
         dir::Type::Import(import) => {
             let target = strings.get(import.target);
-            let mut result = format!("import(\"{}\")", target.as_ref());
+            let mut result = format!("import(\"{target}\")");
             if let Some(qualifier) = &import.qualifier {
                 let path = format_path(qualifier, strings);
                 result.push('.');
@@ -155,7 +155,7 @@ pub fn format_type(
                     format_local_type(constraint, types, repository, revision, strings)
                 )
             });
-            format!("infer {}{}", name.as_ref(), constraint.unwrap_or_default())
+            format!("infer {name}{}", constraint.unwrap_or_default())
         }
         dir::Type::Predicate(predicate) => {
             let subject =
@@ -780,7 +780,7 @@ fn format_type_tuple_element(
     if let Some(label) = element.label {
         let name = strings.get(label);
         let ty = format_local_type(element.ty, types, repository, revision, strings);
-        result.push_str(&format!("{}: {ty}", name.as_ref()));
+        result.push_str(&format!("{name}: {ty}"));
     } else {
         result.push_str(&format_local_type(
             element.ty, types, repository, revision, strings,

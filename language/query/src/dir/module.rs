@@ -161,16 +161,13 @@ pub(crate) fn build_specifier_candidates_for_module(
             let dir_tree = ctx.dir().view();
             for (expression_id, expression) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
                 let target_module = match expression {
-                    dir::Expression::Import { space, .. }
-                    | dir::Expression::ReExport { space, .. } => {
+                    dir::Expression::Import { .. } | dir::Expression::ReExport { .. } => {
                         let node_id = expression_id.into_global_any(ctx.module_id());
                         ctx.dir()
                             .types()
                             .dependency_resolution(node_id)
                             .and_then(|resolution| match resolution {
-                                dir::DependencyResolution::Module(resolution) => {
-                                    resolution.for_space(*space)
-                                }
+                                dir::DependencyResolution::Module(target) => Some(*target),
                                 dir::DependencyResolution::Symbol(_) => None,
                             })
                     }

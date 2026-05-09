@@ -618,7 +618,7 @@ fn parameter_is_readonly(parameter: &dir::Parameter) -> bool {
 /// Map SymbolForm to SemanticTokenType.
 fn symbol_form_to_token_type(symbol_form: dir::SymbolForm) -> SemanticTokenType {
     match symbol_form {
-        dir::SymbolForm::Value => SemanticTokenType::Variable,
+        dir::SymbolForm::Variable => SemanticTokenType::Variable,
         dir::SymbolForm::Class => SemanticTokenType::Class,
         dir::SymbolForm::Struct => SemanticTokenType::Struct,
         dir::SymbolForm::Interface => SemanticTokenType::Interface,
