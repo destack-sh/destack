@@ -21,7 +21,7 @@ impl Compiler {
         let declared = self.dir_declared(state.context, state.module, state.profile)?;
 
         Ok(ArtifactPayload::DirExpanded(DirExpanded {
-            patch: Patch::new(&declared.tree),
+            patch: Patch::new(&declared.tree, "expand"),
             bindings: BindingTable::from_base(&declared.bindings),
             dependencies: DependencyTable::new(state.module),
             types: TypeTable::from_base(&declared.types),

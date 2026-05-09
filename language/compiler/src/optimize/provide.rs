@@ -4,6 +4,7 @@ use std::mem;
 use std::str::FromStr;
 
 use destack_artifact::{ArtifactKey, ArtifactPayload, EmitFormat, MirOptimized, TargetArch};
+use destack_mir as mir;
 use destack_source::{ModuleId, TargetId};
 use destack_workspace::{Module, OptimizeLevel as WorkspaceOptimizeLevel, ProfileId, Target};
 use target_lexicon::Triple;
@@ -103,8 +104,10 @@ impl Compiler {
             self.emit_built_diagnostic(context, warning)?;
         }
 
-        // freeze optimized MIR
-        let payload = MirOptimized { tree };
+        // freeze optimized MIR patch
+        let payload = MirOptimized {
+            patches: vec![mir::Patch::from_tree("optimize", tree)],
+        };
 
         Ok(payload)
     }

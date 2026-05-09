@@ -30,7 +30,7 @@ impl Compiler {
             .map_err(CompilerError::from)?;
 
         Ok(ArtifactPayload::DirMaterialized(DirMaterialized {
-            patch: Patch::new(&declared.tree),
+            patch: Patch::new(&declared.tree, "materialize"),
             bindings: BindingTable::from_base(&expanded.bindings),
             types: TypeTable::from_base(&checked.types),
             captures: CaptureTable::new(),
