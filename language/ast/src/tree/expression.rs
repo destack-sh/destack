@@ -453,6 +453,20 @@ pub enum Expression {
         elements: Vec<LocalNodeId<Argument>>,
     },
 
+    /// A FixedArrayExpression constructs a fixed-length array by repeating one value.
+    ///
+    /// Examples:
+    /// ```
+    /// [0; 32]
+    /// [fill(); N]
+    /// ```
+    FixedArrayExpression {
+        /// The repeated value expression.
+        value: LocalNodeId<Expression>,
+        /// The fixed array length expression.
+        length: LocalNodeId<Expression>,
+    },
+
     /// A TupleExpression constructs an anonymous tuple of heterogeneous elements.
     /// For typed tuple expressions (newtype construction), see Call.
     ///
