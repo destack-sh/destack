@@ -1,4 +1,4 @@
-use destack_core::{ImmutableStringPool, LocalStringPool};
+use destack_core::StringPool;
 use destack_mir::Tree;
 use destack_mir::parse::{ParseOptions, Parser};
 use destack_source::FileId;
@@ -111,7 +111,7 @@ impl TestRuntime {
 
         // worker execution isolate
         let agent_tree = Tree::new();
-        let agent_strings = LocalStringPool::new().into_immutable();
+        let agent_strings = StringPool::new();
         let agent_engine = vm::Isolate::build(vm::IsolateId::new(1), agent_tree, agent_strings)
             .expect("worker engine should build");
 
@@ -337,7 +337,7 @@ impl TestRuntime {
 }
 
 /// Build the minimal MIR module required for one VM binding test isolate.
-fn test_vm_isolate_module() -> (Tree, ImmutableStringPool) {
+fn test_vm_isolate_module() -> (Tree, StringPool) {
     let (tree, strings) = Parser::parse(FileId::new(0), STRING_TYPE_ALIAS, ParseOptions::default())
         .validate()
         .expect("runtime vm test isolate should parse");

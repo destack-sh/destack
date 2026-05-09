@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use destack_core::LocalStringPool;
+use destack_core::StringPool;
 use destack_mir::parse::{ParseOptions, Parser};
 use destack_mir::{ReferenceMap, Tree};
 use destack_source::FileId;
@@ -261,7 +261,7 @@ impl TestWorld {
     /// Build one empty VM isolate for world tests.
     pub(super) fn vm_engine() -> vm::Isolate {
         let tree = Tree::new();
-        let strings = LocalStringPool::new().into_immutable();
+        let strings = StringPool::new();
 
         vm::Isolate::build(vm::IsolateId::new(1), tree, strings).expect("vm engine should build")
     }
