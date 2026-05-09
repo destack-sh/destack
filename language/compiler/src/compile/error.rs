@@ -5,7 +5,7 @@ use destack_workspace::ProviderError;
 
 use crate::{
     CheckError, DeclareError, ElaborateError, ExpandError, ExportError, GenerateError, ImportError,
-    LinkError, LowerError, MaterializeError, OptimizeError,
+    LinkError, LowerError, MaterializeError, OptimizeError, VerifyError,
 };
 
 /// Compiler-local error while providing one artifact.
@@ -70,6 +70,7 @@ impl_compiler_error_from_diagnostic!(ImportError);
 impl_compiler_error_from_diagnostic!(LinkError);
 impl_compiler_error_from_diagnostic!(LowerError);
 impl_compiler_error_from_diagnostic!(OptimizeError);
+impl_compiler_error_from_diagnostic!(VerifyError);
 
 impl CompilerError {
     /// Convert provider boundary control flow into a provider error.
