@@ -1428,8 +1428,8 @@ mod tests {
     use destack_ast::{
         Argument, BinaryOperator, CommentKind, Declaration, Expression, FloatType,
         FunctionDeclaration, FunctionForm, GenericArgument, GenericParameter, IfCondition, IfForm,
-        IntType, Key, Name, Parameter, Property, ScalarLiteral, TemplateLiteral, TypeExpression,
-        TypeLiteral,
+        IntegerType, Key, Name, Parameter, Property, ScalarLiteral, TemplateLiteral,
+        TypeExpression, TypeLiteral,
     };
     use destack_source::LanguageType;
 
@@ -1881,21 +1881,21 @@ mod tests {
 
         assert!(matches!(
             parser.eat_type_literal(None).unwrap(),
-            TypeLiteral::Int(IntType::Arbitrary {
-                width: Some(32),
+            TypeLiteral::Integer(IntegerType::Fixed {
+                width: 32,
                 is_signed: true
             })
         ));
         assert!(matches!(
             parser.eat_type_literal(None).unwrap(),
-            TypeLiteral::Int(IntType::Arbitrary {
-                width: Some(8),
+            TypeLiteral::Integer(IntegerType::Fixed {
+                width: 8,
                 is_signed: false
             })
         ));
         assert!(matches!(
             parser.eat_type_literal(None).unwrap(),
-            TypeLiteral::Float(FloatType { width: None })
+            TypeLiteral::Float(FloatType::Float)
         ));
         assert!(matches!(
             parser.eat_type_literal(None).unwrap(),

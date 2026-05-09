@@ -36,9 +36,7 @@ fn test_parse_lambda_function_type() {
             assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Literal { value } => {
                 assert_eq!(
                     *value,
-                    TypeLiteral::Int(IntType::Arbitrary {
-                        width: Some(32),
-                        is_signed: true,
+                    TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,
                     })
                 );
             });
@@ -48,9 +46,7 @@ fn test_parse_lambda_function_type() {
         assert_node!(parser.tree, function.return_type.unwrap(), TypeExpression::Literal { value } => {
             assert_eq!(
                 *value,
-                TypeLiteral::Int(IntType::Arbitrary {
-                    width: Some(32),
-                    is_signed: true,
+                TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,
                 })
             );
         });

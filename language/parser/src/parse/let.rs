@@ -538,9 +538,10 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Asynchrony, Declaration, Declarator, Expression, FunctionDeclaration, FunctionForm,
-        GenericArgument, GenericParameter, IntType, Key, LetKind, Mutability, Name, Parameter,
-        Pattern, PatternField, ScalarLiteral, TypeExpression, TypeLiteral, TypeMember,
+        Asynchrony, Declaration, Declarator, Expression, FloatType, FunctionDeclaration,
+        FunctionForm, GenericArgument, GenericParameter, IntegerType, Key, LetKind, Mutability,
+        Name, Parameter, Pattern, PatternField, ScalarLiteral, TypeExpression, TypeLiteral,
+        TypeMember,
     };
     use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
@@ -581,7 +582,7 @@ const x: int32 = 1
 
                 // int32
                 let ty_id = ty.expect("expected explicit type");
-                assert_node!(parser.tree, ty_id, TypeExpression::Literal { value: TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true }) });
+                assert_node!(parser.tree, ty_id, TypeExpression::Literal { value: TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true }) });
 
                 // 1
                 let value_id = value.expect("expected value");
@@ -884,7 +885,7 @@ var x: float64[3] = undefined
                 let ty_id = ty.expect("expected explicit type");
                 assert_node!(parser.tree, ty_id, TypeExpression::Index { left, index } => {
                     assert_node!(parser.tree, *left, TypeExpression::Literal { value: TypeLiteral::Float(float_ty) } => {
-                        assert_eq!(float_ty.width, Some(64));
+                        assert_eq!(*float_ty, FloatType::Float64);
                     });
                     assert_node!(parser.tree, *index, TypeExpression::ScalarLiteral { value: ScalarLiteral::Integer(3) });
                 });

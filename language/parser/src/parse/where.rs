@@ -117,7 +117,9 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use destack_ast::{CommentKind, IntType, NodeType, TypeExpression, TypeLiteral, WhereClause};
+    use destack_ast::{
+        CommentKind, IntegerType, NodeType, TypeExpression, TypeLiteral, WhereClause,
+    };
     use destack_source::{NodeSpanRegion, NodeSpanType};
 
     use crate::{TestParser, assert_comment, assert_node, assert_path, assert_string};
@@ -135,9 +137,7 @@ mod tests {
             assert_node!(parser.tree, *right, TypeExpression::Literal { value } => {
                 assert_eq!(
                     *value,
-                    TypeLiteral::Int(IntType::Arbitrary {
-                        width: Some(32),
-                        is_signed: true,
+                    TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,
                     })
                 );
             });

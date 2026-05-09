@@ -2021,7 +2021,7 @@ mod tests {
     use destack_ast::{
         Argument, Asynchrony, ClassDeclaration, CommentKind, Declaration, Decorator,
         DecoratorPosition, Expression, FunctionDeclaration, FunctionRole, GenericArgument,
-        GenericParameter, IfForm, IntType, Keyword, Member, Name, NodeType, Parameter, Pattern,
+        GenericParameter, IfForm, IntegerType, Keyword, Member, Name, NodeType, Parameter, Pattern,
         PatternField, ScalarLiteral, TokenType, TupleElement, TypeExpression, TypeLiteral,
         Visibility,
     };
@@ -2058,9 +2058,7 @@ mod tests {
         let parameter_id = parser.eat_parameter().unwrap();
         assert_node!(parser.tree, parameter_id, Parameter::Named { name, declared_type, default, .. } => {
             assert_string!(parser, *name, "x");
-            assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Literal { value: TypeLiteral::Int(IntType::Arbitrary {
-                width: Some(32),
-                is_signed: true
+            assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Literal { value: TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true
             }) });
             assert!(default.is_none());
         });
@@ -2075,9 +2073,7 @@ mod tests {
         assert_node!(parser.tree, parameter_id, Parameter::Named { name, is_optional, declared_type: Some(declared_type), default: None, .. } => {
             assert_string!(parser, *name, "x");
             assert!(*is_optional);
-            assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value: TypeLiteral::Int(IntType::Arbitrary {
-                width: Some(32),
-                is_signed: true
+            assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value: TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true
             }) });
         });
     }
@@ -2384,9 +2380,7 @@ mod tests {
         let parameter_id = parser.eat_parameter().unwrap();
         assert_node!(parser.tree, parameter_id, Parameter::Named { name, declared_type: Some(declared_type), default: None, .. } => {
             assert_string!(parser, *name, "x");
-            assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value: TypeLiteral::Int(IntType::Arbitrary {
-                width: Some(32),
-                is_signed: true
+            assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value: TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true
             }) });
         });
     }
@@ -2702,9 +2696,7 @@ mod tests {
         let parameter_id = parser.eat_parameter().unwrap();
         assert_node!(parser.tree, parameter_id, Parameter::Named { name, declared_type: Some(declared_type), default: None, .. } => {
             assert_string!(parser, *name, "readonly");
-            assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value: TypeLiteral::Int(IntType::Arbitrary {
-                width: Some(32),
-                is_signed: true
+            assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value: TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true
             }) });
         });
     }
@@ -2717,9 +2709,7 @@ mod tests {
         let parameter_id = parser.eat_parameter().unwrap();
         assert_node!(parser.tree, parameter_id, Parameter::Named { name, declared_type: Some(declared_type), .. } => {
             assert_string!(parser, *name, "n");
-            assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value: TypeLiteral::Int(IntType::Arbitrary {
-                width: Some(32),
-                is_signed: true
+            assert_node!(parser.tree, *declared_type, TypeExpression::Literal { value: TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true
             }) });
         });
     }

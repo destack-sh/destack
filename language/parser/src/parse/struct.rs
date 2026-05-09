@@ -175,7 +175,7 @@ impl Parser {
 mod tests {
     use destack_ast::{
         BinaryOperator, ClassDeclaration, CommentKind, Declaration, Expression, GenericParameter,
-        IntType, Key, Member, Name, NodeType, Parameter, ScalarLiteral, StructDeclaration,
+        IntegerType, Key, Member, Name, NodeType, Parameter, ScalarLiteral, StructDeclaration,
         TypeExpression, TypeLiteral, Visibility, WhereClause,
     };
     use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
@@ -661,9 +661,7 @@ struct Foo<T: Numeric> extends Boz implements Quux {
                 assert_eq!(*visibility, Some(Visibility::Private));
                 assert_string!(parser, *name, "d");
                 assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
-                    assert_eq!(*value, TypeLiteral::Int(IntType::Arbitrary {
-                        width: Some(32),
-                        is_signed: true,
+                    assert_eq!(*value, TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,
                     }));
                 });
                 assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(4)));
