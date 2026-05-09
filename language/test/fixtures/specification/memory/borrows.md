@@ -4,7 +4,7 @@
 
 ### managed fields can be borrowed
 
-Managed values can produce borrowed access.
+Managed fields can be borrowed.
 
 ```ds
 class User {
@@ -19,7 +19,7 @@ name satisfies &string;
 
 ### owned fields can be borrowed
 
-Borrowing an owned value does not move it.
+Borrowing an owned field does not move the owner.
 
 ```ds
 struct Point {
@@ -107,7 +107,7 @@ let x = &point.x;
 
 ### mutable borrows may overlap readonly borrows
 
-Mutable borrowed access may alias.
+Mutable borrowed access may overlap readonly borrowed access.
 
 ```ds
 struct Point {
@@ -124,7 +124,7 @@ read satisfies &readonly int32;
 
 ### mutable borrows may overlap mutable borrows
 
-Mutable borrowed access may alias another mutable borrow.
+Mutable borrowed access may overlap another mutable borrow.
 
 ```ds
 struct Point {
@@ -198,7 +198,7 @@ let second = &point.x;
 
 ### disjoint fields can be borrowed separately
 
-Borrow checking is based on access paths.
+Disjoint fields do not overlap.
 
 ```ds
 struct Point {
@@ -216,7 +216,7 @@ x satisfies &readonly int32;
 
 ### borrow ends after last use
 
-Last use ends the borrow.
+A borrow ends at its last use.
 
 ```ds
 struct Point {
@@ -232,11 +232,164 @@ let write = &exclusive point.x;
 *write = 2;
 ```
 
+## receivers
+
+### destinations choose managed or borrowed elements
+
+A typed destination can select the overload that returns the requested form.
+
+```ds
+class Bucket<T> {
+    items: T[] = [];
+}
+
+extension of Bucket<T> {
+    at(this: Bucket<T>, index: uint): T {
+        return this.items[index];
+    }
+
+    at(this: &readonly Bucket<T>, index: uint): &readonly T {
+        return &readonly this.items[index];
+    }
+}
+
+let bucket = new Bucket<int32>();
+
+let item = bucket.at(0);
+let value: int32 = bucket.at(0);
+let borrowed: &readonly int32 = bucket.at(0);
+
+item satisfies int32;
+value satisfies int32;
+borrowed satisfies &readonly int32;
+```
+
+### element writes can overlap readonly borrows
+
+Writing an existing element does not invalidate an element borrow.
+
+```ds
+class Bucket<T> {
+    items: T[] = [];
+}
+
+extension of Bucket<T> {
+    at(this: &readonly Bucket<T>, index: uint): &readonly T {
+        return &readonly this.items[index];
+    }
+
+    set(this: &Bucket<T>, index: uint, value: T): void {
+        this.items[index] = value;
+    }
+}
+
+let bucket = new Bucket<int32>();
+let item = bucket.at(0);
+
+bucket.set(0, 1);
+item satisfies &readonly int32;
+```
+
+### resizing excludes element borrows
+
+Resizing a collection cannot overlap a borrowed element.
+
+```ds
+class Bucket<T> {
+    items: T[] = [];
+}
+
+extension of Bucket<T> {
+    at(this: &readonly Bucket<T>, index: uint): &readonly T {
+        return &readonly this.items[index];
+    }
+
+    push(this: &exclusive Bucket<T>, value: T): void {
+        this.items.push(value);
+    }
+}
+
+let bucket = new Bucket<int32>();
+let item = bucket.at(0);
+
+bucket.push(1);
+item satisfies &readonly int32;
+```
+
+- contains: cannot borrow as exclusive
+
+### resizing is allowed after last use
+
+The collection can be mutated after the element borrow ends.
+
+```ds
+class Bucket<T> {
+    items: T[] = [];
+}
+
+extension of Bucket<T> {
+    at(this: &readonly Bucket<T>, index: uint): &readonly T {
+        return &readonly this.items[index];
+    }
+
+    push(this: &exclusive Bucket<T>, value: T): void {
+        this.items.push(value);
+    }
+}
+
+let bucket = new Bucket<int32>();
+let item = bucket.at(0);
+
+item satisfies &readonly int32;
+bucket.push(1);
+```
+
+## overloads
+
+### ownership forms select overloads
+
+Overload selection includes ownership.
+
+```ds
+struct Packet {
+    id: int32;
+}
+
+declare function send(packet: Packet): "managed";
+declare function send(packet: ^Packet): "owned";
+
+let managed = Packet { id: 1 };
+let owned = ^Packet { id: 2 };
+
+send(managed) satisfies "managed";
+send(owned) satisfies "owned";
+```
+
+### borrowed access selects overloads
+
+Overload selection includes borrowed access.
+
+```ds
+struct Packet {
+    id: int32;
+}
+
+declare function inspect(packet: &readonly Packet): "read";
+declare function inspect(packet: &Packet): "write";
+declare function inspect(packet: &exclusive Packet): "exclusive";
+
+let packet = Packet { id: 1 };
+
+inspect(&readonly packet) satisfies "read";
+inspect(&packet) satisfies "write";
+inspect(&exclusive packet) satisfies "exclusive";
+```
+
 ## signatures
 
 ### borrowed parameters use surface syntax
 
-Common borrowed parameters use `&T`.
+Borrowed parameters can use `&T`.
 
 ```ds
 struct Point {
@@ -250,7 +403,7 @@ function read(point: &Point): int32 {
 
 ### exclusive parameters use surface syntax
 
-Exclusive borrowed parameters use `&exclusive T`.
+Exclusive parameters can use `&exclusive T`.
 
 ```ds
 struct Point {
@@ -264,7 +417,7 @@ function write(point: &exclusive Point): void {
 
 ### borrowed generics preserve type arguments
 
-Borrowed access works with generic types.
+Borrowed generic types preserve their arguments.
 
 ```ds
 class Box<T> {
@@ -282,7 +435,7 @@ function read<T>(box: &Box<T>): T {
 
 ### borrowed fixed arrays keep their length
 
-Borrowed access works with fixed arrays.
+Borrowed fixed arrays preserve their length.
 
 ```ds
 function readLane<comptime N: uint>(value: &[uint8; N]): uint8 {
