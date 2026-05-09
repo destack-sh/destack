@@ -5,6 +5,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use destack_artifact::{ArtifactKey, MemoryCacheStore};
 use destack_compiler::{Compiler, ImportError};
+use destack_core::StringPool;
 use destack_parser::{Parser, ParserOptions};
 use destack_source::{
     DiagnosticSeverity, File, FileContent, FileId, FileSystem, FileType, LanguageType,
@@ -240,6 +241,7 @@ fn parse_file_with_parser(
             disallow_ambiguous_tree_literal: options.disallow_ambiguous_tree_literal,
             ..ParserOptions::default()
         },
+        Arc::new(StringPool::new()),
     );
     let _ = parser.parse();
 
