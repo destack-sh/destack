@@ -15,7 +15,7 @@ pub struct Name {
 impl Name {
     /// Return the local name as one string slice.
     pub fn local_eq(&self, strings: &StringPool, expected: &str) -> bool {
-        strings.get(self.local).as_ref() == expected
+        strings.get(self.local) == expected
     }
 
     /// Render this name as one qualified string.
@@ -25,7 +25,7 @@ impl Name {
         if let Some(prefix) = self.prefix {
             let prefix = strings.get(prefix);
 
-            return format!("{}:{}", prefix.as_ref(), local.as_ref());
+            return format!("{prefix}:{local}");
         }
 
         local.to_string()
