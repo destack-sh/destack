@@ -4,7 +4,7 @@ use crate::{
     CheckError, CheckWarning, DeclareError, DeclareWarning, ElaborateError, ElaborateWarning,
     ExpandError, ExpandWarning, ExportError, ExportWarning, GenerateError, GenerateWarning,
     ImportError, ImportWarning, LinkError, LinkWarning, LowerError, LowerWarning, MaterializeError,
-    MaterializeWarning, OptimizeError, OptimizeWarning,
+    MaterializeWarning, OptimizeError, OptimizeWarning, VerifyError, VerifyWarning,
 };
 
 /// Registry of all compiler diagnostic codes.
@@ -25,6 +25,7 @@ impl DiagnosticRegistry {
         ElaborateError::ALL,
         MaterializeError::ALL,
         LowerError::ALL,
+        VerifyError::ALL,
         OptimizeError::ALL,
         GenerateError::ALL,
         LinkError::ALL,
@@ -40,6 +41,7 @@ impl DiagnosticRegistry {
         ElaborateWarning::ALL,
         MaterializeWarning::ALL,
         LowerWarning::ALL,
+        VerifyWarning::ALL,
         OptimizeWarning::ALL,
         GenerateWarning::ALL,
         LinkWarning::ALL,
@@ -55,6 +57,7 @@ impl DiagnosticRegistry {
             || ElaborateError::is_valid_code(code)
             || MaterializeError::is_valid_code(code)
             || LowerError::is_valid_code(code)
+            || VerifyError::is_valid_code(code)
             || OptimizeError::is_valid_code(code)
             || GenerateError::is_valid_code(code)
             || LinkError::is_valid_code(code)
@@ -70,6 +73,7 @@ impl DiagnosticRegistry {
             || ElaborateWarning::is_valid_code(code)
             || MaterializeWarning::is_valid_code(code)
             || LowerWarning::is_valid_code(code)
+            || VerifyWarning::is_valid_code(code)
             || OptimizeWarning::is_valid_code(code)
             || GenerateWarning::is_valid_code(code)
             || LinkWarning::is_valid_code(code)
@@ -91,6 +95,7 @@ impl DiagnosticRegistry {
             .or_else(|| ElaborateError::definition(code))
             .or_else(|| MaterializeError::definition(code))
             .or_else(|| LowerError::definition(code))
+            .or_else(|| VerifyError::definition(code))
             .or_else(|| OptimizeError::definition(code))
             .or_else(|| GenerateError::definition(code))
             .or_else(|| LinkError::definition(code))
@@ -102,6 +107,7 @@ impl DiagnosticRegistry {
             .or_else(|| ElaborateWarning::definition(code))
             .or_else(|| MaterializeWarning::definition(code))
             .or_else(|| LowerWarning::definition(code))
+            .or_else(|| VerifyWarning::definition(code))
             .or_else(|| OptimizeWarning::definition(code))
             .or_else(|| GenerateWarning::definition(code))
             .or_else(|| LinkWarning::definition(code))
@@ -134,6 +140,7 @@ impl DiagnosticRegistry {
             'E' => ElaborateError::ALL_CODES,
             'M' => MaterializeError::ALL_CODES,
             'L' => LowerError::ALL_CODES,
+            'V' => VerifyError::ALL_CODES,
             'O' => OptimizeError::ALL_CODES,
             'G' => GenerateError::ALL_CODES,
             'K' => LinkError::ALL_CODES,
@@ -152,6 +159,7 @@ impl DiagnosticRegistry {
             'E' => ElaborateWarning::ALL_CODES,
             'M' => MaterializeWarning::ALL_CODES,
             'L' => LowerWarning::ALL_CODES,
+            'V' => VerifyWarning::ALL_CODES,
             'O' => OptimizeWarning::ALL_CODES,
             'G' => GenerateWarning::ALL_CODES,
             'K' => LinkWarning::ALL_CODES,

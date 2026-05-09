@@ -19,6 +19,7 @@ mod lower;
 mod materialize;
 mod optimize;
 mod unbind;
+mod verify;
 
 pub use check::*;
 pub use compile::*;
@@ -34,6 +35,7 @@ pub use lower::*;
 pub use materialize::*;
 pub use optimize::*;
 pub use unbind::*;
+pub use verify::*;
 
 #[cfg(test)]
 mod tests;

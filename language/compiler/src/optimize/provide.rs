@@ -3,9 +3,7 @@ use destack_workspace::ProviderContext;
 use std::mem;
 use std::str::FromStr;
 
-use destack_artifact::{
-    ArtifactKey, ArtifactPayload, EmitFormat, MirOptimized, MirVerified, TargetArch,
-};
+use destack_artifact::{ArtifactKey, ArtifactPayload, EmitFormat, MirOptimized, TargetArch};
 use destack_source::{ModuleId, TargetId};
 use destack_workspace::{Module, OptimizeLevel as WorkspaceOptimizeLevel, ProfileId, Target};
 use target_lexicon::Triple;
@@ -17,28 +15,6 @@ use crate::CompilerError;
 use crate::optimize::OptimizeState;
 
 impl Compiler {
-    /// Build verified MIR marker for one module and target.
-    pub(crate) fn provide_mir_verified(
-        &self,
-        module: ModuleId,
-        profile: ProfileId,
-        target: TargetId,
-        context: &dyn ProviderContext,
-    ) -> CompilerResult<ArtifactPayload> {
-        let state = OptimizeState::new(module, profile, target, context);
-
-        state
-            .context
-            .require(ArtifactKey::mir_lowered(
-                state.module,
-                state.profile,
-                state.target,
-            ))
-            .map_err(CompilerError::from)?;
-
-        Ok(ArtifactPayload::MirVerified(MirVerified))
-    }
-
     /// Build optimized MIR for one module and target.
     pub(crate) fn provide_mir_optimized(
         &self,
