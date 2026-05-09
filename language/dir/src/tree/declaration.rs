@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    DependencySpace, ExportKind, Expression, FunctionSignature, GenericArgument, GenericParameter,
-    LocalNodeId, LocalScopeId, LocalSymbolId, Member, Mutability, Name, Node, NodeType, Path,
-    StringId, TypeExpression, TypeMember, WhereClause,
+    ExportKind, Expression, FunctionSignature, GenericArgument, GenericParameter, LocalNodeId,
+    LocalScopeId, LocalSymbolId, Member, Mutability, Name, Node, NodeType, TypeExpression,
+    TypeMember, WhereClause,
 };
 
 /// The source keyword used for a namespace declaration.
@@ -14,15 +14,6 @@ pub enum NamespaceForm {
     Namespace,
     /// `module Foo {}` or `module "foo" {}`.
     Module,
-}
-
-/// The target of an import-alias declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum ImportAliasTarget {
-    /// A require-based alias target.
-    Require { target: StringId },
-    /// A qualified path alias target.
-    Path { path: Path },
 }
 
 /// A global declaration block.
@@ -95,23 +86,6 @@ pub struct TypeDeclaration {
     pub is_ambient: bool,
     /// Whether the declaration is nominal.
     pub is_nominal: bool,
-}
-
-/// An import-alias declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ImportAliasDeclaration {
-    /// The declared name.
-    pub name: Name,
-    /// The export kind of the declaration.
-    pub export: Option<ExportKind>,
-    /// The import alias dependency space.
-    pub space: DependencySpace,
-    /// The alias target.
-    pub target: ImportAliasTarget,
-    /// The declaration symbol.
-    pub symbol: LocalSymbolId,
-    /// Whether the declaration is ambient.
-    pub is_ambient: bool,
 }
 
 /// A struct declaration.
@@ -298,8 +272,6 @@ pub enum Declaration {
     Namespace(NamespaceDeclaration),
     /// Type declaration.
     Type(TypeDeclaration),
-    /// Import-alias declaration.
-    ImportAlias(ImportAliasDeclaration),
     /// Struct declaration.
     Struct(StructDeclaration),
     /// Class declaration.
@@ -326,7 +298,6 @@ impl Declaration {
             Declaration::Module(_) => None,
             Declaration::Namespace(declaration) => Some(declaration.name),
             Declaration::Type(declaration) => Some(declaration.name),
-            Declaration::ImportAlias(declaration) => Some(declaration.name),
             Declaration::Struct(declaration) => Some(declaration.name),
             Declaration::Class(declaration) => declaration.name,
             Declaration::Enum(declaration) => declaration.name,
@@ -346,7 +317,6 @@ impl Declaration {
                 NamespaceForm::Module => "module",
             },
             Declaration::Type(_) => "type",
-            Declaration::ImportAlias(_) => "import alias",
             Declaration::Struct(_) => "struct",
             Declaration::Class(_) => "class",
             Declaration::Enum(_) => "enum",
@@ -363,7 +333,6 @@ impl Declaration {
             Declaration::Module(declaration) => declaration.symbol,
             Declaration::Namespace(declaration) => declaration.symbol,
             Declaration::Type(declaration) => declaration.symbol,
-            Declaration::ImportAlias(declaration) => declaration.symbol,
             Declaration::Struct(declaration) => declaration.symbol,
             Declaration::Class(declaration) => declaration.symbol,
             Declaration::Enum(declaration) => declaration.symbol,
@@ -395,7 +364,6 @@ impl Declaration {
             Declaration::Module(declaration) => Some(declaration.scope),
             Declaration::Namespace(declaration) => Some(declaration.scope),
             Declaration::Type(declaration) => Some(declaration.scope),
-            Declaration::ImportAlias(_) => None,
             Declaration::Struct(declaration) => Some(declaration.scope),
             Declaration::Class(declaration) => Some(declaration.scope),
             Declaration::Enum(declaration) => Some(declaration.scope),
@@ -436,7 +404,7 @@ impl Declaration {
             Declaration::Interface(declaration) => Some(&declaration.generic_parameters),
             Declaration::Extension(declaration) => Some(&declaration.generic_parameters),
             Declaration::Function(declaration) => Some(&declaration.signature.generic_parameters),
-            Declaration::Global(_) | Declaration::Module(_) | Declaration::ImportAlias(_) => None,
+            Declaration::Global(_) | Declaration::Module(_) => None,
         }
     }
 }

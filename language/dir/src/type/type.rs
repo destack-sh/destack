@@ -2,8 +2,8 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Asynchrony, GlobalSymbolId, LocalNodeId, Path, ScalarLiteral, StaticArgument, StaticKey,
-    StringId, TypeExpression,
+    Asynchrony, GlobalSymbolId, LocalNodeId, ScalarLiteral, StaticArgument, StaticKey, StringId,
+    TypeExpression,
 };
 
 use super::PrimitiveType;
@@ -218,17 +218,6 @@ pub struct TemplateLiteralType {
     pub spans: Vec<LocalTypeId>,
 }
 
-/// An import type.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ImportType {
-    /// The import target.
-    pub target: StringId,
-    /// The optional imported member path.
-    pub qualifier: Option<Path>,
-    /// The static arguments applied to the imported type.
-    pub generic_arguments: Option<Vec<StaticArgument>>,
-}
-
 /// An infer binding type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct InferType {
@@ -366,8 +355,6 @@ pub enum Type {
     Index(IndexType),
     /// Template literal type expression.
     TemplateLiteral(TemplateLiteralType),
-    /// Import type expression.
-    Import(ImportType),
     /// Type infer binding.
     Infer(InferType),
     /// Type predicate expression.

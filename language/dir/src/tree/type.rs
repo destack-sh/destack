@@ -2,7 +2,7 @@ use destack_source::{NodeSpanList, NodeSpanType};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Argument, Declaration, Expression, FunctionSignature, GenericArgument, GenericParameter, Key,
+    Declaration, Expression, FunctionSignature, GenericArgument, GenericParameter, Key,
     LocalNodeId, LocalSymbolId, MappedTypeModifier, Mutability, Node, NodeType, Parameter, Path,
     ScalarLiteral, StringId, Tree, TupleElement, TypeLiteral, VarianceBound, WhereClause,
 };
@@ -253,14 +253,6 @@ pub enum TypeExpression {
     /// `this` in type space.
     This,
 
-    /// Type import expression.
-    Import {
-        target: LocalNodeId<Expression>,
-        arguments: Vec<LocalNodeId<Argument>>,
-        qualifier: Option<Path>,
-        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
-    },
-
     /// `readonly T`.
     Readonly {
         target_type: LocalNodeId<TypeExpression>,
@@ -379,9 +371,6 @@ impl TypeExpression {
                 generic_arguments, ..
             }
             | TypeExpression::Member {
-                generic_arguments, ..
-            }
-            | TypeExpression::Import {
                 generic_arguments, ..
             } => Some(generic_arguments),
             _ => None,
