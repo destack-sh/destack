@@ -1,4 +1,4 @@
-use destack_dir::{EnumBackingType, IntType};
+use destack_dir::{EnumBackingType, IntegerType};
 
 use super::binding_type_requires_abi;
 use crate::platform::model::{
@@ -992,15 +992,39 @@ impl<'a> ModuleCodegen<'a> {
     /// Return the Rust repr attribute for an enum backing type.
     pub(super) fn enum_backing_repr(backing: EnumBackingType) -> &'static str {
         match backing {
-            EnumBackingType::Int(int_type) => match int_type.simplify() {
-                IntType::Int8 => "i8",
-                IntType::Int16 => "i16",
-                IntType::Int32 => "i32",
-                IntType::Int64 => "i64",
-                IntType::Uint8 => "u8",
-                IntType::Uint16 => "u16",
-                IntType::Uint32 => "u32",
-                IntType::Uint64 => "u64",
+            EnumBackingType::Integer(int_type) => match int_type {
+                IntegerType::Fixed {
+                    width: 8,
+                    is_signed: true,
+                } => "i8",
+                IntegerType::Fixed {
+                    width: 16,
+                    is_signed: true,
+                } => "i16",
+                IntegerType::Fixed {
+                    width: 32,
+                    is_signed: true,
+                } => "i32",
+                IntegerType::Fixed {
+                    width: 64,
+                    is_signed: true,
+                } => "i64",
+                IntegerType::Fixed {
+                    width: 8,
+                    is_signed: false,
+                } => "u8",
+                IntegerType::Fixed {
+                    width: 16,
+                    is_signed: false,
+                } => "u16",
+                IntegerType::Fixed {
+                    width: 32,
+                    is_signed: false,
+                } => "u32",
+                IntegerType::Fixed {
+                    width: 64,
+                    is_signed: false,
+                } => "u64",
                 _ => panic!("unsupported enum backing type: {int_type:?}"),
             },
             EnumBackingType::String => panic!("string-backed enums are not supported"),
@@ -1010,15 +1034,39 @@ impl<'a> ModuleCodegen<'a> {
     /// Convert enum backing types into a Rust primitive name.
     pub(super) fn enum_backing_rust_type(backing: EnumBackingType) -> &'static str {
         match backing {
-            EnumBackingType::Int(int_type) => match int_type.simplify() {
-                IntType::Int8 => "i8",
-                IntType::Int16 => "i16",
-                IntType::Int32 => "i32",
-                IntType::Int64 => "i64",
-                IntType::Uint8 => "u8",
-                IntType::Uint16 => "u16",
-                IntType::Uint32 => "u32",
-                IntType::Uint64 => "u64",
+            EnumBackingType::Integer(int_type) => match int_type {
+                IntegerType::Fixed {
+                    width: 8,
+                    is_signed: true,
+                } => "i8",
+                IntegerType::Fixed {
+                    width: 16,
+                    is_signed: true,
+                } => "i16",
+                IntegerType::Fixed {
+                    width: 32,
+                    is_signed: true,
+                } => "i32",
+                IntegerType::Fixed {
+                    width: 64,
+                    is_signed: true,
+                } => "i64",
+                IntegerType::Fixed {
+                    width: 8,
+                    is_signed: false,
+                } => "u8",
+                IntegerType::Fixed {
+                    width: 16,
+                    is_signed: false,
+                } => "u16",
+                IntegerType::Fixed {
+                    width: 32,
+                    is_signed: false,
+                } => "u32",
+                IntegerType::Fixed {
+                    width: 64,
+                    is_signed: false,
+                } => "u64",
                 _ => panic!("unsupported enum backing width: {int_type:?}"),
             },
             EnumBackingType::String => "&str",

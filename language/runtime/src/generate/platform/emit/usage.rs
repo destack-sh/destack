@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use destack_dir::{EnumBackingType, IntType};
+use destack_dir::{EnumBackingType, IntegerType};
 
 use super::ModuleBindings;
 use super::replay::{collect_replay_named_types, collect_replay_vm_named_types};
@@ -758,7 +758,7 @@ pub(crate) fn binding_type_requires_vm_for_encode(binding_type: &BindingType) ->
         | BindingType::Float(_) => true,
         BindingType::Newtype { inner, .. } => binding_type_requires_vm_for_encode(inner),
         BindingType::Optional(inner) => binding_type_requires_vm_for_encode(inner),
-        BindingType::Enum { backing, .. } => matches!(backing, EnumBackingType::Int(_)),
+        BindingType::Enum { backing, .. } => matches!(backing, EnumBackingType::Integer(_)),
         BindingType::Struct { fields, .. } => fields
             .iter()
             .any(|field| binding_type_requires_vm_for_encode(&field.binding_type)),
@@ -818,15 +818,15 @@ pub(crate) fn binding_type_requires_abi(binding_type: &BindingType) -> bool {
 /// Convert enum backing types into binding types.
 pub(crate) fn enum_backing_binding_type(backing: EnumBackingType) -> BindingType {
     match backing {
-        EnumBackingType::Int(int_type) => match int_type.simplify() {
-            IntType::Int8 => BindingType::Int(8),
-            IntType::Int16 => BindingType::Int(16),
-            IntType::Int32 => BindingType::Int(32),
-            IntType::Int64 => BindingType::Int(64),
-            IntType::Uint8 => BindingType::UInt(8),
-            IntType::Uint16 => BindingType::UInt(16),
-            IntType::Uint32 => BindingType::UInt(32),
-            IntType::Uint64 => BindingType::UInt(64),
+        EnumBackingType::Integer(int_type) => match int_type {
+            IntegerType::Fixed {
+                width,
+                is_signed: true,
+            } if matches!(width, 8 | 16 | 32 | 64) => BindingType::Int(width),
+            IntegerType::Fixed {
+                width,
+                is_signed: false,
+            } if matches!(width, 8 | 16 | 32 | 64) => BindingType::UInt(width),
             _ => panic!("unsupported enum backing width: {int_type:?}"),
         },
         EnumBackingType::String => BindingType::String,

@@ -341,7 +341,7 @@ impl AbiRenderer<'_> {
             }
             output.push_str("}\n\n");
 
-            if matches!(backing, EnumBackingType::Int(_)) {
+            if matches!(backing, EnumBackingType::Integer(_)) {
                 let backing_type = ModuleCodegen::enum_backing_rust_type(*backing);
                 let mut arms = Vec::new();
                 for variant in variants {
