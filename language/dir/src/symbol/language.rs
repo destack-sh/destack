@@ -285,43 +285,19 @@ define_language_items! {
         Capture => (Newtype, "decorator/capture", "capture"),
     }
 
-    /// Patch protocol items.
-    patch {
+    /// Macro protocol items.
+    macro_protocol {
+        /// Shared macro context.
+        MacroContext => (Interface, "module/macro", "MacroContext"),
+
         /// Expansion context.
-        ExpandContext => (Struct, "module/patch", "ExpandContext"),
+        ExpansionContext => (Interface, "module/macro", "ExpansionContext"),
 
         /// Materialization context.
-        MaterializeContext => (Struct, "module/patch", "MaterializeContext"),
+        MaterializationContext => (Interface, "module/macro", "MaterializationContext"),
 
-        /// Expansion add patch variant.
-        ExpandPatchAdd => (Newtype, "module/patch", "ExpandPatchAdd"),
-
-        /// Expansion replace patch variant.
-        ExpandPatchReplace => (Newtype, "module/patch", "ExpandPatchReplace"),
-
-        /// Expansion rename patch variant.
-        ExpandPatchRename => (Newtype, "module/patch", "ExpandPatchRename"),
-
-        /// Expansion remove patch variant.
-        ExpandPatchRemove => (Newtype, "module/patch", "ExpandPatchRemove"),
-
-        /// Expansion patch union.
-        ExpandPatch => (Newtype, "module/patch", "ExpandPatch"),
-
-        /// Materialization body patch variant.
-        MaterializePatchBody => (Newtype, "module/patch", "MaterializePatchBody"),
-
-        /// Materialization expression patch variant.
-        MaterializePatchExpression => (Newtype, "module/patch", "MaterializePatchExpression"),
-
-        /// Materialization remove patch variant.
-        MaterializePatchRemove => (Newtype, "module/patch", "MaterializePatchRemove"),
-
-        /// Materialization patch union.
-        MaterializePatch => (Newtype, "module/patch", "MaterializePatch"),
-
-        /// Patcher protocol.
-        Patcher => (Interface, "module/patch", "Patcher"),
+        /// Macro protocol.
+        Macro => (Interface, "module/macro", "Macro"),
     }
 
     /// Derive provider items.

@@ -1,6 +1,6 @@
 # Decorators
 
-Decorator values can implement `Patcher` to change their target during compilation.
+Decorator values can implement `Macro` to change their target during compilation.
 
 ## functions
 
@@ -9,7 +9,7 @@ Decorator values can implement `Patcher` to change their target during compilati
 ```ds
 newtype route = (string,);
 
-extension of route implements Patcher<FunctionDeclaration>
+extension of route implements Macro<FunctionDeclaration>
 {
     static expand(target: FunctionDeclaration, context: ExpansionContext, config: this): void {
         context.ensureDeclaration("RouteDefinition", () => comptime eval<Declaration>(ds`
@@ -44,7 +44,7 @@ ROUTE_DEFINITION_USERS.handler satisfies () => string;
 ```ds:macros.ds
 export newtype route = (string,);
 
-export extension of route implements Patcher<FunctionDeclaration>
+export extension of route implements Macro<FunctionDeclaration>
 {
     static expand(target: FunctionDeclaration, context: ExpansionContext, config: this): void {
         context.ensureDeclaration("RouteDefinition", () => comptime eval<Declaration>(ds`

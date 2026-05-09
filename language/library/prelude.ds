@@ -169,11 +169,13 @@ export {
 // macros
 export {
     type Module,
-    type PatchContext,
+} from "./core/module/config.ds";
+export {
+    type Macro,
+    type MacroContext,
     type ExpansionContext,
     type MaterializationContext,
-    type Patcher,
-} from "./core/module/patch.ds";
+} from "./core/module/macro.ds";
 
 // platform decorators
 export {

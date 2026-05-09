@@ -1,9 +1,9 @@
 import { intrinsic } from "./intrinsic.ds";
 import {
     type ExpansionContext,
+    type Macro,
     type MaterializationContext,
-    type Patcher,
-} from "../module/patch.ds";
+} from "../module/macro.ds";
 
 /// Constructor naming policy for tagged newtype unions.
 export type TaggedCase =
@@ -31,8 +31,8 @@ export newtype Tagged = () | {
     names?: TaggedNames;
 };
 
-/// Implement `Tagged` as a patch provider.
-export extension<Target> of Tagged implements Patcher<Target> {
+/// Implement `Tagged` as a macro provider.
+export extension<Target> of Tagged implements Macro<Target> {
     @intrinsic
     static expand(target: Target, context: ExpansionContext, config: this): void;
 
@@ -48,8 +48,8 @@ export extension<Target> of Tagged implements Patcher<Target> {
 /// Derive `Clone` implementations.
 export newtype Clone = ();
 
-/// Implement `Clone` as a patch provider.
-export extension<Target> of Clone implements Patcher<Target> {
+/// Implement `Clone` as a macro provider.
+export extension<Target> of Clone implements Macro<Target> {
     @intrinsic
     static expand(target: Target, context: ExpansionContext, config: this): void;
 
@@ -65,8 +65,8 @@ export extension<Target> of Clone implements Patcher<Target> {
 /// Derive `Debug` implementations.
 export newtype Debug = ();
 
-/// Implement `Debug` as a patch provider.
-export extension<Target> of Debug implements Patcher<Target> {
+/// Implement `Debug` as a macro provider.
+export extension<Target> of Debug implements Macro<Target> {
     @intrinsic
     static expand(target: Target, context: ExpansionContext, config: this): void;
 

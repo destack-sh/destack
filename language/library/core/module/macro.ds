@@ -6,7 +6,7 @@ import {
 } from "../../reflect/dir/index.ds";
 
 /// Shared context passed to macro providers.
-export interface PatchContext {
+export interface MacroContext {
     /// The decorated target symbol.
     readonly symbol: Symbol;
 
@@ -24,7 +24,7 @@ export interface PatchContext {
 }
 
 /// Context for declaration expansion.
-export interface ExpansionContext extends PatchContext {
+export interface ExpansionContext extends MacroContext {
     /// Add a generated declaration to the current scope.
     add(declaration: Declaration): void;
 
@@ -45,7 +45,7 @@ export interface ExpansionContext extends PatchContext {
 }
 
 /// Context for checked implementation materialization.
-export interface MaterializationContext extends PatchContext {
+export interface MaterializationContext extends MacroContext {
     /// Replace the decorated target with a checked generated declaration.
     replaceTarget(declaration: Declaration): void;
 }
@@ -53,7 +53,7 @@ export interface MaterializationContext extends PatchContext {
 /// Protocol for decorator values that provide macro behavior.
 ///
 /// `State` is serializable static data carried from expansion to materialization.
-export newtype interface Patcher<Target, State = void> {
+export newtype interface Macro<Target, State = void> {
     /// Expand declarations for the decorated target.
     static expand?(target: Target, context: ExpansionContext, config: this): State;
 

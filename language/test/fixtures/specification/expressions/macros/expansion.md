@@ -9,7 +9,7 @@ Expansion edits the visible declaration graph before checking.
 ```ds
 newtype exposeMetrics = ();
 
-extension of exposeMetrics implements Patcher<ClassDeclaration> {
+extension of exposeMetrics implements Macro<ClassDeclaration> {
     static expand(target: ClassDeclaration, context: ExpansionContext, config: this): void {
         const declaration = comptime eval<Declaration>(ds`
             const ${context.name}Metrics = {
@@ -42,7 +42,7 @@ interface Disposable {
     dispose(): void;
 }
 
-extension of observable implements Patcher<ClassDeclaration> {
+extension of observable implements Macro<ClassDeclaration> {
     static expand(target: ClassDeclaration, context: ExpansionContext, config: this): void {
         const method = comptime eval<Member>(ds`
             onChange(listener: (event: ChangeEvent) => void): Disposable;
