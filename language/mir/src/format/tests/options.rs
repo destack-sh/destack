@@ -74,7 +74,6 @@ fn test_format_local_names() {
         boolean_type.into(),
     ));
 
-    let strings = strings.into_immutable();
     let output = format_tree_with_options(
         &tree,
         &strings,

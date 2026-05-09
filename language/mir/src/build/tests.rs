@@ -20,7 +20,7 @@ fn test_build_empty_function() {
     builder.finish();
 
     // verify output
-    let (tree, strings) = module.finish_immutable();
+    let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function empty(): void {
@@ -49,7 +49,7 @@ fn test_build_function_with_parameters() {
     builder.finish();
 
     // verify output
-    let (tree, strings) = module.finish_immutable();
+    let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function add(value0: int32, value1: int32): int32 {
@@ -82,7 +82,7 @@ fn test_build_function_with_locals() {
     builder.finish();
 
     // verify output
-    let (tree, strings) = module.finish_immutable();
+    let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function withLocal(): int64 {
@@ -140,7 +140,7 @@ fn test_build_function_with_branch() {
     builder.finish();
 
     // verify output
-    let (tree, strings) = module.finish_immutable();
+    let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function select(value0: boolean): int32 {
@@ -205,7 +205,7 @@ fn test_build_function_with_exceptional_call_terminator() {
     builder.finish();
 
     // verify output
-    let (tree, strings) = module.finish_immutable();
+    let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 extern function callee(int32): int32
@@ -242,7 +242,7 @@ fn test_build_function_with_trap_terminator() {
     builder.finish();
 
     // verify output
-    let (tree, strings) = module.finish_immutable();
+    let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function trapper(): void {
@@ -279,7 +279,7 @@ fn test_ssa_define_use_single_block() {
     builder.finish();
 
     // verify output
-    let (tree, strings) = module.finish_immutable();
+    let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function varTest(): int32 {
@@ -318,7 +318,7 @@ fn test_ssa_redefine_variable() {
     builder.finish();
 
     // verify output
-    let (tree, strings) = module.finish_immutable();
+    let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function redefine(): int32 {
@@ -378,7 +378,7 @@ fn test_ssa_branch_with_phi() {
     builder.finish();
 
     // verify output - should have block parameter in merge block
-    let (tree, strings) = module.finish_immutable();
+    let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function phiTest(value0: boolean): int32 {
@@ -445,7 +445,7 @@ fn test_ssa_trivial_phi_removal() {
     builder.finish();
 
     // verify output - no block parameter in merge block
-    let (tree, strings) = module.finish_immutable();
+    let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function trivialPhi(value0: boolean): int32 {
@@ -510,7 +510,7 @@ fn test_ssa_trivial_phi_unsealed() {
     builder.finish();
 
     // verify output: trivial phi removal rewrites the unsealed use
-    let (tree, strings) = module.finish_immutable();
+    let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function trivialPhiUnsealed(value0: boolean): int32 {
@@ -555,7 +555,7 @@ fn test_build_arithmetic_operations() {
     builder.finish();
 
     // verify output
-    let (tree, strings) = module.finish_immutable();
+    let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function arithmetic(value0: int32, value1: int32): int32 {
@@ -594,7 +594,7 @@ fn test_build_comparison_operations() {
     builder.finish();
 
     // verify output
-    let (tree, strings) = module.finish_immutable();
+    let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function compare(value0: int32, value1: int32): boolean {
@@ -630,7 +630,7 @@ fn test_type_construction() {
     let callable_type = module.type_callable(signature);
 
     // verify types
-    let (tree, _strings) = module.finish_immutable();
+    let (tree, _strings) = module.finish();
     assert!(matches!(tree.get(void_type), Type::Void));
     assert!(matches!(tree.get(bool_type), Type::Boolean));
     assert!(matches!(
@@ -694,7 +694,7 @@ fn test_seal_all_blocks() {
     builder.finish();
 
     // verify output
-    let (tree, strings) = module.finish_immutable();
+    let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function multiBlock(): void {
@@ -730,7 +730,7 @@ fn test_managed_reference_types() {
     let raw_mutable_type = module.type_raw_pointer_mutable(i32_type);
 
     // verify types
-    let (tree, _strings) = module.finish_immutable();
+    let (tree, _strings) = module.finish();
     assert!(matches!(
         tree.get(managed_readonly_type),
         Type::Reference {
@@ -823,7 +823,7 @@ fn test_build_new() {
     builder.finish();
 
     // verify output
-    let (tree, strings) = module.finish_immutable();
+    let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function allocTest(): ref<int32, managed, readonly> {
@@ -854,7 +854,7 @@ fn test_build_new_slice() {
     builder.finish();
 
     // verify output
-    let (tree, strings) = module.finish_immutable();
+    let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function allocArrayTest(value0: int64): slice<int32> {
@@ -889,7 +889,7 @@ fn test_build_raw_alloc_and_free() {
     builder.finish();
 
     // verify output
-    let (tree, strings) = module.finish_immutable();
+    let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function rawAllocTest(): void {
@@ -927,7 +927,7 @@ fn test_build_stack_alloc() {
     builder.finish();
 
     // verify output
-    let (tree, strings) = module.finish_immutable();
+    let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function stackAllocTest(): ref<int32, raw, readonly, space(stack)> {
@@ -963,7 +963,7 @@ fn test_build_intrinsics() {
     builder.finish();
 
     // verify output
-    let (tree, strings) = module.finish_immutable();
+    let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function intrinsicTest(value0: float64, value1: float64): float64 {
@@ -999,7 +999,7 @@ fn test_build_void_intrinsic() {
     builder.finish();
 
     // verify output
-    let (tree, strings) = module.finish_immutable();
+    let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function fenceTest(): void {
@@ -1036,7 +1036,7 @@ fn test_build_struct() {
     builder.finish();
 
     // verify output
-    let (tree, strings) = module.finish_immutable();
+    let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function makePoint(value0: int32, value1: float64): { int32, float64 } {
@@ -1069,7 +1069,7 @@ fn test_build_tuple() {
     builder.finish();
 
     // verify output
-    let (tree, strings) = module.finish_immutable();
+    let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function makePair(value0: int32, value1: boolean): (int32, boolean) {
@@ -1102,7 +1102,7 @@ fn test_build_array() {
     builder.finish();
 
     // verify output
-    let (tree, strings) = module.finish_immutable();
+    let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function makeArray(): int32[3] {
@@ -1139,7 +1139,7 @@ fn test_build_field_get_struct() {
     builder.finish();
 
     // verify output
-    let (tree, strings) = module.finish_immutable();
+    let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function getY(value0: { int32, float64 }): float64 {
@@ -1171,7 +1171,7 @@ fn test_build_field_get_tuple() {
     builder.finish();
 
     // verify output
-    let (tree, strings) = module.finish_immutable();
+    let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function getFirst(value0: (int32, boolean)): int32 {
@@ -1203,7 +1203,7 @@ fn test_build_element_get_array() {
     builder.finish();
 
     // verify output
-    let (tree, strings) = module.finish_immutable();
+    let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function getElement(value0: int32[3], value1: int64): int32 {
@@ -1286,7 +1286,7 @@ fn test_ssa_passthrough_intermediate_block() {
 
     // verify output
     // the key check: b3 must pass the updated x to b1
-    let (tree, strings) = module.finish_immutable();
+    let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
 
     // expected: b3 passes the updated x (v4) from b2 to b1
@@ -1372,7 +1372,7 @@ fn test_ssa_multiple_phis_at_merge() {
     builder.finish();
 
     // verify output: two block parameters, arguments in correct order
-    let (tree, strings) = module.finish_immutable();
+    let (tree, strings) = module.finish();
     let output = format_mir(&tree, &strings, MirFormatOptions::default());
     let expected = "\
 function multiPhi(value0: boolean): int32 {

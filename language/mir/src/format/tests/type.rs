@@ -105,7 +105,6 @@ fn test_format_struct_fields_with_attributes_without_parsed_spans() {
         ty: struct_type.into(),
     });
 
-    let strings = strings.into_immutable();
     let output = format_tree_with_options(&tree, &strings, MirFormatOptions::default());
 
     assert_output_eq(

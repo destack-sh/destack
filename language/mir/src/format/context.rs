@@ -1,6 +1,6 @@
 use std::collections::{BTreeSet, HashMap, HashSet};
 
-use destack_core::ImmutableStringPool;
+use destack_core::StringPool;
 use destack_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
 use destack_fir::prelude::*;
 use destack_fir::print::PrintOptions;
@@ -107,7 +107,7 @@ pub struct MirFormatContext<'a> {
     /// The MIR tree.
     pub tree: &'a Tree,
     /// The strings.
-    pub strings: &'a ImmutableStringPool,
+    pub strings: &'a StringPool,
     /// Dummy file for FIR compatibility.
     file: File,
 
@@ -136,11 +136,7 @@ impl<'a> std::fmt::Debug for MirFormatContext<'a> {
 
 impl<'a> MirFormatContext<'a> {
     /// Create a new format context.
-    pub fn new(
-        tree: &'a Tree,
-        strings: &'a ImmutableStringPool,
-        options: MirFormatOptions,
-    ) -> Self {
+    pub fn new(tree: &'a Tree, strings: &'a StringPool, options: MirFormatOptions) -> Self {
         // collect explicit type aliases
         let type_alias_by_type: HashMap<_, _> = tree
             .iter_nodes::<TypeAlias>()
@@ -277,7 +273,7 @@ impl<'a> MirFormatContext<'a> {
 /// Build unique display names for functions.
 fn build_unique_function_names(
     tree: &Tree,
-    strings: &ImmutableStringPool,
+    strings: &StringPool,
     use_local_names: bool,
 ) -> HashMap<LocalNodeId<Function>, String> {
     // collect function names
@@ -296,7 +292,7 @@ fn build_unique_function_names(
 /// Build unique display names for globals.
 fn build_unique_global_names(
     tree: &Tree,
-    strings: &ImmutableStringPool,
+    strings: &StringPool,
     use_local_names: bool,
 ) -> HashMap<LocalNodeId<Global>, String> {
     // collect global names
@@ -358,7 +354,7 @@ where
 #[allow(clippy::type_complexity)]
 fn build_synthetic_aliases(
     tree: &Tree,
-    strings: &ImmutableStringPool,
+    strings: &StringPool,
     mut type_alias_by_type: HashMap<LocalNodeId<Type>, String>,
     min_uses: u8,
     use_local_names: bool,
@@ -527,7 +523,7 @@ fn type_alias_prefix(ty: &Type) -> &'static str {
 /// Read the metadata name for a type, if any.
 fn metadata_name_for_type(
     tree: &Tree,
-    strings: &ImmutableStringPool,
+    strings: &StringPool,
     ty: LocalNodeId<Type>,
     use_local_names: bool,
 ) -> Option<String> {
@@ -572,7 +568,7 @@ struct AliasCandidateGroup {
 }
 
 /// Build a structural key used for alias grouping.
-fn type_key_for_alias(tree: &Tree, strings: &ImmutableStringPool, ty: LocalNodeId<Type>) -> String {
+fn type_key_for_alias(tree: &Tree, strings: &StringPool, ty: LocalNodeId<Type>) -> String {
     let mut active_types = HashSet::new();
     type_key_for_alias_inner(tree, strings, ty, &mut active_types)
 }
@@ -580,7 +576,7 @@ fn type_key_for_alias(tree: &Tree, strings: &ImmutableStringPool, ty: LocalNodeI
 /// Build one structural key from a type reference.
 fn type_key_for_alias_reference(
     tree: &Tree,
-    strings: &ImmutableStringPool,
+    strings: &StringPool,
     ty: TypeReference,
     active_types: &mut HashSet<LocalNodeId<Type>>,
 ) -> String {
@@ -594,7 +590,7 @@ fn type_key_for_alias_reference(
 /// Build a structural key used for alias grouping.
 fn type_key_for_alias_inner(
     tree: &Tree,
-    strings: &ImmutableStringPool,
+    strings: &StringPool,
     ty: LocalNodeId<Type>,
     active_types: &mut HashSet<LocalNodeId<Type>>,
 ) -> String {
@@ -1191,7 +1187,7 @@ where
 }
 
 /// Format a MIR tree to a string.
-pub fn format_mir(tree: &Tree, strings: &ImmutableStringPool, options: MirFormatOptions) -> String {
+pub fn format_mir(tree: &Tree, strings: &StringPool, options: MirFormatOptions) -> String {
     let context = MirFormatContext::new(tree, strings, options);
 
     // format all globals and functions

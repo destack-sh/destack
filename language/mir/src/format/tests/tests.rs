@@ -1,6 +1,6 @@
 use crate::parse::{ParseOptions, Parser};
 use crate::{MirFormatOptions, Tree, format_mir};
-use destack_core::ImmutableStringPool;
+use destack_core::StringPool;
 use destack_source::{DiffOptions, FileId, print_diff};
 
 /// Normalize one fixture for exact output comparisons.
@@ -9,7 +9,7 @@ fn normalize_fixture_text(text: &str) -> &str {
 }
 
 /// Parse one MIR fixture.
-pub(crate) fn parse_fixture(source: &str) -> (Tree, ImmutableStringPool) {
+pub(crate) fn parse_fixture(source: &str) -> (Tree, StringPool) {
     let source = normalize_fixture_text(source);
     Parser::parse(FileId::new(0), source, ParseOptions::default())
         .validate()
@@ -27,7 +27,7 @@ pub(crate) fn format_fixture_with_options(source: &str, options: MirFormatOption
 /// Format one MIR tree with explicit options.
 pub(crate) fn format_tree_with_options(
     tree: &Tree,
-    strings: &ImmutableStringPool,
+    strings: &StringPool,
     options: MirFormatOptions,
 ) -> String {
     normalize_fixture_text(&format_mir(tree, strings, options)).to_string()

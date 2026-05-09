@@ -1,4 +1,4 @@
-use destack_core::{ImmutableStringPool, StringId, StringPool};
+use destack_core::{StringId, StringPool};
 
 use crate::Tree;
 use crate::validate::Validator;
@@ -65,9 +65,9 @@ impl ModuleBuilder {
     }
 
     /// Finish building the module.
-    pub fn finish_immutable(self) -> (Tree, ImmutableStringPool) {
+    pub fn finish(self) -> (Tree, StringPool) {
         self.validate_tree();
-        (self.tree, self.strings.into_immutable())
+        (self.tree, self.strings)
     }
 
     /// Finish building the module with a mutable string pool.
