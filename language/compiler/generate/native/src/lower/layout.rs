@@ -95,8 +95,8 @@ pub(crate) fn compute_type_layout(
         }
 
         // float types
-        mir::Type::Float { width } => {
-            let bytes = (*width as u32).div_ceil(8);
+        mir::Type::Float(float_type) => {
+            let bytes = (float_type.width() as u32).div_ceil(8);
             Ok(TypeLayout::natural(bytes))
         }
 
