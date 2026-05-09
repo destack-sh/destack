@@ -7,7 +7,7 @@ use crate::tree::is_jsx_whitespace_char;
 use crate::{DestackFormatContext, DestackFormatter};
 
 use destack_ast::{
-    Argument, Expression, FloatType, IntType, LiteralType, LocalNodeId, Path, ScalarLiteral,
+    Argument, Expression, FloatType, IntegerType, LiteralType, LocalNodeId, Path, ScalarLiteral,
     TemplateLiteral, TypeLiteral,
 };
 use destack_core::StringId;
@@ -476,7 +476,7 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TypeLiteral {
             TypeLiteral::String => write!(f, [token("string")]),
             TypeLiteral::Bigint => write!(f, [token("bigint")]),
             TypeLiteral::Number => write!(f, [token("number")]),
-            TypeLiteral::Int(int_type) => write!(f, [int_type]),
+            TypeLiteral::Integer(int_type) => write!(f, [int_type]),
             TypeLiteral::Float(float_type) => write!(f, [float_type]),
             TypeLiteral::Symbol => write!(f, [token("symbol")]),
             TypeLiteral::UniqueSymbol => write!(f, [token("unique symbol")]),
@@ -487,31 +487,28 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TypeLiteral {
     }
 }
 
-impl<'ast> Format<DestackFormatContext<'ast>> for IntType {
+impl<'ast> Format<DestackFormatContext<'ast>> for IntegerType {
     fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'ast>>) -> FormatResult<()> {
         match self {
-            IntType::Pointer { is_signed } => {
+            IntegerType::Integer { is_signed } => {
+                if *is_signed {
+                    write!(f, [token("int")])
+                } else {
+                    write!(f, [token("uint")])
+                }
+            }
+            IntegerType::Fixed { width, is_signed } => {
+                if *is_signed {
+                    write!(f, [token("int"), text(&width.to_string())])
+                } else {
+                    write!(f, [token("uint"), text(&width.to_string())])
+                }
+            }
+            IntegerType::Pointer { is_signed } => {
                 if *is_signed {
                     write!(f, [token("isize")])
                 } else {
                     write!(f, [token("usize")])
-                }
-            }
-            IntType::Arbitrary { width, is_signed } => {
-                if *is_signed {
-                    // int
-                    if let Some(width) = *width {
-                        write!(f, [token("int"), text(&width.to_string())])
-                    } else {
-                        write!(f, [token("int")])
-                    }
-                } else {
-                    // uint
-                    if let Some(width) = *width {
-                        write!(f, [token("uint"), text(&width.to_string())])
-                    } else {
-                        write!(f, [token("uint")])
-                    }
                 }
             }
         }
@@ -520,11 +517,7 @@ impl<'ast> Format<DestackFormatContext<'ast>> for IntType {
 
 impl<'ast> Format<DestackFormatContext<'ast>> for FloatType {
     fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'ast>>) -> FormatResult<()> {
-        if let Some(width) = self.width {
-            write!(f, [token("float"), text(&width.to_string())])
-        } else {
-            write!(f, [token("float")])
-        }
+        write!(f, [token(self.as_str())])
     }
 }
 
