@@ -10,7 +10,7 @@ use crate::tests::runtime::TestRuntime;
 fn build_random_call_module(
     extern_name: &str,
     stream_arg: Option<u64>,
-) -> (destack_mir::Tree, destack_core::ImmutableStringPool) {
+) -> (destack_mir::Tree, destack_core::StringPool) {
     // core types
     let mut module = ModuleBuilder::checked();
     let u64_type = module.type_u64();
@@ -40,7 +40,7 @@ fn build_random_call_module(
     builder.return_(Some(value));
     builder.finish();
 
-    module.finish_immutable()
+    module.finish()
 }
 
 /// Execute the VM random binding via an external call.

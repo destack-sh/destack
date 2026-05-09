@@ -28,7 +28,7 @@ pub(crate) struct BindingTypeContext<'a> {
     /// The committed module types.
     types: &'a dir::TypeTable,
     /// The committed module symbols.
-    symbols: &'a dir::SymbolTable,
+    symbols: &'a dir::BindingTable,
     /// The module registry for cross-module reads.
     modules: &'a GeneratorContext,
     /// The shared string pool.
@@ -48,7 +48,7 @@ impl<'a> BindingTypeContext<'a> {
         context: &'a GeneratorContext,
         tree: &'a dir::Tree,
         types: &'a dir::TypeTable,
-        symbols: &'a dir::SymbolTable,
+        symbols: &'a dir::BindingTable,
         modules: &'a GeneratorContext,
         strings: &'a StringPool,
         profile_id: ProfileId,
@@ -320,7 +320,7 @@ fn parameter_name(
         dir::Parameter::Named { name, .. } => strings.get(*name).to_string(),
         dir::Parameter::Pattern { .. } => "_".to_string(),
         dir::Parameter::VariadicNamed { name, .. } => {
-            format!("...{}", strings.get(*name).as_ref())
+            format!("...{}", strings.get(*name))
         }
         dir::Parameter::VariadicPattern { .. } => "..._".to_string(),
         dir::Parameter::Error { .. } => "_".to_string(),
@@ -411,7 +411,7 @@ pub(crate) fn binding_type_from_type_id(
     type_id: dir::LocalTypeId,
     tree: &dir::Tree,
     types: &dir::TypeTable,
-    symbol_table: &dir::SymbolTable,
+    symbol_table: &dir::BindingTable,
     modules: &GeneratorContext,
     strings: &StringPool,
     profile_id: ProfileId,
@@ -955,7 +955,7 @@ fn binding_type_from_tagged_union_alias(
     elements: &[dir::LocalTypeId],
     tree: &dir::Tree,
     types: &dir::TypeTable,
-    symbol_table: &dir::SymbolTable,
+    symbol_table: &dir::BindingTable,
     modules: &GeneratorContext,
     strings: &StringPool,
     profile_id: ProfileId,
@@ -1026,7 +1026,7 @@ fn binding_type_from_object_type(
     fields: &[dir::TypeField],
     tree: &dir::Tree,
     types: &dir::TypeTable,
-    symbol_table: &dir::SymbolTable,
+    symbol_table: &dir::BindingTable,
     modules: &GeneratorContext,
     strings: &StringPool,
     profile_id: ProfileId,
@@ -1078,7 +1078,7 @@ fn binding_type_from_tuple(
     elements: &[dir::TypeElement],
     tree: &dir::Tree,
     types: &dir::TypeTable,
-    symbol_table: &dir::SymbolTable,
+    symbol_table: &dir::BindingTable,
     modules: &GeneratorContext,
     strings: &StringPool,
     profile_id: ProfileId,
@@ -1133,7 +1133,7 @@ fn binding_type_from_struct(
     members: &[dir::LocalNodeId<dir::Member>],
     tree: &dir::Tree,
     types: &dir::TypeTable,
-    symbols: &dir::SymbolTable,
+    symbols: &dir::BindingTable,
     domain: String,
     modules: &GeneratorContext,
     strings: &StringPool,
@@ -1535,7 +1535,7 @@ fn format_type_expression(
             let left_text = format_type_expression(*left, tree, strings)?;
             let mut out = match name {
                 Some(name) if left_text.is_empty() => strings.get(*name).to_string(),
-                Some(name) => format!("{left_text}.{}", strings.get(*name).as_ref()),
+                Some(name) => format!("{left_text}.{}", strings.get(*name)),
                 None => left_text,
             };
             if let Some(arguments) = generic_arguments {
@@ -1638,7 +1638,7 @@ fn format_parameter_declared(
         dir::Parameter::Named { name, .. } => strings.get(*name).to_string(),
         dir::Parameter::Pattern { .. } => "_".to_string(),
         dir::Parameter::VariadicNamed { name, .. } => {
-            format!("...{}", strings.get(*name).as_ref())
+            format!("...{}", strings.get(*name))
         }
         dir::Parameter::VariadicPattern { .. } => "..._".to_string(),
         dir::Parameter::Error { .. } => "_".to_string(),

@@ -24,8 +24,8 @@ impl GeneratorDir {
     }
 
     /// Return the declared DIR symbol table.
-    pub(crate) fn symbols(&self) -> &dir::SymbolTable {
-        &self.declared.symbols
+    pub(crate) fn symbols(&self) -> &dir::BindingTable {
+        &self.declared.bindings
     }
 
     /// Return the checked DIR type table.
