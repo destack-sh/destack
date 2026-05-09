@@ -1,6 +1,5 @@
 pub use destack_artifact::{DiagnosticAnchor, DiagnosticDefinition, DiagnosticFormat};
 
-use crate::emit::{EmitError, EmitWarning};
 use crate::{
     CheckError, CheckWarning, DeclareError, DeclareWarning, ElaborateError, ElaborateWarning,
     ExpandError, ExpandWarning, ExportError, ExportWarning, GenerateError, GenerateWarning,
@@ -29,7 +28,6 @@ impl DiagnosticRegistry {
         OptimizeError::ALL,
         GenerateError::ALL,
         LinkError::ALL,
-        EmitError::ALL,
     ];
 
     /// All warning definitions from all phases.
@@ -45,7 +43,6 @@ impl DiagnosticRegistry {
         OptimizeWarning::ALL,
         GenerateWarning::ALL,
         LinkWarning::ALL,
-        EmitWarning::ALL,
     ];
 
     /// Check if an error code is valid.
@@ -61,7 +58,6 @@ impl DiagnosticRegistry {
             || OptimizeError::is_valid_code(code)
             || GenerateError::is_valid_code(code)
             || LinkError::is_valid_code(code)
-            || EmitError::is_valid_code(code)
     }
 
     /// Check if a warning code is valid.
@@ -77,7 +73,6 @@ impl DiagnosticRegistry {
             || OptimizeWarning::is_valid_code(code)
             || GenerateWarning::is_valid_code(code)
             || LinkWarning::is_valid_code(code)
-            || EmitWarning::is_valid_code(code)
     }
 
     /// Check if a diagnostic code (error or warning) is valid.
@@ -99,7 +94,6 @@ impl DiagnosticRegistry {
             .or_else(|| OptimizeError::definition(code))
             .or_else(|| GenerateError::definition(code))
             .or_else(|| LinkError::definition(code))
-            .or_else(|| EmitError::definition(code))
             .or_else(|| DeclareWarning::definition(code))
             .or_else(|| ImportWarning::definition(code))
             .or_else(|| ExpandWarning::definition(code))
@@ -111,7 +105,6 @@ impl DiagnosticRegistry {
             .or_else(|| OptimizeWarning::definition(code))
             .or_else(|| GenerateWarning::definition(code))
             .or_else(|| LinkWarning::definition(code))
-            .or_else(|| EmitWarning::definition(code))
     }
 
     /// Look up a diagnostic definition by variant name.
@@ -144,7 +137,6 @@ impl DiagnosticRegistry {
             'O' => OptimizeError::ALL_CODES,
             'G' => GenerateError::ALL_CODES,
             'K' => LinkError::ALL_CODES,
-            'W' => EmitError::ALL_CODES,
             _ => &[],
         }
     }
@@ -163,7 +155,6 @@ impl DiagnosticRegistry {
             'O' => OptimizeWarning::ALL_CODES,
             'G' => GenerateWarning::ALL_CODES,
             'K' => LinkWarning::ALL_CODES,
-            'W' => EmitWarning::ALL_CODES,
             _ => &[],
         }
     }
