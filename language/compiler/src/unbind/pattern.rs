@@ -89,13 +89,7 @@ impl Compiler {
                 );
                 ast::Pattern::MoveOf { mutability, right }
             }
-            dir::Pattern::Binding {
-                mutability,
-                name,
-                pattern,
-                ..
-            } => {
-                let mutability = mutability.map(|m| self.unbind_mutability(context, m));
+            dir::Pattern::Binding { name, pattern, .. } => {
                 let name = *name;
                 let pattern = pattern.map(|p| {
                     self.unbind_pattern(
@@ -109,11 +103,7 @@ impl Compiler {
                         context,
                     )
                 });
-                ast::Pattern::Binding {
-                    mutability,
-                    name,
-                    pattern,
-                }
+                ast::Pattern::Binding { name, pattern }
             }
             dir::Pattern::Expression { value } => {
                 let value = self.unbind_expression(
@@ -291,13 +281,11 @@ impl Compiler {
         let span = self.unbind_span(module, pattern_field_id.into());
         let ast_pattern_field = match pattern_field {
             dir::PatternField::Named {
-                mutability,
                 name,
                 is_shorthand,
                 pattern,
                 ..
             } => {
-                let mutability = mutability.map(|m| self.unbind_mutability(context, m));
                 let name = ast::Name::Identifier(*name);
                 let pattern = pattern.map(|p| {
                     self.unbind_pattern(
@@ -312,18 +300,12 @@ impl Compiler {
                     )
                 });
                 ast::PatternField::Named {
-                    mutability,
                     name,
                     is_shorthand: *is_shorthand,
                     pattern,
                 }
             }
-            dir::PatternField::Computed {
-                mutability,
-                key,
-                pattern,
-            } => {
-                let mutability = mutability.map(|m| self.unbind_mutability(context, m));
+            dir::PatternField::Computed { key, pattern } => {
                 let key = self.unbind_expression(
                     module,
                     *key,
@@ -344,11 +326,7 @@ impl Compiler {
                     ast_strings,
                     context,
                 );
-                ast::PatternField::Computed {
-                    mutability,
-                    key,
-                    pattern,
-                }
+                ast::PatternField::Computed { key, pattern }
             }
             dir::PatternField::Positional { pattern } => {
                 let pattern = self.unbind_pattern(
@@ -363,11 +341,7 @@ impl Compiler {
                 );
                 ast::PatternField::Positional { pattern }
             }
-            dir::PatternField::Spread {
-                mutability,
-                pattern,
-            } => {
-                let mutability = mutability.map(|m| self.unbind_mutability(context, m));
+            dir::PatternField::Spread { pattern } => {
                 let pattern = pattern.map(|pattern_id| {
                     self.unbind_pattern(
                         module,
@@ -380,10 +354,7 @@ impl Compiler {
                         context,
                     )
                 });
-                ast::PatternField::Spread {
-                    mutability,
-                    pattern,
-                }
+                ast::PatternField::Spread { pattern }
             }
             dir::PatternField::Elision => ast::PatternField::Elision,
         };

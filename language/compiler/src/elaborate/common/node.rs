@@ -193,7 +193,6 @@ impl Compiler {
         scope: dir::LocalScope,
         name: dir::StringId,
         symbol: LocalSymbolId,
-        pattern_mutability: Option<Mutability>,
         let_mutability: Mutability,
         value: Option<LocalNodeId<Expression>>,
     ) -> LocalNodeId<Expression> {
@@ -208,7 +207,6 @@ impl Compiler {
         let pattern_id: LocalNodeId<Pattern> = state.tree.insert_as_owner(
             pattern_id,
             Pattern::Binding {
-                mutability: pattern_mutability,
                 name,
                 pattern: None,
                 symbol,

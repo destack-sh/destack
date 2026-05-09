@@ -118,7 +118,6 @@ impl BindingTable {
             space,
             binding,
             binding_mutability: None,
-            binding_scope: None,
             origin: SymbolOrigin::Module,
             key,
             scope,

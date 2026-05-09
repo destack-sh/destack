@@ -369,32 +369,13 @@ impl Compiler {
                 }
 
                 dir::Expression::Import {
-                    source,
                     space,
                     target,
                     items,
                     attributes,
-                    arguments,
-                    ..
                 } => {
-                    let source = self.unbind_import_source(*source);
                     let space = self.unbind_dependency_space(context, *space);
-                    let target = match target {
-                        dir::ImportTarget::String(target) => ast::ImportTarget::String(*target),
-                        dir::ImportTarget::Expression { target } => {
-                            let target = self.unbind_expression(
-                                module,
-                                *target,
-                                tree,
-                                symbols,
-                                types,
-                                ast_tree,
-                                ast_strings,
-                                context,
-                            );
-                            ast::ImportTarget::Expression { target }
-                        }
-                    };
+                    let target = *target;
                     let items = items.as_ref().map(|items| {
                         items
                             .iter()
@@ -415,18 +396,11 @@ impl Compiler {
                     let attributes = attributes.as_ref().map(|attributes| {
                         self.unbind_import_attribute_clause(attributes, ast_strings, context)
                     });
-                    let arguments = arguments.as_ref().map(|args| {
-                        args.iter().map(|arg| {
-                            self.unbind_argument(module, *arg, tree, symbols, types, ast_tree, ast_strings, context)
-                        }).collect()
-                    });
                     ast::Expression::Import {
-                        source,
                         space,
                         target,
                         items,
                         attributes,
-                        arguments,
                     }
                 }
 
@@ -472,18 +446,13 @@ impl Compiler {
                         attributes,
                     }
                 }
-                dir::Expression::ExportNamespace { name } => {
-                    let name = *name;
-                    ast::Expression::ExportNamespace { name }
-                }
-
                 dir::Expression::Let {
                     export,
                     is_ambient,
                     mutability,
                     declarators,
                 } => {
-                    // DIR does not preserve the original `let` vs `var` spelling
+                    // reconstruct the keyword from semantic mutability
                     let ast_mutability = self.unbind_mutability(context, *mutability);
                     let kind = match mutability {
                         dir::Mutability::Immutable => ast::LetKind::Const,
@@ -510,7 +479,6 @@ impl Compiler {
                 } => {
                     let kind = match kind {
                         dir::LetKind::Let => ast::LetKind::Let,
-                        dir::LetKind::Var => ast::LetKind::Var,
                         dir::LetKind::Const => ast::LetKind::Const,
                     };
                     let mutability = self.unbind_mutability(context, *mutability);
@@ -833,11 +801,6 @@ impl Compiler {
                     ast::Expression::New { left, generic_arguments, arguments }
                 }
 
-                dir::Expression::Delete { value } => {
-                    let value = self.unbind_expression(module, *value, tree, symbols, types, ast_tree, ast_strings, context);
-                    ast::Expression::Delete { value }
-                }
-
                 dir::Expression::Path {
                     path,
                     generic_arguments,
@@ -1132,7 +1095,6 @@ impl Compiler {
                             let ast_mutability = self.unbind_mutability(context, *mutability);
                             let kind = match kind {
                                 dir::LetKind::Let => ast::LetKind::Let,
-                                dir::LetKind::Var => ast::LetKind::Var,
                                 dir::LetKind::Const => ast::LetKind::Const,
                             };
                             let declarator = self.unbind_declarator(
@@ -1450,26 +1412,8 @@ impl Compiler {
         keyword: dir::BindingKeyword,
     ) -> ast::BindingKeyword {
         match keyword {
-            dir::BindingKeyword::Var => ast::BindingKeyword::Var,
             dir::BindingKeyword::Let => ast::BindingKeyword::Let,
             dir::BindingKeyword::Const => ast::BindingKeyword::Const,
-        }
-    }
-
-    /// Convert a DIR import source into an AST import source.
-    fn unbind_import_source(&self, source: dir::ImportSource) -> ast::ImportSource {
-        match source {
-            dir::ImportSource::ImportStatement => ast::ImportSource::ImportStatement,
-            dir::ImportSource::ReferencePathDirective => ast::ImportSource::ReferencePathDirective,
-            dir::ImportSource::ReferenceTypesDirective => {
-                ast::ImportSource::ReferenceTypesDirective
-            }
-            dir::ImportSource::ReferenceLibDirective => ast::ImportSource::ReferenceLibDirective,
-            dir::ImportSource::ReferenceNoDefaultLibDirective => {
-                ast::ImportSource::ReferenceNoDefaultLibDirective
-            }
-            dir::ImportSource::ImportEquals => ast::ImportSource::ImportEquals,
-            dir::ImportSource::ImportCall => ast::ImportSource::ImportCall,
         }
     }
 }

@@ -225,7 +225,6 @@ impl Compiler {
             pattern: None,
             name,
             symbol,
-            mutability,
         } = &pattern
         {
             return self.handle_binding_pattern(
@@ -235,7 +234,6 @@ impl Compiler {
                 body,
                 *name,
                 *symbol,
-                *mutability,
                 guard,
                 cases,
                 index,
@@ -445,7 +443,6 @@ impl Compiler {
         body: LocalNodeId<Expression>,
         name: StringId,
         symbol: LocalSymbolId,
-        mutability: Option<Mutability>,
         guard: Option<LocalNodeId<Expression>>,
         cases: &[LocalNodeId<MatchCase>],
         index: usize,
@@ -453,7 +450,7 @@ impl Compiler {
         match_type_id: LocalTypeId,
     ) -> ElaborateResult<Option<LocalNodeId<Expression>>> {
         // bind the matched value before evaluating the body
-        let bindings = vec![(name, symbol, mutability, value)];
+        let bindings = vec![(name, symbol, value)];
 
         // handle bindings without a guard
         if guard.is_none() {
@@ -1398,20 +1395,19 @@ impl Compiler {
         &self,
         state: &ElaborateState<'_>,
         pattern_id: LocalNodeId<Pattern>,
-    ) -> Option<(StringId, LocalSymbolId, Option<Mutability>)> {
+    ) -> Option<(StringId, LocalSymbolId)> {
         let pattern_id = self.unwrap_pattern_wrappers(state, pattern_id);
         let pattern = state.tree.get(pattern_id);
 
         // extract direct binding patterns without nested sub-patterns
         if let Pattern::Binding {
-            mutability,
             name,
             pattern,
             symbol,
         } = pattern
             && pattern.is_none()
         {
-            return Some((*name, *symbol, *mutability));
+            return Some((*name, *symbol));
         }
 
         None
@@ -1438,11 +1434,9 @@ impl Compiler {
             let field = state.tree.get(*field_id).clone();
             match field {
                 PatternField::Positional { pattern, .. } => {
-                    if let Some((name, symbol, mutability)) =
-                        self.direct_binding_from_pattern(state, pattern)
-                    {
+                    if let Some((name, symbol)) = self.direct_binding_from_pattern(state, pattern) {
                         let access = self.build_index_access(state, match_id, value, i, scope)?;
-                        bindings.push((name, symbol, mutability, access));
+                        bindings.push((name, symbol, access));
                         continue;
                     }
 
@@ -1450,7 +1444,6 @@ impl Compiler {
                     if let Pattern::Binding {
                         name: _,
                         symbol: _,
-                        mutability: _,
                         pattern: Some(_),
                     } = state.tree.get(pattern_id)
                     {
@@ -1465,10 +1458,10 @@ impl Compiler {
 
                     // bind only direct nested binding patterns
                     if let Some(pattern_id) = pattern
-                        && let Some((name, symbol, mutability)) =
+                        && let Some((name, symbol)) =
                             self.direct_binding_from_pattern(state, pattern_id)
                     {
-                        bindings.push((name, symbol, mutability, access));
+                        bindings.push((name, symbol, access));
                     }
                 }
                 PatternField::Spread { .. }
@@ -1530,19 +1523,18 @@ impl Compiler {
                     symbol,
                     is_shorthand,
                     pattern,
-                    mutability,
                 } => {
                     let access = self.build_member_access(state, match_id, value, name, scope)?;
 
                     // bind either nested bindings or shorthand field bindings
                     if let Some(pattern_id) = pattern {
-                        if let Some((binding_name, symbol, mutability)) =
+                        if let Some((binding_name, symbol)) =
                             self.direct_binding_from_pattern(state, pattern_id)
                         {
-                            bindings.push((binding_name, symbol, mutability, access));
+                            bindings.push((binding_name, symbol, access));
                         }
                     } else if is_shorthand && let Some(symbol) = symbol {
-                        bindings.push((name, symbol, mutability, access));
+                        bindings.push((name, symbol, access));
                     }
                 }
                 PatternField::Positional { .. }
@@ -1568,12 +1560,7 @@ impl Compiler {
         &self,
         state: &mut ElaborateState<'_>,
         match_id: LocalNodeId<Expression>,
-        bindings: Vec<(
-            StringId,
-            LocalSymbolId,
-            Option<Mutability>,
-            LocalNodeId<Expression>,
-        )>,
+        bindings: Vec<(StringId, LocalSymbolId, LocalNodeId<Expression>)>,
         body: LocalNodeId<Expression>,
         scope: dir::LocalScope,
     ) -> ElaborateResult<LocalNodeId<Expression>> {
@@ -1585,7 +1572,7 @@ impl Compiler {
         // build let expressions for each binding
         let mut leading_expressions: Vec<LocalNodeId<Expression>> = Vec::new();
 
-        for (name, symbol, mutability, value) in bindings {
+        for (name, symbol, value) in bindings {
             // create one local let binding for this extracted value
             let let_expr = self.insert_single_binding_let_expression(
                 state,
@@ -1593,8 +1580,7 @@ impl Compiler {
                 scope,
                 name,
                 symbol,
-                mutability,
-                mutability.unwrap_or(Mutability::Immutable),
+                Mutability::Immutable,
                 Some(value),
             );
 

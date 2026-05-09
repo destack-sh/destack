@@ -74,17 +74,6 @@ impl SymbolOrigin {
     }
 }
 
-/// The lexical scope form used by a binding declaration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-pub enum BindingScope {
-    /// Function-scoped declaration.
-    Function,
-    /// Block-scoped declaration (`let` and `const`-style).
-    Block,
-    /// Formal parameter declaration, including catch parameters.
-    Parameter,
-}
-
 /// The semantic form of a symbol.
 #[derive(
     Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize,
@@ -185,8 +174,6 @@ pub struct Symbol {
     pub binding: SymbolBinding,
     /// The mutability for value bindings when known.
     pub binding_mutability: Option<Mutability>,
-    /// The lexical scope form for declarations that bind into source scopes.
-    pub binding_scope: Option<BindingScope>,
 
     /// Where this symbol was introduced.
     pub origin: SymbolOrigin,
