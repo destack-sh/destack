@@ -33,7 +33,7 @@ pub(crate) struct FunctionLoweringContext<'a> {
     /// Provide access to the DIR tree for expression lookup.
     pub(crate) dir_tree: &'a dir::Tree,
     /// Provide access to symbol metadata for type resolution.
-    pub(crate) symbols: &'a dir::SymbolTable,
+    pub(crate) symbols: &'a dir::BindingTable,
     /// Provide access to inferred and declared types.
     pub(crate) types: &'a dir::TypeTable,
     /// Elaborated type guard entries.
@@ -103,7 +103,7 @@ impl FunctionLoweringContext<'_> {
                 .dir_declared(self.provider, symbol_id.module_id, self.profile)
                 .ok()?;
 
-            Some(declared.symbols.get_symbol(symbol_id.local_id).clone())
+            Some(declared.bindings.get_symbol(symbol_id.local_id).clone())
         }
     }
 
@@ -128,7 +128,7 @@ pub(crate) struct FunctionBindings {
     /// Binding for `this` in method bodies.
     pub(crate) this_binding: Option<LocalBinding>,
     /// Symbols that require boxed capture storage.
-    pub(crate) reference_locals: HashSet<dir::GlobalSymbolId>,
+    pub(crate) reference_bindings: HashSet<dir::GlobalSymbolId>,
     /// Symbols that require addressable locals.
     pub(crate) address_taken_locals: HashSet<dir::GlobalSymbolId>,
     /// Whether `this` is address taken in the function.
@@ -191,7 +191,7 @@ impl<'a> FunctionState<'a> {
                 locals_by_symbol: HashMap::new(),
                 this_symbol: None,
                 this_binding: None,
-                reference_locals: HashSet::new(),
+                reference_bindings: HashSet::new(),
                 address_taken_locals: address_taken.locals,
                 takes_this_address: address_taken.takes_this,
                 environment: None,

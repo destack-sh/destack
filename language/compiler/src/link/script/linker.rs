@@ -2,7 +2,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use destack_artifact::{Data, DirExported, DirImported, ModuleOutput};
-use destack_dir::ModuleTarget;
+use destack_dir::DependencyTarget;
 use destack_source::{
     File, FileId, FileType, ModuleEdge, ModuleEdgeRelation, ModuleId, PackageId, ProfileId, Span,
     StringId, TargetId,
@@ -190,18 +190,10 @@ fn module_dependency_edges(imported: &DirImported, exported: &DirExported) -> Ve
     let mut edges = Vec::new();
 
     // import resolutions
-    for dependency in &imported.dependencies {
-        let resolution = dependency.resolution;
+    for dependency in imported.dependencies.iter() {
         push_module_edge(
             &mut edges,
-            resolution.value,
-            dependency.relation,
-            Some(dependency.specifier),
-            dependency.loader,
-        );
-        push_module_edge(
-            &mut edges,
-            resolution.type_target,
+            Some(dependency.target),
             dependency.relation,
             Some(dependency.specifier),
             dependency.loader,
@@ -212,7 +204,7 @@ fn module_dependency_edges(imported: &DirImported, exported: &DirExported) -> Ve
     for export in exported.exports.namespace_exports.iter() {
         push_module_edge(
             &mut edges,
-            Some(export.module_id),
+            Some(export.target),
             ModuleEdgeRelation::NamespaceExport,
             None,
             None,
@@ -228,12 +220,12 @@ fn module_dependency_edges(imported: &DirImported, exported: &DirExported) -> Ve
 /// Push one concrete module edge when the target is a module.
 fn push_module_edge(
     edges: &mut Vec<ModuleEdge>,
-    target: Option<ModuleTarget>,
+    target: Option<DependencyTarget>,
     relation: ModuleEdgeRelation,
     specifier: Option<StringId>,
     loader: Option<destack_source::Loader>,
 ) {
-    let Some(ModuleTarget::Module(module_id)) = target else {
+    let Some(DependencyTarget::Module(module_id)) = target else {
         return;
     };
 

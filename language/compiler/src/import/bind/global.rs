@@ -1,5 +1,5 @@
 use destack_dir::{
-    Declaration, LocalNodeIdAny, LocalScopeId, LocalSymbolId, NodeType, SymbolOrigin, SymbolTable,
+    BindingTable, Declaration, LocalNodeIdAny, LocalScopeId, LocalSymbolId, NodeType, SymbolOrigin,
     Tree,
 };
 use destack_workspace::Module;
@@ -12,7 +12,7 @@ impl Compiler {
         &self,
         _module: &Module,
         tree: &Tree,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
         global_scope: LocalScopeId,
     ) {
         let symbol_ids = symbols
@@ -33,7 +33,7 @@ impl Compiler {
 /// Return true when a symbol declaration is nested under `global`.
 fn symbol_declaration_is_within_global(
     tree: &Tree,
-    symbols: &SymbolTable,
+    symbols: &BindingTable,
     symbol_id: LocalSymbolId,
 ) -> bool {
     let symbol = symbols.get_symbol(symbol_id);
@@ -64,7 +64,7 @@ fn node_is_within_global(tree: &Tree, node_id: LocalNodeIdAny) -> bool {
 
 /// Return true when a symbol is scoped inside a given scope.
 fn symbol_is_within_scope(
-    symbols: &SymbolTable,
+    symbols: &BindingTable,
     symbol_id: LocalSymbolId,
     scope_id: LocalScopeId,
 ) -> bool {

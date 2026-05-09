@@ -66,14 +66,10 @@ impl Compiler {
                     })?
                 }
                 js::DependencyBinding::Item => match item.name {
-                    Some(js::Name::Identifier(name))
-                        if module.strings.get(name).as_ref() == "default" =>
-                    {
+                    Some(js::Name::Identifier(name)) if module.strings.get(name) == "default" => {
                         item.alias.unwrap_or(name)
                     }
-                    Some(js::Name::String(name))
-                        if module.strings.get(name).as_ref() == "default" =>
-                    {
+                    Some(js::Name::String(name)) if module.strings.get(name) == "default" => {
                         item.alias.unwrap_or(default_name)
                     }
                     _ => {
@@ -385,11 +381,14 @@ impl Compiler {
                     symbol_id
                 ),
             })?;
-        let symbol = source_directory.symbols.get_symbol(symbol_id.local_id);
+        let symbol = source_directory.bindings.get_symbol(symbol_id.local_id);
 
         // use the source declaration name for same-output local bridging
         if let Some(name) = symbol.name() {
-            return Ok((symbol_id, source_directory.strings.get(name).to_string()));
+            return Ok((
+                symbol_id,
+                self.repository.string_pool().get(name).to_string(),
+            ));
         }
 
         Err(LinkError::Internal {
@@ -562,16 +561,6 @@ impl Compiler {
                     target_module,
                 ),
             })?;
-        let target_declared = self
-            .dir_declared(context, target_module, profile_id)
-            .map_err(|error| LinkError::Internal {
-                anchor: (package_id).into(),
-                package: package_id,
-                message: format!(
-                    "missing declared dir for same-output namespace import target {:?}: {error:?}",
-                    target_module,
-                ),
-            })?;
         let mut seen_keys = HashSet::new();
         let mut properties = Vec::new();
 
@@ -594,7 +583,7 @@ impl Compiler {
             let key = self.same_output_namespace_key(
                 module_id,
                 module,
-                &target_declared.strings,
+                self.repository.string_pool().as_ref(),
                 *key,
                 target_id,
                 package_id,

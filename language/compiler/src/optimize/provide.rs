@@ -84,7 +84,7 @@ impl Compiler {
             .mir_lowered(context, module, profile, target)
             .map_err(CompilerError::from)?;
         let mut tree = mir.tree.clone();
-        let strings = mir.strings.clone();
+        let strings = self.repository.string_pool().clone();
 
         // resolve pipeline options
         let module_ref = self.module(context.revision(), module);
@@ -106,7 +106,7 @@ impl Compiler {
         }
 
         // freeze optimized MIR
-        let payload = MirOptimized { tree, strings };
+        let payload = MirOptimized { tree };
 
         Ok(payload)
     }

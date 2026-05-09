@@ -32,7 +32,7 @@ impl Compiler {
         module: &Module,
         strings: &StringPool,
         tree: &dir::Tree,
-        symbols: &dir::SymbolTable,
+        symbols: &dir::BindingTable,
         types: &dir::TypeTable,
         roots: &[dir::LocalNodeId<dir::Expression>],
     ) -> UnboundModule {

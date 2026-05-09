@@ -1,5 +1,5 @@
 use destack_artifact::DirDeclared;
-use destack_core::StringId;
+use destack_core::{StringId, StringPool};
 use destack_source::ModuleId;
 use {destack_dir as dir, destack_mir as mir};
 
@@ -248,7 +248,7 @@ impl ModuleLowerer<'_> {
                 module: self.module_id,
                 message: format!("missing declared DIR artifact for {:?}", symbol.module_id),
             })?;
-        let symbol_entry = dir.symbols.get_symbol(symbol.local_id);
+        let symbol_entry = dir.bindings.get_symbol(symbol.local_id);
 
         if let Some(name) = self.host_decorator_name(
             expression_id,
@@ -347,11 +347,11 @@ impl ModuleLowerer<'_> {
 
         let Some(arguments) = arguments else {
             return self
-                .default_host_name(expression_id, declared, symbol)
+                .default_host_name(expression_id, self.strings, symbol)
                 .map(Some);
         };
 
-        self.explicit_host_name(expression_id, declared, arguments)
+        self.explicit_host_name(expression_id, declared, self.strings, arguments)
             .map(Some)
     }
 
@@ -359,12 +359,12 @@ impl ModuleLowerer<'_> {
     fn default_host_name(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        declared: &DirDeclared,
+        strings: &StringPool,
         symbol: &dir::Symbol,
     ) -> CompilerResult<String> {
         symbol
             .name()
-            .map(|name| declared.strings.get(name).to_string())
+            .map(|name| strings.get(name).to_string())
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(
                     expression_id
@@ -381,6 +381,7 @@ impl ModuleLowerer<'_> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         declared: &DirDeclared,
+        strings: &StringPool,
         arguments: &[dir::LocalNodeId<dir::Argument>],
     ) -> CompilerResult<String> {
         let [argument_id] = arguments else {
@@ -400,7 +401,7 @@ impl ModuleLowerer<'_> {
         match expression {
             dir::Expression::ScalarLiteral {
                 value: dir::ScalarLiteral::String(name),
-            } => Ok(declared.strings.get(*name).to_string()),
+            } => Ok(strings.get(*name).to_string()),
             _ => Err(LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(
                     expression_id
@@ -435,7 +436,7 @@ fn host_decorator_matches(
     language_item: dir::LanguageItem,
     decorator_symbol: dir::GlobalSymbolId,
 ) -> bool {
-    let module_id = declared.symbols.module_id;
+    let module_id = declared.bindings.module_id;
     let decorator_node = decorator_expression.into_global_any(module_id);
     if declared
         .types

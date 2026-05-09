@@ -54,7 +54,7 @@ pub(crate) struct ModuleLowerer<'a> {
     /// Stable module-level node for generated module state.
     pub(crate) module_node: dir::LocalNodeIdAny,
     /// Provide access to symbol metadata for type resolution.
-    pub(crate) symbols: &'a dir::SymbolTable,
+    pub(crate) symbols: &'a dir::BindingTable,
     /// Provide access to inferred and declared types.
     pub(crate) types: &'a dir::TypeTable,
     /// Elaborated type guard entries.
@@ -159,7 +159,7 @@ impl<'a> ModuleLowerer<'a> {
         dir_roots: &'a [dir::LocalNodeId<dir::Expression>],
         strings: &'a StringPool,
         module_node: dir::LocalNodeIdAny,
-        symbols: &'a dir::SymbolTable,
+        symbols: &'a dir::BindingTable,
         types: &'a dir::TypeTable,
         guards: &'a GuardTable,
         captures: &'a dir::CaptureTable,
@@ -172,9 +172,8 @@ impl<'a> ModuleLowerer<'a> {
         let mut builder = mir::ModuleBuilder::new_with_verify(options.verify_mir);
         builder.set_pointer_bytes(pointer_bytes);
 
-        // seed mir strings with the declared DIR pool
-        let immutable_strings = strings.clone().into_immutable();
-        builder.strings().copy_from_immutable(&immutable_strings);
+        // seed mir strings with the shared module pool
+        builder.strings().ensure_all_from(strings);
 
         // resolve vector builtin symbols for SIMD lowering
         let vector_symbol = Self::well_known_symbol_for(
@@ -282,7 +281,7 @@ impl<'a> ModuleLowerer<'a> {
             Self::collect_intrinsic_bindings(
                 *module_id,
                 declared.as_ref(),
-                &declared.strings,
+                compiler.repository.string_pool().as_ref(),
                 &mut intrinsics,
             );
         }
@@ -344,8 +343,8 @@ impl<'a> ModuleLowerer<'a> {
         strings: &StringPool,
         intrinsics: &mut WellKnownIntrinsics,
     ) {
-        for symbol_id in declared.symbols.symbol_ids() {
-            let symbol = declared.symbols.get_symbol(symbol_id);
+        for symbol_id in declared.bindings.symbol_ids() {
+            let symbol = declared.bindings.get_symbol(symbol_id);
             let Some(declaration) = symbol.declaration else {
                 continue;
             };
@@ -451,9 +450,9 @@ impl<'a> ModuleLowerer<'a> {
         declaration_id: u32,
     ) -> Option<String> {
         let symbol = declared
-            .symbols
+            .bindings
             .symbol_ids()
-            .map(|symbol_id| declared.symbols.get_symbol(symbol_id))
+            .map(|symbol_id| declared.bindings.get_symbol(symbol_id))
             .find(|symbol| {
                 symbol
                     .declaration
@@ -959,7 +958,7 @@ impl<'a> ModuleLowerer<'a> {
         ordered.sort_by(|left, right| {
             let left_value = self.strings.get(*left);
             let right_value = self.strings.get(*right);
-            left_value.as_ref().cmp(right_value.as_ref())
+            left_value.cmp(right_value)
         });
         for literal_id in ordered {
             let literal = self.strings.get(literal_id);

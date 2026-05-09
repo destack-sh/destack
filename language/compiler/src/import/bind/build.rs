@@ -1,6 +1,6 @@
 use destack_dir::{
-    DeclaredModule, Expression, LocalNodeId, LocalScopeId, LocalScopeMark, SymbolSpace,
-    SymbolTable, Tree, TypeTable,
+    BindingTable, DeclaredModule, Expression, LocalNodeId, LocalScopeId, LocalScopeMark,
+    SymbolSpace, Tree, TypeTable,
 };
 
 use destack_artifact::Ast;
@@ -18,7 +18,7 @@ impl Compiler {
         global_scope: LocalScopeId,
         declared_modules: &mut Vec<DeclaredModule>,
         tree: &mut Tree,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
         types: &mut TypeTable,
     ) -> Vec<LocalNodeId<Expression>> {
         let scope = (namespace_scope, LocalScopeMark::end());

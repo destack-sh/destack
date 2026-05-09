@@ -1,7 +1,7 @@
 use destack_ast::{self as ast};
 use destack_dir::{
-    DeclaredModule, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, MatchCase,
-    MatchSelector, NodeType, ScopeKind, SymbolBinding, SymbolSpace, SymbolTable, Tree, TypeTable,
+    BindingTable, DeclaredModule, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
+    MatchCase, MatchSelector, NodeType, ScopeKind, SymbolBinding, SymbolSpace, Tree, TypeTable,
 };
 
 use crate::Compiler;
@@ -23,7 +23,7 @@ impl Compiler {
         ast_selector: &ast::MatchSelector,
         parent_id: LocalNodeIdAny,
         tree: &mut Tree,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
         types: &mut TypeTable,
     ) -> MatchSelector {
         match ast_selector {
@@ -82,7 +82,7 @@ impl Compiler {
         ast_match_case_id: ast::LocalNodeId<ast::MatchCase>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut Tree,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<MatchCase> {
         let ast_match_case = ast.tree.get(ast_match_case_id);
@@ -166,7 +166,7 @@ impl Compiler {
             }
         };
         let match_case_id = tree.insert(match_case_id, match_case);
-        symbols.get_symbol_mut(symbol_id).declare(match_case_id);
+        symbols.declare_symbol(symbol_id, match_case_id);
         match_case_id
     }
 }

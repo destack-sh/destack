@@ -177,7 +177,7 @@ impl FunctionLowerer<'_> {
         // load checked dir data for this symbol
         let dir = self.artifact_dir_data_if_present(symbol.module_id)?;
         let tree = &dir.tree;
-        let symbols = &dir.symbols;
+        let symbols = &dir.bindings;
 
         // resolve the declaration node
         let symbol_entry = symbols.get_symbol(symbol.local_id);
@@ -190,15 +190,15 @@ impl FunctionLowerer<'_> {
         if let Ok(member_id) = primary.local_id.try_into_typed::<dir::Member>() {
             let member = tree.get(member_id);
             let (is_static, kind) = match member {
-                dir::Member::Field { is_static, .. } => (*is_static, StaticMemberKind::Field),
-                dir::Member::Method { is_static, .. } => (*is_static, StaticMemberKind::Method),
+                dir::Member::Field { is_static, .. } => (is_static, StaticMemberKind::Field),
+                dir::Member::Method { is_static, .. } => (is_static, StaticMemberKind::Method),
                 dir::Member::AssociatedType { is_static, .. } => {
-                    (*is_static, StaticMemberKind::Type)
+                    (is_static, StaticMemberKind::Type)
                 }
                 _ => return None,
             };
 
-            if is_static {
+            if *is_static {
                 return Some(kind);
             }
         }
@@ -231,7 +231,7 @@ impl FunctionLowerer<'_> {
         // load checked dir data for this symbol
         let dir = self.artifact_dir_data_if_present(symbol.module_id)?;
         let tree = &dir.tree;
-        let symbols = &dir.symbols;
+        let symbols = &dir.bindings;
 
         // resolve the declaration node
         let symbol_entry = symbols.get_symbol(symbol.local_id);

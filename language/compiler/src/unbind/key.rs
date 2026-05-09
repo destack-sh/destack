@@ -27,7 +27,7 @@ impl Compiler {
         module: &Module,
         key: &dir::Key,
         tree: &dir::Tree,
-        symbols: &dir::SymbolTable,
+        symbols: &dir::BindingTable,
         types: &dir::TypeTable,
         ast_tree: &mut ast::Tree,
         ast_strings: &mut StringPool,

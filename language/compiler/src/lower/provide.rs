@@ -76,7 +76,7 @@ impl Compiler {
             .map_err(CompilerError::from)?;
 
         // lower the module
-        let (mir_tree, mir_strings) = {
+        let mir_tree = {
             let module = self.module(context.revision(), module_id);
             let pointer_bytes = self.pointer_bytes_for_target_config(module_id, target)?;
 
@@ -87,9 +87,9 @@ impl Compiler {
                 profile,
                 &declared.tree,
                 &declared.roots,
-                &declared.strings,
+                self.repository.string_pool().as_ref(),
                 declared.module_node,
-                &declared.symbols,
+                &declared.bindings,
                 &checked.types,
                 &elaborated.guards,
                 &checked.captures,
@@ -97,13 +97,13 @@ impl Compiler {
                 pointer_bytes,
             )?;
             lowerer.lower_module()?;
-            lowerer.finish()
+            let (mir_tree, mir_strings) = lowerer.finish();
+            self.repository.string_pool().ensure_all_from(&mir_strings);
+
+            mir_tree
         };
 
-        let payload = MirLowered {
-            tree: mir_tree,
-            strings: mir_strings,
-        };
+        let payload = MirLowered { tree: mir_tree };
 
         Ok(payload)
     }

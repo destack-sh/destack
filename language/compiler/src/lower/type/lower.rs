@@ -36,7 +36,7 @@ pub(crate) struct TypeLowerer<'a> {
     /// DIR tree being lowered.
     pub(super) dir_tree: &'a dir::Tree,
     /// Symbol table for local declaration form reads.
-    pub(super) symbols: &'a dir::SymbolTable,
+    pub(super) symbols: &'a dir::BindingTable,
     /// Cached Vector type symbol for SIMD lowering.
     pub(crate) vector_symbol: Option<dir::GlobalSymbolId>,
     /// Cached MIR types by DIR type id.
@@ -91,7 +91,7 @@ impl<'a> TypeLowerer<'a> {
         strings: &'a StringPool,
         profile: ProfileId,
         dir_tree: &'a dir::Tree,
-        symbols: &'a dir::SymbolTable,
+        symbols: &'a dir::BindingTable,
         vector_symbol: Option<dir::GlobalSymbolId>,
     ) -> Self {
         let pointer_width_bits = u16::from(pointer_bytes) * 8;
@@ -137,7 +137,7 @@ impl<'a> TypeLowerer<'a> {
                 .dir_declared(self.context, symbol.module_id, self.profile)
                 .ok()?;
 
-            Some(declared.symbols.get_symbol(symbol.local_id).clone())
+            Some(declared.bindings.get_symbol(symbol.local_id).clone())
         }
     }
 
@@ -667,7 +667,7 @@ impl<'a> TypeLowerer<'a> {
             }
         };
         let Some(members) =
-            self.struct_members_for_symbol(symbol, &declared.symbols, &declared.tree)
+            self.struct_members_for_symbol(symbol, &declared.bindings, &declared.tree)
         else {
             self.remote_nominal_layouts_in_progress.remove(&symbol);
             return Ok(None);
@@ -678,10 +678,10 @@ impl<'a> TypeLowerer<'a> {
             self.pointer_bytes(),
             self.compiler,
             self.context,
-            &declared.strings,
+            self.compiler.repository.string_pool().as_ref(),
             self.profile,
             &declared.tree,
-            &declared.symbols,
+            &declared.bindings,
             self.vector_symbol,
         );
         let mut fields = Vec::new();
@@ -748,7 +748,7 @@ impl<'a> TypeLowerer<'a> {
     fn struct_members_for_symbol(
         &self,
         symbol: dir::GlobalSymbolId,
-        symbols: &dir::SymbolTable,
+        symbols: &dir::BindingTable,
         tree: &dir::Tree,
     ) -> Option<Vec<dir::LocalNodeId<dir::Member>>> {
         let declaration = symbols.get_symbol(symbol.local_id).declaration?;
@@ -985,7 +985,7 @@ impl<'a> TypeLowerer<'a> {
             .compiler
             .dir_declared(self.context, symbol.module_id, self.profile)
             .ok()?;
-        dir.symbols.get_symbol(symbol.local_id).name()
+        dir.bindings.get_symbol(symbol.local_id).name()
     }
 
     /// Lower a function type into its closure-pair representation.

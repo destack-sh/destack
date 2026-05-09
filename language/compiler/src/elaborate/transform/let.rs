@@ -134,7 +134,7 @@ impl Compiler {
         let scope_mark = state.symbols.get_scope_mark(scope_id);
         let (symbol_id, _) = state.symbols.insert_symbol(
             SymbolRole::Item,
-            SymbolForm::Value,
+            SymbolForm::Variable,
             SymbolSpace::Value,
             SymbolBinding::Runtime,
             None,

@@ -159,7 +159,7 @@ impl FunctionLowerer<'_> {
             return false;
         };
 
-        dir.symbols.get_symbol(symbol.local_id).role == dir::SymbolRole::Namespace
+        dir.bindings.get_symbol(symbol.local_id).role == dir::SymbolRole::Namespace
     }
 
     /// Check whether a symbol requires an addressable local.
@@ -169,7 +169,7 @@ impl FunctionLowerer<'_> {
 
     /// Check whether a symbol requires boxed capture storage.
     pub(crate) fn symbol_needs_reference_cell(&self, symbol: dir::GlobalSymbolId) -> bool {
-        self.state.bindings.reference_locals.contains(&symbol)
+        self.state.bindings.reference_bindings.contains(&symbol)
     }
 
     /// Check whether `this` requires an addressable local.

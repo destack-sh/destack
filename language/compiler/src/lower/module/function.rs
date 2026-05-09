@@ -65,7 +65,7 @@ struct AddressTakenCollector<'a> {
     /// Provide access to inferred type information.
     types: &'a dir::TypeTable,
     /// Provide access to declaration forms.
-    symbols: &'a dir::SymbolTable,
+    symbols: &'a dir::BindingTable,
     /// Identify the module for expression lookups.
     module_id: destack_source::ModuleId,
     /// Symbols that require addressable locals.
@@ -80,7 +80,7 @@ impl<'a> AddressTakenCollector<'a> {
     /// Create a new address-taken collector.
     fn new(
         types: &'a dir::TypeTable,
-        symbols: &'a dir::SymbolTable,
+        symbols: &'a dir::BindingTable,
         module_id: destack_source::ModuleId,
     ) -> Self {
         Self {
@@ -627,15 +627,17 @@ impl ModuleLowerer<'_> {
         // capture explicit or captured this symbols when present
         function_lowerer.state.bindings.this_symbol = this_symbol;
 
-        // track locals captured by reference
-        let reference_locals = self
+        // track bindings captured by borrow
+        let reference_bindings = self
             .captures
-            .reference_locals(symbol_id)
-            .unwrap_or(&[])
-            .iter()
-            .copied()
+            .capture(symbol_id)
+            .into_iter()
+            .flat_map(|capture| capture.captures.iter().chain(capture.this.iter()))
+            .filter_map(|capture| {
+                (capture.mode == dir::CaptureMode::Borrow).then_some(capture.symbol)
+            })
             .collect::<HashSet<_>>();
-        function_lowerer.state.bindings.reference_locals = reference_locals;
+        function_lowerer.state.bindings.reference_bindings = reference_bindings;
 
         // create entry block
         let entry_block = function_lowerer.state.builder.block();
@@ -750,8 +752,8 @@ impl ModuleLowerer<'_> {
 
         // fall back to captured this bindings
         self.captures
-            .capture_set(symbol_id)
-            .and_then(|set| set.this_symbol)
+            .capture(symbol_id)
+            .and_then(|capture| capture.this.map(|this| this.symbol))
     }
 
     /// Resolve the module-local owner path for an anonymous lambda.
@@ -1077,15 +1079,17 @@ impl ModuleLowerer<'_> {
         // capture explicit or captured this symbols when present
         function_lowerer.state.bindings.this_symbol = this_symbol;
 
-        // track locals captured by reference
-        let reference_locals = self
+        // track bindings captured by borrow
+        let reference_bindings = self
             .captures
-            .reference_locals(method_symbol)
-            .unwrap_or(&[])
-            .iter()
-            .copied()
+            .capture(method_symbol)
+            .into_iter()
+            .flat_map(|capture| capture.captures.iter().chain(capture.this.iter()))
+            .filter_map(|capture| {
+                (capture.mode == dir::CaptureMode::Borrow).then_some(capture.symbol)
+            })
             .collect::<HashSet<_>>();
-        function_lowerer.state.bindings.reference_locals = reference_locals;
+        function_lowerer.state.bindings.reference_bindings = reference_bindings;
 
         // create entry block
         let entry_block = function_lowerer.state.builder.block();

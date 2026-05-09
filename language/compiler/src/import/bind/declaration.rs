@@ -2,13 +2,13 @@ use crate::Compiler;
 use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
-    BindingScope, ClassDeclaration, Declaration, DeclaredModule, DependencyItem, EnumDeclaration,
-    EnumField, EnumKind, ExportKind, Expression, ExtensionDeclaration, FunctionDeclaration,
-    GlobalDeclaration, ImportAliasDeclaration, ImportAliasTarget, InterfaceDeclaration,
-    InterfaceHeritage, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, LocalSymbolId,
-    ModuleDeclaration, Name, NamespaceDeclaration, NamespaceForm, NodeType, ProvenanceReason,
-    ScopeKind, StaticKey, StructDeclaration, SymbolBinding, SymbolForm, SymbolRole, SymbolSpace,
-    SymbolTable, Tree, TypeDeclaration, TypeTable,
+    BindingScope, BindingTable, ClassDeclaration, Declaration, DeclaredModule, DependencyItem,
+    EnumDeclaration, EnumField, EnumKind, ExportKind, Expression, ExtensionDeclaration,
+    FunctionDeclaration, GlobalDeclaration, ImportAliasDeclaration, ImportAliasTarget,
+    InterfaceDeclaration, InterfaceHeritage, LocalNodeId, LocalNodeIdAny, LocalScopeId,
+    LocalScopeMark, LocalSymbolId, ModuleDeclaration, Name, NamespaceDeclaration, NamespaceForm,
+    NodeType, ProvenanceReason, ScopeKind, StaticKey, StructDeclaration, SymbolBinding, SymbolForm,
+    SymbolRole, SymbolSpace, Tree, TypeDeclaration, TypeTable,
 };
 use destack_workspace::Module;
 
@@ -51,7 +51,7 @@ impl Compiler {
             | SymbolForm::Newtype
             | SymbolForm::Extension
             | SymbolForm::Function
-            | SymbolForm::Value => SymbolSpace::Value,
+            | SymbolForm::Variable => SymbolSpace::Value,
         }
     }
 
@@ -66,7 +66,7 @@ impl Compiler {
         symbol_form: SymbolForm,
         binding: SymbolBinding,
         space: SymbolSpace,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
     ) -> LocalSymbolId {
         // declaration key
         let key = name.map(|name| StaticKey::Name(name.string()));
@@ -89,7 +89,7 @@ impl Compiler {
         role: SymbolRole,
         symbol_form: SymbolForm,
         binding: SymbolBinding,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
     ) -> (LocalSymbolId, LocalScopeId) {
         // symbol space
         let space = self.symbol_space_for_form(module, symbol_form);
@@ -102,8 +102,13 @@ impl Compiler {
             .insert_symbol(role, symbol_form, space, binding, key, scope, export)
             .0;
 
-        // namespace declarations own their namespace scope
-        let scope_id = symbols.insert_scope(ScopeKind::Namespace, Some(scope), Some(symbol_id));
+        // function declarations own a function scope, other declarations own a namespace scope
+        let scope_kind = if symbol_form == SymbolForm::Function {
+            ScopeKind::Function
+        } else {
+            ScopeKind::Namespace
+        };
+        let scope_id = symbols.insert_scope(scope_kind, Some(scope), Some(symbol_id));
 
         // namespace symbols own their namespace scope
         if role == SymbolRole::Namespace {
@@ -119,7 +124,7 @@ impl Compiler {
     /// Check whether a namespace scope includes runtime value symbols.
     fn namespace_scope_has_runtime_value_symbols(
         &self,
-        symbols: &SymbolTable,
+        symbols: &BindingTable,
         scope_id: LocalScopeId,
     ) -> bool {
         let scope = symbols.get_scope_by_id(scope_id);
@@ -167,7 +172,7 @@ impl Compiler {
         scope_id: LocalScopeId,
         name: Name,
         symbol_form: SymbolForm,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
     ) -> LocalSymbolId {
         let key = StaticKey::Name(name.string());
         let scope = (scope_id, LocalScopeMark::end());
@@ -202,7 +207,7 @@ impl Compiler {
         is_ambient: bool,
         symbol_form: SymbolForm,
         is_statement_declaration: bool,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
     ) -> (
         Option<Name>,
         Option<ExportKind>,
@@ -267,7 +272,7 @@ impl Compiler {
         is_statement_declaration: bool,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut Tree,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Declaration> {
         let ast_declaration = ast.tree.get(ast_declaration_id);
@@ -293,7 +298,7 @@ impl Compiler {
                     None,
                     None,
                     SymbolRole::Item,
-                    SymbolForm::Value,
+                    SymbolForm::Variable,
                     binding,
                     SymbolSpace::Value,
                     symbols,
@@ -337,7 +342,7 @@ impl Compiler {
                     None,
                     None,
                     SymbolRole::Item,
-                    SymbolForm::Value,
+                    SymbolForm::Variable,
                     SymbolBinding::Runtime,
                     SymbolSpace::Value,
                     symbols,
@@ -387,7 +392,7 @@ impl Compiler {
                     Some(name),
                     export,
                     SymbolRole::Namespace,
-                    SymbolForm::Value,
+                    SymbolForm::Variable,
                     binding,
                     symbols,
                 );
@@ -469,7 +474,7 @@ impl Compiler {
                     let default_symbol = symbols
                         .insert_symbol(
                             SymbolRole::Namespace,
-                            SymbolForm::Value,
+                            SymbolForm::Variable,
                             SymbolSpace::Value,
                             binding,
                             None,
@@ -480,7 +485,7 @@ impl Compiler {
                     let export_assignment_symbol = symbols
                         .insert_symbol(
                             SymbolRole::Namespace,
-                            SymbolForm::Value,
+                            SymbolForm::Variable,
                             SymbolSpace::Value,
                             binding,
                             None,
@@ -631,7 +636,7 @@ impl Compiler {
                     Some(name),
                     export,
                     SymbolRole::Item,
-                    SymbolForm::Value,
+                    SymbolForm::Variable,
                     binding,
                     space,
                     symbols,
@@ -1475,7 +1480,7 @@ impl Compiler {
         }
 
         // attach the declaration to the symbol
-        symbols.get_symbol_mut(symbol_id).declare(declaration_id);
+        symbols.declare_symbol(symbol_id, declaration_id);
 
         // apply declaration category
         if let Some(binding_scope) = binding_scope {
@@ -1497,7 +1502,7 @@ impl Compiler {
         ast_field_id: ast::LocalNodeId<ast::EnumField>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut Tree,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<EnumField> {
         let ast_field = ast.tree.get(ast_field_id);
@@ -1509,7 +1514,7 @@ impl Compiler {
         let key = StaticKey::Name(name.string());
         let (symbol_id, _) = symbols.insert_symbol(
             SymbolRole::Item,
-            SymbolForm::Value,
+            SymbolForm::Variable,
             SymbolSpace::Value,
             self.bind_declaration_binding(module, false),
             Some(key),
@@ -1536,7 +1541,7 @@ impl Compiler {
         let enum_field = EnumField { name, value };
 
         let field_id = tree.insert(field_id, enum_field);
-        symbols.get_symbol_mut(symbol_id).declare(field_id);
+        symbols.declare_symbol(symbol_id, field_id);
 
         field_id
     }

@@ -35,6 +35,7 @@ impl Compiler {
         // generate one binary output through the current backend
         let (artifact, warnings, errors) = destack_codegen_native::BinaryOutputGenerator::new(
             module.clone(),
+            self.repository.string_pool().clone(),
             Some(mir_optimized.clone()),
             Some(mir_lowered),
             target,

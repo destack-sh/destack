@@ -1,10 +1,10 @@
 use destack_ast::{self as ast};
 use destack_core::StringId;
 use destack_dir::{
-    DeclaredModule, DependencyBinding, DependencyItem, DependencySpace, ImportAttribute,
-    ImportAttributeClause, ImportAttributeClauseKind, ImportAttributeValue, ImportSource,
-    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Mutability, NodeType, StaticKey,
-    SymbolSpace, SymbolTable, Tree, TypeTable,
+    BindingTable, DeclaredModule, DependencyBinding, DependencyItem, DependencySpace,
+    ImportAttribute, ImportAttributeClause, ImportAttributeClauseKind, ImportAttributeValue,
+    ImportSource, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Mutability, NodeType,
+    StaticKey, SymbolSpace, Tree, TypeTable,
 };
 
 use crate::Compiler;
@@ -142,7 +142,7 @@ impl Compiler {
         ast_item_id: ast::LocalNodeId<ast::DependencyItem>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut Tree,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<DependencyItem> {
         let ast_item = ast.tree.get(ast_item_id);
@@ -235,7 +235,7 @@ impl Compiler {
 
         // attach declaration to the symbol
         if let Some(symbol_id) = symbol_id {
-            symbols.get_symbol_mut(symbol_id).declare(item_id);
+            symbols.declare_symbol(symbol_id, item_id);
             if symbol_space == SymbolSpace::Value && matches!(site, DependencySite::Import) {
                 self.apply_binding_mutability(symbols, symbol_id, Mutability::Immutable);
             }

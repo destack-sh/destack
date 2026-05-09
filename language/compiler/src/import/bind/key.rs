@@ -3,8 +3,8 @@ use crate::common::ast::evaluate_numeric_literal;
 use destack_artifact::Ast;
 use destack_ast::{self as ast, StringId};
 use destack_dir::{
-    DeclaredModule, Key, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Name, SymbolSpace,
-    SymbolTable, Tree, TypeTable,
+    BindingTable, DeclaredModule, Key, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Name,
+    SymbolSpace, Tree, TypeTable,
 };
 use destack_workspace::Module;
 
@@ -36,13 +36,13 @@ impl Compiler {
         key: ast::Key,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut Tree,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
         types: &mut TypeTable,
     ) -> Key {
         match key {
             ast::Key::Name(ast::Name::Number(string_id)) => {
                 // numeric keys evaluate to canonical string representation
-                let source = ast.strings.get(string_id);
+                let source = self.repository.string_pool().get(string_id);
                 let canonical = evaluate_numeric_literal(&source);
                 let name = StringId::for_text(&canonical);
                 Key::Name(Name::Number(name))

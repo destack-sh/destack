@@ -1,9 +1,9 @@
 use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
-    DeclaredModule, FloatType, IntType, IntrinsicType, LocalNodeIdAny, LocalScopeId,
-    LocalScopeMark, PrimitiveType, ScalarLiteral, SymbolSpace, SymbolTable, TemplateLiteral, Tree,
-    TypeLiteral, TypeTable,
+    BindingTable, DeclaredModule, FloatType, IntType, IntrinsicType, LocalNodeIdAny, LocalScopeId,
+    LocalScopeMark, PrimitiveType, ScalarLiteral, SymbolSpace, TemplateLiteral, Tree, TypeLiteral,
+    TypeTable,
 };
 use destack_workspace::Module;
 
@@ -50,7 +50,7 @@ impl Compiler {
         template_literal: &ast::TemplateLiteral,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut Tree,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
         types: &mut TypeTable,
     ) -> TemplateLiteral {
         match template_literal {

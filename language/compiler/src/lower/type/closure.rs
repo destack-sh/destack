@@ -55,20 +55,27 @@ impl ModuleLowerer<'_> {
         }
 
         // skip functions without capture metadata
-        let Some(capture_set) = self.captures.capture_set(symbol) else {
+        let Some(capture) = self.captures.capture(symbol) else {
             return Ok(None);
         };
-        if capture_set.captures.is_empty() {
+        if capture.captures.is_empty() && capture.this.is_none() {
             return Ok(None);
         }
 
         // collect captured bindings and their field inputs
         let mut captures = Vec::new();
         let mut field_inputs = Vec::new();
-        for (source_index, capture) in capture_set.captures.iter().enumerate() {
+        for (source_index, capture) in capture.captures.iter().enumerate() {
             let (field_type, field_input) =
                 self.capture_field_for_binding(*capture, source_index as u32)?;
             captures.push((*capture, field_type));
+            field_inputs.push(field_input);
+        }
+        if let Some(capture) = capture.this {
+            let source_index = captures.len() as u32;
+            let (field_type, field_input) =
+                self.capture_field_for_binding(capture, source_index)?;
+            captures.push((capture, field_type));
             field_inputs.push(field_input);
         }
 

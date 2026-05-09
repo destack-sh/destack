@@ -1,7 +1,7 @@
 use destack_ast as ast;
 use destack_dir::{
-    DeclaredModule, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeType,
-    SymbolSpace, SymbolTable, Tree, TypeExpression, TypeTable, WhereClause,
+    BindingTable, DeclaredModule, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
+    NodeType, SymbolSpace, Tree, TypeExpression, TypeTable, WhereClause,
 };
 
 use crate::Compiler;
@@ -23,7 +23,7 @@ impl Compiler {
         ast_where_clause_id: ast::LocalNodeId<ast::WhereClause>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut Tree,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<WhereClause> {
         let ast_where_clause = ast.tree.get(ast_where_clause_id);

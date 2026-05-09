@@ -2,10 +2,10 @@ use crate::Compiler;
 use destack_artifact::Ast;
 use destack_ast::{self as ast, StringId};
 use destack_dir::{
-    Asynchrony, DeclaredModule, FunctionForm, FunctionRole, FunctionSignature, GenericParameter,
-    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeType, StaticKey, SymbolBinding,
-    SymbolForm, SymbolRole, SymbolSpace, SymbolTable, Tree, Type, TypeExpression, TypeTable,
-    UnevaluatedType, VarianceModifier,
+    Asynchrony, BindingTable, DeclaredModule, FunctionForm, FunctionRole, FunctionSignature,
+    GenericParameter, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeType,
+    StaticKey, SymbolBinding, SymbolForm, SymbolRole, SymbolSpace, Tree, Type, TypeExpression,
+    TypeTable, UnevaluatedType, VarianceModifier,
 };
 use destack_workspace::Module;
 
@@ -24,7 +24,7 @@ impl Compiler {
         ast_parameter_id: ast::LocalNodeId<ast::GenericParameter>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut Tree,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<GenericParameter> {
         let ast_parameter = ast.tree.get(ast_parameter_id);
@@ -102,7 +102,7 @@ impl Compiler {
                     symbol: symbol_id,
                 };
                 let parameter_id = tree.insert(parameter_id, parameter);
-                symbols.get_symbol_mut(symbol_id).declare(parameter_id);
+                symbols.declare_symbol(symbol_id, parameter_id);
                 parameter_id
             }
             ast::GenericParameter::Value {
@@ -147,7 +147,7 @@ impl Compiler {
 
                 let (symbol_id, _) = symbols.insert_symbol(
                     SymbolRole::Local,
-                    SymbolForm::Value,
+                    SymbolForm::Variable,
                     SymbolSpace::Value,
                     SymbolBinding::Runtime,
                     Some(StaticKey::Name(name)),
@@ -163,7 +163,7 @@ impl Compiler {
                     symbol: symbol_id,
                 };
                 let parameter_id = tree.insert(parameter_id, parameter);
-                symbols.get_symbol_mut(symbol_id).declare(parameter_id);
+                symbols.declare_symbol(symbol_id, parameter_id);
 
                 if let Some(declared_type) = declared_type {
                     let declared_type_id = types.insert_type_from(
@@ -183,7 +183,7 @@ impl Compiler {
             ast::GenericParameter::Error => {
                 let (symbol_id, _) = symbols.insert_symbol(
                     SymbolRole::Local,
-                    SymbolForm::Value,
+                    SymbolForm::Variable,
                     SymbolSpace::Value,
                     SymbolBinding::Runtime,
                     None,
@@ -192,7 +192,7 @@ impl Compiler {
                 );
                 let parameter = GenericParameter::Error { symbol: symbol_id };
                 let parameter_id = tree.insert(parameter_id, parameter);
-                symbols.get_symbol_mut(symbol_id).declare(parameter_id);
+                symbols.declare_symbol(symbol_id, parameter_id);
                 parameter_id
             }
         }
@@ -211,7 +211,7 @@ impl Compiler {
     fn function_scope_has_arguments_binding(
         &self,
         scope_id: LocalScopeId,
-        symbols: &SymbolTable,
+        symbols: &BindingTable,
     ) -> bool {
         let arguments_name = StringId::for_text("arguments");
         let arguments_key = StaticKey::Name(arguments_name);
@@ -263,7 +263,7 @@ impl Compiler {
         signature: &ast::FunctionSignature,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut Tree,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
         types: &mut TypeTable,
     ) -> FunctionSignature {
         let is_abstract = signature.is_abstract;

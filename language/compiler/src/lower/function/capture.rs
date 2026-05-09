@@ -74,7 +74,7 @@ impl FunctionLowerer<'_> {
                             .state
                             .bindings
                             .this_symbol
-                            .is_some_and(|this_symbol| this_symbol == field.symbol)
+                            .is_some_and(|this| this == field.symbol)
                         {
                             let (value, _) = self.lower_this_expression(expression_id)?;
                             self.state.builder.store(field_addr, value);

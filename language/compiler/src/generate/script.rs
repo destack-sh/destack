@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::{Compiler, CompilerError, CompilerResult, GenerateError, GenerateWarning};
 use destack_artifact::ModuleOutput;
 use destack_codegen_js::{CodegenJsError, CodegenJsWarning};
@@ -41,7 +39,7 @@ impl Compiler {
             ast,
             declared.clone(),
             checked,
-            Arc::new(declared.strings.clone()),
+            self.repository.string_pool().clone(),
             target,
         )
         .generate()

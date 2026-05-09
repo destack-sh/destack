@@ -19,6 +19,8 @@ pub struct ModuleWorkItem {
     target_id: TargetId,
     /// The local mutable MIR state for this work item.
     mir: Arc<RwLock<MirLowered>>,
+    /// Shared strings referenced by this MIR.
+    strings: Arc<StringPool>,
     /// The pipeline options for this module.
     options: PipelineOptions,
 }
@@ -30,6 +32,7 @@ impl ModuleWorkItem {
         profile_id: ProfileId,
         target_id: TargetId,
         mir: MirLowered,
+        strings: Arc<StringPool>,
         options: PipelineOptions,
     ) -> Self {
         Self {
@@ -37,6 +40,7 @@ impl ModuleWorkItem {
             profile_id,
             target_id,
             mir: Arc::new(RwLock::new(mir)),
+            strings,
             options,
         }
     }
@@ -75,14 +79,7 @@ impl ModuleWorkItem {
 
     /// Access the module string pool.
     pub fn with_strings<T>(&self, f: impl FnOnce(&StringPool) -> T) -> T {
-        let mir = self.mir.read();
-        f(&mir.strings)
-    }
-
-    /// Clone the module string pool.
-    pub fn clone_strings(&self) -> StringPool {
-        let mir = self.mir.read();
-        mir.strings.clone()
+        f(self.strings.as_ref())
     }
 
     /// Access the profile data for this module.

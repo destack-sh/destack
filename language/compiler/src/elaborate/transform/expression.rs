@@ -1,4 +1,4 @@
-use destack_dir::{GuardTable, SymbolTable, Tree, TypeTable};
+use destack_dir::{BindingTable, GuardTable, Tree, TypeTable};
 use destack_workspace::{Module, ProfileId, ProviderContext};
 
 use crate::elaborate::ElaborateState;
@@ -20,7 +20,7 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
         tree: &mut Tree,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
         types: &mut TypeTable,
         guards: &mut GuardTable,
     ) -> ElaborateResult<()> {
