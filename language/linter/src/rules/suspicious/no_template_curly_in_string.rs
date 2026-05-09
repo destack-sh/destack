@@ -40,7 +40,7 @@ impl LintRule for NoTemplateCurlyInString {
 
             // skip string literals that do not contain `${` at all
             let string_value = ctx.strings.get(*string_id);
-            if !string_value.as_ref().contains("${") {
+            if !string_value.contains("${") {
                 continue;
             }
 

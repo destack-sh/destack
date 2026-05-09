@@ -115,7 +115,7 @@ impl<'a, 'b> NoRequireImportsVisitor<'a, 'b> {
             &self.global_qualifiers,
             self.require_name,
         ) && require_target_is_allowed(
-            self.ctx.strings.get(target).as_ref(),
+            self.ctx.strings.get(target),
             &self.allowed_target_patterns,
         ) {
             return;
@@ -352,13 +352,13 @@ fn require_import_alias_fix(
     let dir::ImportAliasTarget::Require { target } = declaration.target else {
         return None;
     };
-    let target_text = escape_import_target(ctx.strings.get(target).as_ref());
+    let target_text = escape_import_target(ctx.strings.get(target));
     let prefix = if declaration.space == dir::DependencySpace::Type {
         "import type"
     } else {
         "import"
     };
-    let replacement = format!("{prefix} {} from \"{target_text}\";", local_name.as_ref());
+    let replacement = format!("{prefix} {local_name} from \"{target_text}\";");
 
     // replace the original declaration statement prefix
     let declaration_span = ctx.get_span(declaration_id);
@@ -413,7 +413,7 @@ fn require_side_effect_fix(
     }
 
     // render one side effect esm import replacement
-    let target_text = escape_import_target(ctx.strings.get(target).as_ref());
+    let target_text = escape_import_target(ctx.strings.get(target));
     let replacement = format!("import \"{target_text}\";");
     let statement_span = ctx.get_span(expression_id);
     let edits = ctx

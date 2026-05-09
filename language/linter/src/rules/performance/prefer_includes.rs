@@ -422,7 +422,7 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
         let search_span = self.ctx.get_span(includes_match.candidate.search_id);
         let search_text = self.ctx.get_span_text(search_span);
         let includes_name = self.ctx.strings.get(self.includes_name);
-        let includes_call = format!("{receiver_text}.{}({search_text})", includes_name.as_ref());
+        let includes_call = format!("{receiver_text}.{}({search_text})", includes_name);
         let replacement = match includes_match.check {
             IncludesCheck::AnyMatch => includes_call,
             IncludesCheck::NoMatch => format!("!{includes_call}"),

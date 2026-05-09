@@ -46,7 +46,7 @@ impl LintRule for NoHardcodedIp {
                 continue;
             };
             let string_value = ctx.strings.get(*string_id);
-            let string_str = string_value.as_ref();
+            let string_str = string_value;
 
             // check for IPv4 addresses
             if let Some(ip) = find_ipv4_address(string_str)

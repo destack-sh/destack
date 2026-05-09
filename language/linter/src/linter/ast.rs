@@ -307,7 +307,7 @@ impl<'a> LintAstContext<'a> {
         }
 
         let name = self.strings.get(path[0]);
-        let (severity, is_forbidden) = match name.as_ref() {
+        let (severity, is_forbidden) = match name {
             "allow" => (LintSeverity::Off, false),
             "warn" => (LintSeverity::Warning, false),
             "deny" => (LintSeverity::Error, false),
@@ -330,7 +330,7 @@ impl<'a> LintAstContext<'a> {
 
         // match against lint ID or code
         let specifier = self.strings.get(*string_id);
-        if specifier.as_ref() == meta.id || specifier.as_ref() == meta.code {
+        if specifier == meta.id || specifier == meta.code {
             Some(LintSeverityOverride {
                 severity,
                 is_forbidden,
@@ -411,7 +411,7 @@ impl<'a> LintAstContext<'a> {
     ) -> Vec<String> {
         let pattern = self.strings.get(pattern_id);
         let flags = flags_id.map(|id| self.strings.get(id));
-        let flags = flags.as_ref().map(|value| value.as_ref());
+        let flags = flags.map(|value| value.as_ref());
 
         find_control_characters(pattern.as_ref(), flags)
     }

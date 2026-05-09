@@ -54,7 +54,7 @@ impl LintRule for NoInvalidRegexp {
 
             // report invalid flags when statically known
             if let Some(flags_id) = pattern_info.flags_id
-                && let Some(flags_error) = invalid_regex_flags(ctx.strings.get(flags_id).as_ref())
+                && let Some(flags_error) = invalid_regex_flags(ctx.strings.get(flags_id))
             {
                 let severity = ctx.get_effective_severity(meta, node_id);
                 if !severity.is_enabled() {

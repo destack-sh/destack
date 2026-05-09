@@ -68,7 +68,7 @@ impl LintRule for RequireUnicodeRegexp {
             // check if flags contain the configured Unicode flag
             let has_unicode_flag = if let Some(flags_id) = regex_info.flags_id {
                 let flags_str = ctx.strings.get(flags_id);
-                let flags_ref = flags_str.as_ref();
+                let flags_ref = flags_str;
                 flags_ref.contains(required_flag_char)
             } else {
                 false

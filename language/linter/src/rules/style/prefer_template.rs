@@ -235,7 +235,7 @@ fn concat_to_template_body(
                 return template_text;
             }
 
-            let content = ctx.strings.get(*string_id).as_ref().to_string();
+            let content = ctx.strings.get(*string_id).to_string();
             escape_for_template(&content)
         }
 

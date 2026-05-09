@@ -366,7 +366,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
         let suffix_span = self.ctx.get_span(ends_with_match.suffix_id);
         let suffix_text = self.ctx.get_span_text(suffix_span);
         let method_name = self.ctx.strings.get(self.ends_with_name);
-        let replacement = format!("{receiver_text}.{}({suffix_text})", method_name.as_ref());
+        let replacement = format!("{receiver_text}.{}({suffix_text})", method_name);
 
         // replace the full comparison expression
         let expression_span = self.ctx.get_span(expression_id);
@@ -408,10 +408,7 @@ impl<'a, 'b> PreferStringEndsWithVisitor<'a, 'b> {
 
         let quoted_suffix = single_quoted_string_literal(suffix_text);
         let method_name = self.ctx.strings.get(self.ends_with_name);
-        let replacement = format!(
-            "({argument_text}).{}({quoted_suffix})",
-            method_name.as_ref()
-        );
+        let replacement = format!("({argument_text}).{}({quoted_suffix})", method_name);
 
         let expression_span = self.ctx.get_span(expression_id);
         let edits = self

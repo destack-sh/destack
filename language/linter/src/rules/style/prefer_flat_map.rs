@@ -264,10 +264,7 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
         let arguments_text = self.ctx.get_span_text(arguments_span);
 
         let flat_map_name = self.ctx.strings.get(self.flat_map_name);
-        let replacement = format!(
-            "{receiver_text}.{}({arguments_text})",
-            flat_map_name.as_ref()
-        );
+        let replacement = format!("{receiver_text}.{}({arguments_text})", flat_map_name);
 
         // replace the full map().flat() expression
         let expression_span = self.ctx.get_span(expression_id);

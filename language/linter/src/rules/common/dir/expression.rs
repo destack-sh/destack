@@ -626,7 +626,7 @@ pub fn expression_discarded_call_like_value(
 pub fn expression_is_any_typed(
     module_id: ModuleId,
     tree: &dir::Tree,
-    symbols: &dir::SymbolTable,
+    symbols: &dir::BindingTable,
     types: &dir::TypeTable,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
@@ -898,7 +898,7 @@ pub fn const_i64(value: &ConstValue) -> Option<i64> {
 pub fn string_literal_utf16_length(strings: &StringPool, value: StringId) -> usize {
     // count utf16 code units
     let text = strings.get(value);
-    text.as_ref().encode_utf16().count()
+    text.encode_utf16().count()
 }
 
 /// Flip a comparison operator when the operands are swapped.

@@ -42,7 +42,7 @@ impl LintRule for NoScriptUrl {
 
             // resolve string value
             let string_value = ctx.strings.get(string_id);
-            let string_str = string_value.as_ref();
+            let string_str = string_value;
 
             // check for javascript: URL
             if starts_with_javascript_scheme(string_str) {

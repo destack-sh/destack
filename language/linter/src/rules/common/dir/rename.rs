@@ -20,11 +20,11 @@ pub fn rename_local_symbol_fix(
     let symbol = ctx.symbols.get_symbol(symbol_id);
     let symbol_name = symbol.name()?;
     let current_name = ctx.strings.get(symbol_name);
-    if replacement_name == current_name.as_ref() {
+    if replacement_name == current_name {
         return None;
     }
 
-    let mut spans = collect_symbol_rename_spans(ctx, symbol_id, current_name.as_ref())?;
+    let mut spans = collect_symbol_rename_spans(ctx, symbol_id, current_name)?;
     spans.sort_by_key(|span| span.start);
     spans.dedup();
     if spans.is_empty() || spans_overlap(&spans) {

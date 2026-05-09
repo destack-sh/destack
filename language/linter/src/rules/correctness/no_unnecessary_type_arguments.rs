@@ -396,7 +396,7 @@ fn expression_ast_signature_for_module(
         let ast_expression_id = ast::LocalNodeId::<ast::Expression>::new(source_id);
         return Some(expression_signature_for_tree(
             &ast.tree,
-            &ast.strings,
+            ctx.strings,
             ast_expression_id,
         ));
     }
@@ -413,7 +413,7 @@ fn expression_ast_signature_for_module(
     let ast_expression_id = ast::LocalNodeId::<ast::Expression>::new(source_id);
     Some(expression_signature_for_tree(
         &ast.tree,
-        &ast.strings,
+        ctx.strings,
         ast_expression_id,
     ))
 }

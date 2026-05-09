@@ -151,13 +151,13 @@ fn is_fragment_tag(ctx: &LintAstContext<'_>, left: Option<ast::LocalNodeId<Expre
     // check if the path is "Fragment" (single segment)
     if path_segments.len() == 1 {
         let name_str = ctx.strings.get(path_segments[0]);
-        return name_str.as_ref() == "Fragment";
+        return name_str == "Fragment";
     }
 
     // also check for fully qualified React.Fragment or similar
     if path_segments.len() == 2 {
         let last_segment = ctx.strings.get(path_segments[1]);
-        return last_segment.as_ref() == "Fragment";
+        return last_segment == "Fragment";
     }
 
     false

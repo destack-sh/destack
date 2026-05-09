@@ -167,7 +167,7 @@ fn checked_target_attribute_name(
     // check if the path has exactly one segment and a checked tag name
     if path_segments.len() == 1 {
         let name_str = ctx.strings.get(path_segments[0]);
-        return match name_str.as_ref() {
+        return match name_str {
             "a" | "area" => Some("href"),
             "form" => Some("action"),
             _ => None,
@@ -185,7 +185,7 @@ fn is_blank_target(ctx: &LintAstContext<'_>, arg: &Argument) -> bool {
 
     // check if the name is "target"
     let name_str = ctx.strings.get(name.string());
-    if name_str.as_ref() != "target" {
+    if name_str != "target" {
         return false;
     }
 
@@ -196,7 +196,7 @@ fn is_blank_target(ctx: &LintAstContext<'_>, arg: &Argument) -> bool {
 
     // resolve value str
     let value_str = ctx.strings.get(string_id);
-    value_str.as_ref().eq_ignore_ascii_case("_blank")
+    value_str.eq_ignore_ascii_case("_blank")
 }
 
 /// Check if an argument is any `rel=...` attribute.
@@ -207,7 +207,7 @@ fn is_rel_argument(ctx: &LintAstContext<'_>, arg: &Argument) -> bool {
 
     // resolve name str
     let name_str = ctx.strings.get(name.string());
-    name_str.as_ref() == "rel"
+    name_str == "rel"
 }
 
 /// Return one static string argument value.
@@ -297,7 +297,7 @@ fn static_named_argument_value(
         return None;
     };
 
-    if ctx.strings.get(argument_name.string()).as_ref() != name {
+    if ctx.strings.get(argument_name.string()) != name {
         return None;
     }
 
@@ -375,7 +375,6 @@ fn blank_target_rel_fix(
 
     let string_id = argument_static_string_id(ctx, *value)?;
     let rel_value = ctx.strings.get(string_id);
-    let rel_value = rel_value.as_ref();
     let amended_rel = if rel_value.trim().is_empty() {
         "noopener".to_string()
     } else {

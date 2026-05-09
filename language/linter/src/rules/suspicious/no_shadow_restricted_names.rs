@@ -71,7 +71,7 @@ fn is_restricted_name(name: &str) -> bool {
 
 /// Return true when one string id is `undefined`.
 fn name_is_undefined(ctx: &LintAstContext<'_>, name: ast::StringId) -> bool {
-    ctx.strings.get(name).as_ref() == "undefined"
+    ctx.strings.get(name) == "undefined"
 }
 
 impl LintRule for NoShadowRestrictedNames {

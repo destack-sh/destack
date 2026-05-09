@@ -52,7 +52,7 @@ pub fn expression_symbol_decorator_map<T>(
     local_module_id: ModuleId,
     local_tree: &dir::Tree,
     local_strings: &StringPool,
-    local_symbols: &dir::SymbolTable,
+    local_symbols: &dir::BindingTable,
     local_types: &dir::TypeTable,
     expression_id: dir::LocalNodeId<dir::Expression>,
     decorator_symbol: dir::GlobalSymbolId,
@@ -91,7 +91,7 @@ pub fn expression_has_symbol_decorator(
     local_module_id: ModuleId,
     local_tree: &dir::Tree,
     local_strings: &StringPool,
-    local_symbols: &dir::SymbolTable,
+    local_symbols: &dir::BindingTable,
     local_types: &dir::TypeTable,
     expression_id: dir::LocalNodeId<dir::Expression>,
     decorator_symbol: dir::GlobalSymbolId,
@@ -157,7 +157,7 @@ fn symbol_decorators_in_module(
     module_id: ModuleId,
     tree: &dir::Tree,
     strings: &StringPool,
-    symbols: &dir::SymbolTable,
+    symbols: &dir::BindingTable,
     types: &dir::TypeTable,
     symbol_id: dir::LocalSymbolId,
     decorator_symbol: dir::GlobalSymbolId,
@@ -315,7 +315,7 @@ pub fn symbol_for(
     artifacts: &ArtifactCache,
     profile_id: ProfileId,
     local_module_id: ModuleId,
-    local_symbols: &dir::SymbolTable,
+    local_symbols: &dir::BindingTable,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<dir::Symbol> {
     if symbol_id.module_id == local_module_id {
@@ -323,7 +323,7 @@ pub fn symbol_for(
     }
 
     let dir = artifacts.dir_declared(symbol_id.module_id, profile_id)?;
-    Some(dir.symbols.get_symbol(symbol_id.local_id).clone())
+    Some(dir.bindings.get_symbol(symbol_id.local_id).clone())
 }
 
 /// Read matching decorators for a symbol.
@@ -334,7 +334,7 @@ pub fn symbol_decorators_for(
     local_module_id: ModuleId,
     local_tree: &dir::Tree,
     local_strings: &StringPool,
-    local_symbols: &dir::SymbolTable,
+    local_symbols: &dir::BindingTable,
     local_types: &dir::TypeTable,
     symbol_id: dir::GlobalSymbolId,
     decorator_symbol: dir::GlobalSymbolId,
@@ -358,8 +358,8 @@ pub fn symbol_decorators_for(
     symbol_decorators_in_module(
         symbol_id.module_id,
         &dir.tree,
-        &dir.strings,
-        &dir.symbols,
+        local_strings,
+        &dir.bindings,
         &dir.types,
         symbol_id.local_id,
         decorator_symbol,
@@ -371,7 +371,7 @@ pub fn symbol_declaration_for(
     artifacts: &ArtifactCache,
     profile_id: ProfileId,
     local_module_id: ModuleId,
-    local_symbols: &dir::SymbolTable,
+    local_symbols: &dir::BindingTable,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<dir::GlobalNodeIdAny> {
     let symbol = symbol_for(
@@ -389,7 +389,7 @@ pub fn symbol_initializer_expression(
     artifacts: &ArtifactCache,
     profile_id: ProfileId,
     local_module_id: ModuleId,
-    local_symbols: &dir::SymbolTable,
+    local_symbols: &dir::BindingTable,
     tree: &dir::Tree,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {

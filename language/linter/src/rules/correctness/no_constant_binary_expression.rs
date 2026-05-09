@@ -288,7 +288,7 @@ fn expression_is_global_cast_call(
 
     // match the known global cast names
     let name = ctx.strings.get(*name);
-    name.as_ref() == "Boolean" || name.as_ref() == "String" || name.as_ref() == "Number"
+    name == "Boolean" || name == "String" || name == "Number"
 }
 
 #[cfg(test)]

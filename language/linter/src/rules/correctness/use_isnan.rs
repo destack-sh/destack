@@ -217,7 +217,7 @@ fn check_index_of_nan_call(
         return;
     };
     let method_name = ctx.strings.get(method_name_id);
-    if method_name.as_ref() != "indexOf" && method_name.as_ref() != "lastIndexOf" {
+    if method_name != "indexOf" && method_name != "lastIndexOf" {
         return;
     }
 
@@ -233,7 +233,7 @@ fn check_index_of_nan_call(
             USE_ISNAN.code,
             USE_ISNAN.category,
             severity,
-            format!("{} cannot find NaN", method_name.as_ref()),
+            format!("{} cannot find NaN", method_name),
             span,
         )
         .label("use a Number.isNaN-aware search instead"),
@@ -260,12 +260,12 @@ fn is_nan_identifier(ctx: &LintAstContext<'_>, expr_id: ast::LocalNodeId<ast::Ex
                 return false;
             };
             if segments.as_slice().len() == 1 {
-                return ctx.strings.get(segments[0]).as_ref() == "NaN";
+                return ctx.strings.get(segments[0]) == "NaN";
             }
             if segments.as_slice().len() == 2 {
                 let first = ctx.strings.get(segments[0]);
                 let second = ctx.strings.get(segments[1]);
-                return first.as_ref() == "Number" && second.as_ref() == "NaN";
+                return first == "Number" && second == "NaN";
             }
 
             false

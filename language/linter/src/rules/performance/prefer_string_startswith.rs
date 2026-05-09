@@ -351,7 +351,7 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
         let prefix_span = self.ctx.get_span(starts_with_match.prefix_id);
         let prefix_text = self.ctx.get_span_text(prefix_span);
         let method_name = self.ctx.strings.get(self.starts_with_name);
-        let replacement = format!("{receiver_text}.{}({prefix_text})", method_name.as_ref());
+        let replacement = format!("{receiver_text}.{}({prefix_text})", method_name);
 
         // replace the full comparison expression
         let expression_span = self.ctx.get_span(expression_id);
@@ -411,10 +411,7 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
 
         let quoted_prefix = single_quoted_string_literal(prefix_text);
         let method_name = self.ctx.strings.get(self.starts_with_name);
-        let replacement = format!(
-            "({argument_text}).{}({quoted_prefix})",
-            method_name.as_ref()
-        );
+        let replacement = format!("({argument_text}).{}({quoted_prefix})", method_name);
 
         let expression_span = self.ctx.get_span(expression_id);
         let edits = self
