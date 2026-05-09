@@ -5,7 +5,7 @@
 
 use destack_artifact::{Ast, DirChecked, DirDeclared};
 use destack_core::StringPool;
-use destack_dir::{GlobalSymbolId, BindingTable, TypeTable};
+use destack_dir::{BindingTable, GlobalSymbolId, TypeTable};
 use destack_workspace::{Module, Target};
 use {destack_dir as dir, destack_js as js};
 

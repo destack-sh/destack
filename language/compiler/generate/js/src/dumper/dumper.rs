@@ -1,6 +1,6 @@
 #![allow(clippy::match_like_matches_macro)]
 
-use destack_core::{Color, StringPool, StringId, impl_dump_display, rebuild_tree_output};
+use destack_core::{Color, StringId, StringPool, impl_dump_display, rebuild_tree_output};
 use destack_js as js;
 use smallvec::{Array, SmallVec};
 use std::borrow::Cow;
@@ -56,11 +56,7 @@ pub struct Dumper<'a> {
 
 impl<'a> Dumper<'a> {
     /// Create a new Dumper.
-    pub fn new(
-        strings: &'a StringPool,
-        tree: &'a js::Tree,
-        options: DumperOptions,
-    ) -> Self {
+    pub fn new(strings: &'a StringPool, tree: &'a js::Tree, options: DumperOptions) -> Self {
         Self {
             strings,
             tree,

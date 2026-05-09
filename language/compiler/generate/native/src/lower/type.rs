@@ -47,13 +47,9 @@ pub(crate) fn lower_type(
             Ok(ty)
         }
 
-        mir::Type::Float { width } => match width {
-            32 => Ok(cir::types::F32),
-            64 => Ok(cir::types::F64),
-            _ => Err(CodegenCraneliftError::unsupported_type(
-                format!("float width {width} not supported"),
-                type_id.into_any(),
-            )),
+        mir::Type::Float(float_type) => match float_type {
+            mir::FloatType::Float32 => Ok(cir::types::F32),
+            mir::FloatType::Float64 => Ok(cir::types::F64),
         },
 
         mir::Type::Atomic { value } => {
