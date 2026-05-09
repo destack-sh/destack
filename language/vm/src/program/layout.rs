@@ -1142,7 +1142,7 @@ fn compute_tensor_element_count(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use destack_core::ImmutableStringPool;
+    use destack_core::StringPool;
     use destack_mir::parse::{ParseOptions, Parser};
     use destack_mir::{DataLayout, Tree, Type, TypeAlias};
     use destack_source::FileId;
@@ -1151,7 +1151,7 @@ mod tests {
     fn parse_tree_with_layout(
         mir_text: &str,
         data_layout: DataLayout,
-    ) -> (Tree, ImmutableStringPool) {
+    ) -> (Tree, StringPool) {
         let (mut tree, strings) = Parser::parse(
             FileId::new(0),
             mir_text,
@@ -1168,7 +1168,7 @@ mod tests {
     /// Look up one aliased type by name.
     fn lookup_type_alias(
         tree: &Tree,
-        strings: &ImmutableStringPool,
+        strings: &StringPool,
         name: &str,
     ) -> mir::LocalNodeId<Type> {
         for (_, type_alias) in tree.iter_nodes::<TypeAlias>() {

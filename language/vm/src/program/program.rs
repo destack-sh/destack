@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 
-use destack_core::ImmutableStringPool;
+use destack_core::StringPool;
 use destack_mir::{LayoutId, LayoutKind, LayoutTable, ReferenceMap};
 use {destack_engine as engine, destack_heap as heap, destack_mir as mir};
 
@@ -18,7 +18,7 @@ pub struct Program {
     /// The MIR tree executed by this program.
     pub(crate) tree: mir::Tree,
     /// The immutable string pool for this program.
-    pub(crate) strings: ImmutableStringPool,
+    pub(crate) strings: StringPool,
     /// Lowered function bodies for the current interpreter backend.
     pub(crate) functions: FunctionTable,
     /// Side table referenced by compact side records.
@@ -38,7 +38,7 @@ pub struct Program {
 
 impl Program {
     /// Build one program from one MIR tree and immutable string pool.
-    pub fn new(tree: mir::Tree, strings: ImmutableStringPool) -> Result<Self> {
+    pub fn new(tree: mir::Tree, strings: StringPool) -> Result<Self> {
         Self::with_heap_options(
             tree,
             strings,
@@ -50,7 +50,7 @@ impl Program {
     /// Build one program for concrete heap allocation geometry.
     pub(crate) fn with_heap_options(
         tree: mir::Tree,
-        strings: ImmutableStringPool,
+        strings: StringPool,
         heap_options: heap::HeapOptions,
         shared_heap_options: heap::HeapOptions,
     ) -> Result<Self> {
@@ -573,7 +573,7 @@ struct ProgramBuilder {
     heap_options: heap::HeapOptions,
     shared_heap_options: heap::HeapOptions,
     tree: mir::Tree,
-    strings: ImmutableStringPool,
+    strings: StringPool,
     frame_layouts: Vec<engine::FrameLayout>,
     frame_states: FrameStateTable,
 }
@@ -582,7 +582,7 @@ impl ProgramBuilder {
     /// Create one program builder.
     fn new(
         tree: mir::Tree,
-        strings: ImmutableStringPool,
+        strings: StringPool,
         heap_options: heap::HeapOptions,
         shared_heap_options: heap::HeapOptions,
     ) -> Self {
