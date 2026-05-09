@@ -647,8 +647,8 @@ fn test_type_construction() {
             is_signed: true
         }
     ));
-    assert!(matches!(tree.get(f32_type), Type::FLOAT32));
-    assert!(matches!(tree.get(f64_type), Type::FLOAT64));
+    assert_eq!(tree.get(f32_type), &Type::FLOAT32);
+    assert_eq!(tree.get(f64_type), &Type::FLOAT64);
     assert!(matches!(
         tree.get(pointer_type),
         Type::Reference {

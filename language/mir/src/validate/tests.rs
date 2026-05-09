@@ -141,6 +141,29 @@ fn test_reject_recovered_attribute_values() {
     );
 }
 
+/// Validate trees whose node ids start after a base tree.
+#[test]
+fn test_validate_accepts_tail_tree_node_ids() {
+    let mut base = Tree::new();
+    base.insert_type(Type::Void);
+
+    let mut tree = Tree::from_base(&base, 0);
+    let strings = StringPool::new();
+    let type_id = tree.insert_type(Type::Void);
+    let attribute_name = strings.intern("tail");
+
+    tree.set_attributes(
+        type_id,
+        vec![Attribute {
+            name: AttributeIdentifier::identifier(attribute_name),
+            args: AttributeArgs::None,
+        }],
+    );
+
+    let validator = Validator::new(&tree);
+    validator.validate().expect("expected validation success");
+}
+
 /// Reject duplicate value definitions.
 #[test]
 fn test_reject_duplicate_value_definitions() {

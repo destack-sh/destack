@@ -289,8 +289,9 @@ impl<'a> Validator<'a> {
             };
 
             if !self.tree.metadata.provenance.contains(*origin_id) {
+                let node_id = self.tree.first_global_id() + node_id as u32;
                 return Err(self.metadata_error(
-                    ValidateAnchor::for_raw_node(self.tree, node_id as u32),
+                    ValidateAnchor::for_raw_node(self.tree, node_id),
                     "node references a missing origin record",
                 ));
             }

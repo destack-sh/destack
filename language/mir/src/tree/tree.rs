@@ -90,16 +90,20 @@ impl NodeIndexEntry {
 /// and referenced by `LocalNodeId<T>`.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Tree {
+    /// The first global node id stored in this tree.
+    pub(crate) first_global_id: u32,
     /// The next global node id to allocate.
     pub(crate) next_global_id: u32,
     /// Dense local id and node type metadata by node id.
     pub(crate) node_index_by_node_id: Vec<NodeIndexEntry>,
     /// Maps global node id → attached attributes.
     pub(crate) attributes_by_node_id: HashMap<u32, Vec<Attribute>>,
+
     /// Source spans for parsed MIR node ownership.
     pub source_map: NodeSourceMap,
     /// The parsed MIR source text.
-    pub(crate) source_text: String,
+    pub(crate) source_text: Option<String>,
+
     /// The full parsed token stream.
     pub(crate) tokens: Vec<Token>,
     /// Leading comment spans keyed by global node id.
@@ -171,11 +175,12 @@ impl Tree {
     /// Create a new tree with the given capacity.
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
+            first_global_id: 0,
             next_global_id: 0,
             node_index_by_node_id: Vec::with_capacity(capacity),
             attributes_by_node_id: HashMap::with_capacity(capacity),
             source_map: NodeSourceMap::with_capacity(capacity),
-            source_text: String::new(),
+            source_text: None,
             tokens: Vec::new(),
             leading_comment_spans_by_node_id: Vec::new(),
             attribute_spans_by_node_id: HashMap::new(),
@@ -203,9 +208,30 @@ impl Tree {
     /// Create a new tree with parsed source data.
     pub(crate) fn with_parsed_source(source_text: String, tokens: Vec<Token>) -> Self {
         let mut tree = Self::new();
-        tree.source_text = source_text;
+        tree.source_text = Some(source_text);
         tree.tokens = tokens;
         tree
+    }
+
+    /// Create a new tail tree after one immutable base tree.
+    pub fn from_base(base: &Tree, capacity: usize) -> Self {
+        let mut tree = Self::with_capacity(capacity);
+        tree.first_global_id = base.next_global_id();
+        tree.next_global_id = base.next_global_id();
+
+        tree
+    }
+
+    /// Return the first global node id stored in this tree.
+    #[inline]
+    pub fn first_global_id(&self) -> u32 {
+        self.first_global_id
+    }
+
+    /// Return the next global node id this tree will allocate.
+    #[inline]
+    pub fn next_global_id(&self) -> u32 {
+        self.next_global_id
     }
 
     /// Insert a node into the tree and return its id.
@@ -604,7 +630,7 @@ impl Tree {
     /// Get the node type of a node by its raw id.
     #[inline]
     pub fn get_node_type(&self, id: u32) -> NodeType {
-        self.node_index_by_node_id[id as usize].node_type()
+        self.node_index_by_node_id[self.node_index(id)].node_type()
     }
 
     /// Return the number of nodes stored in this tree.
@@ -613,17 +639,39 @@ impl Tree {
         self.node_index_by_node_id.len()
     }
 
+    /// Return the local metadata index for one global node id.
+    #[inline]
+    pub(crate) fn node_index(&self, node_id: u32) -> usize {
+        let index = node_id
+            .checked_sub(self.first_global_id)
+            .unwrap_or_else(|| panic!("MIR node id {node_id} is before this tree"));
+        let index = index as usize;
+        assert!(
+            index < self.node_index_by_node_id.len(),
+            "MIR node id {node_id} is outside this tree"
+        );
+
+        index
+    }
+
     /// Return the local arena id for one untyped node id.
     #[inline]
     pub(crate) fn local_id_for_node_id(&self, id: u32) -> u32 {
-        self.node_index_by_node_id[id as usize].local_id()
+        self.node_index_by_node_id[self.node_index(id)].local_id()
+    }
+
+    /// Return true when the node id exists in this tree.
+    #[inline]
+    pub fn has_node_id(&self, node_id: u32) -> bool {
+        node_id >= self.first_global_id
+            && ((node_id - self.first_global_id) as usize) < self.node_index_by_node_id.len()
     }
 
     /// Get the source DIR node id for a MIR node, if available.
     /// Returns None for synthesized nodes that don't correspond to source.
     #[inline]
     pub fn get_source(&self, id: u32) -> Option<u32> {
-        let origin_id = self.metadata.provenance.provenance_by_node_id[id as usize]?;
+        let origin_id = self.metadata.provenance.provenance_by_node_id[self.node_index(id)]?;
         let record = self.metadata.provenance.record(origin_id);
 
         record.primary_dir_source_id()
@@ -632,13 +680,14 @@ impl Tree {
     /// Get the origin record id for a MIR node, if available.
     #[inline]
     pub fn get_provenance(&self, id: u32) -> Option<ProvenanceId> {
-        self.metadata.provenance.provenance_by_node_id[id as usize]
+        self.metadata.provenance.provenance_by_node_id[self.node_index(id)]
     }
 
     /// Set the origin record id for a MIR node.
     #[inline]
     pub fn set_provenance(&mut self, id: u32, origin_id: ProvenanceId) {
-        self.metadata.provenance.provenance_by_node_id[id as usize] = Some(origin_id);
+        let index = self.node_index(id);
+        self.metadata.provenance.provenance_by_node_id[index] = Some(origin_id);
     }
 
     /// Set the direct DIR origin for a MIR node.
@@ -783,7 +832,7 @@ impl Tree {
         };
 
         self.metadata.provenance.set_span(provenance_id, span);
-        self.source_map.set(id, span);
+        self.source_map.set(self.node_index(id) as u32, span);
     }
 
     /// Set the span for one parsed MIR node and anchor it to the parsed text.
@@ -801,7 +850,7 @@ impl Tree {
         };
 
         self.metadata.provenance.set_span(provenance_id, span);
-        self.source_map.set(id.id, span);
+        self.source_map.set(self.node_index(id.id) as u32, span);
     }
 
     /// Get the main source span for a MIR node when present.
@@ -810,13 +859,13 @@ impl Tree {
     where
         T: Node,
     {
-        self.source_map.get_main(id.id)
+        self.source_map.get_main(self.node_index(id.id) as u32)
     }
 
     /// Get the main source span for a MIR node by raw id.
     #[inline]
     pub fn get_main_span_by_id(&self, id: u32) -> Option<Span> {
-        self.source_map.get_main(id)
+        self.source_map.get_main(self.node_index(id) as u32)
     }
 
     /// Set the main source span for a MIR node.
@@ -825,7 +874,8 @@ impl Tree {
     where
         T: Node,
     {
-        self.source_map.set_main(id.id, span);
+        self.source_map
+            .set_main(self.node_index(id.id) as u32, span);
     }
 
     /// Get one side span for a MIR node when present.
@@ -834,13 +884,15 @@ impl Tree {
     where
         T: Node,
     {
-        self.source_map.get_side(id.id, span_type)
+        self.source_map
+            .get_side(self.node_index(id.id) as u32, span_type)
     }
 
     /// Get one side span for a MIR node by raw id when present.
     #[inline]
     pub fn get_side_span_by_id(&self, id: u32, span_type: NodeSpanType) -> Option<Span> {
-        self.source_map.get_side(id, span_type)
+        self.source_map
+            .get_side(self.node_index(id) as u32, span_type)
     }
 
     /// Set one side span for a MIR node.
@@ -849,7 +901,8 @@ impl Tree {
     where
         T: Node,
     {
-        self.source_map.set_side(id.id, span_type, span);
+        self.source_map
+            .set_side(self.node_index(id.id) as u32, span_type, span);
     }
 
     /// Return the leading comments for one node.
@@ -867,14 +920,14 @@ impl Tree {
         T: Node,
     {
         self.leading_comment_spans_by_node_id
-            .get(id.id as usize)
+            .get(self.node_index(id.id))
             .copied()
             .flatten()
     }
 
     /// Set the leading comment span for one raw node id.
     pub(crate) fn set_leading_comment_span_by_id(&mut self, id: u32, span: Span) {
-        let index = id as usize;
+        let index = self.node_index(id);
 
         if index >= self.leading_comment_spans_by_node_id.len() {
             self.leading_comment_spans_by_node_id
@@ -894,7 +947,12 @@ impl Tree {
         let start = span.start as usize;
         let end = span.end as usize;
 
-        &self.source_text[start..end]
+        let source_text = self
+            .source_text
+            .as_deref()
+            .expect("MIR tree has no parsed source text");
+
+        &source_text[start..end]
     }
 
     /// Return the comments between two byte offsets.
@@ -1080,7 +1138,7 @@ impl Tree {
             .enumerate()
             .filter_map(|(global_id, &entry)| {
                 if entry.node_type() == T::TYPE {
-                    let id = LocalNodeId::new(global_id as u32);
+                    let id = LocalNodeId::new(self.first_global_id + global_id as u32);
                     let local_id = entry.local_id();
                     let node = <Self as TreeImpl<T>>::get(self, local_id);
                     Some((id, node))
@@ -1123,7 +1181,7 @@ impl Tree {
     {
         // get original node and its origin
         let original = self.get(id).clone();
-        let origin = self.metadata.provenance.provenance_by_node_id[id.id as usize];
+        let origin = self.metadata.provenance.provenance_by_node_id[self.node_index(id.id)];
 
         // preserve original at new ID
         let preserved_id = self.insert(original);
