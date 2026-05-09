@@ -1366,12 +1366,12 @@ module {
 
 ### Annotations and Decorators
 
-Like TypeScript, Destack uses `@` for decorator-like macro-ish constructs, but Destack distinguishes between "annotations" and "decorators", and also many more constructs can be targeted by decorators.
+Like TypeScript, Destack uses `@` for decorator-like constructs, but Destack distinguishes between "annotations" and "decorators", and also many more constructs can be targeted by decorators.
 The syntax for both data annotations and behavior decorators is unified, the target - the thing pointed to in `@<expr>` - decides:
  - **Annotations** are _values_ like `newtype`s. They add typed metadata to the target, but don't directly change the target's behavior.
  - **Decorators** are _logic_ following some protocol that contribute code or change the analyzed shape in some bounded way.
 
-Annotations are "inert" by default, that is, they don't do anything until either some userland construct or the toolchain give them special meaning or implements the `Patcher` protocol.
+Annotations are "inert" by default, that is, they don't do anything until either some userland construct or the toolchain give them special meaning or implement the `Macro` protocol.
 
 ```ds
 newtype deprecated = () | (string,);
@@ -1392,7 +1392,7 @@ struct User {
 #### Derive
 
 Similar to Rust, Destack supports `@derive` providers for extending certain declarations at compile time.
-Unlike in Rust, a derive provider is just a nominal decorator that happens to implement the `Patcher<Target>` interface, and `derive`-like "macros" do not need to be implemented in a different package (or "crate") or in any special syntax.
+Unlike in Rust, a derive provider is just a nominal decorator that happens to implement the `Macro<Target>` interface, and `derive`-like macros do not need to be implemented in a different package (or "crate") or in any special syntax.
 
 ```ds
 @derive(Clone, Debug)
@@ -1407,7 +1407,8 @@ newtype Shape =
     | { kind: "circle"; radius: int32 };
 ```
 
-At the library level, a `derive` provider is just a nominal provider value that implements `Patcher`, with some additional instrumentation.
+At the library level, a `derive` provider is just a nominal provider value that implements `Macro`, with some additional instrumentation.
+Really, `derive` is basically a convenience wrapper for applying multiple `Macro` providers to a single target in a well known way.
 
 #### Static If
 
@@ -1592,7 +1593,7 @@ Generated code is parsed and typechecked as `.ds`, attached to the same module g
 
 ### Macros
 
-Destack is statically typed and compiled, but supports decorators and macro-like behavior via `comptime` execution and restricted "patching" of modules during compilation.
+Destack is statically typed and compiled, but supports macros as decorators backed by `comptime` execution and a bounded module-editing context.
 As an example, consider a `memoize` decorator that turns a function into a cached ("memoized") version of itself that stores results in a cache to avoid recomputation on equal arguments.
 
 ```ds
@@ -1606,11 +1607,11 @@ function load(id: UserId): Result<User, Error> {
 }
 ```
 
-As explained in the annotations and decorator piece, `memoize` by itself is just an inert annotation and it only receives behavior by implementing the `Patcher`.
-The general `Patcher` protocol is based on three rules:
- 1. Patchers must not generate or implement other `Patcher`s, so expansion cannot recursively change the macro system itself.
- 2. Patchers are run in two phases during compilation: `expand` may contribute new symbols before final inference, while `materialize` fills in the implementation with full type information.
- 3. Patchers interact with their containing module through phase-specific context methods (`resolve`, `ensureImport`, `add`, `ensureDeclaration`, `addChild`, `replaceTarget`, `renameTarget`, `removeTarget`).
+As explained in the annotations and decorator piece, `memoize` by itself is just an inert annotation and it only receives behavior by implementing `Macro`.
+The `Macro` system is based on three rules:
+ 1. Macros must not generate or implement other macros, so expansion cannot recursively change the macro system itself.
+ 2. Macros run in two phases during compilation: `expand` may contribute new symbols before final inference, while `materialize` fills in the implementation with full type information.
+ 3. Macros interact with their containing module through phase-specific context methods (`resolve`, `ensureImport`, `add`, `ensureDeclaration`, `addChild`, `replaceTarget`, `renameTarget`, `removeTarget`).
 
 | Operation | Example | Meaning |
 |-----------|---------|---------|
@@ -1631,7 +1632,7 @@ type MemoizeState = {
     capacity: uint;
 };
 
-extension of memoize implements Patcher<FunctionDeclaration, MemoizeState>
+extension of memoize implements Macro<FunctionDeclaration, MemoizeState>
 {
     static expand(
         target: FunctionDeclaration,

@@ -1,4 +1,4 @@
-import { type Patcher } from "./patch.ds";
+import { type Macro } from "./macro.ds";
 
 /// Builder for lowercase tree tags in one module.
 export newtype interface TreeTagBuilder {}
@@ -8,7 +8,7 @@ export interface Module {
     /// The tree tag builder for tree literals in this module.
     readonly tree?: TreeTagBuilder;
     /// Auto-derive providers for nominal declarations in this module.
-    readonly derive?: readonly Patcher<unknown>[];
+    readonly derive?: readonly Macro<unknown>[];
     /// Forbid managed values and managed allocation in this module.
     readonly noManaged?: boolean;
     /// Forbid managed values and raw heap allocation in this module.
