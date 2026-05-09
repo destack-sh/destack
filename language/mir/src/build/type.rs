@@ -2,8 +2,8 @@ use destack_core::StringId;
 
 use crate::build::ModuleBuilder;
 use crate::{
-    AddressSpace, Copy, Field, FloatType, LocalNodeId, Mutability, ReferenceKind, TensorDimension,
-    TensorLayout, Type, TypeReference,
+    Access, AddressSpace, Copy, Field, FloatType, Lifetime, LocalNodeId, ReferenceKind,
+    TensorDimension, TensorLayout, Type, TypeReference,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -92,14 +92,35 @@ impl ModuleBuilder {
         &mut self,
         kind: ReferenceKind,
         pointee: LocalNodeId<Type>,
-        mutability: Mutability,
+        access: Access,
+        address_space: AddressSpace,
+        is_nullable: bool,
+    ) -> LocalNodeId<Type> {
+        self.type_reference_with_lifetime(
+            kind,
+            Lifetime::empty(),
+            pointee,
+            access,
+            address_space,
+            is_nullable,
+        )
+    }
+
+    /// Create a reference type with an explicit lifetime.
+    pub fn type_reference_with_lifetime(
+        &mut self,
+        kind: ReferenceKind,
+        lifetime: Lifetime,
+        pointee: LocalNodeId<Type>,
+        access: Access,
         address_space: AddressSpace,
         is_nullable: bool,
     ) -> LocalNodeId<Type> {
         self.tree.insert_type(Type::Reference {
             kind,
+            lifetime,
             address_space,
-            mutability,
+            access,
             pointee: pointee.into(),
             is_nullable,
         })
@@ -109,12 +130,12 @@ impl ModuleBuilder {
     pub fn type_borrowed_reference(
         &mut self,
         pointee: LocalNodeId<Type>,
-        mutability: Mutability,
+        access: Access,
     ) -> LocalNodeId<Type> {
         self.type_reference(
             ReferenceKind::Borrowed,
             pointee,
-            mutability,
+            access,
             AddressSpace::Local,
             false,
         )
@@ -124,12 +145,12 @@ impl ModuleBuilder {
     pub fn type_owned_reference(
         &mut self,
         pointee: LocalNodeId<Type>,
-        mutability: Mutability,
+        access: Access,
     ) -> LocalNodeId<Type> {
         self.type_reference(
             ReferenceKind::Owned,
             pointee,
-            mutability,
+            access,
             AddressSpace::Local,
             false,
         )
@@ -140,7 +161,7 @@ impl ModuleBuilder {
         &mut self,
         pointee: LocalNodeId<Type>,
     ) -> LocalNodeId<Type> {
-        self.type_owned_reference(pointee, Mutability::Mutable)
+        self.type_owned_reference(pointee, Access::Mutable)
     }
 
     /// Create an owning readonly handle type.
@@ -148,24 +169,24 @@ impl ModuleBuilder {
         &mut self,
         pointee: LocalNodeId<Type>,
     ) -> LocalNodeId<Type> {
-        self.type_owned_reference(pointee, Mutability::Immutable)
+        self.type_owned_reference(pointee, Access::Readonly)
     }
 
     /// Create a raw pointer type (manual memory management).
     pub fn type_raw_pointer(&mut self, pointee: LocalNodeId<Type>) -> LocalNodeId<Type> {
-        self.type_raw_pointer_with_mutability(pointee, Mutability::Immutable)
+        self.type_raw_pointer_with_access(pointee, Access::Readonly)
     }
 
-    /// Create a raw pointer type with explicit mutability.
-    pub fn type_raw_pointer_with_mutability(
+    /// Create a raw pointer type with explicit access.
+    pub fn type_raw_pointer_with_access(
         &mut self,
         pointee: LocalNodeId<Type>,
-        mutability: Mutability,
+        access: Access,
     ) -> LocalNodeId<Type> {
         self.type_reference(
             ReferenceKind::Raw,
             pointee,
-            mutability,
+            access,
             AddressSpace::Local,
             false,
         )
@@ -173,24 +194,24 @@ impl ModuleBuilder {
 
     /// Create a mutable raw pointer type.
     pub fn type_raw_pointer_mutable(&mut self, pointee: LocalNodeId<Type>) -> LocalNodeId<Type> {
-        self.type_raw_pointer_with_mutability(pointee, Mutability::Mutable)
+        self.type_raw_pointer_with_access(pointee, Access::Mutable)
     }
 
     /// Create a managed reference type (runtime-tracked).
     pub fn type_managed_reference(&mut self, pointee: LocalNodeId<Type>) -> LocalNodeId<Type> {
-        self.type_managed_reference_with_mutability(pointee, Mutability::Immutable)
+        self.type_managed_reference_with_access(pointee, Access::Readonly)
     }
 
-    /// Create a managed reference type with explicit mutability.
-    pub fn type_managed_reference_with_mutability(
+    /// Create a managed reference type with explicit access.
+    pub fn type_managed_reference_with_access(
         &mut self,
         pointee: LocalNodeId<Type>,
-        mutability: Mutability,
+        access: Access,
     ) -> LocalNodeId<Type> {
         self.type_reference(
             ReferenceKind::Managed,
             pointee,
-            mutability,
+            access,
             AddressSpace::Local,
             false,
         )
@@ -201,7 +222,7 @@ impl ModuleBuilder {
         &mut self,
         pointee: LocalNodeId<Type>,
     ) -> LocalNodeId<Type> {
-        self.type_managed_reference_with_mutability(pointee, Mutability::Mutable)
+        self.type_managed_reference_with_access(pointee, Access::Mutable)
     }
 
     /// Create a nullable managed reference type.
@@ -209,19 +230,19 @@ impl ModuleBuilder {
         &mut self,
         pointee: LocalNodeId<Type>,
     ) -> LocalNodeId<Type> {
-        self.type_managed_reference_nullable_with_mutability(pointee, Mutability::Immutable)
+        self.type_managed_reference_nullable_with_access(pointee, Access::Readonly)
     }
 
-    /// Create a nullable managed reference type with explicit mutability.
-    pub fn type_managed_reference_nullable_with_mutability(
+    /// Create a nullable managed reference type with explicit access.
+    pub fn type_managed_reference_nullable_with_access(
         &mut self,
         pointee: LocalNodeId<Type>,
-        mutability: Mutability,
+        access: Access,
     ) -> LocalNodeId<Type> {
         self.type_reference(
             ReferenceKind::Managed,
             pointee,
-            mutability,
+            access,
             AddressSpace::Local,
             true,
         )
@@ -232,7 +253,7 @@ impl ModuleBuilder {
         &mut self,
         pointee: LocalNodeId<Type>,
     ) -> LocalNodeId<Type> {
-        self.type_managed_reference_nullable_with_mutability(pointee, Mutability::Mutable)
+        self.type_managed_reference_nullable_with_access(pointee, Access::Mutable)
     }
 
     /// Create a vector type.
@@ -270,7 +291,7 @@ impl ModuleBuilder {
         &mut self,
         kind: ReferenceKind,
         element: LocalNodeId<Type>,
-        mutability: Mutability,
+        access: Access,
         address_space: AddressSpace,
         shape: Vec<TensorDimension>,
         layout: TensorLayout,
@@ -278,8 +299,9 @@ impl ModuleBuilder {
     ) -> LocalNodeId<Type> {
         self.tree.insert_type(Type::TensorView {
             kind,
+            lifetime: Lifetime::empty(),
             address_space,
-            mutability,
+            access,
             element: element.into(),
             shape,
             layout,
@@ -306,14 +328,15 @@ impl ModuleBuilder {
         &mut self,
         kind: ReferenceKind,
         element: LocalNodeId<Type>,
-        mutability: Mutability,
+        access: Access,
         address_space: AddressSpace,
     ) -> LocalNodeId<Type> {
         self.tree.insert_type(Type::Slice {
             kind,
+            lifetime: Lifetime::empty(),
             element: element.into(),
             address_space,
-            mutability,
+            access,
         })
     }
 
@@ -322,7 +345,7 @@ impl ModuleBuilder {
         self.type_slice_with(
             ReferenceKind::Managed,
             element,
-            Mutability::Mutable,
+            Access::Mutable,
             AddressSpace::Local,
         )
     }

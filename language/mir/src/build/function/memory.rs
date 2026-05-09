@@ -1,7 +1,7 @@
 use crate::build::FunctionBuilder;
 use crate::{
-    AddressSpace, Global, Instruction, Local, LocalNodeId, Mutability, Ownership, ReferenceKind,
-    Type, TypeReference, Value, callable_signature, function_signature_parts,
+    Access, AddressSpace, Global, Instruction, Lifetime, Local, LocalNodeId, Mutability, Ownership,
+    Place, ReferenceKind, Type, TypeReference, Value, callable_signature, function_signature_parts,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -21,14 +21,15 @@ impl<'a> FunctionBuilder<'a> {
         &mut self,
         kind: ReferenceKind,
         pointee: LocalNodeId<Type>,
-        mutability: Mutability,
+        access: Access,
         address_space: AddressSpace,
         is_nullable: bool,
     ) -> LocalNodeId<Type> {
         self.tree.insert_type(Type::Reference {
             kind,
+            lifetime: Lifetime::empty(),
             address_space,
-            mutability,
+            access,
             pointee: pointee.into(),
             is_nullable,
         })
@@ -58,7 +59,7 @@ impl<'a> FunctionBuilder<'a> {
             local: local.into(),
             result_type: result_type.into(),
         });
-        self.define_value(destination, result_type);
+        self.define_value_with_place(destination, result_type, Place::local(local.into()));
         destination
     }
 
@@ -82,7 +83,7 @@ impl<'a> FunctionBuilder<'a> {
             global: global.into(),
             result_type: result_type.into(),
         });
-        self.define_value(destination, result_type);
+        self.define_value_with_place(destination, result_type, Place::global(global.into()));
         destination
     }
 
@@ -93,7 +94,7 @@ impl<'a> FunctionBuilder<'a> {
         let global_pointer = self.type_reference(
             ReferenceKind::Raw,
             global_ty,
-            Mutability::Immutable,
+            Access::Readonly,
             global_space,
             false,
         );
@@ -110,7 +111,7 @@ impl<'a> FunctionBuilder<'a> {
             pointer: pointer_value.into(),
             result_type: result_type.into(),
         });
-        self.define_value(destination, result_type);
+        self.define_value_with_place(destination, result_type, Place::value(destination.into()));
         destination
     }
 
@@ -237,7 +238,7 @@ impl<'a> FunctionBuilder<'a> {
             layout: layout.into(),
             result_type: result_type.into(),
         });
-        self.define_value(destination, result_type);
+        self.define_value_with_place(destination, result_type, Place::value(destination.into()));
         destination
     }
 
@@ -256,7 +257,7 @@ impl<'a> FunctionBuilder<'a> {
             length: length.into(),
             result_type: result_type.into(),
         });
-        self.define_value(destination, result_type);
+        self.define_value_with_place(destination, result_type, Place::value(destination.into()));
         destination
     }
 
@@ -274,6 +275,7 @@ impl<'a> FunctionBuilder<'a> {
             result_type: result_type.into(),
         });
         self.define_value(destination, result_type);
+        self.define_place(destination, Place::value(destination.into()));
         destination
     }
 
@@ -297,7 +299,7 @@ impl<'a> FunctionBuilder<'a> {
             layout: layout.into(),
             result_type: result_type.into(),
         });
-        self.define_value(destination, result_type);
+        self.define_value_with_place(destination, result_type, Place::value(destination.into()));
         destination
     }
 

@@ -5,9 +5,9 @@ use destack_fir::write;
 use super::attribute::{write_attributes, write_attributes_before_anchor, write_inline_attributes};
 
 use crate::{
-    AddressSpace, Attribute, Field, FieldSpan, FormatMirNode, LocalNodeId, MirFormatContext,
-    MirFormatter, Mutability, ReferenceKind, TensorDimension, TensorLayout, Type, TypeAlias,
-    TypeDeclarationSpans, TypeReference, write_comments_before,
+    Access, AddressSpace, Attribute, Field, FieldSpan, FormatMirNode, Lifetime, LifetimeOrigin,
+    LocalNodeId, MirFormatContext, MirFormatter, ReferenceKind, TensorDimension, TensorLayout,
+    Type, TypeAlias, TypeDeclarationSpans, TypeReference, write_comments_before,
 };
 
 impl<'a> FormatMirNode<'a, Type> for Type {
@@ -214,8 +214,9 @@ fn format_type_inner<'a>(
         }
         Type::Reference {
             kind,
+            lifetime,
             address_space,
-            mutability,
+            access,
             pointee,
             is_nullable,
         } => {
@@ -246,9 +247,8 @@ fn format_type_inner<'a>(
                     token(kind_token)
                 ]
             )?;
-            if *mutability == Mutability::Immutable {
-                write!(f, [token(","), space(), token("readonly")])?;
-            }
+            format_lifetime(lifetime, f)?;
+            format_access(*access, f)?;
             if let Some(addrspace) = address_space_token {
                 write!(f, [token(","), space(), text(&addrspace)])?;
             }
@@ -266,9 +266,10 @@ fn format_type_inner<'a>(
         }
         Type::Slice {
             kind,
+            lifetime,
             element,
             address_space,
-            mutability,
+            access,
         } => {
             let kind_token = match kind {
                 ReferenceKind::Managed => None,
@@ -286,9 +287,8 @@ fn format_type_inner<'a>(
             if let Some(kind_token) = kind_token {
                 write!(f, [token(","), space(), token(kind_token)])?;
             }
-            if *mutability == Mutability::Immutable {
-                write!(f, [token(","), space(), token("readonly")])?;
-            }
+            format_lifetime(lifetime, f)?;
+            format_access(*access, f)?;
             if let Some(address_space) = address_space_token {
                 write!(f, [token(","), space(), text(&address_space)])?;
             }
@@ -366,8 +366,9 @@ fn format_type_inner<'a>(
         }
         Type::TensorView {
             kind,
+            lifetime,
             address_space,
-            mutability,
+            access,
             element,
             shape,
             layout,
@@ -379,7 +380,7 @@ fn format_type_inner<'a>(
                 "tensorView<"
             };
             write!(f, [token(view_token)])?;
-            format_view_header(*kind, address_space.clone(), *mutability, *element, f)?;
+            format_view_header(*kind, lifetime, address_space.clone(), *access, *element, f)?;
             write!(f, [token(","), space()])?;
             format_shape(shape, f)?;
             if *layout != TensorLayout::RowMajor {
@@ -476,8 +477,9 @@ fn format_tensor_layout<'a>(
 
 fn format_view_header<'a>(
     kind: ReferenceKind,
+    lifetime: &Lifetime,
     address_space: AddressSpace,
-    mutability: Mutability,
+    access: Access,
     element: TypeReference,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
@@ -496,13 +498,39 @@ fn format_view_header<'a>(
 
     format_type_reference(element, f)?;
     write!(f, [token(","), space(), token(kind_token)])?;
-    if mutability == Mutability::Immutable {
-        write!(f, [token(","), space(), token("readonly")])?;
-    }
+    format_lifetime(lifetime, f)?;
+    format_access(access, f)?;
     if let Some(addrspace) = address_space_token {
         write!(f, [token(","), space(), text(&addrspace)])?;
     }
     Ok(())
+}
+
+fn format_lifetime<'a>(lifetime: &Lifetime, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+    if lifetime.is_empty() {
+        return Ok(());
+    }
+
+    write!(f, [token(","), space(), token("lifetime"), token("(")])?;
+    for (index, source) in lifetime.origins.iter().enumerate() {
+        if index > 0 {
+            write!(f, [token(","), space()])?;
+        }
+
+        match source {
+            LifetimeOrigin::Static => write!(f, [token("static")])?,
+            LifetimeOrigin::Parameter(index) => write!(f, [text(&index.to_string())])?,
+        }
+    }
+    write!(f, [token(")")])
+}
+
+fn format_access<'a>(access: Access, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
+    match access {
+        Access::Readonly => write!(f, [token(","), space(), token("readonly")]),
+        Access::Mutable => Ok(()),
+        Access::Exclusive => write!(f, [token(","), space(), token("exclusive")]),
+    }
 }
 
 impl<'a> FormatMirNode<'a, TypeAlias> for TypeAlias {

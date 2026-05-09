@@ -1,9 +1,8 @@
 use destack_source::Span;
 
-use crate::metadata::record_type_layout;
 use crate::{
-    AddressSpace, Attribute, Copy, Field, FieldSpan, LocalNodeId, Mutability, ReferenceKind,
-    TensorDimension, TensorLayout, Type, TypeDeclarationSpans, Value,
+    Access, AddressSpace, Attribute, Copy, Field, FieldSpan, Lifetime, LifetimeOrigin, LocalNodeId,
+    ReferenceKind, TensorDimension, TensorLayout, Type, TypeDeclarationSpans, Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -83,13 +82,14 @@ impl Parser {
                     self.bump();
                     self.eat_token(TokenType::LessThan)?;
                     let element = self.parse_type()?;
-                    let (kind, address_space, mutability) = self.parse_slice_qualifiers()?;
+                    let (kind, lifetime, address_space, access) = self.parse_slice_qualifiers()?;
                     self.eat_token(TokenType::GreaterThan)?;
                     Type::Slice {
                         kind,
+                        lifetime,
                         element: element.into(),
                         address_space,
-                        mutability,
+                        access,
                     }
                 } else if token_text == "atomic" {
                     self.bump();
@@ -354,13 +354,14 @@ impl Parser {
     fn parse_reference_type(&mut self, is_nullable: bool) -> ParseResult<Type> {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
-        let (kind, address_space, mutability, pointee) = self.parse_reference_header()?;
+        let (kind, lifetime, address_space, access, pointee) = self.parse_reference_header()?;
         self.eat_token(TokenType::GreaterThan)?;
 
         Ok(Type::Reference {
             kind,
+            lifetime,
             address_space,
-            mutability,
+            access,
             pointee: pointee.into(),
             is_nullable,
         })
@@ -370,7 +371,7 @@ impl Parser {
     fn parse_tensor_view_type(&mut self, is_nullable: bool) -> ParseResult<Type> {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
-        let (kind, address_space, mutability, element) = self.parse_reference_header()?;
+        let (kind, lifetime, address_space, access, element) = self.parse_reference_header()?;
         self.eat_token(TokenType::Comma)?;
         let shape = self.parse_tensor_shape()?;
         let layout = self.parse_optional_tensor_layout()?;
@@ -378,8 +379,9 @@ impl Parser {
 
         Ok(Type::TensorView {
             kind,
+            lifetime,
             address_space,
-            mutability,
+            access,
             element: element.into(),
             shape,
             layout,
@@ -408,7 +410,13 @@ impl Parser {
     /// Parse the reference header for ref, slice, and tensorView types.
     fn parse_reference_header(
         &mut self,
-    ) -> ParseResult<(ReferenceKind, AddressSpace, Mutability, LocalNodeId<Type>)> {
+    ) -> ParseResult<(
+        ReferenceKind,
+        Lifetime,
+        AddressSpace,
+        Access,
+        LocalNodeId<Type>,
+    )> {
         let pointee = self.parse_type()?;
         self.eat_token(TokenType::Comma)?;
 
@@ -440,7 +448,8 @@ impl Parser {
         self.bump();
 
         let mut address_space = AddressSpace::Local;
-        let mut mutability = Mutability::Mutable;
+        let mut access = Access::Mutable;
+        let mut lifetime = Lifetime::empty();
 
         while self.peek_token(TokenType::Comma) {
             if self
@@ -453,7 +462,17 @@ impl Parser {
             self.bump();
 
             if self.eat_token_maybe(TokenType::Readonly) {
-                mutability = Mutability::Immutable;
+                access = Access::Readonly;
+                continue;
+            }
+
+            if self.eat_identifier_text("exclusive") {
+                access = Access::Exclusive;
+                continue;
+            }
+
+            if self.eat_identifier_text("lifetime") {
+                lifetime = self.parse_lifetime_group()?;
                 continue;
             }
 
@@ -482,14 +501,21 @@ impl Parser {
             return Err(ParseError::invalid("reference qualifier", self.pos()));
         }
 
-        Ok((kind, address_space, mutability, pointee))
+        if kind != ReferenceKind::Borrowed && !lifetime.is_empty() {
+            return Err(ParseError::invalid("borrowed lifetime", self.pos()));
+        }
+
+        Ok((kind, lifetime, address_space, access, pointee))
     }
 
     /// Parse optional trailing qualifiers for one slice type.
-    fn parse_slice_qualifiers(&mut self) -> ParseResult<(ReferenceKind, AddressSpace, Mutability)> {
+    fn parse_slice_qualifiers(
+        &mut self,
+    ) -> ParseResult<(ReferenceKind, Lifetime, AddressSpace, Access)> {
         let mut kind = ReferenceKind::Managed;
         let mut address_space = AddressSpace::Local;
-        let mut mutability = Mutability::Mutable;
+        let mut access = Access::Mutable;
+        let mut lifetime = Lifetime::empty();
 
         while self.peek_token(TokenType::Comma) {
             if self
@@ -521,7 +547,17 @@ impl Parser {
             }
 
             if self.eat_token_maybe(TokenType::Readonly) {
-                mutability = Mutability::Immutable;
+                access = Access::Readonly;
+                continue;
+            }
+
+            if self.eat_identifier_text("exclusive") {
+                access = Access::Exclusive;
+                continue;
+            }
+
+            if self.eat_identifier_text("lifetime") {
+                lifetime = self.parse_lifetime_group()?;
                 continue;
             }
 
@@ -550,7 +586,53 @@ impl Parser {
             return Err(ParseError::invalid("slice qualifier", self.pos()));
         }
 
-        Ok((kind, address_space, mutability))
+        if kind != ReferenceKind::Borrowed && !lifetime.is_empty() {
+            return Err(ParseError::invalid("borrowed lifetime", self.pos()));
+        }
+
+        Ok((kind, lifetime, address_space, access))
+    }
+
+    /// Parse a lifetime qualifier group.
+    fn parse_lifetime_group(&mut self) -> ParseResult<Lifetime> {
+        self.eat_token(TokenType::OpenParen)?;
+        let mut origins = Vec::new();
+
+        while !self.peek_token(TokenType::CloseParen) {
+            let token = self
+                .peek()
+                .ok_or_else(|| ParseError::unexpected_end("lifetime", self.pos()))?;
+            match token.ty {
+                TokenType::Identifier if self.tree.source_text(token.span) == "static" => {
+                    origins.push(LifetimeOrigin::Static);
+                    self.bump();
+                }
+                TokenType::IntLiteral => {
+                    let index = self.parse_int_literal()?;
+                    let index = u32::try_from(index)
+                        .map_err(|_| ParseError::invalid("lifetime parameter", self.pos()))?;
+                    origins.push(LifetimeOrigin::Parameter(index));
+                }
+                _ => {
+                    return Err(ParseError::unexpected(
+                        "lifetime origin",
+                        token.ty,
+                        token.start,
+                    ));
+                }
+            }
+
+            if !self.eat_token_maybe(TokenType::Comma) {
+                break;
+            }
+        }
+
+        self.eat_token(TokenType::CloseParen)?;
+        if origins.is_empty() {
+            return Err(ParseError::invalid("lifetime origin", self.pos()));
+        }
+
+        Ok(Lifetime::new(origins))
     }
 
     /// Parse an optional trailing tensor layout assignment.
@@ -658,8 +740,6 @@ impl Parser {
 
         // insert a new type
         let type_id = self.tree.insert_type(ty);
-        record_type_layout(&mut self.tree, type_id)
-            .map_err(|error| ParseError::new(error.to_string(), self.pos()))?;
         self.type_intern.insert(key, type_id);
 
         Ok(type_id)

@@ -9,9 +9,9 @@ use destack_source::{File, FileType, IndentStyle, LineEnding};
 
 use crate::parse::TokenType;
 use crate::{
-    Block, Function, Global, Instruction, Local, LocalNodeId, Mutability, Node, NodeType,
-    ReferenceKind, TensorDimension, TensorLayout, Terminator, Tree, TreeImpl, Type, TypeAlias,
-    TypeReference, Value, function_signature_parts,
+    Access, Block, Function, Global, Instruction, Lifetime, LifetimeOrigin, Local, LocalNodeId,
+    Node, NodeType, ReferenceKind, TensorDimension, TensorLayout, Terminator, Tree, TreeImpl, Type,
+    TypeAlias, TypeReference, Value, function_signature_parts,
 };
 
 use super::r#type::format_type_declaration;
@@ -619,8 +619,9 @@ fn type_key_for_alias_inner(
         }
         Type::Reference {
             kind,
+            lifetime,
             address_space,
-            mutability,
+            access,
             pointee,
             is_nullable,
         } => {
@@ -648,10 +649,8 @@ fn type_key_for_alias_inner(
                 ReferenceKind::Raw => "raw",
             });
 
-            // append readonly when required
-            if *mutability == Mutability::Immutable {
-                result.push_str(", readonly");
-            }
+            push_lifetime_key(&mut result, lifetime);
+            push_access_key(&mut result, *access);
 
             // append address space when explicit
             if !address_space.is_local() {
@@ -671,9 +670,10 @@ fn type_key_for_alias_inner(
         }
         Type::Slice {
             kind,
+            lifetime,
             element,
             address_space,
-            mutability,
+            access,
         } => {
             // format slice keys with element type and qualifiers
             let element_key = type_key_for_alias_reference(tree, strings, *element, active_types);
@@ -684,9 +684,8 @@ fn type_key_for_alias_inner(
                 ReferenceKind::Borrowed => result.push_str(", borrowed"),
                 ReferenceKind::Raw => result.push_str(", raw"),
             }
-            if *mutability == Mutability::Immutable {
-                result.push_str(", readonly");
-            }
+            push_lifetime_key(&mut result, lifetime);
+            push_access_key(&mut result, *access);
             if !address_space.is_local() {
                 let address_space = format!("space({})", address_space.label());
                 result.push_str(", ");
@@ -744,8 +743,9 @@ fn type_key_for_alias_inner(
         }
         Type::TensorView {
             kind,
+            lifetime,
             address_space,
-            mutability,
+            access,
             element,
             shape,
             layout,
@@ -767,9 +767,8 @@ fn type_key_for_alias_inner(
                 ReferenceKind::Borrowed => "borrowed",
                 ReferenceKind::Raw => "raw",
             });
-            if *mutability == Mutability::Immutable {
-                result.push_str(", readonly");
-            }
+            push_lifetime_key(&mut result, lifetime);
+            push_access_key(&mut result, *access);
             if !address_space.is_local() {
                 let addrspace = format!("space({})", address_space.label());
                 result.push_str(", ");
@@ -837,6 +836,35 @@ fn format_shape_key(shape: &[TensorDimension]) -> String {
     }
     result.push(')');
     result
+}
+
+/// Append an access qualifier to a structural type key.
+fn push_access_key(result: &mut String, access: Access) {
+    match access {
+        Access::Readonly => result.push_str(", readonly"),
+        Access::Mutable => {}
+        Access::Exclusive => result.push_str(", exclusive"),
+    }
+}
+
+/// Append a lifetime qualifier to a structural type key.
+fn push_lifetime_key(result: &mut String, lifetime: &Lifetime) {
+    if lifetime.is_empty() {
+        return;
+    }
+
+    let origins = lifetime
+        .origins
+        .iter()
+        .map(|source| match source {
+            LifetimeOrigin::Static => "static".to_string(),
+            LifetimeOrigin::Parameter(index) => index.to_string(),
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+    result.push_str(", lifetime(");
+    result.push_str(&origins);
+    result.push(')');
 }
 
 /// Format a tensor layout key for a tensor or vector.

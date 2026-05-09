@@ -126,9 +126,9 @@ entry0:
     );
 }
 
-/// Preserves reference mutability spelling in canonical output.
+/// Preserves reference access spelling in canonical output.
 #[test]
-fn test_format_reference_mutability_preserved() {
+fn test_format_reference_access_preserved() {
     assert_format(
         r#"
 function refMutability(value0: ref<int32, managed>, value1: ref<int32, owned, readonly>): ref<int32, managed> {

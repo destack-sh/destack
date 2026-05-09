@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 
 use destack_core::Arena;
@@ -7,11 +7,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::parse::Token;
 use crate::{
-    AddressSpace, ArgumentSlice, Attribute, Block, CommentSpan, Field, FieldSpan, Function,
+    Access, AddressSpace, ArgumentSlice, Attribute, Block, CommentSpan, Field, FieldSpan, Function,
     FunctionHeaderSpans, Global, Instruction, InterfaceDispatchShape, Itab, Layout, LayoutId,
-    Local, LocalNodeId, Metadata, Mutability, Node, NodeType, ProvenanceId, ProvenanceReason,
-    ReferenceKind, Terminator, Type, TypeAlias, TypeDeclarationSpans, TypeLineage, TypeMetadata,
-    TypeReference, TypedValueSpan, ValueReference, Vtable,
+    Lifetime, Local, LocalNodeId, Metadata, Node, NodeType, PlaceProjection, PlaceTable,
+    ProvenanceId, ProvenanceReason, ReferenceKind, Terminator, Type, TypeAlias,
+    TypeDeclarationSpans, TypeLineage, TypeMetadata, TypeReference, TypedValueSpan, ValueReference,
+    Vtable,
 };
 
 #[inline]
@@ -211,6 +212,250 @@ impl Tree {
         tree.source_text = Some(source_text);
         tree.tokens = tokens;
         tree
+    }
+
+    /// Rebuild place facts for one function body.
+    pub fn rebuild_function_places(&mut self, function_id: LocalNodeId<Function>) {
+        let blocks = self.get(function_id).blocks.clone();
+        let mut places = PlaceTable::new();
+
+        for block_id in blocks {
+            let instructions = self.get(block_id).instructions.clone();
+
+            for instruction_id in instructions {
+                let instruction = self.get(instruction_id);
+                Self::record_instruction_places(instruction, &mut places);
+            }
+        }
+
+        self.get_mut(function_id).places = places;
+    }
+
+    /// Infer the return lifetime for one function signature.
+    pub fn infer_function_return_lifetime(&self, function_id: LocalNodeId<Function>) -> Lifetime {
+        let function = self.get(function_id);
+        if let Some(lifetime) = self.type_reference_lifetime(function.return_type) {
+            return lifetime;
+        }
+
+        if !self.type_reference_contains_borrowed_refs(function.return_type) {
+            return Lifetime::empty();
+        }
+
+        let parameter_indices =
+            function
+                .parameters
+                .iter()
+                .enumerate()
+                .filter_map(|(index, parameter)| {
+                    self.type_reference_contains_borrowed_refs(parameter.ty)
+                        .then_some(index as u32)
+                });
+        let lifetime = Lifetime::parameter_set(parameter_indices);
+
+        if lifetime.is_empty() {
+            Lifetime::static_storage()
+        } else {
+            lifetime
+        }
+    }
+
+    /// Record the inferred return lifetime for one function.
+    pub fn infer_and_set_function_return_lifetime(&mut self, function_id: LocalNodeId<Function>) {
+        let lifetime = self.infer_function_return_lifetime(function_id);
+        self.get_mut(function_id).return_lifetime = lifetime;
+    }
+
+    /// Return the explicit lifetime carried by a type reference.
+    pub fn type_reference_lifetime(&self, ty: TypeReference) -> Option<Lifetime> {
+        let ty = ty.ty()?;
+        let mut visited = HashSet::new();
+
+        self.type_lifetime(ty, &mut visited)
+    }
+
+    /// Return the explicit lifetime carried by a type.
+    fn type_lifetime(
+        &self,
+        ty: LocalNodeId<Type>,
+        visited: &mut HashSet<LocalNodeId<Type>>,
+    ) -> Option<Lifetime> {
+        if !visited.insert(ty) {
+            return None;
+        }
+
+        match self.get(ty) {
+            Type::Reference {
+                kind: ReferenceKind::Borrowed,
+                lifetime,
+                ..
+            }
+            | Type::Slice {
+                kind: ReferenceKind::Borrowed,
+                lifetime,
+                ..
+            }
+            | Type::TensorView {
+                kind: ReferenceKind::Borrowed,
+                lifetime,
+                ..
+            } if !lifetime.is_empty() => Some(lifetime.clone()),
+            Type::Struct { fields, .. } => {
+                let lifetimes = fields.iter().filter_map(|field| {
+                    let field = self.get(*field);
+                    self.type_reference_lifetime_inner(field.ty, visited)
+                });
+
+                Some(Lifetime::new(
+                    lifetimes.flat_map(|lifetime| lifetime.origins.into_iter()),
+                ))
+                .filter(|lifetime| !lifetime.is_empty())
+            }
+            Type::Newtype { inner, .. } => self.type_reference_lifetime_inner(*inner, visited),
+            Type::Tuple { elements, .. } => {
+                let lifetimes = elements
+                    .iter()
+                    .filter_map(|element| self.type_reference_lifetime_inner(*element, visited));
+
+                Some(Lifetime::new(
+                    lifetimes.flat_map(|lifetime| lifetime.origins.into_iter()),
+                ))
+                .filter(|lifetime| !lifetime.is_empty())
+            }
+            Type::Array { element, .. } => self.type_reference_lifetime_inner(*element, visited),
+            _ => None,
+        }
+    }
+
+    /// Return the explicit lifetime carried by a nested type reference.
+    fn type_reference_lifetime_inner(
+        &self,
+        ty: TypeReference,
+        visited: &mut HashSet<LocalNodeId<Type>>,
+    ) -> Option<Lifetime> {
+        let ty = ty.ty()?;
+
+        self.type_lifetime(ty, visited)
+    }
+
+    /// Return whether a type reference may contain borrowed references.
+    pub fn type_reference_contains_borrowed_refs(&self, ty: TypeReference) -> bool {
+        let Some(ty) = ty.ty() else {
+            return true;
+        };
+
+        self.type_contains_borrowed_refs(ty)
+    }
+
+    /// Return whether a type may contain borrowed references.
+    pub fn type_contains_borrowed_refs(&self, ty: LocalNodeId<Type>) -> bool {
+        let ty = self.get(ty);
+        if ty.is_borrowed_reference() {
+            return true;
+        }
+
+        match ty {
+            Type::Struct { fields, .. } => fields.iter().any(|field| {
+                let field = self.get(*field);
+                self.type_reference_contains_borrowed_refs(field.ty)
+            }),
+            Type::Newtype { inner, .. } => self.type_reference_contains_borrowed_refs(*inner),
+            Type::Tuple { elements, .. } => elements
+                .iter()
+                .any(|element| self.type_reference_contains_borrowed_refs(*element)),
+            Type::Array { element, .. } => self.type_reference_contains_borrowed_refs(*element),
+            _ => false,
+        }
+    }
+
+    /// Record place facts produced by one instruction.
+    fn record_instruction_places(instruction: &Instruction, places: &mut PlaceTable) {
+        match instruction {
+            Instruction::LocalAddr {
+                destination, local, ..
+            } => {
+                if let Some(value) = destination.value() {
+                    places.set_local(value, *local);
+                }
+            }
+            Instruction::GlobalAddr {
+                destination,
+                global,
+                ..
+            } => {
+                if let Some(value) = destination.value() {
+                    places.set_global(value, *global);
+                }
+            }
+            Instruction::New { destination, .. }
+            | Instruction::NewSlice { destination, .. }
+            | Instruction::RawAlloc { destination, .. }
+            | Instruction::StackAlloc { destination, .. }
+            | Instruction::CallableEnvironment { destination } => {
+                if let Some(value) = destination.value() {
+                    places.set_value(value, *destination);
+                }
+            }
+            Instruction::FieldAddr {
+                destination,
+                aggregate,
+                index,
+                ..
+            } => {
+                let Some(value) = destination.value() else {
+                    return;
+                };
+                let Some(base) = aggregate.value() else {
+                    return;
+                };
+
+                places.set_projection(value, base, PlaceProjection::Static { index: *index });
+            }
+            Instruction::ElementAddr {
+                destination,
+                array,
+                index,
+                ..
+            } => {
+                let Some(value) = destination.value() else {
+                    return;
+                };
+                let Some(base) = array.value() else {
+                    return;
+                };
+
+                places.set_projection(value, base, PlaceProjection::Dynamic { index: *index });
+            }
+            Instruction::Cast {
+                destination,
+                argument,
+                ..
+            }
+            | Instruction::TensorCast {
+                destination,
+                tensor: argument,
+            }
+            | Instruction::TensorView {
+                destination,
+                view: argument,
+                ..
+            }
+            | Instruction::Pin {
+                destination,
+                value: argument,
+                ..
+            } => {
+                let Some(value) = destination.value() else {
+                    return;
+                };
+                let Some(source) = argument.value() else {
+                    return;
+                };
+
+                places.set_from_value(value, source);
+            }
+            _ => {}
+        }
     }
 
     /// Create a new tail tree after one immutable base tree.
@@ -503,9 +748,10 @@ impl Tree {
                 Type::Reference {
                     kind: ReferenceKind::Managed,
                     address_space: AddressSpace::Local,
-                    mutability: Mutability::Mutable,
+                    access: Access::Mutable,
                     pointee,
                     is_nullable: true,
+                    ..
                 } if *pointee == TypeReference::Type(void_type)
             )
         }) {
@@ -533,9 +779,10 @@ impl Tree {
                 Type::Reference {
                     kind: ReferenceKind::Managed,
                     address_space: AddressSpace::Local,
-                    mutability: Mutability::Mutable,
+                    access: Access::Mutable,
                     pointee,
                     is_nullable: true,
+                    ..
                 } if *pointee == TypeReference::Type(void_type)
             )
         }) {
@@ -545,8 +792,9 @@ impl Tree {
         // otherwise create the canonical erased environment reference
         self.insert_type(Type::Reference {
             kind: ReferenceKind::Managed,
+            lifetime: Lifetime::empty(),
             address_space: AddressSpace::Local,
-            mutability: Mutability::Mutable,
+            access: Access::Mutable,
             pointee: TypeReference::Type(void_type),
             is_nullable: true,
         })

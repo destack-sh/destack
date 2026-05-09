@@ -2,7 +2,7 @@ use super::{
     assert_format, assert_format_eq, assert_output_eq, format_tree_with_options, parse_fixture,
 };
 use crate::{
-    AddressSpace, Function, MirFormatOptions, Mutability, ReferenceKind, Type, TypeReference,
+    Access, AddressSpace, Function, Lifetime, MirFormatOptions, ReferenceKind, Type, TypeReference,
 };
 
 /// Preserves declaration comments while normalizing canonical separators and names.
@@ -120,8 +120,9 @@ entry0:
     });
     let environment = tree.insert_type(Type::Reference {
         kind: ReferenceKind::Managed,
+        lifetime: Lifetime::empty(),
         address_space: AddressSpace::Local,
-        mutability: Mutability::Mutable,
+        access: Access::Mutable,
         pointee: TypeReference::Type(int32),
         is_nullable: false,
     });

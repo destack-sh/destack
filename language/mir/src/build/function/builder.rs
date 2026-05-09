@@ -3,9 +3,9 @@ use indexmap::{IndexMap, IndexSet};
 
 use crate::build::Variable;
 use crate::{
-    AllocationMode, AllocationSize, Block, BorrowRegion, CallBehavior, Function, Instruction,
-    Linkage, LocalNodeId, MemoryEffect, Parameter, PointerAttribute, Tree, Type, TypeReference,
-    Value, ValueReference, finalize_function_names,
+    AllocationMode, AllocationSize, Block, CallBehavior, Function, Instruction, Lifetime, Linkage,
+    LocalNodeId, MemoryEffect, Parameter, Place, PlaceId, PlaceProjection, PlaceTable,
+    PointerAttribute, Tree, Type, TypeReference, Value, ValueReference, finalize_function_names,
 };
 
 /// Builder for constructing a single MIR function with automatic SSA construction.
@@ -101,8 +101,9 @@ impl<'a> FunctionBuilder<'a> {
             parameter_names: vec![None; parameter_types.len()],
             value_names: vec![None; next_value_id as usize],
             value_types,
+            places: PlaceTable::new(),
             return_type: TypeReference::Type(return_type),
-            return_region: BorrowRegion::Inferred,
+            return_lifetime: Lifetime::empty(),
             memory_effect: MemoryEffect::unknown(),
             call_behavior: CallBehavior::unknown(),
             allocation_size: None,
@@ -118,6 +119,7 @@ impl<'a> FunctionBuilder<'a> {
             next_value_id,
         };
         let function_id = tree.insert(function);
+        tree.infer_and_set_function_return_lifetime(function_id);
 
         Self {
             tree,
@@ -249,10 +251,10 @@ impl<'a> FunctionBuilder<'a> {
         self.function_id
     }
 
-    /// Set the return borrow region for this function.
-    pub fn set_return_region(&mut self, region: BorrowRegion) {
+    /// Set the return lifetime for this function.
+    pub fn set_return_lifetime(&mut self, lifetime: Lifetime) {
         let function = self.tree.get_mut(self.function_id);
-        function.return_region = region;
+        function.return_lifetime = lifetime;
     }
 
     /// Get a reference to the underlying tree.
@@ -276,6 +278,63 @@ impl<'a> FunctionBuilder<'a> {
     pub(super) fn define_value(&mut self, value: Value, ty: LocalNodeId<Type>) {
         let function = self.tree.get_mut(self.function_id);
         function.set_value_type(value, ty);
+    }
+
+    /// Record the type and root place for an SSA value.
+    pub(super) fn define_value_with_place(
+        &mut self,
+        value: Value,
+        ty: LocalNodeId<Type>,
+        place: Place,
+    ) -> PlaceId {
+        self.define_value(value, ty);
+        self.define_place(value, place)
+    }
+
+    /// Record the type and projected place for an SSA value.
+    pub(super) fn define_value_from_projection(
+        &mut self,
+        value: Value,
+        ty: LocalNodeId<Type>,
+        base: Value,
+        projection: PlaceProjection,
+    ) -> PlaceId {
+        self.define_value(value, ty);
+        self.define_projection(value, base, projection)
+    }
+
+    /// Record the type and copied place for an SSA value.
+    pub(super) fn define_value_from_place(
+        &mut self,
+        value: Value,
+        ty: LocalNodeId<Type>,
+        source: Value,
+    ) -> Option<PlaceId> {
+        self.define_value(value, ty);
+        self.propagate_place(value, source)
+    }
+
+    /// Record the place for an SSA value.
+    pub(super) fn define_place(&mut self, value: Value, place: Place) -> PlaceId {
+        let function = self.tree.get_mut(self.function_id);
+        function.set_value_place(value, place)
+    }
+
+    /// Record a projected place for an SSA value.
+    pub(super) fn define_projection(
+        &mut self,
+        value: Value,
+        base: Value,
+        projection: PlaceProjection,
+    ) -> PlaceId {
+        let function = self.tree.get_mut(self.function_id);
+        function.places.set_projection(value, base, projection)
+    }
+
+    /// Copy a place from one SSA value to another.
+    pub(super) fn propagate_place(&mut self, value: Value, source: Value) -> Option<PlaceId> {
+        let function = self.tree.get_mut(self.function_id);
+        function.places.set_from_value(value, source)
     }
 
     /// Get the type of an existing SSA value.

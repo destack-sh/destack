@@ -1,7 +1,7 @@
 use crate::build::ModuleBuilder;
 use crate::{
-    AddressSpace, Copy, FenceAccess, MemoryFlags, MemoryOrdering, MemoryScope, MirFormatOptions,
-    Mutability, ReferenceKind, SyncScope, Type, format_mir,
+    Access, AddressSpace, Copy, FenceAccess, Lifetime, MemoryFlags, MemoryOrdering, MemoryScope,
+    MirFormatOptions, Mutability, ReferenceKind, SyncScope, Type, format_mir,
 };
 
 /// Empty function with void return.
@@ -735,7 +735,7 @@ fn test_managed_reference_types() {
         tree.get(managed_readonly_type),
         Type::Reference {
             kind: ReferenceKind::Managed,
-            mutability: Mutability::Immutable,
+            access: Access::Readonly,
             is_nullable: false,
             ..
         }
@@ -744,7 +744,7 @@ fn test_managed_reference_types() {
         tree.get(managed_mutable_type),
         Type::Reference {
             kind: ReferenceKind::Managed,
-            mutability: Mutability::Mutable,
+            access: Access::Mutable,
             is_nullable: false,
             ..
         }
@@ -753,7 +753,7 @@ fn test_managed_reference_types() {
         tree.get(managed_nullable_readonly_type),
         Type::Reference {
             kind: ReferenceKind::Managed,
-            mutability: Mutability::Immutable,
+            access: Access::Readonly,
             is_nullable: true,
             ..
         }
@@ -762,7 +762,7 @@ fn test_managed_reference_types() {
         tree.get(managed_nullable_mutable_type),
         Type::Reference {
             kind: ReferenceKind::Managed,
-            mutability: Mutability::Mutable,
+            access: Access::Mutable,
             is_nullable: true,
             ..
         }
@@ -771,7 +771,7 @@ fn test_managed_reference_types() {
         tree.get(owned_readonly_type),
         Type::Reference {
             kind: ReferenceKind::Owned,
-            mutability: Mutability::Immutable,
+            access: Access::Readonly,
             is_nullable: false,
             ..
         }
@@ -780,7 +780,7 @@ fn test_managed_reference_types() {
         tree.get(owned_mutable_type),
         Type::Reference {
             kind: ReferenceKind::Owned,
-            mutability: Mutability::Mutable,
+            access: Access::Mutable,
             is_nullable: false,
             ..
         }
@@ -789,7 +789,7 @@ fn test_managed_reference_types() {
         tree.get(raw_readonly_type),
         Type::Reference {
             kind: ReferenceKind::Raw,
-            mutability: Mutability::Immutable,
+            access: Access::Readonly,
             is_nullable: false,
             ..
         }
@@ -798,7 +798,7 @@ fn test_managed_reference_types() {
         tree.get(raw_mutable_type),
         Type::Reference {
             kind: ReferenceKind::Raw,
-            mutability: Mutability::Mutable,
+            access: Access::Mutable,
             is_nullable: false,
             ..
         }
@@ -911,8 +911,9 @@ fn test_build_stack_alloc() {
     let i32_type = module.type_i32();
     let raw_ref_type = module.tree_mut().insert_type(Type::Reference {
         kind: ReferenceKind::Raw,
+        lifetime: Lifetime::empty(),
         address_space: AddressSpace::Stack,
-        mutability: Mutability::Immutable,
+        access: Access::Readonly,
         pointee: i32_type.into(),
         is_nullable: false,
     });

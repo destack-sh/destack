@@ -2,8 +2,9 @@ use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AllocationSize, Block, BorrowRegion, CallBehavior, Linkage, Local, LocalNodeId, MemoryEffect,
-    Node, NodeType, Parameter, PointerAttribute, Tree, Type, TypeReference, Value, ValueReference,
+    AllocationSize, Block, CallBehavior, Lifetime, Linkage, Local, LocalNodeId, MemoryEffect, Node,
+    NodeType, Parameter, Place, PlaceId, PlaceTable, PointerAttribute, Tree, Type, TypeReference,
+    Value, ValueReference,
 };
 
 /// Memory allocation restrictions for a function.
@@ -101,11 +102,13 @@ pub struct Function {
     pub value_types: Vec<Option<LocalNodeId<Type>>>,
     /// Counter for allocating unique SSA value IDs.
     pub(crate) next_value_id: u32,
+    /// Memory places keyed by SSA value.
+    pub places: PlaceTable,
 
     /// The return type.
     pub return_type: TypeReference,
-    /// Borrow-region bounds for the return value.
-    pub return_region: BorrowRegion,
+    /// Lifetime origins for the return value.
+    pub return_lifetime: Lifetime,
     /// Pointer attribute for the return value.
     pub return_attribute: PointerAttribute,
 
@@ -195,8 +198,9 @@ impl Function {
             parameter_names,
             value_names: vec![None; next_value_id as usize],
             value_types,
+            places: PlaceTable::new(),
             return_type,
-            return_region: BorrowRegion::Inferred,
+            return_lifetime: Lifetime::empty(),
             memory_effect: MemoryEffect::unknown(),
             call_behavior: CallBehavior::unknown(),
             allocation_size: None,
@@ -243,6 +247,18 @@ impl Function {
         self.value_names.get(value.0 as usize).copied().flatten()
     }
 
+    /// Get the place id for an SSA value.
+    pub fn value_place_id(&self, value: Value) -> Option<PlaceId> {
+        self.places.value_place_id(value)
+    }
+
+    /// Get the place for an SSA value.
+    pub fn value_place(&self, value: Value) -> Option<&Place> {
+        let id = self.value_place_id(value)?;
+
+        self.places.place(id)
+    }
+
     /// Get the type for an SSA value or panic if missing.
     pub fn require_value_type(&self, value: Value) -> LocalNodeId<Type> {
         // ensure value types are always recorded for SSA values
@@ -276,9 +292,14 @@ impl Function {
         self.value_types[index] = Some(ty);
     }
 
-    /// Set the return borrow region and return self.
-    pub fn with_return_region(mut self, region: BorrowRegion) -> Self {
-        self.return_region = region;
+    /// Record the place for an SSA value.
+    pub fn set_value_place(&mut self, value: Value, place: Place) -> PlaceId {
+        self.places.set_value_place(value, place)
+    }
+
+    /// Set the return lifetime and return self.
+    pub fn with_return_lifetime(mut self, lifetime: Lifetime) -> Self {
+        self.return_lifetime = lifetime;
         self
     }
 

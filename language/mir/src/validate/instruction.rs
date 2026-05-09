@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use crate::{
-    AddressSpace, AllocationMode, ArgumentSlice, AtomicRmwOperator, CastOperator, Constant,
+    Access, AddressSpace, AllocationMode, ArgumentSlice, AtomicRmwOperator, CastOperator, Constant,
     Function, Instruction, Intrinsic, Local, LocalNodeId, MemoryOrdering, Mutability, NodeType,
     ReferenceKind, TensorDimension, TensorLayout, Type, TypeReference, Value, ValueReference,
     compute_type_layout, function_signature_parts,
@@ -325,7 +325,7 @@ impl<'a> Validator<'a> {
     ) -> ValidateResult<(
         ReferenceKind,
         AddressSpace,
-        Mutability,
+        Access,
         LocalNodeId<Type>,
         &[TensorDimension],
         &TensorLayout,
@@ -336,7 +336,7 @@ impl<'a> Validator<'a> {
             Type::TensorView {
                 kind,
                 address_space,
-                mutability,
+                access,
                 element,
                 shape,
                 layout,
@@ -354,7 +354,7 @@ impl<'a> Validator<'a> {
                 Ok((
                     *kind,
                     address_space.clone(),
-                    *mutability,
+                    *access,
                     element,
                     shape,
                     layout,
@@ -373,13 +373,13 @@ impl<'a> Validator<'a> {
         type_id: LocalNodeId<Type>,
         anchor: ValidateAnchor,
         message: &'static str,
-    ) -> ValidateResult<(ReferenceKind, Mutability, LocalNodeId<Type>, bool)> {
+    ) -> ValidateResult<(ReferenceKind, Access, LocalNodeId<Type>, bool)> {
         let reference_type = self.tree.get(type_id);
 
         match reference_type {
             Type::Reference {
                 kind,
-                mutability,
+                access,
                 pointee,
                 is_nullable,
                 ..
@@ -393,7 +393,7 @@ impl<'a> Validator<'a> {
                     });
                 };
 
-                Ok((*kind, *mutability, pointee, *is_nullable))
+                Ok((*kind, *access, pointee, *is_nullable))
             }
             _ => Err(ValidateError::MetadataInvariantViolation {
                 message: message.to_string(),
@@ -409,7 +409,7 @@ impl<'a> Validator<'a> {
         anchor: ValidateAnchor,
         message: &'static str,
     ) -> ValidateResult<LocalNodeId<Type>> {
-        let (_kind, _mutability, pointee, _is_nullable) =
+        let (_kind, _access, pointee, _is_nullable) =
             self.reference_type(type_id, anchor, message)?;
 
         Ok(pointee)
@@ -1391,11 +1391,9 @@ impl<'a> Validator<'a> {
                     });
                 }
 
-                if matches!(source_view.2, Mutability::Immutable)
-                    && matches!(destination_view.2, Mutability::Mutable)
-                {
+                if !access_can_flow_to(source_view.2, destination_view.2) {
                     return Err(ValidateError::MetadataInvariantViolation {
-                        message: "tensor.view cannot increase mutability".to_string(),
+                        message: "tensor.view cannot increase access".to_string(),
                         anchor,
                     });
                 }
@@ -1432,7 +1430,7 @@ impl<'a> Validator<'a> {
                     anchor,
                     "null constant requires a reference type",
                 )?;
-                let (kind, _mutability, _pointee, is_nullable) = reference_type;
+                let (kind, _access, _pointee, is_nullable) = reference_type;
 
                 if !is_nullable {
                     return Err(ValidateError::MetadataInvariantViolation {
@@ -1471,7 +1469,7 @@ impl<'a> Validator<'a> {
                     result_type,
                     Some(global_type),
                     Some(ReferenceKind::Raw),
-                    Some(global_decl.mutability),
+                    Some(access_for_storage_mutability(global_decl.mutability)),
                     anchor,
                 )?;
             }
@@ -1657,7 +1655,7 @@ impl<'a> Validator<'a> {
                 self.ensure_node_type(NodeType::Type, result_type.id, anchor)?;
                 self.validate_reference_result_type(result_type, Some(layout), None, None, anchor)?;
 
-                let (kind, _mutability, _pointee, _is_nullable) = self.reference_type(
+                let (kind, _access, _pointee, _is_nullable) = self.reference_type(
                     result_type,
                     anchor,
                     "new result type must be a reference type",
@@ -1722,7 +1720,7 @@ impl<'a> Validator<'a> {
                     anchor,
                     "pointer-producing instruction result type is not a reference",
                 )?;
-                let (kind, _mutability, pointee, _is_nullable) = reference_type;
+                let (kind, _access, pointee, _is_nullable) = reference_type;
 
                 if pointee != layout {
                     return Err(ValidateError::MetadataInvariantViolation {
@@ -2044,7 +2042,7 @@ impl<'a> Validator<'a> {
                 )?;
 
                 // require a managed heap object
-                let (kind, _mutability, _pointee, _is_nullable) = self.reference_type(
+                let (kind, _access, _pointee, _is_nullable) = self.reference_type(
                     object_type,
                     anchor,
                     "barrier.write object must be a managed reference",
@@ -2392,7 +2390,7 @@ impl<'a> Validator<'a> {
         ) {
             if source.0 != destination.0 || source.1 != destination.1 || source.2 != destination.2 {
                 return Err(ValidateError::MetadataInvariantViolation {
-                    message: "space.cast requires matching reference kind, mutability, and pointee"
+                    message: "space.cast requires matching reference kind, access, and pointee"
                         .to_string(),
                     anchor,
                 });
@@ -2421,7 +2419,7 @@ impl<'a> Validator<'a> {
                 || source.5 != destination.5
             {
                 return Err(ValidateError::MetadataInvariantViolation {
-                    message: "space.cast requires matching tensor view kind, mutability, element, shape, and layout".to_string(),
+                    message: "space.cast requires matching tensor view kind, access, element, shape, and layout".to_string(),
                     anchor,
                 });
             }
@@ -2781,22 +2779,25 @@ impl<'a> Validator<'a> {
             (
                 Type::Reference {
                     kind: left_kind,
+                    lifetime: left_lifetime,
                     address_space: left_space,
-                    mutability: left_mutability,
+                    access: left_access,
                     pointee: left_pointee,
                     is_nullable: left_nullable,
                 },
                 Type::Reference {
                     kind: right_kind,
+                    lifetime: right_lifetime,
                     address_space: right_space,
-                    mutability: right_mutability,
+                    access: right_access,
                     pointee: right_pointee,
                     is_nullable: right_nullable,
                 },
             ) => {
                 left_kind == right_kind
+                    && left_lifetime == right_lifetime
                     && left_space == right_space
-                    && left_mutability == right_mutability
+                    && left_access == right_access
                     && left_nullable == right_nullable
                     && match (
                         self.concrete_type_reference(*left_pointee),
@@ -2835,20 +2836,23 @@ impl<'a> Validator<'a> {
             (
                 Type::Slice {
                     kind: left_kind,
+                    lifetime: left_lifetime,
                     element: left_element,
                     address_space: left_address_space,
-                    mutability: left_mutability,
+                    access: left_access,
                 },
                 Type::Slice {
                     kind: right_kind,
+                    lifetime: right_lifetime,
                     element: right_element,
                     address_space: right_address_space,
-                    mutability: right_mutability,
+                    access: right_access,
                 },
             ) => {
                 left_kind == right_kind
+                    && left_lifetime == right_lifetime
                     && left_address_space == right_address_space
-                    && left_mutability == right_mutability
+                    && left_access == right_access
                     && match (
                         self.concrete_type_reference(*left_element),
                         self.concrete_type_reference(*right_element),
@@ -2992,8 +2996,9 @@ impl<'a> Validator<'a> {
             (
                 Type::TensorView {
                     kind: left_kind,
+                    lifetime: left_lifetime,
                     address_space: left_space,
-                    mutability: left_mutability,
+                    access: left_access,
                     element: left_element,
                     shape: left_shape,
                     layout: left_layout,
@@ -3001,8 +3006,9 @@ impl<'a> Validator<'a> {
                 },
                 Type::TensorView {
                     kind: right_kind,
+                    lifetime: right_lifetime,
                     address_space: right_space,
-                    mutability: right_mutability,
+                    access: right_access,
                     element: right_element,
                     shape: right_shape,
                     layout: right_layout,
@@ -3010,8 +3016,9 @@ impl<'a> Validator<'a> {
                 },
             ) => {
                 left_kind == right_kind
+                    && left_lifetime == right_lifetime
                     && left_space == right_space
-                    && left_mutability == right_mutability
+                    && left_access == right_access
                     && left_shape == right_shape
                     && left_layout == right_layout
                     && left_nullable == right_nullable
@@ -3102,12 +3109,12 @@ impl<'a> Validator<'a> {
         result_type: LocalNodeId<Type>,
         expected_pointee: Option<LocalNodeId<Type>>,
         expected_kind: Option<ReferenceKind>,
-        expected_mutability: Option<Mutability>,
+        expected_access: Option<Access>,
         anchor: ValidateAnchor,
     ) -> ValidateResult<()> {
         let Type::Reference {
             kind,
-            mutability,
+            access,
             pointee,
             ..
         } = self.tree.get(result_type)
@@ -3146,12 +3153,11 @@ impl<'a> Validator<'a> {
             });
         }
 
-        if let Some(expected) = expected_mutability
-            && *mutability != expected
+        if let Some(expected) = expected_access
+            && *access != expected
         {
             return Err(ValidateError::MetadataInvariantViolation {
-                message: "pointer-producing instruction result type has wrong mutability"
-                    .to_string(),
+                message: "pointer-producing instruction result type has wrong access".to_string(),
                 anchor,
             });
         }
@@ -3168,7 +3174,7 @@ impl<'a> Validator<'a> {
         context: &'static str,
     ) -> ValidateResult<LocalNodeId<Type>> {
         let value_type = self.value_type_or_error(function, value, anchor, context)?;
-        let (kind, _mutability, _pointee, _is_nullable) =
+        let (kind, _access, _pointee, _is_nullable) =
             self.reference_type(value_type, anchor, "expected a reference type")?;
         let Type::Reference { address_space, .. } = self.tree.get(value_type) else {
             return Err(ValidateError::MetadataInvariantViolation {
@@ -3426,6 +3432,28 @@ impl<'a> Validator<'a> {
                 ..
             } | Type::FunctionPointer { .. }
         )
+    }
+}
+
+/// Return the capability rank for one access form.
+fn access_rank(access: Access) -> u8 {
+    match access {
+        Access::Readonly => 0,
+        Access::Mutable => 1,
+        Access::Exclusive => 2,
+    }
+}
+
+/// Return whether a reference with source access can be viewed as destination access.
+fn access_can_flow_to(source: Access, destination: Access) -> bool {
+    access_rank(source) >= access_rank(destination)
+}
+
+/// Return the reference access exposed by one storage mutability.
+fn access_for_storage_mutability(mutability: Mutability) -> Access {
+    match mutability {
+        Mutability::Immutable => Access::Readonly,
+        Mutability::Mutable => Access::Mutable,
     }
 }
 

@@ -1,8 +1,8 @@
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
-    AllocationMode, Attribute, BorrowRegion, CallBehavior, Function, Global, GlobalInitializer,
-    Linkage, LocalNodeId, MemoryEffect, Mutability, PointerAttribute, Type, TypeAlias,
+    AllocationMode, Attribute, CallBehavior, Function, Global, GlobalInitializer, Lifetime,
+    Linkage, LocalNodeId, MemoryEffect, Mutability, PlaceTable, PointerAttribute, Type, TypeAlias,
     TypeDeclarationSpans, TypeReference, Value, ValueReference,
 };
 
@@ -117,8 +117,9 @@ impl Parser {
                         parameter_names: Vec::new(),
                         value_names: Vec::new(),
                         value_types: Vec::new(),
+                        places: PlaceTable::new(),
                         return_type: TypeReference::Type(void_type),
-                        return_region: BorrowRegion::Inferred,
+                        return_lifetime: Lifetime::empty(),
                         memory_effect: MemoryEffect::unknown(),
                         call_behavior: CallBehavior::unknown(),
                         allocation_size: None,
@@ -226,6 +227,8 @@ impl Parser {
         let function = self.tree.get_mut(function_id);
         function.parameters = parameters;
         function.return_type = TypeReference::Type(return_type);
+        self.tree
+            .infer_and_set_function_return_lifetime(function_id);
 
         // imports stop at the signature
         if linkage.is_import() {

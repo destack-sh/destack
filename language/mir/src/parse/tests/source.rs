@@ -1,4 +1,4 @@
-use crate::{Block, Function, Global, Local, TypeAlias, TypeReference, assert_node};
+use crate::{Block, Function, Global, Local, TypeAlias, assert_node};
 use destack_source::{NodeSpanList, NodeSpanRegion, NodeSpanType};
 
 use super::tests::{TestParser, span_for_text, span_for_text_in, span_for_text_in_after};
@@ -183,37 +183,4 @@ entry0:
         tree.get_side_span(local_id, NodeSpanType::Region(NodeSpanRegion::Type)),
         Some(span_for_text_in(source, "local local0: int32", "int32"))
     );
-}
-
-#[test]
-fn test_type_alias_carries_layout_metadata() {
-    let source = r#"
-type Env {
-    value: int32;
-}
-
-function makeEnv(): ref<Env, managed> {
-b0:
-    v0: ref<Env, managed> = new Env
-    return v0
-}"#;
-
-    let (tree, _) = TestParser::new(source).parse();
-    let alias = tree
-        .iter_nodes::<TypeAlias>()
-        .next()
-        .map(|(_, alias)| alias)
-        .expect("missing type alias");
-
-    assert_node!(alias.ty, TypeReference::Type(alias_type) => {
-        tree.type_layout_id(alias_type)
-            .expect("missing type alias layout id");
-        let layout = tree
-            .type_layout(alias_type)
-            .expect("missing type alias layout");
-
-        assert_eq!(layout.size, 4);
-        assert_eq!(layout.alignment, 4);
-        assert_eq!(layout.fields.len(), 1);
-    });
 }

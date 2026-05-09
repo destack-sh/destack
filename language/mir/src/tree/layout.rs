@@ -108,10 +108,11 @@ pub(crate) fn compute_type_layout(
             kind,
             element,
             address_space,
-            mutability,
+            access,
+            ..
         } => {
             let (data, length) =
-                slice_header_types(*kind, *element, *mutability, address_space.clone());
+                slice_header_types(*kind, *element, *access, address_space.clone());
             compute_type_pair_layout(tree, [&data, &length], pointer_bytes)
         }
 

@@ -3,11 +3,11 @@ use destack_source::FileId;
 
 use crate::parse::{ParseError, ParseOptions, Parser};
 use crate::{
-    AddressSpace, AllocationMode, ArgumentAttribute, ArgumentSlice, Attribute, AttributeArgs,
-    AttributeIdentifier, AttributeValue, Block, Call, CallBehavior, Constant, Copy,
+    Access, AddressSpace, AllocationMode, ArgumentAttribute, ArgumentSlice, Attribute,
+    AttributeArgs, AttributeIdentifier, AttributeValue, Block, Call, CallBehavior, Constant, Copy,
     DebugBindingKind, DebugLocation, DebugValueLocation, DispatchSlot, EffectClass, Field,
-    Function, FunctionReference, Instruction, Layout, LayoutField, LayoutKind, Local, LocalNodeId,
-    LocalReference, Mutability, Ownership, Parameter, ProvenanceAnchor, ProvenanceKey,
+    Function, FunctionReference, Instruction, Layout, LayoutField, LayoutKind, Lifetime, Local,
+    LocalNodeId, LocalReference, Mutability, Ownership, Parameter, ProvenanceAnchor, ProvenanceKey,
     ReferenceKind, ReferenceMap, SuspendBehavior, Terminator, Tree, Type, TypeReference,
     UnwindBehavior, Value, ValueReference,
 };
@@ -1380,7 +1380,7 @@ b0:
     let error = assert_validate_error(source);
     assert_eq!(
         error.message,
-        "metadata invariant violation: space.cast requires matching reference kind, mutability, and pointee"
+        "metadata invariant violation: space.cast requires matching reference kind, access, and pointee"
     );
 }
 
@@ -1642,8 +1642,9 @@ fn test_reject_new_with_no_managed_mode() {
     });
     let result_ty = tree.insert_type(Type::Reference {
         kind: ReferenceKind::Managed,
+        lifetime: Lifetime::empty(),
         address_space: AddressSpace::Local,
-        mutability: Mutability::Mutable,
+        access: Access::Mutable,
         pointee: type_reference(layout_ty),
         is_nullable: false,
     });
@@ -1674,7 +1675,7 @@ fn test_reject_new_with_no_managed_mode() {
         .expect_err("expected validation failure");
     assert_eq!(
         error.to_string(),
-        "metadata invariant violation: allocation mode violation: 'new' is invalid because noManaged forbids heap allocations"
+        "metadata invariant violation: allocation mode violation: 'new' is invalid because noManaged forbids managed allocations"
     );
 }
 
@@ -1692,8 +1693,9 @@ fn test_reject_raw_alloc_with_no_heap_mode() {
     });
     let result_ty = tree.insert_type(Type::Reference {
         kind: ReferenceKind::Raw,
+        lifetime: Lifetime::empty(),
         address_space: AddressSpace::Local,
-        mutability: Mutability::Mutable,
+        access: Access::Mutable,
         pointee: type_reference(layout_ty),
         is_nullable: false,
     });

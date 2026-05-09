@@ -17,6 +17,10 @@ impl<'a> FunctionBuilder<'a> {
             Self::replace_plain_value(value, from, to);
         }
 
+        // update place facts
+        let function = self.tree.get_mut(self.function_id);
+        function.places.replace_value(from, to);
+
         // update incomplete phis
         for phis in self.incomplete_phis.values_mut() {
             for (_variable, phi_value) in phis {

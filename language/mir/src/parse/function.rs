@@ -132,6 +132,8 @@ impl Parser {
                 ),
             );
             *self.tree.get_mut(function_id) = function;
+            self.tree
+                .infer_and_set_function_return_lifetime(function_id);
             self.current_function = None;
 
             // record attributes
@@ -175,6 +177,7 @@ impl Parser {
         function.parameter_attributes = vec![PointerAttribute::default(); parameters.len()];
         function.return_attribute = PointerAttribute::default();
         function.environment = environment_type;
+        self.tree.infer_and_set_function_return_lifetime(id);
 
         // body
         let open_brace_token = self.eat_token(TokenType::OpenBrace)?;
@@ -243,6 +246,8 @@ impl Parser {
         function.blocks = blocks;
         function.entry = Some(entry);
         function.next_value_id = function.value_types.len() as u32;
+
+        self.tree.rebuild_function_places(id);
 
         self.current_function = None;
         self.tree
