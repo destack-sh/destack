@@ -5,10 +5,16 @@ import {
     type Symbol,
 } from "../../reflect/dir/index.ds";
 
+/// What caused one macro invocation.
+export type MacroTrigger = "decorator" | "autoDerive";
+
 /// Shared context passed to macro providers.
 export interface MacroContext {
-    /// The decorated target symbol.
-    readonly symbol: Symbol;
+    /// What caused this macro invocation.
+    readonly trigger: MacroTrigger;
+
+    /// The decorated target symbol when one exists.
+    readonly symbol?: Symbol;
 
     /// The containing scope.
     readonly scope: Scope;
@@ -24,6 +30,8 @@ export interface MacroContext {
 }
 
 /// Context for declaration expansion.
+///
+/// Expansion runs to a fixed point, so generated declarations may contain more macros.
 export interface ExpansionContext extends MacroContext {
     /// Add a generated declaration to the current scope.
     add(declaration: Declaration): void;
@@ -45,6 +53,8 @@ export interface ExpansionContext extends MacroContext {
 }
 
 /// Context for checked implementation materialization.
+///
+/// Materialization cannot introduce new visible declarations or new macro invocations.
 export interface MaterializationContext extends MacroContext {
     /// Replace the decorated target with a checked generated declaration.
     replaceTarget(declaration: Declaration): void;
@@ -53,6 +63,7 @@ export interface MaterializationContext extends MacroContext {
 /// Protocol for decorator values that provide macro behavior.
 ///
 /// `State` is serializable static data carried from expansion to materialization.
+/// Each expansion invocation runs once for its target node, trigger, implementation, and config.
 export newtype interface Macro<Target, State = void> {
     /// Expand declarations for the decorated target.
     static expand?(target: Target, context: ExpansionContext, config: this): State;
