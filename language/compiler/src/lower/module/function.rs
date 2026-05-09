@@ -316,8 +316,6 @@ impl ModuleLowerer<'_> {
         let return_type_id = self.resolve_function_return_type_id(declaration_id)?;
         let return_type = self.lower_function_return_type(declaration_id, return_type_id)?;
 
-        let return_region = mir::BorrowRegion::Inferred;
-
         // build a MIR signature type aligned with the lowered parameters
         let mir_signature = self
             .builder
@@ -332,7 +330,6 @@ impl ModuleLowerer<'_> {
         {
             let function = self.builder.tree_mut().get_mut(function_id);
             function.parameter_names = parameter_names.clone();
-            function.return_region = return_region;
             function.allocation = allocation_mode;
         }
 
@@ -522,8 +519,6 @@ impl ModuleLowerer<'_> {
         let return_type_id = self.resolve_function_return_type_id(declaration_id)?;
         let return_type = self.lower_function_return_type(declaration_id, return_type_id)?;
 
-        let return_region = mir::BorrowRegion::Inferred;
-
         // build a MIR signature type aligned with the lowered parameters
         let mir_signature = self
             .builder
@@ -558,7 +553,6 @@ impl ModuleLowerer<'_> {
             {
                 let function = self.builder.tree_mut().get_mut(function_id);
                 function.parameter_names = parameter_names.clone();
-                function.return_region = return_region.clone();
                 function.allocation = allocation_mode;
             }
 
@@ -583,7 +577,6 @@ impl ModuleLowerer<'_> {
                 builder.set_parameter_name(index, *name_id);
             }
         }
-        builder.set_return_region(return_region);
         builder.set_allocation_mode(allocation_mode);
 
         // build lowering context

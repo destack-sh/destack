@@ -2,7 +2,7 @@ use {destack_dir as dir, destack_mir as mir};
 
 use crate::{CompilerError, CompilerResult, LowerError, ScalarType};
 
-use crate::lower::lower_mutability;
+use crate::lower::{access_for_storage_mutability, lower_mutability};
 
 use super::FunctionLowerer;
 use crate::lower::{BreakContext, LocalBinding, LoopContext, Terminates};
@@ -1027,13 +1027,14 @@ impl FunctionLowerer<'_> {
         // use boxed capture cell for by-reference locals
         if self.symbol_needs_reference_cell(global_symbol_id) {
             // allocate a reference cell and defer pointee initialization
-            let mir_mutability = mutability
+            let access = mutability
                 .map(lower_mutability)
-                .unwrap_or(mir::Mutability::Immutable);
+                .map(access_for_storage_mutability)
+                .unwrap_or(mir::Access::Readonly);
             let reference_type = self.state.builder.type_reference(
                 mir::ReferenceKind::Managed,
                 value_type,
-                mir_mutability,
+                access,
                 mir::AddressSpace::Local,
                 false,
             );
@@ -1094,13 +1095,14 @@ impl FunctionLowerer<'_> {
         // use boxed capture cell for by-reference locals
         if self.symbol_needs_reference_cell(global_symbol_id) {
             // wrap value in reference type
-            let mir_mutability = mutability
+            let access = mutability
                 .map(lower_mutability)
-                .unwrap_or(mir::Mutability::Immutable);
+                .map(access_for_storage_mutability)
+                .unwrap_or(mir::Access::Readonly);
             let reference_type = self.state.builder.type_reference(
                 mir::ReferenceKind::Managed,
                 value_type,
-                mir_mutability,
+                access,
                 mir::AddressSpace::Local,
                 false,
             );

@@ -67,7 +67,7 @@ impl TypeLowerer<'_> {
         let itab_type = builder.type_reference(
             mir::ReferenceKind::Raw,
             self.ty_void,
-            mir::Mutability::Immutable,
+            mir::Access::Readonly,
             mir::AddressSpace::Static,
             false,
         );

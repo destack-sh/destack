@@ -351,10 +351,11 @@ impl TypeLowerer<'_> {
                 kind,
                 element,
                 address_space,
-                mutability,
+                access,
+                ..
             } => {
                 let (data, length) =
-                    mir::slice_header_types(*kind, *element, *mutability, address_space.clone());
+                    mir::slice_header_types(*kind, *element, *access, address_space.clone());
                 let fields = [&data, &length];
                 let mut max_align: u32 = 1;
                 let mut current_offset: u32 = 0;

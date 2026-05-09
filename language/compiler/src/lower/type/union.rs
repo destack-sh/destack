@@ -387,8 +387,9 @@ impl TypeLowerer<'_> {
         let non_null_type = self.lower_type(types, non_null, module_id, node, builder)?;
         let mir::Type::Reference {
             kind,
+            lifetime,
             address_space,
-            mutability,
+            access,
             pointee,
             is_nullable,
         } = builder.tree().get(non_null_type)
@@ -404,8 +405,14 @@ impl TypeLowerer<'_> {
             return Ok(None);
         };
 
-        let nullable =
-            builder.type_reference(*kind, pointee, *mutability, address_space.clone(), true);
+        let nullable = builder.type_reference_with_lifetime(
+            *kind,
+            lifetime.clone(),
+            pointee,
+            *access,
+            address_space.clone(),
+            true,
+        );
         Ok(Some(nullable))
     }
 

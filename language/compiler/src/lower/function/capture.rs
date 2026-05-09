@@ -3,7 +3,8 @@ use {destack_dir as dir, destack_mir as mir};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 use crate::lower::{
-    FunctionEnvironmentField, FunctionEnvironmentLayout, FunctionLowerer, lower_mutability,
+    FunctionEnvironmentField, FunctionEnvironmentLayout, FunctionLowerer,
+    access_for_storage_mutability, lower_mutability,
 };
 
 impl FunctionLowerer<'_> {
@@ -60,7 +61,7 @@ impl FunctionLowerer<'_> {
                 let field_addr_type = self.state.builder.type_reference(
                     mir::ReferenceKind::Managed,
                     field.ty,
-                    mir::Mutability::Mutable,
+                    mir::Access::Mutable,
                     mir::AddressSpace::Local,
                     false,
                 );
@@ -110,7 +111,7 @@ impl FunctionLowerer<'_> {
         let field_addr_type = self.state.builder.type_reference(
             mir::ReferenceKind::Managed,
             field.ty,
-            mir::Mutability::Mutable,
+            mir::Access::Mutable,
             mir::AddressSpace::Local,
             false,
         );
@@ -196,13 +197,14 @@ impl FunctionLowerer<'_> {
 
         // copy or move: return a reference to the env field
         let (field_addr, field_addr_type) = self.capture_field_addr(expression_id, field)?;
-        let mir_mutability = mutability
+        let access = mutability
             .map(lower_mutability)
-            .unwrap_or(mir::Mutability::Immutable);
+            .map(access_for_storage_mutability)
+            .unwrap_or(mir::Access::Readonly);
         let result_type = self.state.builder.type_reference(
             mir::ReferenceKind::Managed,
             field.ty,
-            mir_mutability,
+            access,
             mir::AddressSpace::Local,
             false,
         );

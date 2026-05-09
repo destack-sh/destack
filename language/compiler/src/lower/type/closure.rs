@@ -1,8 +1,8 @@
 use destack_core::StringId;
 use {destack_dir as dir, destack_mir as mir};
 
-use crate::lower::lower_mutability;
 use crate::lower::r#type::{FieldInput, FieldLayoutKind, LayoutPolicy, StructLayout};
+use crate::lower::{access_for_storage_mutability, lower_mutability};
 use crate::{LowerError, LowerResult, ModuleLowerer, TypeLowerer};
 
 // suffix for function environment metadata names
@@ -126,7 +126,7 @@ impl ModuleLowerer<'_> {
         let env_pointer_type = self.builder.type_reference(
             mir::ReferenceKind::Managed,
             env_type,
-            mir::Mutability::Mutable,
+            mir::Access::Mutable,
             mir::AddressSpace::Local,
             false,
         );
@@ -158,13 +158,14 @@ impl ModuleLowerer<'_> {
         let field_type = match capture.mode {
             dir::CaptureMode::Borrow => {
                 let mutability = self.mutability_for_symbol(capture.symbol);
-                let mutability = mutability
+                let access = mutability
                     .map(lower_mutability)
-                    .unwrap_or(mir::Mutability::Immutable);
+                    .map(access_for_storage_mutability)
+                    .unwrap_or(mir::Access::Readonly);
                 self.builder.type_reference(
                     mir::ReferenceKind::Managed,
                     value_type,
-                    mutability,
+                    access,
                     mir::AddressSpace::Local,
                     false,
                 )
@@ -231,7 +232,7 @@ impl ModuleLowerer<'_> {
         let env_pointer_type = self.builder.type_reference(
             mir::ReferenceKind::Managed,
             env_type,
-            mir::Mutability::Mutable,
+            mir::Access::Mutable,
             mir::AddressSpace::Local,
             true,
         );
@@ -252,7 +253,7 @@ impl ModuleLowerer<'_> {
         let env_pointer_type = self.builder.type_reference(
             mir::ReferenceKind::Managed,
             env_type,
-            mir::Mutability::Mutable,
+            mir::Access::Mutable,
             mir::AddressSpace::Local,
             true,
         );

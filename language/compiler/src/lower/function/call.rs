@@ -646,7 +646,7 @@ impl FunctionLowerer<'_> {
             let out_ptr_type = self.state.builder.type_reference(
                 mir::ReferenceKind::Raw,
                 ok_value_mir_type,
-                mir::Mutability::Mutable,
+                mir::Access::Mutable,
                 mir::AddressSpace::Stack,
                 false,
             );
@@ -744,7 +744,7 @@ impl FunctionLowerer<'_> {
         let error_out_ptr_type = self.state.builder.type_reference(
             mir::ReferenceKind::Raw,
             err_value_mir_type,
-            mir::Mutability::Mutable,
+            mir::Access::Mutable,
             mir::AddressSpace::Stack,
             false,
         );

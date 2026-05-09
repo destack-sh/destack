@@ -125,7 +125,7 @@ impl ModuleLowerer<'_> {
         let out_ptr_type = self.builder.type_reference(
             mir::ReferenceKind::Raw,
             err_mir_type,
-            mir::Mutability::Mutable,
+            mir::Access::Mutable,
             mir::AddressSpace::Stack,
             false,
         );
