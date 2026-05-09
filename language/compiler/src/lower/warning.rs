@@ -10,14 +10,14 @@ pub enum LowerWarning {
     // 1xx: Type warnings
     // -------------------------------------------------------------------------
     /// Complex type in target language.
-    #[diagnostic(code = "WM100", message = "complex type in target")]
+    #[diagnostic(code = "WL100", message = "complex type in target")]
     ComplexType {
         /// Point at the complex type source.
         anchor: DiagnosticAnchor,
     },
 
     /// Type coercion may lose precision.
-    #[diagnostic(code = "WM101", message = "type coercion may lose precision")]
+    #[diagnostic(code = "WL101", message = "type coercion may lose precision")]
     PrecisionLoss {
         /// Point at the cast/coercion node.
         anchor: DiagnosticAnchor,
@@ -31,7 +31,7 @@ pub enum LowerWarning {
     // 2xx: Performance warnings
     // -------------------------------------------------------------------------
     /// Large aggregate copy (struct/array).
-    #[diagnostic(code = "WM200", message = "large aggregate copy ({size_bytes} bytes)")]
+    #[diagnostic(code = "WL200", message = "large aggregate copy ({size_bytes} bytes)")]
     LargeAggregateCopy {
         /// Point at the copy expression.
         anchor: DiagnosticAnchor,
@@ -44,7 +44,7 @@ pub enum LowerWarning {
     // -------------------------------------------------------------------------
     /// Unreachable code after terminator.
     #[diagnostic(
-        code = "WM300",
+        code = "WL300",
         message = "unreachable code after return/break/continue"
     )]
     UnreachableCode {
@@ -53,7 +53,7 @@ pub enum LowerWarning {
     },
 
     /// Empty block with no effect.
-    #[diagnostic(code = "WM301", message = "empty block has no effect")]
+    #[diagnostic(code = "WL301", message = "empty block has no effect")]
     EmptyBlock {
         /// Point at the empty block.
         anchor: DiagnosticAnchor,

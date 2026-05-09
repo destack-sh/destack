@@ -1,5 +1,6 @@
 use destack_artifact::{
-    BuildManifest, BuildManifestFile, ModuleOutput, OutputFile, PackageOutput, TargetOutputName,
+    ArtifactKey, BuildManifest, BuildManifestFile, ModuleOutput, OutputFile, PackageOutput,
+    TargetOutputName,
 };
 use destack_source::{FileType, ModuleId};
 use destack_workspace::ProviderError;
@@ -65,12 +66,11 @@ impl<'a> BinaryLinker<'a> {
                             .target_name(self.context.revision(), self.target_id)
                     ),
                 })?;
-            match self.compiler.require_module_output(
-                self.context,
-                module_id,
-                profile_id,
-                self.target_id,
-            ) {
+            let _ = profile_id;
+            match self
+                .context
+                .require(ArtifactKey::module_output(module_id, *self.target_id))
+            {
                 Ok(_) => {}
                 Err(ProviderError::Blocked { keys }) => blocked.extend(keys),
                 Err(error) => return Err(CompilerError::from(error)),

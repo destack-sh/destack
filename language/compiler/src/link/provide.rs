@@ -1,9 +1,9 @@
 use crate::link::binary::BinaryLinker;
 use crate::link::{LinkState, ScriptLinker};
 use crate::{Compiler, CompilerResult, LinkError};
-use destack_artifact::{ArtifactKey, ArtifactPayload, EmitFormat, PackageOutput};
+use destack_artifact::{ArtifactPayload, EmitFormat, PackageOutput};
 use destack_source::{PackageId, TargetId};
-use destack_workspace::{ProviderContext, ProviderError, TargetDiscoveryError};
+use destack_workspace::{ProviderContext, TargetDiscoveryError};
 
 impl Compiler {
     /// Build one package output.
@@ -14,27 +14,9 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
         let state = LinkState::new(package, target, context);
-        let artifact_key = ArtifactKey::package_output(state.package, state.target);
         let output = self.link_target(state.package, &state.target, state.context)?;
-        assert_eq!(
-            artifact_key,
-            state.context.artifact_key(),
-            "compiler attempted to provide the wrong artifact"
-        );
 
         Ok(ArtifactPayload::PackageOutput(output))
-    }
-
-    /// Require one package output artifact.
-    pub fn require_package_output(
-        &self,
-        context: &dyn ProviderContext,
-        package: PackageId,
-        target: &TargetId,
-    ) -> Result<(), ProviderError> {
-        context.require(ArtifactKey::package_output(package, *target))?;
-
-        Ok(())
     }
 
     /// Link all modules for one target.

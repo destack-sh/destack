@@ -49,9 +49,6 @@ impl Compiler {
             .into());
         }
 
-        self.require_dir_checked(context, module_id, profile)
-            .map_err(CompilerError::from)?;
-
         // dispatch through the selected code generation family
         if target.uses_js_generate_pipeline() {
             return self
@@ -60,7 +57,7 @@ impl Compiler {
         }
 
         // native code generation
-        #[cfg(feature = "native-codegen")]
+        #[cfg(feature = "native")]
         {
             if target.uses_native_generate_pipeline() {
                 return self
@@ -70,7 +67,7 @@ impl Compiler {
         }
 
         // disabled native code generation
-        #[cfg(not(feature = "native-codegen"))]
+        #[cfg(not(feature = "native"))]
         {
             if target.uses_native_generate_pipeline() {
                 return Err(GenerateError::Internal {

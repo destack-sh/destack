@@ -1,5 +1,5 @@
 use crate::{Compiler, CompilerError, CompilerResult, GenerateError, GenerateWarning};
-use destack_artifact::ModuleOutput;
+use destack_artifact::{ArtifactKey, ModuleOutput};
 use destack_codegen_js::{CodegenJsError, CodegenJsWarning};
 use destack_dir as dir;
 use destack_source::ModuleId;
@@ -17,9 +17,8 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ModuleOutput> {
         // require the script module state
-        self.require_dir_declared(context, module_id, profile)
-            .map_err(CompilerError::from)?;
-        self.require_dir_checked(context, module_id, profile)
+        context
+            .require(ArtifactKey::dir_checked(module_id, profile))
             .map_err(CompilerError::from)?;
 
         // snapshot module for this generate pass

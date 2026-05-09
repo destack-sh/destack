@@ -1,6 +1,6 @@
 use crate::DiagnosticAnchor;
 use destack_dir as dir;
-#[cfg(feature = "native-codegen")]
+#[cfg(feature = "native")]
 use destack_mir as mir;
 use destack_source::ModuleId;
 
@@ -36,7 +36,7 @@ impl GenerateState<'_, dir::Tree> {
     }
 }
 
-#[cfg(feature = "native-codegen")]
+#[cfg(feature = "native")]
 impl GenerateState<'_, mir::Tree> {
     /// Return the source anchor for one backend MIR node.
     pub(in crate::generate) fn anchor(&self, node: mir::LocalNodeIdAny) -> DiagnosticAnchor {

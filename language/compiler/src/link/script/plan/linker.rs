@@ -1,6 +1,6 @@
 use std::collections::{HashSet, VecDeque};
 
-use destack_artifact::ModuleOutput;
+use destack_artifact::{ArtifactKey, ModuleOutput};
 use destack_source::ModuleId;
 use destack_workspace::ProviderError;
 use indexmap::IndexSet;
@@ -202,8 +202,8 @@ impl<'a> ScriptLinker<'a> {
             // resource modules are linked directly from patched module state
             if !module.is_code() {
                 match self
-                    .compiler
-                    .require_dir_checked(self.context, module_id, profile_id)
+                    .context
+                    .require(ArtifactKey::dir_checked(module_id, profile_id))
                 {
                     Ok(_) => {}
                     Err(ProviderError::Blocked { keys }) => blocked.extend(keys),
@@ -213,12 +213,10 @@ impl<'a> ScriptLinker<'a> {
                 continue;
             }
 
-            match self.compiler.require_module_output(
-                self.context,
-                module_id,
-                profile_id,
-                self.target_id,
-            ) {
+            match self
+                .context
+                .require(ArtifactKey::module_output(module_id, *self.target_id))
+            {
                 Ok(_) => {}
                 Err(ProviderError::Blocked { keys }) => blocked.extend(keys),
                 Err(error) => return Err(CompilerError::from(error)),
@@ -227,8 +225,8 @@ impl<'a> ScriptLinker<'a> {
             // linked output rewriting and identifier minification still consult
             // the patched dir for source backed code modules
             match self
-                .compiler
-                .require_dir_checked(self.context, module_id, profile_id)
+                .context
+                .require(ArtifactKey::dir_checked(module_id, profile_id))
             {
                 Ok(_) => {}
                 Err(ProviderError::Blocked { keys }) => blocked.extend(keys),

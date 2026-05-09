@@ -1,4 +1,4 @@
-use destack_artifact::DirDeclared;
+use destack_artifact::{ArtifactKey, DirDeclared};
 use destack_core::{StringId, StringPool};
 use destack_source::ModuleId;
 use {destack_dir as dir, destack_mir as mir};
@@ -418,8 +418,8 @@ impl ModuleLowerer<'_> {
     pub(crate) fn require_checked_module(&self, module_id: ModuleId) -> CompilerResult<()> {
         // request checked DIR for the target module
         let result = self
-            .compiler
-            .require_dir_checked(self.context, module_id, self.profile);
+            .context
+            .require(ArtifactKey::dir_checked(module_id, self.profile));
         let Err(error) = result else {
             return Ok(());
         };

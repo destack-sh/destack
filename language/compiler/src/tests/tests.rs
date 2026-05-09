@@ -107,7 +107,7 @@ impl TestProgram {
     /// Enqueue exported surface work for one module.
     pub(crate) fn resolve_module(&self, _module: ModuleId) {}
 
-    /// Enqueue execute work for one module.
+    /// Enqueue materialize work for one module.
     pub(crate) fn execute_module(&self, _module: ModuleId) {}
 
     /// Run queued compiler work.
