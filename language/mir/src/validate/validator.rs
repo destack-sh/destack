@@ -76,8 +76,9 @@ impl<'a> Validator<'a> {
     fn validate_structure(&self) -> ValidateResult<()> {
         let node_count = self.tree.node_count();
         let anchor = self.module_anchor();
+        let expected_next_global_id = self.tree.first_global_id() + node_count as u32;
 
-        if self.tree.next_global_id as usize != node_count {
+        if self.tree.next_global_id() != expected_next_global_id {
             return Err(
                 self.metadata_error(anchor, "next_global_id does not match node table length")
             );
@@ -91,7 +92,7 @@ impl<'a> Validator<'a> {
         }
 
         for &node_id in self.tree.attributes_by_node_id.keys() {
-            if node_id as usize >= node_count {
+            if !self.tree.has_node_id(node_id) {
                 return Err(
                     self.metadata_error(anchor, "attributes reference an out of bounds node id")
                 );
@@ -110,7 +111,10 @@ impl<'a> Validator<'a> {
         }
 
         ValidateAnchor {
-            node: LocalNodeIdAny::new(0, self.tree.get_node_type(0)),
+            node: LocalNodeIdAny::new(
+                self.tree.first_global_id(),
+                self.tree.get_node_type(self.tree.first_global_id()),
+            ),
         }
     }
 
@@ -329,8 +333,9 @@ impl<'a> Validator<'a> {
         node_id: u32,
         anchor: ValidateAnchor,
     ) -> ValidateResult<()> {
-        let found = (node_id as usize)
-            .lt(&self.tree.node_count())
+        let found = self
+            .tree
+            .has_node_id(node_id)
             .then(|| self.tree.get_node_type(node_id));
 
         if found != Some(expected) {
