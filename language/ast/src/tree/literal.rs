@@ -107,10 +107,10 @@ pub enum TypeLiteral {
     String,
     /// Bigint type (unsized).
     Bigint,
-    /// "Number" type (alias).
+    /// `number`, the `float64` source alias.
     Number,
     /// Integer type.
-    Int(IntType),
+    Integer(IntegerType),
     /// Float type.
     Float(FloatType),
     /// Symbol type.
@@ -156,59 +156,65 @@ impl TryFrom<&str> for IntrinsicType {
     }
 }
 
-/// An IntType represents arbitrary width integer with signedness.
+/// An integer type name.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-pub enum IntType {
+pub enum IntegerType {
+    /// The signed or unsigned integer family.
+    Integer { is_signed: bool },
+    /// A fixed-width signed or unsigned integer.
+    Fixed { width: u16, is_signed: bool },
+    /// A pointer-sized signed or unsigned integer.
     Pointer { is_signed: bool },
-    Arbitrary { width: Option<u16>, is_signed: bool },
 }
 
-impl IntType {
+impl IntegerType {
     /// Whether the integer is signed.
     pub fn is_signed(&self) -> bool {
         match self {
-            IntType::Pointer { is_signed } => *is_signed,
-            IntType::Arbitrary {
+            IntegerType::Integer { is_signed }
+            | IntegerType::Fixed {
                 width: _,
                 is_signed,
-            } => *is_signed,
+            }
+            | IntegerType::Pointer { is_signed } => *is_signed,
         }
     }
 }
 
-/// A FloatType represents IEEE-754 float.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-pub struct FloatType {
-    /// Float width. May be omitted in AST for better diagnostics.
-    pub width: Option<u16>,
+/// A floating-point type name.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum FloatType {
+    /// The floating-point family.
+    Float,
+    /// A 32-bit IEEE-754 float.
+    Float32,
+    /// A 64-bit IEEE-754 float.
+    Float64,
 }
 
-impl IntType {
+impl IntegerType {
     #[inline]
     pub fn as_str(self) -> String {
         match self {
-            IntType::Pointer { is_signed } => {
+            IntegerType::Pointer { is_signed } => {
                 if is_signed {
                     "isize".to_string()
                 } else {
                     "usize".to_string()
                 }
             }
-            IntType::Arbitrary { width, is_signed } => {
+            IntegerType::Integer { is_signed } => {
                 if is_signed {
-                    // int
-                    if let Some(width) = width {
-                        format!("int{width}")
-                    } else {
-                        "int".to_string()
-                    }
+                    "int".to_string()
                 } else {
-                    // uint
-                    if let Some(width) = width {
-                        format!("uint{width}")
-                    } else {
-                        "uint".to_string()
-                    }
+                    "uint".to_string()
+                }
+            }
+            IntegerType::Fixed { width, is_signed } => {
+                if is_signed {
+                    format!("int{width}")
+                } else {
+                    format!("uint{width}")
                 }
             }
         }
@@ -217,11 +223,11 @@ impl IntType {
 
 impl FloatType {
     #[inline]
-    pub fn as_str(self) -> String {
-        if let Some(width) = self.width {
-            format!("float{width}")
-        } else {
-            "float".to_string()
+    pub fn as_str(self) -> &'static str {
+        match self {
+            FloatType::Float => "float",
+            FloatType::Float32 => "float32",
+            FloatType::Float64 => "float64",
         }
     }
 }
