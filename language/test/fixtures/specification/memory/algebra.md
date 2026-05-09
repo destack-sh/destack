@@ -148,6 +148,17 @@ function check<L: Lifetime>(value: Borrowed<int32, L>): void {
 }
 ```
 
+### static lifetime is a string
+
+The static storage lifetime is the literal `"static"`.
+
+```ds
+declare const value: Borrowed<int32, "static">;
+
+LifetimeOf<typeof value> satisfies "static";
+value satisfies Form<int32, "borrowed", "ambient", "static">;
+```
+
 ### AccessOf extracts access
 
 All forms carry their access mode.

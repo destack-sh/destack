@@ -38,6 +38,16 @@ function returnedPoint(): ^Point {
 
 ## generics
 
+### static lifetime names static storage
+
+Static storage is named with the literal `"static"`.
+
+```ds
+declare const value: Borrowed<int32, "static">;
+
+value satisfies Borrowed<int32, "static">;
+```
+
 ### output borrow can name the input lifetime
 
 Explicit lifetime relationships use static parameters.

@@ -4,7 +4,7 @@
 
 ### managed fields can be borrowed
 
-Managed fields can be borrowed.
+Borrowing through managed storage produces borrowed access.
 
 ```ds
 class User {
@@ -77,7 +77,7 @@ borrow.profile.name = "Grace";
 
 ### readonly borrows protect indexed elements
 
-Readonly borrowed access cannot mutate through indexes.
+Readonly borrowed access protects indexed elements.
 
 ```ds
 let values: int32[] = [1, 2, 3];
@@ -365,9 +365,9 @@ send(managed) satisfies "managed";
 send(owned) satisfies "owned";
 ```
 
-### borrowed access selects overloads
+### access forms select overloads
 
-Overload selection includes borrowed access.
+Overload selection includes access.
 
 ```ds
 struct Packet {

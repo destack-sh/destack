@@ -24,6 +24,19 @@ const registry: Registry = new Registry();
 registry satisfies Registry;
 ```
 
+### module const borrows have static lifetime
+
+Module bindings are static storage roots.
+
+```ds
+const score: int32 = 7;
+
+let scoreRef = &readonly score;
+
+scoreRef satisfies ReadonlyBorrowed<int32, "static">;
+scoreRef satisfies &readonly int32;
+```
+
 ### shared value type keeps the binding local
 
 `const value: shared T` is a local binding that holds a shared value.
