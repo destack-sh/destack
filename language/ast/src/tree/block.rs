@@ -7,6 +7,8 @@ use crate::{Expression, LocalNodeId, Node, NodeType};
 pub enum BlockForm {
     /// Explicit blocks with { ... }
     Explicit,
+    /// Explicit `do { ... }` expression blocks.
+    Do,
     /// Implicit blocks like in file modules.
     Implicit,
 }
@@ -46,6 +48,11 @@ impl Node for Block {
 }
 
 impl Block {
+    /// Return whether the block has explicit brace delimiters.
+    pub const fn is_explicit(&self) -> bool {
+        self.form.is_explicit()
+    }
+
     /// Return whether the block has no expressions at all.
     pub fn is_empty(&self) -> bool {
         self.leading_expressions.is_empty() && self.tail_expression.is_none()
@@ -76,5 +83,12 @@ impl Block {
             .iter()
             .copied()
             .chain(self.tail_expression)
+    }
+}
+
+impl BlockForm {
+    /// Return whether this form has explicit brace delimiters.
+    pub const fn is_explicit(self) -> bool {
+        matches!(self, Self::Explicit | Self::Do)
     }
 }

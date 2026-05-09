@@ -96,6 +96,7 @@ pub enum Expression {
         mutability: Mutability,
         declarators: Vec<LocalNodeId<Declarator>>,
         is_ambient: bool,
+        is_shared: bool,
     },
 
     /// Let-else binding with an early-exit branch.
