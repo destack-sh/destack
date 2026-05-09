@@ -323,8 +323,15 @@ impl Compiler {
                 ),
             },
         )?;
-        let (_, source_id) = module.tree.get_source(item_id.id);
-        let source_item_id = dir::LocalNodeId::<dir::DependencyItem>::new(source_id);
+        let origin = module
+            .tree
+            .get_origin(item_id.id)
+            .ok_or_else(|| LinkError::Internal {
+                anchor: package_id.into(),
+                package: package_id,
+                message: "same-output import item has no origin".to_string(),
+            })?;
+        let source_item_id = dir::LocalNodeId::<dir::DependencyItem>::new(origin.node_id);
         let source_item = source_directory.tree.get(source_item_id);
 
         let target_symbol = match source_item {

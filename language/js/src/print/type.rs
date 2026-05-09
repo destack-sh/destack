@@ -771,10 +771,9 @@ impl<'a> Printer<'a> {
 #[cfg(test)]
 mod tests {
     use destack_core::StringPool;
-    use destack_dir as dir;
     use destack_fir::format::{Document, FormatState, Formatter, VecBuffer};
     use destack_fir::print::Printer as FirPrinter;
-    use destack_source::{File, FileId, FileType, ModuleId, Uri};
+    use destack_source::{File, FileId, FileType, Uri};
 
     use crate::{
         FunctionTypeDeclaration, GenericParameter, JsFormatContext, JsFormatOptions, LocalNodeId,
@@ -783,23 +782,19 @@ mod tests {
         TypePredicateSubject, TypeTemplateLiteral, format_roots, print_roots_minified,
     };
 
-    fn dummy_source_id() -> dir::LocalNodeIdAny {
-        dir::LocalNodeIdAny::new(0, dir::NodeType::Expression)
-    }
-
     fn insert_type(tree: &mut Tree, ty: TypeExpression) -> LocalNodeId<TypeExpression> {
-        tree.insert_from_source_any(ty, ModuleId::EPHEMERAL, dummy_source_id())
+        tree.insert_generated(ty)
     }
 
     fn insert_parameter(tree: &mut Tree, parameter: Parameter) -> LocalNodeId<Parameter> {
-        tree.insert_from_source_any(parameter, ModuleId::EPHEMERAL, dummy_source_id())
+        tree.insert_generated(parameter)
     }
 
     fn insert_generic_parameter(
         tree: &mut Tree,
         parameter: GenericParameter,
     ) -> LocalNodeId<GenericParameter> {
-        tree.insert_from_source_any(parameter, ModuleId::EPHEMERAL, dummy_source_id())
+        tree.insert_generated(parameter)
     }
 
     fn build_path(strings: &StringPool, segments: &[&str]) -> Path {

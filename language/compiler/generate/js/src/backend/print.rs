@@ -64,19 +64,19 @@ struct CodegenJsSourceMap<'a> {
 impl CodegenJsSourceMap<'_> {
     /// Return the AST source id for one lowered JS node when one exists.
     fn source_id(&self, tree: &js::Tree, node_id: u32) -> Option<u32> {
-        let (module_id, source_id) = tree.get_source(node_id);
+        let origin = tree.get_origin(node_id)?;
 
         // skip nodes lowered from another source module
-        if module_id != self.declared.tree.module_id {
+        if origin.module_id != self.declared.tree.module_id {
             return None;
         }
 
         // JS nodes carry DIR ids, so resolve them back to AST ids first
-        if !self.declared.tree.has_node_id(source_id) {
+        if !self.declared.tree.has_node_id(origin.node_id) {
             return None;
         }
 
-        Some(self.declared.tree.get_source(source_id))
+        Some(self.declared.tree.get_source(origin.node_id))
     }
 }
 

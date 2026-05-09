@@ -114,8 +114,17 @@ impl NodeIndexEntry {
 pub enum ScriptSymbolId {
     /// One symbol lowered directly from source DIR.
     Source(GlobalSymbolId),
-    /// One generated default binding for one synthetic non-code script module.
+    /// One generated default binding for one non-code script module.
     ModuleDefault(ModuleId),
+}
+
+/// One DIR node that produced a JS node.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct NodeOrigin {
+    /// The origin module.
+    pub module_id: ModuleId,
+    /// The origin DIR node id.
+    pub node_id: u32,
 }
 
 /// Mutable AST tree for a single source unit. NOT THREAD-SAFE.
@@ -125,13 +134,11 @@ pub struct Tree {
     pub(crate) next_global_id: u32,
     /// Dense local id and node type metadata by node id.
     pub(crate) node_index_by_node_id: Vec<NodeIndexEntry>,
-    /// The sources of all nodes. Index is the global node id.
-    pub(crate) module_by_node_id: Vec<ModuleId>,
     /// The annotations attached to nodes.
     pub(crate) annotations_by_node_id: HashMap<u32, Vec<LocalNodeId<Annotation>>>,
 
-    /// The DIR ids of all nodes. Index is the global node id.
-    pub(crate) source_id_by_node_id: Vec<u32>,
+    /// The origin node for each JS node.
+    pub(crate) origin_by_node_id: Vec<Option<NodeOrigin>>,
     /// The alias node id by DIR node id.
     pub(crate) alias_node_id_by_dir_id: HashMap<u32, u32>,
     /// The alias node id by JS AST node id.
@@ -191,9 +198,8 @@ impl Tree {
         Self {
             next_global_id: 0,
             node_index_by_node_id: Vec::with_capacity(capacity),
-            module_by_node_id: Vec::with_capacity(capacity),
             annotations_by_node_id: HashMap::new(),
-            source_id_by_node_id: Vec::with_capacity(capacity),
+            origin_by_node_id: Vec::with_capacity(capacity),
             alias_node_id_by_dir_id: HashMap::new(),
             alias_node_id_by_node_id: HashMap::new(),
             symbol_id_by_node_id: Vec::with_capacity(capacity),
@@ -225,7 +231,7 @@ impl Tree {
     }
 
     /// Allocate a new node in the JS AST tree.
-    fn insert<T>(&mut self, node: T, module_id: ModuleId) -> LocalNodeId<T>
+    fn insert<T>(&mut self, node: T, origin: Option<NodeOrigin>) -> LocalNodeId<T>
     where
         T: Node,
         Self: TreeImpl<T>,
@@ -235,9 +241,18 @@ impl Tree {
         let local_id = <Self as TreeImpl<T>>::allocate(self, node);
         self.node_index_by_node_id
             .push(NodeIndexEntry::new(local_id, T::TYPE));
-        self.module_by_node_id.push(module_id);
+        self.origin_by_node_id.push(origin);
         self.symbol_id_by_node_id.push(None);
         LocalNodeId::new(global_id)
+    }
+
+    /// Allocate a generated node in the JS AST tree.
+    pub fn insert_generated<T>(&mut self, node: T) -> LocalNodeId<T>
+    where
+        T: Node,
+        Self: TreeImpl<T>,
+    {
+        self.insert(node, None)
     }
 
     /// Allocate a new node in the JS AST tree derived from another JS AST node.
@@ -253,9 +268,13 @@ impl Tree {
         U: dir::Node,
         dir::Tree: dir::TreeStore<U>,
     {
-        let node_id = self.insert(node, module_id);
-        self.source_id_by_node_id.push(dir_node_id.id);
-        node_id
+        self.insert(
+            node,
+            Some(NodeOrigin {
+                module_id,
+                node_id: dir_node_id.id,
+            }),
+        )
     }
 
     /// Allocate a new node in the JS AST tree derived from a DIR node.
@@ -269,9 +288,13 @@ impl Tree {
         T: Node,
         Self: TreeImpl<T>,
     {
-        let node_id = self.insert(node, module_id);
-        self.source_id_by_node_id.push(dir_node_id.id);
-        node_id
+        self.insert(
+            node,
+            Some(NodeOrigin {
+                module_id,
+                node_id: dir_node_id.id,
+            }),
+        )
     }
 
     /// Allocate a new node in the JS AST tree derived from another DIR node.
@@ -281,10 +304,8 @@ impl Tree {
         Self: TreeImpl<T>,
         U: Node,
     {
-        let module_id = self.module_by_node_id[dir_node_id.id as usize];
-        let node_id = self.insert(node, module_id);
-        let source_id = self.source_id_by_node_id[dir_node_id.id as usize];
-        self.source_id_by_node_id.push(source_id);
+        let origin = self.origin_by_node_id[dir_node_id.id as usize];
+        let node_id = self.insert(node, origin);
 
         if let Some(symbol_id) = self.symbol_by_id(dir_node_id.id) {
             self.symbol_id_by_node_id[node_id.id as usize] = Some(symbol_id);
@@ -374,12 +395,9 @@ impl Tree {
         self.node_index_by_node_id[id as usize].local_id()
     }
 
-    /// Get the source and DIR id of a node by its global id.
-    pub fn get_source(&self, node_id: u32) -> (ModuleId, u32) {
-        (
-            self.module_by_node_id[node_id as usize],
-            self.source_id_by_node_id[node_id as usize],
-        )
+    /// Return the origin node for one JS node when it has one.
+    pub fn get_origin(&self, node_id: u32) -> Option<NodeOrigin> {
+        self.origin_by_node_id[node_id as usize]
     }
 
     /// Store one symbol identity for one JS AST node.
