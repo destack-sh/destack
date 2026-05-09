@@ -87,7 +87,7 @@ pub fn inline_symbol(
         let declaration = symbol.declaration?;
 
         // avoid inlining symbols that are exported from the module
-        if symbol.export.is_some() {
+        if symbol.export_kind.is_some() {
             return None;
         }
 
@@ -816,7 +816,7 @@ fn inline_shadow_safe(
 
 /// Resolve a symbol within a scope chain.
 fn resolve_symbol_in_scope(
-    symbols: &dir::SymbolTable,
+    symbols: &dir::BindingTable,
     mut scope_id: dir::LocalScopeId,
     mut scope_mark: dir::LocalScopeMark,
     key: dir::StaticKey,
@@ -1094,7 +1094,7 @@ struct CapturedSymbolVisitor<'a> {
     /// The checked type table.
     types: &'a dir::TypeTable,
     /// The symbol table for the current module.
-    symbols: &'a dir::SymbolTable,
+    symbols: &'a dir::BindingTable,
     /// The module that owns visited nodes.
     module_id: destack_source::ModuleId,
     /// The symbol being inlined.
@@ -1113,7 +1113,7 @@ impl<'a> CapturedSymbolVisitor<'a> {
         repository: &'a Repository,
         revision: Revision,
         types: &'a dir::TypeTable,
-        symbols: &'a dir::SymbolTable,
+        symbols: &'a dir::BindingTable,
         module_id: ModuleId,
         inline_symbol: dir::GlobalSymbolId,
         captured: &'a mut HashMap<dir::StaticKey, dir::GlobalSymbolId>,

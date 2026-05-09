@@ -115,10 +115,7 @@ fn resolved_import_target_module(
             && dependency.loader.is_none()
     })?;
 
-    dependency
-        .resolution
-        .value
-        .and_then(|target| target.module_id())
+    dependency.target.module_id()
 }
 
 /// Parsed import clause info for completion.

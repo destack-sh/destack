@@ -877,7 +877,7 @@ fn namespace_import_aliases_for_module(
                 .types()
                 .dependency_resolution(node_id)
                 .and_then(|resolution| match resolution {
-                    dir::DependencyResolution::Module(resolution) => resolution.for_space(*space),
+                    dir::DependencyResolution::Module(target) => Some(*target),
                     dir::DependencyResolution::Symbol(_) => None,
                 })
                 .and_then(|target| target.module_id())?;

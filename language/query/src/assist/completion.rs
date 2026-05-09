@@ -92,7 +92,7 @@ impl From<SymbolForm> for CompletionKind {
     /// Convert a symbol type into a completion kind.
     fn from(ty: SymbolForm) -> Self {
         match ty {
-            SymbolForm::Value => CompletionKind::Variable,
+            SymbolForm::Variable => CompletionKind::Variable,
             SymbolForm::Class => CompletionKind::Class,
             SymbolForm::Struct => CompletionKind::Struct,
             SymbolForm::Interface => CompletionKind::Interface,
@@ -983,7 +983,7 @@ impl<'a> CompletionBuilder<'a> {
 
         // normalize void aliases through their canonical exported type
         let resolve_symbol_form = |symbol_id: dir::LocalSymbolId, symbol: &dir::Symbol| {
-            if symbol.form != SymbolForm::Value {
+            if symbol.form != SymbolForm::Variable {
                 return symbol.form;
             }
 
@@ -1500,7 +1500,7 @@ impl<'a> CompletionBuilder<'a> {
         let mut results = Vec::new();
 
         for symbol in symbols.symbols() {
-            if symbol.export.is_none() {
+            if symbol.export_kind.is_none() {
                 continue;
             }
 

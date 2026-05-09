@@ -1,8 +1,8 @@
 use destack_ast::StringPool;
 use destack_dir as dir;
 use destack_dir::{
-    Declaration, GlobalSymbolId, LocalSymbolId, LocalTypeId, Member, ScalarLiteral, StaticKey,
-    SymbolForm, SymbolTable, Type, TypeTable, WellKnownSymbol,
+    BindingTable, Declaration, GlobalSymbolId, LocalSymbolId, LocalTypeId, Member, ScalarLiteral,
+    StaticKey, SymbolForm, Type, TypeTable, WellKnownSymbol,
 };
 use destack_source::ModuleId;
 use destack_workspace::{Repository, Revision};
@@ -59,7 +59,7 @@ pub(crate) enum MemberKind {
 /// visible from the current module.
 pub(crate) fn resolve_type_members(
     types: &TypeTable,
-    symbols: &SymbolTable,
+    symbols: &BindingTable,
     type_id: LocalTypeId,
     repository: &Repository,
     revision: Revision,
@@ -86,7 +86,7 @@ pub(crate) fn resolve_type_members(
 fn resolve_type_members_inner(
     ty: &Type,
     types: &TypeTable,
-    _symbols: &SymbolTable,
+    _symbols: &BindingTable,
     strings: &StringPool,
     repository: &Repository,
     revision: Revision,
@@ -341,7 +341,7 @@ pub(crate) fn resolve_reference_members(
 fn resolve_local_symbol_members(
     symbol_id: LocalSymbolId,
     types: &TypeTable,
-    symbols: &SymbolTable,
+    symbols: &BindingTable,
     strings: &destack_core::StringPool,
 ) -> Vec<MemberInfo> {
     // prepare the member buffer

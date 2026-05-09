@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 
 use destack_ast::{DependencyItem, DependencySpace, LocalNodeId, Tree};
-use destack_core::{ImmutableStringPool, StringId};
+use destack_core::{StringId, StringPool};
 use destack_workspace::ImportSortOrder;
 
 /// The import group category for declaration ordering.
@@ -97,7 +97,7 @@ pub fn sort_import_declaration_indices(keys: &[ImportDeclarationKey<'_>]) -> Vec
 pub fn sort_dependency_items(
     items: &[LocalNodeId<DependencyItem>],
     tree: &Tree,
-    strings: &ImmutableStringPool,
+    strings: &StringPool,
     sort_order: ImportSortOrder,
 ) -> Vec<LocalNodeId<DependencyItem>> {
     let mut sorted_items: Vec<_> = items.to_vec();
