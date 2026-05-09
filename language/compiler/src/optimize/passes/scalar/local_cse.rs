@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 
 use crate::common::mir::analysis::AliasAnalysis;
@@ -14,7 +14,7 @@ use crate::optimize::{
     resolve_substitution_chains, terminator_substitute_uses,
 };
 
-declare_pass! {
+declare_mir_pass! {
     /// Local Common Subexpression Elimination.
     ///
     /// Eliminates redundant computations within a single basic block by tracking

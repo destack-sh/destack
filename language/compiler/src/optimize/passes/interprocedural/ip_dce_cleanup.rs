@@ -1,4 +1,4 @@
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 
 use crate::optimize::passes::interprocedural::{
@@ -6,7 +6,7 @@ use crate::optimize::passes::interprocedural::{
 };
 use crate::optimize::{AnalysisPreservation, ModulePass, PipelineContext};
 
-declare_pass! {
+declare_mir_pass! {
     /// Run interprocedural cleanup after cross function optimizations.
     ///
     /// This pass prunes dead functions and globals.

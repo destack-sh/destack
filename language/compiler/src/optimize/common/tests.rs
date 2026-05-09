@@ -126,12 +126,12 @@ impl TestProgram {
             .0
     }
 
-    /// Set the return borrow region for a named function.
-    pub(crate) fn set_function_lifetime(&mut self, name: &str, region: mir::BorrowRegion) {
+    /// Set the return lifetime for a named function.
+    pub(crate) fn set_function_lifetime(&mut self, name: &str, lifetime: mir::Lifetime) {
         // update the target function
         let function_id = self.function_id_by_name(name);
         let function = self.tree.get_mut(function_id);
-        function.return_region = region;
+        function.return_lifetime = lifetime;
     }
 
     /// Return the entry block id for a function.
@@ -825,7 +825,13 @@ impl TestProgram {
     /// Assert that the MIR is unchanged from the original source.
     #[track_caller]
     pub(crate) fn assert_unchanged(&self, original: &str) {
-        self.assert_output(original);
+        let (tree, strings) =
+            mir::parse::Parser::parse(FileId::new(0), original, ParseOptions::default())
+                .validate()
+                .expect("failed to parse expected MIR");
+        let expected = mir::format_mir(&tree, &strings, mir::MirFormatOptions::default());
+
+        self.assert_output(&expected);
     }
 
     /// Assert that no errors were emitted.
@@ -908,7 +914,7 @@ impl TestProgram {
 mod tests {
     use std::sync::Arc;
 
-    use crate::declare_pass;
+    use crate::declare_mir_pass;
     use destack_core::StringPool;
     use destack_mir as mir;
 
@@ -1229,14 +1235,14 @@ b0:
         assert!(!some.is_preserved(AnalysisId("domtree")));
     }
 
-    declare_pass! {
+    declare_mir_pass! {
         /// Require profile data for validation in tests.
         #[pass(id = "test-profile", requires(profile_data))]
         pub(super) TestProfilePass,
         "Test profile requirement enforcement"
     }
 
-    declare_pass! {
+    declare_mir_pass! {
         /// Require type layout metadata for validation in tests.
         #[pass(id = "test-layout", requires(type_layouts))]
         pub(super) TestLayoutPass,
@@ -1379,8 +1385,9 @@ b0(v0: int32, v1: int32):
         });
         let borrowed_ref = tree.insert_type(mir::Type::Reference {
             kind: mir::ReferenceKind::Borrowed,
+            lifetime: mir::Lifetime::empty(),
             address_space: mir::AddressSpace::Stack,
-            mutability: mir::Mutability::Mutable,
+            access: mir::Access::Mutable,
             pointee: pointee.into(),
             is_nullable: false,
         });
@@ -1426,15 +1433,17 @@ b0(v0: int32, v1: int32):
         });
         let raw_ref = tree.insert_type(mir::Type::Reference {
             kind: mir::ReferenceKind::Raw,
+            lifetime: mir::Lifetime::empty(),
             address_space: mir::AddressSpace::Stack,
-            mutability: mir::Mutability::Mutable,
+            access: mir::Access::Mutable,
             pointee: pointee.into(),
             is_nullable: false,
         });
         let borrowed_ref = tree.insert_type(mir::Type::Reference {
             kind: mir::ReferenceKind::Borrowed,
+            lifetime: mir::Lifetime::empty(),
             address_space: mir::AddressSpace::Stack,
-            mutability: mir::Mutability::Mutable,
+            access: mir::Access::Mutable,
             pointee: pointee.into(),
             is_nullable: false,
         });

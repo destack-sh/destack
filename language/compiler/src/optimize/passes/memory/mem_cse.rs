@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 
 use crate::common::mir::analysis::{
@@ -15,7 +15,7 @@ use crate::common::mir::{
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
-declare_pass! {
+declare_mir_pass! {
     /// Remove redundant memory stores.
     ///
     /// Eliminates stores that write the same value as the last clobbering definition of the same location.

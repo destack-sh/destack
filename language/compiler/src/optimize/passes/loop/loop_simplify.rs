@@ -1,10 +1,10 @@
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 
 use crate::common::mir::analysis::{ControlFlowGraph, LoopAnalysis};
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
-declare_pass! {
+declare_mir_pass! {
     /// Canonicalize loops into a simplified form.
     ///
     /// This pass transforms loops to have:

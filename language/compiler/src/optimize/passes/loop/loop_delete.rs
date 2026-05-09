@@ -1,13 +1,13 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 
 use crate::common::mir::analysis::{ConstantPropagation, DominatorTree, Loop, LoopAnalysis};
 use crate::common::mir::instruction_has_side_effects;
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
-declare_pass! {
+declare_mir_pass! {
     /// Delete loops that are proven to be skipped.
     ///
     /// A loop can be deleted if:

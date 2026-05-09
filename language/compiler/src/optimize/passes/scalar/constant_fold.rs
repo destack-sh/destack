@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 
 use crate::common::mir::analysis::ConstantPropagation;
@@ -12,7 +12,7 @@ use crate::optimize::{
     AnalysisPreservation, FunctionPass, PipelineContext, TypeContext, resolve_substitution_chains,
 };
 
-declare_pass! {
+declare_mir_pass! {
     /// Fold constant expressions at compile time.
     ///
     /// Evaluates operations on constant values and replaces them with the

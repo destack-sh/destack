@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 use mir::{BinaryOperator, Constant, UnaryOperator};
 
@@ -20,7 +20,7 @@ use crate::optimize::{
 /// Maximum recursion depth for chained field.set/element.set simplification.
 const MAX_AGGREGATE_CHAIN_DEPTH: usize = 64;
 
-declare_pass! {
+declare_mir_pass! {
     /// Algebraic simplification of instructions.
     ///
     /// Applies identity and annihilator rules to simplify expressions:

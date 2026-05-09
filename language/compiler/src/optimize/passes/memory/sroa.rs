@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 
 use crate::common::mir::analysis::ConstantPropagation;
@@ -10,7 +10,7 @@ use crate::optimize::{
     remap_instruction_memory_accesses, terminator_substitute_uses, terminator_uses,
 };
 
-declare_pass! {
+declare_mir_pass! {
     /// Scalar Replacement of Aggregates.
     ///
     /// Breaks apart aggregate stack allocations (structs, tuples, small arrays)
@@ -154,8 +154,8 @@ struct ReferenceSpec {
     kind: mir::ReferenceKind,
     /// The address space for the reference.
     address_space: mir::AddressSpace,
-    /// The mutability for the reference.
-    mutability: mir::Mutability,
+    /// The access for the reference.
+    access: mir::Access,
     /// The nullability for the reference.
     is_nullable: bool,
 }
@@ -166,7 +166,7 @@ impl ReferenceSpec {
         let mir::Type::Reference {
             kind,
             address_space,
-            mutability,
+            access,
             is_nullable,
             ..
         } = ty
@@ -177,7 +177,7 @@ impl ReferenceSpec {
         Some(Self {
             kind: *kind,
             address_space: address_space.clone(),
-            mutability: *mutability,
+            access: *access,
             is_nullable: *is_nullable,
         })
     }
@@ -518,8 +518,9 @@ fn split_allocation(
     for &elem_type in &candidate.element_types {
         let result_type = tree.insert_type(mir::Type::Reference {
             kind: candidate.reference_spec.kind,
+            lifetime: mir::Lifetime::empty(),
             address_space: candidate.reference_spec.address_space.clone(),
-            mutability: candidate.reference_spec.mutability,
+            access: candidate.reference_spec.access,
             pointee: elem_type.into(),
             is_nullable: candidate.reference_spec.is_nullable,
         });

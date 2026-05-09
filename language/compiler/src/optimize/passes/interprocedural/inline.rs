@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 
 use crate::common::mir::analysis::CallGraphScc;
@@ -13,7 +13,7 @@ use crate::common::mir::{
 };
 use crate::optimize::{AnalysisPreservation, ModuleAnalyses, ModulePass, PipelineContext};
 
-declare_pass! {
+declare_mir_pass! {
     /// Inline direct calls into their callers when the callee is small.
     ///
     /// This pass clones callee blocks into the caller, rewires returns to a continuation block, and skips recursive SCCs and functions with tail calls.

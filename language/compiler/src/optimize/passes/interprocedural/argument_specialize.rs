@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 
 use crate::common::mir::analysis::{
@@ -23,7 +23,7 @@ const MAX_SPECIALIZE_PER_FUNCTION: usize = 4;
 /// Maximum specializations per module.
 const MAX_SPECIALIZE_TOTAL: usize = 32;
 
-declare_pass! {
+declare_mir_pass! {
     /// Clone functions for constant argument callsites.
     ///
     /// This pass clones a callee for callsites with constant arguments and
@@ -572,9 +572,9 @@ fn apply_parameter_removals(
         let function = tree.get_mut(function_id);
         function.parameters = remap.filter_by_index(&function.parameters);
         function.parameter_attributes = remap.filter_by_index(&function.parameter_attributes);
-        function.return_region = remap
-            .remap_return_region(&function.return_region)
-            .unwrap_or(mir::BorrowRegion::Inferred);
+        function.return_lifetime = remap
+            .remap_return_lifetime(&function.return_lifetime)
+            .expect("return lifetime parameter must be preserved");
         function.allocation_size = remap.remap_allocation_size(function.allocation_size);
         function.entry.expect("defined function has entry block")
     };

@@ -1,13 +1,13 @@
 use std::collections::HashSet;
 
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 
 use crate::common::mir::analysis::{ControlFlowGraph, DominatorTree, LoopAnalysis};
 use crate::common::mir::{clone_loop_blocks, terminator_remap};
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
-declare_pass! {
+declare_mir_pass! {
     /// Peel a single iteration from loops guarded at the latch.
     ///
     /// The peeled iteration preserves the loop guard by redirecting the backedge

@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 use mir::{BinaryOperator, Constant, Instruction};
 
@@ -9,7 +9,7 @@ use destack_core::StringPool;
 use crate::common::mir::{build_signature_type, clone_instruction_metadata};
 use crate::optimize::{AnalysisPreservation, ModulePass, PipelineContext};
 
-declare_pass! {
+declare_mir_pass! {
     /// Eliminates tail-recursive calls by converting them to jumps.
     ///
     /// A call is in tail position when it is the last instruction before a return,
@@ -390,7 +390,7 @@ fn clone_function_as_impl(
         original.return_type,
         impl_entry,
     );
-    impl_function.return_region = original.return_region.clone();
+    impl_function.return_lifetime = original.return_lifetime.clone();
     impl_function.linkage = mir::Linkage::Local;
     impl_function.allocation = original.allocation;
     impl_function.suspension = original.suspension;

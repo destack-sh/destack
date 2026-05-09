@@ -1556,13 +1556,13 @@ impl<'a> PointerDecomposer<'a> {
 
     /// Check if a parameter has noalias semantics.
     fn is_parameter_noalias(&self, parameter: &mir::Parameter) -> bool {
-        // in strict borrow mode, &mut T parameters are noalias
+        // in strict borrow mode, exclusive parameters are noalias
         if self.strict_borrow_mode {
             let Some(ty) = parameter.ty.ty() else {
                 return false;
             };
             let ty = self.tree.get(ty);
-            ty.is_mutable_borrowed_reference()
+            ty.is_exclusive_borrowed_reference()
         } else {
             false
         }

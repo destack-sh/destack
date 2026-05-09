@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 
 use crate::common::mir::analysis::ControlFlowGraph;
@@ -9,7 +9,7 @@ use crate::common::mir::{
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
-declare_pass! {
+declare_mir_pass! {
     /// Convert simple diamonds into select instructions.
     ///
     /// This removes branches by speculatively executing both sides of a small

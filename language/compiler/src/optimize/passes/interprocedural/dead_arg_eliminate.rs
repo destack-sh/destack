@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 
 use crate::common::mir::{
@@ -9,7 +9,7 @@ use crate::common::mir::{
 };
 use crate::optimize::{AnalysisPreservation, ModulePass, PipelineContext};
 
-declare_pass! {
+declare_mir_pass! {
     /// Remove unused parameters from local functions and their callsites.
     ///
     /// This pass removes parameters that are not used by a function body, updates
@@ -273,9 +273,9 @@ fn apply_parameter_removals(
         let function = tree.get_mut(function_id);
         function.parameters = remap.filter_by_index(&function.parameters);
         function.parameter_attributes = remap.filter_by_index(&function.parameter_attributes);
-        function.return_region = remap
-            .remap_return_region(&function.return_region)
-            .unwrap_or(mir::BorrowRegion::Inferred);
+        function.return_lifetime = remap
+            .remap_return_lifetime(&function.return_lifetime)
+            .expect("return lifetime parameter must be preserved");
         function.allocation_size = remap.remap_allocation_size(function.allocation_size);
         let Some(entry_id) = function.entry else {
             return;
@@ -687,14 +687,14 @@ b0(v0: int32, v1: int32):
         let mut test = TestProgram::new(input);
         let callee_id = test.function_id_by_name("callee");
         let callee = test.tree.get_mut(callee_id);
-        callee.return_region = mir::BorrowRegion::Parameters(vec![2]);
+        callee.return_lifetime = mir::Lifetime::parameter_set([2]);
         callee.allocation_size = Some(mir::AllocationSize::new(2, Some(0)));
 
         test.run_module_pass(&DeadArgEliminate);
         test.assert_output(expected);
 
         let callee = test.tree.get(callee_id);
-        assert_eq!(callee.return_region, mir::BorrowRegion::Parameters(vec![1]));
+        assert_eq!(callee.return_lifetime, mir::Lifetime::parameter_set([1]));
         assert_eq!(
             callee.allocation_size,
             Some(mir::AllocationSize::new(1, Some(0)))
@@ -785,13 +785,13 @@ b0(v0: int32, v1: int32):
         let mut test = TestProgram::new(input);
         let callee_id = test.function_id_by_name("callee");
         let callee = test.tree.get_mut(callee_id);
-        callee.return_region = mir::BorrowRegion::Parameters(vec![1]);
+        callee.return_lifetime = mir::Lifetime::parameter_set([1]);
 
         test.run_module_pass(&DeadArgEliminate);
         test.assert_output(input);
         assert_eq!(
-            test.tree.get(callee_id).return_region,
-            mir::BorrowRegion::Parameters(vec![1])
+            test.tree.get(callee_id).return_lifetime,
+            mir::Lifetime::parameter_set([1])
         );
     }
 

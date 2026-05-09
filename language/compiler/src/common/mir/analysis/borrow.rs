@@ -13,19 +13,6 @@ use crate::common::mir::{
     Analysis, AnalysisId, FunctionAnalyses, FunctionAnalysis, terminator_arguments_for_successor,
 };
 
-/// Location where a borrow was created.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct BorrowLocation {
-    /// The instruction that created the borrow.
-    pub instruction: mir::LocalNodeId<Instruction>,
-    /// The reference value created by the borrow.
-    pub reference: Value,
-    /// The value being borrowed from.
-    pub origin: Value,
-    /// Whether this is a mutable borrow.
-    pub is_mutable: bool,
-}
-
 /// Borrow state for a single value (whether it's currently borrowed).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BorrowState {
@@ -564,9 +551,19 @@ impl BorrowAnalysis {
                 }
 
                 // expire borrows whose references are not live-out
+                let terminator_references: Vec<Value> = tree
+                    .get(block.terminator)
+                    .uses()
+                    .iter()
+                    .copied()
+                    .filter_map(|value| value.value())
+                    .collect();
                 let dead_refs: Vec<Value> = state
                     .active_references()
-                    .filter(|&reference| !liveness.is_live_out(block_id, reference))
+                    .filter(|&reference| {
+                        !liveness.is_live_out(block_id, reference)
+                            && !terminator_references.contains(&reference)
+                    })
                     .collect();
                 for reference in dead_refs {
                     state.expire_borrow(reference);
@@ -733,8 +730,9 @@ mod tests {
         let element = tree.insert_type(mir::Type::FLOAT32);
         let tensor_ref = tree.insert_type(mir::Type::TensorView {
             kind: mir::ReferenceKind::Borrowed,
+            lifetime: mir::Lifetime::empty(),
             address_space: mir::AddressSpace::Stack,
-            mutability: mir::Mutability::Mutable,
+            access: mir::Access::Mutable,
             element: element.into(),
             shape: vec![mir::TensorDimension::Static(4)],
             layout: mir::TensorLayout::RowMajor,

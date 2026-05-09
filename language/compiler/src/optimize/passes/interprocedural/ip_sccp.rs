@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::declare_pass;
+use crate::declare_mir_pass;
 use destack_mir as mir;
 
 use crate::common::mir::analysis::{ConstantPropagation, constant_propagation_with_params};
@@ -11,7 +11,7 @@ use crate::common::mir::{
 use crate::optimize::passes::scalar::{SimplifyCfg, SparseConditionalConstantPropagation};
 use crate::optimize::{AnalysisPreservation, ModulePass, PipelineContext, run_function_passes};
 
-declare_pass! {
+declare_mir_pass! {
     /// Propagate constants across call edges and prune dead paths.
     ///
     /// This pass discovers constant arguments for direct callsites and applies them to callees.

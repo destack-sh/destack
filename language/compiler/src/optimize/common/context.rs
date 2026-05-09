@@ -4,8 +4,7 @@ use crate::{OptimizeError, OptimizeWarning};
 
 /// Trait for emitting diagnostics (errors and warnings) during optimization.
 ///
-/// This trait abstracts over the diagnostic emission interface, allowing
-/// verification passes to work with `PipelineContext`.
+/// This trait abstracts over the diagnostic emission interface.
 pub trait DiagnosticEmitter {
     /// Emit an optimization error.
     fn emit_error(&self, error: impl Into<DiagnosticBuilder<OptimizeError>>);
