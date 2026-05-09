@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
 use destack_ast::{Expression, LocalNodeId, NodeParentIndex};
-use destack_core::StableHasher;
+use destack_core::{StableHasher, StringPool};
 use destack_fir::format as fir_format;
 use destack_formatter::{
     DestackFormatContext, DestackFormatOptions, format_file_source, statement_list,
@@ -170,7 +170,7 @@ pub(super) fn format_file(
 
     // build format context from committed semantic state
     let side_span = Parser::compute_side_span_from_tree(&ast.tree);
-    let strings = ast.strings.clone().into_immutable();
+    let strings = repository.string_pool();
     let context = DestackFormatContext::new(
         format_options,
         file.as_ref(),
@@ -178,7 +178,7 @@ pub(super) fn format_file(
         &ast.tokens,
         &ast.side_tokens,
         &side_span,
-        &strings,
+        strings.as_ref(),
         ast.parents.clone(),
     );
 
@@ -236,7 +236,7 @@ pub(super) fn format_range(
 ) -> Option<(String, Span)> {
     // parse file
     let language_type = LanguageType::try_from(file.ty).ok()?;
-    let mut parser = Parser::lex_file(file.clone(), language_type);
+    let mut parser = Parser::lex_file(file.clone(), language_type, Arc::new(StringPool::new()));
     let expressions = parser.parse();
 
     // bail if parse errors
@@ -269,7 +269,7 @@ pub(super) fn format_range(
     // build format context
     let side_span = parser.compute_side_span();
     let (tokens, side_tokens) = parser.take_tokens();
-    let strings = parser.strings.into_immutable();
+    let strings = parser.strings.as_ref();
     let parents = NodeParentIndex::from_tree(&parser.tree);
     let format_options = DestackFormatOptions {
         language_type,
@@ -282,7 +282,7 @@ pub(super) fn format_range(
         &tokens,
         &side_tokens,
         &side_span,
-        &strings,
+        strings,
         parents,
     );
 
