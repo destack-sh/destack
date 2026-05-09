@@ -6,11 +6,10 @@ use crate::rules::common::{declaration_at_allowed_root, declaration_expression};
 use crate::{LintAstContext, LintMeta, LintReport, LintRule, declare_lint};
 
 declare_lint! {
-    /// Disallow function and `var` declarations in nested blocks.
+    /// Disallow function declarations in nested blocks.
     ///
-    /// Function and variable declarations in nested blocks can be confusing
-    /// and may not behave as expected due to hoisting. Declare them at the
-    /// function or module level instead.
+    /// Function declarations in nested blocks can be confusing.
+    /// Declare them at the function or module level instead.
     #[lint(
         id = "no-inner-declarations",
         code = "LU020",
@@ -23,7 +22,7 @@ declare_lint! {
         stability = Stable
     )]
     pub NoInnerDeclarations,
-    "Disallow function and `var` declarations in nested blocks"
+    "Disallow function declarations in nested blocks"
 }
 
 impl LintRule for NoInnerDeclarations {
@@ -59,37 +58,6 @@ impl LintRule for NoInnerDeclarations {
                 declaration_id,
                 ctx.tree.get_span(declaration_id),
                 "function declaration in nested block",
-            );
-        }
-
-        // nested vars
-        if !ctx
-            .options
-            .correctness
-            .no_inner_declarations_check_var_declarations
-        {
-            return;
-        }
-        for expression_id in ctx.tree.iter_nodes::<ast::Expression>() {
-            let expression = ctx.tree.get(expression_id);
-            let ast::Expression::Let { mutability, .. } = expression else {
-                continue;
-            };
-            if *mutability != ast::Mutability::Mutable {
-                continue;
-            }
-
-            // allow declaration roots at module, function, and static block boundaries
-            if declaration_at_allowed_root(ctx.tree, ctx.parents, expression_id) {
-                continue;
-            }
-
-            report_nested_declaration(
-                ctx,
-                meta,
-                expression_id,
-                ctx.tree.get_span(expression_id),
-                "var declaration in nested block",
             );
         }
     }
@@ -204,79 +172,6 @@ class Foo {
     static {
         function build() {}
     }
-}
-"#,
-        );
-        test.result(result).assert_no_lint("no-inner-declarations");
-    }
-
-    #[test]
-    fn test_detects_var_in_if() {
-        let test = TestProgram::for_rule_without_prelude(NoInnerDeclarations);
-        let result = test.lint_ast(
-            "no_inner_declarations/test_detects_var_in_if.ts",
-            r#"
-if (true) {
-    var foo = 1
-}
-"#,
-        );
-        test.result(result).assert_lint("no-inner-declarations");
-    }
-
-    #[test]
-    fn test_allows_top_level_var() {
-        let test = TestProgram::for_rule_without_prelude(NoInnerDeclarations);
-        let result = test.lint_ast(
-            "no_inner_declarations/test_allows_top_level_var.ts",
-            "var foo = 1",
-        );
-        test.result(result).assert_no_lint("no-inner-declarations");
-    }
-
-    #[test]
-    fn test_allows_var_at_function_root() {
-        let test = TestProgram::for_rule_without_prelude(NoInnerDeclarations);
-        let result = test.lint_ast(
-            "no_inner_declarations/test_allows_var_at_function_root.ts",
-            r#"
-function outer() {
-    var foo = 1
-}
-"#,
-        );
-        test.result(result).assert_no_lint("no-inner-declarations");
-    }
-
-    #[test]
-    fn test_detects_var_in_nested_block_inside_function() {
-        let test = TestProgram::for_rule_without_prelude(NoInnerDeclarations);
-        let result = test.lint_ast(
-            "no_inner_declarations/test_detects_var_in_nested_block_inside_function.ts",
-            r#"
-function outer() {
-    {
-        var foo = 1
-    }
-}
-"#,
-        );
-        test.result(result).assert_lint("no-inner-declarations");
-    }
-
-    #[test]
-    fn test_allows_nested_var_when_option_disabled() {
-        let test =
-            TestProgram::for_rule_without_prelude(NoInnerDeclarations).with_options(|options| {
-                options
-                    .correctness
-                    .no_inner_declarations_check_var_declarations = false;
-            });
-        let result = test.lint_ast(
-            "no_inner_declarations/test_allows_nested_var_when_option_disabled.ts",
-            r#"
-if (true) {
-    var foo = 1
 }
 "#,
         );

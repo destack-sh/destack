@@ -218,9 +218,7 @@ fn generic_parameters_for_declaration(
             dir::Declaration::Function(declaration) => {
                 Some(declaration.signature.generic_parameters.clone())
             }
-            dir::Declaration::Global(_)
-            | dir::Declaration::Module(_)
-            | dir::Declaration::ImportAlias(_) => None,
+            dir::Declaration::Global(_) | dir::Declaration::Module(_) => None,
         };
     }
 

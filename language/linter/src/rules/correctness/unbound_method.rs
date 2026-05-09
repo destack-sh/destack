@@ -290,9 +290,6 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
                 dir::Expression::Match { value, .. } if *value == current_id => {
                     return true;
                 }
-                dir::Expression::Delete { value } if *value == current_id => {
-                    return true;
-                }
                 dir::Expression::Unary {
                     operator:
                         dir::UnaryOperator::Not | dir::UnaryOperator::Typeof | dir::UnaryOperator::Void,
@@ -708,24 +705,6 @@ class Counter {
 
 let counter = new Counter();
 counter.increment && counter.increment();
-"#,
-        );
-        test.result(result).assert_no_lint("unbound-method");
-    }
-
-    /// Allow method references in delete expressions.
-    #[test]
-    fn test_allows_method_reference_in_delete_expression() {
-        let test = TestProgram::for_rule_with_prelude(UnboundMethod);
-        let result = test.lint_dir(
-            "unbound_method/test_allows_method_reference_in_delete_expression.ts",
-            r#"
-class Counter {
-    increment() {}
-}
-
-let counter = new Counter();
-delete counter.increment;
 "#,
         );
         test.result(result).assert_no_lint("unbound-method");

@@ -435,12 +435,6 @@ impl<'a> TaintAnalysis<'a> {
                     self.expression_taint_labels_inner(*value, expression_stack, symbol_stack);
                 labels.merge(&value_labels);
             }
-            dir::Expression::Delete { value } => {
-                // delete expressions taint from the deleted operand
-                let value_labels =
-                    self.expression_taint_labels_inner(*value, expression_stack, symbol_stack);
-                labels.merge(&value_labels);
-            }
             dir::Expression::TemplateExpression { value } => {
                 // template expressions taint from interpolations
                 let template_labels =

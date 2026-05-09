@@ -155,15 +155,12 @@ fn source_array_type_form(
         });
     }
 
-    // generic path, member, or import: Array<T>
+    // generic path or member: Array<T>
     let generic_arguments = match type_expression {
         ast::TypeExpression::Reference {
             generic_arguments, ..
         }
         | ast::TypeExpression::Member {
-            generic_arguments, ..
-        }
-        | ast::TypeExpression::Import {
             generic_arguments, ..
         } => generic_arguments,
         _ => return None,
@@ -326,7 +323,6 @@ fn type_argument_needs_parentheses(expression: &ast::TypeExpression) -> bool {
             | ast::TypeExpression::Member { .. }
             | ast::TypeExpression::Const
             | ast::TypeExpression::This
-            | ast::TypeExpression::Import { .. }
             | ast::TypeExpression::Readonly { .. }
             | ast::TypeExpression::KeyOf { .. }
             | ast::TypeExpression::TypeOfValue { .. }

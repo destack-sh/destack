@@ -12,13 +12,13 @@ declare_lint! {
     ///
     /// ```
     /// // bad
-    /// match condition {
+    /// match (condition) {
     ///     true => doX()
     ///     false => doY()
     /// }
     ///
     /// // good
-    /// if condition {
+    /// if (condition) {
     ///     doX()
     /// } else {
     ///     doY()

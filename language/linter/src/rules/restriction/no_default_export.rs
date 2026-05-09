@@ -65,7 +65,6 @@ impl LintRule for NoDefaultExport {
                 dir::Declaration::Module(_) => None,
                 dir::Declaration::Namespace(declaration) => declaration.export,
                 dir::Declaration::Type(declaration) => declaration.export,
-                dir::Declaration::ImportAlias(declaration) => declaration.export,
                 dir::Declaration::Struct(declaration) => declaration.export,
                 dir::Declaration::Class(declaration) => declaration.export,
                 dir::Declaration::Enum(declaration) => declaration.export,

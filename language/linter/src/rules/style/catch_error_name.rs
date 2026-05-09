@@ -107,7 +107,6 @@ fn report_try_catch_binding(
     let dir::Pattern::Binding {
         name: actual_name_id,
         symbol,
-        mutability: _,
         pattern: _,
     } = pattern
     else {

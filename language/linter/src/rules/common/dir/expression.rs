@@ -5,7 +5,6 @@ use destack_workspace::{ArtifactCache, ProfileId};
 
 use crate::ConstValue;
 
-use super::reference::expression_static_string_literal;
 use super::{
     function_return_type, is_any_type, is_async_function_type, is_promise_type,
     symbol_value_type_map_for,
@@ -128,17 +127,7 @@ pub fn expression_assignment_target(
 /// Return a static import target specifier for import-like expressions.
 pub fn expression_import_target_static_specifier(expression: &dir::Expression) -> Option<StringId> {
     match expression {
-        dir::Expression::Import {
-            source: _,
-            space: _,
-            target,
-            items: _,
-            attributes: _,
-            arguments: _,
-        } => match target {
-            dir::ImportTarget::String(target) => Some(*target),
-            dir::ImportTarget::Expression { .. } => None,
-        },
+        dir::Expression::Import { target, .. } => Some(*target),
         dir::Expression::ReExport {
             target,
             space: _,
@@ -151,23 +140,10 @@ pub fn expression_import_target_static_specifier(expression: &dir::Expression) -
 
 /// Return one static import target specifier for import-like expressions.
 pub fn expression_import_target_specifier(
-    tree: &dir::Tree,
+    _tree: &dir::Tree,
     expression: &dir::Expression,
 ) -> Option<StringId> {
-    // match direct static module targets
-    if let Some(target_id) = expression_import_target_static_specifier(expression) {
-        return Some(target_id);
-    }
-
-    // match expression targets that evaluate to static strings
-    let dir::Expression::Import { target, .. } = expression else {
-        return None;
-    };
-    let dir::ImportTarget::Expression { target } = target else {
-        return None;
-    };
-
-    expression_static_string_literal(tree, *target)
+    expression_import_target_static_specifier(expression)
 }
 
 /// Return the expression id with parenthesized nodes unwrapped.
@@ -210,19 +186,6 @@ fn generic_arguments_contain_reference_segment(
     })
 }
 
-/// Return true when one argument list contains the target segment.
-fn arguments_contain_reference_segment(
-    tree: &dir::Tree,
-    arguments: &[dir::LocalNodeId<dir::Argument>],
-    target_segment: StringId,
-) -> bool {
-    arguments.iter().any(|argument_id| {
-        argument_expression_id(tree, *argument_id).is_some_and(|argument_expression_id| {
-            expression_contains_reference_segment(tree, argument_expression_id, target_segment)
-        })
-    })
-}
-
 /// Return true when one path or generic argument list contains the target segment.
 fn path_or_generic_arguments_contain_reference_segment(
     tree: &dir::Tree,
@@ -262,21 +225,6 @@ pub fn type_expression_contains_reference_segment(
             generic_arguments,
         } => {
             type_expression_contains_reference_segment(tree, *left, target_segment)
-                || generic_arguments_contain_reference_segment(
-                    tree,
-                    generic_arguments,
-                    target_segment,
-                )
-        }
-
-        dir::TypeExpression::Import {
-            target,
-            arguments,
-            generic_arguments,
-            qualifier: _,
-        } => {
-            expression_contains_reference_segment(tree, *target, target_segment)
-                || arguments_contain_reference_segment(tree, arguments, target_segment)
                 || generic_arguments_contain_reference_segment(
                     tree,
                     generic_arguments,

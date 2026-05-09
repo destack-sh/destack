@@ -452,7 +452,6 @@ fn expression_disallowed_by_rule_options(
     expression: &ast::Expression,
 ) -> Option<bool> {
     match expression {
-        ast::Expression::Delete { .. } => Some(false),
         ast::Expression::TaggedTemplateExpression { .. } => Some(
             !ctx.options
                 .complexity
@@ -504,7 +503,6 @@ fn expression_is_known_effectful_statement(expression: &ast::Expression) -> bool
             | ast::Expression::Yield { .. }
             | ast::Expression::Import { .. }
             | ast::Expression::Export { .. }
-            | ast::Expression::ExportNamespace { .. }
             | ast::Expression::Let { .. }
             | ast::Expression::Using { .. }
             | ast::Expression::Declaration(_)

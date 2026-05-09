@@ -384,8 +384,7 @@ fn type_expression_complexity_inner(
                 }
             }
         }
-        TypeExpression::Import { .. }
-        | TypeExpression::ScalarLiteral { .. }
+        TypeExpression::ScalarLiteral { .. }
         | TypeExpression::Literal { .. }
         | TypeExpression::Intrinsic
         | TypeExpression::Declaration { .. }

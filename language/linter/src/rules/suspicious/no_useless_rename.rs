@@ -43,7 +43,7 @@ impl LintRule for NoUselessRename {
                 let field = ctx.tree.get(node_id);
 
                 // keep only expanded named fields with one identifier alias
-                let Some((mutability, name_id, default_expression_id)) =
+                let Some((name_id, default_expression_id)) =
                     useless_destructuring_alias_parts(ctx, field)
                 else {
                     continue;
@@ -74,7 +74,6 @@ impl LintRule for NoUselessRename {
                     && let Some(fix) = useless_destructuring_rename_fix(
                         ctx,
                         field_span,
-                        mutability,
                         name_text,
                         default_expression_id,
                     )
@@ -167,13 +166,8 @@ impl LintRule for NoUselessRename {
 fn useless_destructuring_alias_parts(
     ctx: &LintAstContext<'_>,
     field: &ast::PatternField,
-) -> Option<(
-    Option<ast::Mutability>,
-    ast::StringId,
-    Option<ast::LocalNodeId<ast::Expression>>,
-)> {
+) -> Option<(ast::StringId, Option<ast::LocalNodeId<ast::Expression>>)> {
     let ast::PatternField::Named {
-        mutability,
         name,
         is_shorthand,
         pattern: Some(pattern_id),
@@ -197,7 +191,7 @@ fn useless_destructuring_alias_parts(
         return None;
     }
 
-    Some((*mutability, *name_id, default_expression_id))
+    Some((*name_id, default_expression_id))
 }
 
 /// Return the nested binding name and default for one alias pattern.
@@ -250,7 +244,6 @@ impl RenameKind {
 fn useless_destructuring_rename_fix(
     ctx: &LintAstContext<'_>,
     field_span: Span,
-    mutability: Option<ast::Mutability>,
     name_text: String,
     default_expression_id: Option<ast::LocalNodeId<ast::Expression>>,
 ) -> Option<LintFix> {
@@ -259,20 +252,13 @@ fn useless_destructuring_rename_fix(
         return None;
     }
 
-    // keep local mutability keyword in shorthand replacements
-    let mutability_prefix = match mutability {
-        Some(ast::Mutability::Immutable) => "const ",
-        Some(ast::Mutability::Mutable) => "var ",
-        None => "",
-    };
-
     // keep default expressions in shorthand shape
     let replacement = if let Some(default_expression_id) = default_expression_id {
         let default_span = ctx.tree.get_span(default_expression_id);
         let default_text = ctx.get_span_text(default_span);
-        format!("{mutability_prefix}{name_text} = {default_text}")
+        format!("{name_text} = {default_text}")
     } else {
-        format!("{mutability_prefix}{name_text}")
+        name_text
     };
 
     // build fix edits
