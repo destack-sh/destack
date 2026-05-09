@@ -33,7 +33,7 @@ pub(crate) fn enum_field_value_for_symbol(
         Ok(snapshot) => snapshot,
         Err(error) => return Err(error.into()),
     };
-    let symbols = &declared.symbols;
+    let symbols = &declared.bindings;
     let types = &checked.types;
 
     // require the member symbol to be an enum field

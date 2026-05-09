@@ -1,4 +1,4 @@
-use destack_core::ImmutableStringPool;
+use destack_core::StringPool;
 use destack_source::ModuleId;
 use {destack_dir as dir, destack_mir as mir};
 
@@ -55,7 +55,7 @@ type String {
     pub(crate) fn interface_dispatch_table<'a>(
         &self,
         tree: &'a mir::Tree,
-        strings: &ImmutableStringPool,
+        strings: &StringPool,
         concrete_name: &str,
         interface_name: &str,
     ) -> &'a mir::Itab {
@@ -109,7 +109,7 @@ type String {
         &self,
         table: &mir::Vtable,
         tree: &mir::Tree,
-        strings: &ImmutableStringPool,
+        strings: &StringPool,
     ) -> Vec<String> {
         table
             .entries
@@ -127,7 +127,7 @@ type String {
     pub(crate) fn interface_field_offset(
         &self,
         table: &mir::Itab,
-        strings: &ImmutableStringPool,
+        strings: &StringPool,
         field_name: &str,
     ) -> Option<u32> {
         // scan field offset slots for the field name
@@ -153,7 +153,7 @@ type String {
     pub(crate) fn expect_interface_field_offset(
         &self,
         table: &mir::Itab,
-        strings: &ImmutableStringPool,
+        strings: &StringPool,
         field_name: &str,
     ) -> u32 {
         self.interface_field_offset(table, strings, field_name)
@@ -165,7 +165,7 @@ type String {
         &self,
         table: &mir::Itab,
         tree: &mir::Tree,
-        strings: &ImmutableStringPool,
+        strings: &StringPool,
         method_name: &str,
     ) -> Option<String> {
         // scan interface method slots for the method name
@@ -193,7 +193,7 @@ type String {
         &self,
         table: &mir::Itab,
         tree: &mir::Tree,
-        strings: &ImmutableStringPool,
+        strings: &StringPool,
         method_name: &str,
     ) -> String {
         self.interface_method_target_name(table, tree, strings, method_name)
@@ -204,7 +204,7 @@ type String {
     pub(crate) fn find_type_by_metadata_name(
         &self,
         tree: &mir::Tree,
-        strings: &ImmutableStringPool,
+        strings: &StringPool,
         name: &str,
     ) -> Option<mir::LocalNodeId<mir::Type>> {
         // scan type display names for a matching name
@@ -223,7 +223,7 @@ type String {
     pub(crate) fn type_by_metadata_name(
         &self,
         tree: &mir::Tree,
-        strings: &ImmutableStringPool,
+        strings: &StringPool,
         name: &str,
     ) -> mir::LocalNodeId<mir::Type> {
         self.find_type_by_metadata_name(tree, strings, name)
@@ -321,7 +321,7 @@ type String {
     pub(crate) fn struct_field_type_by_name(
         &self,
         tree: &mir::Tree,
-        strings: &ImmutableStringPool,
+        strings: &StringPool,
         struct_type: mir::LocalNodeId<mir::Type>,
         field_name: &str,
     ) -> Option<mir::LocalNodeId<mir::Type>> {
@@ -349,7 +349,7 @@ type String {
     pub(crate) fn expect_struct_field_type_by_name(
         &self,
         tree: &mir::Tree,
-        strings: &ImmutableStringPool,
+        strings: &StringPool,
         struct_type: mir::LocalNodeId<mir::Type>,
         field_name: &str,
     ) -> mir::LocalNodeId<mir::Type> {
@@ -361,7 +361,7 @@ type String {
     pub(crate) fn struct_field_offset_by_name(
         &self,
         tree: &mir::Tree,
-        strings: &ImmutableStringPool,
+        strings: &StringPool,
         struct_type: mir::LocalNodeId<mir::Type>,
         field_name: &str,
     ) -> Option<u32> {
@@ -392,7 +392,7 @@ type String {
     pub(crate) fn expect_struct_field_offset_by_name(
         &self,
         tree: &mir::Tree,
-        strings: &ImmutableStringPool,
+        strings: &StringPool,
         struct_type: mir::LocalNodeId<mir::Type>,
         field_name: &str,
     ) -> u32 {
@@ -404,7 +404,7 @@ type String {
     pub(crate) fn struct_field_by_name(
         &self,
         tree: &mir::Tree,
-        strings: &ImmutableStringPool,
+        strings: &StringPool,
         struct_type: mir::LocalNodeId<mir::Type>,
         field_name: &str,
     ) -> Option<mir::LocalNodeId<mir::Field>> {
@@ -424,7 +424,7 @@ type String {
     pub(crate) fn expect_struct_field_by_name(
         &self,
         tree: &mir::Tree,
-        strings: &ImmutableStringPool,
+        strings: &StringPool,
         struct_type: mir::LocalNodeId<mir::Type>,
         field_name: &str,
     ) -> mir::LocalNodeId<mir::Field> {
@@ -436,7 +436,7 @@ type String {
     pub(crate) fn field_name(
         &self,
         tree: &mir::Tree,
-        strings: &ImmutableStringPool,
+        strings: &StringPool,
         field_id: mir::LocalNodeId<mir::Field>,
     ) -> String {
         tree.get(field_id)
@@ -449,7 +449,7 @@ type String {
     pub(crate) fn function_id_by_name(
         &self,
         tree: &mir::Tree,
-        strings: &ImmutableStringPool,
+        strings: &StringPool,
         name: &str,
     ) -> mir::LocalNodeId<mir::Function> {
         self.find_function_by_name(tree, strings, name)
@@ -460,7 +460,7 @@ type String {
     pub(crate) fn function_by_name<'a>(
         &self,
         tree: &'a mir::Tree,
-        strings: &ImmutableStringPool,
+        strings: &StringPool,
         name: &str,
     ) -> &'a mir::Function {
         let function_id = self.function_id_by_name(tree, strings, name);
@@ -471,7 +471,7 @@ type String {
     pub(crate) fn find_function_by_name(
         &self,
         tree: &mir::Tree,
-        strings: &ImmutableStringPool,
+        strings: &StringPool,
         name: &str,
     ) -> Option<mir::LocalNodeId<mir::Function>> {
         // scan for a matching function name
@@ -485,7 +485,7 @@ type String {
     pub(crate) fn function_parameter_type_by_name(
         &self,
         tree: &mir::Tree,
-        strings: &ImmutableStringPool,
+        strings: &StringPool,
         name: &str,
         index: usize,
     ) -> Option<mir::LocalNodeId<mir::Type>> {
@@ -564,7 +564,7 @@ type String {
     pub(crate) fn find_interface_call_info_by_name(
         &self,
         tree: &mir::Tree,
-        strings: &ImmutableStringPool,
+        strings: &StringPool,
         function_name: &str,
     ) -> Option<InterfaceCall> {
         // resolve the function id by name
@@ -578,7 +578,7 @@ type String {
     pub(crate) fn interface_call_info_by_name(
         &self,
         tree: &mir::Tree,
-        strings: &ImmutableStringPool,
+        strings: &StringPool,
         function_name: &str,
     ) -> InterfaceCall {
         self.find_interface_call_info_by_name(tree, strings, function_name)
@@ -589,7 +589,7 @@ type String {
     pub(crate) fn find_virtual_call_info_by_name(
         &self,
         tree: &mir::Tree,
-        strings: &ImmutableStringPool,
+        strings: &StringPool,
         function_name: &str,
     ) -> Option<VirtualCall> {
         // scan the function for virtual dispatch
@@ -601,7 +601,7 @@ type String {
     pub(crate) fn virtual_call_info_by_name(
         &self,
         tree: &mir::Tree,
-        strings: &ImmutableStringPool,
+        strings: &StringPool,
         function_name: &str,
     ) -> VirtualCall {
         self.find_virtual_call_info_by_name(tree, strings, function_name)

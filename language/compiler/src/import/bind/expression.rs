@@ -2,12 +2,12 @@ use crate::Compiler;
 use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
-    AssignPattern, AssignPatternField, BindingKeyword, BindingScope, CastOrigin, Declarator,
-    DeclaredModule, ExportKind, Expression, ForEachBinding, ForEachOperator, IfCondition, IfForm,
-    ImportTarget, LetKind, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, LoopKind,
-    MatchForm, MatchOrigin, Mutability, NodeType, Path, ScopeKind, StaticKey, SymbolBinding,
-    SymbolForm, SymbolRole, SymbolSpace, SymbolTable, Tree, Type, TypeTable, UnevaluatedType,
-    YieldCardinality,
+    AssignPattern, AssignPatternField, BindingKeyword, BindingScope, BindingTable, CastOrigin,
+    Declarator, DeclaredModule, ExportKind, Expression, ForEachBinding, ForEachOperator,
+    IfCondition, IfForm, ImportTarget, LetKind, LocalNodeId, LocalNodeIdAny, LocalScopeId,
+    LocalScopeMark, LoopKind, MatchForm, MatchOrigin, Mutability, NodeType, Path, ScopeKind,
+    StaticKey, SymbolBinding, SymbolForm, SymbolRole, SymbolSpace, Tree, Type, TypeTable,
+    UnevaluatedType, YieldCardinality,
 };
 use destack_workspace::Module;
 use smallvec::smallvec;
@@ -55,7 +55,7 @@ impl Compiler {
         ast_assign_pattern_id: ast::LocalNodeId<ast::AssignPattern>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut Tree,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<AssignPattern> {
         let ast_assign_pattern = ast.tree.get(ast_assign_pattern_id);
@@ -178,7 +178,7 @@ impl Compiler {
         ast_assign_pattern_field_id: ast::LocalNodeId<ast::AssignPatternField>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut Tree,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<AssignPatternField> {
         let ast_assign_pattern_field = ast.tree.get(ast_assign_pattern_field_id);
@@ -304,7 +304,7 @@ impl Compiler {
         ast_assign_pattern_id: ast::LocalNodeId<ast::AssignPattern>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut Tree,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Expression> {
         let ast_assign_pattern = ast.tree.get(ast_assign_pattern_id);
@@ -418,7 +418,7 @@ impl Compiler {
             ast_expression_id: ast::LocalNodeId<ast::Expression>,
             parent_id: Option<LocalNodeIdAny>,
             tree: &mut Tree,
-            symbols: &mut SymbolTable,
+            symbols: &mut BindingTable,
             types: &mut TypeTable,
             space: SymbolSpace,
         ) -> LocalNodeId<Expression> {
@@ -477,7 +477,7 @@ impl Compiler {
                 let label = *label;
                 let (symbol_id, _) = symbols.insert_symbol(
                     SymbolRole::Local,
-                    SymbolForm::Value,
+                    SymbolForm::Variable,
                     SymbolSpace::Label,
                     SymbolBinding::Runtime,
                     Some(StaticKey::Name(label)),
@@ -2583,9 +2583,7 @@ impl Compiler {
         // expression
         if let Some(symbol_id) = expression.symbol() {
             let expression_id = tree.insert(expression_id, expression);
-            symbols
-                .get_symbol_mut(symbol_id)
-                .declare(expression_id);
+            symbols.declare_symbol(symbol_id, expression_id);
             expression_id
         } else {
             tree.insert(expression_id, expression)
@@ -2610,7 +2608,7 @@ impl Compiler {
         ast_declarator_id: ast::LocalNodeId<ast::Declarator>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut Tree,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Declarator> {
         let ast_declarator = ast.tree.get(ast_declarator_id);
@@ -2696,7 +2694,7 @@ mod tests {
     use crate::tests::TestProgram;
     use crate::{assert_node, assert_path};
     use destack_dir::{
-        Declarator, Expression, StaticKey, SymbolSpace, SymbolTable, TypeExpression,
+        BindingTable, Declarator, Expression, StaticKey, SymbolSpace, TypeExpression,
     };
 
     // Test that infer type variables are visible in the then-branch of conditional types.
@@ -2858,7 +2856,7 @@ let Foo: Foo = Foo;
         test.check_clean();
 
         let dir = test.dir_declared(main_id);
-        let symbols = &dir.symbols;
+        let symbols = &dir.bindings;
         let name = test.program.strings.intern("Foo");
         let key = StaticKey::Name(name);
         let (type_count, value_count) = count_symbol_spaces(symbols, key);
@@ -2867,7 +2865,7 @@ let Foo: Foo = Foo;
         assert_eq!(value_count, 0);
     }
 
-    fn count_symbol_spaces(symbols: &SymbolTable, key: StaticKey) -> (usize, usize) {
+    fn count_symbol_spaces(symbols: &BindingTable, key: StaticKey) -> (usize, usize) {
         let mut type_count = 0;
         let mut value_count = 0;
 

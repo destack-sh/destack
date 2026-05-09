@@ -20,7 +20,7 @@ pub(crate) struct ElaborateState<'a> {
     /// The local DIR tree.
     pub(crate) tree: &'a mut dir::Tree,
     /// The local symbol table.
-    pub(crate) symbols: &'a mut dir::SymbolTable,
+    pub(crate) symbols: &'a mut dir::BindingTable,
     /// The local type table.
     pub(crate) types: &'a mut dir::TypeTable,
     /// Elaborated type guard entries.
@@ -37,7 +37,7 @@ impl<'a> ElaborateState<'a> {
         profile: ProfileId,
         options: ElaborateOptions,
         tree: &'a mut dir::Tree,
-        symbols: &'a mut dir::SymbolTable,
+        symbols: &'a mut dir::BindingTable,
         types: &'a mut dir::TypeTable,
         guards: &'a mut GuardTable,
     ) -> Self {

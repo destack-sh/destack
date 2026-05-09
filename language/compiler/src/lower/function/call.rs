@@ -180,7 +180,7 @@ impl FunctionLowerer<'_> {
         let has_captures = self
             .context
             .captures
-            .capture_set(target_symbol)
+            .capture(target_symbol)
             .is_some_and(|set| !set.captures.is_empty());
         if self
             .context

@@ -11,7 +11,7 @@ impl ModuleLowerer<'_> {
         } else {
             let declared = self.artifact_dir_data_if_present(symbol_id.module_id)?;
 
-            Some(declared.symbols.get_symbol(symbol_id.local_id).clone())
+            Some(declared.bindings.get_symbol(symbol_id.local_id).clone())
         }
     }
 

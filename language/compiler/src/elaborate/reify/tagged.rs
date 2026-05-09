@@ -3,8 +3,8 @@ use std::collections::HashSet;
 use destack_dir as dir;
 use destack_source::ModuleId;
 use dir::{
-    Argument, Declaration, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId, NodeType,
-    SymbolTable, Tree, Type, TypeExpression, TypeTable, UnevaluatedType,
+    Argument, BindingTable, Declaration, Expression, GlobalSymbolId, LocalNodeId, LocalTypeId,
+    NodeType, Tree, Type, TypeExpression, TypeTable, UnevaluatedType,
 };
 
 use crate::elaborate::ElaborateState;
@@ -29,7 +29,7 @@ struct NominalLookupView<'a> {
     /// The tree for declaration lookup.
     tree: &'a Tree,
     /// The symbol table for declaration mapping.
-    symbols: &'a SymbolTable,
+    symbols: &'a BindingTable,
     /// The type table for constructor classification.
     types: &'a TypeTable,
 }
@@ -133,7 +133,7 @@ impl Compiler {
         let view = NominalLookupView {
             module_id: symbol.module_id,
             tree: &declared.tree,
-            symbols: &declared.symbols,
+            symbols: &declared.bindings,
             types: &checked.types,
         };
         Ok(self.nominal_constructor_kind_for_symbol_in_dir(symbol, view))

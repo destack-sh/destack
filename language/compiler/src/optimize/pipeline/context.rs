@@ -512,23 +512,24 @@ impl PackagePipelineContext {
         module: &ModuleWorkItem,
         f: impl for<'a> FnOnce(&mut PipelineContext<'a>) -> T,
     ) -> T {
-        // capture module strings and profile
-        let strings = module.clone_strings();
+        // capture module profile
         let profile = module.clone_profile();
 
         // build the module context
-        let mut context = PipelineContext::with_diagnostics(
-            &strings,
-            module.options().clone(),
-            module.module_id(),
-            module.profile_id(),
-            *module.target_id(),
-            None,
-            profile,
-            self.diagnostics.clone(),
-        );
+        module.with_strings(|strings| {
+            let mut context = PipelineContext::with_diagnostics(
+                strings,
+                module.options().clone(),
+                module.module_id(),
+                module.profile_id(),
+                *module.target_id(),
+                None,
+                profile,
+                self.diagnostics.clone(),
+            );
 
-        f(&mut context)
+            f(&mut context)
+        })
     }
 
     /// Emit an optimization error.

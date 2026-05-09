@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_core::{ImmutableStringPool, StringPool};
+use destack_core::StringPool;
 use destack_mir as mir;
 use destack_source::{DiffOptions, FileId, ModuleId, PackageId, ProfileId, TargetId, print_diff};
 use mir::parse::ParseOptions;
@@ -35,7 +35,7 @@ pub(crate) struct TestProgram {
     /// The MIR tree.
     pub(crate) tree: mir::Tree,
     /// String pool for identifiers (immutable, from parser).
-    strings: ImmutableStringPool,
+    strings: StringPool,
     /// Thread safe string pool for optimization context.
     strings_pool: StringPool,
     /// Errors collected from the last pass run.
@@ -55,9 +55,8 @@ impl TestProgram {
                 .expect("failed to parse MIR");
         let strings_pool = StringPool::new();
 
-        // copy all strings from parser pool to context pool
-        // (needed for passes that look up/intern strings via context)
-        strings_pool.copy_from_immutable(&strings);
+        // copy parser strings for passes that intern through context
+        strings_pool.ensure_all_from(&strings);
 
         Self {
             tree,
@@ -790,7 +789,7 @@ impl TestProgram {
 
     /// Format the MIR back to text.
     pub(crate) fn format(&self) -> String {
-        let strings = self.strings_pool.clone().into_immutable();
+        let strings = self.strings_pool.clone();
         mir::format_mir(&self.tree, &strings, mir::MirFormatOptions::default())
     }
 

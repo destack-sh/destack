@@ -1,8 +1,8 @@
 use crate::{Compiler, CompilerError, CompilerResult};
 use destack_artifact::{ArtifactKey, ArtifactPayload, DirDeclared};
 use destack_dir::{
-    ExportKind, Expression, LocalNodeIdAny, LocalScopeMark, NodeType, ScopeKind, SymbolBinding,
-    SymbolForm, SymbolRole, SymbolSpace, SymbolTable, Tree, TypeLiteral, TypeTable,
+    BindingTable, ExportKind, Expression, LocalNodeIdAny, LocalScopeMark, NodeType, ScopeKind,
+    SymbolBinding, SymbolForm, SymbolRole, SymbolSpace, Tree, TypeLiteral, TypeTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, ProviderContext, ProviderError};
@@ -44,8 +44,8 @@ impl Compiler {
             };
 
             // set up the namespace, scopes, and module symbols
-            let mut symbols = SymbolTable::new(module);
-            let namespace_scope = symbols.insert_scope(ScopeKind::Namespace, None, None);
+            let mut symbols = BindingTable::new(module);
+            let namespace_scope = symbols.insert_scope(ScopeKind::Module, None, None);
             let global_scope = symbols.insert_scope(
                 ScopeKind::Namespace,
                 Some((namespace_scope, LocalScopeMark::end())),
@@ -53,7 +53,7 @@ impl Compiler {
             );
             let (namespace_symbol, _) = symbols.insert_symbol(
                 SymbolRole::Namespace,
-                SymbolForm::Value,
+                SymbolForm::Variable,
                 SymbolSpace::Value,
                 SymbolBinding::Runtime,
                 None,
@@ -63,7 +63,7 @@ impl Compiler {
             symbols.get_scope_by_id_mut(namespace_scope).owner = Some(namespace_symbol);
             let (default_symbol, _) = symbols.insert_symbol(
                 default_symbol_kind,
-                SymbolForm::Value,
+                SymbolForm::Variable,
                 SymbolSpace::Value,
                 SymbolBinding::Runtime,
                 None,
@@ -72,7 +72,7 @@ impl Compiler {
             );
             let (export_assignment_symbol, _) = symbols.insert_symbol(
                 SymbolRole::Namespace,
-                SymbolForm::Value,
+                SymbolForm::Variable,
                 SymbolSpace::Value,
                 SymbolBinding::Runtime,
                 None,
@@ -116,11 +116,9 @@ impl Compiler {
         )?;
         self.import_module_desugar(module, &mut tree, context)?;
 
-        // publish the final declared artifact
         let dir = DirDeclared {
             tree,
-            strings: ast.strings.clone(),
-            symbols,
+            bindings: symbols,
             types,
             roots,
             module_node,

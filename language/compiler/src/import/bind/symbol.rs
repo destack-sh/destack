@@ -1,6 +1,6 @@
 use destack_dir::{
-    ExportKind, LocalScopeId, LocalScopeMark, LocalSymbolId, ScopeKind, StaticKey, SymbolBinding,
-    SymbolForm, SymbolRole, SymbolSpace, SymbolTable,
+    BindingTable, ExportKind, LocalScopeId, LocalScopeMark, LocalSymbolId, ScopeKind, StaticKey,
+    SymbolBinding, SymbolForm, SymbolRole, SymbolSpace,
 };
 
 use crate::Compiler;
@@ -14,7 +14,7 @@ impl Compiler {
     /// Find the nearest ancestor scope of a given kind, starting from the given scope.
     pub(super) fn find_nearest_scope_of_kind(
         &self,
-        symbols: &SymbolTable,
+        symbols: &BindingTable,
         scope: (LocalScopeId, LocalScopeMark),
         kind: ScopeKind,
     ) -> Option<(LocalScopeId, LocalScopeMark)> {
@@ -41,11 +41,11 @@ impl Compiler {
         key: StaticKey,
         scope: (LocalScopeId, LocalScopeMark),
         export: Option<ExportKind>,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
     ) -> (LocalSymbolId, LocalScopeMark) {
         symbols.insert_symbol(
             SymbolRole::Item,
-            SymbolForm::Value,
+            SymbolForm::Variable,
             space,
             SymbolBinding::Runtime,
             Some(key),
@@ -65,11 +65,11 @@ impl Compiler {
         kind: ScopeKind,
         scope: (LocalScopeId, LocalScopeMark),
         export: Option<ExportKind>,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
     ) -> (LocalSymbolId, LocalScopeId) {
         let (symbol_id, _) = symbols.insert_symbol(
             SymbolRole::Item,
-            SymbolForm::Value,
+            SymbolForm::Variable,
             space,
             SymbolBinding::Runtime,
             Some(key),
@@ -89,11 +89,11 @@ impl Compiler {
         space: SymbolSpace,
         scope: (LocalScopeId, LocalScopeMark),
         export: Option<ExportKind>,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
     ) -> (LocalSymbolId, LocalScopeMark) {
         symbols.insert_symbol(
             SymbolRole::Item,
-            SymbolForm::Value,
+            SymbolForm::Variable,
             space,
             SymbolBinding::Runtime,
             None,
@@ -111,11 +111,11 @@ impl Compiler {
         kind: ScopeKind,
         scope: (LocalScopeId, LocalScopeMark),
         export: Option<ExportKind>,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
     ) -> (LocalSymbolId, LocalScopeId) {
         let (symbol_id, _) = symbols.insert_symbol(
             SymbolRole::Item,
-            SymbolForm::Value,
+            SymbolForm::Variable,
             SymbolSpace::Value,
             SymbolBinding::Runtime,
             None,
@@ -135,11 +135,11 @@ impl Compiler {
         space: SymbolSpace,
         key: StaticKey,
         scope: (LocalScopeId, LocalScopeMark),
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
     ) -> (LocalSymbolId, LocalScopeMark) {
         symbols.insert_symbol(
             SymbolRole::Local,
-            SymbolForm::Value,
+            SymbolForm::Variable,
             space,
             SymbolBinding::Runtime,
             Some(key),
@@ -158,11 +158,11 @@ impl Compiler {
         key: StaticKey,
         kind: ScopeKind,
         scope: (LocalScopeId, LocalScopeMark),
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
     ) -> (LocalSymbolId, LocalScopeId) {
         let (symbol_id, _) = symbols.insert_symbol(
             SymbolRole::Local,
-            SymbolForm::Value,
+            SymbolForm::Variable,
             space,
             SymbolBinding::Runtime,
             Some(key),
@@ -181,11 +181,11 @@ impl Compiler {
         _ast: &Ast,
         space: SymbolSpace,
         scope: (LocalScopeId, LocalScopeMark),
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
     ) -> (LocalSymbolId, LocalScopeMark) {
         symbols.insert_symbol(
             SymbolRole::Local,
-            SymbolForm::Value,
+            SymbolForm::Variable,
             space,
             SymbolBinding::Runtime,
             None,
@@ -202,11 +202,11 @@ impl Compiler {
         _ast: &Ast,
         kind: ScopeKind,
         scope: (LocalScopeId, LocalScopeMark),
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
     ) -> (LocalSymbolId, LocalScopeId) {
         let (symbol_id, _) = symbols.insert_symbol(
             SymbolRole::Local,
-            SymbolForm::Value,
+            SymbolForm::Variable,
             SymbolSpace::Value,
             SymbolBinding::Runtime,
             None,
@@ -227,7 +227,7 @@ impl Compiler {
         key: StaticKey,
         scope: (LocalScopeId, LocalScopeMark),
         export: Option<ExportKind>,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
     ) -> (LocalSymbolId, LocalScopeMark) {
         if let Some(export) = export {
             self.bind_named_item(module, ast, space, key, scope, Some(export), symbols)
@@ -247,7 +247,7 @@ impl Compiler {
         binding: SymbolBinding,
         scope: (LocalScopeId, LocalScopeMark),
         export: Option<ExportKind>,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
     ) -> (LocalSymbolId, LocalScopeMark) {
         let kind = if export.is_some() {
             SymbolRole::Item
@@ -256,7 +256,7 @@ impl Compiler {
         };
         symbols.insert_symbol(
             kind,
-            SymbolForm::Value,
+            SymbolForm::Variable,
             space,
             binding,
             Some(key),

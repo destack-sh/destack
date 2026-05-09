@@ -1,9 +1,9 @@
 use destack_artifact::Ast;
 use destack_ast::{self as ast, StringId};
 use destack_dir::{
-    DeclaredModule, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Member, Mutability,
-    NodeType, Property, ScopeKind, StaticKey, SymbolBinding, SymbolForm, SymbolRole, SymbolSpace,
-    SymbolTable, Tree, Type, TypeTable, UnevaluatedType, Visibility,
+    BindingTable, DeclaredModule, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
+    Member, Mutability, NodeType, Property, ScopeKind, StaticKey, SymbolBinding, SymbolForm,
+    SymbolRole, SymbolSpace, Tree, Type, TypeTable, UnevaluatedType, Visibility,
 };
 use destack_workspace::Module;
 
@@ -70,7 +70,7 @@ impl Compiler {
         ast_property_id: ast::LocalNodeId<ast::Property>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut Tree,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Property> {
         let ast_property = ast.tree.get(ast_property_id);
@@ -121,7 +121,7 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare(property_id);
+                symbols.declare_symbol(symbol_id, property_id);
                 property_id
             }
             ast::Property::Method {
@@ -132,7 +132,7 @@ impl Compiler {
                 let (symbol_id, method_scope_id) = self.bind_anonymous_item_with_scope(
                     module,
                     ast,
-                    ScopeKind::Namespace,
+                    ScopeKind::Function,
                     scope,
                     None,
                     symbols,
@@ -206,14 +206,14 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare(property_id);
+                symbols.declare_symbol(symbol_id, property_id);
                 property_id
             }
             ast::Property::Method { .. } => {
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
                 let property_id = tree.insert(property_id, Property::Error { symbol: symbol_id });
-                symbols.get_symbol_mut(symbol_id).declare(property_id);
+                symbols.declare_symbol(symbol_id, property_id);
                 property_id
             }
             ast::Property::Spread { value } => {
@@ -240,14 +240,14 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare(property_id);
+                symbols.declare_symbol(symbol_id, property_id);
                 property_id
             }
             ast::Property::Error => {
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
                 let property_id = tree.insert(property_id, Property::Error { symbol: symbol_id });
-                symbols.get_symbol_mut(symbol_id).declare(property_id);
+                symbols.declare_symbol(symbol_id, property_id);
                 property_id
             }
         }
@@ -266,7 +266,7 @@ impl Compiler {
         ast_member_id: ast::LocalNodeId<ast::Member>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut Tree,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Member> {
         let ast_member = ast.tree.get(ast_member_id);
@@ -385,7 +385,7 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare(member_id);
+                symbols.declare_symbol(symbol_id, member_id);
                 self.bind_declared_type_for_node(module, member_id.into_any(), constraint, types);
                 member_id
             }
@@ -433,7 +433,7 @@ impl Compiler {
 
                 let (symbol_id, _) = symbols.insert_symbol(
                     SymbolRole::Item,
-                    SymbolForm::Value,
+                    SymbolForm::Variable,
                     SymbolSpace::Value,
                     SymbolBinding::Runtime,
                     Some(StaticKey::Name(name)),
@@ -452,7 +452,7 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare(member_id);
+                symbols.declare_symbol(symbol_id, member_id);
                 self.bind_declared_type_for_node(
                     module,
                     member_id.into_any(),
@@ -546,7 +546,7 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare(member_id);
+                symbols.declare_symbol(symbol_id, member_id);
                 self.bind_declared_type_for_node(
                     module,
                     member_id.into_any(),
@@ -572,7 +572,7 @@ impl Compiler {
                 let (symbol_id, method_scope_id) = self.bind_anonymous_item_with_scope(
                     module,
                     ast,
-                    ScopeKind::Namespace,
+                    ScopeKind::Function,
                     scope,
                     None,
                     symbols,
@@ -660,7 +660,7 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare(member_id);
+                symbols.declare_symbol(symbol_id, member_id);
                 member_id
             }
             ast::Member::Embed {
@@ -695,7 +695,7 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare(member_id);
+                symbols.declare_symbol(symbol_id, member_id);
                 member_id
             }
             ast::Member::StaticBlock { body } => {
@@ -722,7 +722,7 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare(member_id);
+                symbols.declare_symbol(symbol_id, member_id);
                 member_id
             }
             ast::Member::ComptimeBlock { body } => {
@@ -749,14 +749,14 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare(member_id);
+                symbols.declare_symbol(symbol_id, member_id);
                 member_id
             }
             ast::Member::Error => {
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
                 let member_id = tree.insert(member_id, Member::Error { symbol: symbol_id });
-                symbols.get_symbol_mut(symbol_id).declare(member_id);
+                symbols.declare_symbol(symbol_id, member_id);
                 member_id
             }
         }

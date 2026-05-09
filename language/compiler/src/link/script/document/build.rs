@@ -658,7 +658,7 @@ impl<'a> ScriptLinker<'a> {
             return false;
         }
 
-        document.tree.strings.get(element_name.local).as_ref() == "script"
+        document.tree.strings.get(element_name.local) == "script"
     }
 
     /// Validate one linked HTML srcset value from exact graph edges.

@@ -15,7 +15,7 @@ impl Compiler {
         block_id: dir::LocalNodeId<dir::Block>,
         block_context: ast::BlockContext,
         tree: &dir::Tree,
-        symbols: &dir::SymbolTable,
+        symbols: &dir::BindingTable,
         types: &dir::TypeTable,
         ast_tree: &mut ast::Tree,
         ast_strings: &mut StringPool,

@@ -2,9 +2,9 @@ use crate::Compiler;
 use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
-    BindingScope, DeclaredModule, ExportKind, LocalNodeId, LocalNodeIdAny, LocalScopeId,
-    LocalScopeMark, LocalSymbolId, Mutability, NodeType, Pattern, PatternField, ScopeKind,
-    StaticKey, StringId, SymbolBinding, SymbolForm, SymbolRole, SymbolSpace, SymbolTable, Tree,
+    BindingScope, BindingTable, DeclaredModule, ExportKind, LocalNodeId, LocalNodeIdAny,
+    LocalScopeId, LocalScopeMark, LocalSymbolId, Mutability, NodeType, Pattern, PatternField,
+    ScopeKind, StaticKey, StringId, SymbolBinding, SymbolForm, SymbolRole, SymbolSpace, Tree,
     TypeTable,
 };
 use destack_workspace::Module;
@@ -15,7 +15,7 @@ impl Compiler {
     fn function_scoped_binding_scope_id(
         &self,
         start_scope_id: LocalScopeId,
-        symbols: &SymbolTable,
+        symbols: &BindingTable,
     ) -> LocalScopeId {
         let mut scope_id = start_scope_id;
 
@@ -25,10 +25,11 @@ impl Compiler {
             // function-scoped bindings live on the owning function scope
             let is_function_scope = scope.owner.is_some_and(|owner_symbol_id| {
                 let owner_symbol = symbols.get_symbol(owner_symbol_id);
-                owner_symbol.form == SymbolForm::Function
+                scope.kind == ScopeKind::Function
+                    || owner_symbol.form == SymbolForm::Function
                     || (scope.kind == ScopeKind::Namespace
                         && owner_symbol.role == SymbolRole::Item
-                        && owner_symbol.form == SymbolForm::Value
+                        && owner_symbol.form == SymbolForm::Variable
                         && owner_symbol.binding == SymbolBinding::Runtime)
             });
             if is_function_scope {
@@ -69,7 +70,7 @@ impl Compiler {
         scope: (LocalScopeId, LocalScopeMark),
         binding: SymbolBinding,
         binding_scope_form: Option<BindingScope>,
-        symbols: &SymbolTable,
+        symbols: &BindingTable,
     ) -> (LocalScopeId, LocalScopeMark) {
         // keep ambient and declaration bindings in their lexical scopes
         if binding != SymbolBinding::Runtime {
@@ -90,7 +91,7 @@ impl Compiler {
     /// Record binding mutability for a symbol when provided.
     pub(super) fn apply_binding_mutability(
         &self,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
         symbol_id: LocalSymbolId,
         mutability: Mutability,
     ) {
@@ -103,7 +104,7 @@ impl Compiler {
     /// Record binding scope for a symbol when not already set.
     pub(super) fn apply_binding_scope(
         &self,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
         symbol_id: LocalSymbolId,
         binding_scope: BindingScope,
     ) {
@@ -129,7 +130,7 @@ impl Compiler {
         ast_pattern_id: ast::LocalNodeId<ast::Pattern>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut Tree,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Pattern> {
         let ast_pattern = ast.tree.get(ast_pattern_id);
@@ -507,7 +508,7 @@ impl Compiler {
         // pattern
         if let Some(symbol_id) = pattern.symbol() {
             let pattern_id = tree.insert(pattern_id, pattern);
-            symbols.get_symbol_mut(symbol_id).declare(pattern_id);
+            symbols.declare_symbol(symbol_id, pattern_id);
             pattern_id
         } else {
             tree.insert(pattern_id, pattern)
@@ -526,7 +527,7 @@ impl Compiler {
         binding_scope_form: Option<BindingScope>,
         field_mutability: Option<Mutability>,
         field_name: StringId,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
     ) -> LocalSymbolId {
         // symbol
         let (symbol, _) = self.bind_named_symbol_with_binding(
@@ -591,7 +592,7 @@ impl Compiler {
         ast_pattern_field_id: ast::LocalNodeId<ast::PatternField>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut Tree,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<PatternField> {
         let ast_pattern_field = ast.tree.get(ast_pattern_field_id);
@@ -761,7 +762,7 @@ impl Compiler {
         // pattern field
         if let Some(symbol_id) = pattern_field.symbol() {
             let pattern_field_id = tree.insert(pattern_field_id, pattern_field);
-            symbols.get_symbol_mut(symbol_id).declare(pattern_field_id);
+            symbols.declare_symbol(symbol_id, pattern_field_id);
             pattern_field_id
         } else {
             tree.insert(pattern_field_id, pattern_field)

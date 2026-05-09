@@ -1,7 +1,7 @@
 use crate::{Compiler, ImportResult};
 use destack_artifact::Ast;
 use destack_dir::{
-    DeclaredModule, Expression, LocalNodeId, LocalScopeId, SymbolTable, Tree, TypeTable,
+    BindingTable, DeclaredModule, Expression, LocalNodeId, LocalScopeId, Tree, TypeTable,
 };
 use destack_source::ModuleId;
 use destack_workspace::ProviderContext;
@@ -16,7 +16,7 @@ impl Compiler {
         global_scope: LocalScopeId,
         declared_modules: &mut Vec<DeclaredModule>,
         tree: &mut Tree,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
         types: &mut TypeTable,
         roots: &mut Vec<LocalNodeId<Expression>>,
         context: &dyn ProviderContext,

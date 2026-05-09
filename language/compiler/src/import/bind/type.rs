@@ -1,11 +1,11 @@
 use destack_artifact::Ast;
 use destack_ast::{self as ast, StringId};
 use destack_dir::{
-    ConstructorTypeDeclaration, DeclaredModule, FunctionTypeDeclaration, GenericArgument,
-    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, MappedTypeModifier, Mutability,
-    NodeType, ScopeKind, StaticKey, SymbolBinding, SymbolForm, SymbolRole, SymbolSpace,
-    SymbolTable, Tree, TupleElement, TypeExpression, TypeMappedParameter, TypeMember,
-    TypePredicateSubject, TypeTable, VarianceBound,
+    BindingTable, ConstructorTypeDeclaration, DeclaredModule, FunctionTypeDeclaration,
+    GenericArgument, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, MappedTypeModifier,
+    Mutability, NodeType, ScopeKind, StaticKey, SymbolBinding, SymbolForm, SymbolRole, SymbolSpace,
+    Tree, TupleElement, TypeExpression, TypeMappedParameter, TypeMember, TypePredicateSubject,
+    TypeTable, VarianceBound,
 };
 use destack_workspace::Module;
 
@@ -26,7 +26,7 @@ impl Compiler {
         ast_argument_id: ast::LocalNodeId<ast::GenericArgument>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut Tree,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
         types: &mut TypeTable,
         space: SymbolSpace,
     ) -> LocalNodeId<GenericArgument> {
@@ -92,7 +92,7 @@ impl Compiler {
         ast_element_id: ast::LocalNodeId<ast::TupleElement>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut Tree,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
         types: &mut TypeTable,
         space: SymbolSpace,
     ) -> LocalNodeId<TupleElement> {
@@ -169,7 +169,7 @@ impl Compiler {
         ast_member_id: ast::LocalNodeId<ast::TypeMember>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut Tree,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
         types: &mut TypeTable,
         space: SymbolSpace,
     ) -> LocalNodeId<TypeMember> {
@@ -231,7 +231,7 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare(member_id);
+                symbols.declare_symbol(symbol_id, member_id);
                 member_id
             }
             ast::TypeMember::Method {
@@ -245,7 +245,7 @@ impl Compiler {
                 let (symbol_id, method_scope_id) = self.bind_anonymous_item_with_scope(
                     module,
                     ast,
-                    ScopeKind::Namespace,
+                    ScopeKind::Function,
                     scope,
                     None,
                     symbols,
@@ -325,7 +325,7 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare(member_id);
+                symbols.declare_symbol(symbol_id, member_id);
                 member_id
             }
             ast::TypeMember::CallSignature { signature } => {
@@ -454,7 +454,7 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare(member_id);
+                symbols.declare_symbol(symbol_id, member_id);
                 member_id
             }
             ast::TypeMember::ConstructSignature { signature } => {
@@ -568,7 +568,7 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare(member_id);
+                symbols.declare_symbol(symbol_id, member_id);
                 member_id
             }
             ast::TypeMember::IndexSignature {
@@ -624,7 +624,7 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare(member_id);
+                symbols.declare_symbol(symbol_id, member_id);
                 member_id
             }
             ast::TypeMember::Embed { value } => {
@@ -655,7 +655,7 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare(member_id);
+                symbols.declare_symbol(symbol_id, member_id);
                 member_id
             }
             ast::TypeMember::AssociatedType {
@@ -762,7 +762,7 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare(member_id);
+                symbols.declare_symbol(symbol_id, member_id);
                 member_id
             }
             ast::TypeMember::AssociatedConst {
@@ -810,7 +810,7 @@ impl Compiler {
                 // member symbol
                 let (symbol_id, _) = symbols.insert_symbol(
                     SymbolRole::Item,
-                    SymbolForm::Value,
+                    SymbolForm::Variable,
                     SymbolSpace::Value,
                     SymbolBinding::Runtime,
                     Some(StaticKey::Name(name)),
@@ -826,14 +826,14 @@ impl Compiler {
                         symbol: symbol_id,
                     },
                 );
-                symbols.get_symbol_mut(symbol_id).declare(member_id);
+                symbols.declare_symbol(symbol_id, member_id);
                 member_id
             }
             ast::TypeMember::Error => {
                 let (symbol_id, _) =
                     self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
                 let member_id = tree.insert(member_id, TypeMember::Error { symbol: symbol_id });
-                symbols.get_symbol_mut(symbol_id).declare(member_id);
+                symbols.declare_symbol(symbol_id, member_id);
                 member_id
             }
         }
@@ -852,7 +852,7 @@ impl Compiler {
         ast_type_expression_id: ast::LocalNodeId<ast::TypeExpression>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut Tree,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
         types: &mut TypeTable,
         space: SymbolSpace,
     ) -> LocalNodeId<TypeExpression> {

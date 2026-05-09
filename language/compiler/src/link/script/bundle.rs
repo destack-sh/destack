@@ -219,7 +219,7 @@ impl<'a> ScriptLinker<'a> {
                 module,
                 statement_id,
                 *kind,
-                module.strings.get(*specifier).as_ref(),
+                module.strings.get(*specifier),
                 *target_module,
                 items.as_deref().unwrap_or(&[]),
                 attributes.is_some(),

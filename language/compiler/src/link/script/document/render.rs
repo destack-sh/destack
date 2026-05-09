@@ -541,6 +541,5 @@ fn html_document_file_id(document: &Html) -> FileId {
 
 /// Return whether one element name matches one HTML local name.
 pub(super) fn is_html_element_name(tree: &html::Tree, name: &html::Name, local_name: &str) -> bool {
-    matches!(name.namespace, html::Namespace::Html)
-        && tree.strings.get(name.local).as_ref() == local_name
+    matches!(name.namespace, html::Namespace::Html) && tree.strings.get(name.local) == local_name
 }

@@ -22,7 +22,7 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
         tree: &mut dir::Tree,
-        symbols: &mut dir::SymbolTable,
+        symbols: &mut dir::BindingTable,
         types: &mut dir::TypeTable,
         guards: &mut GuardTable,
     ) -> ElaborateResult<()> {

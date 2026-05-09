@@ -2,9 +2,9 @@ use crate::Compiler;
 use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
-    Argument, BindingScope, DeclaredModule, Expression, LocalNodeId, LocalNodeIdAny, LocalScopeId,
-    LocalScopeMark, NodeType, Parameter, ProvenanceReason, SymbolBinding, SymbolSpace, SymbolTable,
-    Tree, Type, TypeTable, UnevaluatedType,
+    Argument, BindingScope, BindingTable, DeclaredModule, Expression, LocalNodeId, LocalNodeIdAny,
+    LocalScopeId, LocalScopeMark, NodeType, Parameter, ProvenanceReason, SymbolBinding,
+    SymbolSpace, Tree, Type, TypeTable, UnevaluatedType,
 };
 use destack_workspace::Module;
 
@@ -33,7 +33,7 @@ impl Compiler {
         ast_parameter_id: ast::LocalNodeId<ast::Parameter>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut Tree,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
         types: &mut TypeTable,
     ) -> LocalNodeId<Parameter> {
         let ast_parameter = ast.tree.get(ast_parameter_id);
@@ -378,7 +378,7 @@ impl Compiler {
         ast_argument_id: ast::LocalNodeId<ast::Argument>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut Tree,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
         types: &mut TypeTable,
         space: SymbolSpace,
     ) -> LocalNodeId<Argument> {

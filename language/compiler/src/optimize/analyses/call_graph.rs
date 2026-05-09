@@ -975,39 +975,40 @@ fn build_symbol_call_graph(modules: &[ModuleWorkItem]) -> SymbolCallGraph {
 
     // collect definition metadata for all modules
     for module in modules {
-        module.with_mir(|mir| {
-            // scan the published mir artifact
-            let tree = &mir.tree;
-            let strings = &mir.strings;
+        module.with_strings(|strings| {
+            module.with_mir(|mir| {
+                // scan the published mir artifact
+                let tree = &mir.tree;
 
-            // scan for defined functions
-            for (_, function) in tree.iter_nodes::<mir::Function>() {
-                if function.entry.is_none() {
-                    continue;
+                // scan for defined functions
+                for (_, function) in tree.iter_nodes::<mir::Function>() {
+                    if function.entry.is_none() {
+                        continue;
+                    }
+
+                    if !function.linkage.is_defined() {
+                        continue;
+                    }
+
+                    let name = strings.get(function.name);
+                    let symbol = interner.intern(name.as_ref());
+                    let Some(signature) = SignatureKey::from_function(tree, function) else {
+                        continue;
+                    };
+
+                    definitions
+                        .entry(symbol.clone())
+                        .or_default()
+                        .push(SymbolDefinition {
+                            linkage: function.linkage,
+                            signature,
+                        });
+
+                    if function.linkage.is_exported() {
+                        *export_counts.entry(symbol).or_insert(0) += 1;
+                    }
                 }
-
-                if !function.linkage.is_defined() {
-                    continue;
-                }
-
-                let name = strings.get(function.name);
-                let symbol = interner.intern(name.as_ref());
-                let Some(signature) = SignatureKey::from_function(tree, function) else {
-                    continue;
-                };
-
-                definitions
-                    .entry(symbol.clone())
-                    .or_default()
-                    .push(SymbolDefinition {
-                        linkage: function.linkage,
-                        signature,
-                    });
-
-                if function.linkage.is_exported() {
-                    *export_counts.entry(symbol).or_insert(0) += 1;
-                }
-            }
+            });
         });
     }
 
@@ -1031,62 +1032,63 @@ fn build_symbol_call_graph(modules: &[ModuleWorkItem]) -> SymbolCallGraph {
         // capture module id for callsite keys
         let module_id = module.module_id();
 
-        module.with_mir(|mir| {
-            // scan the published mir artifact
-            let tree = &mir.tree;
-            let strings = &mir.strings;
+        module.with_strings(|strings| {
+            module.with_mir(|mir| {
+                // scan the published mir artifact
+                let tree = &mir.tree;
 
-            // build symbol names for all functions
-            let mut symbols_by_function: HashMap<mir::LocalNodeId<mir::Function>, SymbolName> =
-                HashMap::new();
+                // build symbol names for all functions
+                let mut symbols_by_function: HashMap<mir::LocalNodeId<mir::Function>, SymbolName> =
+                    HashMap::new();
 
-            for (function_id, function) in tree.iter_nodes::<mir::Function>() {
-                let name = strings.get(function.name);
-                let symbol = interner.intern(name.as_ref());
-                symbols_by_function.insert(function_id, symbol);
-            }
-
-            // walk call instructions for each function with a body
-            for (function_id, function) in tree.iter_nodes::<mir::Function>() {
-                if function.entry.is_none() {
-                    continue;
+                for (function_id, function) in tree.iter_nodes::<mir::Function>() {
+                    let name = strings.get(function.name);
+                    let symbol = interner.intern(name.as_ref());
+                    symbols_by_function.insert(function_id, symbol);
                 }
 
-                let Some(caller_symbol) = symbols_by_function.get(&function_id).cloned() else {
-                    continue;
-                };
+                // walk call instructions for each function with a body
+                for (function_id, function) in tree.iter_nodes::<mir::Function>() {
+                    if function.entry.is_none() {
+                        continue;
+                    }
 
-                for block_id in &function.blocks {
-                    let block = tree.get(*block_id);
+                    let Some(caller_symbol) = symbols_by_function.get(&function_id).cloned() else {
+                        continue;
+                    };
 
-                    for &instruction_id in &block.instructions {
-                        let instruction = tree.get(instruction_id);
-                        let Some(callsite) = SymbolCallSite::from_instruction(
+                    for block_id in &function.blocks {
+                        let block = tree.get(*block_id);
+
+                        for &instruction_id in &block.instructions {
+                            let instruction = tree.get(instruction_id);
+                            let Some(callsite) = SymbolCallSite::from_instruction(
+                                module_id,
+                                *block_id,
+                                instruction_id,
+                                instruction,
+                                &symbols_by_function,
+                                tree,
+                            ) else {
+                                continue;
+                            };
+
+                            insert_symbol_callsite(&mut graph, callsite, &caller_symbol);
+                        }
+
+                        let terminator = tree.get(block.terminator);
+                        if let Some(callsite) = SymbolCallSite::from_terminator(
                             module_id,
                             *block_id,
-                            instruction_id,
-                            instruction,
+                            terminator,
                             &symbols_by_function,
                             tree,
-                        ) else {
-                            continue;
-                        };
-
-                        insert_symbol_callsite(&mut graph, callsite, &caller_symbol);
-                    }
-
-                    let terminator = tree.get(block.terminator);
-                    if let Some(callsite) = SymbolCallSite::from_terminator(
-                        module_id,
-                        *block_id,
-                        terminator,
-                        &symbols_by_function,
-                        tree,
-                    ) {
-                        insert_symbol_callsite(&mut graph, callsite, &caller_symbol);
+                        ) {
+                            insert_symbol_callsite(&mut graph, callsite, &caller_symbol);
+                        }
                     }
                 }
-            }
+            });
         });
     }
 
@@ -1618,18 +1620,18 @@ mod tests {
             mir::parse::Parser::parse(FileId::new(0), source, ParseOptions::default())
                 .validate()
                 .expect("failed to parse MIR");
-        let pool = destack_core::StringPool::new();
-        pool.copy_from_immutable(&strings);
+        let pool = Arc::new(destack_core::StringPool::new());
+        pool.ensure_all_from(&strings);
 
         let mut module_mir = MirLowered::new();
         module_mir.tree = tree;
-        module_mir.strings = pool;
 
         ModuleWorkItem::new(
             module_id,
             test_profile_id(),
             target_id,
             module_mir,
+            pool,
             PipelineOptions::default(),
         )
     }

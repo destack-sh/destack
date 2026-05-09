@@ -280,7 +280,7 @@ impl Rewriter<'_, '_> {
             return None;
         }
 
-        match module.strings.get(path.segments[0]).as_ref() {
+        match module.strings.get(path.segments[0]) {
             "undefined" => Some(js::ScalarLiteral::Undefined),
             "NaN" => Some(js::ScalarLiteral::Number(f64::NAN)),
             "Infinity" => Some(js::ScalarLiteral::Number(f64::INFINITY)),
@@ -307,7 +307,7 @@ impl Rewriter<'_, '_> {
             return None;
         };
 
-        match module.strings.get(path.segments[0]).as_ref() {
+        match module.strings.get(path.segments[0]) {
             "undefined" => Some(js::ScalarLiteral::Undefined),
             "NaN" => Some(js::ScalarLiteral::Number(f64::NAN)),
             "Infinity" => Some(js::ScalarLiteral::Number(f64::INFINITY)),
@@ -390,7 +390,7 @@ impl Rewriter<'_, '_> {
             (js::ScalarLiteral::Number(left), js::ScalarLiteral::Number(right)) => left == right,
             (js::ScalarLiteral::Bigint(left), js::ScalarLiteral::Bigint(right)) => left == right,
             (js::ScalarLiteral::String(left), js::ScalarLiteral::String(right)) => {
-                module.strings.get(*left).as_ref() == module.strings.get(*right).as_ref()
+                module.strings.get(*left) == module.strings.get(*right)
             }
             _ => false,
         }
@@ -443,8 +443,6 @@ impl Rewriter<'_, '_> {
             (js::ScalarLiteral::String(left), js::ScalarLiteral::String(right)) => {
                 let left = module.strings.get(*left);
                 let right = module.strings.get(*right);
-                let left = left.as_ref();
-                let right = right.as_ref();
 
                 match relation {
                     0 => left < right,

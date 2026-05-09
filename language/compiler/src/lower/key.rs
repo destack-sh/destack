@@ -11,6 +11,6 @@ pub(crate) fn static_key_from_key(
 ) -> Option<StaticKey> {
     common_dir::static_key_from_key(tree, key, |name| {
         let name = strings.get(name);
-        StringId::for_text(&format!("#{}", name.as_ref()))
+        StringId::for_text(&format!("#{name}"))
     })
 }

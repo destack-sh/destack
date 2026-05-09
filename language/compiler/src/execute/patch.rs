@@ -23,10 +23,10 @@ impl Compiler {
         profile_id: ProfileId,
         tree: &dir::Tree,
         types: &dir::TypeTable,
-        dir_patch: &mut dir::Patch,
+        tree_patch: &mut dir::Patch,
         comptime_patch: ComptimePatch,
     ) {
-        let _ = (module_id, profile_id, tree, types, dir_patch, comptime_patch);
+        let _ = (module_id, profile_id, tree, types, tree_patch, comptime_patch);
 
         todo!("FUGU #Incomplete: apply comptime output through DIR patch")
     }

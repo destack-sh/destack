@@ -193,7 +193,7 @@ impl Compiler {
         module: &Module,
         literal: &dir::TemplateLiteral,
         tree: &dir::Tree,
-        symbols: &dir::SymbolTable,
+        symbols: &dir::BindingTable,
         types: &dir::TypeTable,
         ast_tree: &mut ast::Tree,
         ast_strings: &mut StringPool,

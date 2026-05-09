@@ -83,7 +83,7 @@ fn test_resolve_language_item() {
         .repository
         .dir_declared(revision, symbol_id.module_id, profile)
         .unwrap_or_else(|| panic!("missing language item DIR"));
-    let symbols = &dir.symbols;
+    let symbols = &dir.bindings;
     let symbol = symbols.get_symbol(symbol_id.into_local());
     assert_string!(test.program, symbol.name().unwrap(), "Add");
 }
@@ -308,7 +308,7 @@ function main(): int32 {
             profile,
         )
         .unwrap_or_else(|error| panic!("missing declared dir for String symbol: {error:?}"));
-    let declared_symbol = declared.symbols.get_symbol(string_symbol.local_id);
+    let declared_symbol = declared.bindings.get_symbol(string_symbol.local_id);
     assert_eq!(
         declared_symbol.ty,
         SymbolForm::Struct,

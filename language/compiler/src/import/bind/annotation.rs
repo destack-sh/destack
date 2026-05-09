@@ -2,8 +2,8 @@ use crate::Compiler;
 use destack_artifact::Ast;
 use destack_ast::{self as ast, StringId};
 use destack_dir::{
-    DeclaredModule, Decorator, DecoratorPosition, Documentation, LocalNodeId, LocalNodeIdAny,
-    LocalScopeId, LocalScopeMark, NodeType, SymbolSpace, SymbolTable, Tree, TypeTable,
+    BindingTable, DeclaredModule, Decorator, DecoratorPosition, Documentation, LocalNodeId,
+    LocalNodeIdAny, LocalScopeId, LocalScopeMark, NodeType, SymbolSpace, Tree, TypeTable,
 };
 use destack_source::File;
 use destack_workspace::{Module, ProviderContext};
@@ -62,7 +62,7 @@ impl Compiler {
         global_scope: LocalScopeId,
         declared_modules: &mut Vec<DeclaredModule>,
         tree: &mut Tree,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
         types: &mut TypeTable,
         context: &dyn ProviderContext,
     ) {
@@ -121,7 +121,7 @@ impl Compiler {
         ast_annotation_id: ast::LocalNodeId<ast::Decorator>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut Tree,
-        symbols: &mut SymbolTable,
+        symbols: &mut BindingTable,
         types: &mut TypeTable,
     ) -> Option<LocalNodeId<Decorator>> {
         let ast_annotation = ast.tree.get(ast_annotation_id);
@@ -206,7 +206,7 @@ function f() {}
 
         let dir = test.dir_declared(module_id);
         let tree = &dir.tree;
-        let symbols = &dir.symbols;
+        let symbols = &dir.bindings;
         let declaration_symbol = test
             .declaration_symbol_by_name("test.d.ts", "f")
             .expect("expected f symbol");
