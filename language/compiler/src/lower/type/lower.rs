@@ -829,22 +829,22 @@ impl<'a> TypeLowerer<'a> {
             self.first_type_static_argument(static_arguments, type_id, module_id, node)?;
         let base_type = self.lower_type(types, base_type_id, module_id, node, builder)?;
         let address_space = self.ownership_form_address_space(static_arguments);
-        let mutability = self.default_reference_mutability(kind);
+        let access = self.default_reference_access(kind);
 
         Ok(Some(builder.type_reference(
             kind,
             base_type,
-            mutability,
+            access,
             address_space,
             false,
         )))
     }
 
-    /// Return the lowered mutability for one ownership kind.
-    fn default_reference_mutability(&self, kind: mir::ReferenceKind) -> mir::Mutability {
+    /// Return the default access for one ownership kind.
+    fn default_reference_access(&self, kind: mir::ReferenceKind) -> mir::Access {
         match kind {
-            mir::ReferenceKind::Managed | mir::ReferenceKind::Raw => mir::Mutability::Immutable,
-            mir::ReferenceKind::Owned | mir::ReferenceKind::Borrowed => mir::Mutability::Mutable,
+            mir::ReferenceKind::Managed | mir::ReferenceKind::Raw => mir::Access::Readonly,
+            mir::ReferenceKind::Owned | mir::ReferenceKind::Borrowed => mir::Access::Mutable,
         }
     }
 
@@ -953,7 +953,7 @@ impl<'a> TypeLowerer<'a> {
         let mir_type = builder.tree().get(ty).clone();
         let mir::Type::Reference {
             kind,
-            mutability,
+            access,
             pointee,
             is_nullable,
             ..
@@ -962,7 +962,7 @@ impl<'a> TypeLowerer<'a> {
             return Ok(builder.type_reference(
                 mir::ReferenceKind::Managed,
                 ty,
-                mir::Mutability::Immutable,
+                mir::Access::Readonly,
                 address_space,
                 false,
             ));
@@ -976,7 +976,7 @@ impl<'a> TypeLowerer<'a> {
             .into());
         };
 
-        Ok(builder.type_reference(kind, pointee, mutability, address_space, is_nullable))
+        Ok(builder.type_reference(kind, pointee, access, address_space, is_nullable))
     }
 
     /// Return the source name for one symbol when artifacts are available.

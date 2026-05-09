@@ -2,7 +2,7 @@ use {destack_dir as dir, destack_mir as mir};
 
 use crate::{CompilerResult, LowerError};
 
-use crate::lower::{FunctionLowerer, LocalBinding, LocalStorage};
+use crate::lower::{FunctionLowerer, LocalBinding, LocalStorage, access_for_storage_mutability};
 
 impl FunctionLowerer<'_> {
     /// Resolve a reference value for a symbol, upgrading locals to addressable storage.
@@ -37,7 +37,7 @@ impl FunctionLowerer<'_> {
         let addr_type = self.state.builder.type_reference(
             mir::ReferenceKind::Raw,
             global.ty,
-            global.mutability,
+            access_for_storage_mutability(global.mutability),
             global.space.clone(),
             false,
         );

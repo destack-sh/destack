@@ -183,7 +183,7 @@ impl ModuleLowerer<'_> {
                 let out_pointer = self.builder.type_reference(
                     mir::ReferenceKind::Raw,
                     binding_info.ok_mir_type,
-                    mir::Mutability::Mutable,
+                    mir::Access::Mutable,
                     mir::AddressSpace::Stack,
                     false,
                 );

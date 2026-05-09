@@ -585,7 +585,7 @@ impl FunctionLowerer<'_> {
             let reference_type = self.state.builder.type_reference(
                 mir::ReferenceKind::Raw,
                 result_type,
-                mir::Mutability::Immutable,
+                mir::Access::Readonly,
                 mir::AddressSpace::Frame,
                 false,
             );

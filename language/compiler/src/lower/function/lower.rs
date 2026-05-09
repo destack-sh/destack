@@ -15,7 +15,7 @@ use super::policy::RuntimeCheckConfig;
 use crate::lower::{
     BreakContext, DispatchTableGlobal, FunctionEnvironmentLayout, GlobalBinding, InstanceKey,
     InterfaceEntry, LocalBinding, LoopContext, MethodKey, RuntimeStatusLayout, Terminates,
-    TypeLowerer,
+    TypeLowerer, access_for_storage_mutability,
 };
 
 /// Shared, immutable inputs for lowering a single function body.
@@ -704,7 +704,7 @@ impl<'a> FunctionLowerer<'a> {
             let addr_type = self.state.builder.type_reference(
                 mir::ReferenceKind::Raw,
                 global_binding.ty,
-                global_binding.mutability,
+                access_for_storage_mutability(global_binding.mutability),
                 global_binding.space.clone(),
                 false,
             );

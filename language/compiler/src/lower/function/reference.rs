@@ -2,20 +2,22 @@ use {destack_dir as dir, destack_mir as mir};
 
 use crate::{CompilerError, CompilerResult, LowerError};
 
-use crate::lower::{FunctionLowerer, LocalStorage, lower_mutability};
+use crate::lower::{
+    FunctionLowerer, LocalStorage, access_for_storage_mutability, lower_mutability,
+};
 
 impl FunctionLowerer<'_> {
     /// Build one borrowed reference type in the given address space.
     fn borrowed_reference_type(
         &mut self,
         pointee_type: mir::LocalNodeId<mir::Type>,
-        mutability: mir::Mutability,
+        access: mir::Access,
         address_space: mir::AddressSpace,
     ) -> mir::LocalNodeId<mir::Type> {
         self.state.builder.type_reference(
             mir::ReferenceKind::Borrowed,
             pointee_type,
-            mutability,
+            access,
             address_space,
             false,
         )
@@ -255,11 +257,12 @@ impl FunctionLowerer<'_> {
     ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
         // resolve the reference result type
         let pointee_type = self.lower_type_for_expression(right)?;
-        let mir_mutability = mutability
+        let access = mutability
             .map(lower_mutability)
-            .unwrap_or(mir::Mutability::Mutable);
+            .map(access_for_storage_mutability)
+            .unwrap_or(mir::Access::Mutable);
         let address_space = self.borrow_address_space(expression_id, right)?;
-        let result_type = self.borrowed_reference_type(pointee_type, mir_mutability, address_space);
+        let result_type = self.borrowed_reference_type(pointee_type, access, address_space);
 
         // lower the reference target to an address when possible
         match self.context.dir_tree.get(right) {
@@ -408,6 +411,9 @@ impl FunctionLowerer<'_> {
             _ => {
                 // lower rvalue borrows by spilling into a temporary
                 let (value, value_type) = self.lower_value_expression(right)?;
+                let mir_mutability = mutability
+                    .map(lower_mutability)
+                    .unwrap_or(mir::Mutability::Mutable);
                 let local = self.state.builder.local(value_type, mir_mutability);
                 self.state.builder.local_set(local, value);
                 let value = self.state.builder.local_addr(local, result_type);

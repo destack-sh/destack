@@ -147,7 +147,7 @@ impl ModuleLowerer<'_> {
             let vtable_type = self.builder.type_reference(
                 mir::ReferenceKind::Raw,
                 self.type_lowerer.ty_void,
-                mir::Mutability::Immutable,
+                mir::Access::Readonly,
                 mir::AddressSpace::Static,
                 false,
             );

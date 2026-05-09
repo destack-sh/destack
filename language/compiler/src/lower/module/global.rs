@@ -322,3 +322,11 @@ pub(crate) fn lower_mutability(mutability: dir::Mutability) -> mir::Mutability {
         dir::Mutability::Mutable | dir::Mutability::Exclusive => mir::Mutability::Mutable,
     }
 }
+
+/// Return reference access for storage declared with the given mutability.
+pub(crate) fn access_for_storage_mutability(mutability: mir::Mutability) -> mir::Access {
+    match mutability {
+        mir::Mutability::Immutable => mir::Access::Readonly,
+        mir::Mutability::Mutable => mir::Access::Mutable,
+    }
+}

@@ -70,7 +70,7 @@ impl FunctionLowerer<'_> {
         let payload_ref_type = self.state.builder.type_reference(
             mir::ReferenceKind::Raw,
             payload_type,
-            mir::Mutability::Mutable,
+            mir::Access::Mutable,
             mir::AddressSpace::Stack,
             false,
         );
@@ -87,7 +87,7 @@ impl FunctionLowerer<'_> {
         let value_ref_type = self.state.builder.type_reference(
             mir::ReferenceKind::Raw,
             value_type,
-            mir::Mutability::Mutable,
+            mir::Access::Mutable,
             mir::AddressSpace::Stack,
             false,
         );
@@ -110,7 +110,7 @@ impl FunctionLowerer<'_> {
         let payload_ref_type = self.state.builder.type_reference(
             mir::ReferenceKind::Raw,
             payload_type,
-            mir::Mutability::Mutable,
+            mir::Access::Mutable,
             mir::AddressSpace::Stack,
             false,
         );
@@ -126,7 +126,7 @@ impl FunctionLowerer<'_> {
         let target_ref_type = self.state.builder.type_reference(
             mir::ReferenceKind::Raw,
             target_type,
-            mir::Mutability::Mutable,
+            mir::Access::Mutable,
             mir::AddressSpace::Stack,
             false,
         );

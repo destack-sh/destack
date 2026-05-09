@@ -121,20 +121,20 @@ impl FunctionLowerer<'_> {
             (
                 mir::Type::Reference {
                     kind: source_kind,
-                    mutability: source_mutability,
+                    access: source_access,
                     pointee: source_pointee,
                     is_nullable: source_nullable,
                     ..
                 },
                 mir::Type::Reference {
                     kind: target_kind,
-                    mutability: target_mutability,
+                    access: target_access,
                     pointee: target_pointee,
                     is_nullable: target_nullable,
                     ..
                 },
             ) if source_kind == target_kind
-                && source_mutability == target_mutability
+                && source_access == target_access
                 && source_pointee == target_pointee
                 && source_nullable == target_nullable
         )
@@ -613,7 +613,7 @@ impl FunctionLowerer<'_> {
                     let reference_type = self.state.builder.type_reference(
                         mir::ReferenceKind::Managed,
                         target_mir_type,
-                        mir::Mutability::Immutable,
+                        mir::Access::Readonly,
                         mir::AddressSpace::Local,
                         false,
                     );
@@ -830,7 +830,7 @@ impl FunctionLowerer<'_> {
                 let reference_type = self.state.builder.type_reference(
                     mir::ReferenceKind::Managed,
                     target_mir_type,
-                    mir::Mutability::Immutable,
+                    mir::Access::Readonly,
                     mir::AddressSpace::Local,
                     false,
                 );
@@ -1201,7 +1201,7 @@ impl FunctionLowerer<'_> {
         let ref_type = self.state.builder.type_reference(
             mir::ReferenceKind::Managed,
             value_type,
-            mir::Mutability::Immutable,
+            mir::Access::Readonly,
             mir::AddressSpace::Local,
             false,
         );

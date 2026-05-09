@@ -37,7 +37,7 @@ impl ModuleLowerer<'_> {
         let slot_type = self.builder.type_reference(
             mir::ReferenceKind::Raw,
             self.type_lowerer.ty_void,
-            mir::Mutability::Immutable,
+            mir::Access::Readonly,
             mir::AddressSpace::Static,
             true,
         );
@@ -52,7 +52,7 @@ impl ModuleLowerer<'_> {
         let address_type = self.builder.type_reference(
             mir::ReferenceKind::Raw,
             table_type,
-            mir::Mutability::Immutable,
+            mir::Access::Readonly,
             mir::AddressSpace::Static,
             false,
         );
@@ -101,7 +101,7 @@ impl ModuleLowerer<'_> {
         let address_type = self.builder.type_reference(
             mir::ReferenceKind::Raw,
             table_type,
-            mir::Mutability::Immutable,
+            mir::Access::Readonly,
             mir::AddressSpace::Static,
             false,
         );
