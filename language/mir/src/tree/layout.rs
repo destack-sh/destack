@@ -67,8 +67,8 @@ pub(crate) fn compute_type_layout(
         }
         Type::Isize | Type::Usize => TypeLayout::scalar(pointer_bytes as u32),
 
-        Type::Float { width } => {
-            let bytes = (*width as u32).div_ceil(8);
+        Type::Float(float_type) => {
+            let bytes = (float_type.width() as u32).div_ceil(8);
             TypeLayout::scalar(bytes)
         }
 

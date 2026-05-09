@@ -210,8 +210,8 @@ pub enum Type {
     Isize,
     /// Pointer-sized unsigned integer.
     Usize,
-    /// Floating point with explicit width (32 or 64).
-    Float { width: u16 },
+    /// Floating point with concrete representation.
+    Float(FloatType),
     /// Runtime type descriptor handle.
     TypeDescriptor,
     /// Compact runtime type identity token.
@@ -390,8 +390,8 @@ impl Type {
         is_signed: false,
     };
 
-    pub const FLOAT32: Type = Type::Float { width: 32 };
-    pub const FLOAT64: Type = Type::Float { width: 64 };
+    pub const FLOAT32: Type = Type::Float(FloatType::Float32);
+    pub const FLOAT64: Type = Type::Float(FloatType::Float64);
 
     /// Return integer width and signedness for concrete integer types.
     pub fn int_info(&self) -> Option<(u16, bool)> {
@@ -426,7 +426,7 @@ impl Type {
                 | Type::Int { .. }
                 | Type::Isize
                 | Type::Usize
-                | Type::Float { .. }
+                | Type::Float(_)
                 | Type::TypeDescriptor
                 | Type::TypeId
                 | Type::Reference { .. }
@@ -562,6 +562,25 @@ impl Type {
             Type::FunctionSignature { .. }
             | Type::FunctionPointer { .. }
             | Type::Callable { .. } => Copy::Yes,
+        }
+    }
+}
+
+/// A concrete MIR floating-point type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum FloatType {
+    /// A 32-bit IEEE-754 float.
+    Float32,
+    /// A 64-bit IEEE-754 float.
+    Float64,
+}
+
+impl FloatType {
+    /// Return the bit width.
+    pub fn width(self) -> u16 {
+        match self {
+            FloatType::Float32 => 32,
+            FloatType::Float64 => 64,
         }
     }
 }

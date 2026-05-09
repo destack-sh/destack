@@ -2,7 +2,7 @@ use destack_core::StringId;
 
 use crate::build::ModuleBuilder;
 use crate::{
-    AddressSpace, Copy, Field, LocalNodeId, Mutability, ReferenceKind, TensorDimension,
+    AddressSpace, Copy, Field, FloatType, LocalNodeId, Mutability, ReferenceKind, TensorDimension,
     TensorLayout, Type, TypeReference,
 };
 
@@ -58,7 +58,13 @@ impl ModuleBuilder {
 
     /// Create a float type.
     pub fn type_float(&mut self, width: u16) -> LocalNodeId<Type> {
-        self.tree.insert_type(Type::Float { width })
+        let float_type = match width {
+            32 => FloatType::Float32,
+            64 => FloatType::Float64,
+            _ => panic!("unsupported float width: {width}"),
+        };
+
+        self.tree.insert_type(Type::Float(float_type))
     }
 
     /// Create a 32-bit float type.

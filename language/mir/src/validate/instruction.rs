@@ -461,7 +461,7 @@ impl<'a> Validator<'a> {
             | Type::TypeId
             | Type::FunctionPointer { .. } => true,
             Type::Int { width, .. } => is_native_atomic_width(*width),
-            Type::Float { width } => matches!(width, 32 | 64),
+            Type::Float(_) => true,
             Type::Reference { kind, .. } => matches!(kind, ReferenceKind::Raw),
             _ => false,
         };
@@ -550,7 +550,7 @@ impl<'a> Validator<'a> {
 
     /// Check whether one atomic payload supports floating CAS-loop updates.
     fn is_atomic_float(&self, value_type: LocalNodeId<Type>) -> bool {
-        matches!(self.tree.get(value_type), Type::Float { width: 32 | 64 })
+        matches!(self.tree.get(value_type), Type::Float(_))
     }
 
     /// Validate ordering for one atomic load.
@@ -2766,9 +2766,7 @@ impl<'a> Validator<'a> {
                     is_signed: right_signed,
                 },
             ) => left_width == right_width && left_signed == right_signed,
-            (Type::Float { width: left_width }, Type::Float { width: right_width }) => {
-                left_width == right_width
-            }
+            (Type::Float(left_float), Type::Float(right_float)) => left_float == right_float,
             (Type::Atomic { value: left_value }, Type::Atomic { value: right_value }) => {
                 match (
                     self.concrete_type_reference(*left_value),
@@ -3401,7 +3399,7 @@ impl<'a> Validator<'a> {
     /// Return float bit width for float MIR types.
     fn float_bit_width(&self, ty: &Type) -> Option<u16> {
         match ty {
-            Type::Float { width } => Some(*width),
+            Type::Float(float_type) => Some(float_type.width()),
             _ => None,
         }
     }

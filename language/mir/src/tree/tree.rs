@@ -452,9 +452,9 @@ impl Tree {
         }
 
         // fall back to a structural lookup
-        if let Some(type_id) =
-            self.find_type_by_predicate(|ty| matches!(ty, Type::Float { width: w } if *w == width))
-        {
+        if let Some(type_id) = self.find_type_by_predicate(
+            |ty| matches!(ty, Type::Float(float_type) if float_type.width() == width),
+        ) {
             return type_id;
         }
 

@@ -161,7 +161,7 @@ impl Parser {
                 // expected float shape
                 let has_suffix = token_text.chars().any(|c| c.is_ascii_alphabetic());
                 let width = match expected {
-                    Type::Float { width } => width,
+                    Type::Float(float_type) => float_type.width(),
                     _ => {
                         return Err(ParseError::invalid("float constant type", token_start));
                     }
@@ -302,8 +302,8 @@ impl Parser {
             },
             "isize" => Type::Isize,
             "usize" => Type::Usize,
-            "float32" => Type::Float { width: 32 },
-            "float64" => Type::Float { width: 64 },
+            "float32" => Type::FLOAT32,
+            "float64" => Type::FLOAT64,
             "typeDescriptor" => Type::TypeDescriptor,
             "typeId" => Type::TypeId,
             _ => return None,
