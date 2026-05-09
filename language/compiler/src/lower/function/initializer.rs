@@ -55,12 +55,8 @@ impl FunctionLowerer<'_> {
                 }
                 .into());
             }
-            mir::Type::Float { width } => {
-                let width = u8::try_from(width).map_err(|_| LowerError::UnsupportedConstruct {
-                    anchor: self.diagnostic_anchor(node),
-                    message: "unsupported float width for constructor initialization".to_string(),
-                })?;
-                self.state.builder.fconst(0.0, width)
+            mir::Type::Float(float_type) => {
+                self.state.builder.fconst(0.0, float_type.width() as u8)
             }
             mir::Type::Isize | mir::Type::Usize | mir::Type::TypeDescriptor | mir::Type::TypeId => {
                 let pointer_bits = self.context.type_lowerer.pointer_width_bits();

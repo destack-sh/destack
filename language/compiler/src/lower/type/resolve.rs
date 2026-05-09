@@ -85,8 +85,8 @@ impl FunctionLowerer<'_> {
                 {
                     Some(self.context.type_lowerer.ty_usize)
                 }
-                ScalarType::Float { width: 32 } => Some(self.context.type_lowerer.ty_f32),
-                ScalarType::Float { width: 64 } => Some(self.context.type_lowerer.ty_f64),
+                ScalarType::FLOAT32 => Some(self.context.type_lowerer.ty_f32),
+                ScalarType::FLOAT64 => Some(self.context.type_lowerer.ty_f64),
                 _ => None,
             }
             .ok_or_else(|| self.missing_type_error_for_node(node));

@@ -567,9 +567,8 @@ impl ModuleLowerer<'_> {
             dir::PrimitiveType::Character => "char".to_string(),
             dir::PrimitiveType::String => "string".to_string(),
             dir::PrimitiveType::Bigint => "bigint".to_string(),
-            dir::PrimitiveType::Number => "number".to_string(),
-            dir::PrimitiveType::Int(int_type) => int_type.as_str(),
-            dir::PrimitiveType::Float(float_type) => float_type.as_str(),
+            dir::PrimitiveType::Integer(int_type) => int_type.as_str(),
+            dir::PrimitiveType::Float(float_type) => float_type.as_str().to_string(),
             dir::PrimitiveType::Symbol => "symbol".to_string(),
             dir::PrimitiveType::UniqueSymbol => "unique_symbol".to_string(),
         }

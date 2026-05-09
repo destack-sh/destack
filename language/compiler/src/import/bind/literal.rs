@@ -1,15 +1,13 @@
 use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
-    BindingTable, DeclaredModule, FloatType, IntType, IntrinsicType, LocalNodeIdAny, LocalScopeId,
-    LocalScopeMark, PrimitiveType, ScalarLiteral, SymbolSpace, TemplateLiteral, Tree, TypeLiteral,
-    TypeTable,
+    BindingTable, DeclaredModule, FloatType, IntegerType, IntrinsicType, LocalNodeIdAny,
+    LocalScopeId, LocalScopeMark, PrimitiveType, ScalarLiteral, SymbolSpace, TemplateLiteral, Tree,
+    TypeLiteral, TypeTable,
 };
 use destack_workspace::Module;
 
 use crate::Compiler;
-use crate::import::{DEFAULT_FLOAT_WIDTH, DEFAULT_INT_WIDTH};
-
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
     /// Bind a scalar literal to a DIR scalar literal.
@@ -84,74 +82,22 @@ impl Compiler {
         }
     }
 
-    /// Bind an int type to a DIR int type.
-    pub(super) fn bind_int_type(&self, int_type: &ast::IntType) -> IntType {
+    /// Bind an integer type to a DIR integer type.
+    pub(super) fn bind_integer_type(&self, int_type: &ast::IntegerType) -> IntegerType {
         match int_type {
-            // pointer
-            ast::IntType::Pointer { is_signed: true } => IntType::Isize,
-            ast::IntType::Pointer { is_signed: false } => IntType::Usize,
-            // fixed builtin
-            ast::IntType::Arbitrary {
-                width: Some(8),
+            ast::IntegerType::Integer { is_signed: true } => IntegerType::Fixed {
+                width: 64,
                 is_signed: true,
-            } => IntType::Int8,
-            ast::IntType::Arbitrary {
-                width: Some(16),
-                is_signed: true,
-            } => IntType::Int16,
-            ast::IntType::Arbitrary {
-                width: Some(32),
-                is_signed: true,
-            } => IntType::Int32,
-            ast::IntType::Arbitrary {
-                width: Some(64),
-                is_signed: true,
-            } => IntType::Int64,
-            ast::IntType::Arbitrary {
-                width: Some(128),
-                is_signed: true,
-            } => IntType::Int128,
-            ast::IntType::Arbitrary {
-                width: Some(256),
-                is_signed: true,
-            } => IntType::Int256,
-            ast::IntType::Arbitrary {
-                width: Some(8),
+            },
+            ast::IntegerType::Integer { is_signed: false } => IntegerType::Fixed {
+                width: 64,
                 is_signed: false,
-            } => IntType::Uint8,
-            ast::IntType::Arbitrary {
-                width: Some(16),
-                is_signed: false,
-            } => IntType::Uint16,
-            ast::IntType::Arbitrary {
-                width: Some(32),
-                is_signed: false,
-            } => IntType::Uint32,
-            ast::IntType::Arbitrary {
-                width: Some(64),
-                is_signed: false,
-            } => IntType::Uint64,
-            ast::IntType::Arbitrary {
-                width: Some(128),
-                is_signed: false,
-            } => IntType::Uint128,
-            ast::IntType::Arbitrary {
-                width: Some(256),
-                is_signed: false,
-            } => IntType::Uint256,
-            // fixed variable
-            ast::IntType::Arbitrary {
-                width: None,
-                is_signed,
-            } => IntType::Arbitrary {
-                width: DEFAULT_INT_WIDTH,
+            },
+            ast::IntegerType::Fixed { width, is_signed } => IntegerType::Fixed {
+                width: *width,
                 is_signed: *is_signed,
             },
-            ast::IntType::Arbitrary {
-                width: Some(width),
-                is_signed,
-            } => IntType::Arbitrary {
-                width: *width,
+            ast::IntegerType::Pointer { is_signed } => IntegerType::Pointer {
                 is_signed: *is_signed,
             },
         }
@@ -159,15 +105,11 @@ impl Compiler {
 
     /// Bind a float type to a DIR float type.
     pub(super) fn bind_float_type(&self, float_type: &ast::FloatType) -> FloatType {
-        let float_type = match float_type {
-            ast::FloatType { width: Some(32) } => FloatType::Float32,
-            ast::FloatType { width: Some(64) } => FloatType::Float64,
-            ast::FloatType { width: None } => FloatType::Arbitrary {
-                width: DEFAULT_FLOAT_WIDTH,
-            },
-            ast::FloatType { width: Some(width) } => FloatType::Arbitrary { width: *width },
-        };
-        float_type.simplify()
+        match float_type {
+            ast::FloatType::Float => FloatType::Float64,
+            ast::FloatType::Float32 => FloatType::Float32,
+            ast::FloatType::Float64 => FloatType::Float64,
+        }
     }
 
     /// Bind a type literal to a DIR type literal.
@@ -185,9 +127,11 @@ impl Compiler {
             ast::TypeLiteral::Character => TypeLiteral::Primitive(PrimitiveType::Character),
             ast::TypeLiteral::String => TypeLiteral::Primitive(PrimitiveType::String),
             ast::TypeLiteral::Bigint => TypeLiteral::Primitive(PrimitiveType::Bigint),
-            ast::TypeLiteral::Number => TypeLiteral::Primitive(PrimitiveType::Number),
-            ast::TypeLiteral::Int(int_type) => {
-                TypeLiteral::Primitive(PrimitiveType::Int(self.bind_int_type(int_type)))
+            ast::TypeLiteral::Number => {
+                TypeLiteral::Primitive(PrimitiveType::Float(FloatType::Float64))
+            }
+            ast::TypeLiteral::Integer(int_type) => {
+                TypeLiteral::Primitive(PrimitiveType::Integer(self.bind_integer_type(int_type)))
             }
             ast::TypeLiteral::Float(float_type) => {
                 TypeLiteral::Primitive(PrimitiveType::Float(self.bind_float_type(float_type)))
