@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use destack_core::StringPool;
 use destack_parser::Parser;
 use destack_source::{File, FileId, FileSystem, FileType, LanguageType, MemoryFileSystem, Uri};
 use destack_workspace::{FormatterOptions, LinterOptions};
@@ -94,7 +95,7 @@ fn run_parser_stress(test: &Case) -> CaseResult {
     // parse only
     let start = std::time::Instant::now();
     let language_type = LanguageType::try_from(file.ty).expect("file type has no parser language");
-    let mut parser = Parser::lex_file(file.clone(), language_type);
+    let mut parser = Parser::lex_file(file.clone(), language_type, Arc::new(StringPool::new()));
     let _ast = parser.parse();
     let elapsed = start.elapsed();
 

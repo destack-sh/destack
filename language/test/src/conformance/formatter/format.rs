@@ -2,6 +2,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use destack_ast::{NodeParentIndex, TokenSpan};
+use destack_core::StringPool;
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_parser::{Parser, ParserOptions, source_colorizer};
@@ -128,6 +129,7 @@ fn format_once(
             preserve_parenthesized_wrappers: false,
             ..ParserOptions::default()
         },
+        Arc::new(StringPool::new()),
     );
     let expressions = parser.parse();
 
@@ -182,7 +184,7 @@ fn format_expressions(
 ) -> String {
     // build formatter context
     let side_span = parser.compute_side_span();
-    let strings = parser.strings.clone().into_immutable();
+    let strings = parser.strings.as_ref();
     let parents = NodeParentIndex::from_expression_roots(&parser.tree, expressions);
     let format_options = DestackFormatOptions::from_formatter_options(formatter, language_type);
     let context = DestackFormatContext::new(
@@ -192,7 +194,7 @@ fn format_expressions(
         tokens,
         side_tokens,
         &side_span,
-        &strings,
+        strings,
         parents,
     );
 

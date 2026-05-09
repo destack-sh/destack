@@ -2,6 +2,7 @@ use std::ops::Range;
 use std::path::Path;
 use std::sync::Arc;
 
+use destack_core::StringPool;
 use destack_parser::Parser;
 use destack_source::{File, FileId, FileType, LanguageType, Uri};
 
@@ -114,7 +115,7 @@ fn collect_word_spans(file_path: &str, text: &str) -> Vec<WordSpan> {
         file_type,
         text.to_string(),
     ));
-    let mut parser = Parser::lex_file(file, language_type);
+    let mut parser = Parser::lex_file(file, language_type, Arc::new(StringPool::new()));
     let (tokens, _) = parser.take_tokens();
 
     tokens

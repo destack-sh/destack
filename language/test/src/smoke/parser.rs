@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use destack_core::StringPool;
 use destack_parser::Parser;
 use destack_source::{File, FileId, FileSystem, FileType, LanguageType, MemoryFileSystem, Uri};
 use destack_workspace::{FormatterOptions, LinterOptions};
@@ -86,7 +87,7 @@ fn run_parser_case(test: &Case) -> CaseResult {
 
     // parse the file
     let language_type = LanguageType::try_from(file.ty).expect("file type has no parser language");
-    let mut parser = Parser::lex_file(file.clone(), language_type);
+    let mut parser = Parser::lex_file(file.clone(), language_type, Arc::new(StringPool::new()));
     let _expressions = parser.parse();
 
     // check for unexpected diagnostics
