@@ -109,9 +109,9 @@ pub fn regex_pattern_info(
         };
         let flags = {
             let flags_text = strings.get(*flags_string_id);
-            decode_string_content(flags_text.as_ref())?
+            decode_string_content(flags_text)?
         };
-        let flags_id = strings.intern(flags.as_ref());
+        let flags_id = strings.intern(&flags);
 
         Some(flags_id)
     });

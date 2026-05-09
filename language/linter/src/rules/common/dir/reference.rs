@@ -407,9 +407,9 @@ pub fn member_receiver_text(
 ) -> Option<String> {
     let member_name = ctx.strings.get(member_name);
     let suffix = if is_private {
-        format!(".#{}", member_name.as_ref())
+        format!(".#{member_name}")
     } else {
-        format!(".{}", member_name.as_ref())
+        format!(".{member_name}")
     };
 
     // prefer parsing from full member text for best source fidelity

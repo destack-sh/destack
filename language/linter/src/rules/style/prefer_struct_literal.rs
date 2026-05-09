@@ -172,7 +172,7 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
             let field_name_text = self.ctx.strings.get(field_name);
             let value_span = self.ctx.get_span(*value);
             let value_text = self.ctx.get_span_text(value_span);
-            field_initializers.push(format!("{}: {value_text}", field_name_text.as_ref()));
+            field_initializers.push(format!("{}: {value_text}", field_name_text));
         }
 
         // build the tagged struct literal replacement

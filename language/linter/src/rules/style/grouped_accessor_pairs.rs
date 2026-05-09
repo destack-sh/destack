@@ -325,7 +325,7 @@ fn check_ungrouped_accessors<T>(
 
             let accessor_name = match key {
                 AccessorKey::Name(name) | AccessorKey::Private(name) => {
-                    ctx.strings.get(name).as_ref().to_string()
+                    ctx.strings.get(name).to_string()
                 }
                 AccessorKey::Computed(_) => "<computed>".to_string(),
             };

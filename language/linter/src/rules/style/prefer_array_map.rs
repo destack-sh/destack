@@ -364,7 +364,7 @@ impl<'a, 'b> PreferArrayMapVisitor<'a, 'b> {
         let replacement = format!(
             "{receiver}.map(({parameter}) => ({value}))",
             receiver = receiver_text,
-            parameter = parameter_name.as_ref(),
+            parameter = parameter_name,
             value = pushed_value_text,
         );
 

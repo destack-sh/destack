@@ -124,7 +124,7 @@ pub struct TaintAnalysis<'a> {
     /// Active module strings.
     strings: &'a StringPool,
     /// Active module symbols.
-    symbols: &'a dir::SymbolTable,
+    symbols: &'a dir::BindingTable,
     /// Active module types.
     types: &'a dir::TypeTable,
     /// Mutable cache reused across checks.
@@ -142,7 +142,7 @@ impl<'a> TaintAnalysis<'a> {
         module_id: ModuleId,
         tree: &'a dir::Tree,
         strings: &'a StringPool,
-        symbols: &'a dir::SymbolTable,
+        symbols: &'a dir::BindingTable,
         types: &'a dir::TypeTable,
         cache: &'a mut TaintCache,
         include_heuristic_sources: bool,
@@ -805,7 +805,7 @@ pub fn expression_sink_taint_labels(
     module_id: ModuleId,
     tree: &dir::Tree,
     strings: &StringPool,
-    symbols: &dir::SymbolTable,
+    symbols: &dir::BindingTable,
     types: &dir::TypeTable,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> TaintLabels {
@@ -843,7 +843,7 @@ pub fn expression_sanitizer_taint_labels(
     module_id: ModuleId,
     tree: &dir::Tree,
     strings: &StringPool,
-    symbols: &dir::SymbolTable,
+    symbols: &dir::BindingTable,
     types: &dir::TypeTable,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> TaintLabels {
@@ -905,7 +905,7 @@ fn symbol_taint_labels_from_decorators(
     module_id: ModuleId,
     tree: &dir::Tree,
     strings: &StringPool,
-    symbols: &dir::SymbolTable,
+    symbols: &dir::BindingTable,
     types: &dir::TypeTable,
     symbol_id: dir::GlobalSymbolId,
 ) -> TaintLabels {

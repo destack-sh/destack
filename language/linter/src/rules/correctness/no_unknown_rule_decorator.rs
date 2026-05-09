@@ -90,7 +90,7 @@ impl LintRule for NoUnknownRuleDecorator {
 
             // resolve name
             let name = ctx.strings.get(*last_segment);
-            if !RULE_DECORATORS.contains(&name.as_ref()) {
+            if !RULE_DECORATORS.contains(&name) {
                 continue;
             }
 

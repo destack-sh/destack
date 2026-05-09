@@ -152,7 +152,7 @@ fn is_assert_call(ctx: &LintAstContext<'_>, callee_id: ast::LocalNodeId<Expressi
 
             if let Some(last_segment) = path_segments.last() {
                 let name = ctx.strings.get(*last_segment);
-                matches!(name.as_ref(), "assert" | "ok" | "strictEqual" | "deepEqual")
+                matches!(name, "assert" | "ok" | "strictEqual" | "deepEqual")
             } else {
                 false
             }

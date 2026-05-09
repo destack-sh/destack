@@ -444,7 +444,7 @@ impl<'a, 'b> PreferArrayFilterVisitor<'a, 'b> {
         let replacement = format!(
             "{receiver}.filter(({parameter}) => {condition})",
             receiver = receiver_text,
-            parameter = parameter_name.as_ref(),
+            parameter = parameter_name,
             condition = condition_text,
         );
 

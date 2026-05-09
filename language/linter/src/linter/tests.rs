@@ -210,19 +210,21 @@ fn parse_code_ast(
     context: &TestProviderContext,
 ) -> Ast {
     let language_type = language_type_for_code_file(compiler, file.ty, package_id, context);
-    let mut parser =
-        Parser::lex_file_with_options(file.clone(), language_type, ParserOptions::default());
+    let mut parser = Parser::lex_file_with_options(
+        file.clone(),
+        language_type,
+        ParserOptions::default(),
+        Arc::new(StringPool::new()),
+    );
     let expressions = parser.parse();
     context.emit_collection(parser.diagnostics.collect());
 
     let (tokens, side_tokens) = parser.take_tokens();
-    let strings = StringPool::from_local(parser.strings);
     let anchor_expression = insert_anchor_expression(&mut parser.tree, file.id);
 
     Ast::from_tree(
         parser.tree,
         expressions,
-        strings,
         tokens,
         side_tokens,
         anchor_expression,
@@ -1528,7 +1530,7 @@ impl<'a> LintResult<'a> {
 
         // parse file
         let language_type = LanguageType::Destack;
-        let mut parser = Parser::lex_file(file.clone(), language_type);
+        let mut parser = Parser::lex_file(file.clone(), language_type, Arc::new(StringPool::new()));
         let expressions = parser.parse();
 
         // if parsing fails, return original source
@@ -1543,7 +1545,7 @@ impl<'a> LintResult<'a> {
         let side_span = parser.compute_side_span();
         let parents = NodeParentIndex::from_tree(&parser.tree);
         let (tokens, side_tokens) = parser.take_tokens();
-        let strings = parser.strings.into_immutable();
+        let strings = parser.strings.as_ref();
         let format_options = DestackFormatOptions::default();
         let context = DestackFormatContext::new(
             format_options,
@@ -1552,7 +1554,7 @@ impl<'a> LintResult<'a> {
             &tokens,
             &side_tokens,
             &side_span,
-            &strings,
+            strings,
             parents,
         );
 

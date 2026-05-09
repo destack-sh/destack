@@ -222,17 +222,19 @@ fn expression_target_module(
     ctx: &LintModuleDirContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     expression: &dir::Expression,
-) -> Option<dir::ModuleTarget> {
-    let space = match expression {
-        dir::Expression::Import { space, .. } | dir::Expression::ReExport { space, .. } => *space,
-        _ => return None,
-    };
+) -> Option<dir::DependencyTarget> {
+    if !matches!(
+        expression,
+        dir::Expression::Import { .. } | dir::Expression::ReExport { .. }
+    ) {
+        return None;
+    }
     let resolution = ctx
         .types
         .dependency_resolution(expression_id.into_global_any(ctx.module_id()))?;
 
     match resolution {
-        dir::DependencyResolution::Module(module) => module.for_space(space),
+        dir::DependencyResolution::Module(target) => Some(*target),
         dir::DependencyResolution::Symbol(_) => None,
     }
 }
@@ -265,7 +267,7 @@ fn matching_target(
     // resolve target module
     let target_module = expression_target_module(ctx, expression_id, expression)?;
     match target_module {
-        dir::ModuleTarget::Module(module_id) => {
+        dir::DependencyTarget::Module(module_id) => {
             let module = ctx.repository_module(module_id)?;
             let module = module.as_ref();
 
@@ -291,7 +293,7 @@ fn matching_target(
                 });
             }
         }
-        dir::ModuleTarget::Declared(declared_specifier) => {
+        dir::DependencyTarget::Declared(declared_specifier) => {
             let declared_text = ctx.strings.get(declared_specifier);
             if let Some(pattern) = matching_pattern(declared_text.as_ref(), patterns) {
                 return Some(MatchedTarget {
@@ -301,7 +303,7 @@ fn matching_target(
                 });
             }
         }
-        dir::ModuleTarget::External(specifier) => {
+        dir::DependencyTarget::External(specifier) => {
             let specifier_text = ctx.strings.get(specifier);
             if let Some(pattern) = matching_pattern(specifier_text.as_ref(), patterns) {
                 return Some(MatchedTarget {

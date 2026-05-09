@@ -235,7 +235,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
                 member_span.end,
             );
             let replace_all_name = self.ctx.strings.get(self.replace_all_name);
-            edit_builder = edit_builder.replace(method_span, replace_all_name.as_ref());
+            edit_builder = edit_builder.replace(method_span, replace_all_name);
         }
 
         if let Some(pattern_replacement) = pattern_replacement {
@@ -313,7 +313,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
 
         // inspect regex flags
         let flags = self.ctx.strings.get(*flags);
-        flags.as_ref().contains('g')
+        flags.contains('g')
     }
 
     /// Return true when the expression is `RegExp(..., "g")` or `new RegExp(..., "g")`.
@@ -353,7 +353,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
                 return false;
             };
             let flags_text = self.ctx.strings.get(flags_id);
-            return flags_text.as_ref().contains('g');
+            return flags_text.contains('g');
         }
 
         // without explicit flags, inherit from first regex-literal argument
@@ -443,13 +443,12 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
         };
         let flags = flags.as_ref()?;
         let flags_text = self.ctx.strings.get(*flags);
-        if !regex_flags_are_global_only(flags_text.as_ref()) {
+        if !regex_flags_are_global_only(flags_text) {
             return None;
         }
 
         let pattern_text = self.ctx.strings.get(*content);
-        let regex_parse =
-            LintRegexParse::parse_with_flags(pattern_text.as_ref(), Some(flags_text.as_ref()));
+        let regex_parse = LintRegexParse::parse_with_flags(pattern_text.as_ref(), Some(flags_text));
         let hir = regex_parse.hir?;
         let literal_text = hir_literal_text(&hir)?;
         if literal_text.is_empty() {

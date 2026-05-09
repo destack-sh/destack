@@ -330,7 +330,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
         let arguments_text = self.ctx.get_span_text(arguments_span);
 
         let some_name = self.ctx.strings.get(self.some_name);
-        let some_call = format!("{receiver_text}.{}({arguments_text})", some_name.as_ref());
+        let some_call = format!("{receiver_text}.{}({arguments_text})", some_name);
         let replacement = match match_info.check {
             ArraySomeCheck::AnyMatch => some_call,
             ArraySomeCheck::NoMatch => format!("!{some_call}"),

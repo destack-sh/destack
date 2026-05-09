@@ -51,7 +51,7 @@ impl LintRule for NoDuplicateString {
                 expression
             {
                 let string_value = ctx.strings.get(*string_id);
-                if !string_value_is_reportable(ctx, node_id, string_value.as_ref()) {
+                if !string_value_is_reportable(ctx, node_id, string_value) {
                     continue;
                 }
 

@@ -173,7 +173,7 @@ enum TypeBooleanQuery<'a> {
     /// Check reference symbol type compatibility.
     ReferenceSymbolForm {
         /// Local symbol table for declaration form reads.
-        symbols: &'a dir::SymbolTable,
+        symbols: &'a dir::BindingTable,
         /// Required symbol type.
         symbol_form: dir::SymbolForm,
     },
@@ -1043,7 +1043,7 @@ fn object_has_array_like_length_field(
         let Some(field_name_id) = field.key.name() else {
             return false;
         };
-        if strings.get(field_name_id).as_ref() != "length" {
+        if strings.get(field_name_id) != "length" {
             return false;
         }
 
@@ -1073,7 +1073,7 @@ pub fn is_function_type(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> bo
 /// Return true when one type may resolve to one symbol type.
 pub fn is_reference_symbol_form(
     types: &dir::TypeTable,
-    symbols: &dir::SymbolTable,
+    symbols: &dir::BindingTable,
     type_id: dir::LocalTypeId,
     symbol_form: dir::SymbolForm,
 ) -> bool {

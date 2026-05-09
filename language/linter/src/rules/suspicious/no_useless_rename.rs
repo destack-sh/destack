@@ -57,7 +57,7 @@ impl LintRule for NoUselessRename {
                 }
 
                 // build one diagnostic message
-                let name_text: String = ctx.strings.get(name_id).as_ref().to_string();
+                let name_text: String = ctx.strings.get(name_id).to_string();
                 let field_span = ctx.tree.get_span(node_id);
                 let mut diagnostic = LintReport::new(
                     NO_USELESS_RENAME.id,
@@ -135,7 +135,7 @@ impl LintRule for NoUselessRename {
                 }
 
                 // build one diagnostic for this dependency item
-                let name_text: String = ctx.strings.get(*name_id).as_ref().to_string();
+                let name_text: String = ctx.strings.get(*name_id).to_string();
                 let item_span = ctx.tree.get_span(*item_id);
                 let mut diagnostic = LintReport::new(
                     NO_USELESS_RENAME.id,

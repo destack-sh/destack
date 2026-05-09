@@ -347,6 +347,7 @@ impl LintRunner {
         else {
             return Vec::new();
         };
+        let strings = repository.string_pool().clone();
         let mut ctx = LintAstContext::new(
             repository,
             artifacts,
@@ -356,7 +357,7 @@ impl LintRunner {
             &ast.tree,
             &ast.parents,
             &ast.roots,
-            &ast.strings,
+            strings.as_ref(),
             options,
             self.compute_fixes,
         );
@@ -426,6 +427,7 @@ impl LintRunner {
             .dir_checked(module.id, profile.id())
             .expect("lint DIR pass requires committed checked DIR artifact");
 
+        let strings = repository.string_pool().clone();
         let mut ctx = LintModuleDirContext::new(
             repository,
             artifacts,
@@ -436,8 +438,8 @@ impl LintRunner {
             &ast.tree,
             declared.as_ref(),
             expanded.as_ref(),
-            &declared.strings,
-            &declared.symbols,
+            strings.as_ref(),
+            &declared.bindings,
             &checked.types,
             declared.roots.clone(),
             declared.namespace_symbol,

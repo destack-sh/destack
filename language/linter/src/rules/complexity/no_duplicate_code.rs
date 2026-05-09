@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 
 use destack_ast as ast;
-use destack_core::StableHasher;
+use destack_core::{StableHasher, StringPool};
 use destack_source::{FileType, ModuleId, Span};
 
 use crate::rules::common::{
@@ -327,9 +327,10 @@ fn collect_occurrences(
         let Some(module_ast) = ctx.module_ast(module.id) else {
             continue;
         };
+        let strings = ctx.repository.string_pool().clone();
 
         let signatures = build_block_signatures(
-            &module_ast.strings,
+            strings.as_ref(),
             &module_ast.tree,
             candidate.block_id,
             include_near,
@@ -1021,7 +1022,7 @@ struct BlockSignatures {
 
 /// Build exact and near signatures for a block.
 fn build_block_signatures(
-    strings: &destack_core::StringPool,
+    strings: &StringPool,
     tree: &ast::Tree,
     block_id: ast::LocalNodeId<ast::Block>,
     include_near: bool,
@@ -1036,7 +1037,7 @@ fn build_block_signatures(
 
 #[derive(Debug)]
 struct AstSignatureCollector<'a> {
-    strings: &'a destack_core::StringPool,
+    strings: &'a StringPool,
     visitor_options: ast::NodeVisitorOptions,
     exact_signature: SignatureHasher,
     exact_token_hashes: Vec<u64>,
@@ -1047,11 +1048,7 @@ struct AstSignatureCollector<'a> {
 
 impl<'a> AstSignatureCollector<'a> {
     /// Create a new signature collector.
-    fn new(
-        strings: &'a destack_core::StringPool,
-        include_near: bool,
-        include_near_token_hashes: bool,
-    ) -> Self {
+    fn new(strings: &'a StringPool, include_near: bool, include_near_token_hashes: bool) -> Self {
         Self {
             strings,
             visitor_options: ast::NodeVisitorOptions::default(),

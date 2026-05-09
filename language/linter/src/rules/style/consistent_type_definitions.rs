@@ -126,7 +126,7 @@ fn interface_to_type_fix(
     let name_text = ctx.strings.get(name.string());
     let prefix = &declaration_text[..interface_index];
     let body = &declaration_text[open_brace_index..=close_brace_index];
-    let replacement = format!("{prefix}type {} = {body}", name_text.as_ref());
+    let replacement = format!("{prefix}type {} = {body}", name_text);
 
     let edits = ctx
         .edit_builder()
@@ -167,7 +167,7 @@ fn type_to_interface_fix(
 
     let name_text = ctx.strings.get(name.string());
     let prefix = &declaration_text[..type_index];
-    let replacement = format!("{prefix}interface {} {value_text}", name_text.as_ref());
+    let replacement = format!("{prefix}interface {} {value_text}", name_text);
 
     let edits = ctx
         .edit_builder()

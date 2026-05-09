@@ -1809,7 +1809,7 @@ pub fn string_ids_equal(
 ) -> bool {
     let left_string = ctx.strings.get(left);
     let right_string = ctx.strings.get(right);
-    left_string.as_ref() == right_string.as_ref()
+    left_string == right_string
 }
 
 /// Return whether two argument lists are equal.

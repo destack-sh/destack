@@ -93,11 +93,11 @@ fn computed_key_replacement(
     match expression {
         ast::Expression::ScalarLiteral(ast::ScalarLiteral::String(string_id)) => {
             let string_text = ctx.strings.get(*string_id);
-            if string_text.as_ref() == "__proto__" {
+            if string_text == "__proto__" {
                 return None;
             }
 
-            let quoted = format!("\"{}\"", string_text.as_ref());
+            let quoted = format!("\"{}\"", string_text);
             Some((quoted.clone(), quoted))
         }
         ast::Expression::ScalarLiteral(ast::ScalarLiteral::Integer(value)) => {

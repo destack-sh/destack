@@ -120,7 +120,7 @@ impl<'a, 'b> IteratorInvalidationVisitor<'a, 'b> {
                 return;
             };
             let s = self.ctx.strings.get(name);
-            s.as_ref().to_string()
+            s.to_string()
         };
         if !MUTATING_METHODS.contains(&method_name.as_str()) {
             return;

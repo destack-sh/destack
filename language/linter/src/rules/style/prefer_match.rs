@@ -254,7 +254,7 @@ fn comparison_subject_and_pattern(
 fn path_key(ctx: &LintAstContext<'_>, path_segments: &[ast::StringId]) -> String {
     path_segments
         .iter()
-        .map(|segment| ctx.strings.get(*segment).as_ref().to_string())
+        .map(|segment| ctx.strings.get(*segment).to_string())
         .collect::<Vec<_>>()
         .join(".")
 }
