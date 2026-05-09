@@ -29,14 +29,14 @@ pub struct DirDeclared {
     pub declared_modules: Vec<dir::DeclaredModule>,
 }
 
-/// Import resolution for one profile-scoped module.
+/// Source import resolution for one profile-scoped module.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirImported {
     /// Resolved dependencies.
     pub dependencies: dir::DependencyTable,
 }
 
-/// Macro expansion segment for one profile-scoped module.
+/// Fixed-point macro expansion segment for one profile-scoped module.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirExpanded {
     /// Tree changes.
@@ -47,11 +47,13 @@ pub struct DirExpanded {
     pub dependencies: dir::DependencyTable,
     /// New types.
     pub types: dir::TypeTable,
+    /// Expanded macro invocations.
+    pub macros: dir::MacroTable,
     /// Top-level expressions.
     pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
 }
 
-/// Export table for one profile-scoped module.
+/// Export table over the expanded view for one profile-scoped module.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirExported {
     /// Resolved exports.

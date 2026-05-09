@@ -1,7 +1,7 @@
 use crate::resolve::ResolveState;
 use crate::{Compiler, CompilerResult};
 use destack_artifact::{ArtifactKey, ArtifactPayload, DirExpanded};
-use destack_dir::{BindingTable, DependencyTable, Patch, TypeTable};
+use destack_dir::{BindingTable, DependencyTable, MacroTable, Patch, TypeTable};
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, ProviderContext};
 
@@ -62,6 +62,7 @@ impl Compiler {
             bindings: BindingTable::from_base(&declared.bindings),
             dependencies: DependencyTable::new(module),
             types: TypeTable::from_base(&declared.types),
+            macros: MacroTable::new(module),
             roots: declared.roots.clone(),
         }))
     }

@@ -1410,6 +1410,10 @@ newtype Shape =
 At the library level, a `derive` provider is just a nominal provider value that implements `Macro`, with some additional instrumentation.
 Really, `derive` is basically a convenience wrapper for applying multiple `Macro` providers to a single target in a well known way.
 
+Auto-derive uses the same providers.
+Configured auto-derive providers run over every nominal declaration (`class`, `struct`, `enum`, and `newtype`), and providers that do not apply simply emit nothing.
+Explicit `@derive(...)` is stricter: if a provider is written directly on a declaration and cannot apply, it should report an error.
+
 #### Static If
 
 Destack also supports a special `@if` decorator that gates the inclusion of certain nodes based on a static term.
@@ -1609,9 +1613,10 @@ function load(id: UserId): Result<User, Error> {
 
 As explained in the annotations and decorator piece, `memoize` by itself is just an inert annotation and it only receives behavior by implementing `Macro`.
 The `Macro` system is based on three rules:
- 1. Macros must not generate or implement other macros, so expansion cannot recursively change the macro system itself.
- 2. Macros run in two phases during compilation: `expand` may contribute new symbols before final inference, while `materialize` fills in the implementation with full type information.
+ 1. Macro expansion is recursive and runs until there is nothing more to expand (or we encounter an error).
+ 2. Macros run in two phases during compilation: `expand` may contribute new symbols before final inference, while `materialize` fills in implementation details with full type information.
  3. Macros interact with their containing module through phase-specific context methods (`resolve`, `ensureImport`, `add`, `ensureDeclaration`, `addChild`, `replaceTarget`, `renameTarget`, `removeTarget`).
+ 4. Macro invocations are exclusively triggered by decorators implementing `Macro` and by the (sparingly used) auto-derive providers.
 
 | Operation | Example | Meaning |
 |-----------|---------|---------|

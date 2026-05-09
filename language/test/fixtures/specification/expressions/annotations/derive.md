@@ -32,3 +32,18 @@ const user = User { id: 1 };
 user.clone() satisfies User;
 user.debug() satisfies string;
 ```
+
+### module derive providers run automatically
+
+```ds
+module {
+    derive: [Clone];
+}
+
+struct User {
+    id: int64;
+}
+
+const user = User { id: 1 };
+user.clone() satisfies User;
+```
