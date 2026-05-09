@@ -6,6 +6,7 @@ use destack_artifact::{
     ArtifactImageCache, ArtifactImageCacheLayout, ArtifactKey, ArtifactStore, ArtifactVersion,
     CacheStore,
 };
+use destack_core::StringPool;
 use destack_source::{FileContentEntry, FileContentId, FileId, FileSystem};
 use im::OrdMap;
 
@@ -42,6 +43,8 @@ pub struct Repository {
     pub(crate) file_cache: FileCache,
     /// Shared derived artifacts.
     pub(crate) artifacts: Arc<ArtifactStore>,
+    /// Shared interned strings for this repository.
+    pub(crate) strings: Arc<StringPool>,
 }
 
 impl Repository {
@@ -73,6 +76,7 @@ impl Repository {
             files: file_contents,
             revision_pins,
             artifacts: Arc::new(ArtifactStore::default()),
+            strings: Arc::new(StringPool::new()),
             cache,
         };
 
@@ -106,6 +110,11 @@ impl Repository {
     /// Return the repository artifact store.
     pub fn artifact_store(&self) -> &Arc<ArtifactStore> {
         &self.artifacts
+    }
+
+    /// Return the repository string pool.
+    pub fn string_pool(&self) -> &Arc<StringPool> {
+        &self.strings
     }
 
     /// Return the repository cache store.
