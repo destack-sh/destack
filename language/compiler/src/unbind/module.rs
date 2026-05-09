@@ -1,7 +1,7 @@
 use destack_ast::{self as ast};
 use destack_core::StringPool;
 use destack_dir::{self as dir};
-use destack_source::{FileId, Span};
+use destack_source::Span;
 use destack_workspace::Module;
 
 use super::UnbindContext;
@@ -21,9 +21,9 @@ pub struct UnboundModule {
 impl Compiler {
     /// Get the span for a DIR node.
     #[inline]
-    pub(super) fn unbind_span(&self, _module: &Module, _node_id: dir::LocalNodeIdAny) -> Span {
+    pub(super) fn unbind_span(&self, module: &Module, _node_id: dir::LocalNodeIdAny) -> Span {
         // #Incomplete: resolve back to original AST span via source_node_id mapping?
-        Span::empty(FileId::EPHEMERAL)
+        Span::empty(module.file_id)
     }
 
     /// Unbind one DIR module into an AST tree.

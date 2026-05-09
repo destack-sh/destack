@@ -203,9 +203,10 @@ fn format_embedded_source(
     let extension = file_type.extension().unwrap_or("ds");
     let name = format!("jsdoc.{extension}");
     let uri = format!("memory:///{name}");
+    let file_id = FileId::from_logical_str(&uri);
 
     let file = File::from_text(
-        FileId::EPHEMERAL,
+        file_id,
         name,
         Uri::from_string(uri),
         None,

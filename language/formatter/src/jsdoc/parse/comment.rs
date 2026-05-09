@@ -62,8 +62,9 @@ mod test {
  * metaWhitespace(parser, ':whitespace=all', true)
  * ```
  ";
+        let file_id = FileId::from_source_bytes(source.as_bytes());
         #[expect(clippy::cast_possible_truncation)]
-        let jsdoc = super::Jsdoc::new(source, Span::new(FileId::EPHEMERAL, 0, source.len() as u32));
+        let jsdoc = super::Jsdoc::new(source, Span::new(file_id, 0, source.len() as u32));
         let tags = jsdoc.tags();
         assert_eq!(tags.len(), 4);
         assert_eq!(tags[0].kind.parsed(), "param");
@@ -80,8 +81,9 @@ mod test {
  * @param {number} max - Maximum float value.
  * @returns {number} Random float in [min, max).
  ";
+        let file_id = FileId::from_source_bytes(source.as_bytes());
         #[expect(clippy::cast_possible_truncation)]
-        let jsdoc = super::Jsdoc::new(source, Span::new(FileId::EPHEMERAL, 0, source.len() as u32));
+        let jsdoc = super::Jsdoc::new(source, Span::new(file_id, 0, source.len() as u32));
         let tags = jsdoc.tags();
         assert_eq!(tags.len(), 3);
         assert_eq!(tags[0].kind.parsed(), "param");

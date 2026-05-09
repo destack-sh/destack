@@ -6,7 +6,7 @@ use std::str::FromStr;
 use destack_artifact::{
     ArtifactKey, ArtifactPayload, EmitFormat, MirOptimized, MirVerified, TargetArch,
 };
-use destack_source::{ModuleId, PackageId, TargetId};
+use destack_source::{ModuleId, TargetId};
 use destack_workspace::{Module, OptimizeLevel as WorkspaceOptimizeLevel, ProfileId, Target};
 use target_lexicon::Triple;
 
@@ -269,8 +269,8 @@ impl Compiler {
     ) -> OptimizeResult<Target> {
         self.effective_target(context, *target)
             .ok_or_else(|| OptimizeError::InvalidTarget {
-                anchor: PackageId::EPHEMERAL.into(),
-                package: PackageId::EPHEMERAL,
+                anchor: target.package_id().into(),
+                package: target.package_id(),
                 target: *target,
                 message: "target not found".to_string(),
             })

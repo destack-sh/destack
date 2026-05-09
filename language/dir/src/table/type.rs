@@ -906,7 +906,9 @@ pub struct TypeProvenance {
 
 #[cfg(test)]
 mod tests {
-    use destack_source::ModuleId;
+    use std::path::Path;
+
+    use destack_source::{ModuleId, PackageId};
 
     use super::{TypeOrigin, TypeTable};
     use crate::{
@@ -914,9 +916,15 @@ mod tests {
         TypeLiteral,
     };
 
+    fn test_module_id() -> ModuleId {
+        let package_id = PackageId::from_path(Path::new("dir-type-table-test"));
+
+        ModuleId::from_relative_path(package_id, Path::new("module.ds"))
+    }
+
     #[test]
     fn test_insert_type_from_any_tracks_local_type_provenance() {
-        let mut types = TypeTable::new(ModuleId::EPHEMERAL);
+        let mut types = TypeTable::new(test_module_id());
         let source_id = LocalNodeIdAny::new(7, NodeType::Expression);
         let type_id = types.insert_type_from_any(
             Type::Literal(LiteralType {
@@ -932,7 +940,7 @@ mod tests {
 
     #[test]
     fn test_insert_imported_type_from_any_tracks_imported_type_provenance() {
-        let mut types = TypeTable::new(ModuleId::EPHEMERAL);
+        let mut types = TypeTable::new(test_module_id());
         let source_id = LocalNodeIdAny::new(9, NodeType::Expression);
         let type_id = types.insert_imported_type_from_any(
             Type::Literal(LiteralType {
@@ -948,7 +956,7 @@ mod tests {
 
     #[test]
     fn test_insert_type_from_type_preserves_origin_and_source_metadata() {
-        let mut types = TypeTable::new(ModuleId::EPHEMERAL);
+        let mut types = TypeTable::new(test_module_id());
         let source_id = LocalNodeIdAny::new(13, NodeType::Expression);
         let source_type_id = types.insert_imported_type_from_any(
             Type::Literal(LiteralType {
@@ -971,7 +979,7 @@ mod tests {
 
     #[test]
     fn test_update_type_preserves_type_provenance() {
-        let mut types = TypeTable::new(ModuleId::EPHEMERAL);
+        let mut types = TypeTable::new(test_module_id());
         let source_id = LocalNodeIdAny::new(21, NodeType::Expression);
         let type_id = types.insert_type_from_any(
             Type::Literal(LiteralType {
