@@ -3,8 +3,8 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{ControlFlowGraph, DominatorTree};
-use crate::optimize::common::{
+use crate::common::mir::analysis::{ControlFlowGraph, DominatorTree};
+use crate::common::mir::{
     CallsiteHotness, CallsiteHotnessPolicy, EdgeSplitPolicy, block_execution_counts,
     block_hotness_from_counts, block_parameters_used_outside_block,
     block_uses_available_in_predecessor, build_use_def_maps, clone_instruction_metadata,

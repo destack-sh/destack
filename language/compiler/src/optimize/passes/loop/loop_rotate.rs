@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{ControlFlowGraph, DominatorTree, Loop, LoopAnalysis};
+use crate::common::mir::analysis::{ControlFlowGraph, DominatorTree, Loop, LoopAnalysis};
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {

@@ -3,7 +3,7 @@ use std::collections::{HashMap, VecDeque};
 use crate::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::CallGraph;
+use crate::common::mir::analysis::CallGraph;
 use crate::optimize::{AnalysisPreservation, ModuleAnalyses, ModulePass, PipelineContext};
 
 declare_pass! {

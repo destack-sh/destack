@@ -3,13 +3,13 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{ConstantPropagation, constant_propagation_with_params};
-use crate::optimize::common::{
+use crate::common::mir::analysis::{ConstantPropagation, constant_propagation_with_params};
+use crate::common::mir::{
     SignatureKey, apply_constant_parameters, constant_arguments_for_parameters,
-    constant_matches_type, constant_type_of, run_function_passes,
+    constant_matches_type, constant_type_of,
 };
 use crate::optimize::passes::scalar::{SimplifyCfg, SparseConditionalConstantPropagation};
-use crate::optimize::{AnalysisPreservation, ModulePass, PipelineContext};
+use crate::optimize::{AnalysisPreservation, ModulePass, PipelineContext, run_function_passes};
 
 declare_pass! {
     /// Propagate constants across call edges and prune dead paths.
@@ -261,7 +261,7 @@ fn update_parameter_states(
     call_data: &CallData,
     constants_by_function: &HashMap<mir::LocalNodeId<mir::Function>, ConstantPropagation>,
     states: &mut HashMap<mir::LocalNodeId<mir::Function>, FunctionState>,
-    type_context: crate::optimize::TypeContext,
+    type_context: crate::common::mir::TypeContext,
 ) -> bool {
     // track whether any state changed
     let mut changed = false;
@@ -363,7 +363,7 @@ fn update_return_states(
     function_ids: &[(mir::LocalNodeId<mir::Function>, mir::Linkage)],
     constants_by_function: &HashMap<mir::LocalNodeId<mir::Function>, ConstantPropagation>,
     states: &mut HashMap<mir::LocalNodeId<mir::Function>, FunctionState>,
-    type_context: crate::optimize::TypeContext,
+    type_context: crate::common::mir::TypeContext,
 ) -> bool {
     // track whether any state changed
     let mut changed = false;
@@ -400,7 +400,7 @@ fn return_state_for_function(
     function: &mir::Function,
     constants: &ConstantPropagation,
     tree: &mir::Tree,
-    type_context: crate::optimize::TypeContext,
+    type_context: crate::common::mir::TypeContext,
 ) -> LatticeConstant {
     // require a concrete return type
     let Some(return_type) = function.return_type.ty() else {
@@ -466,7 +466,7 @@ fn return_state_for_function(
 fn build_constant_maps(
     tree: &mir::Tree,
     states: &HashMap<mir::LocalNodeId<mir::Function>, FunctionState>,
-    type_context: crate::optimize::TypeContext,
+    type_context: crate::common::mir::TypeContext,
 ) -> HashMap<mir::LocalNodeId<mir::Function>, ConstantPropagation> {
     // prepare the result map
     let mut maps = HashMap::new();
@@ -520,7 +520,7 @@ fn replace_constant_calls(
     tree: &mut mir::Tree,
     call_data: &CallData,
     states: &HashMap<mir::LocalNodeId<mir::Function>, FunctionState>,
-    type_context: crate::optimize::TypeContext,
+    type_context: crate::common::mir::TypeContext,
 ) -> bool {
     // track whether any calls were replaced
     let mut changed = false;

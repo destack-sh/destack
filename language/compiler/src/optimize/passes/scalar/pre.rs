@@ -3,8 +3,8 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use crate::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{AvailableExpressions, ControlFlowGraph, DominatorTree};
-use crate::optimize::common::{
+use crate::common::mir::analysis::{AvailableExpressions, ControlFlowGraph, DominatorTree};
+use crate::common::mir::{
     EdgeSplitPolicy, UseDefMaps, ValueTypeMap, append_successor_arguments, build_use_def_maps,
     collect_reachable_blocks, compute_dominance_frontiers, ensure_edge_block,
     instruction_has_side_effects, instruction_is_speculatable,

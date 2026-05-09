@@ -3,19 +3,20 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{
+use crate::common::mir::analysis::{
     CallGraphScc, ConstantPropagation, constant_propagation_with_params,
 };
-use crate::optimize::common::{
+use crate::common::mir::{
     CallsiteHotness, ParameterRemap, SignatureKey, apply_constant_parameters, build_signature_type,
     callsite_hotness, clone_instruction_metadata, constant_arguments_for_parameters,
-    instruction_map_with_locals, required_parameter_indices, run_function_passes_always,
-    terminator_remap,
+    instruction_map_with_locals, required_parameter_indices, terminator_remap,
 };
 use crate::optimize::passes::scalar::{
     DeadCodeEliminate, SimplifyCfg, SparseConditionalConstantPropagation,
 };
-use crate::optimize::{AnalysisPreservation, ModulePass, PipelineContext};
+use crate::optimize::{
+    AnalysisPreservation, ModulePass, PipelineContext, run_function_passes_always,
+};
 
 /// Maximum specializations per function.
 const MAX_SPECIALIZE_PER_FUNCTION: usize = 4;
@@ -300,7 +301,7 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
 /// Build constant propagation data for each defined function.
 fn build_constant_maps(
     tree: &mir::Tree,
-    type_context: crate::optimize::TypeContext,
+    type_context: crate::common::mir::TypeContext,
 ) -> HashMap<mir::LocalNodeId<mir::Function>, ConstantPropagation> {
     // prepare the constants map
     let mut maps = HashMap::new();

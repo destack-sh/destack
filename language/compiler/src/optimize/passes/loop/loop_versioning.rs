@@ -3,10 +3,10 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{
+use crate::common::mir::analysis::{
     ControlFlowGraph, LoopAnalysis, RangeAnalysis, ScalarEvolution, Scev, ValueRange,
 };
-use crate::optimize::common::{
+use crate::common::mir::{
     BlockParamForwarding, UseDefMaps, ValueTypeMap, build_use_def_maps, clone_loop_blocks,
     terminator_remap, unsigned_int_width_for_value,
 };
@@ -441,7 +441,7 @@ fn guard_is_simple(guard: &GuardInfo, loop_index: usize, scev: &ScalarEvolution)
 
 /// Find a matching bounds check for the induction variable.
 fn bounds_check_in_loop(
-    lp: &crate::optimize::analyses::Loop,
+    lp: &crate::common::mir::analysis::Loop,
     induction: mir::Value,
     tree: &mir::Tree,
 ) -> Option<(mir::Value, mir::Value)> {
@@ -482,7 +482,7 @@ fn bounds_check_in_loop(
 /// Check whether a value is loop invariant.
 fn value_is_loop_invariant(
     value: mir::Value,
-    lp: &crate::optimize::analyses::Loop,
+    lp: &crate::common::mir::analysis::Loop,
     use_def: &UseDefMaps,
     forwarding: &BlockParamForwarding,
 ) -> bool {

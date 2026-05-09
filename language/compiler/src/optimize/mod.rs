@@ -1,4 +1,3 @@
-pub mod analyses;
 pub(crate) mod common;
 mod error;
 pub mod passes;
@@ -7,7 +6,7 @@ mod provide;
 mod state;
 mod warning;
 
-pub use analyses::*;
+pub use crate::common::mir::*;
 pub use common::*;
 pub use error::*;
 pub use pipeline::*;

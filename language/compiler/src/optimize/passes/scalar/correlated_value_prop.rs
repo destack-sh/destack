@@ -3,8 +3,10 @@ use std::collections::HashMap;
 use crate::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{ConstantPropagation, ControlFlowGraph, DominatorTree, ValueRange};
-use crate::optimize::common::{
+use crate::common::mir::analysis::{
+    ConstantPropagation, ControlFlowGraph, DominatorTree, ValueRange,
+};
+use crate::common::mir::{
     apply_substitutions_in_dominated_blocks, build_use_def_maps, build_value_instruction_map,
     swap_comparison_operator,
 };

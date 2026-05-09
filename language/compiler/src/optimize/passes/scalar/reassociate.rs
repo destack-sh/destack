@@ -4,10 +4,8 @@ use crate::declare_pass;
 use destack_mir as mir;
 use destack_workspace::FloatMathPolicy;
 
-use crate::optimize::analyses::{ConstantMap, ConstantPropagation};
-use crate::optimize::common::{
-    InstructionRef, ValueTypeMap, build_value_instruction_refs, fold_binary,
-};
+use crate::common::mir::analysis::{ConstantMap, ConstantPropagation};
+use crate::common::mir::{InstructionRef, ValueTypeMap, build_value_instruction_refs, fold_binary};
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {

@@ -3,11 +3,11 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{
+use crate::common::mir::analysis::{
     AliasAnalysis, ConstantPropagation, ControlFlowGraph, DominatorTree, MemoryAccess,
     MemoryAccessEffect, MemoryAccessId, MemoryAccessLocation, MemorySSA,
 };
-use crate::optimize::common::{
+use crate::common::mir::{
     EdgeSplitPolicy, ValueEquivalence, build_instruction_block_map, build_use_def_maps,
     build_value_definition_map, effect_is_trackable, effects_match_location, ensure_edge_block,
     instruction_has_atomic_ordering, instruction_is_read_only_access, instruction_is_speculatable,

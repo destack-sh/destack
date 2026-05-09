@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use crate::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::ControlFlowGraph;
-use crate::optimize::common::{
+use crate::common::mir::analysis::ControlFlowGraph;
+use crate::common::mir::{
     clone_instruction_metadata, instruction_is_speculatable, instruction_map,
 };
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};

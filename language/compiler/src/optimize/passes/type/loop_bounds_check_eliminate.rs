@@ -3,11 +3,11 @@ use std::collections::HashMap;
 use crate::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{
+use crate::common::mir::analysis::{
     ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, RangeAnalysis, RangeMap, ScalarEvolution,
     Scev, ValueRange,
 };
-use crate::optimize::common::{BlockParamForwarding, constant_zero_like};
+use crate::common::mir::{BlockParamForwarding, constant_zero_like};
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {

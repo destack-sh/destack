@@ -8,6 +8,7 @@ use destack_source::{ModuleId, PackageId, ProfileId, TargetId};
 use destack_workspace::FloatMathPolicy;
 use parking_lot::Mutex;
 
+use crate::common::mir::{MirAnalysisOptions, TypeContext};
 use crate::optimize::{
     CallsiteHotnessPolicy, DiagnosticEmitter, FunctionAnalyses, ModuleAnalyses, ModuleWorkItem,
     PackageAnalyses, PackageWorkset, PassMetadata, ProgramAnalyses, ProgramWorkset,
@@ -92,21 +93,6 @@ impl PipelineDiagnostics {
 impl Default for PipelineDiagnostics {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-/// Type related context for optimization decisions.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct TypeContext {
-    /// Pointer width in bits for pointer sized integers.
-    pub pointer_width_bits: u16,
-}
-
-impl Default for TypeContext {
-    fn default() -> Self {
-        Self {
-            pointer_width_bits: usize::BITS as u16,
-        }
     }
 }
 
@@ -388,7 +374,9 @@ impl<'a> PipelineContext<'a> {
         function: &'b mir::Function,
         tree: &'b mir::Tree,
     ) -> FunctionAnalyses<'b> {
-        FunctionAnalyses::with_options(function, tree, self.options.clone())
+        let options =
+            MirAnalysisOptions::new(self.options.strict_borrow_mode, self.options.type_context);
+        FunctionAnalyses::with_options(function, tree, options)
     }
 
     /// Return the type context for this pipeline run.

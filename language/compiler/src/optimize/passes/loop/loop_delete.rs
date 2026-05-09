@@ -3,8 +3,8 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{ConstantPropagation, DominatorTree, Loop, LoopAnalysis};
-use crate::optimize::common::instruction_has_side_effects;
+use crate::common::mir::analysis::{ConstantPropagation, DominatorTree, Loop, LoopAnalysis};
+use crate::common::mir::instruction_has_side_effects;
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {

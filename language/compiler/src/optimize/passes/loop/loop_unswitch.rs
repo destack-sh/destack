@@ -3,10 +3,10 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{
+use crate::common::mir::analysis::{
     ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, RangeAnalysis,
 };
-use crate::optimize::common::{
+use crate::common::mir::{
     CallsiteHotness, CallsiteHotnessPolicy, SuccessorArguments, block_execution_counts,
     block_hotness_from_counts, bool_from_range, build_value_definition_map,
     clone_instruction_metadata, clone_loop_blocks, instruction_is_speculatable,

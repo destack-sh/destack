@@ -6,7 +6,7 @@ use mir::{BinaryOperator, Constant, Instruction};
 
 use destack_core::StringPool;
 
-use crate::optimize::common::{build_signature_type, clone_instruction_metadata};
+use crate::common::mir::{build_signature_type, clone_instruction_metadata};
 use crate::optimize::{AnalysisPreservation, ModulePass, PipelineContext};
 
 declare_pass! {

@@ -3,8 +3,8 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::ConstantPropagation;
-use crate::optimize::common::{
+use crate::common::mir::analysis::ConstantPropagation;
+use crate::common::mir::{
     fold_binary, fold_cast, fold_intrinsic, fold_unary, instruction_substitute_uses_in_tree,
     remap_instruction_memory_accesses, terminator_substitute_uses,
 };
@@ -448,8 +448,8 @@ fn fold_terminators(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::mir::{fold_binary_signed, fold_unary};
     use crate::optimize::common::tests::TestProgram;
-    use crate::optimize::common::{fold_binary_signed, fold_unary};
 
     /// Signed integer addition folds to result, division by zero returns None.
     #[test]

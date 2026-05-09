@@ -3,8 +3,8 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{AliasAnalysis, ControlFlowGraph, DominatorTree, LoopAnalysis};
-use crate::optimize::common::{
+use crate::common::mir::analysis::{AliasAnalysis, ControlFlowGraph, DominatorTree, LoopAnalysis};
+use crate::common::mir::{
     MemoryLocation, build_instruction_block_map, build_use_def_maps, build_value_definition_map,
     instruction_is_memory_read, instruction_is_speculatable, instruction_may_affect_memory,
     instruction_requires_exact_access,

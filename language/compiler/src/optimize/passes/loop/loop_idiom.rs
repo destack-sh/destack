@@ -3,11 +3,11 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{
+use crate::common::mir::analysis::{
     AliasAnalysis, ControlFlowGraph, DominatorTree, LoopAnalysis, RangeAnalysis, ScalarEvolution,
     Scev, ValueRange,
 };
-use crate::optimize::common::{
+use crate::common::mir::{
     BlockParamForwarding, TypeKey, UseDefMaps, ValueTypeMap, build_use_def_maps,
     build_value_definition_map, build_value_use_counts, constant_for_value, constant_is_zero,
     instruction_has_side_effects, instruction_is_borrow_address, instruction_is_speculatable,
@@ -574,7 +574,7 @@ struct MemcpyPattern {
 
 /// Match a loop body against a memset idiom.
 fn match_memset_pattern(
-    lp: &crate::optimize::analyses::Loop,
+    lp: &crate::common::mir::analysis::Loop,
     induction: mir::Value,
     tree: &mir::Tree,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
@@ -643,7 +643,7 @@ fn match_memset_pattern(
 
 /// Match a loop body against a memcpy or memmove idiom.
 fn match_memcpy_pattern(
-    lp: &crate::optimize::analyses::Loop,
+    lp: &crate::common::mir::analysis::Loop,
     induction: mir::Value,
     tree: &mir::Tree,
     value_definitions: &HashMap<mir::Value, mir::LocalNodeId<mir::Instruction>>,
@@ -1190,7 +1190,7 @@ fn emit_copy_length(
 /// Check whether a value is loop invariant.
 fn value_is_loop_invariant(
     value: mir::Value,
-    lp: &crate::optimize::analyses::Loop,
+    lp: &crate::common::mir::analysis::Loop,
     use_def: &UseDefMaps,
     forwarding: &BlockParamForwarding,
 ) -> bool {
