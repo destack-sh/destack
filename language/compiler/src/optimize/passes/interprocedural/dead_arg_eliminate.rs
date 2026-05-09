@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::common::{
+use crate::common::mir::{
     ParameterRemap, SignatureKey, build_signature_type, build_use_def_maps,
     required_parameter_indices,
 };

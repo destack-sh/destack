@@ -1,7 +1,7 @@
 use crate::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{ControlFlowGraph, LoopAnalysis};
+use crate::common::mir::analysis::{ControlFlowGraph, LoopAnalysis};
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {
@@ -227,7 +227,7 @@ fn fresh_parameters_like(
 /// - Multiple blocks outside the loop jump to the header
 /// - A single outside predecessor also branches elsewhere
 fn needs_preheader(
-    lp: &crate::optimize::analyses::Loop,
+    lp: &crate::common::mir::analysis::Loop,
     cfg: &ControlFlowGraph,
     tree: &mir::Tree,
     entry: mir::LocalNodeId<mir::Block>,
@@ -265,7 +265,7 @@ fn needs_preheader(
 /// Check if an exit block needs to be dedicated (only reachable from the loop).
 fn needs_dedicated_exit(
     exit_block: mir::LocalNodeId<mir::Block>,
-    lp: &crate::optimize::analyses::Loop,
+    lp: &crate::common::mir::analysis::Loop,
     cfg: &ControlFlowGraph,
 ) -> bool {
     // check if any predecessor is from outside the loop

@@ -4,8 +4,8 @@ use crate::declare_pass;
 use destack_mir as mir;
 use mir::{Instruction, Terminator};
 
-use crate::optimize::analyses::{ControlFlowGraph, DominatorTree};
-use crate::optimize::common::{
+use crate::common::mir::analysis::{ControlFlowGraph, DominatorTree};
+use crate::common::mir::{
     compute_dominance_frontiers, instruction_substitute_uses_in_tree,
     remap_instruction_memory_accesses, terminator_substitute_uses,
 };

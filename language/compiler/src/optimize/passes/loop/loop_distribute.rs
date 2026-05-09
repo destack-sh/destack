@@ -4,11 +4,11 @@ use crate::declare_pass;
 use destack_mir as mir;
 
 use crate::Loop;
-use crate::optimize::analyses::{
+use crate::common::mir::analysis::{
     AliasAnalysis, ControlFlowGraph, DominatorTree, LoopAnalysis, MemoryAccess, MemoryAccessEffect,
     MemoryAccessLocation, MemorySSA,
 };
-use crate::optimize::common::{
+use crate::common::mir::{
     block_is_speculatable_no_reads, build_instruction_block_map, build_value_definition_map,
     clone_loop_blocks_with_instructions, control_instructions_for_latch, effects_may_alias,
     instruction_has_atomic_ordering, instruction_is_speculatable, loop_guard_branch,

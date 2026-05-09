@@ -3,8 +3,8 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::ConstantPropagation;
-use crate::optimize::common::instruction_requires_exact_access;
+use crate::common::mir::analysis::ConstantPropagation;
+use crate::common::mir::instruction_requires_exact_access;
 use crate::optimize::{
     AnalysisPreservation, FunctionPass, PipelineContext, instruction_substitute_uses_in_tree,
     remap_instruction_memory_accesses, terminator_substitute_uses, terminator_uses,

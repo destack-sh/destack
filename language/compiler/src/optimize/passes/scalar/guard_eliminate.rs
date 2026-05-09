@@ -1,8 +1,8 @@
 use crate::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::RangeAnalysis;
-use crate::optimize::common::constraint_truth_value;
+use crate::common::mir::analysis::RangeAnalysis;
+use crate::common::mir::constraint_truth_value;
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {

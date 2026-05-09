@@ -3,8 +3,8 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::CallGraphScc;
-use crate::optimize::common::{
+use crate::common::mir::analysis::CallGraphScc;
+use crate::common::mir::{
     CallsiteHotness, CallsiteHotnessPolicy, ValueTypeMap, block_execution_counts,
     block_hotness_from_counts, build_value_definition_map, callsite_hotness,
     clone_instruction_metadata, constant_for_value, instruction_map_with_locals,

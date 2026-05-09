@@ -3,10 +3,10 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{
+use crate::common::mir::analysis::{
     AliasAnalysis, MemoryAccess, MemoryAccessId, MemoryAccessLocation, MemorySSA, PostDominatorTree,
 };
-use crate::optimize::common::{
+use crate::common::mir::{
     DecomposedPointer, PointerDecomposer, RangeRelation, ValueTypeMap, build_value_definition_map,
     collect_block_param_defs, collect_local_defs, collect_non_escaping_stack_allocs,
     collect_stack_alloc_bases_for_value, range_relation, stack_alloc_base,

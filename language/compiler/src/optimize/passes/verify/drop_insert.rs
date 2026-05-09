@@ -4,7 +4,7 @@ use crate::declare_pass;
 use destack_mir as mir;
 use mir::{Instruction, Value};
 
-use crate::optimize::common::ValueTypeMap;
+use crate::common::mir::ValueTypeMap;
 use crate::optimize::{
     AnalysisPreservation, FunctionPass, LivenessAnalysis, OwnershipAnalysis, OwnershipMap,
     PipelineContext,

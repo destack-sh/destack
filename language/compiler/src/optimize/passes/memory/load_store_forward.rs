@@ -3,11 +3,11 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{
+use crate::common::mir::analysis::{
     AliasAnalysis, DominatorTree, MemoryAccess, MemoryAccessEffect, MemoryAccessId,
     MemoryAccessLocation, MemorySSA,
 };
-use crate::optimize::common::{
+use crate::common::mir::{
     ValueTypeMap, address_spaces_may_alias, alias_scopes_may_alias,
     apply_substitutions_in_function, can_substitute_value, effect_is_trackable,
     memory_locations_compatible, resolve_substitution_chains, space_sets_may_alias,

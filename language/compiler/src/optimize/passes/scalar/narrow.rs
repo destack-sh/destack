@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use crate::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{RangeAnalysis, RangeMap, ValueRange};
-use crate::optimize::common::{ValueTypeMap, is_comparison_operator};
+use crate::common::mir::analysis::{RangeAnalysis, RangeMap, ValueRange};
+use crate::common::mir::{ValueTypeMap, is_comparison_operator};
 use crate::optimize::{AnalysisPreservation, FunctionPass, PipelineContext};
 
 declare_pass! {

@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use crate::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::common::{
+use crate::common::mir::{
     build_use_def_maps, fold_binary, fold_cast, fold_intrinsic, fold_unary,
     instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
     terminator_substitute_uses,

@@ -3,11 +3,11 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{
+use crate::common::mir::analysis::{
     AliasAnalysis, ConstantPropagation, ControlFlowGraph, DominatorTree, LoopAnalysis,
     MemoryAccessEffect, MemorySSA,
 };
-use crate::optimize::common::{
+use crate::common::mir::{
     BlockParamForwarding, LoopEffectPolicy, ValueEquivalence, block_is_speculatable_no_reads,
     build_instruction_block_map, build_value_definition_map, clone_instruction_metadata,
     collect_loop_effects, control_instructions_for_latch, effects_may_alias,
@@ -229,7 +229,7 @@ fn run_loop_fusion(
 #[allow(clippy::too_many_arguments)]
 fn build_fusion_candidate(
     loop_index: usize,
-    lp: &crate::optimize::analyses::Loop,
+    lp: &crate::common::mir::analysis::Loop,
     loops: &LoopAnalysis,
     tree: &mir::Tree,
     cfg: &ControlFlowGraph,

@@ -3,8 +3,8 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{ControlFlowGraph, DominatorTree, LoopAnalysis, MemorySSA};
-use crate::optimize::common::{
+use crate::common::mir::analysis::{ControlFlowGraph, DominatorTree, LoopAnalysis, MemorySSA};
+use crate::common::mir::{
     LoopEffectPolicy, build_value_definition_blocks, collect_loop_effects, loop_guard_branch,
     loop_preheader, value_available_in_block,
 };
@@ -172,8 +172,8 @@ fn run_loop_interchange(
 /// Build a loop interchange candidate.
 #[allow(clippy::too_many_arguments)]
 fn build_interchange_candidate(
-    outer: &crate::optimize::analyses::Loop,
-    inner: &crate::optimize::analyses::Loop,
+    outer: &crate::common::mir::analysis::Loop,
+    inner: &crate::common::mir::analysis::Loop,
     cfg: &ControlFlowGraph,
     domtree: &DominatorTree,
     tree: &mir::Tree,
@@ -302,8 +302,8 @@ fn build_interchange_candidate(
 
 /// Check whether the inner loop is perfectly nested.
 fn is_perfectly_nested(
-    outer: &crate::optimize::analyses::Loop,
-    inner: &crate::optimize::analyses::Loop,
+    outer: &crate::common::mir::analysis::Loop,
+    inner: &crate::common::mir::analysis::Loop,
     cfg: &ControlFlowGraph,
 ) -> bool {
     // locate the inner preheader
@@ -338,8 +338,8 @@ fn is_perfectly_nested(
 
 /// Check whether loops are read only.
 fn loops_are_read_only(
-    outer: &crate::optimize::analyses::Loop,
-    inner: &crate::optimize::analyses::Loop,
+    outer: &crate::common::mir::analysis::Loop,
+    inner: &crate::common::mir::analysis::Loop,
     tree: &mir::Tree,
     memory_ssa: &MemorySSA,
 ) -> bool {

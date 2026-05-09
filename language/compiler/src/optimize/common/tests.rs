@@ -5,6 +5,7 @@ use destack_mir as mir;
 use destack_source::{DiffOptions, FileId, ModuleId, PackageId, ProfileId, TargetId, print_diff};
 use mir::parse::ParseOptions;
 
+use crate::common::mir::{FunctionAnalyses, ModuleAnalyses};
 use crate::optimize::{FunctionPass, ModulePass, PipelineContext, PipelineOptions};
 use crate::{OptimizeError, OptimizeWarning};
 
@@ -889,17 +890,17 @@ impl TestProgram {
         self.errors.clone()
     }
 
-    /// Create a FunctionAnalyses storage for testing the new infrastructure.
+    /// Create function analyses for this test program.
     pub(crate) fn function_analyses<'a>(
         &'a self,
         function: &'a mir::Function,
-    ) -> super::FunctionAnalyses<'a> {
-        super::FunctionAnalyses::new(function, &self.tree)
+    ) -> FunctionAnalyses<'a> {
+        FunctionAnalyses::new(function, &self.tree)
     }
 
-    /// Create a ModuleAnalyses storage for testing the new infrastructure.
-    pub(crate) fn module_analyses(&self) -> super::ModuleAnalyses<'_> {
-        super::ModuleAnalyses::new(&self.tree)
+    /// Create module analyses for this test program.
+    pub(crate) fn module_analyses(&self) -> ModuleAnalyses<'_> {
+        ModuleAnalyses::new(&self.tree)
     }
 }
 
@@ -913,7 +914,7 @@ mod tests {
 
     use super::TestProgram;
     use crate::OptimizeError;
-    use crate::optimize::common::instruction_is_speculatable;
+    use crate::common::mir::instruction_is_speculatable;
     use crate::optimize::passes::{InterproceduralSccp, LoadPre};
     use crate::optimize::{
         Analysis, AnalysisId, AnalysisPreservation, FunctionAnalyses, FunctionAnalysis, ModulePass,

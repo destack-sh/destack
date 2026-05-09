@@ -3,8 +3,8 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{ControlFlowGraph, DominatorTree};
-use crate::optimize::common::{
+use crate::common::mir::analysis::{ControlFlowGraph, DominatorTree};
+use crate::common::mir::{
     ExpressionKey, apply_substitutions_in_dominated_blocks, build_use_def_maps,
     clone_instruction_metadata, expression_key_from_instruction, instruction_is_speculatable,
     instruction_map, instruction_substitute_uses_in_tree,

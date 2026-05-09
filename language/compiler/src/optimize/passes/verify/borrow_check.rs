@@ -6,7 +6,7 @@ use destack_artifact::DiagnosticAnchor;
 use destack_mir as mir;
 use mir::{Instruction, Mutability, ReferenceKind, Type, Value};
 
-use crate::optimize::common::ValueTypeMap;
+use crate::common::mir::ValueTypeMap;
 use crate::optimize::{
     AliasAnalysis, AnalysisPreservation, BorrowAnalysis, BorrowMap, DiagnosticEmitter,
     FunctionPass, LifetimeAnalysis, LivenessAnalysis, MemoryLocation, PipelineContext,

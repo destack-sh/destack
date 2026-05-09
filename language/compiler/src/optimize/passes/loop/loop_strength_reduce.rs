@@ -3,11 +3,11 @@ use std::collections::{HashMap, HashSet};
 use crate::declare_pass;
 use destack_mir as mir;
 
-use crate::optimize::analyses::{
+use crate::common::mir::analysis::{
     ControlFlowGraph, DominatorTree, Loop, LoopAnalysis, RangeAnalysis, ScalarEvolution, Scev,
     ValueRange,
 };
-use crate::optimize::common::{
+use crate::common::mir::{
     ValueTypeMap, clone_instruction_metadata, constant_is_zero, instruction_is_speculatable,
     instruction_map, instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
     resolve_substitution_chains, terminator_substitute_uses,

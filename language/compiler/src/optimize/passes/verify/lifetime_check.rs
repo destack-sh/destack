@@ -5,7 +5,7 @@ use destack_core::StringPool;
 use destack_mir as mir;
 use mir::{Instruction, Terminator, Type, Value};
 
-use crate::optimize::common::{ValueTypeMap, terminator_arguments_for_successor};
+use crate::common::mir::{ValueTypeMap, terminator_arguments_for_successor};
 use crate::optimize::{
     AnalysisPreservation, CallTargetAnalysis, ControlFlowGraph, FunctionPass, Lattice,
     LifetimeAnalysis, PipelineContext, ResolvedLifetime, borrowed_parameter_indices_for_signature,

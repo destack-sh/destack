@@ -7,8 +7,8 @@ use mir::{BinaryOperator, Constant, UnaryOperator};
 use destack_workspace::FloatMathPolicy;
 
 use crate::ConstantMap;
-use crate::optimize::analyses::{ConstantPropagation, RangeAnalysis, RangeMap};
-use crate::optimize::common::{fold_binary, fold_cast, fold_unary};
+use crate::common::mir::analysis::{ConstantPropagation, RangeAnalysis, RangeMap};
+use crate::common::mir::{fold_binary, fold_cast, fold_unary};
 use crate::optimize::{
     AnalysisPreservation, FunctionPass, PipelineContext, TypeContext, constant_all_ones_like,
     constant_is_all_ones, constant_is_float_one, constant_is_float_zero, constant_is_one,
@@ -745,7 +745,7 @@ fn simplify_same_binary_operand(
 /// Lookup for constants from propagation and range analysis.
 struct ConstantLookup<'a> {
     /// Constants derived from propagation.
-    block_constants: &'a crate::optimize::analyses::ConstantMap,
+    block_constants: &'a crate::common::mir::analysis::ConstantMap,
     /// Ranges for the block.
     ranges: &'a RangeMap,
 }
@@ -753,7 +753,7 @@ struct ConstantLookup<'a> {
 impl<'a> ConstantLookup<'a> {
     /// Create a new lookup for a block.
     fn new(
-        block_constants: &'a crate::optimize::analyses::ConstantMap,
+        block_constants: &'a crate::common::mir::analysis::ConstantMap,
         ranges: &'a RangeMap,
     ) -> Self {
         Self {
