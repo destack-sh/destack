@@ -1,7 +1,8 @@
 use crate::{
     Ast, Data, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported, DirImported,
-    DirMaterialized, GlobalEnvironment, MirLowered, MirOptimized, ModuleLinted, ModuleOutput,
-    ModuleQueryIndex, PackageLinted, PackageOutput, WorkspaceLinted, WorkspaceQueryIndex,
+    DirMaterialized, GlobalEnvironment, MirLowered, MirOptimized, MirVerified, ModuleLinted,
+    ModuleOutput, ModuleQueryIndex, PackageLinted, PackageOutput, WorkspaceLinted,
+    WorkspaceQueryIndex,
 };
 
 /// One typed artifact payload.
@@ -29,6 +30,8 @@ pub enum ArtifactPayload {
     DirElaborated(DirElaborated),
     /// Lowered MIR before optimization.
     MirLowered(MirLowered),
+    /// Verified MIR marker after required semantic verification.
+    MirVerified(MirVerified),
     /// Optimized MIR.
     MirOptimized(MirOptimized),
     /// Query index for one module profile.
@@ -121,6 +124,13 @@ impl From<MirLowered> for ArtifactPayload {
     /// Convert a typed artifact into an artifact payload.
     fn from(payload: MirLowered) -> Self {
         Self::MirLowered(payload)
+    }
+}
+
+impl From<MirVerified> for ArtifactPayload {
+    /// Convert a typed artifact into an artifact payload.
+    fn from(payload: MirVerified) -> Self {
+        Self::MirVerified(payload)
     }
 }
 

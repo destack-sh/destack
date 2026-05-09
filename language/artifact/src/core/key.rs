@@ -68,6 +68,12 @@ pub enum ArtifactKey {
         profile: ProfileId,
         target: TargetId,
     },
+    /// Verified MIR after required semantic verification.
+    MirVerified {
+        module: ModuleId,
+        profile: ProfileId,
+        target: TargetId,
+    },
     /// Optimized MIR.
     MirOptimized {
         module: ModuleId,
@@ -116,6 +122,7 @@ impl ArtifactKey {
             | Self::DirMaterialized { .. }
             | Self::DirElaborated { .. }
             | Self::MirLowered { .. }
+            | Self::MirVerified { .. }
             | Self::MirOptimized { .. }
             | Self::ModuleOutput { .. }
             | Self::PackageOutput { .. } => ArtifactProvider::Compiler,
@@ -195,6 +202,15 @@ impl ArtifactKey {
         }
     }
 
+    /// Build one verified MIR artifact key.
+    pub fn mir_verified(module: ModuleId, profile: ProfileId, target: TargetId) -> Self {
+        Self::MirVerified {
+            module,
+            profile,
+            target,
+        }
+    }
+
     /// Build one optimized MIR artifact key.
     pub fn mir_optimized(module: ModuleId, profile: ProfileId, target: TargetId) -> Self {
         Self::MirOptimized {
@@ -253,6 +269,7 @@ impl ArtifactKey {
             Self::DirMaterialized { .. } => "dir_materialized",
             Self::DirElaborated { .. } => "dir_elaborated",
             Self::MirLowered { .. } => "mir_lowered",
+            Self::MirVerified { .. } => "mir_verified",
             Self::MirOptimized { .. } => "mir_optimized",
             Self::ModuleQueryIndex { .. } => "module_query_index",
             Self::WorkspaceQueryIndex { .. } => "workspace_query_index",
@@ -277,6 +294,7 @@ impl ArtifactKey {
             | Self::DirMaterialized { module, .. }
             | Self::DirElaborated { module, .. }
             | Self::MirLowered { module, .. }
+            | Self::MirVerified { module, .. }
             | Self::MirOptimized { module, .. }
             | Self::ModuleQueryIndex { module, .. }
             | Self::ModuleOutput { module, .. }
@@ -303,6 +321,7 @@ impl ArtifactKey {
             | Self::DirMaterialized { profile, .. }
             | Self::DirElaborated { profile, .. }
             | Self::MirLowered { profile, .. }
+            | Self::MirVerified { profile, .. }
             | Self::MirOptimized { profile, .. }
             | Self::ModuleQueryIndex { profile, .. }
             | Self::WorkspaceQueryIndex { profile }

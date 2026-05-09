@@ -8,8 +8,8 @@ use super::pin::ArtifactPin;
 use crate::{
     ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactVersion, Ast, Data,
     DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported, DirImported, DirMaterialized,
-    GlobalEnvironment, MirLowered, MirOptimized, ModuleLinted, ModuleOutput, ModuleQueryIndex,
-    PackageLinted, PackageOutput, WorkspaceLinted, WorkspaceQueryIndex,
+    GlobalEnvironment, MirLowered, MirOptimized, MirVerified, ModuleLinted, ModuleOutput,
+    ModuleQueryIndex, PackageLinted, PackageOutput, WorkspaceLinted, WorkspaceQueryIndex,
 };
 
 /// One versioned artifact family map.
@@ -48,6 +48,8 @@ pub struct ArtifactStore {
 
     /// Lowered MIR artifacts by module, profile, and target.
     mir_lowered: ArtifactMap<MirLowered>,
+    /// Verified MIR markers by module, profile, and target.
+    mir_verified: ArtifactMap<MirVerified>,
     /// Optimized MIR artifacts by module, profile, and target.
     mir_optimized: ArtifactMap<MirOptimized>,
 
@@ -156,6 +158,7 @@ impl ArtifactStore {
             ArtifactKey::DirMaterialized { .. } => self.dir_materialized.contains_key(version),
             ArtifactKey::DirElaborated { .. } => self.dir_elaborated.contains_key(version),
             ArtifactKey::MirLowered { .. } => self.mir_lowered.contains_key(version),
+            ArtifactKey::MirVerified { .. } => self.mir_verified.contains_key(version),
             ArtifactKey::MirOptimized { .. } => self.mir_optimized.contains_key(version),
             ArtifactKey::ModuleQueryIndex { .. } => self.module_query_index.contains_key(version),
             ArtifactKey::WorkspaceQueryIndex { .. } => {
@@ -271,6 +274,13 @@ impl ArtifactStore {
                 payload,
                 matches!(&version.key, ArtifactKey::MirLowered { .. }),
                 "MirLowered",
+            ),
+            ArtifactPayload::MirVerified(payload) => Self::insert_payload(
+                &self.mir_verified,
+                version,
+                payload,
+                matches!(&version.key, ArtifactKey::MirVerified { .. }),
+                "MirVerified",
             ),
             ArtifactPayload::MirOptimized(payload) => Self::insert_payload(
                 &self.mir_optimized,
@@ -419,6 +429,13 @@ impl ArtifactStore {
     /// Get one lowered MIR artifact.
     pub fn mir_lowered(&self, version: &ArtifactVersion) -> Option<Arc<MirLowered>> {
         self.mir_lowered
+            .get(version)
+            .map(|entry| entry.value().clone())
+    }
+
+    /// Get one verified MIR marker.
+    pub fn mir_verified(&self, version: &ArtifactVersion) -> Option<Arc<MirVerified>> {
+        self.mir_verified
             .get(version)
             .map(|entry| entry.value().clone())
     }

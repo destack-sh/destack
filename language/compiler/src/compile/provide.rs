@@ -53,6 +53,11 @@ impl Compiler {
                 profile,
                 target,
             } => self.provide_mir(module, profile, target, context),
+            ArtifactKey::MirVerified {
+                module,
+                profile,
+                target,
+            } => self.provide_mir_verified(module, profile, target, context),
             ArtifactKey::MirOptimized {
                 module,
                 profile,

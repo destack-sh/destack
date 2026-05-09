@@ -14,12 +14,14 @@ pub enum CompilePhase {
     Execute = 5,
     /// Lower patched DIR into MIR.
     Lower = 6,
+    /// Verify lowered MIR.
+    Verify = 7,
     /// Optimize MIR.
-    Optimize = 7,
+    Optimize = 8,
     /// Generate emitted artifacts from compiler products.
-    Generate = 8,
+    Generate = 9,
     /// Link emitted artifacts into package artifacts.
-    Link = 9,
+    Link = 10,
 }
 
 impl std::fmt::Display for CompilePhase {
@@ -43,6 +45,7 @@ impl CompilePhase {
             Self::Elaborate => "elaborate",
             Self::Execute => "execute",
             Self::Lower => "lower",
+            Self::Verify => "verify",
             Self::Optimize => "optimize",
             Self::Generate => "generate",
             Self::Link => "link",
@@ -58,6 +61,7 @@ impl CompilePhase {
             Self::Elaborate => "desugar and reify DIR",
             Self::Execute => "execute comptime code and patch DIR",
             Self::Lower => "lower DIR into MIR",
+            Self::Verify => "verify MIR semantic invariants",
             Self::Optimize => "optimize MIR",
             Self::Generate => "generate emitted artifacts",
             Self::Link => "link emitted artifacts",
@@ -73,6 +77,7 @@ impl CompilePhase {
             Self::Elaborate => 'E',
             Self::Execute => 'X',
             Self::Lower => 'M',
+            Self::Verify => 'V',
             Self::Optimize => 'O',
             Self::Generate => 'G',
             Self::Link => 'K',
@@ -80,13 +85,14 @@ impl CompilePhase {
     }
 
     /// All phases in build order.
-    pub const ALL: [CompilePhase; 9] = [
+    pub const ALL: [CompilePhase; 10] = [
         Self::Import,
         Self::Resolve,
         Self::Analyze,
         Self::Elaborate,
         Self::Execute,
         Self::Lower,
+        Self::Verify,
         Self::Optimize,
         Self::Generate,
         Self::Link,
