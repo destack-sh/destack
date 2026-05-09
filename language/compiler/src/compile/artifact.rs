@@ -211,6 +211,19 @@ impl Compiler {
         })
     }
 
+    /// Require one verified MIR marker without loading its payload.
+    pub(crate) fn require_mir_verified(
+        &self,
+        context: &dyn ProviderContext,
+        module: ModuleId,
+        profile: ProfileId,
+        target: &TargetId,
+    ) -> Result<(), ProviderError> {
+        context.require(ArtifactKey::mir_verified(module, profile, *target))?;
+
+        Ok(())
+    }
+
     /// Return the optimized MIR payload for one exact module output requirement.
     #[cfg(feature = "native-codegen")]
     pub(crate) fn mir_optimized(

@@ -3,7 +3,9 @@ use destack_workspace::ProviderContext;
 use std::mem;
 use std::str::FromStr;
 
-use destack_artifact::{ArtifactKey, ArtifactPayload, EmitFormat, MirOptimized, TargetArch};
+use destack_artifact::{
+    ArtifactKey, ArtifactPayload, EmitFormat, MirOptimized, MirVerified, TargetArch,
+};
 use destack_source::{ModuleId, PackageId, TargetId};
 use destack_workspace::{Module, OptimizeLevel as WorkspaceOptimizeLevel, ProfileId, Target};
 use target_lexicon::Triple;
@@ -15,6 +17,29 @@ use crate::CompilerError;
 use crate::optimize::OptimizeState;
 
 impl Compiler {
+    /// Build verified MIR marker for one module and target.
+    pub(crate) fn provide_mir_verified(
+        &self,
+        module: ModuleId,
+        profile: ProfileId,
+        target: TargetId,
+        context: &dyn ProviderContext,
+    ) -> CompilerResult<ArtifactPayload> {
+        let state = OptimizeState::new(module, profile, target, context);
+        let artifact_key = ArtifactKey::mir_verified(state.module, state.profile, state.target);
+
+        self.require_mir_lowered(state.context, state.module, state.profile, &state.target)
+            .map_err(CompilerError::from)?;
+
+        assert_eq!(
+            artifact_key,
+            state.context.artifact_key(),
+            "compiler attempted to provide the wrong artifact"
+        );
+
+        Ok(ArtifactPayload::MirVerified(MirVerified))
+    }
+
     /// Build optimized MIR for one module and target.
     pub(crate) fn provide_mir_optimized(
         &self,
@@ -26,8 +51,7 @@ impl Compiler {
         let state = OptimizeState::new(module, profile, target, context);
         let artifact_key = ArtifactKey::mir_optimized(state.module, state.profile, state.target);
 
-        // require MIR before deriving the optimized artifact version
-        self.require_mir_lowered(state.context, state.module, state.profile, &state.target)
+        self.require_mir_verified(state.context, state.module, state.profile, &state.target)
             .map_err(CompilerError::from)?;
 
         // optimize the module

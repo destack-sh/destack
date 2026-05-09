@@ -23,6 +23,10 @@ impl Default for MirLowered {
     }
 }
 
+/// Verified MIR marker after required semantic verification.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+pub struct MirVerified;
+
 /// Optimized MIR payload after pipeline transforms.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MirOptimized {
