@@ -137,7 +137,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        Declaration, ExtensionDeclaration, GenericArgument, GenericParameter, IntType, Member,
+        Declaration, ExtensionDeclaration, GenericArgument, GenericParameter, IntegerType, Member,
         Parameter, TypeExpression, TypeLiteral, WhereClause,
     };
     use destack_source::{NodeSpanRegion, NodeSpanType};
@@ -232,8 +232,8 @@ extension MyExt of Foo<int32> {
                 assert_eq!(generic_arguments.len(), 1);
                 // int32
                 assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
-                        assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Int(IntType::Arbitrary { width, is_signed }) } => {
-                            assert_eq!(*width, Some(32));
+                        assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Integer(IntegerType::Fixed { width, is_signed }) } => {
+                            assert_eq!(*width, 32);
                             assert!(*is_signed);
                         });
                 });
@@ -266,8 +266,8 @@ extension of Bar<int32> implements Baz {
                 assert_eq!(generic_arguments.len(), 1);
                 // int32
                 assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
-                        assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Int(IntType::Arbitrary { width, is_signed }) } => {
-                            assert_eq!(*width, Some(32));
+                        assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Integer(IntegerType::Fixed { width, is_signed }) } => {
+                            assert_eq!(*width, 32);
                             assert!(*is_signed);
                         });
                 });

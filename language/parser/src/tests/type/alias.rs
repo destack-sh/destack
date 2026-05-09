@@ -16,9 +16,7 @@ fn test_parse_type_alias() {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, value, .. }) => {
             assert_string!(parser, name.string(), "T");
             assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
-                assert_eq!(*value, TypeLiteral::Int(IntType::Arbitrary {
-                    width: Some(32),
-                    is_signed: true,
+                assert_eq!(*value, TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,
                 }));
             });
         });
@@ -109,7 +107,7 @@ fn test_parse_type_alias_with_generic_parameters() {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, value, generic_parameters, .. }) => {
             assert_string!(parser, name.string(), "T");
             assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
-                assert_eq!(*value, TypeLiteral::Int(IntType::Pointer { is_signed: true }));
+                assert_eq!(*value, TypeLiteral::Integer(IntegerType::Pointer { is_signed: true }));
             });
             assert_eq!(generic_parameters.len(), 2);
         });
@@ -217,9 +215,7 @@ fn test_parse_pointer_type_alias() {
             assert_node!(parser.tree, *value, TypeExpression::PointerOf { mutability, target_type } => {
                 assert_eq!(*mutability, Some(Mutability::Mutable));
                 assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
-                    assert_eq!(*value, TypeLiteral::Int(IntType::Arbitrary {
-                        width: Some(32),
-                        is_signed: true,
+                    assert_eq!(*value, TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,
                     }));
                 });
             });

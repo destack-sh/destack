@@ -145,7 +145,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use destack_ast::{
-        CommentKind, Declaration, Expression, GenericArgument, GenericParameter, IntType,
+        CommentKind, Declaration, Expression, GenericArgument, GenericParameter, IntegerType,
         InterfaceDeclaration, Key, Name, Parameter, Pattern, PatternField, TypeExpression,
         TypeKind, TypeLiteral, TypeMember, VarianceModifier, WhereClause,
     };
@@ -410,9 +410,7 @@ interface Foo extends Baz {
                 assert!(*is_readonly);
                 assert_string!(parser, *name, "value");
                 assert_node!(parser.tree, ty.expect("expected declared type"), TypeExpression::Literal { value } => {
-                    assert_eq!(*value, TypeLiteral::Int(IntType::Arbitrary {
-                        width: Some(32),
-                        is_signed: true,
+                    assert_eq!(*value, TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,
                     }));
                 });
             });
@@ -421,9 +419,7 @@ interface Foo extends Baz {
             assert_node!(parser.tree, members[1], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type: ty, .. } => {
                 assert_string!(parser, *name, "count");
                 assert_node!(parser.tree, ty.expect("expected declared type"), TypeExpression::Literal { value } => {
-                    assert_eq!(*value, TypeLiteral::Int(IntType::Arbitrary {
-                        width: Some(32),
-                        is_signed: true,
+                    assert_eq!(*value, TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,
                     }));
                 });
             });

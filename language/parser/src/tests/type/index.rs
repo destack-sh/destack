@@ -340,7 +340,7 @@ fn test_parse_type_associated_projection_with_generic_arguments() {
                     assert_eq!(generic_arguments.len(), 2);
                     assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
                             assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
-                                assert!(matches!(value, TypeLiteral::Int(_)));
+                                assert!(matches!(value, TypeLiteral::Integer(_)));
                             });
                     });
                     assert_node!(parser.tree, generic_arguments[1], GenericArgument::Type { value } => {

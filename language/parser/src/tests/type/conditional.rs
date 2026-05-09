@@ -217,9 +217,7 @@ fn test_parse_newtype_type_expression() {
             assert_string!(parser, name.string(), "T");
             assert!(*is_nominal);
             assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
-                assert_eq!(*value, TypeLiteral::Int(IntType::Arbitrary {
-                    width: Some(32),
-                    is_signed: true,
+                assert_eq!(*value, TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,
                 }));
             });
         });

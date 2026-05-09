@@ -1220,7 +1220,7 @@ mod tests {
     use destack_ast::{
         Argument, Asynchrony, BlockContext, BlockForm, ClassDeclaration, CommentKind,
         CommentPosition, Declaration, Declarator, Expression, FunctionDeclaration, FunctionForm,
-        FunctionRole, GenericArgument, GenericParameter, IntType, NodeType, Parameter, Pattern,
+        FunctionRole, GenericArgument, GenericParameter, IntegerType, NodeType, Parameter, Pattern,
         ScalarLiteral, TypeDeclaration, TypeExpression, TypeLiteral, VarianceModifier, WhereClause,
         YieldCardinality,
     };
@@ -1607,7 +1607,7 @@ function setns(
             });
             // int32
             assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Literal { value } => {
-                assert_eq!(*value, TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true }));
+                assert_eq!(*value, TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true }));
             });
             // x
             assert_node!(parser.tree, *body, Expression::Identifier { name } => {
@@ -1719,7 +1719,7 @@ function setns(
             assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
                 assert_string!(parser, *name, "x");
                 assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Literal { value } => {
-                    assert_eq!(*value, TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true }));
+                    assert_eq!(*value, TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true }));
                 });
             });
             // T
@@ -1754,7 +1754,7 @@ function foo() => int32 where Guard: Limit {
             // return type
             let ret = signature.return_type.expect("expected return type");
             assert_node!(parser.tree, ret, TypeExpression::Literal { value } => {
-                assert_eq!(*value, TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true }));
+                assert_eq!(*value, TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true }));
             });
         });
     }
@@ -1793,7 +1793,7 @@ function compute<Validate: boolean, Precision: uint8>(data: uint8[]) {
             assert_node!(parser.tree, generic_parameters[1], GenericParameter::Type { name, constraint, .. } => {
                 assert_string!(parser, *name, "Precision");
                 assert_node!(parser.tree, constraint.unwrap(), TypeExpression::Literal { value } => {
-                    assert_eq!(*value, TypeLiteral::Int(IntType::Arbitrary { width: Some(8), is_signed: false }));
+                    assert_eq!(*value, TypeLiteral::Integer(IntegerType::Fixed { width: 8, is_signed: false }));
                 });
             });
             // data: uint8[]

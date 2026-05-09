@@ -1809,8 +1809,9 @@ mod tests {
     use destack_ast::{
         Argument, AssignOperator, Asynchrony, BinaryOperator, Block, ClassDeclaration, CommentKind,
         Declaration, Expression, FunctionDeclaration, FunctionForm, FunctionRole, GenericArgument,
-        GenericParameter, IntType, InterfaceDeclaration, Key, Member, Name, Parameter, Property,
-        ScalarLiteral, TypeExpression, TypeLiteral, TypeMember, TypePredicateSubject, Visibility,
+        GenericParameter, IntegerType, InterfaceDeclaration, Key, Member, Name, Parameter,
+        Property, ScalarLiteral, TypeExpression, TypeLiteral, TypeMember, TypePredicateSubject,
+        Visibility,
     };
     use destack_source::LanguageType;
 
@@ -1902,9 +1903,9 @@ mod tests {
             assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
                 assert_eq!(
                     *value,
-                    TypeLiteral::Int(IntType::Arbitrary {
+                    TypeLiteral::Integer(IntegerType::Fixed {
+                        width: 32,
                         is_signed: true,
-                        width: Some(32),
                     })
                 );
             });
@@ -2257,9 +2258,7 @@ port2 = {
             assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
                 assert_eq!(
                     *value,
-                    TypeLiteral::Int(IntType::Arbitrary {
-                        width: Some(32),
-                        is_signed: true,
+                    TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,
                     })
                 );
             });
@@ -2341,9 +2340,7 @@ foo(): string;"#,
                 assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
                     assert_eq!(
                         *value,
-                        TypeLiteral::Int(IntType::Arbitrary {
-                            width: Some(32),
-                            is_signed: true,
+                        TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,
                         })
                     );
                 });
@@ -2447,9 +2444,7 @@ foo(): string;"#,
                 assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
                     assert_eq!(
                         *value,
-                        TypeLiteral::Int(IntType::Arbitrary {
-                            width: Some(32),
-                            is_signed: true,
+                        TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true,
                         })
                     );
                 });
@@ -2525,7 +2520,7 @@ foo(): string;"#,
             assert_node!(parser.tree, signature.parameters[0], Parameter::Named { name, declared_type, .. } => {
                 assert_string!(parser, *name, "x");
                 assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Literal { value } => {
-                    assert_eq!(*value, TypeLiteral::Int(IntType::Arbitrary { width: Some(32), is_signed: true }));
+                    assert_eq!(*value, TypeLiteral::Integer(IntegerType::Fixed { width: 32, is_signed: true }));
                 });
             });
         });

@@ -2,7 +2,7 @@ use crate::{ParseError, ParseResult, Parser};
 
 use crate::parse::expression::TypeUnaryOperator;
 use destack_ast::{
-    FloatType, IntType, Keyword, TokenType, TypeLiteral, UnaryOperator, VarianceBound,
+    FloatType, IntegerType, Keyword, TokenType, TypeLiteral, UnaryOperator, VarianceBound,
 };
 
 impl Parser {
@@ -34,17 +34,19 @@ impl Parser {
             "string" => Some(TypeLiteral::String),
             "bigint" => Some(TypeLiteral::Bigint),
             "number" => Some(TypeLiteral::Number),
-            "int" => Some(TypeLiteral::Int(IntType::Arbitrary {
-                width: None,
+            "int" => Some(TypeLiteral::Integer(IntegerType::Integer {
                 is_signed: true,
             })),
-            "isize" => Some(TypeLiteral::Int(IntType::Pointer { is_signed: true })),
-            "uint" => Some(TypeLiteral::Int(IntType::Arbitrary {
-                width: None,
+            "isize" => Some(TypeLiteral::Integer(IntegerType::Pointer {
+                is_signed: true,
+            })),
+            "uint" => Some(TypeLiteral::Integer(IntegerType::Integer {
                 is_signed: false,
             })),
-            "usize" => Some(TypeLiteral::Int(IntType::Pointer { is_signed: false })),
-            "float" => Some(TypeLiteral::Float(FloatType { width: None })),
+            "usize" => Some(TypeLiteral::Integer(IntegerType::Pointer {
+                is_signed: false,
+            })),
+            "float" => Some(TypeLiteral::Float(FloatType::Float)),
             "symbol" => Some(TypeLiteral::Symbol),
             "unique" if next_identifier == Some("symbol") => Some(TypeLiteral::UniqueSymbol),
             _ => None,
@@ -170,38 +172,39 @@ impl Parser {
             "string" => Ok(TypeLiteral::String),
             "bigint" => Ok(TypeLiteral::Bigint),
             "number" => Ok(TypeLiteral::Number),
-            "int" => Ok(TypeLiteral::Int(IntType::Arbitrary {
-                width: None,
+            "int" => Ok(TypeLiteral::Integer(IntegerType::Integer {
                 is_signed: true,
             })),
-            "isize" => Ok(TypeLiteral::Int(IntType::Pointer { is_signed: true })),
+            "isize" => Ok(TypeLiteral::Integer(IntegerType::Pointer {
+                is_signed: true,
+            })),
             int_str if let Some(width) = self.type_width_maybe("int", int_str) => {
-                Ok(TypeLiteral::Int(IntType::Arbitrary {
-                    width: Some(width),
+                Ok(TypeLiteral::Integer(IntegerType::Fixed {
+                    width,
                     is_signed: true,
                 }))
             }
-            "uint" => Ok(TypeLiteral::Int(IntType::Arbitrary {
-                width: None,
+            "uint" => Ok(TypeLiteral::Integer(IntegerType::Integer {
                 is_signed: false,
             })),
-            "usize" => Ok(TypeLiteral::Int(IntType::Pointer { is_signed: false })),
+            "usize" => Ok(TypeLiteral::Integer(IntegerType::Pointer {
+                is_signed: false,
+            })),
             uint_str if let Some(width) = self.type_width_maybe("uint", uint_str) => {
-                Ok(TypeLiteral::Int(IntType::Arbitrary {
-                    width: Some(width),
+                Ok(TypeLiteral::Integer(IntegerType::Fixed {
+                    width,
                     is_signed: false,
                 }))
             }
             uint_str if let Some(width) = self.type_width_maybe("u", uint_str) => {
-                Ok(TypeLiteral::Int(IntType::Arbitrary {
-                    width: Some(width),
+                Ok(TypeLiteral::Integer(IntegerType::Fixed {
+                    width,
                     is_signed: false,
                 }))
             }
-            "float" => Ok(TypeLiteral::Float(FloatType { width: None })),
-            float_str if let Some(width) = self.type_width_maybe("float", float_str) => {
-                Ok(TypeLiteral::Float(FloatType { width: Some(width) }))
-            }
+            "float" => Ok(TypeLiteral::Float(FloatType::Float)),
+            "float32" => Ok(TypeLiteral::Float(FloatType::Float32)),
+            "float64" => Ok(TypeLiteral::Float(FloatType::Float64)),
             "symbol" => Ok(TypeLiteral::Symbol),
             "unique" if next_next_str == Some("symbol") => Ok(TypeLiteral::UniqueSymbol),
             _ => Err(ParseError::unexpected(next.span)),
