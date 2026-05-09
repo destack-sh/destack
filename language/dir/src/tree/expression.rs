@@ -328,7 +328,7 @@ pub enum Expression {
     /// Await expression.
     Await { expression: LocalNodeId<Expression> },
     /// Await with immediate error propagation (`await? expr`).
-    /// Desugared to `Maybe { left: Await { expression } }` after binding.
+    /// Normalized to `Maybe { left: Await { expression } }` after binding.
     AwaitMaybe { expression: LocalNodeId<Expression> },
     /// Compile-time evaluated expression.
     Comptime { body: LocalNodeId<Expression> },
