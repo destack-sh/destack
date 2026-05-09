@@ -71,7 +71,9 @@ impl TypeMetadata {
                 width: *width,
                 signed: *signed,
             }),
-            Type::Float { width } => Some(PrimitiveType::Float { width: *width }),
+            Type::Float(float_type) => Some(PrimitiveType::Float {
+                width: float_type.width(),
+            }),
             _ => None,
         }
     }

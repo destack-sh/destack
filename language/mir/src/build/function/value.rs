@@ -1,7 +1,8 @@
 use crate::build::FunctionBuilder;
 use crate::{
     AtomicAccess, AtomicRmwOperator, BinaryOperator, CastOperator, CompareExchangeAccess, Constant,
-    FenceAccess, Instruction, Intrinsic, LocalNodeId, Type, UnaryOperator, Value, ValueReference,
+    FenceAccess, FloatType, Instruction, Intrinsic, LocalNodeId, Type, UnaryOperator, Value,
+    ValueReference,
 };
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
@@ -78,9 +79,12 @@ impl<'a> FunctionBuilder<'a> {
             destination: destination.into(),
             value: Constant::Float { bits, width },
         });
-        let ty_id = self.tree.insert_type(Type::Float {
-            width: width.into(),
-        });
+        let float_type = match width {
+            32 => FloatType::Float32,
+            64 => FloatType::Float64,
+            _ => panic!("unsupported float width: {width}"),
+        };
+        let ty_id = self.tree.insert_type(Type::Float(float_type));
         self.define_value(destination, ty_id);
         destination
     }

@@ -1,8 +1,8 @@
 use destack_core::StringId;
 
 use crate::{
-    AddressSpace, Attribute, Copy, Field, LocalNodeId, Mutability, ReferenceKind, TensorDimension,
-    TensorLayout, Type, TypeReference,
+    AddressSpace, Attribute, Copy, Field, FloatType, LocalNodeId, Mutability, ReferenceKind,
+    TensorDimension, TensorLayout, Type, TypeReference,
 };
 
 /// Interning key for struct fields.
@@ -43,7 +43,7 @@ pub(super) enum TypeKey {
     /// Pointer-sized unsigned integer.
     Usize,
     /// Floating point.
-    Float { width: u16 },
+    Float(FloatType),
     /// Runtime type descriptor.
     TypeDescriptor,
     /// Runtime type id.
@@ -129,7 +129,7 @@ impl TypeKey {
             },
             Type::Isize => TypeKey::Isize,
             Type::Usize => TypeKey::Usize,
-            Type::Float { width } => TypeKey::Float { width: *width },
+            Type::Float(float_type) => TypeKey::Float(*float_type),
             Type::TypeDescriptor => TypeKey::TypeDescriptor,
             Type::TypeId => TypeKey::TypeId,
             Type::Atomic { value } => TypeKey::Atomic { value: *value },

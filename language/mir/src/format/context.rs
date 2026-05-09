@@ -610,7 +610,7 @@ fn type_key_for_alias_inner(
         }
         Type::Isize => "isize".to_string(),
         Type::Usize => "usize".to_string(),
-        Type::Float { width } => format!("float{width}"),
+        Type::Float(float_type) => format!("float{}", float_type.width()),
         Type::TypeDescriptor => "typeDescriptor".to_string(),
         Type::TypeId => "typeId".to_string(),
         Type::Atomic { value } => {

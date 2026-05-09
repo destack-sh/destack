@@ -206,9 +206,7 @@ fn format_type_inner<'a>(
         }
         Type::Isize => write!(f, [token("isize")]),
         Type::Usize => write!(f, [token("usize")]),
-        Type::Float { width } => {
-            write!(f, [text(&format!("float{width}"))])
-        }
+        Type::Float(float_type) => write!(f, [text(&format!("float{}", float_type.width()))]),
         Type::TypeDescriptor => write!(f, [token("typeDescriptor")]),
         Type::TypeId => write!(f, [token("typeId")]),
         Type::Atomic { value } => {
