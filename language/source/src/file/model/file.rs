@@ -7,9 +7,9 @@ use serde::{Deserialize, Serialize};
 use super::hash::{stable_source_id, stable_source_path};
 use crate::{FileType, Span, Uri};
 
-const FILE_LOGICAL_ID_DOMAIN: &[u8] = b"destack.source.file.logical.v1";
-const FILE_SOURCE_ID_DOMAIN: &[u8] = b"destack.source.file.source.v1";
-const FILE_CONTENT_ID_DOMAIN: &[u8] = b"destack.source.file.content.v1";
+const FILE_LOGICAL_DOMAIN: &[u8] = b"destack.source.file.logical.v1";
+const FILE_SOURCE_DOMAIN: &[u8] = b"destack.source.file.source.v1";
+const FILE_CONTENT_DOMAIN: &[u8] = b"destack.source.file.content.v1";
 
 /// The id of a File.
 #[repr(transparent)]
@@ -30,9 +30,6 @@ impl std::fmt::Display for FileId {
 }
 
 impl FileId {
-    /// Well-known ID for ephemeral files.
-    pub const EPHEMERAL: Self = Self(0);
-
     /// Turn a raw id into a FileId.
     pub const fn new(id: u128) -> Self {
         Self(id)
@@ -41,10 +38,10 @@ impl FileId {
     /// Create a file id from one logical source path string.
     ///
     /// This should be one repository or import relative path for physical files,
-    /// or one explicit namespaced synthetic path for virtual files.
+    /// or one explicit logical path for virtual files.
     pub fn from_logical_str(path: &str) -> Self {
         let path = path.replace('\\', "/");
-        Self(stable_source_id(FILE_LOGICAL_ID_DOMAIN, &[path.as_bytes()]))
+        Self(stable_source_id(FILE_LOGICAL_DOMAIN, &[path.as_bytes()]))
     }
 
     /// Create a file id from one logical source path.
@@ -56,7 +53,7 @@ impl FileId {
 
     /// Create a file id from one explicit source payload.
     pub fn from_source_bytes(bytes: &[u8]) -> Self {
-        let id = stable_source_id(FILE_SOURCE_ID_DOMAIN, &[bytes]);
+        let id = stable_source_id(FILE_SOURCE_DOMAIN, &[bytes]);
         let id = if id == 0 { 1 } else { id };
 
         Self(id)
@@ -126,7 +123,7 @@ impl FileContentId {
     /// Build one content id from one exact text payload.
     pub fn for_text(content: &str) -> Self {
         let mut hasher = StableHasher::new();
-        hasher.update_len_prefixed(FILE_CONTENT_ID_DOMAIN);
+        hasher.update_len_prefixed(FILE_CONTENT_DOMAIN);
 
         hasher.update(&[0]);
         hasher.update_len_prefixed(content.as_bytes());
@@ -137,7 +134,7 @@ impl FileContentId {
     /// Build one content id from one exact binary payload.
     pub fn for_binary(content: &[u8]) -> Self {
         let mut hasher = StableHasher::new();
-        hasher.update_len_prefixed(FILE_CONTENT_ID_DOMAIN);
+        hasher.update_len_prefixed(FILE_CONTENT_DOMAIN);
 
         hasher.update(&[1]);
         hasher.update_len_prefixed(content);
@@ -200,8 +197,10 @@ impl FileContentEntry {
 impl File {
     /// Create an empty source in some format.
     pub fn empty_text(ty: FileType) -> Self {
+        let file_id = FileId::from_logical_str("<empty>");
+
         Self::from_text(
-            FileId::EPHEMERAL,
+            file_id,
             "<empty>".to_string(),
             Uri::from_string("<empty>"),
             None,

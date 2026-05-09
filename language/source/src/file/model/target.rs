@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use super::hash::stable_source_id;
 use crate::PackageId;
 
-const TARGET_KEY_DOMAIN: &[u8] = b"destack.source.target.v1";
+const TARGET_DOMAIN: &[u8] = b"destack.source.target.v1";
 
 /// Stable key for one target within a package.
 #[repr(transparent)]
@@ -58,7 +58,7 @@ impl TargetId {
         Self {
             package_id,
             target_key: TargetKey::new(stable_source_id(
-                TARGET_KEY_DOMAIN,
+                TARGET_DOMAIN,
                 &[name.as_ref().as_bytes()],
             )),
         }
