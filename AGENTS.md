@@ -68,7 +68,7 @@ else {
 - Avoid single-letter variables unless obvious (`i`, `x`, `Vector.x` are fine).
 - Booleans should start with `is_` unless already clear (or otherwise required by context).
 - Abstraction sludge names like "seam", "lane", "parts", "info", "factory", "semantics", "data", "inner", "wrapper", .. and friends are to be treated with high suspicion and are almost certainly wrong.
-- The same logic applies for module and file names too: single part file names are clearer while "support" and "utils" are sludgy
+- The same logic applies for module and file names too: single part file names are clearer while "support", "helper" and "utils" are sludgy
 
 ### Logic
 
