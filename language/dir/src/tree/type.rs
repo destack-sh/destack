@@ -258,6 +258,11 @@ pub enum TypeExpression {
         target_type: LocalNodeId<TypeExpression>,
     },
 
+    /// `shared T`.
+    Shared {
+        target_type: LocalNodeId<TypeExpression>,
+    },
+
     /// `keyof T`.
     KeyOf {
         target_type: LocalNodeId<TypeExpression>,
@@ -319,12 +324,30 @@ pub enum TypeExpression {
         else_type: LocalNodeId<TypeExpression>,
     },
 
+    /// Key membership relation.
+    In {
+        left: LocalNodeId<TypeExpression>,
+        right: LocalNodeId<TypeExpression>,
+    },
+
+    /// Assignability relation.
+    Extends {
+        left: LocalNodeId<TypeExpression>,
+        right: LocalNodeId<TypeExpression>,
+    },
+
+    /// Explicit conformance relation.
+    Implements {
+        left: LocalNodeId<TypeExpression>,
+        right: LocalNodeId<TypeExpression>,
+    },
+
     /// Mapped type.
     Mapped {
         parameter: TypeMappedParameter,
         readonly: MappedTypeModifier,
         optional: MappedTypeModifier,
-        value: LocalNodeId<TypeExpression>,
+        value: Option<LocalNodeId<TypeExpression>>,
     },
 
     /// Indexed access type.

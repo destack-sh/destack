@@ -511,11 +511,13 @@ pub enum ReferenceType {
     Reference,
 }
 
-/// A Mutability is the mutability of a binding (const or mutable).
+/// A Mutability is a const, mutable, or exclusive access qualifier.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Mutability {
     /// Cannot be modified (incl. inner even if they are mutable).
     Immutable,
-    /// May be modified (incl. inner if they are also mutable).
+    /// May be modified when the target is mutable.
     Mutable,
+    /// May be modified through exclusive access.
+    Exclusive,
 }

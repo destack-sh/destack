@@ -118,10 +118,10 @@ pub enum BinaryOperator {
 }
 
 /// An AssignOperator is an assignment type.
-/// Relative order matches precedence. Also see OperatorPrecedence.
+/// All assignment operators share one right-associative precedence.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AssignOperator {
-    // assignment multiplication
+    // multiplication assignment
     /// `*=`
     MultiplyAssign,
     /// `*%=`
@@ -139,7 +139,7 @@ pub enum AssignOperator {
     /// `%=`
     RemainderAssign,
 
-    // assignment addition
+    // addition assignment
     /// `+=`
     AddAssign,
     /// `+%=`
@@ -153,7 +153,7 @@ pub enum AssignOperator {
     /// `-|=`
     SaturatingSubtractAssign,
 
-    // assignment shift
+    // shift assignment
     /// `<<=`
     ShiftLeftAssign,
     /// `<<|=`
@@ -163,7 +163,7 @@ pub enum AssignOperator {
     /// `>>>=`
     UnsignedShiftRightAssign,
 
-    // assignment elementwise
+    // elementwise assignment
     /// `&=`
     ElementwiseAndAssign,
     /// `^=`
@@ -171,7 +171,7 @@ pub enum AssignOperator {
     /// `|=`
     ElementwiseOrAssign,
 
-    // assignment boolean
+    // logical assignment
     /// `&&=`
     AndAssign,
     /// `||=`

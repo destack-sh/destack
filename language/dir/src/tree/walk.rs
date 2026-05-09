@@ -341,6 +341,9 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
         TypeExpression::Readonly {
             target_type: right, ..
         }
+        | TypeExpression::Shared {
+            target_type: right, ..
+        }
         | TypeExpression::KeyOf {
             target_type: right, ..
         }
@@ -400,6 +403,15 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
             let else_node = tree.get(*else_type);
             visitor.visit_type_expression(tree, *else_type, else_node);
         }
+        TypeExpression::In { left, right }
+        | TypeExpression::Extends { left, right }
+        | TypeExpression::Implements { left, right } => {
+            let left_node = tree.get(*left);
+            visitor.visit_type_expression(tree, *left, left_node);
+
+            let right_node = tree.get(*right);
+            visitor.visit_type_expression(tree, *right, right_node);
+        }
         TypeExpression::Mapped {
             parameter,
             readonly: _,
@@ -414,8 +426,10 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_type_expression(tree, key_remap, key_remap_node);
             }
 
-            let value_node = tree.get(*value);
-            visitor.visit_type_expression(tree, *value, value_node);
+            if let Some(value) = value {
+                let value_node = tree.get(*value);
+                visitor.visit_type_expression(tree, *value, value_node);
+            }
         }
         TypeExpression::TemplateLiteral { strings: _, spans } => {
             for span_id in spans {
@@ -662,6 +676,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             Expression::Let {
                 export: _,
                 is_ambient: _,
+                is_shared: _,
                 mutability: _,
                 declarators,
             } => {
