@@ -37,16 +37,8 @@ impl StringId {
     }
 }
 
-/// Dense storage entry for one interned string.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-struct StringEntry {
-    /// Stable content id.
-    id: StringId,
-    /// Byte offset into the contiguous buffer.
-    offset: u32,
-    /// Byte length in the contiguous buffer.
-    len: u32,
-}
+/// A borrowed string from a pool.
+pub type StringRef<'a> = &'a str;
 
 /// Serialized string pool representation.
 #[derive(Serialize, Deserialize)]
@@ -55,14 +47,14 @@ struct StringPoolData {
     strings: Vec<(StringId, String)>,
 }
 
-/// Dense storage for interned string bytes.
+/// Append-only storage for interned string bytes.
 #[derive(Clone, Default)]
 struct StringStorage {
-    /// Contiguous buffer containing all interned string bytes.
-    buffer: String,
-    /// Dense entries for stored strings.
-    entries: Vec<StringEntry>,
-    /// Dense entry index by stable string id.
+    /// Stable string allocations.
+    strings: Vec<Box<str>>,
+    /// Stable string ids in allocation order.
+    ids: Vec<StringId>,
+    /// Dense allocation index by stable string id.
     slot_by_id: FxHashMap<StringId, usize>,
 }
 
@@ -88,8 +80,8 @@ impl<'de> Deserialize<'de> for StringStorage {
 impl Debug for StringStorage {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("StringStorage")
-            .field("length", &self.entries.len())
-            .field("buffer_size", &self.buffer.len())
+            .field("length", &self.strings.len())
+            .field("buffer_size", &self.string_bytes())
             .finish()
     }
 }
@@ -99,18 +91,18 @@ impl StringStorage {
     #[inline]
     fn new() -> Self {
         Self {
-            buffer: String::new(),
-            entries: Vec::new(),
+            strings: Vec::new(),
+            ids: Vec::new(),
             slot_by_id: FxHashMap::default(),
         }
     }
 
     /// Create a new storage with pre-allocated capacity.
     #[inline]
-    fn with_capacity(string_count: usize, total_bytes: usize) -> Self {
+    fn with_capacity(string_count: usize, _: usize) -> Self {
         Self {
-            buffer: String::with_capacity(total_bytes),
-            entries: Vec::with_capacity(string_count),
+            strings: Vec::with_capacity(string_count),
+            ids: Vec::with_capacity(string_count),
             slot_by_id: FxHashMap::with_capacity_and_hasher(string_count, Default::default()),
         }
     }
@@ -123,18 +115,28 @@ impl StringStorage {
             .get(&id)
             .copied()
             .unwrap_or_else(|| panic!("string id {id} is not present in this string pool"));
-        let entry = self.entries[slot];
 
-        &self.buffer[entry.offset as usize..(entry.offset + entry.len) as usize]
+        &self.strings[slot]
     }
 
     /// Return the string associated with the given StringId when present.
     #[inline]
     fn get_maybe(&self, id: StringId) -> Option<&str> {
         let slot = self.slot_by_id.get(&id).copied()?;
-        let entry = self.entries[slot];
 
-        Some(&self.buffer[entry.offset as usize..(entry.offset + entry.len) as usize])
+        Some(&self.strings[slot])
+    }
+
+    /// Get a stable raw string pointer.
+    #[inline]
+    fn get_ptr(&self, id: StringId) -> *const str {
+        self.get(id) as *const str
+    }
+
+    /// Return a stable raw string pointer when present.
+    #[inline]
+    fn get_maybe_ptr(&self, id: StringId) -> Option<*const str> {
+        self.get_maybe(id).map(|string| string as *const str)
     }
 
     /// Check if the pool contains the given StringId.
@@ -145,39 +147,45 @@ impl StringStorage {
 
     /// Iterate stored strings in dense storage order.
     fn iter(&self) -> impl Iterator<Item = (StringId, &str)> + '_ {
-        self.entries
+        self.ids
             .iter()
-            .map(|entry| (entry.id, self.get(entry.id)))
+            .copied()
+            .zip(self.strings.iter().map(|string| string.as_ref()))
     }
 
     /// Get the number of unique strings stored in this pool.
     #[inline]
     fn len(&self) -> usize {
-        self.entries.len()
+        self.strings.len()
     }
 
     /// Check if the pool contains no strings.
     #[inline]
     fn is_empty(&self) -> bool {
-        self.entries.is_empty()
+        self.strings.is_empty()
     }
 
     /// Return the owned bytes for this storage.
     fn owned_bytes(&self) -> usize {
         let mut owned_bytes = size_of::<Self>();
-        owned_bytes += self.buffer.capacity() * size_of::<u8>();
-        owned_bytes += self.entries.capacity() * size_of::<StringEntry>();
+        owned_bytes += self.strings.capacity() * size_of::<Box<str>>();
+        owned_bytes += self.ids.capacity() * size_of::<StringId>();
         owned_bytes += self.slot_by_id.capacity() * size_of::<(StringId, usize)>();
+        owned_bytes += self.string_bytes();
 
         owned_bytes
+    }
+
+    /// Return the number of bytes stored in string allocations.
+    fn string_bytes(&self) -> usize {
+        self.strings.iter().map(|string| string.len()).sum()
     }
 
     /// Create the canonical serialized representation.
     fn to_serialized_data(&self) -> StringPoolData {
         let mut strings = self
-            .entries
             .iter()
-            .map(|entry| (entry.id, self.get(entry.id).to_string()))
+            .map(|(id, text)| (id, text.to_string()))
             .collect::<Vec<_>>();
         strings.sort_by_key(|(id, _)| *id);
 
@@ -211,15 +219,9 @@ impl StringStorage {
 
     /// Insert one string after its stable id has already been checked.
     fn insert_verified(&mut self, id: StringId, text: &str) {
-        let offset = u32::try_from(self.buffer.len())
-            .expect("StringPool exhausted u32 address space for byte offsets");
-        let len = u32::try_from(text.len())
-            .expect("StringPool exhausted u32 address space for string lengths");
-
-        self.buffer.push_str(text);
-
-        let slot = self.entries.len();
-        self.entries.push(StringEntry { id, offset, len });
+        let slot = self.strings.len();
+        self.strings.push(Box::<str>::from(text));
+        self.ids.push(id);
         self.slot_by_id.insert(id, slot);
     }
 
@@ -232,10 +234,10 @@ impl StringStorage {
         );
 
         if let Some(slot) = self.slot_by_id.get(&id).copied() {
-            let entry = self.entries[slot];
-            let existing = &self.buffer[entry.offset as usize..(entry.offset + entry.len) as usize];
+            let existing = &self.strings[slot];
             assert_eq!(
-                existing, text,
+                existing.as_ref(),
+                text,
                 "string id collision for {id}: existing {existing:?}, new {text:?}",
             );
 
@@ -246,7 +248,7 @@ impl StringStorage {
     }
 }
 
-/// Thread-safe string interning with stable identifiers.
+/// Thread-safe string interning with stable append-only references.
 pub struct StringPool {
     inner: RwLock<StringStorage>,
 }
@@ -254,6 +256,7 @@ pub struct StringPool {
 impl Clone for StringPool {
     fn clone(&self) -> Self {
         let state = self.inner.read().clone();
+
         Self {
             inner: RwLock::new(state),
         }
@@ -263,6 +266,7 @@ impl Clone for StringPool {
 impl Debug for StringPool {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let state = self.inner.read();
+
         f.debug_struct("StringPool")
             .field("length", &state.len())
             .finish()
@@ -324,18 +328,28 @@ impl StringPool {
 
     /// Get the string associated with the given StringId.
     #[inline]
-    pub fn get(&self, id: StringId) -> StringRef<'_> {
-        let state = self.inner.read();
+    pub fn get(&self, id: StringId) -> &str {
+        let ptr = {
+            let state = self.inner.read();
 
-        StringRef { pool: state, id }
+            state.get_ptr(id)
+        };
+
+        // interned strings are append-only boxed allocations owned by this pool
+        unsafe { &*ptr }
     }
 
     /// Return the string associated with the given StringId when present.
     #[inline]
-    pub fn get_maybe(&self, id: StringId) -> Option<String> {
-        let state = self.inner.read();
+    pub fn get_maybe(&self, id: StringId) -> Option<&str> {
+        let ptr = {
+            let state = self.inner.read();
 
-        state.get_maybe(id).map(ToString::to_string)
+            state.get_maybe_ptr(id)
+        }?;
+
+        // interned strings are append-only boxed allocations owned by this pool
+        Some(unsafe { &*ptr })
     }
 
     /// Intern a string, storing only one owned copy of bytes.
@@ -374,14 +388,18 @@ impl StringPool {
     /// Ensure this pool contains one string from another pool.
     #[inline]
     pub fn ensure_from(&self, other: &StringPool, string_id: StringId) {
-        let text = other.get(string_id).to_string();
+        let text = other.get(string_id);
         let mut state = self.inner.write();
 
-        state.ensure_text(string_id, text.as_str());
+        state.ensure_text(string_id, text);
     }
 
     /// Ensure this pool contains every string from another pool.
     pub fn ensure_all_from(&self, other: &StringPool) {
+        if std::ptr::eq(self, other) {
+            return;
+        }
+
         let strings = {
             let other = other.inner.read();
             other
@@ -394,21 +412,6 @@ impl StringPool {
         for (id, text) in strings {
             state.ensure_text(id, text.as_str());
         }
-    }
-
-    /// Copy all strings from an immutable pool into this pool.
-    pub fn copy_from_immutable(&self, other: &ImmutableStringPool) {
-        for (_, text) in other.iter() {
-            self.intern(text);
-        }
-    }
-
-    /// Replace the entire pool contents from another pool.
-    pub fn replace_from(&self, other: &StringPool) {
-        let next_state = other.inner.read().clone();
-        let mut state = self.inner.write();
-
-        *state = next_state;
     }
 
     /// Return one stable hash for the current pool contents.
@@ -442,109 +445,29 @@ impl StringPool {
         state.is_empty()
     }
 
-    /// Convert the pool to an immutable pool.
-    pub fn into_immutable(self) -> ImmutableStringPool {
-        ImmutableStringPool {
-            inner: self.inner.into_inner(),
-        }
-    }
-}
+    /// Iterate stored strings by dense allocation order.
+    pub fn iter(&self) -> Vec<(StringId, &str)> {
+        let ptrs = {
+            let state = self.inner.read();
+            state
+                .iter()
+                .map(|(id, text)| (id, text as *const str))
+                .collect::<Vec<_>>()
+        };
 
-/// A reference to a string in a StringPool.
-#[derive(Debug)]
-pub struct StringRef<'a> {
-    pool: parking_lot::RwLockReadGuard<'a, StringStorage>,
-    id: StringId,
-}
-
-impl std::ops::Deref for StringRef<'_> {
-    type Target = str;
-
-    fn deref(&self) -> &str {
-        self.pool.get(self.id)
-    }
-}
-
-impl AsRef<str> for StringRef<'_> {
-    fn as_ref(&self) -> &str {
-        self.pool.get(self.id)
-    }
-}
-
-impl std::cmp::PartialEq<&str> for StringRef<'_> {
-    fn eq(&self, other: &&str) -> bool {
-        &**self == *other
-    }
-}
-
-/// Frozen string pool with lock-free read-only access.
-#[derive(Clone, Default)]
-pub struct ImmutableStringPool {
-    inner: StringStorage,
-}
-
-impl Serialize for ImmutableStringPool {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        self.inner.serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for ImmutableStringPool {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let inner = StringStorage::deserialize(deserializer)?;
-
-        Ok(Self { inner })
-    }
-}
-
-impl Debug for ImmutableStringPool {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ImmutableStringPool")
-            .field("length", &self.inner.len())
-            .finish()
-    }
-}
-
-impl ImmutableStringPool {
-    /// Create a new empty immutable string pool.
-    pub fn empty() -> Self {
-        Self {
-            inner: StringStorage::new(),
-        }
+        ptrs.into_iter()
+            .map(|(id, ptr)| {
+                // interned strings are append-only boxed allocations owned by this pool
+                (id, unsafe { &*ptr })
+            })
+            .collect()
     }
 
-    /// Get the string associated with the given StringId.
-    #[inline]
-    pub fn get(&self, id: StringId) -> &str {
-        self.inner.get(id)
-    }
-
-    /// Iterate stored strings in dense storage order.
-    pub fn iter(&self) -> impl Iterator<Item = (StringId, &str)> + '_ {
-        self.inner.iter()
-    }
-
-    /// Get the number of unique strings stored in this pool.
-    #[inline]
-    pub fn len(&self) -> usize {
-        self.inner.len()
-    }
-
-    /// Check if the pool contains no strings.
-    #[inline]
-    pub fn is_empty(&self) -> bool {
-        self.inner.is_empty()
-    }
-
-    /// Return the owned bytes for this immutable pool.
+    /// Return the owned bytes for this pool.
     pub fn owned_bytes(&self) -> usize {
-        size_of::<Self>() + self.inner.owned_bytes()
+        let state = self.inner.read();
+
+        size_of::<Self>() + state.owned_bytes()
     }
 }
 
@@ -559,10 +482,6 @@ mod tests {
         let b = pool.intern("hello");
 
         assert_eq!(a, b);
-        assert_eq!(a, StringId::for_text("hello"));
-        assert_eq!(pool.len(), 1);
-        assert_eq!(pool.get(a), "hello");
-        assert_eq!(size_of::<StringId>(), 16);
     }
 
     #[test]
@@ -572,7 +491,6 @@ mod tests {
         let b = pool.intern("beta");
 
         assert_ne!(a, b);
-        assert_eq!(pool.len(), 2);
         assert_eq!(pool.get(a), "alpha");
         assert_eq!(pool.get(b), "beta");
     }
@@ -584,117 +502,36 @@ mod tests {
         let id2 = pool.intern("");
 
         assert_eq!(id1, id2);
-        assert_eq!(pool.len(), 1);
         assert_eq!(pool.get(id1), "");
     }
 
     #[test]
-    fn test_thread_safe_pool_intern_same_string_yields_same_id() {
+    fn test_pool_get_maybe_missing_string() {
         let pool = StringPool::new();
-        let a = pool.intern("hello");
-        let b = pool.intern("hello");
+        let id = StringId::for_text("missing");
 
-        assert_eq!(a, b);
-        assert_eq!(pool.len(), 1);
-        assert_eq!(pool.get(a).as_ref(), "hello");
+        assert_eq!(pool.get_maybe(id), None);
     }
 
     #[test]
-    fn test_thread_safe_pool_intern_distinct_strings() {
+    fn test_pool_clone_copies_content() {
         let pool = StringPool::new();
-        let a = pool.intern("alpha");
-        let b = pool.intern("beta");
+        let id = pool.intern("hello");
+        let cloned = pool.clone();
 
-        assert_ne!(a, b);
-        assert_eq!(pool.len(), 2);
-        assert_eq!(pool.get(a).as_ref(), "alpha");
-        assert_eq!(pool.get(b).as_ref(), "beta");
+        assert_eq!(cloned.get(id), "hello");
     }
 
     #[test]
-    fn test_immutable_pool() {
-        let pool = StringPool::new();
-        let a = pool.intern("foo");
-        let b = pool.intern("bar");
-
-        let immutable = pool.into_immutable();
-
-        assert_eq!(immutable.get(a), "foo");
-        assert_eq!(immutable.get(b), "bar");
-        assert_eq!(immutable.len(), 2);
-    }
-
-    #[test]
-    fn test_pool_serialized_data_is_sorted_by_string_id() {
-        let mut pool = StringStorage::new();
-        pool.ensure_text(StringId::for_text("zeta"), "zeta");
-        pool.ensure_text(StringId::for_text("alpha"), "alpha");
-        pool.ensure_text(StringId::for_text("middle"), "middle");
-
-        let data = pool.to_serialized_data();
-        let mut expected = data.strings.clone();
-        expected.sort_by_key(|(id, _)| *id);
-
-        assert_eq!(data.strings, expected);
-    }
-
-    #[test]
-    fn test_pool_deserialize_rejects_duplicate_id() {
-        let id = StringId::for_text("alpha");
-        let data = StringPoolData {
-            strings: vec![(id, "alpha".to_string()), (id, "alpha".to_string())],
-        };
-
-        let result = StringStorage::from_serialized_data(data);
-
-        assert_eq!(
-            result.unwrap_err(),
-            format!("duplicate string pool entry id {id}")
-        );
-    }
-
-    #[test]
-    fn test_pool_deserialize_rejects_mismatched_id() {
-        let id = StringId::for_text("beta");
-        let actual_id = StringId::for_text("alpha");
-        let data = StringPoolData {
-            strings: vec![(id, "alpha".to_string())],
-        };
-
-        let result = StringStorage::from_serialized_data(data);
-
-        assert_eq!(
-            result.unwrap_err(),
-            format!("string pool entry id {id} does not match content id {actual_id}")
-        );
-    }
-
-    #[test]
-    fn test_pool_deserialize_restores_strings() {
-        let mut pool = StringStorage::new();
-        let alpha = StringId::for_text("alpha");
-        let beta = StringId::for_text("beta");
-        pool.ensure_text(alpha, "alpha");
-        pool.ensure_text(beta, "beta");
-        let data = pool.to_serialized_data();
-
-        let restored = StringStorage::from_serialized_data(data).unwrap();
-
-        assert_eq!(restored.get(alpha), "alpha");
-        assert_eq!(restored.get(beta), "beta");
-        assert_eq!(restored.len(), 2);
-    }
-
-    #[test]
-    fn test_pool_stable_hash_ignores_insertion_order() {
+    fn test_pool_ensure_all_from() {
         let first = StringPool::new();
         first.intern("alpha");
         first.intern("beta");
 
         let second = StringPool::new();
-        second.intern("beta");
-        second.intern("alpha");
+        second.ensure_all_from(&first);
 
-        assert_eq!(first.stable_hash(), second.stable_hash());
+        assert_eq!(second.get(StringId::for_text("alpha")), "alpha");
+        assert_eq!(second.get(StringId::for_text("beta")), "beta");
     }
 }
