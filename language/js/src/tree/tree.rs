@@ -251,7 +251,7 @@ impl Tree {
         T: Node,
         Self: TreeImpl<T>,
         U: dir::Node,
-        dir::Tree: dir::TreeImpl<U>,
+        dir::Tree: dir::TreeStore<U>,
     {
         let node_id = self.insert(node, module_id);
         self.source_id_by_node_id.push(dir_node_id.id);

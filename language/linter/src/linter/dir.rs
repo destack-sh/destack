@@ -63,7 +63,7 @@ pub struct LintModuleDirContext<'a> {
     /// The DIR string pool.
     pub strings: &'a StringPool,
     /// The symbol table.
-    pub symbols: &'a dir::SymbolTable,
+    pub symbols: &'a dir::BindingTable,
     /// The type table.
     pub types: &'a dir::TypeTable,
     /// The top-level expressions of the Module.
@@ -111,7 +111,7 @@ impl<'a> LintModuleDirContext<'a> {
         declared: &'a DirDeclared,
         expanded: &'a DirExpanded,
         strings: &'a StringPool,
-        symbols: &'a dir::SymbolTable,
+        symbols: &'a dir::BindingTable,
         types: &'a dir::TypeTable,
         roots: Vec<dir::LocalNodeId<dir::Expression>>,
         namespace_symbol: dir::LocalSymbolId,
@@ -132,7 +132,7 @@ impl<'a> LintModuleDirContext<'a> {
             file,
             ast,
             tree: &declared.tree,
-            view: dir::View::patched(&declared.tree, &expanded.patch),
+            view: dir::View::with_patches(&declared.tree, std::slice::from_ref(&expanded.patch)),
             strings,
             symbols,
             types,
@@ -515,7 +515,7 @@ impl<'a> LintModuleDirContext<'a> {
         }
 
         let name = self.strings.get(path.segments[0]);
-        let (severity, is_forbidden) = match name.as_ref() {
+        let (severity, is_forbidden) = match name {
             "allow" => (LintSeverity::Off, false),
             "warn" => (LintSeverity::Warning, false),
             "deny" => (LintSeverity::Error, false),
@@ -540,7 +540,7 @@ impl<'a> LintModuleDirContext<'a> {
 
         // match against lint ID or code
         let specifier = self.strings.get(*string_id);
-        if specifier.as_ref() == meta.id || specifier.as_ref() == meta.code {
+        if specifier == meta.id || specifier == meta.code {
             Some(LintSeverityOverride {
                 severity,
                 is_forbidden,

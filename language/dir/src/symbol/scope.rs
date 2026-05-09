@@ -8,13 +8,17 @@ use crate::{LocalSymbolId, StaticKey};
 /// The kind of a scope.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum ScopeKind {
-    /// Namespace.
+    /// Module root.
+    Module,
+    /// Namespace declaration or object declaration surface.
     Namespace,
-    /// Type.
+    /// Function body and parameter surface.
+    Function,
+    /// Type expression or declaration surface.
     Type,
     /// Conditional type infer scope.
     TypeConditional,
-    /// Block.
+    /// Block expression or statement surface.
     Block,
 }
 
@@ -100,7 +104,16 @@ impl LocalScopeMark {
     }
 }
 
-/// A Scope is a container for symbols.
+/// One binding entry in lexical order.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ScopeBinding {
+    /// The binding key.
+    pub key: Option<StaticKey>,
+    /// The bound symbol.
+    pub symbol: LocalSymbolId,
+}
+
+/// A lexical container for symbols.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Scope {
     /// The kind of the scope.
@@ -109,10 +122,10 @@ pub struct Scope {
     pub parent: Option<(LocalScopeId, LocalScopeMark)>,
     /// The owner of the scope.
     pub owner: Option<LocalSymbolId>,
-    /// The symbols in the scope.
-    pub named_symbols: Vec<(StaticKey, LocalSymbolId)>,
-    /// The anonymous symbols in the scope.
-    pub anonymous_symbols: Vec<LocalSymbolId>,
+
+    /// The bindings in lexical order.
+    pub bindings: Vec<ScopeBinding>,
+
     /// The children scopes.
     pub children: Vec<LocalScopeId>,
 }
@@ -126,20 +139,16 @@ impl Scope {
 
     /// Get the current scope mark.
     pub fn mark(&self) -> LocalScopeMark {
-        LocalScopeMark(self.named_symbols.len() as u32)
+        LocalScopeMark(self.bindings.len() as u32)
     }
 
     /// Insert a symbol into the scope.
     pub fn append(&mut self, key: Option<StaticKey>, symbol_id: LocalSymbolId) -> LocalScopeMark {
-        let mark = LocalScopeMark(self.named_symbols.len() as u32);
-        match key {
-            Some(key) => {
-                self.named_symbols.push((key, symbol_id));
-            }
-            None => {
-                self.anonymous_symbols.push(symbol_id);
-            }
-        }
+        let mark = LocalScopeMark(self.bindings.len() as u32);
+        self.bindings.push(ScopeBinding {
+            key,
+            symbol: symbol_id,
+        });
         mark
     }
 

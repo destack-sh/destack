@@ -31,12 +31,6 @@ impl Patch {
         }
     }
 
-    /// Return whether this patch applies to one base tree.
-    #[inline]
-    pub fn applies_to(&self, base: &Tree) -> bool {
-        self.module_id == base.module_id && self.tree.first_global_id() == base.next_global_id()
-    }
-
     /// Return the replacement node for one base node.
     #[inline]
     pub fn replacement_for(&self, node_id: LocalNodeIdAny) -> Option<LocalNodeIdAny> {

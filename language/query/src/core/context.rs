@@ -32,6 +32,8 @@ pub(crate) struct QueryContext {
     dir_exported: Arc<DirExported>,
     /// The checked module DIR.
     dir_checked: Arc<DirChecked>,
+    /// Shared repository strings.
+    strings: Arc<StringPool>,
     /// The revision used for this context.
     revision: Revision,
     /// The profile used for this context.
@@ -49,6 +51,8 @@ pub(crate) struct AstQueryContext<'a> {
     file_id: FileId,
     /// The module AST.
     ast: &'a Ast,
+    /// Shared repository strings.
+    strings: &'a StringPool,
 }
 
 impl<'a> AstQueryContext<'a> {
@@ -79,7 +83,7 @@ impl<'a> AstQueryContext<'a> {
 
     /// Return the module string pool.
     pub(crate) fn strings(self) -> &'a StringPool {
-        &self.ast.strings
+        self.strings
     }
 
     /// Return the main token stream for this file.
@@ -110,6 +114,8 @@ pub(crate) struct DirQueryContext<'a> {
     exported: &'a DirExported,
     /// The checked DIR artifact.
     checked: &'a DirChecked,
+    /// Shared repository strings.
+    strings: &'a StringPool,
 }
 
 impl<'a> DirQueryContext<'a> {
@@ -125,7 +131,10 @@ impl<'a> DirQueryContext<'a> {
 
     /// Return the visible DIR tree view.
     pub(crate) fn view(self) -> dir::View<'a> {
-        dir::View::patched(&self.declared.tree, &self.expanded.patch)
+        dir::View::with_patches(
+            &self.declared.tree,
+            std::slice::from_ref(&self.expanded.patch),
+        )
     }
 
     /// Return whether one DIR symbol is visible in this query view.
@@ -143,8 +152,8 @@ impl<'a> DirQueryContext<'a> {
     }
 
     /// Return the DIR symbol table.
-    pub(crate) fn symbols(self) -> &'a dir::SymbolTable {
-        &self.declared.symbols
+    pub(crate) fn symbols(self) -> &'a dir::BindingTable {
+        &self.declared.bindings
     }
 
     /// Return the DIR type table.
@@ -159,7 +168,7 @@ impl<'a> DirQueryContext<'a> {
 
     /// Return the DIR string pool.
     pub(crate) fn strings(self) -> &'a StringPool {
-        &self.declared.strings
+        self.strings
     }
 
     /// Return the namespace scope for this module.
@@ -220,6 +229,7 @@ impl QueryContext {
         AstQueryContext {
             file_id: self.file_id,
             ast: self.ast.as_ref(),
+            strings: self.strings.as_ref(),
         }
     }
 
@@ -233,6 +243,7 @@ impl QueryContext {
             expanded: self.dir_expanded.as_ref(),
             exported: self.dir_exported.as_ref(),
             checked: self.dir_checked.as_ref(),
+            strings: self.strings.as_ref(),
         }
     }
 
@@ -323,6 +334,7 @@ pub(crate) fn query_context_for_profile(
         dir_expanded,
         dir_exported,
         dir_checked,
+        strings: repository.string_pool().clone(),
         revision,
         profile_id: selected_profile,
         module_id: module.id,
@@ -390,6 +402,7 @@ pub(crate) fn with_ast_query_for_module<T>(
     let query = AstQueryContext {
         file_id: module.file_id,
         ast: ast.as_ref(),
+        strings: repository.string_pool().as_ref(),
     };
 
     Some(f(query))

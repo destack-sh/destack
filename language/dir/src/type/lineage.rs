@@ -62,19 +62,6 @@ impl Display for LocalLineageId {
 }
 
 /// The resolved inheritance lineage of a nominal type.
-///
-/// ### Example
-///
-/// ```text
-/// interface Printable { ... }
-/// class Animal { ... }
-/// class Dog extends Animal implements Printable { ... }
-/// ```
-///
-/// The lineage for `Dog` would be:
-/// - `extends: Some(AnimalSymbol)`
-/// - `implements: [PrintableSymbol]`
-/// - `embedded: []`
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Lineage {
     /// The extended parent type (single inheritance for classes).

@@ -1,36 +1,28 @@
 use indexmap::IndexSet;
 
 use crate::{
-    Decorator, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Node, NodeType, Patch,
-    Tree, TreeImpl,
+    Decorator, Documentation, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Node,
+    NodeType, Patch, Tree, TreeStore,
 };
 
-/// A borrowed DIR tree with an optional structural patch.
+/// A borrowed DIR tree with ordered structural patches.
 #[derive(Debug, Clone, Copy)]
 pub struct View<'a> {
     /// The base tree.
     tree: &'a Tree,
-    /// The optional structural patch.
-    patch: Option<&'a Patch>,
+    /// Ordered structural patch slice.
+    patches: &'a [Patch],
 }
 
 impl<'a> View<'a> {
     /// Create an unpatched view over one tree.
     pub fn new(tree: &'a Tree) -> Self {
-        Self { tree, patch: None }
+        Self { tree, patches: &[] }
     }
 
-    /// Create a patched view over one tree.
-    pub fn patched(tree: &'a Tree, patch: &'a Patch) -> Self {
-        assert!(
-            patch.applies_to(tree),
-            "DIR patch does not apply to base tree"
-        );
-
-        Self {
-            tree,
-            patch: Some(patch),
-        }
+    /// Create a view over one tree and ordered patches.
+    pub fn with_patches(tree: &'a Tree, patches: &'a [Patch]) -> Self {
+        Self { tree, patches }
     }
 
     /// Return the base tree.
@@ -39,10 +31,20 @@ impl<'a> View<'a> {
         self.tree
     }
 
-    /// Return the optional patch.
+    /// Return the next visible global node id.
     #[inline]
-    pub fn patch(&self) -> Option<&'a Patch> {
-        self.patch
+    pub fn next_global_id(&self) -> u32 {
+        if let Some(patch) = self.patches().last() {
+            patch.tree.next_global_id()
+        } else {
+            self.tree.next_global_id()
+        }
+    }
+
+    /// Return the ordered patches.
+    #[inline]
+    pub fn patches(&self) -> impl DoubleEndedIterator<Item = &'a Patch> + '_ {
+        self.patches.iter()
     }
 
     /// Return whether one node is visible in this view.
@@ -64,7 +66,7 @@ impl<'a> View<'a> {
     pub fn get<T>(&self, node_id: LocalNodeId<T>) -> &'a T
     where
         T: Node,
-        Tree: TreeImpl<T>,
+        Tree: TreeStore<T>,
     {
         let node_id = LocalNodeIdAny::new(node_id.id, T::TYPE);
         let (tree, node_id) = self
@@ -87,10 +89,12 @@ impl<'a> View<'a> {
     /// Get the visible parent for one erased node id.
     pub fn get_parent_any(&self, node_id: LocalNodeIdAny) -> Option<LocalNodeIdAny> {
         let (tree, node_id) = self.visible_node(node_id)?;
-        if let Some(patch) = self.patch
-            && let Some(parent) = patch.parent_for(node_id)
-        {
-            return parent.and_then(|parent| self.visible_node(parent).map(|(_, parent)| parent));
+
+        for patch in self.patches().rev() {
+            if let Some(parent) = patch.parent_for(node_id) {
+                return parent
+                    .and_then(|parent| self.visible_node(parent).map(|(_, parent)| parent));
+            }
         }
 
         let parent = tree.get_parent(node_id.id)?;
@@ -138,24 +142,27 @@ impl<'a> View<'a> {
 
     /// Get the visible node id associated with one source node id.
     pub fn get_node_id_by_source_id(&self, source_id: u32) -> Option<LocalNodeIdAny> {
+        for patch in self.patches().rev() {
+            let Some(node_id) = patch.tree.get_node_id_by_source_id(source_id) else {
+                continue;
+            };
+            if let Some((_, node_id)) = self.visible_node(node_id) {
+                return Some(node_id);
+            }
+        }
+
         let node_id = self.tree.get_node_id_by_source_id(source_id)?;
 
         self.visible_node(node_id).map(|(_, node_id)| node_id)
     }
 
     /// Get normalized documentation attached to one visible typed node.
-    pub fn get_documentation<T: Node>(
-        &self,
-        node_id: LocalNodeId<T>,
-    ) -> Option<&'a crate::Documentation> {
+    pub fn get_documentation<T: Node>(&self, node_id: LocalNodeId<T>) -> Option<&'a Documentation> {
         self.get_documentation_any(node_id.into_any())
     }
 
     /// Get normalized documentation attached to one visible erased node.
-    pub fn get_documentation_any(
-        &self,
-        node_id: LocalNodeIdAny,
-    ) -> Option<&'a crate::Documentation> {
+    pub fn get_documentation_any(&self, node_id: LocalNodeIdAny) -> Option<&'a Documentation> {
         let (tree, node_id) = self.visible_node(node_id)?;
 
         tree.get_documentation(node_id.id)
@@ -192,10 +199,13 @@ impl<'a> View<'a> {
             nodes.push(LocalNodeIdAny::new(node_id.id, node_type));
         }
 
-        // patch ids cover introduced nodes not represented by a base id
-        if let Some(patch) = self.patch {
-            let replacement_targets = patch.replacement_targets().collect::<IndexSet<_>>();
+        let replacement_targets = self
+            .patches()
+            .flat_map(|patch| patch.replacement_targets())
+            .collect::<IndexSet<_>>();
 
+        // patch ids cover introduced nodes not represented by a base id
+        for patch in self.patches() {
             for node_id in patch.tree.iter_node_ids() {
                 if replacement_targets.contains(&node_id) {
                     continue;
@@ -215,7 +225,7 @@ impl<'a> View<'a> {
     pub fn iter_node_ids_of_type<T>(&self) -> Vec<LocalNodeId<T>>
     where
         T: Node,
-        Tree: TreeImpl<T>,
+        Tree: TreeStore<T>,
     {
         self.iter_node_ids()
             .into_iter()
@@ -227,7 +237,7 @@ impl<'a> View<'a> {
     pub fn iter_nodes_of_type<T>(&self) -> impl Iterator<Item = (LocalNodeId<T>, &'a T)> + '_
     where
         T: Node + 'a,
-        Tree: TreeImpl<T>,
+        Tree: TreeStore<T>,
     {
         self.iter_node_ids_of_type::<T>()
             .into_iter()
@@ -240,33 +250,16 @@ impl<'a> View<'a> {
 
     /// Resolve one node id to its visible storage tree and node id.
     fn visible_node(&self, node_id: LocalNodeIdAny) -> Option<(&'a Tree, LocalNodeIdAny)> {
-        if let Some(patch) = self.patch
-            && patch.is_dead(node_id)
-        {
-            return None;
-        }
+        let node_id = self.resolve_replacement(node_id)?;
 
         if self.tree.has_node_id(node_id.id) && self.tree.is_inactive(node_id.id) {
             return None;
         }
 
-        if let Some(patch) = self.patch
-            && let Some(replacement) = patch.replacement_for(node_id)
-        {
-            if patch.is_dead(replacement) {
-                return None;
+        for patch in self.patches().rev() {
+            if !patch.has_node(node_id) {
+                continue;
             }
-
-            if patch.tree.has_node_id(replacement.id) && patch.tree.is_inactive(replacement.id) {
-                return None;
-            }
-
-            return Some((&patch.tree, replacement));
-        }
-
-        if let Some(patch) = self.patch
-            && patch.has_node(node_id)
-        {
             if patch.tree.is_inactive(node_id.id) {
                 return None;
             }
@@ -279,11 +272,32 @@ impl<'a> View<'a> {
             .then_some((self.tree, node_id))
     }
 
+    /// Resolve replacement chains for one node id.
+    fn resolve_replacement(&self, mut node_id: LocalNodeIdAny) -> Option<LocalNodeIdAny> {
+        loop {
+            let mut changed = false;
+            for patch in self.patches().rev() {
+                if patch.is_dead(node_id) {
+                    return None;
+                }
+                if let Some(replacement) = patch.replacement_for(node_id) {
+                    node_id = replacement;
+                    changed = true;
+                    break;
+                }
+            }
+            if !changed {
+                return Some(node_id);
+            }
+        }
+    }
+
     /// Build one erased node id from the visible storage containing it.
     fn node_id_any(&self, node_id: u32) -> LocalNodeIdAny {
-        if let Some(patch) = self.patch
-            && patch.tree.has_node_id(node_id)
-        {
+        for patch in self.patches().rev() {
+            if !patch.tree.has_node_id(node_id) {
+                continue;
+            }
             return LocalNodeIdAny::new(node_id, patch.tree.get_node_type(node_id));
         }
 
