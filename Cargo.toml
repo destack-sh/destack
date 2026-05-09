@@ -157,7 +157,7 @@ anyhow = "1.0.100"
 bumpalo = "3"
 capstone = "0.13.0"
 env_logger = "0.11"
-gimli = { version = "0.32.3", default-features = false }
+gimli = { version = "0.33.0", default-features = false }
 hashbrown = { version = "0.15", default-features = false }
 libc = "0.2"
 libm = "0.2.15"
