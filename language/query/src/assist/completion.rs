@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use destack_ast as ast;
 use destack_ast::Keyword;
-use destack_dir::{self as dir, FloatType, IntType, SymbolForm, SymbolSpace};
+use destack_dir::{self as dir, FloatType, IntegerType, SymbolForm, SymbolSpace};
 use destack_source::{Edit, File, FileId, FileType, Loader, ModuleId, PackageId, Uri};
 use destack_workspace::{Module, Repository, Revision};
 use serde::{Deserialize, Serialize};
@@ -1692,26 +1692,62 @@ fn primitive_type_completions() -> Vec<Completion> {
     ];
 
     for int_type in [
-        IntType::Int8,
-        IntType::Int16,
-        IntType::Int32,
-        IntType::Int64,
-        IntType::Int128,
-        IntType::Int256,
-        IntType::Isize,
-        IntType::Uint8,
-        IntType::Uint16,
-        IntType::Uint32,
-        IntType::Uint64,
-        IntType::Uint128,
-        IntType::Uint256,
-        IntType::Usize,
+        IntegerType::Fixed {
+            width: 8,
+            is_signed: true,
+        },
+        IntegerType::Fixed {
+            width: 16,
+            is_signed: true,
+        },
+        IntegerType::Fixed {
+            width: 32,
+            is_signed: true,
+        },
+        IntegerType::Fixed {
+            width: 64,
+            is_signed: true,
+        },
+        IntegerType::Fixed {
+            width: 128,
+            is_signed: true,
+        },
+        IntegerType::Fixed {
+            width: 256,
+            is_signed: true,
+        },
+        IntegerType::Pointer { is_signed: true },
+        IntegerType::Fixed {
+            width: 8,
+            is_signed: false,
+        },
+        IntegerType::Fixed {
+            width: 16,
+            is_signed: false,
+        },
+        IntegerType::Fixed {
+            width: 32,
+            is_signed: false,
+        },
+        IntegerType::Fixed {
+            width: 64,
+            is_signed: false,
+        },
+        IntegerType::Fixed {
+            width: 128,
+            is_signed: false,
+        },
+        IntegerType::Fixed {
+            width: 256,
+            is_signed: false,
+        },
+        IntegerType::Pointer { is_signed: false },
     ] {
         names.push(int_type.as_str());
     }
 
     for float_type in [FloatType::Float32, FloatType::Float64] {
-        names.push(float_type.as_str());
+        names.push(float_type.as_str().to_string());
     }
 
     let mut seen = HashSet::new();

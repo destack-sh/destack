@@ -542,9 +542,7 @@ fn primitive_members(
     let well_known = match value {
         TypeLiteral::Primitive(primitive) => match primitive {
             PrimitiveType::String => Some(WellKnownSymbol::String),
-            PrimitiveType::Number | PrimitiveType::Int(_) | PrimitiveType::Float(_) => {
-                Some(WellKnownSymbol::Number)
-            }
+            PrimitiveType::Integer(_) | PrimitiveType::Float(_) => Some(WellKnownSymbol::Number),
             PrimitiveType::Boolean => Some(WellKnownSymbol::Boolean),
             PrimitiveType::Bigint => Some(WellKnownSymbol::BigInt),
             PrimitiveType::Symbol | PrimitiveType::UniqueSymbol => Some(WellKnownSymbol::Symbol),
