@@ -54,8 +54,6 @@ pub enum Keyword {
     Const,
     /// Let expression.
     Let,
-    /// Var expression.
-    Var,
     /// Declare a namespace.
     Namespace,
     /// Declare a type.
@@ -80,8 +78,6 @@ pub enum Keyword {
     Declare,
     /// New expression.
     New,
-    /// Delete expression.
-    Delete,
     /// Constructor.
     Constructor,
 
@@ -258,7 +254,6 @@ impl Keyword {
             // declarations
             Keyword::Const => "const",
             Keyword::Let => "let",
-            Keyword::Var => "var",
             Keyword::Namespace => "namespace",
             Keyword::Type => "type",
             Keyword::Newtype => "newtype",
@@ -271,7 +266,6 @@ impl Keyword {
             Keyword::Extension => "extension",
             Keyword::Declare => "declare",
             Keyword::New => "new",
-            Keyword::Delete => "delete",
             Keyword::Constructor => "constructor",
 
             // typing
@@ -365,7 +359,6 @@ impl FromStr for Keyword {
             // declarations
             "const" => Ok(Keyword::Const),
             "let" => Ok(Keyword::Let),
-            "var" => Ok(Keyword::Var),
             "namespace" => Ok(Keyword::Namespace),
             "type" => Ok(Keyword::Type),
             "newtype" => Ok(Keyword::Newtype),
@@ -378,7 +371,6 @@ impl FromStr for Keyword {
             "extension" => Ok(Keyword::Extension),
             "declare" => Ok(Keyword::Declare),
             "new" => Ok(Keyword::New),
-            "delete" => Ok(Keyword::Delete),
             "constructor" => Ok(Keyword::Constructor),
 
             // typing

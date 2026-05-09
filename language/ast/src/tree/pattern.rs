@@ -18,7 +18,6 @@ use crate::{Expression, LocalNodeId, Mutability, Name, Node, NodeType, TypeExpre
 /// Success(_)
 /// Vector2 { x: 0, y, z: zed }
 /// geom.Mesh<2, float32> { vertices: [2, ...] }
-/// (var x, ...)
 /// { a: 2 }
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -44,7 +43,6 @@ pub enum Pattern {
     },
     /// Binding pattern (basically a PatternField, like `x`, `x: 4`, or `x: int32`).
     Binding {
-        mutability: Option<Mutability>,
         name: StringId,
         pattern: Option<LocalNodeId<Pattern>>,
     },
@@ -91,8 +89,6 @@ impl Node for Pattern {
 /// x: int32 // named
 /// x: y  // named alias
 /// 4     // positional
-/// var y // named explicit mutable
-/// const z // named explicit immutable
 /// x = 4 // named with default
 /// x: y = 4 // named with default and alias
 /// ... // spread
@@ -102,14 +98,12 @@ impl Node for Pattern {
 pub enum PatternField {
     /// Named field, maybe shorthand and maybe with a nested pattern.
     Named {
-        mutability: Option<Mutability>,
         name: Name,
         pattern: Option<LocalNodeId<Pattern>>,
         is_shorthand: bool,
     },
     /// Computed field (like `[key]: value`).
     Computed {
-        mutability: Option<Mutability>,
         key: LocalNodeId<Expression>,
         pattern: LocalNodeId<Pattern>,
     },
@@ -117,7 +111,6 @@ pub enum PatternField {
     Positional { pattern: LocalNodeId<Pattern> },
     /// Spread field (like `...x` or `...[a, b]`).
     Spread {
-        mutability: Option<Mutability>,
         pattern: Option<LocalNodeId<Pattern>>,
     },
     /// Elision in a sequence pattern like `[,a]` or `[,,b]`.

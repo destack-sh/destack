@@ -4,9 +4,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block, Declaration,
     Declarator, DependencyItem, DependencySpace, ExportKind, GenericArgument,
-    ImportAttributeClause, ImportSource, ImportTarget, Keyword, LocalNodeId, MatchCase, MatchForm,
-    Mutability, Node, NodeType, Path, Pattern, Property, ScalarLiteral, TemplateLiteral,
-    TypeExpression, UnaryOperator,
+    ImportAttributeClause, Keyword, LocalNodeId, MatchCase, MatchForm, Mutability, Node, NodeType,
+    Path, Pattern, Property, ScalarLiteral, TemplateLiteral, TypeExpression, UnaryOperator,
 };
 
 // NOTE #Performance: reduce Expression size to <=64B
@@ -46,12 +45,10 @@ pub enum Expression {
     /// ```
     ///
     Import {
-        source: ImportSource,
         space: DependencySpace,
-        target: ImportTarget,
+        target: StringId,
         items: Option<Vec<LocalNodeId<DependencyItem>>>,
         attributes: Option<ImportAttributeClause>,
-        arguments: Option<Vec<LocalNodeId<Argument>>>,
     },
 
     /// An Export is an explicit export declaration for dependency management.
@@ -67,7 +64,6 @@ pub enum Expression {
     /// export { default, foo } from 'foo'
     /// export { default as bar, default as baz } from 'foo'
     /// export default foo
-    /// export = foo
     /// ```
     Export {
         space: DependencySpace,
@@ -76,16 +72,8 @@ pub enum Expression {
         attributes: Option<ImportAttributeClause>,
     },
 
-    /// Export the module namespace as a global name (declaration files only).
-    ///
-    /// Example:
-    /// ```
-    /// export as namespace Foo
-    /// ```
-    ExportNamespace { name: StringId },
-
-    /// Let or var binding for constant or mutable variables.
-    /// Both let and var may destructure and pattern match.
+    /// Let binding for mutable and immutable variables.
+    /// Both let and const may destructure and pattern match.
     /// Supports multiple declarators like TypeScript: `let a: T1 = v1, b: T2 = v2`
     ///
     /// Examples:
@@ -99,10 +87,7 @@ pub enum Expression {
     /// let a: T1 = v1, b: T2  // multiple declarators
     /// const t = foo() ?? return;
     ///
-    /// if const Some(x) = someFunction() {
-    ///     ...
-    /// }
-    /// if const Some(x) = someFunction() {
+    /// if (const Some(x) = someFunction()) {
     ///     ...
     /// }
     Let {
@@ -210,7 +195,7 @@ pub enum Expression {
     /// }
     ///
     /// for (const x in items) {
-    ///     if y > 5 {
+    ///     if (y > 5) {
     ///         continue
     ///     }
     ///     y = 2
@@ -246,7 +231,7 @@ pub enum Expression {
     /// ```
     /// loop {
     ///     y = getNext()
-    ///     if y < 0 {
+    ///     if (y < 0) {
     ///         break
     ///     }
     /// }
@@ -286,14 +271,14 @@ pub enum Expression {
         finally_expression: Option<LocalNodeId<Expression>>,
     },
 
-    /// A Match is match expression with case patterns.
+    /// A Match is a match expression with case patterns.
     /// The clauses must be exhaustive and return the same type.
     /// Match statements are Expressions and also used in catch patterns.
     /// Like other statements, match cases do not need to be terminated with a colon/semicolon.
     ///
     /// Examples:
     /// ```
-    /// match <expr> {
+    /// match (expr) {
     ///     (x, y) => {
     ///         ...
     ///     }
@@ -726,16 +711,6 @@ pub enum Expression {
         arguments: Vec<LocalNodeId<Argument>>,
     },
 
-    /// Delete expression.
-    ///
-    /// Examples:
-    /// ```
-    /// delete foo
-    /// delete foo.bar
-    /// delete foo['result']
-    /// ```
-    Delete { value: LocalNodeId<Expression> },
-
     /// Maybe unwrap an expression with `?` and propagate.
     /// Supports chaining with `?.`.
     Maybe {
@@ -858,7 +833,6 @@ impl Expression {
                 | Expression::Labelled { .. }
                 | Expression::Import { .. }
                 | Expression::Export { .. }
-                | Expression::ExportNamespace { .. }
                 | Expression::Let { .. }
                 | Expression::LetElse { .. }
                 | Expression::Using { .. }
@@ -902,7 +876,6 @@ impl Expression {
             self,
             Expression::Declaration { .. }
                 | Expression::Import { .. }
-                | Expression::ExportNamespace { .. }
                 | Expression::Let { .. }
                 | Expression::LetElse { .. }
                 | Expression::Using { .. }
@@ -958,14 +931,12 @@ impl VarianceBound {
     }
 }
 
-/// The kind of a let/var/const binding.
+/// The kind of a let or const binding.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum LetKind {
-    /// `let` binding (mutable in Destack, same as `var`)
+    /// `let` binding.
     Let,
-    /// `var` binding (mutable, legacy syntax)
-    Var,
-    /// `const` binding (immutable)
+    /// `const` binding.
     Const,
 }
 
@@ -1015,8 +986,6 @@ pub enum ForEachOperator {
 /// The declaration keyword used by a for each pattern binding.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum BindingKeyword {
-    /// `var` declaration keyword.
-    Var,
     /// `let` declaration keyword.
     Let,
     /// `const` declaration keyword.
