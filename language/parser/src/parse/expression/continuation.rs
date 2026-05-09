@@ -1982,7 +1982,7 @@ impl Parser {
     /// Examples:
     /// ```
     /// value ? then_value : else_value
-    /// match value { case => result }
+    /// match (value) { case => result }
     /// ```
     pub(super) fn eat_value_tail_continuation(
         &mut self,
@@ -2184,9 +2184,7 @@ impl Parser {
         // type space only permits reference-like instantiation shapes
         if !matches!(
             self.tree.get(left_type_id),
-            TypeExpression::Reference { .. }
-                | TypeExpression::Member { .. }
-                | TypeExpression::Import { .. }
+            TypeExpression::Reference { .. } | TypeExpression::Member { .. }
         ) {
             return None;
         }
@@ -2278,17 +2276,6 @@ impl Parser {
             TypeExpression::Member { left, name, .. } => TypeExpression::Member {
                 left,
                 name,
-                generic_arguments,
-            },
-            TypeExpression::Import {
-                target,
-                arguments,
-                qualifier,
-                ..
-            } => TypeExpression::Import {
-                target,
-                arguments,
-                qualifier,
                 generic_arguments,
             },
             _ => {

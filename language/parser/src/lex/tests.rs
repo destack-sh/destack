@@ -2138,12 +2138,12 @@ fn test_lex_unicode_escape_multiple() {
     );
 }
 
-/// Unicode escape in var declaration
+/// Unicode escape in a let declaration.
 #[test]
-fn test_lex_unicode_escape_in_var() {
-    // var \u{41}BC; = "var" (3) + " " (1) + "\u{41}BC" (8) + ";" (1)
+fn test_lex_unicode_escape_in_let() {
+    // let \u{41}BC; = "let" (3) + " " (1) + "\u{41}BC" (8) + ";" (1)
     assert_tokenize_eq_roundtrip!(
-        r"var \u{41}BC;",
+        r"let \u{41}BC;",
         Token::new(TokenType::Identifier, 3, None),
         Token::new(TokenType::Whitespace, 1, None),
         Token::new(TokenType::Identifier, 8, None),

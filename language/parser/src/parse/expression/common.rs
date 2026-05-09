@@ -123,7 +123,6 @@ pub(super) fn is_declaration_keyword(keyword: Keyword) -> bool {
             | Keyword::Const
             | Keyword::Readonly
             | Keyword::Let
-            | Keyword::Var
             | Keyword::Using
             | Keyword::Override
             | Keyword::Public

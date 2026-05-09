@@ -343,12 +343,11 @@ impl Parser {
         if header.export.is_some() && self.current_token_is_on_new_line() {
             let next_token_type = self.peek_token_type();
             let next_keyword = self.current_keyword();
-            let is_after_export_import_equals_head = next_keyword == Some(Keyword::Import);
             let is_after_export_declaration_head = next_keyword.is_some_and(is_declaration_keyword)
                 || next_token_type == TokenType::At
                 || self.is_module_identifier()
                 || self.is_global_identifier();
-            if is_after_export_import_equals_head || is_after_export_declaration_head {
+            if is_after_export_declaration_head {
                 // parse decorators after export when they follow skipped newlines
                 if self.peek_is(TokenType::At) {
                     let mut export_decorators = self.eat_decorators_maybe()?;
@@ -472,8 +471,8 @@ impl Parser {
                     && next_keyword == Some(Keyword::Function)
             }
 
-            // is_ambient const, let, and var declarations commit immediately
-            Keyword::Const | Keyword::Let | Keyword::Var => true,
+            // ambient const and let declarations commit immediately
+            Keyword::Const | Keyword::Let => true,
 
             // is_ambient nominal and structural declarations keep their existing heads
             Keyword::Class

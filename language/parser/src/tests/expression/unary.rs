@@ -251,13 +251,13 @@ fn test_parse_new_constructor_call() {
     });
 }
 
-/// Parse a delete expression.
+/// Reject delete expressions.
 #[test]
-fn test_parse_delete_expression() {
+fn test_reject_delete_expression() {
     let mut test = TestParser::new("delete foo.bar");
     let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
-    assert_node!(parser.tree, expr_id, Expression::Delete { value } => {
-        assert_expression_path!(parser, parser.tree.get(*value), "foo.bar");
-    });
+
+    parser.parse();
+
+    test.assert_error_leaves(&parser, &[(None, None, "foo")]);
 }

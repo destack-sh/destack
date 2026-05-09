@@ -195,13 +195,13 @@ fn test_parse_regex_literal_after_binary_instanceof_keyword() {
 /// Parse regex literal after assign with a newline.
 #[test]
 fn test_parse_regex_literal_after_assign_newline() {
-    // source: var match =\n/^foo$/i.exec(str)
+    // source: let match =\n/^foo$/i.exec(str)
     let mut test =
-        TestParser::new_with_language("var match =\n/^foo$/i.exec(str)", LanguageType::JavaScript);
+        TestParser::new_with_language("let match =\n/^foo$/i.exec(str)", LanguageType::JavaScript);
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
-    // var match =\n/^foo$/i.exec(str)
+    // let match =\n/^foo$/i.exec(str)
     assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
         assert_eq!(declarators.len(), 1);
         assert_node!(parser.tree, declarators[0], Declarator { value, .. } => {
@@ -305,12 +305,12 @@ fn test_parse_divide_after_non_null_assertion() {
 /// Parse regex literal with slash inside a character class.
 #[test]
 fn test_parse_regex_literal_with_character_class_slash() {
-    // source: var a = /[\]/]/
-    let mut test = TestParser::new_with_language("var a = /[\\]/]/", LanguageType::JavaScript);
+    // source: let a = /[\]/]/
+    let mut test = TestParser::new_with_language("let a = /[\\]/]/", LanguageType::JavaScript);
     let mut parser = test.prepare();
     let expr_id = parser.eat_expression(parser.flags).unwrap();
 
-    // var a = /[\]/]/
+    // let a = /[\]/]/
     assert_node!(parser.tree, expr_id, Expression::Let { declarators, .. } => {
         assert_eq!(declarators.len(), 1);
         assert_node!(parser.tree, declarators[0], Declarator { value, .. } => {

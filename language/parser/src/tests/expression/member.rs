@@ -484,9 +484,9 @@ fn test_parse_path_null_identifier_name() {
 
 /// Parse default IdentifierName member access.
 #[test]
-fn test_parse_member_default_identifier_name_after_parenthesized_await_import() {
+fn test_parse_member_default_identifier_name_after_parenthesized_await_call() {
     let mut test = TestParser::new_with_language(
-        r#"(await import(join("file://", process.argv[2]))).default"#,
+        r#"(await load(join("file://", process.argv[2]))).default"#,
         LanguageType::JavaScript,
     );
     let mut parser = test.prepare();

@@ -60,7 +60,7 @@ export type AudioPlayerOptions = {
    * This value defaults to `false`.
    *
    * Works with:
-   * - Local assets from `require('path/to/file')`
+   * - Local asset paths
    * - Remote HTTP/HTTPS URLs
    * - Asset objects
    *

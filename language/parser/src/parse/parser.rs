@@ -1365,24 +1365,16 @@ impl Parser {
 
     /// Parse everything as an implicit namespace with optional trivia attachment.
     fn parse_root_expressions(&mut self, attach_trivia: bool) -> Vec<LocalNodeId<Expression>> {
-        // parse leading triple-slash reference path directives
-        let (mut expressions, consumed_to_end) =
-            self.parse_leading_triple_slash_reference_imports();
-
-        // parse the root block body with recovery when source has non-directive content
-        if !consumed_to_end {
-            let start = self.span_start();
-            let mut body_expressions = self.with_token_recovery(
-                &start,
-                |parser| parser.eat_block_body(BlockForm::Implicit),
-                Vec::new(),
-                TokenType::End,
-            );
-            expressions.append(&mut body_expressions);
-        }
+        let start = self.span_start();
+        let mut expressions = self.with_token_recovery(
+            &start,
+            |parser| parser.eat_block_body(BlockForm::Implicit),
+            Vec::new(),
+            TokenType::End,
+        );
 
         // ensure one stable owner for trivia only files
-        self.ensure_trivia_anchor_maybe(&mut expressions, consumed_to_end);
+        self.ensure_trivia_anchor_maybe(&mut expressions, false);
 
         // attach comments only in the full parse pipeline
         if attach_trivia {

@@ -1,5 +1,5 @@
 use crate::tests::*;
-use crate::{assert_comment, assert_expression_path, assert_node, assert_path, assert_string};
+use crate::{assert_comment, assert_expression_path, assert_node, assert_string};
 use destack_ast::*;
 use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanType};
 
@@ -276,24 +276,6 @@ fn test_parse_export_expression_namespace_alias() {
         assert_node!(parser.tree, items[0], DependencyItem::Item { binding, name: None, alias: Some(alias), .. } => {
             assert_eq!(*binding, DependencyBinding::Namespace);
             assert_string!(parser, *alias, "baz");
-        });
-    });
-}
-
-/// Parse `export = foo`.
-#[test]
-fn test_parse_export_expression_module_export() {
-    let mut test = TestParser::new("export = foo");
-    let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
-    assert_node!(parser.tree, expression_id, Expression::Export { space, target, items, .. } => {
-        assert_eq!(*space, DependencySpace::Value);
-        assert!(target.is_none());
-        assert_eq!(items.len(), 1);
-        // = foo
-        assert_node!(parser.tree, items[0], DependencyItem::Item { binding, name: None, alias: None, value: Some(value), .. } => {
-            assert_eq!(*binding, DependencyBinding::Namespace);
-            assert_expression_path!(parser, parser.tree.get(*value), "foo");
         });
     });
 }
@@ -589,85 +571,6 @@ fn test_reject_export_default_enum() {
     assert!(result.is_err());
 }
 
-/// Parse `export import foo = bar.baz`.
-#[test]
-fn test_parse_export_import_equals() {
-    let mut test = TestParser::new("export import atob = globalThis.atob");
-    let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
-
-    assert_node!(parser.tree, expression_id, Expression::Declaration(decl_id) => {
-        assert_node!(parser.tree, *decl_id, Declaration::ImportAlias(ImportAliasDeclaration { name, export, space, target, .. }) => {
-            assert!(export.is_some());
-            assert_eq!(*space, DependencySpace::Value);
-            assert_string!(parser, name.string(), "atob");
-            match target {
-                ImportAliasTarget::Path { path } => {
-                    assert_path!(parser, *path, "globalThis.atob");
-                }
-                ImportAliasTarget::Require { .. } => {
-                    panic!("expected import alias path");
-                }
-            }
-        });
-    });
-}
-
-/// Parse `export import type React = require("react")`.
-#[test]
-fn test_parse_export_import_type_equals_require() {
-    let mut test = TestParser::new(r#"export import type React = require("react")"#);
-    let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
-
-    assert_node!(parser.tree, expression_id, Expression::Declaration(decl_id) => {
-        assert_node!(parser.tree, *decl_id, Declaration::ImportAlias(ImportAliasDeclaration { name, export, space, target, .. }) => {
-            assert!(export.is_some());
-            assert_eq!(*space, DependencySpace::Type);
-            assert_string!(parser, name.string(), "React");
-            match target {
-                ImportAliasTarget::Require { target } => {
-                    assert_string!(parser, *target, "react");
-                }
-                ImportAliasTarget::Path { .. } => {
-                    panic!("expected import alias require");
-                }
-            }
-        });
-    });
-}
-
-#[test]
-fn test_parse_export_import_type_equals_require_with_newlines() {
-    let mut test = TestParser::new_with_language(
-        r#"
-export
-import
-type
-React = require("react")
-"#,
-        LanguageType::TypeScript,
-    );
-    let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
-
-    assert_node!(parser.tree, expression_id, Expression::Declaration(decl_id) => {
-        assert_node!(parser.tree, *decl_id, Declaration::ImportAlias(ImportAliasDeclaration { name, export, space, target, .. }) => {
-            assert!(export.is_some());
-            assert_eq!(*space, DependencySpace::Type);
-            assert_string!(parser, name.string(), "React");
-            match target {
-                ImportAliasTarget::Require { target } => {
-                    assert_string!(parser, *target, "react");
-                }
-                ImportAliasTarget::Path { .. } => {
-                    panic!("expected import alias require");
-                }
-            }
-        });
-    });
-}
-
 /// Parse `import { bar, baz } from foo`.
 #[test]
 fn test_parse_import_expression_with_items_block() {
@@ -676,18 +579,19 @@ fn test_parse_import_expression_with_items_block() {
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     // import { bar, baz } from foo
-    assert_node!(parser.tree, expression_id, Expression::Import { source, space, target, items, arguments: None, .. } => {
-            assert_eq!(*source, ImportSource::ImportStatement);
-            assert_eq!(*space, DependencySpace::Value);
-            assert_import_target_string(&parser, target, "foo");
-            let items = items.as_deref().expect("expected import specifier shell");
-            assert_eq!(items.len(), 2);
+    assert_node!(parser.tree, expression_id, Expression::Import { space, target, items, .. } => {
+        assert_eq!(*space, DependencySpace::Value);
+        assert_string!(parser, *target, "foo");
+        let items = items.as_deref().expect("expected import specifier shell");
+        assert_eq!(items.len(), 2);
+
         // bar
         assert_node!(parser.tree, items[0], DependencyItem::Item { binding, name: Some(name), alias, .. } => {
             assert_eq!(*binding, DependencyBinding::Item);
             assert_string!(parser, name.string(), "bar");
             assert!(alias.is_none());
         });
+
         // baz
         assert_node!(parser.tree, items[1], DependencyItem::Item { binding, name: Some(name), alias, .. } => {
             assert_eq!(*binding, DependencyBinding::Item);
@@ -705,12 +609,12 @@ fn test_parse_import_expression_namespace_alias_with_arguments() {
     let expression_id = parser.eat_expression(parser.flags).unwrap();
 
     // import * as baz from foo with { bar: true }
-    assert_node!(parser.tree, expression_id, Expression::Import { source, space, target, items, attributes, arguments: None, .. } => {
-            assert_eq!(*source, ImportSource::ImportStatement);
-            assert_eq!(*space, DependencySpace::Value);
-            assert_import_target_string(&parser, target, "foo");
-            let items = items.as_deref().expect("expected import specifier shell");
-            assert_eq!(items.len(), 1);
+    assert_node!(parser.tree, expression_id, Expression::Import { space, target, items, attributes, .. } => {
+        assert_eq!(*space, DependencySpace::Value);
+        assert_string!(parser, *target, "foo");
+        let items = items.as_deref().expect("expected import specifier shell");
+        assert_eq!(items.len(), 1);
+
         // * as baz
         assert_node!(parser.tree, items[0], DependencyItem::Item { binding, name: None, alias: Some(alias), .. } => {
             assert_eq!(*binding, DependencyBinding::Namespace);
@@ -731,110 +635,4 @@ fn test_parse_import_expression_items_without_target_error() {
     let mut test = TestParser::new("import { foo }");
     let mut parser = test.prepare();
     assert!(parser.eat_expression(parser.flags).is_err());
-}
-
-/// Parse `import("foo")`.
-#[test]
-fn test_parse_import_call_expression() {
-    let mut test = TestParser::new("import(\"foo\")");
-    let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
-
-    assert_node!(parser.tree, expression_id, Expression::Import { source, space, target, items, arguments: None, .. } => {
-        assert_eq!(*source, ImportSource::ImportCall);
-        assert_eq!(*space, DependencySpace::Value);
-        assert_import_target_string(&parser, target, "foo");
-        assert!(items.is_none());
-    });
-}
-
-/// Parse dynamic import calls with a commented source and multiline close parenthesis.
-#[test]
-fn test_parse_import_call_with_source_comment() {
-    let mut test = TestParser::new(
-        r#"import(
-    // dynamic-source
-    "module"
-)"#,
-    );
-    let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
-
-    test.assert_no_errors(&parser);
-
-    assert_node!(parser.tree, expression_id, Expression::Import { source, space, target, items, arguments: None, .. } => {
-        assert_eq!(*source, ImportSource::ImportCall);
-        assert_eq!(*space, DependencySpace::Value);
-        assert!(items.is_none());
-        assert_node!(target, ImportTarget::Expression { target } => {
-            assert_node!(parser.tree, *target, Expression::ScalarLiteral(ScalarLiteral::String(value)) => {
-                assert_string!(parser, *value, "module");
-            });
-        });
-    });
-}
-
-/// Parse `import("foo", { assert: { type: "json" } })`.
-#[test]
-fn test_parse_import_call_with_assertions() {
-    let mut test = TestParser::new("import(\"foo\", { assert: { type: \"json\" } })");
-    let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
-
-    assert_node!(parser.tree, expression_id, Expression::Import { source, space, target, items, arguments: Some(arguments), .. } => {
-        assert_eq!(*source, ImportSource::ImportCall);
-        assert_eq!(*space, DependencySpace::Value);
-        assert_import_target_string(&parser, target, "foo");
-        assert!(items.is_none());
-        assert_eq!(arguments.len(), 1);
-    });
-}
-
-/// Parse dynamic import calls with non-literal targets.
-#[test]
-fn test_parse_import_call_with_expression_target() {
-    let mut test = TestParser::new(r#"import(join("file://", process.argv[2]))"#);
-    let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
-
-    assert_node!(parser.tree, expression_id, Expression::Import { source, space, target, items, arguments: None, .. } => {
-        assert_eq!(*source, ImportSource::ImportCall);
-        assert_eq!(*space, DependencySpace::Value);
-        assert!(items.is_none());
-        assert_node!(target, ImportTarget::Expression { target } => {
-            assert_node!(parser.tree, *target, Expression::Call { .. });
-        });
-    });
-}
-
-/// Recover a missing dynamic import target in place.
-#[test]
-fn test_parse_import_call_with_missing_target() {
-    let mut test = TestParser::new("import()");
-    let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
-
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, ")")]);
-
-    assert_node!(parser.tree, expression_id, Expression::Import { target, items, arguments: None, .. } => {
-        assert!(items.is_none());
-        assert_node!(target, ImportTarget::Expression { target } => {
-            assert_node!(parser.tree, *target, Expression::Missing);
-        });
-    });
-}
-
-/// Recover a missing dynamic import close parenthesis at one boundary.
-#[test]
-fn test_parse_import_call_with_missing_close_parenthesis() {
-    let mut test = TestParser::new("import(\"foo\"");
-    let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
-
-    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
-
-    assert_node!(parser.tree, expression_id, Expression::Import { target, items, arguments: None, .. } => {
-        assert!(items.is_none());
-        assert_import_target_string(&parser, target, "foo");
-    });
 }

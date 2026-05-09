@@ -610,7 +610,6 @@ impl Parser {
                     | Keyword::Await
                     | Keyword::This
                     | Keyword::New
-                    | Keyword::Delete
                     | Keyword::Function
                     | Keyword::Class
                     | Keyword::Typeof
@@ -776,13 +775,7 @@ impl Parser {
         // strict type-only keywords cannot enter through value parsing
         if matches!(
             keyword,
-            Some(
-                Keyword::Import
-                    | Keyword::Infer
-                    | Keyword::Keyof
-                    | Keyword::Readonly
-                    | Keyword::Typeof
-            )
+            Some(Keyword::Infer | Keyword::Keyof | Keyword::Readonly | Keyword::Typeof)
         ) {
             return true;
         }
