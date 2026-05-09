@@ -38,8 +38,8 @@ serde_yaml_ng = { workspace = true }
 toml = { workspace = true }
 
 [features]
-default = ["native-codegen"]
-native-codegen = ["destack_compiler/native-codegen"]
+default = ["native"]
+native = ["destack_compiler/native"]
 deadlock-detection = ["destack_compiler/deadlock-detection"]
 
 [lints]
