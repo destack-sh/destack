@@ -2,6 +2,8 @@
 
 `Extract` is a standard utility type.
 
+## unions
+
 ### extract keeps matching members
 
 ```ds

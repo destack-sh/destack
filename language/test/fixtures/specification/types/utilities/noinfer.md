@@ -2,6 +2,8 @@
 
 `NoInfer` blocks inference from a selected position.
 
+## inference
+
 ### NoInfer keeps inference from earlier arguments
 
 ```ds

@@ -2,6 +2,8 @@
 
 `Exclude` is a standard utility type.
 
+## unions
+
 ### exclude distributes over unions
 
 ```ds
@@ -32,4 +34,3 @@ let bad: NeverLetters = "b";
 ```
 
 - contains: not assignable
-

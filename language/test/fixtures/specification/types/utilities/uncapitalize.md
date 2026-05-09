@@ -2,6 +2,8 @@
 
 `Uncapitalize` lowercases the first character of a string literal type.
 
+## strings
+
 ### uncapitalize converts first character
 
 ```ds

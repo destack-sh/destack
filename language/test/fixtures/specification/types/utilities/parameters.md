@@ -2,6 +2,8 @@
 
 `Parameters` extracts a function parameter tuple.
 
+## functions
+
 ### parameters extracts argument types
 
 ```ds

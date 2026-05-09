@@ -2,6 +2,8 @@
 
 `InstanceType` extracts the instance type created by a constructor.
 
+## constructors
+
 ### InstanceType extracts class instances
 
 ```ds

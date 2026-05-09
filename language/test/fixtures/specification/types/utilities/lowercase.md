@@ -2,6 +2,8 @@
 
 `Lowercase` converts string literal types to lowercase.
 
+## strings
+
 ### lowercase converts literals
 
 ```ds

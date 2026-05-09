@@ -2,6 +2,8 @@
 
 `OmitThisParameter` removes an explicit function receiver.
 
+## receivers
+
 ### OmitThisParameter removes explicit this
 
 ```ds

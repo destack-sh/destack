@@ -1,4 +1,4 @@
-# Variable Width Integers
+# Integers
 
 ## ranges
 

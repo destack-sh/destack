@@ -2,6 +2,8 @@
 
 `ThisParameterType` extracts an explicit function receiver.
 
+## receivers
+
 ### ThisParameterType extracts explicit this
 
 ```ds

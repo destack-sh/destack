@@ -1,4 +1,4 @@
-# Numeric Conversions
+# Conversions
 
 Implicit numeric conversions only widen.
 
@@ -16,7 +16,7 @@ takeInt16(smallInteger);
 
 ### int32 to int64
 
-Int32 can widen to int64.
+`int32` can widen to `int64`.
 
 ```ds
 function takeInt64(value: int64): void {}
@@ -48,7 +48,7 @@ takeInt16(smallUnsigned);
 
 ### int8 to uint8 rejects sign changes
 
-Signed integers cannot widen to unsigned (may lose negative values).
+Signed integers cannot widen to unsigned integer types.
 
 ```ds
 function takeUint8(value: uint8): void {}
@@ -98,7 +98,7 @@ takeFloat64(integer);
 
 ### int32 to number
 
-Any integer type can widen to number.
+Integer types can widen to `number`.
 
 ```ds
 function takeNumber(value: number): void {}
@@ -108,7 +108,7 @@ takeNumber(integer);
 
 ### float64 to number
 
-Any float type can widen to number.
+Concrete float types can widen to `number`.
 
 ```ds
 function takeNumber(value: number): void {}

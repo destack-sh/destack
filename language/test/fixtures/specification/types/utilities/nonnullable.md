@@ -2,6 +2,8 @@
 
 `NonNullable` is a standard utility type.
 
+## unions
+
 ### NonNullable removes nullish
 
 ```ds
