@@ -149,9 +149,7 @@ pub(crate) fn format_statement_expression<'ast>(
         }
 
         // import and export family
-        Expression::Import { .. }
-        | Expression::Export { .. }
-        | Expression::ExportNamespace { .. } => {
+        Expression::Import { .. } | Expression::Export { .. } => {
             format_dependency_statement_expression(f, node_id, expression)?;
         }
 

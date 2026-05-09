@@ -340,11 +340,6 @@ pub(crate) fn format_operator_expression<'ast>(
             format_new_expression(f, node_id, *left, generic_arguments, arguments)?;
         }
 
-        // delete
-        Expression::Delete { value } => {
-            write!(f, [token("delete"), space(), value])?;
-        }
-
         // maybe
         Expression::Maybe { .. } => {
             format_maybe_expression(f, node_id)?;

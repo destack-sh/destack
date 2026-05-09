@@ -25,8 +25,7 @@ use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
     Asynchrony, BindingKeyword, Block, BlockForm, DecoratorPosition, Expression, ForEachBinding,
     ForEachOperator, IfCondition, IfForm, Keyword, LetKind, LocalNodeId, MatchCase, MatchForm,
-    MatchSelector, Mutability, NodeType, Pattern, TokenType, TypeExpression, WhileForm,
-    YieldCardinality,
+    MatchSelector, NodeType, Pattern, TypeExpression, WhileForm, YieldCardinality,
 };
 use destack_core::StringId;
 use destack_fir::format::{Buffer, Format, FormatError, FormatResult};
@@ -278,38 +277,6 @@ pub(crate) fn is_empty_statement_block<'ast>(
 ) -> bool {
     let block = context.tree.get(block_id);
     is_statement_wrapper_block(context, block_id) && block.is_empty()
-}
-
-/// Detect a source binding keyword for a for each pattern binding.
-pub(crate) fn detect_for_each_binding_keyword<'ast>(
-    context: &DestackFormatContext<'ast>,
-    _for_each_id: LocalNodeId<Expression>,
-    pattern_id: LocalNodeId<Pattern>,
-) -> Option<Keyword> {
-    let pattern_span = context.span(pattern_id);
-    let keyword_token = context.previous_non_whitespace_token_before_span(pattern_span)?;
-    if keyword_token.token.ty != TokenType::Identifier {
-        return None;
-    }
-
-    if context
-        .token_keyword(keyword_token)
-        .is_some_and(|keyword| keyword == Keyword::Let)
-    {
-        Some(Keyword::Let)
-    } else if context
-        .token_keyword(keyword_token)
-        .is_some_and(|keyword| keyword == Keyword::Const)
-    {
-        Some(Keyword::Const)
-    } else if context
-        .token_keyword(keyword_token)
-        .is_some_and(|keyword| keyword == Keyword::Var)
-    {
-        Some(Keyword::Var)
-    } else {
-        None
-    }
 }
 
 /// Format a for each binding pattern without repeating root mutability keywords.
@@ -758,7 +725,6 @@ fn write_if_clause<'ast>(
             } => {
                 match kind {
                     LetKind::Let => write!(f, [Keyword::Let])?,
-                    LetKind::Var => write!(f, [Keyword::Var])?,
                     LetKind::Const => write!(f, [Keyword::Const])?,
                 }
 
@@ -1350,15 +1316,13 @@ pub(crate) fn format_while_expression<'ast>(
 /// Format a `for each` expression.
 pub(crate) fn format_for_each_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<Expression>,
+    _node_id: LocalNodeId<Expression>,
     asynchrony: Asynchrony,
     operator: ForEachOperator,
     binding: &ForEachBinding,
     iterator: LocalNodeId<Expression>,
     body: LocalNodeId<Block>,
 ) -> FormatResult<()> {
-    let tree = f.context().tree;
-
     // for header
     write!(f, [Keyword::For, space()])?;
     if asynchrony == Asynchrony::Async {
@@ -1376,37 +1340,15 @@ pub(crate) fn format_for_each_expression<'ast>(
             // explicit declaration kind
             if let Some(keyword) = keyword {
                 let keyword = match keyword {
-                    BindingKeyword::Var => Keyword::Var,
                     BindingKeyword::Let => Keyword::Let,
                     BindingKeyword::Const => Keyword::Const,
                 };
                 write!(f, [keyword, space()])?;
                 format_for_each_binding_pattern(f, *pattern)?;
             }
-            // source keyword recovery
+            // bare assignment binding
             else {
-                let source_keyword =
-                    detect_for_each_binding_keyword(f.context(), node_id, *pattern);
-                if let Some(keyword) = source_keyword {
-                    write!(f, [keyword, space()])?;
-                    format_for_each_binding_pattern(f, *pattern)?;
-                } else {
-                    let pattern_node = tree.get(*pattern);
-                    let should_prefix_const = matches!(
-                        pattern_node,
-                        Pattern::Binding {
-                            mutability: Some(Mutability::Immutable),
-                            pattern: None,
-                            ..
-                        }
-                    );
-
-                    // keep explicit const for simple immutable bindings
-                    if should_prefix_const {
-                        write!(f, [Keyword::Const, space()])?;
-                    }
-                    write!(f, [pattern])?;
-                }
+                write!(f, [pattern])?;
             }
         }
         ForEachBinding::Using {

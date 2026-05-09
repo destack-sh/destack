@@ -32,7 +32,7 @@ use destack_ast::{
 };
 use destack_fir::format::{Buffer, FormatError, FormatResult};
 use destack_fir::prelude::{space, token, *};
-use destack_fir::{best_fitting, format_args, write};
+use destack_fir::{format_args, write};
 use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Span};
 use destack_workspace::TrailingComma;
 
@@ -2523,61 +2523,6 @@ pub(crate) fn write_type_expression_body<'ast>(
         }
         TypeExpression::This => {
             write!(f, [Keyword::This])?;
-        }
-        TypeExpression::Import {
-            target,
-            arguments,
-            qualifier,
-            generic_arguments,
-        } => {
-            write!(f, [Keyword::Import, token("(")])?;
-
-            let has_comment = f
-                .context()
-                .comments()
-                .has_comment_before(f.context().span(*target).start);
-            let format_arguments = format_with(|f| {
-                write!(f, [target])?;
-
-                if !arguments.is_empty() {
-                    write!(f, [token(","), soft_line_break_or_space()])?;
-                    write!(
-                        f,
-                        [separated_entries(
-                            ",",
-                            arguments,
-                            TrailingSeparator::Omit,
-                            None,
-                        )]
-                    )?;
-                }
-
-                Ok(())
-            });
-
-            if has_comment {
-                write!(f, [soft_block_indent(&format_arguments)])?;
-            } else if !arguments.is_empty() {
-                write!(
-                    f,
-                    [best_fitting![
-                        format_arguments,
-                        soft_block_indent(&format_arguments)
-                    ]]
-                )?;
-            } else {
-                write!(f, [target])?;
-            }
-
-            write!(f, [token(")")])?;
-
-            if let Some(qualifier) = qualifier {
-                write!(f, [token("."), qualifier])?;
-            }
-
-            if !generic_arguments.is_empty() {
-                format_generic_argument_list(f, generic_arguments)?;
-            }
         }
         TypeExpression::Readonly { target_type } => {
             write!(f, [Keyword::Readonly, space(), target_type])?;

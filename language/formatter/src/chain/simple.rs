@@ -166,17 +166,6 @@ fn expression_is_simple(
             generic_arguments,
             arguments,
         } => call_like_is_simple(context, *left, generic_arguments, arguments, depth),
-
-        // import(...)
-        Expression::Import {
-            source: destack_ast::ImportSource::ImportCall,
-            attributes: None,
-            arguments: Some(arguments),
-            ..
-        } => arguments.iter().copied().all(|argument_id| {
-            SimpleArgument::new(argument_id).is_simple_with_depth(context, depth + 1)
-        }),
-
         // anything else is too complex
         _ => false,
     }

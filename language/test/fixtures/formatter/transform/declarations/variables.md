@@ -278,20 +278,6 @@ let Some(value) = maybe else {
 };
 ```
 
-## var
-
-### var assignment
-
-Legacy `var` declarations are preserved but follow the same spacing rules.
-
-```ds
-var   x   =   1
-```
-
-```ds expected
-var x = 1;
-```
-
 ## Ambient Declarations
 
 ### declare const
@@ -327,12 +313,12 @@ declare const PAGE_PATH: string;
 Assignment comments stay attached to the initializer shell.
 
 ```ts:main.ts line-width=80
-var longlonglonglonglonglong = /*#__PURE__*/_interopDefaultLegacy(aaaaaaaaaaaaaaa);
-var short = /*#__PURE__*/_interopDefaultLegacy(b);
+let longlonglonglonglonglong = /*#__PURE__*/_interopDefaultLegacy(aaaaaaaaaaaaaaa);
+let short = /*#__PURE__*/_interopDefaultLegacy(b);
 
 const jestPackageJson =
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  require(jestPath);
+  // load package metadata
+  loadPackage(jestPath);
 
 class A {
   #testerConfig;
@@ -344,13 +330,13 @@ class A {
 ```
 
 ```ts expected
-var longlonglonglonglonglong =
+let longlonglonglonglonglong =
     /*#__PURE__*/ _interopDefaultLegacy(aaaaaaaaaaaaaaa);
-var short = /*#__PURE__*/ _interopDefaultLegacy(b);
+let short = /*#__PURE__*/ _interopDefaultLegacy(b);
 
 const jestPackageJson =
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    require(jestPath);
+    // load package metadata
+    loadPackage(jestPath);
 
 class A {
     #testerConfig;

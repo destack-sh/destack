@@ -1,7 +1,6 @@
-"use strict";
-const neostandard = require("neostandard");
+import neostandard from "neostandard";
 
-module.exports = [
+export default [
     ...neostandard({
         ignores: [
             "lib/config-validator.js",

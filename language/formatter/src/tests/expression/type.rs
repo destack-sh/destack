@@ -55,7 +55,7 @@ fn test_format_type_conditional_alternate_line_comment() {
             prototype: T;
             new(format: "deflate" | "deflate-raw" | "gzip"): T;
         }
-    : typeof import("stream/web").CompressionStream;
+    : StreamWebCompressionStream;
 "#,
         r#"type A = typeof globalThis extends {
     onmessage: any;
@@ -69,7 +69,7 @@ fn test_format_type_conditional_alternate_line_comment() {
             prototype: T;
             new (format: "deflate" | "deflate-raw" | "gzip"): T;
         }
-      : typeof import("stream/web").CompressionStream;
+      : StreamWebCompressionStream;
 "#,
         FileType::TypeScriptDeclaration
     );

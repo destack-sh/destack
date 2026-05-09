@@ -493,7 +493,7 @@ Ambient declaration forms are parsed and formatted.
 declare type A = true;
 declare function b(): "hello";
 declare const foo: "bar";
-declare var qux: boolean;
+declare let qux: boolean;
 declare enum Kind {}
 declare interface Shape {}
 declare class Box {}
@@ -506,7 +506,7 @@ declare namespace Inner {}
 declare type A = true;
 declare function b(): "hello";
 declare const foo: "bar";
-declare var qux: boolean;
+declare let qux: boolean;
 declare enum Kind {}
 declare interface Shape {}
 declare class Box {}

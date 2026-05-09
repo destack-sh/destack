@@ -53,7 +53,7 @@ function outer() {
     this[fn4().foo.bar.qux()] **= 31;
 }
 
-// Underscore var names
+// Underscore let names
 let ___bound;
 ___bound.prop **= 32;
 ___unbound.prop **= 33;

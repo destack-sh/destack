@@ -1,4 +1,4 @@
-var _unbound, _unbound2, _unbound3, _unbound4, _Outer;
+let _unbound, _unbound2, _unbound3, _unbound4, _Outer;
 
 let bound = "A";
 

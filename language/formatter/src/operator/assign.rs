@@ -382,22 +382,6 @@ fn expression_is_class_declaration(
     )
 }
 
-/// Return whether one rhs expression is a `require(...)` call.
-pub(crate) fn expression_is_require_call(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let expression_id = transparent_inner_expression(context, expression_id);
-    let Expression::Call { left, .. } = context.tree.get(expression_id) else {
-        return false;
-    };
-
-    matches!(
-        context.tree.get(transparent_inner_expression(context, *left)),
-        Expression::Identifier { name } if context.strings.get(*name) == "require"
-    )
-}
-
 /// Return whether one assignment operator has a slash line comment between left and right.
 pub(crate) fn assignment_operator_has_line_comment_between(
     context: &DestackFormatContext<'_>,
@@ -795,9 +779,6 @@ fn declaration_type_expression_has_generic_arguments(
         }
         | TypeExpression::Member {
             generic_arguments, ..
-        }
-        | TypeExpression::Import {
-            generic_arguments, ..
         } => !generic_arguments.is_empty(),
         _ => false,
     }
@@ -1166,16 +1147,6 @@ impl AssignmentLike {
         // assignment chains
         if let Some(layout) = self.chain_layout(f.context()) {
             return Ok(layout);
-        }
-
-        // compact require calls stay attached to `=`
-        if expression_is_require_call(f.context(), right)
-            && !f
-                .context()
-                .comments()
-                .has_leading_own_line_comment(f.context().span(right).start)
-        {
-            return Ok(AssignmentLikeLayout::NeverBreakAfterOperator);
         }
 
         // left side pressure

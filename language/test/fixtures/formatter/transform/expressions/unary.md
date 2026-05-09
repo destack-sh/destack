@@ -54,18 +54,6 @@ typeof value
 typeof value;
 ```
 
-### delete operator
-
-Delete keeps a space before the operand.
-
-```ds
-delete obj.field
-```
-
-```ds expected
-delete obj.field;
-```
-
 ### await operator
 
 Await keeps a space before the operand.

@@ -9,7 +9,6 @@ use destack_fir::write;
 
 use crate::annotation::format_comment;
 use crate::chain::expression_trivia_anchor_end;
-use crate::declaration::dependency::import_source_is_reference_directive;
 use crate::file::node_has_trailing_ignore_directive;
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_source::Span;
@@ -312,16 +311,9 @@ pub(crate) fn expression_needs_statement_terminator(
     expression: &Expression,
     is_expression_context_tail: bool,
 ) -> bool {
-    if let Expression::Import { source, .. } = expression
-        && import_source_is_reference_directive(*source)
-    {
-        return false;
-    }
-
     let always_needs_statement_terminator = matches!(
         expression,
         Expression::Import { .. }
-            | Expression::ExportNamespace { .. }
             | Expression::Let { .. }
             | Expression::LetElse { .. }
             | Expression::Using { .. }

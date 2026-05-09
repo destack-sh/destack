@@ -1,6 +1,6 @@
-var _prop2;
+let _prop2;
 
-var _prop = new WeakMap();
+let _prop = new WeakMap();
 
 class Outer {
     constructor() {
@@ -35,7 +35,7 @@ class Outer {
     getInnerWithAdditionalProp() {
         let _this$prop2, _this$shadowed2;
 
-        var _innerProp = new WeakMap();
+        let _innerProp = new WeakMap();
         _this$prop2 = babelHelpers.classPrivateFieldGet2(_prop, this);
         // This isn't an existing helper. We need to add a helper that throws error.
         // Problem only arises when class properties transform enabled and private methods transform isn't.
@@ -89,7 +89,7 @@ let OuterExpr =
         }
 
         getInnerWithAdditionalProp() {
-            var _innerProp2;
+            let _innerProp2;
             let _this$prop4, _this$shadowed4;
             return (
                 (_innerProp2 = new WeakMap()),

@@ -70,9 +70,6 @@ fn should_hug_single_generic_type_argument(
         }
         | TypeExpression::Member {
             generic_arguments, ..
-        }
-        | TypeExpression::Import {
-            generic_arguments, ..
         } => generic_arguments.is_empty(),
         TypeExpression::Union { elements } => {
             should_hug_single_generic_union_argument(context, type_id, elements)

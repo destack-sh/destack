@@ -43,18 +43,17 @@ result =
         .tail();
 ```
 
-### require initializer stays attached to the operator
+### call initializer breaks after the operator
 
-Compact CommonJS `require(...)` calls stay attached to `=`.
+Long call initializers break after `=`.
 
 ```ts:main.ts line-width=30
-const veryLongPackageBindingName = require(jestPath)
+const veryLongPackageBindingName = loadPackage(jestPath)
 ```
 
 ```ts expected
-const veryLongPackageBindingName = require(
-    jestPath,
-);
+const veryLongPackageBindingName =
+    loadPackage(jestPath);
 ```
 
 ### interpolated template argument uses fluid layout

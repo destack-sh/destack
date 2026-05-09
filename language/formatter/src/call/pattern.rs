@@ -2,7 +2,6 @@ use crate::DestackFormatContext;
 use crate::chain::{
     argument_value_id_if_present, chain_has_call_like_expression, transparent_inner_expression,
 };
-use crate::declaration::expression_is_in_statement_position;
 use destack_ast::{
     Argument, Declaration, Expression, FunctionForm, LocalNodeId, NodeType, ScalarLiteral,
     TemplateLiteral,
@@ -168,7 +167,6 @@ pub(crate) fn call_uses_simple_list_layout(
 
     matches!(context.tree.get(call_node_id), Expression::Call { .. })
         && (is_simple_module_import_call(context, call_node_id, left, arguments)
-            || is_require_or_amd_call(context, call_node_id, left, arguments)
             || is_test_call_expression(context, call_node_id, left, arguments))
 }
 
@@ -189,64 +187,8 @@ fn is_simple_module_import_call(
         return false;
     }
 
-    // require.resolve
-    if is_require_resolve_call(context, left) {
-        return true;
-    }
-
     // import.meta.resolve
-    is_require_resolve_paths_call(context, left) || is_import_meta_resolve_call(context, left)
-}
-
-/// Return whether one call is a require or AMD call pattern.
-fn is_require_or_amd_call(
-    context: &DestackFormatContext<'_>,
-    call_node_id: LocalNodeId<Expression>,
-    left: LocalNodeId<Expression>,
-    arguments: &[LocalNodeId<Argument>],
-) -> bool {
-    // require(...)
-    if name_is_identifier(context, left, "require") {
-        let Some(first_argument_id) = arguments.first().copied() else {
-            return false;
-        };
-
-        let leading_comment_range_start = context.span(call_node_id).start;
-        let leading_comment_range_end = context.span(first_argument_id).start;
-
-        if context
-            .comments()
-            .has_comment_in_range(leading_comment_range_start, leading_comment_range_end)
-        {
-            return false;
-        }
-
-        return match arguments.len() {
-            1 => argument_is_string_literal(context, first_argument_id),
-            _ => true,
-        };
-    }
-
-    // define(...)
-    if !name_is_identifier(context, left, "define")
-        || !expression_is_in_statement_position(context, call_node_id)
-    {
-        return false;
-    }
-
-    match arguments {
-        [_first] => true,
-        [first, second] => {
-            argument_is_array_expression(context, *first)
-                && argument_expression_id(context, *second).is_some()
-        }
-        [first, second, third] => {
-            argument_is_string_literal(context, *first)
-                && argument_is_array_expression(context, *second)
-                && argument_expression_id(context, *third).is_some()
-        }
-        _ => false,
-    }
+    is_import_meta_resolve_call(context, left)
 }
 
 /// Return whether one call expression matches one test-style pattern.
@@ -580,19 +522,6 @@ fn argument_is_identifier(
     })
 }
 
-/// Return whether one argument is an array expression.
-fn argument_is_array_expression(
-    context: &DestackFormatContext<'_>,
-    argument_id: LocalNodeId<Argument>,
-) -> bool {
-    argument_expression_id(context, argument_id).is_some_and(|expression_id| {
-        matches!(
-            context.tree.get(expression_id),
-            Expression::ArrayExpression { .. }
-        )
-    })
-}
-
 /// Return whether one argument is a numeric literal.
 fn argument_is_numeric_literal(
     context: &DestackFormatContext<'_>,
@@ -604,54 +533,6 @@ fn argument_is_numeric_literal(
             Expression::ScalarLiteral(ScalarLiteral::Integer(_) | ScalarLiteral::Float(_))
         )
     })
-}
-
-/// Return whether one expression is an identifier with the expected text.
-fn name_is_identifier(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-    expected: &str,
-) -> bool {
-    matches!(
-        context.tree.get(expression_id),
-        Expression::Identifier { name } if context.strings.get(*name) == expected
-    )
-}
-
-/// Return whether one callee is `require.resolve`.
-fn is_require_resolve_call(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let Expression::Member { left, name, .. } = context.tree.get(expression_id) else {
-        return false;
-    };
-    let Some(name) = name else {
-        return false;
-    };
-    if context.strings.get(*name) != "resolve" {
-        return false;
-    }
-
-    name_is_identifier(context, *left, "require")
-}
-
-/// Return whether one callee is `require.resolve.paths`.
-fn is_require_resolve_paths_call(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let Expression::Member { left, name, .. } = context.tree.get(expression_id) else {
-        return false;
-    };
-    let Some(name) = name else {
-        return false;
-    };
-    if context.strings.get(*name) != "paths" {
-        return false;
-    }
-
-    is_require_resolve_call(context, *left)
 }
 
 /// Return whether one callee is `import.meta.resolve`.

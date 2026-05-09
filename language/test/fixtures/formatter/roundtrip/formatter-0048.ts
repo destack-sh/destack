@@ -34,15 +34,15 @@ void (async () => {
 
     // Migration modes are handled by JS
     if (mode === "init") {
-        await import("./cli/migration/init").then((m) => m.runInit());
+        await loadModule("./cli/migration/init").then((m) => m.runInit());
         return;
     }
     if (mode === "migrate:prettier") {
-        await import("./cli/migration/migrate-prettier").then((m) => m.runMigratePrettier());
+        await loadModule("./cli/migration/migrate-prettier").then((m) => m.runMigratePrettier());
         return;
     }
     if (mode === "migrate:biome") {
-        await import("./cli/migration/migrate-biome").then((m) => m.runMigrateBiome());
+        await loadModule("./cli/migration/migrate-biome").then((m) => m.runMigrateBiome());
         return;
     }
 

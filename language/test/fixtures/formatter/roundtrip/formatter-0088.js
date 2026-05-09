@@ -1,7 +1,7 @@
-var _prop2, _shadowed2;
+let _prop2, _shadowed2;
 
-var _prop = new WeakMap();
-var _shadowed = new WeakMap();
+let _prop = new WeakMap();
+let _shadowed = new WeakMap();
 
 class Outer {
     constructor() {
@@ -21,7 +21,7 @@ class Outer {
             }
         }
 
-        var _innerProp = new WeakMap();
+        let _innerProp = new WeakMap();
         class InnerWithAdditionalProp {
             constructor() {
                 babelHelpers.classPrivateFieldInitSpec(this, _innerProp, 3);
@@ -49,7 +49,7 @@ let OuterExpr =
         }
 
         method() {
-            var _innerProp2;
+            let _innerProp2;
 
             let InnerExpr = class {
                 #shadowed() {}

@@ -90,33 +90,6 @@ export * as Utils from "module"
 export * as Utils from "module";
 ```
 
-## Namespace Exports
-
-### export as namespace
-
-Declaration files can export a namespace alias.
-
-```ts:main.d.ts
-export as namespace Foo
-```
-
-```ts expected
-export as namespace Foo;
-```
-
-### export equals
-
-Export equals keeps spacing around `=`.
-
-```ts:main.ts
-export = foo
-```
-
-```ts expected
-export = foo;
-```
-
-
 ## Inline Exports
 
 ### export const
