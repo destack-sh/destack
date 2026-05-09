@@ -2,12 +2,12 @@ use std::path::Path;
 
 use destack_ast::{
     DependencyBinding as AstDependencyBinding, DependencyItem, DependencySpace, Expression,
-    ImportTarget, ScalarLiteral, TokenType, Tree, TypeExpression,
+    TokenType,
 };
 use destack_core::StringId;
 use destack_dir::{
-    Declaration, DependencyBinding as DirDependencyBinding, DependencyItem as DirDependencyItem,
-    LocalNodeId, LocalSymbolId, NodeType, SymbolForm, SymbolSpace,
+    DependencyBinding as DirDependencyBinding, DependencyItem as DirDependencyItem, LocalNodeId,
+    LocalSymbolId, NodeType, SymbolForm, SymbolSpace,
 };
 use destack_source::{Edit, FileId, PathExt, Span};
 
@@ -123,23 +123,12 @@ pub(crate) fn resolve_local_import_alias_name(
     // resolve query context for the symbol module
     let ctx = query_context(repository, revision, symbol_id.module_id)?;
 
-    // read the symbol declaration and support declaration/import forms
+    // read the symbol declaration
     let declaration = {
         let symbols = ctx.dir().symbols();
         let symbol = symbols.get_symbol(symbol_id.local_id);
         symbol.declaration?
     };
-    if declaration.local_id.ty == NodeType::Declaration {
-        let declaration_id: LocalNodeId<Declaration> = declaration.local_id.try_into().ok()?;
-        let dir_tree = ctx.dir().view();
-        let declaration = dir_tree.get::<Declaration>(declaration_id);
-        let Declaration::ImportAlias(declaration) = declaration else {
-            return None;
-        };
-
-        let name_id = declaration.name.string();
-        return Some(ctx.dir().strings().get(name_id).to_string());
-    }
 
     if declaration.local_id.ty != NodeType::DependencyItem {
         return None;
@@ -405,27 +394,11 @@ impl ImportEditSpace {
 
 /// Resolve a module specifier and dependency space for an AST expression.
 pub(crate) fn module_specifier_in_expression(
-    tree: &Tree,
     expression: &Expression,
 ) -> Option<(StringId, DependencySpace)> {
     match expression {
-        Expression::Import {
-            target: ImportTarget::String(target),
-            space,
-            ..
-        } => Some((*target, *space)),
+        Expression::Import { target, space, .. } => Some((*target, *space)),
         Expression::Export { target, space, .. } => target.map(|target| (target, *space)),
-        Expression::Type { value } => {
-            let TypeExpression::Import { target, .. } = tree.get(*value) else {
-                return None;
-            };
-
-            if let Expression::ScalarLiteral(ScalarLiteral::String(target)) = tree.get(*target) {
-                Some((*target, DependencySpace::Type))
-            } else {
-                None
-            }
-        }
         _ => None,
     }
 }
@@ -458,10 +431,6 @@ pub(crate) fn collect_existing_imports(
             ..
         } = expr
         {
-            let ImportTarget::String(target) = target else {
-                continue;
-            };
-
             // resolve import path, span, and space
             let path = ctx.ast().strings().get(*target).to_string();
             let span = ctx.ast().tree().source_map.get(node_id.id);

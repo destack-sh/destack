@@ -57,9 +57,6 @@ pub(super) fn detect_import_context(
             let ast::Expression::Import { target, .. } = expr else {
                 continue;
             };
-            let ast::ImportTarget::String(target) = target else {
-                continue;
-            };
 
             let target_module = resolved_import_target_module(repository, ast, dir, *target);
 

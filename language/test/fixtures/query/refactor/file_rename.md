@@ -319,56 +319,6 @@ import "./bootstrap";
 const is_ready = true;
 ```
 
-## Dynamic Imports
-
-### Updates dynamic import specifiers
-
-Rename should update `import()` call specifiers.
-
-```ds:src/utils/foo.ds
-export const foo = 1;
-```
-
-```ds:src/main.ds
-async function load(): Promise<int32> {
-    const mod = await import("./utils/foo");
-    return mod.foo;
-}
-```
-
-```query file_rename src/utils/foo.ds src/utils/bar.ds
-```
-
-```expected:src/main.ds
-async function load(): Promise<int32> {
-    const mod = await import("./utils/bar");
-    return mod.foo;
-}
-```
-
-## Type Import Expressions
-
-### Updates type import expressions
-
-Rename should update `import()` expressions inside types.
-
-```ds:src/types/foo.ds
-export type Foo = {
-    value: int32,
-};
-```
-
-```ds:src/main.ds
-type Foo = import("./types/foo").Foo;
-```
-
-```query file_rename src/types/foo.ds src/types/bar.ds
-```
-
-```expected:src/main.ds
-type Foo = import("./types/bar").Foo;
-```
-
 ## Non-Module Strings
 
 ### Skips non-module string literals
@@ -539,7 +489,7 @@ const value = data;
 
 ### Updates mixed specifier kinds in one file
 
-Rename should update all module specifier forms that point at the same target while leaving plain strings alone.
+Rename should update all static module specifier forms that point at the same target while leaving plain strings alone.
 
 ```ds:src/lib/foo.ds
 export const foo = 1;
@@ -553,13 +503,6 @@ import { foo } from "./lib/foo";
 import type { Foo } from "./lib/foo";
 import "./lib/foo?raw#fragment";
 
-async function load(): Promise<int32> {
-    const mod = await import("./lib/foo");
-    return mod.foo;
-}
-
-type LocalFoo = import("./lib/foo").Foo;
-
 const plain = "./lib/foo";
 const value: Foo = { value: foo };
 ```
@@ -571,13 +514,6 @@ const value: Foo = { value: foo };
 import { foo } from "./lib/bar";
 import type { Foo } from "./lib/bar";
 import "./lib/bar?raw#fragment";
-
-async function load(): Promise<int32> {
-    const mod = await import("./lib/bar");
-    return mod.foo;
-}
-
-type LocalFoo = import("./lib/bar").Foo;
 
 const plain = "./lib/foo";
 const value: Foo = { value: foo };

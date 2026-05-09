@@ -337,10 +337,6 @@ fn declaration_symbol_kind_ast(declaration: &ast::Declaration) -> SymbolKind {
         ast::Declaration::Enum(_) => SymbolKind::Enum,
         ast::Declaration::Namespace(_) => SymbolKind::Namespace,
         ast::Declaration::Type(_) => SymbolKind::TypeParameter,
-        ast::Declaration::ImportAlias(declaration) => match declaration.space {
-            ast::DependencySpace::Type => SymbolKind::TypeParameter,
-            ast::DependencySpace::Value => SymbolKind::Variable,
-        },
         ast::Declaration::Extension(_) => SymbolKind::Class,
     }
 }

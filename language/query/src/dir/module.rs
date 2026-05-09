@@ -185,8 +185,7 @@ pub(crate) fn build_specifier_candidates_for_module(
         let mut entries = Vec::new();
         for expression_id in ast.tree().iter_nodes::<destack_ast::Expression>() {
             let expression = ast.tree().get(expression_id);
-            let Some((target, _kind)) = module_specifier_in_expression(ast.tree(), expression)
-            else {
+            let Some((target, _kind)) = module_specifier_in_expression(expression) else {
                 continue;
             };
 

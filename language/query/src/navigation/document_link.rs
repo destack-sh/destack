@@ -139,10 +139,6 @@ fn document_links_with_dir(
         for (expr_id, expr) in dir_tree.iter_nodes_of_type::<Expression>() {
             match expr {
                 Expression::Import { target, .. } => {
-                    let dir::ImportTarget::String(target) = target else {
-                        continue;
-                    };
-
                     // skip declared modules for document links
                     let node_id = expr_id.into_global_any(ctx.module_id());
                     let Some(dir::DependencyResolution::Module(dependency_target)) =
@@ -262,8 +258,7 @@ fn document_links_with_ast(
             let expression = ast.tree().get(expression_id);
 
             // resolve the module specifier and dependency space
-            let Some((specifier, _space)) = module_specifier_in_expression(ast.tree(), expression)
-            else {
+            let Some((specifier, _space)) = module_specifier_in_expression(expression) else {
                 continue;
             };
 
