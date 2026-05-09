@@ -1731,15 +1731,14 @@ Unlike in Rust, in Destack we support _both_ multiple mutable borrows (`&T`) and
 | `&exclusive T` | exclusive borrowed access | yes | yes |
 | `*T` | raw pointer | yes (unchecked) | no (unchecked) |
 
-The ownership and borrow checking logic just follow from the two rules that borrows must always be valid, and that exclusive borrows must indeed be exclusive.
-For more details on borrowing behavior, see [Borrowing](###borrowing).
+The ownership and borrow checking logic follow from the two rules that borrows must always be valid, and that exclusive borrows must indeed be exclusive.
 
 ```ds
 let a: User = new User();
 let b: ^User = new User();
 let c: &User = &a;
 let d: &readonly User = &readonly a; // OK: &User is *not* exclusive
-let e: &exclusive User = &exclusive a; // ERROR: &exlusive User *is* exclusive
+let e: &exclusive User = &exclusive a; // ERROR: &exclusive User *is* exclusive
 let e: *User = &a;
 ```
 
@@ -1863,11 +1862,11 @@ function interruptHandler(input: &[Sample]): Frame {
 
 ### Borrowing
 
-There are a different ways of ensuring memory safety, and Destack (mostly) follows the Rust tradition of making lifetimes explicit regions for describing how `&T` and `T` relate.
+There are different ways of ensuring memory safety, and Destack mostly follows the Rust tradition of using lifetimes to describe how borrowed `&T` values relate to their owners.
 When borrowing a value with `&T`, the compiler needs to ensure that the borrow remains valid - that is, `T` must remain alive (must not be deallocated) while `&T` is active.
 
 Like in Rust, even when working with borrowed values, most of the time all lifetimes are inferred correctly and we don't need to think too much.
-Unlike in Rust, mutability is decoupled from borrowing: we can have a multiple mutable borrows `&T` and readonly borrows `&readonly T` of the same `T` _at the same time_, as long as there is no concurrent `&exclusive T` borrow (which mirrors Rust's `&mut T`). 
+Unlike in Rust, mutability is decoupled from borrowing: we can have multiple mutable borrows `&T` and readonly borrows `&readonly T` of the same `T` _at the same time_, as long as there is no concurrent `&exclusive T` borrow (which mirrors Rust's `&mut T`). 
 
 | Form | Access |
 |------|--------|
@@ -1921,7 +1920,7 @@ let exclusiveX = &exclusive point.x;
 *exclusiveX = 4;
 ```
 
-Sometimes we need to spell out explicit lifetimes explicitly to clarify the relationship between owners and borrowsers, and for that purpose we have explicit `<L: Lifetime>` and `Borrowed<T, L>` generics. 
+Sometimes we need to spell out explicit lifetimes to clarify the relationship between owners and borrowsers, and for that purpose we have explicit `<L: Lifetime>` and `Borrowed<T, L>` generics. 
 Instead of reifying lifetimes as special `'a`-style lifetime parameters, Destack's `<L: Lifetime>`s are standard static parameters that are also available to regular TypeScript-style type algebra:
 
 ```ds
@@ -1948,12 +1947,6 @@ The usual failure cases of borrowing rules usually have straightforward solution
 function escapedPoint(): &Point {
     let point = ^Point { x: 1, y: 2 };
     return &point;
-}
-
-/* VALID: managed Point can be returned instead of borrowed access */
-function managedPoint(): Point {
-    let point = Point { x: 1, y: 2 };
-    return point;
 }
 
 /* VALID: owned Point is returned instead of borrowed access */
