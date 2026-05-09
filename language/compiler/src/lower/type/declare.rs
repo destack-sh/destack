@@ -99,7 +99,6 @@ impl ModuleLowerer<'_> {
                     self.declare_nominal_layouts_for_type(*span, visited)?;
                 }
             }
-            dir::Type::Import(_) => {}
             dir::Type::Infer(infer) => {
                 if let Some(constraint) = infer.constraint {
                     self.declare_nominal_layouts_for_type(constraint, visited)?;

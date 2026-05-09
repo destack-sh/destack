@@ -885,63 +885,6 @@ impl Compiler {
             }
             dir::TypeExpression::Const => ast::TypeExpression::Const,
             dir::TypeExpression::This => ast::TypeExpression::This,
-            dir::TypeExpression::Import {
-                target,
-                arguments,
-                qualifier,
-                generic_arguments,
-            } => {
-                let target = self.unbind_expression(
-                    module,
-                    *target,
-                    tree,
-                    symbols,
-                    types,
-                    ast_tree,
-                    ast_strings,
-                    context,
-                );
-                let arguments = arguments
-                    .iter()
-                    .map(|argument| {
-                        self.unbind_argument(
-                            module,
-                            *argument,
-                            tree,
-                            symbols,
-                            types,
-                            ast_tree,
-                            ast_strings,
-                            context,
-                        )
-                    })
-                    .collect();
-                let qualifier = qualifier
-                    .as_ref()
-                    .map(|qualifier| self.unbind_path(qualifier, ast_strings, context));
-                let generic_arguments = generic_arguments
-                    .iter()
-                    .map(|argument| {
-                        self.unbind_generic_argument(
-                            module,
-                            *argument,
-                            tree,
-                            symbols,
-                            types,
-                            ast_tree,
-                            ast_strings,
-                            context,
-                        )
-                    })
-                    .collect();
-
-                ast::TypeExpression::Import {
-                    target,
-                    arguments,
-                    qualifier,
-                    generic_arguments,
-                }
-            }
             dir::TypeExpression::Readonly { target_type } => {
                 let target_type = self.unbind_type_expression(
                     module,

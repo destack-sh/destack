@@ -277,35 +277,6 @@ impl Compiler {
                     value,
                 })
             }
-            dir::Declaration::ImportAlias(declaration) => {
-                // declaration header
-                let name = self.unbind_name(ast_strings, declaration.name);
-                let export = declaration
-                    .export
-                    .map(|export| self.unbind_export_kind(export));
-                let is_ambient = self.unbind_ambientness(declaration.is_ambient, context);
-                let space = self.unbind_dependency_space(context, declaration.space);
-
-                // alias target
-                let target = match &declaration.target {
-                    dir::ImportAliasTarget::Require { target } => {
-                        let target = *target;
-                        ast::ImportAliasTarget::Require { target }
-                    }
-                    dir::ImportAliasTarget::Path { path } => {
-                        let path = self.unbind_path(path, ast_strings, context);
-                        ast::ImportAliasTarget::Path { path }
-                    }
-                };
-
-                ast::Declaration::ImportAlias(ast::ImportAliasDeclaration {
-                    name,
-                    export,
-                    is_ambient,
-                    space,
-                    target,
-                })
-            }
             dir::Declaration::Struct(declaration) => {
                 // declaration header
                 let name = self.unbind_name(ast_strings, declaration.name);

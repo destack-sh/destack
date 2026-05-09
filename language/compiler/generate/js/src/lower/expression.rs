@@ -385,100 +385,34 @@ impl ModuleLowerer<'_> {
             }
 
             dir::Expression::Import {
-                source,
                 space,
                 target,
                 items,
                 attributes,
-                arguments,
             } => {
-                if *source == dir::ImportSource::ImportCall {
-                    let (target_expression, target_module) = match target {
-                        dir::ImportTarget::String(target) => {
-                            let target = *target;
-                            let target_expression = self.tree.insert_from_source(
-                                js::Expression::ScalarLiteral {
-                                    value: js::ScalarLiteral::String(target),
-                                },
-                                self.module.id,
-                                expression_id,
-                            );
-                            let target_module =
-                                self.dependency_target_module(expression_id.into_any());
-
-                            (target_expression, target_module)
-                        }
-                        dir::ImportTarget::Expression { target } => {
-                            let lowered = self.lower_expression(*target)?;
-                            if lowered.ty != js::NodeType::Expression {
-                                return Err(CodegenJsError::UnsupportedConstruct {
-                                    node: expression_id.into_global_any(self.module.id),
-                                    message: Some(format!(
-                                        "dynamic import target lowered to unsupported {}",
-                                        lowered.ty.name()
-                                    )),
-                                });
-                            }
-
-                            (lowered.try_into().unwrap(), None)
-                        }
-                    };
-                    let arguments = if let Some(arguments) = arguments {
-                        arguments
-                            .iter()
-                            .map(|argument| self.lower_argument(*argument))
-                            .collect::<Result<Vec<_>, CodegenJsError>>()?
-                    } else {
-                        Vec::new()
-                    };
-
-                    self.tree
-                        .insert_from_source(
-                            js::Expression::ImportCall {
-                                target: target_expression,
-                                target_module,
-                                arguments,
-                            },
-                            self.module.id,
-                            expression_id,
-                        )
-                        .into_any()
-                } else {
-                    let target = match target {
-                        dir::ImportTarget::String(target) => *target,
-                        dir::ImportTarget::Expression { .. } => {
-                            return Err(CodegenJsError::UnsupportedConstruct {
-                                node: expression_id.into_global_any(self.module.id),
-                                message: Some(
-                                    "expression import targets are only supported for import()"
-                                        .to_string(),
-                                ),
-                            });
-                        }
-                    };
-                    let items = items
-                        .as_ref()
-                        .map(|items| self.lower_dependency_items(*space, items.as_slice()))
-                        .transpose()?;
-                    let attributes = attributes
-                        .as_ref()
-                        .map(|attributes| {
-                            self.lower_import_attributes(expression_id.into_any(), attributes)
-                        })
-                        .transpose()?;
-                    let target_module = self.dependency_target_module(expression_id.into_any());
-                    let space = self.lower_dependency_space(*space);
-                    let statement = js::Statement::Import {
-                        space,
-                        target,
-                        target_module,
-                        items,
-                        attributes,
-                    };
-                    self.tree
-                        .insert_from_source(statement, self.module.id, expression_id)
-                        .into_any()
-                }
+                let target = *target;
+                let items = items
+                    .as_ref()
+                    .map(|items| self.lower_dependency_items(*space, items.as_slice()))
+                    .transpose()?;
+                let attributes = attributes
+                    .as_ref()
+                    .map(|attributes| {
+                        self.lower_import_attributes(expression_id.into_any(), attributes)
+                    })
+                    .transpose()?;
+                let target_module = self.dependency_target_module(expression_id.into_any());
+                let space = self.lower_dependency_space(*space);
+                let statement = js::Statement::Import {
+                    space,
+                    target,
+                    target_module,
+                    items,
+                    attributes,
+                };
+                self.tree
+                    .insert_from_source(statement, self.module.id, expression_id)
+                    .into_any()
             }
             dir::Expression::ReExport {
                 space,

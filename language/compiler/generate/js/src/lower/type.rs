@@ -31,7 +31,6 @@ impl ModuleLowerer<'_> {
     /// Lower one for each declaration kind from DIR into JS AST.
     pub fn lower_for_each_keyword(&self, keyword: dir::BindingKeyword) -> js::BindingKeyword {
         match keyword {
-            dir::BindingKeyword::Var => js::BindingKeyword::Var,
             dir::BindingKeyword::Let => js::BindingKeyword::Let,
             dir::BindingKeyword::Const => js::BindingKeyword::Const,
         }
@@ -814,29 +813,6 @@ impl ModuleLowerer<'_> {
                 let template = js::TypeTemplateLiteral { strings, spans };
                 let ty = js::TypeExpression::TemplateLiteral(template);
 
-                self.tree
-                    .insert_from_source_any(ty, self.module.id, source_id)
-            }
-            dir::Type::Import(import) => {
-                let target = import.target;
-                let qualifier = import
-                    .qualifier
-                    .as_ref()
-                    .map(|path| self.lower_path(source_id, path))
-                    .transpose()?;
-                let generic_arguments = import
-                    .generic_arguments
-                    .as_ref()
-                    .map(|arguments| {
-                        self.lower_semantic_static_type_arguments(source_id, arguments)
-                    })
-                    .transpose()?
-                    .unwrap_or_default();
-                let ty = js::TypeExpression::Import {
-                    target,
-                    qualifier,
-                    generic_arguments,
-                };
                 self.tree
                     .insert_from_source_any(ty, self.module.id, source_id)
             }

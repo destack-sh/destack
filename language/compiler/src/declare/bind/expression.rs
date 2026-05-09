@@ -2,12 +2,11 @@ use crate::Compiler;
 use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
-    AssignPattern, AssignPatternField, BindingKeyword, BindingScope, BindingTable, CastOrigin,
-    Declarator, DeclaredModule, ExportKind, Expression, ForEachBinding, ForEachOperator,
-    IfCondition, IfForm, ImportTarget, LetKind, LocalNodeId, LocalNodeIdAny, LocalScopeId,
-    LocalScopeMark, LoopKind, MatchForm, MatchOrigin, Mutability, NodeType, Path, ScopeKind,
-    StaticKey, SymbolBinding, SymbolForm, SymbolRole, SymbolSpace, Tree, Type, TypeTable,
-    UnevaluatedType, YieldCardinality,
+    AssignPattern, AssignPatternField, BindingKeyword, BindingTable, CastOrigin, Declarator,
+    DeclaredModule, ExportKind, Expression, ForEachBinding, ForEachOperator, IfCondition, IfForm,
+    LetKind, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, LoopKind, MatchForm,
+    MatchOrigin, Mutability, NodeType, Path, ScopeKind, StaticKey, SymbolBinding, SymbolForm,
+    SymbolRole, SymbolSpace, Tree, Type, TypeTable, UnevaluatedType, YieldCardinality,
 };
 use destack_workspace::Module;
 use smallvec::smallvec;
@@ -25,18 +24,9 @@ impl Compiler {
         }
     }
 
-    /// Map let kind into the binding scope used by the declaration.
-    fn binding_scope_for_let_kind(&self, kind: ast::LetKind) -> BindingScope {
-        match kind {
-            ast::LetKind::Var => BindingScope::Function,
-            ast::LetKind::Let | ast::LetKind::Const => BindingScope::Block,
-        }
-    }
-
     /// Bind an AST let kind into a DIR let kind.
     fn bind_let_kind(&self, kind: ast::LetKind) -> LetKind {
         match kind {
-            ast::LetKind::Var => LetKind::Var,
             ast::LetKind::Let => LetKind::Let,
             ast::LetKind::Const => LetKind::Const,
         }
@@ -339,17 +329,8 @@ impl Compiler {
     /// Bind a for each binding keyword into a DIR binding keyword.
     fn bind_binding_keyword(&self, keyword: ast::BindingKeyword) -> BindingKeyword {
         match keyword {
-            ast::BindingKeyword::Var => BindingKeyword::Var,
             ast::BindingKeyword::Let => BindingKeyword::Let,
             ast::BindingKeyword::Const => BindingKeyword::Const,
-        }
-    }
-
-    /// Map a for each binding keyword into the binding scope used by the declaration.
-    fn binding_scope_for_binding_keyword(&self, keyword: BindingKeyword) -> BindingScope {
-        match keyword {
-            BindingKeyword::Var => BindingScope::Function,
-            BindingKeyword::Let | BindingKeyword::Const => BindingScope::Block,
         }
     }
 
@@ -506,40 +487,12 @@ impl Compiler {
             }
 
             ast::Expression::Import {
-                source,
                 space,
                 target,
                 items,
                 attributes,
-                arguments,
             } => {
-                let (target, dependency_target) = match target {
-                    ast::ImportTarget::String(target) => {
-                        let target = *target;
-                        (ImportTarget::String(target), Some(target))
-                    }
-                    ast::ImportTarget::Expression { target } => {
-                        let target = self.bind_expression(
-                            module,
-                            ast,
-                            namespace_scope,
-                            global_scope,
-                            declared_modules,
-                            scope,
-                            *target,
-                            Some(expression_id),
-                            tree,
-                            symbols,
-                            types,
-                            SymbolSpace::Value,
-                        );
-                        (
-                            ImportTarget::Expression { target },
-                            None,
-                        )
-                    }
-                };
-                let source = self.bind_import_source(*source);
+                let target = *target;
 
                 // items
                 let items = items.as_ref().map(|items| {
@@ -555,7 +508,7 @@ impl Compiler {
                                 scope,
                                 DependencySite::Import,
                                 *space,
-                                dependency_target,
+                                Some(target),
                                 *item,
                                 Some(expression_id),
                                 tree,
@@ -571,36 +524,12 @@ impl Compiler {
                     .as_ref()
                     .map(|attributes| self.bind_import_attribute_clause(module, ast, attributes));
 
-                // arguments
-                let arguments = arguments.as_ref().map(|arguments| {
-                    arguments
-                        .iter()
-                        .map(|argument| {
-                            self.bind_argument(
-                                module,
-                                ast,
-                                namespace_scope,
-                                global_scope,
-                                declared_modules,
-                                scope,
-                                *argument,
-                                Some(expression_id),
-                                tree,
-                                symbols,
-                                types,
-                                SymbolSpace::Value,
-                            )
-                        })
-                        .collect()
-                });
                 let space = self.bind_dependency_space(*space);
                 Expression::Import {
-                    source,
                     space,
                     target,
                     items,
                     attributes,
-                    arguments,
                 }
             }
             ast::Expression::Export {
@@ -687,18 +616,13 @@ impl Compiler {
                     }
                 }
             }
-            ast::Expression::ExportNamespace { name } => {
-                let name = *name;
-                Expression::ExportNamespace { name }
-            }
             ast::Expression::Let {
-                kind,
+                kind: _,
                 export,
                                     is_ambient,
                 mutability,
                 declarators: ast_declarators,
             } => {
-                let binding_scope = self.binding_scope_for_let_kind(*kind);
                 let export = export.map(|export| self.bind_export_kind(export));
                 let is_ambient = *is_ambient;
                 let binding = if is_ambient {
@@ -721,7 +645,6 @@ impl Compiler {
                             export,
                             binding,
                             Some(mutability),
-                            Some(binding_scope),
                             *ast_decl_id,
                             Some(expression_id),
                             tree,
@@ -750,7 +673,6 @@ impl Compiler {
                 declarator: ast_declarator,
                 else_branch,
             } => {
-                let binding_scope = self.binding_scope_for_let_kind(*kind);
                 let mutability = self.bind_mutability(*mutability);
                 let declarator = self.bind_declarator(
                     module,
@@ -762,7 +684,6 @@ impl Compiler {
                     None,
                     SymbolBinding::Runtime,
                     Some(mutability),
-                    Some(binding_scope),
                     *ast_declarator,
                     Some(expression_id),
                     tree,
@@ -809,7 +730,6 @@ impl Compiler {
                 };
                 let asynchrony = self.bind_asynchrony(*asynchrony);
                 let mutability = Mutability::Immutable;
-                let binding_scope = BindingScope::Block;
                 let mut declarator_scope = scope;
                 let declarators: Vec<LocalNodeId<Declarator>> = ast_declarators
                     .iter()
@@ -824,7 +744,6 @@ impl Compiler {
                             export,
                             binding,
                             Some(mutability),
-                            Some(binding_scope),
                             *ast_decl_id,
                             Some(expression_id),
                             tree,
@@ -1336,23 +1255,6 @@ impl Compiler {
                     generic_arguments,
                     arguments,
                 }
-            }
-            ast::Expression::Delete { value } => {
-                let value = self.bind_expression(
-                    module,
-                    ast,
-                    namespace_scope,
-                    global_scope,
-                    declared_modules,
-                    scope,
-                    *value,
-                    Some(expression_id),
-                    tree,
-                    symbols,
-                    types,
-                    space,
-                );
-                Expression::Delete { value }
             }
             ast::Expression::Index {
                 position: _,
@@ -1904,7 +1806,6 @@ impl Compiler {
                         declarator,
                     } => {
                         let mutability = self.bind_mutability(*mutability);
-                        let binding_scope = self.binding_scope_for_let_kind(*kind);
                         let outer_scope = scope;
                         let if_scope_id =
                             symbols.insert_scope(ScopeKind::Block, Some(outer_scope), None);
@@ -1919,7 +1820,6 @@ impl Compiler {
                             None,
                             SymbolBinding::Runtime,
                             Some(mutability),
-                            Some(binding_scope),
                             *declarator,
                             Some(expression_id),
                             tree,
@@ -2071,8 +1971,6 @@ impl Compiler {
                     } => {
                         let keyword =
                             keyword.map(|keyword| self.bind_binding_keyword(keyword));
-                        let binding_scope = keyword
-                            .map(|keyword| self.binding_scope_for_binding_keyword(keyword));
                         let pattern = self.bind_pattern(
                             module,
                             ast,
@@ -2083,7 +1981,6 @@ impl Compiler {
                             None,
                             SymbolBinding::Runtime,
                             None,
-                            binding_scope,
                             *pattern,
                             Some(expression_id),
                             tree,
@@ -2106,7 +2003,6 @@ impl Compiler {
                             None,
                             SymbolBinding::Runtime,
                             Some(Mutability::Immutable),
-                            Some(BindingScope::Block),
                             *pattern,
                             Some(expression_id),
                             tree,
@@ -2296,7 +2192,6 @@ impl Compiler {
                         None,
                         SymbolBinding::Runtime,
                         None,
-                        Some(BindingScope::Parameter),
                         catch_pattern,
                         Some(expression_id),
                         tree,
@@ -2604,7 +2499,6 @@ impl Compiler {
         export: Option<ExportKind>,
         binding: SymbolBinding,
         binding_mutability: Option<Mutability>,
-        binding_scope: Option<BindingScope>,
         ast_declarator_id: ast::LocalNodeId<ast::Declarator>,
         parent_id: Option<LocalNodeIdAny>,
         tree: &mut Tree,
@@ -2626,7 +2520,6 @@ impl Compiler {
             export,
             binding,
             binding_mutability,
-            binding_scope,
             *pattern,
             Some(declarator_id),
             tree,

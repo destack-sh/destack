@@ -2,13 +2,12 @@ use crate::Compiler;
 use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
-    BindingScope, BindingTable, ClassDeclaration, Declaration, DeclaredModule, DependencyItem,
-    EnumDeclaration, EnumField, EnumKind, ExportKind, Expression, ExtensionDeclaration,
-    FunctionDeclaration, GlobalDeclaration, ImportAliasDeclaration, ImportAliasTarget,
+    BindingTable, ClassDeclaration, Declaration, DeclaredModule, EnumDeclaration, EnumField,
+    EnumKind, ExportKind, Expression, ExtensionDeclaration, FunctionDeclaration, GlobalDeclaration,
     InterfaceDeclaration, InterfaceHeritage, LocalNodeId, LocalNodeIdAny, LocalScopeId,
     LocalScopeMark, LocalSymbolId, ModuleDeclaration, Name, NamespaceDeclaration, NamespaceForm,
-    NodeType, ProvenanceReason, ScopeKind, StaticKey, StructDeclaration, SymbolBinding, SymbolForm,
-    SymbolRole, SymbolSpace, Tree, TypeDeclaration, TypeTable,
+    NodeType, ScopeKind, StaticKey, StructDeclaration, SymbolBinding, SymbolForm, SymbolRole,
+    SymbolSpace, Tree, TypeDeclaration, TypeTable,
 };
 use destack_workspace::Module;
 
@@ -616,84 +615,6 @@ impl Compiler {
                     where_clauses,
                     value,
                 })
-            }
-            ast::Declaration::ImportAlias(declaration) => {
-                // declaration header
-                let name = self.bind_name(ast, declaration.name);
-                let export = declaration
-                    .export
-                    .map(|export| self.bind_export_kind(export));
-                let is_ambient = self.bind_ambientness(declaration.is_ambient);
-                let binding = self.bind_declaration_binding(module, declaration.is_ambient);
-                let dependency_space = self.bind_dependency_space(declaration.space);
-                let space = match declaration.space {
-                    ast::DependencySpace::Type => SymbolSpace::Type,
-                    ast::DependencySpace::Value => SymbolSpace::Value,
-                };
-                let symbol = self.bind_declaration_symbol(
-                    module,
-                    scope,
-                    Some(name),
-                    export,
-                    SymbolRole::Item,
-                    SymbolForm::Variable,
-                    binding,
-                    space,
-                    symbols,
-                );
-
-                // alias target
-                let target = match &declaration.target {
-                    ast::ImportAliasTarget::Require { target } => {
-                        let target = *target;
-                        ImportAliasTarget::Require { target }
-                    }
-                    ast::ImportAliasTarget::Path { path } => {
-                        let path = self.bind_path(module, ast, path);
-                        ImportAliasTarget::Path { path }
-                    }
-                };
-
-                // require aliases also synthesize a namespace dependency item
-                if let ImportAliasTarget::Require { target } = target
-                    && let Some(alias) = Some(name.string())
-                {
-                    let dependency_id = tree.reserve_from(
-                        NodeType::DependencyItem,
-                        declaration_id,
-                        scope,
-                        Some(declaration_id),
-                        Some(ProvenanceReason::Bound),
-                    );
-                    let dependency = DependencyItem::Item {
-                        binding: destack_dir::DependencyBinding::Namespace,
-                        space: dependency_space,
-                        name: None,
-                        alias: Some(alias),
-                        symbol: Some(symbol),
-                    };
-                    tree.insert(dependency_id, dependency);
-
-                    let target = ImportAliasTarget::Require { target };
-
-                    Declaration::ImportAlias(ImportAliasDeclaration {
-                        name,
-                        export,
-                        is_ambient,
-                        symbol,
-                        space: dependency_space,
-                        target,
-                    })
-                } else {
-                    Declaration::ImportAlias(ImportAliasDeclaration {
-                        name,
-                        export,
-                        is_ambient,
-                        symbol,
-                        space: dependency_space,
-                        target,
-                    })
-                }
             }
             ast::Declaration::Struct(declaration) => {
                 // declaration header
@@ -1455,12 +1376,6 @@ impl Compiler {
             }
         };
 
-        // declaration binding scope
-        let binding_scope = match &declaration {
-            Declaration::Function(_) | Declaration::Class(_) => Some(BindingScope::Block),
-            _ => None,
-        };
-
         let symbol_id = declaration.symbol();
         let declaration_id = tree.insert(declaration_id, declaration);
 
@@ -1481,11 +1396,6 @@ impl Compiler {
 
         // attach the declaration to the symbol
         symbols.declare_symbol(symbol_id, declaration_id);
-
-        // apply declaration category
-        if let Some(binding_scope) = binding_scope {
-            self.apply_binding_scope(symbols, symbol_id, binding_scope);
-        }
 
         declaration_id
     }

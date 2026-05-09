@@ -249,7 +249,6 @@ impl Compiler {
             }
             | Expression::Maybe { left: statement }
             | Expression::Must { left: statement }
-            | Expression::Delete { value: statement }
             | Expression::Await {
                 expression: statement,
             }
@@ -595,7 +594,6 @@ impl Compiler {
             scope,
             name,
             symbol_id,
-            Some(Mutability::Immutable),
             Mutability::Immutable,
             Some(value_expression),
         );

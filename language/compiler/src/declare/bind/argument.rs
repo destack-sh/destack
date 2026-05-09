@@ -2,9 +2,9 @@ use crate::Compiler;
 use destack_artifact::Ast;
 use destack_ast as ast;
 use destack_dir::{
-    Argument, BindingScope, BindingTable, DeclaredModule, Expression, LocalNodeId, LocalNodeIdAny,
-    LocalScopeId, LocalScopeMark, NodeType, Parameter, ProvenanceReason, SymbolBinding,
-    SymbolSpace, Tree, Type, TypeTable, UnevaluatedType,
+    Argument, BindingTable, DeclaredModule, Expression, LocalNodeId, LocalNodeIdAny, LocalScopeId,
+    LocalScopeMark, NodeType, Parameter, ProvenanceReason, SymbolBinding, SymbolSpace, Tree, Type,
+    TypeTable, UnevaluatedType,
 };
 use destack_workspace::Module;
 
@@ -116,7 +116,6 @@ impl Compiler {
                 symbol.declaration = Some(parameter_id.into_global_any(module.id));
 
                 self.apply_binding_mutability(symbols, symbol_id, binding_mutability);
-                self.apply_binding_scope(symbols, symbol_id, BindingScope::Parameter);
 
                 if let Some(declared_type) = declared_type {
                     let declared_type_id = types.insert_type_from(
@@ -149,7 +148,6 @@ impl Compiler {
                     None,
                     SymbolBinding::Runtime,
                     Some(binding_mutability),
-                    Some(BindingScope::Parameter),
                     *pattern,
                     Some(parameter_id),
                     tree,
@@ -203,7 +201,6 @@ impl Compiler {
                 symbol.declaration = Some(parameter_id.into_global_any(module.id));
 
                 self.apply_binding_mutability(symbols, symbol_id, binding_mutability);
-                self.apply_binding_scope(symbols, symbol_id, BindingScope::Parameter);
 
                 if let Some(declared_type) = declared_type {
                     let declared_type_id = types.insert_type_from(
@@ -266,7 +263,6 @@ impl Compiler {
                 symbol.declaration = Some(parameter_id.into_global_any(module.id));
 
                 self.apply_binding_mutability(symbols, symbol_id, binding_mutability);
-                self.apply_binding_scope(symbols, symbol_id, BindingScope::Parameter);
 
                 if let Some(declared_type) = declared_type {
                     let declared_type_id = types.insert_type_from(
@@ -297,7 +293,6 @@ impl Compiler {
                     None,
                     SymbolBinding::Runtime,
                     Some(binding_mutability),
-                    Some(BindingScope::Parameter),
                     *pattern,
                     Some(parameter_id),
                     tree,
@@ -333,7 +328,6 @@ impl Compiler {
                 symbol.declaration = Some(parameter_id.into_global_any(module.id));
 
                 self.apply_binding_mutability(symbols, symbol_id, binding_mutability);
-                self.apply_binding_scope(symbols, symbol_id, BindingScope::Parameter);
 
                 if let Some(declared_type) = declared_type {
                     let declared_type_id = types.insert_type_from(
@@ -358,8 +352,6 @@ impl Compiler {
 
                 let symbol = symbols.get_symbol_mut(symbol_id);
                 symbol.declaration = Some(parameter_id.into_global_any(module.id));
-
-                self.apply_binding_scope(symbols, symbol_id, BindingScope::Parameter);
 
                 parameter_id
             }

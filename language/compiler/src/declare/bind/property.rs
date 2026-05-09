@@ -773,7 +773,7 @@ mod tests {
         let module_id = test.add_module(
             "test.d.ds",
             r#"
-declare var Factory: {
+declare const Factory: {
     new(type: string): any;
     new(type: number): any;
 };

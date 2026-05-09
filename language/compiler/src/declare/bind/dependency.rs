@@ -3,8 +3,8 @@ use destack_core::StringId;
 use destack_dir::{
     BindingTable, DeclaredModule, DependencyBinding, DependencyItem, DependencySpace,
     ImportAttribute, ImportAttributeClause, ImportAttributeClauseKind, ImportAttributeValue,
-    ImportSource, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Mutability, NodeType,
-    StaticKey, SymbolSpace, Tree, TypeTable,
+    LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, Mutability, NodeType, StaticKey,
+    SymbolSpace, Tree, TypeTable,
 };
 
 use crate::Compiler;
@@ -25,21 +25,6 @@ pub(super) enum DependencySite {
 
 #[allow(clippy::too_many_arguments)]
 impl Compiler {
-    /// Bind an AST declare source into a DIR declare source.
-    pub(super) fn bind_import_source(&self, source: ast::ImportSource) -> ImportSource {
-        match source {
-            ast::ImportSource::ImportStatement => ImportSource::ImportStatement,
-            ast::ImportSource::ReferencePathDirective => ImportSource::ReferencePathDirective,
-            ast::ImportSource::ReferenceTypesDirective => ImportSource::ReferenceTypesDirective,
-            ast::ImportSource::ReferenceLibDirective => ImportSource::ReferenceLibDirective,
-            ast::ImportSource::ReferenceNoDefaultLibDirective => {
-                ImportSource::ReferenceNoDefaultLibDirective
-            }
-            ast::ImportSource::ImportEquals => ImportSource::ImportEquals,
-            ast::ImportSource::ImportCall => ImportSource::ImportCall,
-        }
-    }
-
     /// Bind an AST dependency binding into DIR.
     pub(super) fn bind_dependency_binding(
         &self,
