@@ -458,8 +458,6 @@ enum TypeLiteralKind {
     PrimitiveCharacter,
     /// Primitive string.
     PrimitiveString,
-    /// Primitive numeric family.
-    PrimitiveNumber,
     /// Primitive integer family.
     PrimitiveInteger,
     /// Primitive float family.
@@ -497,10 +495,7 @@ fn type_literal_kind(types: &dir::TypeTable, type_id: dir::LocalTypeId) -> Optio
         TypeLiteral::Primitive(dir::PrimitiveType::String) => {
             Some(TypeLiteralKind::PrimitiveString)
         }
-        TypeLiteral::Primitive(dir::PrimitiveType::Number) => {
-            Some(TypeLiteralKind::PrimitiveNumber)
-        }
-        TypeLiteral::Primitive(dir::PrimitiveType::Int(_)) => {
+        TypeLiteral::Primitive(dir::PrimitiveType::Integer(_)) => {
             Some(TypeLiteralKind::PrimitiveInteger)
         }
         TypeLiteral::Primitive(dir::PrimitiveType::Float(_)) => {
@@ -566,12 +561,6 @@ fn is_literal_redundant_against(
             ) | (
                 TypeLiteralKind::ScalarBigint,
                 TypeLiteralKind::PrimitiveBigint
-            ) | (
-                TypeLiteralKind::ScalarInteger,
-                TypeLiteralKind::PrimitiveNumber
-            ) | (
-                TypeLiteralKind::ScalarFloat,
-                TypeLiteralKind::PrimitiveNumber
             )
         ),
         // intersection keeps the narrower scalar literal and drops broad primitives
@@ -595,12 +584,6 @@ fn is_literal_redundant_against(
             ) | (
                 TypeLiteralKind::PrimitiveBigint,
                 TypeLiteralKind::ScalarBigint
-            ) | (
-                TypeLiteralKind::PrimitiveNumber,
-                TypeLiteralKind::ScalarInteger
-            ) | (
-                TypeLiteralKind::PrimitiveNumber,
-                TypeLiteralKind::ScalarFloat
             )
         ),
     }

@@ -478,7 +478,6 @@ fn evaluate_terminal_boolean_type_query(
             ty,
             dir::Type::Literal(dir::LiteralType {
                 value: dir::TypeLiteral::Primitive(dir::PrimitiveType::Float(_))
-                    | dir::TypeLiteral::Primitive(dir::PrimitiveType::Number)
             })
         ),
         TypeBooleanQuery::Function => match ty {
@@ -526,9 +525,8 @@ fn evaluate_terminal_boolean_type_query(
                 matches!(
                     literal.value,
                     dir::TypeLiteral::Primitive(dir::PrimitiveType::String)
-                        | dir::TypeLiteral::Primitive(dir::PrimitiveType::Number)
                         | dir::TypeLiteral::Primitive(dir::PrimitiveType::Boolean)
-                        | dir::TypeLiteral::Primitive(dir::PrimitiveType::Int(_))
+                        | dir::TypeLiteral::Primitive(dir::PrimitiveType::Integer(_))
                         | dir::TypeLiteral::Primitive(dir::PrimitiveType::Float(_))
                         | dir::TypeLiteral::Primitive(dir::PrimitiveType::Bigint)
                         | dir::TypeLiteral::ScalarLiteral(_)
@@ -606,8 +604,7 @@ fn evaluate_terminal_boolean_type_query(
                         literal.value,
                         dir::TypeLiteral::Primitive(
                             dir::PrimitiveType::Bigint
-                                | dir::PrimitiveType::Number
-                                | dir::PrimitiveType::Int(_)
+                                | dir::PrimitiveType::Integer(_)
                                 | dir::PrimitiveType::Float(_),
                         ) | dir::TypeLiteral::ScalarLiteral(
                             dir::ScalarLiteral::Integer(_)
@@ -679,10 +676,9 @@ fn evaluate_terminal_boolean_type_query(
                 dir::TypeLiteral::Primitive(primitive) => matches!(
                     primitive,
                     dir::PrimitiveType::Boolean
-                        | dir::PrimitiveType::Number
                         | dir::PrimitiveType::Bigint
                         | dir::PrimitiveType::String
-                        | dir::PrimitiveType::Int(_)
+                        | dir::PrimitiveType::Integer(_)
                         | dir::PrimitiveType::Float(_)
                 ),
                 dir::TypeLiteral::ScalarLiteral(literal) => match literal {
@@ -794,16 +790,19 @@ fn type_literal_is_string_like_property_key(value: &dir::TypeLiteral) -> bool {
 
 /// Return true when one type literal is numeric for object property keys.
 fn type_literal_is_numeric_property_key(value: &dir::TypeLiteral) -> bool {
-    matches!(
-        value,
-        dir::TypeLiteral::Primitive(dir::PrimitiveType::Number)
-            | dir::TypeLiteral::Primitive(dir::PrimitiveType::Bigint)
-            | dir::TypeLiteral::Primitive(dir::PrimitiveType::Int(_))
-            | dir::TypeLiteral::Primitive(dir::PrimitiveType::Float(_))
-            | dir::TypeLiteral::ScalarLiteral(dir::ScalarLiteral::Integer(_))
-            | dir::TypeLiteral::ScalarLiteral(dir::ScalarLiteral::Float(_))
-            | dir::TypeLiteral::ScalarLiteral(dir::ScalarLiteral::Bigint(_))
-    )
+    match value {
+        dir::TypeLiteral::Primitive(
+            dir::PrimitiveType::Bigint
+            | dir::PrimitiveType::Integer(_)
+            | dir::PrimitiveType::Float(_),
+        )
+        | dir::TypeLiteral::ScalarLiteral(
+            dir::ScalarLiteral::Integer(_)
+            | dir::ScalarLiteral::Float(_)
+            | dir::ScalarLiteral::Bigint(_),
+        ) => true,
+        _ => false,
+    }
 }
 
 /// Return true when one type literal is symbol-like for object property keys.
