@@ -1691,8 +1691,8 @@ That is convenient, but sometimes we need to take direct control of memory, whet
 
 Destack supports explicit, optional modifiers for controlling memory ownership and placement, inspired by Rust and Mojo with `^T` as the "owned" signifier.
 Specifically, memory can be controlled along two axes:
-- **Ownership**: who "owns" the value: managed (`T`), owned (`^T`), borrowed (`&T`, `&readonly T`, `&exclusive T`), or raw (`*T`).
-- **Placement**: where the value is located: ambient by default, `shared` across Workers, explicit `"local"` in the type algebra, or some other target-defined space.
+- **Ownership** - who "owns" the value: managed (`T`), owned (`^T`), borrowed (`&T`, `&readonly T`, `&exclusive T`), or raw (`*T`).
+- **Placement** - where the value is located: ambient by default, `shared` across Workers, explicit `"local"` in the type algebra, or some other target-defined space.
 
 Plain `T` still behaves as the type's default representation, of course: value types are values, object types are managed references.
 The two axes compose and commute freely, e.g. `shared ^T` and `^shared T` both mean an owned handle to a value in shared space, and `shared &T` is a borrow of a shared value.
