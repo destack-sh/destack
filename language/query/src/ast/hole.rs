@@ -412,7 +412,6 @@ fn expression_slot_position_in_expression(
         ast::Expression::Parenthesized { expression }
         | ast::Expression::Comptime { body: expression }
         | ast::Expression::Await { expression }
-        | ast::Expression::Delete { value: expression }
         | ast::Expression::Unary {
             right: expression, ..
         }

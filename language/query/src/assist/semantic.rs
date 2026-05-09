@@ -167,10 +167,6 @@ pub fn semantic_tokens(
             dir::Declaration::Enum(_) => SemanticTokenType::Enum,
             dir::Declaration::Namespace(_) => SemanticTokenType::Namespace,
             dir::Declaration::Type(_) => SemanticTokenType::Type,
-            dir::Declaration::ImportAlias(declaration) => match declaration.space {
-                dir::DependencySpace::Type => SemanticTokenType::Type,
-                dir::DependencySpace::Value => SemanticTokenType::Namespace,
-            },
             dir::Declaration::Extension(_) => SemanticTokenType::Type,
         };
 
@@ -220,7 +216,7 @@ pub fn semantic_tokens(
     // collect local variable bindings (Pattern::Binding)
     let mut saw_pattern_bindings = false;
     for (pattern_id, pattern) in dir_tree.iter_nodes_of_type::<dir::Pattern>() {
-        if let dir::Pattern::Binding { mutability, .. } = pattern {
+        if let dir::Pattern::Binding { .. } = pattern {
             saw_pattern_bindings = true;
             let ast_node_id = dir_tree.get_source(pattern_id);
             let Some(main_span) = ctx
@@ -231,12 +227,7 @@ pub fn semantic_tokens(
                 continue;
             };
 
-            let mut modifiers = SemanticTokenModifiers::DECLARATION;
-            if *mutability == Some(dir::Mutability::Immutable) {
-                modifiers = modifiers.union(SemanticTokenModifiers::READONLY);
-            } else if *mutability == Some(dir::Mutability::Mutable) {
-                modifiers = modifiers.union(SemanticTokenModifiers::MUTABLE);
-            }
+            let modifiers = SemanticTokenModifiers::DECLARATION;
 
             tokens.push(
                 SemanticToken::new(main_span, SemanticTokenType::Variable)
@@ -249,7 +240,7 @@ pub fn semantic_tokens(
     if !saw_pattern_bindings {
         for (_declarator_id, declarator) in dir_tree.iter_nodes_of_type::<dir::Declarator>() {
             let pattern = dir_tree.get::<dir::Pattern>(declarator.pattern);
-            let dir::Pattern::Binding { mutability, .. } = pattern else {
+            let dir::Pattern::Binding { .. } = pattern else {
                 continue;
             };
 
@@ -262,12 +253,7 @@ pub fn semantic_tokens(
                 continue;
             };
 
-            let mut modifiers = SemanticTokenModifiers::DECLARATION;
-            if *mutability == Some(dir::Mutability::Immutable) {
-                modifiers = modifiers.union(SemanticTokenModifiers::READONLY);
-            } else if *mutability == Some(dir::Mutability::Mutable) {
-                modifiers = modifiers.union(SemanticTokenModifiers::MUTABLE);
-            }
+            let modifiers = SemanticTokenModifiers::DECLARATION;
 
             tokens.push(
                 SemanticToken::new(main_span, SemanticTokenType::Variable)
@@ -288,20 +274,10 @@ pub fn semantic_tokens(
         };
 
         let (token_type, modifiers) = match field {
-            dir::PatternField::Named { mutability, .. } => {
-                let mut mods = SemanticTokenModifiers::DECLARATION;
-                if *mutability == Some(dir::Mutability::Immutable) {
-                    mods = mods.union(SemanticTokenModifiers::READONLY);
-                }
-                (SemanticTokenType::Variable, mods)
-            }
-            dir::PatternField::Spread { mutability, .. } => {
-                let mut mods = SemanticTokenModifiers::DECLARATION;
-                if *mutability == Some(dir::Mutability::Immutable) {
-                    mods = mods.union(SemanticTokenModifiers::READONLY);
-                }
-                (SemanticTokenType::Variable, mods)
-            }
+            dir::PatternField::Named { .. } | dir::PatternField::Spread { .. } => (
+                SemanticTokenType::Variable,
+                SemanticTokenModifiers::DECLARATION,
+            ),
             dir::PatternField::Positional { .. }
             | dir::PatternField::Computed { .. }
             | dir::PatternField::Elision => continue,

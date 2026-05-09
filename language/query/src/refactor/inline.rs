@@ -1223,7 +1223,6 @@ impl dir::NodeVisitor for SideEffectVisitor {
                 | dir::Expression::New { .. }
                 | dir::Expression::Assign { .. }
                 | dir::Expression::AssignBinary { .. }
-                | dir::Expression::Delete { .. }
                 | dir::Expression::Throw { .. }
                 | dir::Expression::Await { .. }
                 | dir::Expression::AwaitMaybe { .. }

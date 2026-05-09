@@ -255,12 +255,7 @@ fn collect_organize_imports_action(
         // stop once we hit the first non import expression after imports
         let expr = ctx.ast().tree().get(*expr_id);
         let target = match expr {
-            ast::Expression::Import {
-                source: ast::ImportSource::ImportStatement | ast::ImportSource::ImportEquals,
-                target: ast::ImportTarget::String(target),
-                items,
-                ..
-            } => Some((*target, items.is_none())),
+            ast::Expression::Import { target, items, .. } => Some((*target, items.is_none())),
             _ => None,
         };
 

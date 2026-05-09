@@ -72,9 +72,6 @@ pub fn format_declaration_signature(
         ),
         dir::Declaration::Global(_) => format!("{declaration_prefix}global"),
         dir::Declaration::Module(_) => format!("{declaration_prefix}module"),
-        dir::Declaration::ImportAlias(declaration) => {
-            format_import_alias(&name, declaration.space, &declaration_prefix)
-        }
         dir::Declaration::Struct(declaration) => {
             let generics_text = format_generics(
                 &declaration.generic_parameters,
@@ -215,15 +212,6 @@ fn format_declaration_prefix(declaration: &dir::Declaration) -> String {
     };
 
     format!("{export_prefix}{declare_prefix}{abstract_prefix}")
-}
-
-fn format_import_alias(name: &str, kind: dir::DependencySpace, export_prefix: &str) -> String {
-    let import_prefix = if kind == dir::DependencySpace::Type {
-        "import type "
-    } else {
-        "import "
-    };
-    format!("{export_prefix}{import_prefix}{name}")
 }
 
 /// Format a function or method call signature without declaration keywords.
@@ -519,9 +507,6 @@ pub fn format_symbol_signature(
         ),
         dir::Declaration::Global(_) => format!("{declaration_prefix}global"),
         dir::Declaration::Module(_) => format!("{declaration_prefix}module"),
-        dir::Declaration::ImportAlias(declaration) => {
-            format_import_alias(&name, declaration.space, &declaration_prefix)
-        }
         dir::Declaration::Struct(declaration) => {
             let generics_text = format_generics(
                 &declaration.generic_parameters,

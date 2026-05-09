@@ -125,28 +125,6 @@ pub fn format_type(
             result.push('`');
             result
         }
-        dir::Type::Import(import) => {
-            let target = strings.get(import.target);
-            let mut result = format!("import(\"{target}\")");
-            if let Some(qualifier) = &import.qualifier {
-                let path = format_path(qualifier, strings);
-                result.push('.');
-                result.push_str(&path);
-            }
-            if let Some(generic_arguments) = &import.generic_arguments {
-                let formatted_arguments = generic_arguments
-                    .iter()
-                    .map(|argument| {
-                        format_static_argument(argument, types, repository, revision, strings)
-                    })
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                result.push('<');
-                result.push_str(&formatted_arguments);
-                result.push('>');
-            }
-            result
-        }
         dir::Type::Infer(infer) => {
             let name = strings.get(infer.name);
             let constraint = infer.constraint.map(|constraint| {
@@ -789,15 +767,6 @@ fn format_type_tuple_element(
         result.push('?');
     }
     result
-}
-
-fn format_path(path: &dir::Path, strings: &StringPool) -> String {
-    let segments: Vec<_> = path
-        .segments
-        .iter()
-        .map(|segment| strings.get(*segment).to_string())
-        .collect();
-    segments.join(".")
 }
 
 fn format_type_predicate_subject(

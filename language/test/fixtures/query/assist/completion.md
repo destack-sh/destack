@@ -26,7 +26,6 @@ let: keyword
 new: keyword
 set: keyword
 try: keyword
-var: keyword
 case: keyword
 else: keyword
 enum: keyword
@@ -60,7 +59,6 @@ where: keyword
 while: keyword
 yield: keyword
 assert: keyword
-delete: keyword
 export: keyword
 import: keyword
 public: keyword
@@ -119,7 +117,6 @@ let: keyword
 new: keyword
 set: keyword
 try: keyword
-var: keyword
 case: keyword
 else: keyword
 enum: keyword
@@ -153,7 +150,6 @@ where: keyword
 while: keyword
 yield: keyword
 assert: keyword
-delete: keyword
 export: keyword
 import: keyword
 public: keyword
@@ -872,7 +868,6 @@ let: keyword
 new: keyword
 set: keyword
 try: keyword
-var: keyword
 case: keyword
 else: keyword
 enum: keyword
@@ -906,7 +901,6 @@ where: keyword
 while: keyword
 yield: keyword
 assert: keyword
-delete: keyword
 export: keyword
 import: keyword
 public: keyword
@@ -957,7 +951,6 @@ let: keyword
 new: keyword
 set: keyword
 try: keyword
-var: keyword
 case: keyword
 else: keyword
 enum: keyword
@@ -991,7 +984,6 @@ where: keyword
 while: keyword
 yield: keyword
 assert: keyword
-delete: keyword
 export: keyword
 import: keyword
 public: keyword
@@ -1060,7 +1052,6 @@ let: keyword
 new: keyword
 set: keyword
 try: keyword
-var: keyword
 case: keyword
 else: keyword
 enum: keyword
@@ -1094,7 +1085,6 @@ where: keyword
 while: keyword
 yield: keyword
 assert: keyword
-delete: keyword
 export: keyword
 import: keyword
 public: keyword
@@ -1211,7 +1201,6 @@ let: keyword
 new: keyword
 set: keyword
 try: keyword
-var: keyword
 case: keyword
 else: keyword
 enum: keyword
@@ -1245,7 +1234,6 @@ where: keyword
 while: keyword
 yield: keyword
 assert: keyword
-delete: keyword
 export: keyword
 import: keyword
 public: keyword
@@ -1610,7 +1598,6 @@ let: keyword
 new: keyword
 set: keyword
 try: keyword
-var: keyword
 case: keyword
 else: keyword
 enum: keyword
@@ -1644,7 +1631,6 @@ where: keyword
 while: keyword
 yield: keyword
 assert: keyword
-delete: keyword
 export: keyword
 import: keyword
 public: keyword
@@ -1707,7 +1693,6 @@ let: keyword
 new: keyword
 set: keyword
 try: keyword
-var: keyword
 case: keyword
 else: keyword
 enum: keyword
@@ -1741,7 +1726,6 @@ where: keyword
 while: keyword
 yield: keyword
 assert: keyword
-delete: keyword
 export: keyword
 import: keyword
 public: keyword
@@ -1811,7 +1795,6 @@ let: keyword
 new: keyword
 set: keyword
 try: keyword
-var: keyword
 case: keyword
 else: keyword
 enum: keyword
@@ -1845,7 +1828,6 @@ where: keyword
 while: keyword
 yield: keyword
 assert: keyword
-delete: keyword
 export: keyword
 import: keyword
 public: keyword
@@ -1909,7 +1891,6 @@ let: keyword
 new: keyword
 set: keyword
 try: keyword
-var: keyword
 case: keyword
 else: keyword
 enum: keyword
@@ -1943,7 +1924,6 @@ where: keyword
 while: keyword
 yield: keyword
 assert: keyword
-delete: keyword
 export: keyword
 import: keyword
 public: keyword
@@ -2010,7 +1990,6 @@ let: keyword
 new: keyword
 set: keyword
 try: keyword
-var: keyword
 case: keyword
 else: keyword
 enum: keyword
@@ -2044,7 +2023,6 @@ where: keyword
 while: keyword
 yield: keyword
 assert: keyword
-delete: keyword
 export: keyword
 import: keyword
 public: keyword
@@ -2623,7 +2601,6 @@ let: keyword
 new: keyword
 set: keyword
 try: keyword
-var: keyword
 case: keyword
 else: keyword
 enum: keyword
@@ -2657,7 +2634,6 @@ where: keyword
 while: keyword
 yield: keyword
 assert: keyword
-delete: keyword
 export: keyword
 import: keyword
 public: keyword
