@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
 
-use destack_core::{Capture, CaptureMode, ImmutableStringPool, SnapshotCodec};
+use destack_core::{Capture, CaptureMode, StringPool, SnapshotCodec};
 use engine::StaticSpace;
 use serde::{Deserialize, Serialize};
 use {destack_engine as engine, destack_mir as mir};
@@ -38,7 +38,7 @@ pub struct IsolateImage {
     /// The MIR tree used to rebuild the isolate program.
     pub tree: mir::Tree,
     /// The string pool used to rebuild the isolate program.
-    pub strings: ImmutableStringPool,
+    pub strings: StringPool,
     /// The isolate configuration options.
     pub options: IsolateOptions,
     /// The isolate id captured in this image.
@@ -77,7 +77,7 @@ impl Isolate {
     pub fn build(
         isolate_id: engine::EngineId,
         tree: mir::Tree,
-        strings: ImmutableStringPool,
+        strings: StringPool,
     ) -> RuntimeResult<Self> {
         Self::build_with_options(isolate_id, tree, strings, IsolateOptions::default())
     }
@@ -86,7 +86,7 @@ impl Isolate {
     pub fn build_with_options(
         isolate_id: engine::EngineId,
         tree: mir::Tree,
-        strings: ImmutableStringPool,
+        strings: StringPool,
         options: IsolateOptions,
     ) -> RuntimeResult<Self> {
         let program = Arc::new(Program::new(tree, strings)?);
