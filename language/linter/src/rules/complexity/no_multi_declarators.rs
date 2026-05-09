@@ -108,7 +108,6 @@ fn split_declarator_fix(
     if prefix.trim().is_empty() {
         let keyword = match kind {
             ast::LetKind::Let => "let ",
-            ast::LetKind::Var => "var ",
             ast::LetKind::Const => "const ",
         };
         prefix = keyword.to_string();
@@ -192,7 +191,7 @@ const a = 1, b = 2, c = 3;
         let result = test.lint_ast(
             "no_multi_declarators/test_detects_multiple_declarators_with_var.ds",
             r#"
-var x = 1, y = 2;
+let x = 1, y = 2;
 "#,
         );
         test.result(result).assert_lint("no-multi-declarators");

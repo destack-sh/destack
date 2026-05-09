@@ -1301,22 +1301,9 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
             ast::Expression::Labelled { label, .. } => {
                 self.push_identifier_id("expr_label", *label);
             }
-            ast::Expression::Import {
-                source,
-                space,
-                target,
-                ..
-            } => {
-                self.push_debug("expr_import_source", *source);
+            ast::Expression::Import { space, target, .. } => {
                 self.push_debug("expr_import_space", *space);
-                match target {
-                    ast::ImportTarget::String(target) => {
-                        self.push_literal_id("expr_import_target", *target, "$str");
-                    }
-                    ast::ImportTarget::Expression { .. } => {
-                        self.push_same("expr_import_target", "$expr");
-                    }
-                }
+                self.push_literal_id("expr_import_target", *target, "$str");
             }
             ast::Expression::Export { space, target, .. } => {
                 self.push_debug("expr_export_space", *space);
@@ -1325,9 +1312,6 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
                 } else {
                     self.push_same("expr_export_target", "None");
                 }
-            }
-            ast::Expression::ExportNamespace { name } => {
-                self.push_identifier_id("expr_export_namespace", *name);
             }
             ast::Expression::Let {
                 kind, mutability, ..
@@ -1492,18 +1476,6 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
             ast::Declaration::Type(declaration) => {
                 self.push_debug("decl_type_is_nominal", declaration.is_nominal);
                 self.push_debug_optional("decl_type_mutability", declaration.mutability);
-            }
-            ast::Declaration::ImportAlias(declaration) => {
-                self.push_debug("decl_import_alias_kind", declaration.space);
-                match &declaration.target {
-                    ast::ImportAliasTarget::Require { target } => {
-                        self.push_same("decl_import_alias_target_kind", "require");
-                        self.push_literal_id("decl_import_alias_target", *target, "$str");
-                    }
-                    ast::ImportAliasTarget::Path { .. } => {
-                        self.push_same("decl_import_alias_target_kind", "path");
-                    }
-                }
             }
             ast::Declaration::Function(declaration) => {
                 self.push_function_signature(&declaration.signature);
@@ -1699,10 +1671,7 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
     ) {
         self.push_debug("pattern_kind", std::mem::discriminant(pattern));
         match pattern {
-            ast::Pattern::Binding {
-                mutability, name, ..
-            } => {
-                self.push_debug_optional("pattern_binding_mutability", *mutability);
+            ast::Pattern::Binding { name, .. } => {
                 self.push_identifier_id("pattern_binding_name", *name);
             }
             ast::Pattern::TaggedTuple { .. } | ast::Pattern::TaggedObject { .. } => {
@@ -1722,19 +1691,12 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
     ) {
         self.push_debug("pattern_field_kind", std::mem::discriminant(pattern_field));
         match pattern_field {
-            ast::PatternField::Named {
-                mutability, name, ..
-            } => {
-                self.push_debug_optional("pattern_field_mutability", *mutability);
+            ast::PatternField::Named { name, .. } => {
                 self.push_name("pattern_field_name", *name);
             }
-            ast::PatternField::Computed { mutability, .. } => {
-                self.push_debug_optional("pattern_field_mutability", *mutability);
-            }
+            ast::PatternField::Computed { .. } => {}
             ast::PatternField::Positional { .. } | ast::PatternField::Elision => {}
-            ast::PatternField::Spread { mutability, .. } => {
-                self.push_debug_optional("pattern_field_mutability", *mutability);
-            }
+            ast::PatternField::Spread { .. } => {}
         }
 
         ast::walk_pattern_field(self, tree, id, pattern_field);

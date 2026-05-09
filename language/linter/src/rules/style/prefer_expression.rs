@@ -37,7 +37,7 @@ struct ExpressionPatternCandidate {
     let_expression_id: LocalNodeId<Expression>,
     /// The original if expression id from the block.
     if_expression_id: LocalNodeId<Expression>,
-    /// The declaration kind (`let`, `var`, or `const`).
+    /// The declaration kind (`let` or `const`).
     declaration_kind: LetKind,
     /// The declarator id for preserving annotations.
     declarator_id: LocalNodeId<Declarator>,
@@ -286,7 +286,6 @@ fn prefer_expression_fix(
 ) -> Option<LintFix> {
     let declaration_kind = match candidate.declaration_kind {
         LetKind::Let => "let",
-        LetKind::Var => "var",
         LetKind::Const => "const",
     };
 

@@ -1,4 +1,4 @@
-use destack_ast::{self as ast, DependencyBinding, DependencyItem, Expression, ImportSource};
+use destack_ast::{self as ast, DependencyBinding, DependencyItem, Expression};
 use destack_source::Span;
 use destack_workspace::{LintSeverity, SortImportsMemberSyntax};
 
@@ -91,10 +91,7 @@ fn top_level_import_expression_id(
     root_expression_id: ast::LocalNodeId<Expression>,
 ) -> Option<ast::LocalNodeId<Expression>> {
     match ctx.tree.get(root_expression_id) {
-        Expression::Import {
-            source: ImportSource::ImportStatement | ImportSource::ImportEquals,
-            ..
-        } => Some(root_expression_id),
+        Expression::Import { .. } => Some(root_expression_id),
         _ => None,
     }
 }

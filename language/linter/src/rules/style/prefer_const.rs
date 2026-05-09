@@ -138,7 +138,7 @@ struct BindingGroup {
     is_destructuring: bool,
 }
 
-/// Build a safe rewrite from `let` or `var` to `const`.
+/// Build a safe rewrite from `let` to `const`.
 fn build_prefer_const_fix(
     ctx: &LintModuleDirContext<'_>,
     expression_id: LocalNodeId<dir::Expression>,
@@ -168,10 +168,6 @@ fn build_prefer_const_fix(
 fn binding_keyword(expression_text: &str) -> Option<&'static str> {
     if expression_text.starts_with("let") {
         return Some("let");
-    }
-
-    if expression_text.starts_with("var") {
-        return Some("var");
     }
 
     None
@@ -469,26 +465,6 @@ let y = x + 1;
             "prefer_const/test_fix_rewrites_let_to_const.ds",
             r#"
 let value = 1;
-"#,
-        );
-        test.result(result)
-            .assert_lint("prefer-const")
-            .assert_has_fix("prefer-const")
-            .assert_safe_fixed(
-                r#"
-const value = 1;
-"#,
-            );
-    }
-
-    /// Safely rewrite legacy mutable declarations that are never reassigned.
-    #[test]
-    fn test_mutation_fix_rewrites_var_to_const() {
-        let test = TestProgram::for_rule_with_prelude(PreferConst);
-        let result = test.lint_dir(
-            "prefer_const/test_mutation_fix_rewrites_var_to_const.ds",
-            r#"
-var value = 1;
 "#,
         );
         test.result(result)

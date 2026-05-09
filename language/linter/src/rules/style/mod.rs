@@ -8,7 +8,6 @@ mod consistent_type_definitions;
 mod consistent_type_imports;
 mod default_param_last;
 mod dot_notation;
-mod eqeqeq;
 mod explicit_function_return_type;
 mod filename_case;
 mod grouped_accessor_pairs;
@@ -23,12 +22,10 @@ mod no_lonely_if;
 mod no_negated_condition;
 mod no_nested_template_literal;
 mod no_nested_ternary;
-mod no_object_constructor;
 mod no_redundant_type_constituents;
 mod no_unnecessary_lambda;
 mod no_unnecessary_template_expression;
 mod no_unneeded_ternary;
-mod no_var;
 mod object_shorthand;
 mod operator_assignment;
 mod prefer_array_filter;
@@ -85,7 +82,6 @@ pub use consistent_type_definitions::*;
 pub use consistent_type_imports::*;
 pub use default_param_last::*;
 pub use dot_notation::*;
-pub use eqeqeq::*;
 pub use explicit_function_return_type::*;
 pub use filename_case::*;
 pub use grouped_accessor_pairs::*;
@@ -100,12 +96,10 @@ pub use no_lonely_if::*;
 pub use no_negated_condition::*;
 pub use no_nested_template_literal::*;
 pub use no_nested_ternary::*;
-pub use no_object_constructor::*;
 pub use no_redundant_type_constituents::*;
 pub use no_unnecessary_lambda::*;
 pub use no_unnecessary_template_expression::*;
 pub use no_unneeded_ternary::*;
-pub use no_var::*;
 pub use object_shorthand::*;
 pub use operator_assignment::*;
 pub use prefer_array_filter::*;
@@ -163,7 +157,6 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(ConsistentTypeImports),
         boxed(DefaultParamLast),
         boxed(DotNotation),
-        boxed(Eqeqeq),
         boxed(ExplicitFunctionReturnType),
         boxed(FilenameCaseRule),
         boxed(GroupedAccessorPairs),
@@ -178,12 +171,10 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(NoNegatedCondition),
         boxed(NoNestedTemplateLiteral),
         boxed(NoNestedTernary),
-        boxed(NoObjectConstructor),
         boxed(NoRedundantTypeConstituents),
         boxed(NoUnnecessaryLambda),
         boxed(NoUnnecessaryTemplateExpression),
         boxed(NoUnneededTernary),
-        boxed(NoVar),
         boxed(ObjectShorthand),
         boxed(OperatorAssignment),
         boxed(PreferArrayFilter),

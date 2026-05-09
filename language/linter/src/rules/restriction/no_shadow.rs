@@ -258,7 +258,7 @@ function read(token: int32): int32 {
         test.result(diagnostics).assert_lint("no-shadow");
     }
 
-    /// Skip shadow diagnostics for ts redeclarations already rejected by compiler rules.
+    /// Skip shadow diagnostics for local redeclarations already rejected by compiler rules.
     #[test]
     fn test_skips_ts_parameter_redeclaration_conflict() {
         let test = TestProgram::for_rule_without_prelude(NoShadow);
@@ -266,7 +266,7 @@ function read(token: int32): int32 {
             "no_shadow/test_skips_ts_parameter_redeclaration_conflict.ts",
             r#"
 function read(token: number): number {
-    var token = 1;
+    let token = 1;
     return token;
 }
 "#,

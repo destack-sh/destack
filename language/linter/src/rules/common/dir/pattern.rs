@@ -11,7 +11,6 @@ pub fn pattern_is_total(tree: &dir::Tree, pattern_id: dir::LocalNodeId<dir::Patt
     match pattern {
         dir::Pattern::Wildcard => true,
         dir::Pattern::Binding {
-            mutability: _,
             name: _,
             pattern,
             symbol: _,
@@ -61,7 +60,6 @@ pub fn pattern_subsumes_semantically(
     // unwrap left binding refinements before comparing
     if let dir::Pattern::Binding {
         pattern: Some(inner_pattern_id),
-        mutability: _,
         name: _,
         symbol: _,
     } = &left_pattern
@@ -72,7 +70,6 @@ pub fn pattern_subsumes_semantically(
     // unwrap right binding refinements before comparing
     if let dir::Pattern::Binding {
         pattern: Some(inner_pattern_id),
-        mutability: _,
         name: _,
         symbol: _,
     } = &right_pattern

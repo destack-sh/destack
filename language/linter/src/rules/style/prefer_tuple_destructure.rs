@@ -162,7 +162,6 @@ fn tuple_indexed_access(
     if !matches!(
         pattern,
         dir::Pattern::Binding {
-            mutability: _,
             name: _,
             pattern: None,
             symbol: _,
@@ -290,7 +289,6 @@ fn prefer_tuple_destructure_fix(
         let dir::Pattern::Binding {
             name,
             pattern: None,
-            mutability: _,
             symbol: _,
         } = pattern
         else {
@@ -325,7 +323,6 @@ fn prefer_tuple_destructure_fix(
     let let_keyword = match kind {
         ast::LetKind::Const => "const",
         ast::LetKind::Let => "let",
-        ast::LetKind::Var => "var",
     };
     let replacement = format!(
         "{let_keyword} ({}) = {}",

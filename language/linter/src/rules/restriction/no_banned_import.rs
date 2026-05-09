@@ -1,10 +1,7 @@
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{
-    expression_import_target_specifier, expression_is_global_qualified_member,
-    expression_static_string_literal, expression_unwrap_transparent, glob_matches,
-};
+use crate::rules::common::{expression_import_target_specifier, glob_matches};
 use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -50,10 +47,6 @@ struct NoBannedImportVisitor<'a, 'b> {
     meta: &'a LintMeta,
     /// The restricted import patterns for this run.
     restricted_patterns: Vec<String>,
-    /// The `require` identifier.
-    require_name: destack_core::StringId,
-    /// The global qualifier symbols.
-    global_qualifiers: Vec<dir::GlobalSymbolId>,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -70,15 +63,11 @@ impl<'a, 'b> NoBannedImportVisitor<'a, 'b> {
             .filter(|pattern| !pattern.is_empty())
             .map(ToOwned::to_owned)
             .collect::<Vec<_>>();
-        let require_name = ctx.string_id("require");
-        let global_qualifiers = ctx.global_qualifier_symbols();
 
         Self {
             ctx,
             meta,
             restricted_patterns,
-            require_name,
-            global_qualifiers,
             options: NodeVisitorOptions::default(),
         }
     }
@@ -108,15 +97,7 @@ impl<'a, 'b> NoBannedImportVisitor<'a, 'b> {
         expression: &dir::Expression,
     ) {
         // resolve the static module specifier
-        let specifier_id =
-            expression_import_target_specifier(self.ctx.tree, expression).or_else(|| {
-                expression_require_target_specifier(
-                    self.ctx,
-                    expression,
-                    &self.global_qualifiers,
-                    self.require_name,
-                )
-            });
+        let specifier_id = expression_import_target_specifier(self.ctx.tree, expression);
         let Some(specifier_id) = specifier_id else {
             return;
         };
@@ -318,52 +299,6 @@ fn matching_target(
     None
 }
 
-/// Return one static `require()` target specifier for require-like calls.
-fn expression_require_target_specifier(
-    ctx: &LintModuleDirContext<'_>,
-    expression: &dir::Expression,
-    global_qualifiers: &[dir::GlobalSymbolId],
-    require_name: destack_core::StringId,
-) -> Option<destack_core::StringId> {
-    let dir::Expression::Call {
-        left,
-        generic_arguments,
-        arguments,
-    } = expression
-    else {
-        return None;
-    };
-
-    if !generic_arguments.is_empty() {
-        return None;
-    }
-    if arguments.len() != 1 {
-        return None;
-    }
-
-    let callee_id = expression_unwrap_transparent(ctx.tree, *left);
-    let callee = ctx.tree.get(callee_id);
-
-    let is_require = match callee {
-        dir::Expression::Path { path, .. }
-            if path.segments.len() == 1 && path.segments[0] == require_name =>
-        {
-            true
-        }
-        _ => expression_is_global_qualified_member(ctx, callee_id, global_qualifiers, require_name),
-    };
-    if !is_require {
-        return None;
-    }
-
-    let argument = ctx.tree.get(arguments[0]);
-    let dir::Argument::Positional { value, .. } = argument else {
-        return None;
-    };
-
-    expression_static_string_literal(ctx.tree, *value)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -487,93 +422,5 @@ import { service } from "internal/service";
         );
 
         test.result(diagnostics).assert_lint("no-banned-import");
-    }
-
-    /// Report dynamic imports with static string targets.
-    #[test]
-    fn test_flags_dynamic_import_with_static_string_target() {
-        let test = TestProgram::for_rule_without_prelude(NoBannedImport).with_options(|options| {
-            options.restriction.restricted_imports = vec!["internal/*".to_string()];
-        });
-        let diagnostics = test.lint_dir(
-            "no_banned_import/test_flags_dynamic_import_with_static_string_target.ds",
-            r#"
-await import("internal/cache");
-"#,
-        );
-
-        test.result(diagnostics).assert_lint("no-banned-import");
-    }
-
-    /// Report require() imports with static string targets.
-    #[test]
-    fn test_flags_require_call_with_static_string_target() {
-        let test = TestProgram::for_rule_with_prelude(NoBannedImport).with_options(|options| {
-            options.restriction.restricted_imports = vec!["internal/*".to_string()];
-        });
-        let diagnostics = test.lint_dir(
-            "no_banned_import/test_flags_require_call_with_static_string_target.ds",
-            r#"
-const cache = require("internal/cache");
-cache;
-"#,
-        );
-
-        test.result(diagnostics).assert_lint("no-banned-import");
-    }
-
-    /// Report global require() imports with static string targets.
-    #[test]
-    fn test_flags_global_require_call_with_static_string_target() {
-        let test = TestProgram::for_rule_with_prelude(NoBannedImport).with_options(|options| {
-            options.restriction.restricted_imports = vec!["internal/*".to_string()];
-        });
-        let diagnostics = test.lint_dir(
-            "no_banned_import/test_flags_global_require_call_with_static_string_target.ds",
-            r#"
-const cache = globalThis.require("internal/cache");
-cache;
-"#,
-        );
-
-        test.result(diagnostics).assert_lint("no-banned-import");
-    }
-
-    /// Allow shadowed require bindings.
-    #[test]
-    fn test_allows_shadowed_require_call() {
-        let test = TestProgram::for_rule_with_prelude(NoBannedImport).with_options(|options| {
-            options.restriction.restricted_imports = vec!["internal/*".to_string()];
-        });
-        let diagnostics = test.lint_dir(
-            "no_banned_import/test_allows_shadowed_require_call.ds",
-            r#"
-function require(name: string): string {
-    return name;
-}
-
-const cache = require("internal/cache");
-cache;
-"#,
-        );
-
-        test.result(diagnostics).assert_no_lint("no-banned-import");
-    }
-
-    /// Allow dynamic imports with non-static targets.
-    #[test]
-    fn test_allows_dynamic_import_with_non_static_target() {
-        let test = TestProgram::for_rule_without_prelude(NoBannedImport).with_options(|options| {
-            options.restriction.restricted_imports = vec!["internal/*".to_string()];
-        });
-        let diagnostics = test.lint_dir(
-            "no_banned_import/test_allows_dynamic_import_with_non_static_target.ds",
-            r#"
-const moduleName = "internal/cache";
-await import(moduleName);
-"#,
-        );
-
-        test.result(diagnostics).assert_no_lint("no-banned-import");
     }
 }

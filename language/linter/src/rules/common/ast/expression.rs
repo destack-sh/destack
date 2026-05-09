@@ -1514,12 +1514,6 @@ pub fn expression_is_equal(
             ast::Expression::Throw { value: right_value },
         ) => expression_is_equal(ctx, *left_value, *right_value),
 
-        // delete expressions: compare value
-        (
-            ast::Expression::Delete { value: left_value },
-            ast::Expression::Delete { value: right_value },
-        ) => expression_is_equal(ctx, *left_value, *right_value),
-
         // maybe expressions: compare position and operand
         (
             ast::Expression::Maybe {
@@ -2049,7 +2043,6 @@ pub fn expression_has_side_effects(
         | ast::Expression::Await { .. }
         | ast::Expression::AwaitMaybe { .. }
         | ast::Expression::Yield { .. }
-        | ast::Expression::Delete { .. }
         | ast::Expression::Throw { .. } => true,
 
         // side effects: control flow
@@ -2072,7 +2065,6 @@ pub fn expression_has_side_effects(
         | ast::Expression::Using { .. }
         | ast::Expression::Import { .. }
         | ast::Expression::Export { .. }
-        | ast::Expression::ExportNamespace { .. }
         | ast::Expression::Labelled { .. } => true,
 
         // side effects: debugger, error, stub
@@ -2168,38 +2160,6 @@ pub fn type_expression_has_side_effects(
 
         // type expressions that contain runtime expressions
         ast::TypeExpression::TypeOfValue { value } => expression_has_side_effects(ctx, *value),
-        ast::TypeExpression::Import {
-            target,
-            arguments,
-            generic_arguments,
-            ..
-        } => {
-            expression_has_side_effects(ctx, *target)
-                || arguments.iter().any(|argument_id| {
-                    let argument = ctx.tree.get(*argument_id);
-                    match argument {
-                        ast::Argument::Named { value, .. }
-                        | ast::Argument::Labeled { value, .. }
-                        | ast::Argument::Positional { value }
-                        | ast::Argument::Spread { value, .. } => {
-                            expression_has_side_effects(ctx, *value)
-                        }
-                        ast::Argument::Error => true,
-                    }
-                })
-                || generic_arguments.iter().any(|argument_id| {
-                    let argument = ctx.tree.get(*argument_id);
-                    match argument {
-                        ast::GenericArgument::Type { value } => {
-                            type_expression_has_side_effects(ctx, *value)
-                        }
-                        ast::GenericArgument::Value { value } => {
-                            expression_has_side_effects(ctx, *value)
-                        }
-                        ast::GenericArgument::Error => true,
-                    }
-                })
-        }
 
         // composite type expressions
         ast::TypeExpression::Member {
@@ -2468,31 +2428,15 @@ impl ast::NodeVisitor for ExpressionSignatureCollector<'_> {
             ast::Expression::Labelled { label, .. } => {
                 self.push_string_id("expression_label", *label);
             }
-            ast::Expression::Import {
-                source,
-                space,
-                target,
-                ..
-            } => {
-                self.push_debug("expression_import_source", *source);
+            ast::Expression::Import { space, target, .. } => {
                 self.push_debug("expression_import_space", *space);
-                match target {
-                    ast::ImportTarget::String(target) => {
-                        self.push_string_id("expression_import_target", *target);
-                    }
-                    ast::ImportTarget::Expression { .. } => {
-                        self.push_debug("expression_import_target_expression", true);
-                    }
-                }
+                self.push_string_id("expression_import_target", *target);
             }
             ast::Expression::Export { space, target, .. } => {
                 self.push_debug("expression_export_space", *space);
                 if let Some(target) = target {
                     self.push_string_id("expression_export_target", *target);
                 }
-            }
-            ast::Expression::ExportNamespace { name } => {
-                self.push_string_id("expression_export_namespace", *name);
             }
             ast::Expression::If { form, .. } => {
                 self.push_debug("expression_if_form", *form);

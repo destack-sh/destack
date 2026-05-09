@@ -43,14 +43,6 @@ impl LintRule for ConsistentTypeImports {
         let tracked_symbols = tracked_import_symbols(ctx, &import_clauses);
         let reference_usage = collect_import_symbol_reference_context_usage(ctx, &tracked_symbols);
 
-        // inspect the module once for import declaration style and type import expressions
-        if options.disallow_type_annotations {
-            for type_expression_id in ctx.tree.iter_node_ids_of_type::<dir::TypeExpression>() {
-                let type_expression = ctx.tree.get(type_expression_id);
-                report_type_import_annotation(ctx, meta, type_expression_id, type_expression);
-            }
-        }
-
         // apply one declaration style check per import clause
         for clause in &import_clauses {
             report_import_style(ctx, meta, options, clause, &reference_usage);
@@ -65,8 +57,6 @@ struct ConsistentTypeImportsOptions {
     prefer_type_imports: bool,
     /// Prefer inline `type` modifiers when type imports are required.
     prefer_inline_type_imports: bool,
-    /// Disallow `import("...")` style type annotations.
-    disallow_type_annotations: bool,
 }
 
 /// Context specific reference usage for one symbol.
@@ -101,8 +91,8 @@ struct ImportClause {
     expression_id: dir::LocalNodeId<dir::Expression>,
     /// The top level import space.
     import_space: dir::DependencySpace,
-    /// Whether the import carries trailing arguments or attributes.
-    has_arguments: bool,
+    /// Whether the import carries attributes.
+    has_attributes: bool,
     /// Import items in source order.
     items: Vec<dir::LocalNodeId<dir::DependencyItem>>,
 }
@@ -118,10 +108,6 @@ fn consistent_type_imports_options(ctx: &LintModuleDirContext<'_>) -> Consistent
             .options
             .style
             .consistent_type_imports_prefer_inline_type_imports,
-        disallow_type_annotations: ctx
-            .options
-            .style
-            .consistent_type_imports_disallow_type_annotations,
     }
 }
 
@@ -135,7 +121,7 @@ fn collect_import_clauses(ctx: &LintModuleDirContext<'_>) -> Vec<ImportClause> {
         let dir::Expression::Import {
             space,
             items,
-            arguments,
+            attributes,
             ..
         } = expression
         else {
@@ -145,7 +131,7 @@ fn collect_import_clauses(ctx: &LintModuleDirContext<'_>) -> Vec<ImportClause> {
         clauses.push(ImportClause {
             expression_id,
             import_space: *space,
-            has_arguments: arguments.is_some(),
+            has_attributes: attributes.is_some(),
             items: items.clone().unwrap_or_default(),
         });
     }
@@ -200,35 +186,6 @@ fn collect_import_symbol_reference_context_usage(
     }
 
     usage
-}
-
-/// Report one diagnostic for forbidden `import(...)` type annotations.
-fn report_type_import_annotation(
-    ctx: &mut LintModuleDirContext<'_>,
-    meta: &'static LintMeta,
-    node_id: dir::LocalNodeId<dir::TypeExpression>,
-    type_expression: &dir::TypeExpression,
-) {
-    // skip non type import expressions
-    if !matches!(type_expression, dir::TypeExpression::Import { .. }) {
-        return;
-    }
-
-    let severity = ctx.get_effective_severity(meta, node_id);
-    if !severity.is_enabled() {
-        return;
-    }
-
-    let diagnostic = LintReport::new(
-        CONSISTENT_TYPE_IMPORTS.id,
-        CONSISTENT_TYPE_IMPORTS.code,
-        CONSISTENT_TYPE_IMPORTS.category,
-        severity,
-        "`import(...)` type annotations are forbidden",
-        ctx.get_span(node_id),
-    )
-    .label("use named type imports instead of `import(...)`");
-    ctx.report(diagnostic);
 }
 
 /// Report one diagnostic for one import declaration based on selected style options.
@@ -371,7 +328,7 @@ fn report_import_style(
         )
         .label("prefer top-level `import type`");
         if ctx.include_fixes
-            && !clause.has_arguments
+            && !clause.has_attributes
             && let Some(fix) =
                 consistent_type_import_top_level_fix(ctx, clause.expression_id, &clause.items)
         {
@@ -906,40 +863,5 @@ import { type Foo, type Bar } from "./source_inline_mode.ds";
 type Example = (Foo, Bar);
 "#,
             );
-    }
-
-    /// Report forbidden `import(...)` type annotations by default.
-    #[test]
-    fn test_disallow_type_annotations_flags_import_type_expressions() {
-        let test = TestProgram::for_rule_without_prelude(ConsistentTypeImports);
-        let diagnostics = test.lint_dir(
-            "consistent_type_imports/test_disallow_type_annotations.ds",
-            r#"
-type Foo = import("foo").Foo;
-"#,
-        );
-
-        test.result(diagnostics)
-            .assert_lint("consistent-type-imports");
-    }
-
-    /// Allow `import(...)` type annotations when the option disables the check.
-    #[test]
-    fn test_disallow_type_annotations_can_be_disabled() {
-        let test =
-            TestProgram::for_rule_without_prelude(ConsistentTypeImports).with_options(|options| {
-                options
-                    .style
-                    .consistent_type_imports_disallow_type_annotations = false
-            });
-        let diagnostics = test.lint_dir(
-            "consistent_type_imports/test_allow_type_annotations.ds",
-            r#"
-type Foo = import("foo").Foo;
-"#,
-        );
-
-        test.result(diagnostics)
-            .assert_no_lint("consistent-type-imports");
     }
 }
