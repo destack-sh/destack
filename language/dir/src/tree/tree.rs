@@ -216,15 +216,11 @@ impl Tree {
         }
     }
 
-    /// Create a new tree with the given first global node id.
-    pub fn with_first_global_id(
-        module_id: ModuleId,
-        first_global_id: u32,
-        capacity: usize,
-    ) -> Self {
-        let mut tree = Self::with_capacity(module_id, capacity);
-        tree.first_global_id = first_global_id;
-        tree.next_global_id = first_global_id;
+    /// Create a new tail tree after one immutable base tree.
+    pub fn from_base(base: &Tree, capacity: usize) -> Self {
+        let mut tree = Self::with_capacity(base.module_id, capacity);
+        tree.first_global_id = base.next_global_id();
+        tree.next_global_id = base.next_global_id();
 
         tree
     }

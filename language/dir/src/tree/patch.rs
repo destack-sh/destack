@@ -7,6 +7,8 @@ use crate::{LocalNodeIdAny, Tree};
 /// A durable overlay over one base DIR tree.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Patch {
+    /// The patch name.
+    pub name: String,
     /// The owning module id.
     pub module_id: ModuleId,
     /// The tree containing nodes introduced by this patch.
@@ -21,10 +23,11 @@ pub struct Patch {
 
 impl Patch {
     /// Create an empty patch over one base tree.
-    pub fn new(base: &Tree) -> Self {
+    pub fn new(base: &Tree, name: impl Into<String>) -> Self {
         Self {
+            name: name.into(),
             module_id: base.module_id,
-            tree: Tree::with_first_global_id(base.module_id, base.next_global_id(), 0),
+            tree: Tree::from_base(base, 0),
             replacement_by_node: IndexMap::new(),
             dead_nodes: IndexSet::new(),
             parent_by_node: IndexMap::new(),
