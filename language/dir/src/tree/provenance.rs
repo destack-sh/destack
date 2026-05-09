@@ -23,8 +23,8 @@ impl ProvenanceId {
 pub enum ProvenanceReason {
     /// The node was synthesized during binding.
     Bound,
-    /// The node was transformed during import desugaring.
-    Desugared,
+    /// The node was transformed during declaration normalization.
+    Normalized,
     /// The node was transformed during elaborate.
     Elaborated,
     /// The node was synthesized from static evaluation.
