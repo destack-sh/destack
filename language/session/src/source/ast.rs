@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use destack_artifact::{ArtifactPayload, Ast};
 use destack_ast as ast;
-use destack_core::StringPool;
 use destack_parser::{Parser, ParserOptions};
 use destack_source::{File, LanguageType, ModuleId, PackageId, Span};
 use destack_workspace::ProviderContext;
@@ -42,14 +41,7 @@ impl SessionState {
             span,
         );
 
-        Ast::from_tree(
-            tree,
-            Vec::new(),
-            StringPool::new(),
-            Vec::new(),
-            Vec::new(),
-            root_expression,
-        )
+        Ast::from_tree(tree, Vec::new(), Vec::new(), Vec::new(), root_expression)
     }
 
     /// Parse one code module into AST.
@@ -65,14 +57,17 @@ impl SessionState {
                 detail: format!("file type has no parser language: {:?}", file.ty),
             })?;
         // parse and forward parser diagnostics
-        let mut parser =
-            Parser::lex_file_with_options(file.clone(), language_type, ParserOptions::default());
+        let mut parser = Parser::lex_file_with_options(
+            file.clone(),
+            language_type,
+            ParserOptions::default(),
+            self.repository().string_pool().clone(),
+        );
         let expressions = parser.parse();
         context.emit_collection(parser.diagnostics.collect());
 
         // preserve parser side data in the artifact payload
         let (tokens, side_tokens) = parser.take_tokens();
-        let strings = StringPool::from_local(parser.strings);
         let span = Span::empty(file.id);
         let root_expression = parser.tree.insert(
             ast::Expression::ScalarLiteral(ast::ScalarLiteral::Boolean(false)),
@@ -81,7 +76,6 @@ impl SessionState {
         let ast = Ast::from_tree(
             parser.tree,
             expressions,
-            strings,
             tokens,
             side_tokens,
             root_expression,
