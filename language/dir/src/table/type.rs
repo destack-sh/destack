@@ -910,7 +910,8 @@ mod tests {
 
     use super::{TypeOrigin, TypeTable};
     use crate::{
-        LiteralType, LocalNodeIdAny, NodeType, PrimitiveType, SliceType, Type, TypeLiteral,
+        FloatType, LiteralType, LocalNodeIdAny, NodeType, PrimitiveType, SliceType, Type,
+        TypeLiteral,
     };
 
     #[test]
@@ -935,7 +936,7 @@ mod tests {
         let source_id = LocalNodeIdAny::new(9, NodeType::Expression);
         let type_id = types.insert_imported_type_from_any(
             Type::Literal(LiteralType {
-                value: TypeLiteral::Primitive(PrimitiveType::Number),
+                value: TypeLiteral::Primitive(PrimitiveType::Float(FloatType::Float64)),
             }),
             source_id,
         );
