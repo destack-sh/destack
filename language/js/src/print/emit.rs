@@ -616,8 +616,7 @@ mod tests {
         roots: &[LocalNodeIdAny],
         strings: &StringPool,
     ) -> String {
-        let strings = strings.clone().into_immutable();
-        let printed = print_roots_minified(FileType::JavaScript, tree, roots, &strings).unwrap();
+        let printed = print_roots_minified(FileType::JavaScript, tree, roots, strings).unwrap();
 
         printed.code
     }
@@ -1078,7 +1077,6 @@ mod tests {
             node_id: import_call.id,
             span: Span::new(FileId::new(1), 10, 23),
         };
-        let strings = strings.clone().into_immutable();
         let printed = print_roots_minified_with_source_map(
             FileType::JavaScript,
             &tree,
@@ -1149,7 +1147,6 @@ mod tests {
                 ),
             ],
         };
-        let strings = strings.clone().into_immutable();
         let printed = print_roots_minified_with_source_map(
             FileType::TypeScript,
             &tree,

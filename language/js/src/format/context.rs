@@ -4,7 +4,7 @@ use crate::{
     LocalNodeIdAny, Member, Node, NodeType, Parameter, Pattern, PatternField, Property, Statement,
     SwitchCase, Tree, TreeImpl, TupleElement, TypeExpression, TypeMember,
 };
-use destack_core::ImmutableStringPool;
+use destack_core::StringPool;
 use destack_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
 use destack_fir::prelude::*;
 use destack_fir::print::PrintOptions as FirPrintOptions;
@@ -195,7 +195,7 @@ pub struct JsFormatContext<'a> {
     /// Root nodes to format.
     pub roots: &'a [LocalNodeIdAny],
     /// The string pool.
-    pub strings: &'a ImmutableStringPool,
+    pub strings: &'a StringPool,
     /// The source span provider.
     pub source_map: &'a dyn JsSourceMap,
 }

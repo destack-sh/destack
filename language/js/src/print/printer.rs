@@ -1,4 +1,4 @@
-use destack_core::ImmutableStringPool;
+use destack_core::StringPool;
 use destack_fir::format::FileMarker;
 use destack_source::FileType;
 use std::convert::Infallible;
@@ -28,7 +28,7 @@ pub fn print_roots_minified(
     file_type: FileType,
     tree: &Tree,
     roots: &[LocalNodeIdAny],
-    strings: &ImmutableStringPool,
+    strings: &StringPool,
 ) -> JsPrintResult<PrintedScript> {
     let mut printer = Printer::new(file_type, tree, roots, strings, &NOOP_JS_SOURCE_MAP);
     printer.print_roots()?;
@@ -40,7 +40,7 @@ pub fn print_roots_minified_with_source_map(
     file_type: FileType,
     tree: &Tree,
     roots: &[LocalNodeIdAny],
-    strings: &ImmutableStringPool,
+    strings: &StringPool,
     source_map: &dyn JsSourceMap,
 ) -> JsPrintResult<PrintedScript> {
     let mut printer = Printer::new(file_type, tree, roots, strings, source_map);
@@ -56,7 +56,7 @@ pub(crate) struct Printer<'a> {
     /// The root nodes to print.
     pub(crate) roots: &'a [LocalNodeIdAny],
     /// The string pool.
-    pub(crate) strings: &'a ImmutableStringPool,
+    pub(crate) strings: &'a StringPool,
     /// The source span provider.
     pub(crate) source_map: &'a dyn JsSourceMap,
     /// Whether type syntax should be emitted.
@@ -111,7 +111,7 @@ impl<'a> Printer<'a> {
         file_type: FileType,
         tree: &'a Tree,
         roots: &'a [LocalNodeIdAny],
-        strings: &'a ImmutableStringPool,
+        strings: &'a StringPool,
         source_map: &'a dyn JsSourceMap,
     ) -> Self {
         Self {
