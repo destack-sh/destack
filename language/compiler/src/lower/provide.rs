@@ -21,7 +21,6 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
         let state = LowerState::new(module, profile, target, context);
-        let artifact_key = ArtifactKey::mir_lowered(state.module, state.profile, state.target);
         let target_config = self.require_lower_module_inputs(
             state.module,
             state.profile,
@@ -36,12 +35,6 @@ impl Compiler {
             &target_config,
             state.context,
         )?;
-
-        assert_eq!(
-            artifact_key,
-            state.context.artifact_key(),
-            "compiler attempted to provide the wrong artifact"
-        );
 
         Ok(ArtifactPayload::MirLowered(payload))
     }
@@ -134,13 +127,13 @@ impl Compiler {
             .into());
         }
 
-        self.require_dir_declared(context, module_id, profile)
-            .map_err(CompilerError::from)?;
-        self.require_dir_checked(context, module_id, profile)
+        context
+            .require(ArtifactKey::dir_elaborated(module_id, profile))
             .map_err(CompilerError::from)?;
 
         // lowering depends on the selected library surface for well known layouts
-        self.require_global_environment(context, profile)
+        context
+            .require(ArtifactKey::global_environment(profile))
             .map_err(CompilerError::from)?;
 
         // resolve target configuration

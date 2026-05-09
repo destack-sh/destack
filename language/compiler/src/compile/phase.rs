@@ -2,26 +2,30 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum CompilePhase {
-    /// Import, parse, and bind source into base DIR.
-    Import = 1,
-    /// Resolve symbol references and profile environments.
-    Resolve = 2,
-    /// Declare, interface, analyze, and validate DIR.
-    Analyze = 3,
+    /// Declare source into base DIR.
+    Declare = 1,
+    /// Resolve imports into dependency tables.
+    Import = 2,
+    /// Expand macros into DIR patches.
+    Expand = 3,
+    /// Resolve exports over expanded DIR.
+    Export = 4,
+    /// Check expanded DIR.
+    Check = 5,
     /// Elaborate checked DIR into lowered DIR form.
-    Elaborate = 4,
-    /// Execute comptime and patch DIR.
-    Execute = 5,
+    Elaborate = 6,
+    /// Materialize comptime and patch DIR.
+    Materialize = 7,
     /// Lower patched DIR into MIR.
-    Lower = 6,
+    Lower = 8,
     /// Verify lowered MIR.
-    Verify = 7,
+    Verify = 9,
     /// Optimize MIR.
-    Optimize = 8,
+    Optimize = 10,
     /// Generate emitted artifacts from compiler products.
-    Generate = 9,
+    Generate = 11,
     /// Link emitted artifacts into package artifacts.
-    Link = 10,
+    Link = 12,
 }
 
 impl std::fmt::Display for CompilePhase {
@@ -39,11 +43,13 @@ impl CompilePhase {
     /// Return the display name for this phase.
     pub fn name(&self) -> &str {
         match self {
+            Self::Declare => "declare",
             Self::Import => "import",
-            Self::Resolve => "resolve",
-            Self::Analyze => "analyze",
+            Self::Expand => "expand",
+            Self::Export => "export",
+            Self::Check => "check",
             Self::Elaborate => "elaborate",
-            Self::Execute => "execute",
+            Self::Materialize => "materialize",
             Self::Lower => "lower",
             Self::Verify => "verify",
             Self::Optimize => "optimize",
@@ -55,11 +61,13 @@ impl CompilePhase {
     /// Return the description for this phase.
     pub fn description(&self) -> &str {
         match self {
-            Self::Import => "import, parse, and bind source into DIR",
-            Self::Resolve => "resolve symbol references and build semantic environments",
-            Self::Analyze => "declare, interface, analyze, and validate",
+            Self::Declare => "parse and bind source into DIR",
+            Self::Import => "resolve imports into dependency tables",
+            Self::Expand => "expand macros into DIR patches",
+            Self::Export => "resolve exports over expanded DIR",
+            Self::Check => "check expanded DIR",
             Self::Elaborate => "desugar and reify DIR",
-            Self::Execute => "execute comptime code and patch DIR",
+            Self::Materialize => "materialize comptime code and patch DIR",
             Self::Lower => "lower DIR into MIR",
             Self::Verify => "verify MIR semantic invariants",
             Self::Optimize => "optimize MIR",
@@ -71,12 +79,14 @@ impl CompilePhase {
     /// Return the one letter code for this phase.
     pub fn letter(&self) -> char {
         match self {
+            Self::Declare => 'D',
             Self::Import => 'I',
-            Self::Resolve => 'R',
-            Self::Analyze => 'A',
+            Self::Expand => 'X',
+            Self::Export => 'T',
+            Self::Check => 'C',
             Self::Elaborate => 'E',
-            Self::Execute => 'X',
-            Self::Lower => 'M',
+            Self::Materialize => 'M',
+            Self::Lower => 'L',
             Self::Verify => 'V',
             Self::Optimize => 'O',
             Self::Generate => 'G',
@@ -85,12 +95,14 @@ impl CompilePhase {
     }
 
     /// All phases in build order.
-    pub const ALL: [CompilePhase; 10] = [
+    pub const ALL: [CompilePhase; 12] = [
+        Self::Declare,
         Self::Import,
-        Self::Resolve,
-        Self::Analyze,
+        Self::Expand,
+        Self::Export,
+        Self::Check,
         Self::Elaborate,
-        Self::Execute,
+        Self::Materialize,
         Self::Lower,
         Self::Verify,
         Self::Optimize,

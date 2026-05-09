@@ -4,33 +4,37 @@
 #![feature(thread_id_value)]
 #![allow(clippy::result_large_err)]
 
-mod analyze;
+mod check;
 mod common;
 mod compile;
+mod declare;
 mod elaborate;
 mod emit;
-mod execute;
+mod expand;
+mod export;
 mod generate;
 mod import;
 mod library;
 mod link;
 mod lower;
+mod materialize;
 mod optimize;
-mod resolve;
 mod unbind;
 
-pub use analyze::*;
+pub use check::*;
 pub use compile::*;
+pub use declare::*;
 pub use elaborate::*;
 pub use emit::*;
-pub use execute::*;
+pub use expand::*;
+pub use export::*;
 pub use generate::*;
 pub use import::*;
 pub use library::*;
 pub use link::*;
 pub use lower::*;
+pub use materialize::*;
 pub use optimize::*;
-pub use resolve::*;
 pub use unbind::*;
 
 #[cfg(test)]

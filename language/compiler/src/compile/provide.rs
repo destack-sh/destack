@@ -7,13 +7,13 @@ impl Compiler {
     /// Provide one compiler owned artifact key through a session-owned attempt context.
     pub fn provide(&self, context: &dyn ProviderContext) -> ProviderResult<ArtifactPayload> {
         let artifact_key = context.artifact_key();
-        let result = self.execute_artifact(context, artifact_key);
+        let result = self.provide_artifact(context, artifact_key);
 
         self.finish_provide_result(context, result)
     }
 
-    /// Execute one compiler owned artifact key.
-    fn execute_artifact(
+    /// Provide one compiler owned artifact key.
+    fn provide_artifact(
         &self,
         context: &dyn ProviderContext,
         artifact_key: ArtifactKey,
@@ -40,10 +40,8 @@ impl Compiler {
             ArtifactKey::DirChecked { module, profile } => {
                 self.provide_dir_checked(module, profile, context)
             }
-            ArtifactKey::DirMaterialized { .. } => {
-                todo!(
-                    "materialized DIR artifact reached compiler before materialize provider is wired: {artifact_key:?}"
-                )
+            ArtifactKey::DirMaterialized { module, profile } => {
+                self.provide_dir_materialized(module, profile, context)
             }
             ArtifactKey::DirElaborated { module, profile } => {
                 self.provide_dir_elaborated(module, profile, context)

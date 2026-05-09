@@ -1,4 +1,4 @@
-#[cfg(feature = "native-codegen")]
+#[cfg(feature = "native")]
 mod binary;
 mod error;
 mod provide;

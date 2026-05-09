@@ -1,4 +1,4 @@
-use destack_artifact::{ArtifactKey, ArtifactPayload};
+use destack_artifact::ArtifactPayload;
 use destack_source::ModuleId;
 use destack_workspace::{ProfileId, ProviderContext};
 
@@ -12,12 +12,7 @@ impl Compiler {
         profile: ProfileId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
-        let artifact_key = ArtifactKey::dir_elaborated(module, profile);
-        assert_eq!(
-            artifact_key,
-            context.artifact_key(),
-            "compiler attempted to provide the wrong artifact"
-        );
+        let _ = (module, profile, context);
 
         todo!("DIR elaboration provider is unavailable until patch-backed output is wired")
     }

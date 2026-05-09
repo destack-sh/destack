@@ -61,8 +61,8 @@ pprof = { workspace = true }
 tracing-subscriber = { workspace = true }
 
 [features]
-default = ["native-codegen"]
-native-codegen = ["dep:destack_codegen_native"]
+default = ["native"]
+native = ["dep:destack_codegen_native"]
 deadlock-detection = ["parking_lot/deadlock_detection"]
 
 [[bench]]

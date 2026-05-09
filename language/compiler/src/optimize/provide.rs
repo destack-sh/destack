@@ -26,16 +26,15 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
         let state = OptimizeState::new(module, profile, target, context);
-        let artifact_key = ArtifactKey::mir_verified(state.module, state.profile, state.target);
 
-        self.require_mir_lowered(state.context, state.module, state.profile, &state.target)
+        state
+            .context
+            .require(ArtifactKey::mir_lowered(
+                state.module,
+                state.profile,
+                state.target,
+            ))
             .map_err(CompilerError::from)?;
-
-        assert_eq!(
-            artifact_key,
-            state.context.artifact_key(),
-            "compiler attempted to provide the wrong artifact"
-        );
 
         Ok(ArtifactPayload::MirVerified(MirVerified))
     }
@@ -49,20 +48,19 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
         let state = OptimizeState::new(module, profile, target, context);
-        let artifact_key = ArtifactKey::mir_optimized(state.module, state.profile, state.target);
 
-        self.require_mir_verified(state.context, state.module, state.profile, &state.target)
+        state
+            .context
+            .require(ArtifactKey::mir_verified(
+                state.module,
+                state.profile,
+                state.target,
+            ))
             .map_err(CompilerError::from)?;
 
         // optimize the module
         let payload =
             self.optimize_module(state.module, state.profile, &state.target, state.context)?;
-
-        assert_eq!(
-            artifact_key,
-            state.context.artifact_key(),
-            "compiler attempted to provide the wrong artifact"
-        );
 
         Ok(ArtifactPayload::MirOptimized(payload))
     }

@@ -4,8 +4,8 @@ use destack_artifact::{
 use destack_workspace::ProviderError;
 
 use crate::{
-    AnalyzeError, ElaborateError, EmitError, ExecuteError, GenerateError, ImportError, LinkError,
-    LowerError, OptimizeError, ResolveError,
+    CheckError, DeclareError, ElaborateError, EmitError, ExpandError, ExportError, GenerateError,
+    ImportError, LinkError, LowerError, MaterializeError, OptimizeError,
 };
 
 /// Compiler-local error while providing one artifact.
@@ -59,16 +59,18 @@ macro_rules! impl_compiler_error_from_diagnostic {
     };
 }
 
-impl_compiler_error_from_diagnostic!(AnalyzeError);
+impl_compiler_error_from_diagnostic!(CheckError);
+impl_compiler_error_from_diagnostic!(DeclareError);
 impl_compiler_error_from_diagnostic!(ElaborateError);
 impl_compiler_error_from_diagnostic!(EmitError);
-impl_compiler_error_from_diagnostic!(ExecuteError);
+impl_compiler_error_from_diagnostic!(MaterializeError);
+impl_compiler_error_from_diagnostic!(ExpandError);
+impl_compiler_error_from_diagnostic!(ExportError);
 impl_compiler_error_from_diagnostic!(GenerateError);
 impl_compiler_error_from_diagnostic!(ImportError);
 impl_compiler_error_from_diagnostic!(LinkError);
 impl_compiler_error_from_diagnostic!(LowerError);
 impl_compiler_error_from_diagnostic!(OptimizeError);
-impl_compiler_error_from_diagnostic!(ResolveError);
 
 impl CompilerError {
     /// Convert provider boundary control flow into a provider error.

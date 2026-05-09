@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use destack_artifact::{Data, Html};
+use destack_artifact::{ArtifactKey, Data, Html};
 use destack_html as html;
 use destack_source::{FileType, ModuleEdge, ModuleEdgeRelation, ModuleId, StringId};
 use destack_workspace::{Module, ProviderError};
@@ -90,7 +90,7 @@ impl<'a> ScriptLinker<'a> {
 
         // html root discovery reads parsed payloads directly
         for module_id in root_modules {
-            match self.require_ast(*module_id) {
+            match self.context.require(ArtifactKey::ast(*module_id)) {
                 Ok(_) => {}
                 Err(ProviderError::Blocked { keys }) => blocked.extend(keys),
                 Err(error) => return Err(CompilerError::from(error)),
@@ -101,8 +101,8 @@ impl<'a> ScriptLinker<'a> {
         for module_id in root_modules {
             let profile_id = self.profile_id_for_module(*module_id)?;
             match self
-                .compiler
-                .require_dir_exported(self.context, *module_id, profile_id)
+                .context
+                .require(ArtifactKey::dir_exported(*module_id, profile_id))
             {
                 Ok(_) => {}
                 Err(ProviderError::Blocked { keys }) => blocked.extend(keys),

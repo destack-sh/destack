@@ -2,9 +2,10 @@ pub use destack_artifact::{DiagnosticAnchor, DiagnosticDefinition, DiagnosticFor
 
 use crate::emit::{EmitError, EmitWarning};
 use crate::{
-    AnalyzeError, AnalyzeWarning, ElaborateError, ElaborateWarning, ExecuteError, ExecuteWarning,
-    GenerateError, GenerateWarning, ImportError, ImportWarning, LinkError, LinkWarning, LowerError,
-    LowerWarning, OptimizeError, OptimizeWarning, ResolveError, ResolveWarning,
+    CheckError, CheckWarning, DeclareError, DeclareWarning, ElaborateError, ElaborateWarning,
+    ExpandError, ExpandWarning, ExportError, ExportWarning, GenerateError, GenerateWarning,
+    ImportError, ImportWarning, LinkError, LinkWarning, LowerError, LowerWarning, MaterializeError,
+    MaterializeWarning, OptimizeError, OptimizeWarning,
 };
 
 /// Registry of all compiler diagnostic codes.
@@ -17,11 +18,13 @@ pub struct DiagnosticRegistry;
 impl DiagnosticRegistry {
     /// All error definitions from all phases.
     pub const ALL_ERRORS: &'static [&'static [DiagnosticDefinition]] = &[
+        DeclareError::ALL,
         ImportError::ALL,
-        ResolveError::ALL,
-        AnalyzeError::ALL,
+        ExpandError::ALL,
+        ExportError::ALL,
+        CheckError::ALL,
         ElaborateError::ALL,
-        ExecuteError::ALL,
+        MaterializeError::ALL,
         LowerError::ALL,
         OptimizeError::ALL,
         GenerateError::ALL,
@@ -31,11 +34,13 @@ impl DiagnosticRegistry {
 
     /// All warning definitions from all phases.
     pub const ALL_WARNINGS: &'static [&'static [DiagnosticDefinition]] = &[
+        DeclareWarning::ALL,
         ImportWarning::ALL,
-        ResolveWarning::ALL,
-        AnalyzeWarning::ALL,
+        ExpandWarning::ALL,
+        ExportWarning::ALL,
+        CheckWarning::ALL,
         ElaborateWarning::ALL,
-        ExecuteWarning::ALL,
+        MaterializeWarning::ALL,
         LowerWarning::ALL,
         OptimizeWarning::ALL,
         GenerateWarning::ALL,
@@ -45,11 +50,13 @@ impl DiagnosticRegistry {
 
     /// Check if an error code is valid.
     pub fn is_valid_error_code(code: &str) -> bool {
-        ImportError::is_valid_code(code)
-            || ResolveError::is_valid_code(code)
-            || AnalyzeError::is_valid_code(code)
+        DeclareError::is_valid_code(code)
+            || ImportError::is_valid_code(code)
+            || ExpandError::is_valid_code(code)
+            || ExportError::is_valid_code(code)
+            || CheckError::is_valid_code(code)
             || ElaborateError::is_valid_code(code)
-            || ExecuteError::is_valid_code(code)
+            || MaterializeError::is_valid_code(code)
             || LowerError::is_valid_code(code)
             || OptimizeError::is_valid_code(code)
             || GenerateError::is_valid_code(code)
@@ -59,11 +66,13 @@ impl DiagnosticRegistry {
 
     /// Check if a warning code is valid.
     pub fn is_valid_warning_code(code: &str) -> bool {
-        ImportWarning::is_valid_code(code)
-            || ResolveWarning::is_valid_code(code)
-            || AnalyzeWarning::is_valid_code(code)
+        DeclareWarning::is_valid_code(code)
+            || ImportWarning::is_valid_code(code)
+            || ExpandWarning::is_valid_code(code)
+            || ExportWarning::is_valid_code(code)
+            || CheckWarning::is_valid_code(code)
             || ElaborateWarning::is_valid_code(code)
-            || ExecuteWarning::is_valid_code(code)
+            || MaterializeWarning::is_valid_code(code)
             || LowerWarning::is_valid_code(code)
             || OptimizeWarning::is_valid_code(code)
             || GenerateWarning::is_valid_code(code)
@@ -79,21 +88,25 @@ impl DiagnosticRegistry {
 
     /// Look up a diagnostic definition by code.
     pub fn definition(code: &str) -> Option<&'static DiagnosticDefinition> {
-        ImportError::definition(code)
-            .or_else(|| ResolveError::definition(code))
-            .or_else(|| AnalyzeError::definition(code))
+        DeclareError::definition(code)
+            .or_else(|| ImportError::definition(code))
+            .or_else(|| ExpandError::definition(code))
+            .or_else(|| ExportError::definition(code))
+            .or_else(|| CheckError::definition(code))
             .or_else(|| ElaborateError::definition(code))
-            .or_else(|| ExecuteError::definition(code))
+            .or_else(|| MaterializeError::definition(code))
             .or_else(|| LowerError::definition(code))
             .or_else(|| OptimizeError::definition(code))
             .or_else(|| GenerateError::definition(code))
             .or_else(|| LinkError::definition(code))
             .or_else(|| EmitError::definition(code))
+            .or_else(|| DeclareWarning::definition(code))
             .or_else(|| ImportWarning::definition(code))
-            .or_else(|| ResolveWarning::definition(code))
-            .or_else(|| AnalyzeWarning::definition(code))
+            .or_else(|| ExpandWarning::definition(code))
+            .or_else(|| ExportWarning::definition(code))
+            .or_else(|| CheckWarning::definition(code))
             .or_else(|| ElaborateWarning::definition(code))
-            .or_else(|| ExecuteWarning::definition(code))
+            .or_else(|| MaterializeWarning::definition(code))
             .or_else(|| LowerWarning::definition(code))
             .or_else(|| OptimizeWarning::definition(code))
             .or_else(|| GenerateWarning::definition(code))
@@ -120,12 +133,14 @@ impl DiagnosticRegistry {
     /// Get all error codes for a given phase letter.
     pub fn phase_error_codes(letter: char) -> &'static [&'static str] {
         match letter {
+            'D' => DeclareError::ALL_CODES,
             'I' => ImportError::ALL_CODES,
-            'R' => ResolveError::ALL_CODES,
-            'A' => AnalyzeError::ALL_CODES,
+            'X' => ExpandError::ALL_CODES,
+            'T' => ExportError::ALL_CODES,
+            'C' => CheckError::ALL_CODES,
             'E' => ElaborateError::ALL_CODES,
-            'X' => ExecuteError::ALL_CODES,
-            'M' => LowerError::ALL_CODES,
+            'M' => MaterializeError::ALL_CODES,
+            'L' => LowerError::ALL_CODES,
             'O' => OptimizeError::ALL_CODES,
             'G' => GenerateError::ALL_CODES,
             'K' => LinkError::ALL_CODES,
@@ -137,12 +152,14 @@ impl DiagnosticRegistry {
     /// Get all warning codes for a given phase letter.
     pub fn phase_warning_codes(letter: char) -> &'static [&'static str] {
         match letter {
+            'D' => DeclareWarning::ALL_CODES,
             'I' => ImportWarning::ALL_CODES,
-            'R' => ResolveWarning::ALL_CODES,
-            'A' => AnalyzeWarning::ALL_CODES,
+            'X' => ExpandWarning::ALL_CODES,
+            'T' => ExportWarning::ALL_CODES,
+            'C' => CheckWarning::ALL_CODES,
             'E' => ElaborateWarning::ALL_CODES,
-            'X' => ExecuteWarning::ALL_CODES,
-            'M' => LowerWarning::ALL_CODES,
+            'M' => MaterializeWarning::ALL_CODES,
+            'L' => LowerWarning::ALL_CODES,
             'O' => OptimizeWarning::ALL_CODES,
             'G' => GenerateWarning::ALL_CODES,
             'K' => LinkWarning::ALL_CODES,

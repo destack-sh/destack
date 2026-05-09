@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use destack_artifact::ArtifactKey;
 use destack_ast::is_identifier;
 use destack_core::{StringId, StringPool};
 use destack_source::{ModuleId, PackageId, TargetId};
@@ -551,8 +552,18 @@ impl Compiler {
         package_id: PackageId,
         context: &dyn ProviderContext,
     ) -> LinkResult<js::LocalNodeId<js::Expression>> {
+        context
+            .require(ArtifactKey::dir_exported(target_module, profile_id))
+            .map_err(|error| LinkError::Internal {
+                anchor: (package_id).into(),
+                package: package_id,
+                message: format!(
+                    "missing resolved dir for same-output namespace import target {:?}: {error:?}",
+                    target_module,
+                ),
+            })?;
         let target_directory = self
-            .require_dir_exported(context, target_module, profile_id)
+            .dir_exported(context, target_module, profile_id)
             .map_err(|error| LinkError::Internal {
                 anchor: (package_id).into(),
                 package: package_id,

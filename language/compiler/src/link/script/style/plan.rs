@@ -5,7 +5,7 @@ use css::{
     ComponentValue, ComponentValueList, DeclarationBlock, Function, ImportResource, ImportRule,
     LocalNodeId, Rule, SupportsCondition, Token, Tree, UrlResource,
 };
-use destack_artifact::{Css, Data};
+use destack_artifact::{ArtifactKey, Css, Data};
 use destack_css as css;
 use destack_source::{FileType, ModuleEdge, ModuleEdgeRelation, ModuleId, StringId};
 use destack_workspace::{Module, ProviderError};
@@ -76,8 +76,8 @@ impl<'a> ScriptLinker<'a> {
             }
 
             match self
-                .compiler
-                .require_dir_exported(self.context, module_id, profile_id)
+                .context
+                .require(ArtifactKey::dir_exported(module_id, profile_id))
             {
                 Ok(_) => {}
                 Err(ProviderError::Blocked { keys }) => blocked.extend(keys),

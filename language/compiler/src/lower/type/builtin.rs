@@ -1,4 +1,4 @@
-use destack_artifact::{DiagnosticAnchor, DirChecked, DirDeclared, GlobalEnvironment};
+use destack_artifact::{ArtifactKey, DiagnosticAnchor, DirChecked, DirDeclared, GlobalEnvironment};
 use destack_core::StringPool;
 use destack_dir::{self as dir};
 use destack_mir as mir;
@@ -149,8 +149,8 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
     fn require_checked_module(&self, module_id: ModuleId) -> CompilerResult<()> {
         // request checked DIR for the target module
         let result = self
-            .compiler
-            .require_dir_checked(self.context, module_id, self.profile);
+            .context
+            .require(ArtifactKey::dir_checked(module_id, self.profile));
         let Err(error) = result else {
             return Ok(());
         };

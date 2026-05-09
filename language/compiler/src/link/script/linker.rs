@@ -1,13 +1,13 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use destack_artifact::{Data, DirExported, DirImported, ModuleOutput};
+use destack_artifact::{ArtifactKey, Data, DirExported, DirImported, ModuleOutput};
 use destack_dir::DependencyTarget;
 use destack_source::{
     File, FileId, FileType, ModuleEdge, ModuleEdgeRelation, ModuleId, PackageId, ProfileId, Span,
     StringId, TargetId,
 };
-use destack_workspace::{Module, ProviderContext, ProviderError, Revision, Target};
+use destack_workspace::{Module, ProviderContext, Revision, Target};
 
 use crate::{Compiler, LinkError, LinkResult};
 
@@ -79,11 +79,6 @@ impl<'a> ScriptLinker<'a> {
         self.compiler.file(self.context, file_id)
     }
 
-    /// Require the parsed AST for one linked module.
-    pub(crate) fn require_ast(&self, module_id: ModuleId) -> Result<(), ProviderError> {
-        self.compiler.require_ast(self.context, module_id)
-    }
-
     /// Return one generated module output for this target.
     pub(crate) fn module_output(&self, module_id: ModuleId) -> LinkResult<Arc<ModuleOutput>> {
         self.compiler
@@ -123,17 +118,31 @@ impl<'a> ScriptLinker<'a> {
         module_id: ModuleId,
     ) -> LinkResult<Vec<ModuleEdge>> {
         let profile_id = self.profile_id_for_module(module_id)?;
-        let imported = self
-            .compiler
-            .require_dir_imported(self.context, module_id, profile_id)
+        self.context
+            .require(ArtifactKey::dir_imported(module_id, profile_id))
             .map_err(|error| LinkError::Internal {
                 anchor: (self.package_id).into(),
                 package: self.package_id,
                 message: format!("module imports are not ready: {error:?}"),
             })?;
+        let imported = self
+            .compiler
+            .dir_imported(self.context, module_id, profile_id)
+            .map_err(|error| LinkError::Internal {
+                anchor: (self.package_id).into(),
+                package: self.package_id,
+                message: format!("module imports are not ready: {error:?}"),
+            })?;
+        self.context
+            .require(ArtifactKey::dir_exported(module_id, profile_id))
+            .map_err(|error| LinkError::Internal {
+                anchor: (self.package_id).into(),
+                package: self.package_id,
+                message: format!("module exports are not ready: {error:?}"),
+            })?;
         let exported = self
             .compiler
-            .require_dir_exported(self.context, module_id, profile_id)
+            .dir_exported(self.context, module_id, profile_id)
             .map_err(|error| LinkError::Internal {
                 anchor: (self.package_id).into(),
                 package: self.package_id,

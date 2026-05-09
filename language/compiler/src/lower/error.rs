@@ -11,7 +11,7 @@ pub enum LowerError {
     // 1xx: Type issues
     // -------------------------------------------------------------------------
     /// Unsupported type.
-    #[diagnostic(code = "EM100", message = "unsupported type: {message}")]
+    #[diagnostic(code = "EL100", message = "unsupported type: {message}")]
     UnsupportedType {
         /// Report the source that introduced the unsupported type.
         anchor: DiagnosticAnchor,
@@ -22,14 +22,14 @@ pub enum LowerError {
     },
 
     /// Missing type.
-    #[diagnostic(code = "EM101", message = "missing type")]
+    #[diagnostic(code = "EL101", message = "missing type")]
     MissingType {
         /// Report the source that lacks type information.
         anchor: DiagnosticAnchor,
     },
 
     /// Non-boolean condition in control flow.
-    #[diagnostic(code = "EM102", message = "condition requires boolean type")]
+    #[diagnostic(code = "EL102", message = "condition requires boolean type")]
     NonBooleanCondition {
         /// Report the condition expression.
         anchor: DiagnosticAnchor,
@@ -41,7 +41,7 @@ pub enum LowerError {
     // 2xx: Construct issues
     // -------------------------------------------------------------------------
     /// Unsupported node (generic catch-all for constructs not yet implemented).
-    #[diagnostic(code = "EM200", message = "unsupported construct: {message}")]
+    #[diagnostic(code = "EL200", message = "unsupported construct: {message}")]
     UnsupportedConstruct {
         /// Report the construct that cannot be lowered.
         anchor: DiagnosticAnchor,
@@ -50,21 +50,21 @@ pub enum LowerError {
     },
 
     /// Static arguments are not supported.
-    #[diagnostic(code = "EM201", message = "static type arguments not supported")]
+    #[diagnostic(code = "EL201", message = "static type arguments not supported")]
     StaticArgumentsNotSupported {
         /// Report the call or member access node.
         anchor: DiagnosticAnchor,
     },
 
     /// Unsupported binding pattern.
-    #[diagnostic(code = "EM202", message = "unsupported binding pattern")]
+    #[diagnostic(code = "EL202", message = "unsupported binding pattern")]
     UnsupportedPattern {
         /// Report the pattern node.
         anchor: DiagnosticAnchor,
     },
 
     /// Invalid static argument.
-    #[diagnostic(code = "EM203", message = "invalid static argument: {message}")]
+    #[diagnostic(code = "EL203", message = "invalid static argument: {message}")]
     InvalidStaticArgument {
         /// Report the source that carries the static arguments.
         anchor: DiagnosticAnchor,
@@ -76,14 +76,14 @@ pub enum LowerError {
     // 3xx: Symbol resolution issues
     // -------------------------------------------------------------------------
     /// Unresolved symbol reference.
-    #[diagnostic(code = "EM300", message = "unresolved symbol")]
+    #[diagnostic(code = "EL300", message = "unresolved symbol")]
     UnresolvedSymbol {
         /// Report the reference expression.
         anchor: DiagnosticAnchor,
     },
 
     /// Missing function for symbol.
-    #[diagnostic(code = "EM301", message = "missing function for symbol")]
+    #[diagnostic(code = "EL301", message = "missing function for symbol")]
     MissingFunction {
         /// Report the call node.
         anchor: DiagnosticAnchor,
@@ -92,14 +92,14 @@ pub enum LowerError {
     },
 
     /// Missing Resolution for method call.
-    #[diagnostic(code = "EM302", message = "method call missing Resolution")]
+    #[diagnostic(code = "EL302", message = "method call missing Resolution")]
     MissingResolution {
         /// Report the method call node.
         anchor: DiagnosticAnchor,
     },
 
     /// `this` reference outside of method context.
-    #[diagnostic(code = "EM303", message = "`this` reference outside of method context")]
+    #[diagnostic(code = "EL303", message = "`this` reference outside of method context")]
     ThisOutsideMethod {
         /// Report the `this` expression.
         anchor: DiagnosticAnchor,
@@ -109,14 +109,14 @@ pub enum LowerError {
     // 4xx: Struct/aggregate issues
     // -------------------------------------------------------------------------
     /// Missing struct layout.
-    #[diagnostic(code = "EM400", message = "missing struct layout")]
+    #[diagnostic(code = "EL400", message = "missing struct layout")]
     MissingLayout {
         /// Report the struct expression.
         anchor: DiagnosticAnchor,
     },
 
     /// Missing field initializer.
-    #[diagnostic(code = "EM401", message = "struct field {field_index} not initialized")]
+    #[diagnostic(code = "EL401", message = "struct field {field_index} not initialized")]
     MissingFieldInitializer {
         /// Report the struct literal.
         anchor: DiagnosticAnchor,
@@ -125,14 +125,14 @@ pub enum LowerError {
     },
 
     /// Duplicate field initializer.
-    #[diagnostic(code = "EM402", message = "duplicate struct field initializer")]
+    #[diagnostic(code = "EL402", message = "duplicate struct field initializer")]
     DuplicateField {
         /// Report the duplicate field property.
         anchor: DiagnosticAnchor,
     },
 
     /// Field not found in struct type.
-    #[diagnostic(code = "EM403", message = "field not found in type")]
+    #[diagnostic(code = "EL403", message = "field not found in type")]
     FieldNotFound {
         /// Report the member expression.
         anchor: DiagnosticAnchor,
@@ -142,14 +142,14 @@ pub enum LowerError {
     // 5xx: Control flow issues
     // -------------------------------------------------------------------------
     /// Missing terminator (function body doesn't return).
-    #[diagnostic(code = "EM500", message = "function body missing terminator")]
+    #[diagnostic(code = "EL500", message = "function body missing terminator")]
     MissingTerminator {
         /// Report the function declaration.
         anchor: DiagnosticAnchor,
     },
 
     /// Break/continue outside of loop.
-    #[diagnostic(code = "EM501", message = "break/continue outside of loop")]
+    #[diagnostic(code = "EL501", message = "break/continue outside of loop")]
     BreakContinueOutsideLoop {
         /// Report the break/continue expression.
         anchor: DiagnosticAnchor,
@@ -157,7 +157,7 @@ pub enum LowerError {
 
     /// Conditional expression missing else branch (value required).
     #[diagnostic(
-        code = "EM502",
+        code = "EL502",
         message = "conditional expression requires else branch"
     )]
     MissingElseBranch {
@@ -169,21 +169,21 @@ pub enum LowerError {
     // 6xx: Operator/cast issues
     // -------------------------------------------------------------------------
     /// Unsupported binary operator.
-    #[diagnostic(code = "EM600", message = "unsupported binary operator")]
+    #[diagnostic(code = "EL600", message = "unsupported binary operator")]
     UnsupportedBinaryOperator {
         /// Report the binary expression.
         anchor: DiagnosticAnchor,
     },
 
     /// Unsupported unary operator.
-    #[diagnostic(code = "EM601", message = "unsupported unary operator")]
+    #[diagnostic(code = "EL601", message = "unsupported unary operator")]
     UnsupportedUnaryOperator {
         /// Report the unary expression.
         anchor: DiagnosticAnchor,
     },
 
     /// Unsupported cast.
-    #[diagnostic(code = "EM602", message = "unsupported cast")]
+    #[diagnostic(code = "EL602", message = "unsupported cast")]
     UnsupportedCast {
         /// Report the cast expression.
         anchor: DiagnosticAnchor,
@@ -193,7 +193,7 @@ pub enum LowerError {
     // 9xx: Internal
     // -------------------------------------------------------------------------
     /// Internal lowering error.
-    #[diagnostic(code = "EM900", message = "internal error: {message}")]
+    #[diagnostic(code = "EL900", message = "internal error: {message}")]
     Internal {
         /// Anchor the error to a module.
         anchor: DiagnosticAnchor,
