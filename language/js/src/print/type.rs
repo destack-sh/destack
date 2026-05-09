@@ -1033,8 +1033,7 @@ mod tests {
         roots: &[LocalNodeIdAny],
         strings: &StringPool,
     ) -> String {
-        let strings = strings.clone().into_immutable();
-        let printed = print_roots_minified(FileType::TypeScript, tree, roots, &strings).unwrap();
+        let printed = print_roots_minified(FileType::TypeScript, tree, roots, strings).unwrap();
 
         printed.code
     }
@@ -1052,13 +1051,12 @@ mod tests {
             FileType::TypeScript,
             String::new(),
         );
-        let strings = strings.clone().into_immutable();
         let context = JsFormatContext {
             options: JsFormatOptions::pretty().with_file_type(FileType::TypeScript),
             file: &file,
             tree,
             roots,
-            strings: &strings,
+            strings,
             source_map: &NOOP_JS_SOURCE_MAP,
         };
         let mut state = FormatState::new(context);
