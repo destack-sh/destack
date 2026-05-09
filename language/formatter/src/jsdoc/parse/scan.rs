@@ -191,7 +191,8 @@ mod tests {
 
     /// Parse Jsdoc and return tag kind strings.
     fn tag_kinds(source: &str) -> Vec<String> {
-        let span = Span::new(destack_source::FileId::EPHEMERAL, 0, source.len() as u32);
+        let file_id = destack_source::FileId::from_source_bytes(source.as_bytes());
+        let span = Span::new(file_id, 0, source.len() as u32);
         let (_, tags) = parse_jsdoc(source, span);
         tags.iter().map(|t| t.kind.parsed().to_string()).collect()
     }

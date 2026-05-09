@@ -293,8 +293,8 @@ mod test {
                 "1\n2\n3",
             ),
         ] {
-            // span is not used in this test
-            let text = JsdocText::new(actual, Span::empty(FileId::EPHEMERAL));
+            let file_id = FileId::from_source_bytes(actual.as_bytes());
+            let text = JsdocText::new(actual, Span::empty(file_id));
             assert_eq!(text.parsed(), expect);
         }
     }
@@ -325,7 +325,8 @@ mod test {
                 "* foo",
             ),
         ] {
-            let text = JsdocText::new(actual, Span::new(FileId::EPHEMERAL, 0, actual.len() as u32));
+            let file_id = FileId::from_source_bytes(actual.as_bytes());
+            let text = JsdocText::new(actual, Span::new(file_id, 0, actual.len() as u32));
             let span = text.span_trimmed_first_line();
             let actual = &actual[span.start as usize..span.end as usize];
 
@@ -336,8 +337,8 @@ mod test {
     #[test]
     fn tag_kind_parsed() {
         for (actual, expect) in [("@foo", "foo"), ("@", ""), ("@かいんど", "かいんど")] {
-            // span is not used in this test
-            let kind = JsdocTagKind::new(actual, Span::empty(FileId::EPHEMERAL));
+            let file_id = FileId::from_source_bytes(actual.as_bytes());
+            let kind = JsdocTagKind::new(actual, Span::empty(file_id));
             assert_eq!(kind.parsed(), expect);
         }
     }
@@ -348,7 +349,8 @@ mod test {
  * \tfailed?: () => void;
  * }}";
 
-        let tag_type = JsdocTagType::new(source, Span::empty(FileId::EPHEMERAL));
+        let file_id = FileId::from_source_bytes(source.as_bytes());
+        let tag_type = JsdocTagType::new(source, Span::empty(file_id));
 
         assert_eq!(tag_type.raw(), "{{\n\tfailed?: () => void;\n}}");
     }

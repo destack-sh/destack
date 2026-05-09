@@ -95,7 +95,9 @@ impl TestProgram {
 
     /// Add a source module and return its stable id.
     pub(crate) fn add_module(&self, path: &str, _content: &str) -> ModuleId {
-        ModuleId::from_relative_path(PackageId::EPHEMERAL, Path::new(path))
+        let package_id = PackageId::from_path(Path::new("compiler-test"));
+
+        ModuleId::from_relative_path(package_id, Path::new(path))
     }
 
     /// Enqueue import work for one module.

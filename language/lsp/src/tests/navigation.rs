@@ -13,7 +13,7 @@ use crate::query::navigation::{outgoing_call_to_lsp, workspace_symbol_to_lsp};
 fn test_symbol_id() -> GlobalSymbolId {
     GlobalSymbolId::new(
         ModuleId::from_relative_path(
-            PackageId::from_synthetic_path(Path::new("lsp-navigation")),
+            PackageId::from_path(Path::new("lsp-navigation")),
             Path::new("symbol.ds"),
         ),
         LocalSymbolId::new(1),

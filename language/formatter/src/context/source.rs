@@ -284,7 +284,7 @@ const z = 3;
         let source_text = SourceText::new(source_text);
         let comments = vec![];
         let comments = Comments::new(source_text, &comments);
-        let file_id = FileId::EPHEMERAL;
+        let file_id = FileId::from_logical_str("formatter/source-lf.ds");
 
         let span_x = Span::new(file_id, 0, 12);
         let span_y = Span::new(file_id, 14, 26);
@@ -310,7 +310,7 @@ const z = 3;
         let source_text = SourceText::new(source_text);
         let comments = vec![];
         let comments = Comments::new(source_text, &comments);
-        let file_id = FileId::EPHEMERAL;
+        let file_id = FileId::from_logical_str("formatter/source-crlf.ds");
 
         let span_x = Span::new(file_id, 0, 12);
         let span_y = Span::new(file_id, 16, 28);
@@ -334,7 +334,7 @@ const z = 3;
         let source_text = SourceText::new(source_text);
         let comments = vec![];
         let comments = Comments::new(source_text, &comments);
-        let file_id = FileId::EPHEMERAL;
+        let file_id = FileId::from_logical_str("formatter/source-mixed.ds");
 
         let span_x = Span::new(file_id, 0, 12);
         let span_y = Span::new(file_id, 15, 27);
