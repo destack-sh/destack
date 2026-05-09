@@ -122,11 +122,12 @@ else {
 
 ### Refactoring
 
-- Just like writing is editing, coding is refactoring, and we refactor as we go and as our understanding of the problem deepens and the right solution shape reveals itself.
+- Just like writing is editing, progrmaming is refactoring, and we refactor as we go and as our understanding of the problem deepens and the right solution shape reveals itself.
 - If we do our job right, and have the right level of testing, refactors should be reasonably painless and only touch the parts of the model we actually needed.
-- As with factoring, we should always try to make our work easier as we go ("make the change easy, then make the change").
+- As with factoring, we should always try to make our work easier as we go: "make the change easy, then make the change".
 - We should always strive to refactor and "clean" as we go, continuously re-audit and semantically compress where the opportunity presents itself. Nothing is final.
-- Relatedly, as we go, we must never assume that what is already there is good just because it exists, even if it's in use, even if it's already tested.
+- Relatedly, as we go, we must never assume that what is already there is good just because it exists, even if it's in use, even if it's already tested. 
+- As a corollary, failing tests do not _always_ mean that the new code is wrong, the tests might also be wrong. That said, tests and expectations should never be silently changed without explicit prior discussion and agreement.
 - Every noun, verb, type, variant, field, line, .. must be earned. The final model should capture the essential complexity of the problem in its most pristine form, nothing more, nothing less. 
 - Bloat is deadly, and often we only realise something was bloated as we get further along and the true shape of the problem reveals itself (hence, refactor as we go)
 - Almost never introduce "transitional" or "for now" logic, we always want the final ideal shape, nothing in between.
@@ -136,7 +137,7 @@ else {
 
 - Performance is a feature and always a strong implicit requirement, even when no hard boundaries have been set (and usually, they aren't). 
 - Performance has many meanings, but in general it means using the absolute minimum level of resources to solve the real problem we actually have (bandwidth, disk, memory, CPU, whatever it is).
-- Often, though not always, performance "tradeoffs" - like between memory usage and cycles, or between niceness and speed - are not really tradeoffs at all, just poorly factored code that could be much better if we zoom out a little and solve the problem well.
+- Often, though not always, performance "tradeoffs" - like between memory usage and cycles, or between niceness and speed - are not really tradeoffs at all, just poorly factored code that could be much better if we zoom out a little and solve the problem well (or find a way not to do it at all!).
 - Clean code is usually fast code, if by "clean" we mean properly semantically compressed, stupid simple approaches, and not some arbitrary and silly notion of convoluted, theoretical abstraction ideals. 
 - The fastest code is code that doesn't run at all, the best data structures are the ones we don't need. Text book data structures, algorithms and fanciness are rarely required. 
 - Most of the time, for most problems, arrays and linear approaches are perfectly fine and even beat out anything "smarter". Maps are okay too, usually.
