@@ -331,7 +331,9 @@ pub(crate) fn value_layout_from_type(
             width: usize::BITS as u16,
             signed: false,
         },
-        mir::Type::Float { width } => ValueLayout::Float { width: *width },
+        mir::Type::Float(float_type) => ValueLayout::Float {
+            width: float_type.width(),
+        },
         mir::Type::TypeDescriptor | mir::Type::TypeId => ValueLayout::Int {
             width: usize::BITS as u16,
             signed: false,
@@ -444,8 +446,8 @@ pub(crate) fn word_layout_from_type(
                 width: usize::BITS as u8,
             })
         }
-        mir::Type::Float { width: 32 } => Some(WordLayout::Float32),
-        mir::Type::Float { width: 64 } => Some(WordLayout::Float64),
+        mir::Type::Float(mir::FloatType::Float32) => Some(WordLayout::Float32),
+        mir::Type::Float(mir::FloatType::Float64) => Some(WordLayout::Float64),
         mir::Type::Reference {
             kind,
             address_space,
@@ -483,7 +485,9 @@ pub(crate) fn scalar_layout_from_type(
                 is_signed: false,
             })
         }
-        mir::Type::Float { width } => Some(ScalarLayout::Float { width: *width }),
+        mir::Type::Float(float_type) => Some(ScalarLayout::Float {
+            width: float_type.width(),
+        }),
         mir::Type::Boolean => Some(ScalarLayout::Bool),
         _ => None,
     }

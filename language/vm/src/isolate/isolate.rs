@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
 
-use destack_core::{Capture, CaptureMode, StringPool, SnapshotCodec};
+use destack_core::{Capture, CaptureMode, SnapshotCodec, StringPool};
 use engine::StaticSpace;
 use serde::{Deserialize, Serialize};
 use {destack_engine as engine, destack_mir as mir};
