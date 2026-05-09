@@ -10,23 +10,22 @@ impl ModuleLowerer<'_> {
     pub(crate) fn dependency_target_module(
         &self,
         source_id: dir::LocalNodeIdAny,
-        space: dir::DependencySpace,
     ) -> Option<ModuleId> {
         let resolution = self
             .types
             .dependency_resolution(source_id.into_global(self.module.id))?;
 
         // dependency bindings are tracked on individual import or export items
-        let dir::DependencyResolution::Module(resolution) = resolution else {
+        let dir::DependencyResolution::Module(target) = resolution else {
             return None;
         };
 
         // external targets are preserved as bare specifiers for the linker
-        let dir::ModuleTarget::Module(module_id) = resolution.for_space(space)? else {
+        let dir::DependencyTarget::Module(module_id) = target else {
             return None;
         };
 
-        Some(module_id)
+        Some(*module_id)
     }
 
     /// Lower a dependency space from DIR into JS AST.
