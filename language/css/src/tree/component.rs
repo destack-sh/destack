@@ -45,7 +45,7 @@ pub struct Function {
 impl Function {
     /// Return whether this function name equals one expected value.
     pub fn name_eq(&self, strings: &StringPool, expected: &str) -> bool {
-        strings.get(self.name).as_ref() == expected
+        strings.get(self.name) == expected
     }
 }
 

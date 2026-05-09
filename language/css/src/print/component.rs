@@ -50,7 +50,7 @@ impl<'a> Printer<'a> {
         source.push_str(
             &self
                 .token_renderer()
-                .render_identifier(self.tree.strings.get(function.name).as_ref()),
+                .render_identifier(self.tree.strings.get(function.name)),
         );
         source.push('(');
         self.write_component_value_list(source, &function.arguments);

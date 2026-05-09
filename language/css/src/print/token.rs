@@ -76,11 +76,11 @@ impl<'a> TokenRenderer<'a> {
         match token {
             Token::Ident(value) => self.write_cssparser_token(
                 source,
-                cssparser::Token::Ident(self.strings.get(*value).as_ref().into()),
+                cssparser::Token::Ident(self.strings.get(*value).into()),
             ),
             Token::AtKeyword(value) => self.write_cssparser_token(
                 source,
-                cssparser::Token::AtKeyword(self.strings.get(*value).as_ref().into()),
+                cssparser::Token::AtKeyword(self.strings.get(*value).into()),
             ),
             Token::Hash {
                 value,
@@ -167,7 +167,7 @@ impl<'a> TokenRenderer<'a> {
                 has_sign: dimension.number.has_sign,
                 value: dimension.number.value,
                 int_value: dimension.number.integer_value,
-                unit: self.strings.get(dimension.unit).as_ref().into(),
+                unit: self.strings.get(dimension.unit).into(),
             },
         );
     }
