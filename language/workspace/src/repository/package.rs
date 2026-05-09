@@ -199,8 +199,7 @@ impl Repository {
     /// Return the package id for one package root.
     fn package_id(&self, kind: PackageKind, root: &Path) -> PackageId {
         match kind {
-            PackageKind::Declared => PackageId::from_path(root),
-            PackageKind::Implicit => PackageId::from_synthetic_path(root),
+            PackageKind::Declared | PackageKind::Implicit => PackageId::from_path(root),
         }
     }
 

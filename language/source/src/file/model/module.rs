@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use super::hash::{stable_source_id, stable_source_path};
 use crate::PackageId;
 
-const MODULE_KEY_DOMAIN: &[u8] = b"destack.source.module.v1";
+const MODULE_DOMAIN: &[u8] = b"destack.source.module.v1";
 const MODULE_LOADER_DEFAULT: &[u8] = b"default";
 
 /// Stable key for one module within a package.
@@ -27,9 +27,6 @@ impl std::fmt::Display for ModuleKey {
 }
 
 impl ModuleKey {
-    /// The ephemeral module key.
-    pub const EPHEMERAL: Self = Self(0);
-
     /// Wrap a raw stable module key.
     pub const fn new(key: u128) -> Self {
         Self(key)
@@ -66,12 +63,6 @@ impl std::fmt::Display for ModuleId {
 }
 
 impl ModuleId {
-    /// Well-known ID for ephemeral/virtual modules (e.g., REPL, root).
-    pub const EPHEMERAL: Self = Self {
-        package_id: PackageId::EPHEMERAL,
-        module_key: ModuleKey::EPHEMERAL,
-    };
-
     /// Create a ModuleId from a package and module key.
     pub const fn new(package: PackageId, module_key: u128) -> Self {
         Self {
@@ -87,7 +78,7 @@ impl ModuleId {
         Self {
             package_id: package,
             module_key: ModuleKey::new(stable_source_id(
-                MODULE_KEY_DOMAIN,
+                MODULE_DOMAIN,
                 &[relative_path.as_bytes(), MODULE_LOADER_DEFAULT],
             )),
         }
@@ -124,7 +115,7 @@ impl ModuleId {
         Self {
             package_id: package,
             module_key: ModuleKey::new(stable_source_id(
-                MODULE_KEY_DOMAIN,
+                MODULE_DOMAIN,
                 &[relative.as_bytes(), loader],
             )),
         }
