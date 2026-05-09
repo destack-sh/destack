@@ -2,6 +2,8 @@
 
 `Record` is a standard utility type.
 
+## objects
+
 ### record builds required properties
 
 ```ds

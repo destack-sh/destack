@@ -2,6 +2,8 @@
 
 `Readonly<T>` is the named utility alias for deep `readonly T`.
 
+## properties
+
 ### readonly keeps field types
 
 ```ds

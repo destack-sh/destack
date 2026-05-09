@@ -2,6 +2,8 @@
 
 `Capitalize` uppercases the first character of a string literal type.
 
+## strings
+
 ### capitalize converts first character
 
 ```ds

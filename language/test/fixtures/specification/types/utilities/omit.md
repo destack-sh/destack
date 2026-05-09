@@ -2,6 +2,8 @@
 
 `Omit` is a standard utility type.
 
+## objects
+
 ### omit removes selected keys
 
 ```ds

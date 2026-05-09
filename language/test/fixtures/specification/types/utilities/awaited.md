@@ -2,6 +2,8 @@
 
 `Awaited` unwraps the value produced by `await`.
 
+## unwrapping
+
 ### awaited keeps non promises
 
 ```ds

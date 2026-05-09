@@ -2,6 +2,8 @@
 
 `Required` is a standard utility type.
 
+## properties
+
 ### required removes optionality
 
 ```ds

@@ -2,6 +2,8 @@
 
 `ReturnType` extracts a function return type.
 
+## functions
+
 ### ReturnType extracts return values
 
 ```ds

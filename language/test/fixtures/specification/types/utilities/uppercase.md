@@ -2,6 +2,8 @@
 
 `Uppercase` converts string literal types to uppercase.
 
+## strings
+
 ### uppercase converts literals
 
 ```ds

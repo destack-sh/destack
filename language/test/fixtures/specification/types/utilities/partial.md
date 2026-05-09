@@ -2,6 +2,8 @@
 
 `Partial` is a standard utility type.
 
+## properties
+
 ### partial allows missing fields
 
 ```ds

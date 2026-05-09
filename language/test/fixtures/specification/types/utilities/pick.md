@@ -2,6 +2,8 @@
 
 `Pick` is a standard utility type.
 
+## objects
+
 ### pick preserves optional properties
 
 ```ds

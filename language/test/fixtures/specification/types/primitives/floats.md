@@ -1,4 +1,4 @@
-# Float Types
+# Floats
 
 ## precision
 

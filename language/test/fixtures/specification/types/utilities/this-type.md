@@ -2,6 +2,8 @@
 
 `ThisType` marks the contextual `this` type of an object literal.
 
+## receivers
+
 ### ThisType provides object literal this
 
 ```ds
