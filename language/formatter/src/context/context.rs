@@ -11,7 +11,7 @@ use destack_ast::{
     MatchCase, Member, Node, NodeParentIndex, NodeType, Parameter, Pattern, PatternField, Property,
     TokenSpan, TokenType, Tree, TreeImpl, TupleElement, TypeExpression, TypeMember, WhereClause,
 };
-use destack_core::ImmutableStringPool;
+use destack_core::StringPool;
 use destack_fir::format::{
     Buffer, Format, FormatContext, FormatNode as FirNode, FormatNodes, FormatResult, Formatter,
 };
@@ -56,7 +56,7 @@ pub struct DestackFormatContext<'a> {
     /// The parent index.
     pub parents: NodeParentIndex,
     /// The string pool.
-    pub strings: &'a ImmutableStringPool,
+    pub strings: &'a StringPool,
     /// Cached newline byte offsets in file text.
     pub newline_offsets: OnceCell<Vec<u32>>,
     /// Cached sorted comment tokens for ignore-range scans.
@@ -82,7 +82,7 @@ impl<'a> DestackFormatContext<'a> {
         tokens: &'a [TokenSpan],
         side_tokens: &'a [TokenSpan],
         side_span: &'a MultiSpan,
-        strings: &'a ImmutableStringPool,
+        strings: &'a StringPool,
         parents: NodeParentIndex,
     ) -> Self {
         // ignore directives

@@ -12,7 +12,7 @@ use destack_ast::{
     ImportSource, ImportTarget, Keyword, LocalNodeId, Name, ScalarLiteral, TokenSpan, TokenType,
     Tree,
 };
-use destack_core::{ImmutableStringPool, StringId};
+use destack_core::{StringId, StringPool};
 use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
@@ -211,7 +211,7 @@ pub(crate) fn format_dependency_statement_expression<'ast>(
 pub(crate) fn sort_imports(
     imports: &[LocalNodeId<Expression>],
     tree: &Tree,
-    strings: &ImmutableStringPool,
+    strings: &StringPool,
 ) -> Vec<LocalNodeId<Expression>> {
     let mut expression_ids = Vec::new();
     let mut order_keys = Vec::new();
@@ -244,7 +244,7 @@ pub(crate) fn sort_imports(
 pub(crate) fn sort_dependency_items(
     items: &[LocalNodeId<DependencyItem>],
     tree: &Tree,
-    strings: &ImmutableStringPool,
+    strings: &StringPool,
     sort_order: ImportSortOrder,
 ) -> Vec<LocalNodeId<DependencyItem>> {
     query_sort_dependency_items(items, tree, strings, sort_order)
@@ -259,7 +259,7 @@ pub(crate) fn should_insert_blank_between(
     prev_expr_id: LocalNodeId<Expression>,
     curr_expr_id: LocalNodeId<Expression>,
     tree: &Tree,
-    strings: &ImmutableStringPool,
+    strings: &StringPool,
 ) -> bool {
     let (prev_is_side_effect, prev_group) = match import_expression(prev_expr_id, tree) {
         Some(Expression::Import { items, target, .. }) => {

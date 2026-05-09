@@ -3,6 +3,7 @@ use std::fmt::{self, Display};
 use std::sync::Arc;
 
 use destack_ast::{Expression, LocalNodeId, NodeParentIndex};
+use destack_core::StringPool;
 use destack_css::{CssFormatOptions, format_stylesheet, parse_css};
 use destack_fir::format as fir_format;
 use destack_html::{HtmlFormatOptions, format_document, parse_html};
@@ -112,6 +113,7 @@ fn format_parser_file_source(
             preserve_parenthesized_wrappers: false,
             ..ParserOptions::default()
         },
+        Arc::new(StringPool::new()),
     );
     let expressions = parser.parse();
 
@@ -137,7 +139,7 @@ fn format_parser_file_source(
     // build the formatter context
     let (tokens, side_tokens) = parser.take_tokens();
     let side_span = parser.compute_side_span();
-    let strings = parser.strings.into_immutable();
+    let strings = parser.strings.as_ref();
     let parents = NodeParentIndex::from_expression_roots(&parser.tree, &expressions);
     let options = DestackFormatOptions::from_formatter_options(options, language_type);
     let context = DestackFormatContext::new(
@@ -147,7 +149,7 @@ fn format_parser_file_source(
         &tokens,
         &side_tokens,
         &side_span,
-        &strings,
+        strings,
         parents,
     );
 
