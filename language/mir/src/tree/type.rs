@@ -2,67 +2,39 @@ use serde::{Deserialize, Serialize};
 
 use destack_core::StringId;
 
-use crate::{LocalNodeId, Node, NodeType, TypeReference};
+use crate::{Lifetime, LocalNodeId, Node, NodeType, TypeReference};
 
-/// Borrow-region bounds for a returned borrowed value.
-///
-/// Specifies which function parameters a returned reference (or aggregate
-/// containing references) may borrow from. Used by the borrow checker to
-/// track borrows across function calls.
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub enum BorrowRegion {
-    /// Infer lifetime based on function signature:
-    /// - Single `&T` parameter: return borrows from it
-    /// - `&self`/`&this` receiver: return borrows from receiver
-    /// - Multiple `&T` parameters: conservative (borrows from all)
-    #[default]
-    Inferred,
-    /// Borrows from specific parameters (by index).
-    /// E.g., `@lifetime(a, b)` where a is param 0 and b is param 1.
-    /// Typically 1-2 parameters, so Vec is efficient enough.
-    Parameters(Vec<u32>),
-    /// Static lifetime - borrows only from global/static data.
-    /// The returned reference is valid for the entire program lifetime.
-    Static,
-}
-
-impl BorrowRegion {
-    /// Create a borrow region bound for a single parameter.
-    pub fn param(index: u32) -> Self {
-        BorrowRegion::Parameters(vec![index])
-    }
-
-    /// Create a borrow region bound for multiple parameters.
-    pub fn params(indices: impl IntoIterator<Item = u32>) -> Self {
-        BorrowRegion::Parameters(indices.into_iter().collect())
-    }
-
-    /// Check if this is the inferred default borrow region.
-    pub fn is_inferred(&self) -> bool {
-        matches!(self, BorrowRegion::Inferred)
-    }
-
-    /// Check if this is a static borrow region.
-    pub fn is_static(&self) -> bool {
-        matches!(self, BorrowRegion::Static)
-    }
-
-    /// Check if this borrow region includes a specific parameter.
-    pub fn includes_param(&self, index: u32) -> bool {
-        match self {
-            BorrowRegion::Parameters(params) => params.contains(&index),
-            _ => false,
-        }
-    }
-}
-
-/// Mutability of a reference or binding.
+/// Mutability of a storage binding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Mutability {
     /// Immutable (const).
     Immutable,
     /// Mutable (var).
     Mutable,
+}
+
+/// Access exposed by a reference-like value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub enum Access {
+    /// Readonly access.
+    Readonly,
+    /// Mutable aliased access.
+    #[default]
+    Mutable,
+    /// Mutable exclusive access.
+    Exclusive,
+}
+
+impl Access {
+    /// Return true when this access can write through the reference.
+    pub fn can_write(self) -> bool {
+        matches!(self, Access::Mutable | Access::Exclusive)
+    }
+
+    /// Return true when this access excludes overlapping borrows.
+    pub fn is_exclusive(self) -> bool {
+        matches!(self, Access::Exclusive)
+    }
 }
 
 /// Address space for a reference.
@@ -222,29 +194,33 @@ pub enum Type {
         /// The stored value type.
         value: TypeReference,
     },
-    /// Reference with explicit kind and mutability.
+    /// Reference with explicit kind and access.
     Reference {
         /// The reference kind (managed, owned, borrowed, raw).
         kind: ReferenceKind,
+        /// Lifetime roots for borrowed references.
+        lifetime: Lifetime,
         /// The address space for this reference.
         address_space: AddressSpace,
-        /// The reference mutability.
-        mutability: Mutability,
+        /// The access exposed through this reference.
+        access: Access,
         /// The referenced type.
         pointee: TypeReference,
         /// Whether the reference can be null.
         is_nullable: bool,
     },
-    /// Slice into memory, a repeated element with explicit kind and mutability.
+    /// Slice into memory, a repeated element with explicit kind and access.
     Slice {
         /// The reference kind of the slice base.
         kind: ReferenceKind,
+        /// Lifetime roots for borrowed slices.
+        lifetime: Lifetime,
         /// The element type of the slice.
         element: TypeReference,
         /// The address space of the slice base.
         address_space: AddressSpace,
-        /// The element mutability exposed by the slice.
-        mutability: Mutability,
+        /// The element access exposed by the slice.
+        access: Access,
     },
 
     /// Fixed-size array: `T[N]`.
@@ -302,10 +278,12 @@ pub enum Type {
     TensorView {
         /// The reference kind (managed, owned, borrowed, raw).
         kind: ReferenceKind,
+        /// Lifetime roots for borrowed tensor views.
+        lifetime: Lifetime,
         /// The address space for this view.
         address_space: AddressSpace,
-        /// The view mutability.
-        mutability: Mutability,
+        /// The access exposed through this view.
+        access: Access,
         /// The element type.
         element: TypeReference,
         /// The static shape.
@@ -485,17 +463,17 @@ impl Type {
         )
     }
 
-    /// Whether this type is a mutable borrowed reference.
-    pub fn is_mutable_borrowed_reference(&self) -> bool {
+    /// Whether this type is an exclusive borrowed reference.
+    pub fn is_exclusive_borrowed_reference(&self) -> bool {
         matches!(
             self,
             Type::Reference {
                 kind: ReferenceKind::Borrowed,
-                mutability: Mutability::Mutable,
+                access: Access::Exclusive,
                 ..
             } | Type::TensorView {
                 kind: ReferenceKind::Borrowed,
-                mutability: Mutability::Mutable,
+                access: Access::Exclusive,
                 ..
             }
         )
@@ -602,13 +580,14 @@ impl Node for Field {
 pub fn slice_header_types(
     kind: ReferenceKind,
     element: TypeReference,
-    mutability: Mutability,
+    access: Access,
     address_space: AddressSpace,
 ) -> (Type, Type) {
     let data = Type::Reference {
         kind,
+        lifetime: Lifetime::empty(),
         address_space,
-        mutability,
+        access,
         pointee: element,
         is_nullable: false,
     };

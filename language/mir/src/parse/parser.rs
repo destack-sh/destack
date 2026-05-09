@@ -297,6 +297,24 @@ impl Parser {
         }
     }
 
+    /// Consume the current identifier when it matches the expected text.
+    pub(super) fn eat_identifier_text(&mut self, expected: &str) -> bool {
+        let Some(token) = self.peek() else {
+            return false;
+        };
+        if token.ty != TokenType::Identifier {
+            return false;
+        }
+
+        let text = self.tree.source_text(token.span);
+        if text != expected {
+            return false;
+        }
+
+        self.bump();
+        true
+    }
+
     /// Parse an instruction opcode.
     ///
     /// Opcodes can be identifiers or reserved opcode keywords that also have

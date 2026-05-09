@@ -123,25 +123,25 @@ impl ParameterRemap {
         Some((index - shift) as u32)
     }
 
-    /// Remap return borrow-region indices after removals.
-    pub fn remap_return_region(&self, region: &mir::BorrowRegion) -> Option<mir::BorrowRegion> {
-        // only remap explicit parameter lifetimes
-        let mir::BorrowRegion::Parameters(indices) = region else {
-            return Some(region.clone());
-        };
+    /// Remap return lifetime parameter indices after removals.
+    pub fn remap_return_lifetime(&self, lifetime: &mir::Lifetime) -> Option<mir::Lifetime> {
+        let mut origins = Vec::with_capacity(lifetime.origins.len());
 
-        // translate each index through the removal map
-        let mut remapped = Vec::new();
-        for index in indices {
-            remapped.push(self.remap_parameter_index(*index)?);
+        for origin in &lifetime.origins {
+            match *origin {
+                mir::LifetimeOrigin::Static => origins.push(mir::LifetimeOrigin::Static),
+                mir::LifetimeOrigin::Parameter(index) => {
+                    let index = self.remap_parameter_index(index)?;
+                    origins.push(mir::LifetimeOrigin::Parameter(index));
+                }
+            }
         }
 
-        // drop empty parameter sets
-        if remapped.is_empty() {
+        if origins.is_empty() && !lifetime.is_empty() {
             return None;
         }
 
-        Some(mir::BorrowRegion::Parameters(remapped))
+        Some(mir::Lifetime::new(origins))
     }
 
     /// Remap allocation size parameter indices after removals.
@@ -186,11 +186,9 @@ pub fn required_parameter_indices(function: &mir::Function) -> HashSet<usize> {
     // gather required indices from metadata
     let mut required = HashSet::new();
 
-    // include explicit return-region parameters
-    if let mir::BorrowRegion::Parameters(indices) = &function.return_region {
-        for index in indices {
-            required.insert(*index as usize);
-        }
+    // include return lifetime parameters
+    for index in function.return_lifetime.parameter_indices() {
+        required.insert(index as usize);
     }
 
     // include allocation size indices

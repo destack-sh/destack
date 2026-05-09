@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    Block, BlockTarget, Function, IntegerReference, LocalNodeId, Mutability, NodeType,
-    ReferenceKind, SwitchCase, Terminator, TrapKind, Type, TypeReference, Value, ValueReference,
+    Access, Block, BlockTarget, Function, IntegerReference, LocalNodeId, NodeType, ReferenceKind,
+    SwitchCase, Terminator, TrapKind, Type, TypeReference, Value, ValueReference,
     function_signature_parts,
 };
 
@@ -357,7 +357,7 @@ impl<'a> Validator<'a> {
 
                 let Type::Reference {
                     kind: ReferenceKind::Managed,
-                    mutability: Mutability::Immutable,
+                    access: Access::Readonly,
                     is_nullable: false,
                     ..
                 } = payload_type
@@ -714,7 +714,7 @@ impl<'a> Validator<'a> {
         let unwind_parameter_type = self.tree.get(unwind_parameter_type);
         let Type::Reference {
             kind: ReferenceKind::Managed,
-            mutability: Mutability::Immutable,
+            access: Access::Readonly,
             is_nullable: false,
             ..
         } = unwind_parameter_type

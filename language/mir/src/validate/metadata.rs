@@ -64,19 +64,34 @@ impl<'a> Validator<'a> {
 
         // reference types
         for (type_id, ty) in self.tree.iter_nodes::<Type>() {
-            let (kind, address_space) = match ty {
+            let (kind, lifetime, address_space) = match ty {
                 Type::Reference {
                     kind,
+                    lifetime,
+                    address_space,
+                    ..
+                }
+                | Type::Slice {
+                    kind,
+                    lifetime,
                     address_space,
                     ..
                 }
                 | Type::TensorView {
                     kind,
+                    lifetime,
                     address_space,
                     ..
-                } => (*kind, address_space.clone()),
+                } => (*kind, lifetime, address_space.clone()),
                 _ => continue,
             };
+
+            if !matches!(kind, ReferenceKind::Borrowed) && !lifetime.is_empty() {
+                return Err(ValidateError::MetadataInvariantViolation {
+                    message: "only borrowed references can carry lifetimes".to_string(),
+                    anchor: ValidateAnchor::node(type_id),
+                });
+            }
 
             // heap references
             if matches!(kind, ReferenceKind::Managed | ReferenceKind::Owned)

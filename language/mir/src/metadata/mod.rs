@@ -11,7 +11,6 @@ mod union;
 pub use data::*;
 pub use debug::*;
 pub use dispatch::*;
-pub(crate) use layout::record_type_layout;
 pub use layout::*;
 pub use memory::*;
 pub use metadata::*;

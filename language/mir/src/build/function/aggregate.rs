@@ -1,9 +1,10 @@
 use crate::build::FunctionBuilder;
 use crate::{
-    BinaryOperator, Instruction, LocalNodeId, TensorConvertMode, TensorConvolutionDimensionNumbers,
-    TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
-    TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode, Type, TypeReference,
-    Value, ValueReference, VectorConvertMode, VectorReduceOperator,
+    BinaryOperator, Instruction, LocalNodeId, PlaceProjection, TensorConvertMode,
+    TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
+    TensorGatherDimensionNumbers, TensorReduceOperator, TensorScatterDimensionNumbers,
+    TensorScatterMode, Type, TypeReference, Value, ValueReference, VectorConvertMode,
+    VectorReduceOperator,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -36,7 +37,12 @@ impl<'a> FunctionBuilder<'a> {
             index,
             result_type: result_type.into(),
         });
-        self.define_value(destination, result_type);
+        self.define_value_from_projection(
+            destination,
+            result_type,
+            aggregate,
+            PlaceProjection::Static { index },
+        );
         destination
     }
 
@@ -82,7 +88,14 @@ impl<'a> FunctionBuilder<'a> {
             index: index.into(),
             result_type: result_type.into(),
         });
-        self.define_value(destination, result_type);
+        self.define_value_from_projection(
+            destination,
+            result_type,
+            array,
+            PlaceProjection::Dynamic {
+                index: index.into(),
+            },
+        );
         destination
     }
 
@@ -411,7 +424,7 @@ impl<'a> FunctionBuilder<'a> {
             tensor: tensor.into(),
             dimensions,
         });
-        self.define_value(destination, result_type);
+        self.define_value_from_place(destination, result_type, tensor);
         destination
     }
 
@@ -439,7 +452,7 @@ impl<'a> FunctionBuilder<'a> {
             destination: destination.into(),
             tensor: tensor.into(),
         });
-        self.define_value(destination, result_type);
+        self.define_value_from_place(destination, result_type, tensor);
         destination
     }
 
@@ -473,7 +486,7 @@ impl<'a> FunctionBuilder<'a> {
             sizes_count,
             strides_count,
         });
-        self.define_value(destination, result_type);
+        self.define_value_from_place(destination, result_type, view);
         destination
     }
 

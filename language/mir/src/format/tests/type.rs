@@ -10,8 +10,8 @@ use destack_core::StringPool;
 fn test_format_reference_and_builtin_types() {
     assert_format(
         r#"
-function pointerSized(value0: isize, value1: usize, value2: typeDescriptor, value3: typeId, value4: ref?<int32, managed>, value5: ref<int32, raw, space(shared)>, value6: ref<int32, raw, space(gpu)>, value7: ref<int32, owned, readonly>): ref?<int32, managed> {
-entry0(value0: isize, value1: usize, value2: typeDescriptor, value3: typeId, value4: ref?<int32, managed>, value5: ref<int32, raw, space(shared)>, value6: ref<int32, raw, space(gpu)>, value7: ref<int32, owned, readonly>):
+function pointerSized(value0: isize, value1: usize, value2: typeDescriptor, value3: typeId, value4: ref?<int32, managed>, value5: ref<int32, raw, space(shared)>, value6: ref<int32, raw, space(gpu)>, value7: ref<int32, owned, readonly>, value8: ref<int32, borrowed, lifetime(0)>, value9: slice<int32, borrowed, lifetime(0)>, value10: tensorView<int32, borrowed, lifetime(0), (4, 4)>, value11: ref<int32, borrowed, lifetime(static)>): ref?<int32, managed> {
+entry0(value0: isize, value1: usize, value2: typeDescriptor, value3: typeId, value4: ref?<int32, managed>, value5: ref<int32, raw, space(shared)>, value6: ref<int32, raw, space(gpu)>, value7: ref<int32, owned, readonly>, value8: ref<int32, borrowed, lifetime(0)>, value9: slice<int32, borrowed, lifetime(0)>, value10: tensorView<int32, borrowed, lifetime(0), (4, 4)>, value11: ref<int32, borrowed, lifetime(static)>):
     return value4
 }
 "#,

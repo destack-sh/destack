@@ -97,6 +97,8 @@ impl ModuleBuilder {
         let function_id =
             self.tree
                 .insert(Function::declare(name_id, parameters, return_type.into()));
+        self.tree
+            .infer_and_set_function_return_lifetime(function_id);
         finalize_function_names(&mut self.tree, &mut self.strings, function_id);
 
         let validator = Validator::new(&self.tree);
@@ -126,6 +128,8 @@ impl ModuleBuilder {
         let function_id =
             self.tree
                 .insert(Function::import(name_id, parameters, return_type.into()));
+        self.tree
+            .infer_and_set_function_return_lifetime(function_id);
         finalize_function_names(&mut self.tree, &mut self.strings, function_id);
 
         let validator = Validator::new(&self.tree);

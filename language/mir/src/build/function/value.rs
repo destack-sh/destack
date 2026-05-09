@@ -244,7 +244,7 @@ impl<'a> FunctionBuilder<'a> {
             argument: argument.into(),
             to_type: to_type.into(),
         });
-        self.define_value(destination, to_type);
+        self.define_value_from_place(destination, to_type, argument);
         destination
     }
 
