@@ -83,11 +83,12 @@ Destack extends TypeScript's type system with precise primitives, nominal types 
 ### Primitives
 
 TypeScript inherits its primitive types from JavaScript: `object`, `string`, `boolean`, `number`, `bigint`, and `symbol`, plus the `null` and `undefined` sentinels.
-Destack extends and refines the primitive type system:
+Destack provides a more complete primitive type system:
 
 - precise numeric types beyond `number`, with variable-width signed and unsigned integers (`int8`, `uint32`, `int17`) as well as single and double precision floats (`float32`, `float64`)
 - pointer-sized integers, i.e. integers as wide as the target pointer size, spelled `isize` and `usize`
-- `number` as an alias to `float64`
+- `int` and `uint` as aliases to `int64` and `uint64`
+- `number` as an alias for `float`, and `float` as an alias to `float64`
 - `character` as a single Unicode scalar value, distinct from `string`
 - `unknown` as the explicit top type
 - `never` as the explicit bottom type
@@ -101,9 +102,14 @@ const id: uint64 = 12345;
 7 satisfies uint3;
 7 satisfies uint2; // error
 
-const balance: float32 = 100.50;
+const exact: int = 42;
+exact satisfies int64;
+
+const balance: float = 100.50;
+balance satisfies float64;
+
 const n: number = 1.0;
-n satisfies float64;
+n satisfies float;
 
 const initial: character = 'A';
 const input: unknown = readInput();
