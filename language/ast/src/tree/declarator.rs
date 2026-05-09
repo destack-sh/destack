@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Expression, LocalNodeId, Node, NodeType, Pattern, TypeExpression};
 
-/// A single variable declarator within a let/const/var statement.
+/// A single variable declarator within a let or const statement.
 /// Each declarator has its own pattern, optional type, and optional initializer.
 ///
 /// Examples:

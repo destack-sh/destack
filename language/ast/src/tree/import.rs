@@ -1,35 +1,6 @@
-use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
-use crate::{Expression, LocalNodeId, Name, ScalarLiteral};
-
-/// The source of an import declaration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ImportSource {
-    /// Standard import statement.
-    ImportStatement,
-    /// TypeScript triple-slash `reference path` directive.
-    ReferencePathDirective,
-    /// TypeScript triple-slash `reference types` directive.
-    ReferenceTypesDirective,
-    /// TypeScript triple-slash `reference lib` directive.
-    ReferenceLibDirective,
-    /// TypeScript triple-slash `reference no-default-lib` directive.
-    ReferenceNoDefaultLibDirective,
-    /// Legacy import-equals expression used by older lowerings.
-    ImportEquals,
-    /// Dynamic import call (`import("mod")`).
-    ImportCall,
-}
-
-/// The target of an import declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum ImportTarget {
-    /// Static import target string (like `"foo"`).
-    String(StringId),
-    /// Dynamic import target expression (like `join(base, name)`).
-    Expression { target: LocalNodeId<Expression> },
-}
+use crate::{Name, ScalarLiteral};
 
 /// The kind of one import attribute clause.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

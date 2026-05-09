@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Argument, Declaration, Expression, FunctionSignature, GenericArgument, GenericParameter, Key,
+    Declaration, Expression, FunctionSignature, GenericArgument, GenericParameter, Key,
     LocalNodeId, Mutability, Node, NodeType, Parameter, Path, ScalarLiteral, StringId,
     TupleElement, TypeLiteral, VarianceBound, WhereClause,
 };
@@ -336,21 +336,6 @@ pub enum TypeExpression {
     /// this
     /// ```
     This,
-
-    /// Type import expression.
-    ///
-    /// Examples:
-    /// ```
-    /// import("foo")
-    /// import("foo").Bar
-    /// import("foo", { with: { type: "json" } })
-    /// ```
-    Import {
-        target: LocalNodeId<Expression>,
-        arguments: Vec<LocalNodeId<Argument>>,
-        qualifier: Option<Path>,
-        generic_arguments: Vec<LocalNodeId<GenericArgument>>,
-    },
 
     /// `readonly T`.
     ///

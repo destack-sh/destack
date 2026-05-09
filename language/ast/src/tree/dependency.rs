@@ -10,7 +10,7 @@ pub enum DependencyBinding {
     Item,
     /// Default item (`export default foo`)
     Default,
-    /// Namespace (`export * from "foo"` or `export = foo`)
+    /// Namespace (`export * from "foo"`).
     Namespace,
 }
 
@@ -26,7 +26,7 @@ pub enum ExportKind {
 /// The symbol space one dependency item imports or exports.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum DependencySpace {
-    /// Type dependency (`import type foo` or `export type foo`).
+    /// Type dependency (`import type { Foo }` or `export type { Foo }`).
     Type,
     /// Value dependency (`import foo` or `export foo`).
     Value,

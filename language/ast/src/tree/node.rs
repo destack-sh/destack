@@ -234,7 +234,7 @@ impl Mutability {
     pub fn to_keyword(&self) -> Keyword {
         match self {
             Mutability::Immutable => Keyword::Const,
-            Mutability::Mutable => Keyword::Var,
+            Mutability::Mutable => Keyword::Let,
         }
     }
 }

@@ -1,10 +1,9 @@
 use crate::{
     Argument, AssignPattern, AssignPatternField, Block, Declaration, Declarator, Decorator,
     DependencyItem, EnumField, Expression, ForEachBinding, FunctionSignature, GenericArgument,
-    GenericParameter, IfCondition, ImportAliasTarget, ImportTarget, Key, LocalNodeId,
-    LocalNodeIdAny, MatchCase, MatchSelector, Member, NodeType, NodeVisitor, Parameter, Pattern,
-    PatternField, Property, TemplateLiteral, Tree, TupleElement, TypeExpression, TypeMember,
-    WhereClause,
+    GenericParameter, IfCondition, Key, LocalNodeId, LocalNodeIdAny, MatchCase, MatchSelector,
+    Member, NodeType, NodeVisitor, Parameter, Pattern, PatternField, Property, TemplateLiteral,
+    Tree, TupleElement, TypeExpression, TypeMember, WhereClause,
 };
 
 /// Walk any node.
@@ -357,25 +356,6 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
         }
         TypeExpression::Const => {}
         TypeExpression::This => {}
-        TypeExpression::Import {
-            target,
-            arguments,
-            qualifier: _,
-            generic_arguments,
-        } => {
-            let target_expression = tree.get(*target);
-            visitor.visit_expression(tree, *target, target_expression);
-
-            for argument_id in arguments {
-                let argument = tree.get(*argument_id);
-                visitor.visit_argument(tree, *argument_id, argument);
-            }
-
-            for argument_id in generic_arguments {
-                let argument = tree.get(*argument_id);
-                visitor.visit_generic_argument(tree, *argument_id, argument);
-            }
-        }
         TypeExpression::Readonly { target_type }
         | TypeExpression::KeyOf { target_type }
         | TypeExpression::Must { target_type }
@@ -714,27 +694,15 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         }
 
         Expression::Import {
-            source: _,
             space: _,
-            target,
+            target: _,
             items,
             attributes: _,
-            arguments,
         } => {
-            if let ImportTarget::Expression { target } = target {
-                let target_expression = tree.get(*target);
-                visitor.visit_expression(tree, *target, target_expression);
-            }
             if let Some(items) = items {
                 for item_id in items {
                     let item = tree.get(*item_id);
                     visitor.visit_dependency_item(tree, *item_id, item);
-                }
-            }
-            if let Some(arguments) = arguments {
-                for argument_id in arguments {
-                    let argument = tree.get(*argument_id);
-                    visitor.visit_argument(tree, *argument_id, argument);
                 }
             }
         }
@@ -750,8 +718,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_dependency_item(tree, *item_id, item);
             }
         }
-        Expression::ExportNamespace { name: _ } => {}
-
         Expression::Let {
             kind: _,
             mutability: _,
@@ -1225,11 +1191,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
-        Expression::Delete { value } => {
-            let value_expr = tree.get(*value);
-            visitor.visit_expression(tree, *value, value_expr);
-        }
-
         Expression::Maybe { position: _, left } => {
             let left_expr = tree.get(*left);
             visitor.visit_expression(tree, *left, left_expr);
@@ -1395,11 +1356,6 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
             }
             let value_expr = tree.get(declaration.value);
             visitor.visit_type_expression(tree, declaration.value, value_expr);
-        }
-        Declaration::ImportAlias(declaration) => {
-            if let ImportAliasTarget::Path { path: _ } = &declaration.target {
-                // no child nodes
-            }
         }
         Declaration::Struct(declaration) => {
             for parameter_id in &declaration.generic_parameters {
@@ -1871,11 +1827,7 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
             let right_pattern = tree.get(*right);
             visitor.visit_pattern(tree, *right, right_pattern);
         }
-        Pattern::Binding {
-            mutability: _,
-            name: _,
-            pattern,
-        } => {
+        Pattern::Binding { name: _, pattern } => {
             if let Some(pattern_id) = pattern {
                 let pattern_node = tree.get(*pattern_id);
                 visitor.visit_pattern(tree, *pattern_id, pattern_node);
@@ -1942,7 +1894,6 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::PatternField, id.id);
     match pattern_field {
         PatternField::Named {
-            mutability: _,
             name: _,
             is_shorthand: _,
             pattern,
@@ -1952,11 +1903,7 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
                 visitor.visit_pattern(tree, *pattern_id, pattern_node);
             }
         }
-        PatternField::Computed {
-            mutability: _,
-            key,
-            pattern,
-        } => {
+        PatternField::Computed { key, pattern } => {
             let key_expr = tree.get(*key);
             visitor.visit_expression(tree, *key, key_expr);
             let pattern_node = tree.get(*pattern);
@@ -1966,10 +1913,7 @@ pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
             let pattern_node = tree.get(*pattern);
             visitor.visit_pattern(tree, *pattern, pattern_node);
         }
-        PatternField::Spread {
-            mutability: _,
-            pattern,
-        } => {
+        PatternField::Spread { pattern } => {
             if let Some(pattern_id) = pattern {
                 let pattern_node = tree.get(*pattern_id);
                 visitor.visit_pattern(tree, *pattern_id, pattern_node);
