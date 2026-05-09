@@ -257,7 +257,7 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
             visitor.visit_type_expression(tree, *element, element_node);
 
             let length_node = tree.get(*length);
-            visitor.visit_type_expression(tree, *length, length_node);
+            visitor.visit_expression(tree, *length, length_node);
         }
         TypeExpression::Object { members } => {
             for member_id in members {
@@ -905,6 +905,15 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                     let element = tree.get(*element_id);
                     visitor.visit_argument(tree, *element_id, element);
                 }
+            }
+            Expression::FixedArrayExpression { value, length } => {
+                let value_id = *value;
+                let value = tree.get(value_id);
+                visitor.visit_expression(tree, value_id, value);
+
+                let length_id = *length;
+                let length = tree.get(length_id);
+                visitor.visit_expression(tree, length_id, length);
             }
             Expression::TupleExpression { elements } => {
                 for argument_id in elements {

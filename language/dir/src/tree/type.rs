@@ -215,7 +215,7 @@ pub enum TypeExpression {
         /// The element type.
         element: LocalNodeId<TypeExpression>,
         /// The length expression.
-        length: LocalNodeId<TypeExpression>,
+        length: LocalNodeId<Expression>,
     },
 
     /// Object type.

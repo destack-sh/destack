@@ -214,6 +214,11 @@ pub enum Expression {
     ArrayExpression {
         elements: Vec<LocalNodeId<Argument>>,
     },
+    /// Fixed array repeat expression.
+    FixedArrayExpression {
+        value: LocalNodeId<Expression>,
+        length: LocalNodeId<Expression>,
+    },
     /// Tuple expression (anonymous).
     TupleExpression {
         elements: Vec<LocalNodeId<Argument>>,
@@ -400,6 +405,7 @@ impl Expression {
             Expression::TaggedTemplateExpression { .. } => "tagged template expression",
             Expression::TypeLiteral { .. } => "type literal",
             Expression::ArrayExpression { .. } => "array expression",
+            Expression::FixedArrayExpression { .. } => "fixed array expression",
             Expression::TupleExpression { .. } => "tuple expression",
             Expression::SequenceExpression { .. } => "sequence expression",
             Expression::ObjectExpression { .. } => "object expression",
