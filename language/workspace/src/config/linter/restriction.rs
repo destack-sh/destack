@@ -4,7 +4,7 @@ use crate::config::{DiagnosticPolicy, DiagnosticPolicyJson};
 
 use super::{
     BitwiseOperator, BitwiseOperatorJson, LinterOptions, WarningCommentLocation,
-    WarningCommentLocationJson, validate_regex_patterns,
+    WarningCommentLocationJson,
 };
 
 /// Module boundary lint options for module boundary aware rules.
@@ -71,26 +71,18 @@ pub struct LinterRestrictionOptions {
     pub allow_bitwise_int32_hint: bool,
     /// Console methods allowed by `no-console`.
     pub allowed_console_methods: Vec<String>,
-    /// Ignore explicit `any` in variadic parameter types for `no-explicit-any`.
-    pub ignore_explicit_any_in_rest_args: bool,
     /// Allow labels on loop statements in `no-labels`.
     pub allow_loop_labels: bool,
     /// Allow labels on switch statements in `no-labels`.
     pub allow_switch_labels: bool,
     /// Magic numbers to allow.
     pub allowed_magic_numbers: Vec<f64>,
-    /// Check strict `=== null` and `!== null` comparisons in `no-null`.
-    pub check_strict_null_equality: bool,
     /// Allow `declare namespace` and `declare module foo {}` in `no-namespace`.
     pub allow_namespace_declarations: bool,
     /// Allow namespace declarations in definition files for `no-namespace`.
     pub allow_namespace_definition_files: bool,
     /// Allow `++` and `--` in for-loop afterthoughts for `no-plusplus`.
     pub allow_plusplus_for_loop_afterthoughts: bool,
-    /// Allow static require target patterns for `no-require-imports`.
-    pub allowed_require_import_patterns: Vec<String>,
-    /// Allow `import foo = require("foo")` for `no-require-imports`.
-    pub allow_require_import_aliases: bool,
     /// Where `no-warning-comments` should match terms.
     pub warning_comment_location: WarningCommentLocation,
     /// Decoration characters to ignore at the start of `no-warning-comments`.
@@ -111,16 +103,12 @@ impl Default for LinterRestrictionOptions {
             allowed_bitwise_operators: Vec::new(),
             allow_bitwise_int32_hint: false,
             allowed_console_methods: Vec::new(),
-            ignore_explicit_any_in_rest_args: false,
             allow_loop_labels: false,
             allow_switch_labels: false,
             allowed_magic_numbers: vec![-1.0, 0.0, 1.0, 2.0],
-            check_strict_null_equality: true,
             allow_namespace_declarations: false,
             allow_namespace_definition_files: true,
             allow_plusplus_for_loop_afterthoughts: false,
-            allowed_require_import_patterns: Vec::new(),
-            allow_require_import_aliases: false,
             warning_comment_location: WarningCommentLocation::Start,
             warning_comment_decoration: Vec::new(),
             restricted_globals: Vec::new(),
@@ -146,26 +134,18 @@ pub struct LinterRestrictionJson {
     pub allow_bitwise_int32_hint: Option<bool>,
     /// Console methods allowed by `no-console`.
     pub allowed_console_methods: Option<Vec<String>>,
-    /// Ignore explicit `any` in variadic parameter types for `no-explicit-any`.
-    pub ignore_explicit_any_in_rest_args: Option<bool>,
     /// Allow labels on loop statements in `no-labels`.
     pub allow_loop_labels: Option<bool>,
     /// Allow labels on switch statements in `no-labels`.
     pub allow_switch_labels: Option<bool>,
     /// Magic numbers to allow.
     pub allowed_magic_numbers: Option<Vec<f64>>,
-    /// Check strict `=== null` and `!== null` comparisons in `no-null`.
-    pub check_strict_null_equality: Option<bool>,
     /// Allow `declare namespace` and `declare module foo {}` in `no-namespace`.
     pub allow_namespace_declarations: Option<bool>,
     /// Allow namespace declarations in definition files for `no-namespace`.
     pub allow_namespace_definition_files: Option<bool>,
     /// Allow `++` and `--` in for-loop afterthoughts for `no-plusplus`.
     pub allow_plusplus_for_loop_afterthoughts: Option<bool>,
-    /// Allow static require target patterns for `no-require-imports`.
-    pub allowed_require_import_patterns: Option<Vec<String>>,
-    /// Allow `import foo = require("foo")` for `no-require-imports`.
-    pub allow_require_import_aliases: Option<bool>,
     /// Where `no-warning-comments` should match terms.
     pub warning_comment_location: Option<WarningCommentLocationJson>,
     /// Decoration characters to ignore at the start of `no-warning-comments`.
@@ -184,11 +164,6 @@ pub struct LinterRestrictionJson {
 impl LinterRestrictionJson {
     /// Validate restriction-category configuration values.
     pub fn validate(&self) -> Result<(), String> {
-        validate_regex_patterns(
-            "linter.allowedRequireImportPatterns",
-            self.allowed_require_import_patterns.as_deref(),
-        )?;
-
         Ok(())
     }
 
@@ -210,10 +185,6 @@ impl LinterRestrictionJson {
             options.restriction.allowed_console_methods = allowed_console_methods.clone();
         }
 
-        if let Some(ignore_explicit_any_in_rest_args) = self.ignore_explicit_any_in_rest_args {
-            options.restriction.ignore_explicit_any_in_rest_args = ignore_explicit_any_in_rest_args;
-        }
-
         if let Some(allow_loop_labels) = self.allow_loop_labels {
             options.restriction.allow_loop_labels = allow_loop_labels;
         }
@@ -224,10 +195,6 @@ impl LinterRestrictionJson {
 
         if let Some(ref allowed_magic_numbers) = self.allowed_magic_numbers {
             options.restriction.allowed_magic_numbers = allowed_magic_numbers.clone();
-        }
-
-        if let Some(check_strict_null_equality) = self.check_strict_null_equality {
-            options.restriction.check_strict_null_equality = check_strict_null_equality;
         }
 
         if let Some(allow_namespace_declarations) = self.allow_namespace_declarations {
@@ -243,15 +210,6 @@ impl LinterRestrictionJson {
         {
             options.restriction.allow_plusplus_for_loop_afterthoughts =
                 allow_plusplus_for_loop_afterthoughts;
-        }
-
-        if let Some(ref allowed_require_import_patterns) = self.allowed_require_import_patterns {
-            options.restriction.allowed_require_import_patterns =
-                allowed_require_import_patterns.clone();
-        }
-
-        if let Some(allow_require_import_aliases) = self.allow_require_import_aliases {
-            options.restriction.allow_require_import_aliases = allow_require_import_aliases;
         }
 
         if let Some(warning_comment_location) = self.warning_comment_location {

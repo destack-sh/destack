@@ -1,8 +1,7 @@
 use serde::Deserialize;
 
 use super::{
-    ArrayTypeStyle, ArrayTypeStyleJson, EqeqeqMode, EqeqeqModeJson, EqeqeqNullPolicy,
-    EqeqeqNullPolicyJson, FilenameCase, FilenameCaseJson, GroupedAccessorPairsOrder,
+    ArrayTypeStyle, ArrayTypeStyleJson, FilenameCase, FilenameCaseJson, GroupedAccessorPairsOrder,
     GroupedAccessorPairsOrderJson, LinterOptions, ObjectShorthandMode, ObjectShorthandModeJson,
     OperatorAssignmentMode, OperatorAssignmentModeJson, PreferConstDestructuring,
     PreferConstDestructuringJson, SortImportsMemberSyntax, SortImportsMemberSyntaxJson,
@@ -41,14 +40,10 @@ pub struct LinterStyleOptions {
     pub dot_notation_allow_pattern: Option<String>,
     /// Check nested boolean contexts in `no-extra-boolean-cast`.
     pub no_extra_boolean_cast_enforce_for_inner_expressions: bool,
-    /// Enforcement mode for `eqeqeq`.
-    pub eqeqeq_mode: EqeqeqMode,
     /// Ordering policy for `grouped-accessor-pairs`.
     pub grouped_accessor_pairs_order: GroupedAccessorPairsOrder,
     /// Enforce `grouped-accessor-pairs` in type-only member bodies.
     pub grouped_accessor_pairs_enforce_for_types: bool,
-    /// Null comparison policy for `eqeqeq`.
-    pub eqeqeq_null: EqeqeqNullPolicy,
     /// Enforcement mode for `operator-assignment`.
     pub operator_assignment_mode: OperatorAssignmentMode,
     /// Enforcement mode for `object-shorthand`.
@@ -89,8 +84,6 @@ pub struct LinterStyleOptions {
     pub consistent_type_imports_prefer_type_imports: bool,
     /// Prefer inline `type` specifiers in `consistent-type-imports`.
     pub consistent_type_imports_prefer_inline_type_imports: bool,
-    /// Disallow `import("...")` type annotations in `consistent-type-imports`.
-    pub consistent_type_imports_disallow_type_annotations: bool,
     /// Ignore conditional test positions in `prefer-nullish-coalescing`.
     pub prefer_nullish_coalescing_ignore_conditional_tests: bool,
     /// Ignore mixed logical expressions in `prefer-nullish-coalescing`.
@@ -125,10 +118,8 @@ impl Default for LinterStyleOptions {
             dot_notation_allow_keywords: true,
             dot_notation_allow_pattern: None,
             no_extra_boolean_cast_enforce_for_inner_expressions: false,
-            eqeqeq_mode: EqeqeqMode::default(),
             grouped_accessor_pairs_order: GroupedAccessorPairsOrder::default(),
             grouped_accessor_pairs_enforce_for_types: false,
-            eqeqeq_null: EqeqeqNullPolicy::default(),
             operator_assignment_mode: OperatorAssignmentMode::default(),
             object_shorthand_mode: ObjectShorthandMode::default(),
             object_shorthand_avoid_quotes: false,
@@ -154,7 +145,6 @@ impl Default for LinterStyleOptions {
             ],
             consistent_type_imports_prefer_type_imports: true,
             consistent_type_imports_prefer_inline_type_imports: false,
-            consistent_type_imports_disallow_type_annotations: true,
             prefer_nullish_coalescing_ignore_conditional_tests: true,
             prefer_nullish_coalescing_ignore_mixed_logical_expressions: false,
             prefer_nullish_coalescing_ignore_ternary_tests: false,
@@ -189,14 +179,10 @@ pub struct LinterStyleJson {
     pub dot_notation_allow_pattern: Option<String>,
     /// Check nested boolean contexts in `no-extra-boolean-cast`.
     pub no_extra_boolean_cast_enforce_for_inner_expressions: Option<bool>,
-    /// Enforcement mode for `eqeqeq`.
-    pub eqeqeq_mode: Option<EqeqeqModeJson>,
     /// Ordering policy for `grouped-accessor-pairs`.
     pub grouped_accessor_pairs_order: Option<GroupedAccessorPairsOrderJson>,
     /// Enforce `grouped-accessor-pairs` in type-only member bodies.
     pub grouped_accessor_pairs_enforce_for_types: Option<bool>,
-    /// Null comparison policy for `eqeqeq`.
-    pub eqeqeq_null: Option<EqeqeqNullPolicyJson>,
     /// Enforcement mode for `operator-assignment`.
     pub operator_assignment_mode: Option<OperatorAssignmentModeJson>,
     /// Enforcement mode for `object-shorthand`.
@@ -237,8 +223,6 @@ pub struct LinterStyleJson {
     pub consistent_type_imports_prefer_type_imports: Option<bool>,
     /// Prefer inline `type` specifiers in `consistent-type-imports`.
     pub consistent_type_imports_prefer_inline_type_imports: Option<bool>,
-    /// Disallow `import("...")` type annotations in `consistent-type-imports`.
-    pub consistent_type_imports_disallow_type_annotations: Option<bool>,
     /// Ignore conditional tests in `prefer-nullish-coalescing`.
     pub prefer_nullish_coalescing_ignore_conditional_tests: Option<bool>,
     /// Ignore mixed logical expressions in `prefer-nullish-coalescing`.
@@ -336,10 +320,6 @@ impl LinterStyleJson {
                 no_extra_boolean_cast_enforce_for_inner_expressions;
         }
 
-        if let Some(eqeqeq_mode) = self.eqeqeq_mode {
-            options.style.eqeqeq_mode = eqeqeq_mode.into();
-        }
-
         if let Some(grouped_accessor_pairs_order) = self.grouped_accessor_pairs_order {
             options.style.grouped_accessor_pairs_order = grouped_accessor_pairs_order.into();
         }
@@ -349,10 +329,6 @@ impl LinterStyleJson {
         {
             options.style.grouped_accessor_pairs_enforce_for_types =
                 grouped_accessor_pairs_enforce_for_types;
-        }
-
-        if let Some(eqeqeq_null) = self.eqeqeq_null {
-            options.style.eqeqeq_null = eqeqeq_null.into();
         }
 
         if let Some(operator_assignment_mode) = self.operator_assignment_mode {
@@ -472,15 +448,6 @@ impl LinterStyleJson {
                 .style
                 .consistent_type_imports_prefer_inline_type_imports =
                 consistent_type_imports_prefer_inline_type_imports;
-        }
-
-        if let Some(consistent_type_imports_disallow_type_annotations) =
-            self.consistent_type_imports_disallow_type_annotations
-        {
-            options
-                .style
-                .consistent_type_imports_disallow_type_annotations =
-                consistent_type_imports_disallow_type_annotations;
         }
 
         if let Some(prefer_nullish_coalescing_ignore_conditional_tests) =

@@ -252,30 +252,6 @@ pub enum MaxParamsCountThis {
     Always,
 }
 
-/// Enforcement mode for `eqeqeq`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum EqeqeqMode {
-    /// Always require strict equality operators.
-    #[default]
-    Always,
-    /// Allow loose equality for null checks, typeof checks, and same type literals.
-    Smart,
-    /// Allow loose equality only for null checks.
-    AllowNull,
-}
-
-/// Null comparison policy for `eqeqeq`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum EqeqeqNullPolicy {
-    /// Require strict null equality.
-    #[default]
-    Always,
-    /// Require loose null equality.
-    Never,
-    /// Ignore null equality style.
-    Ignore,
-}
-
 /// Enforcement mode for `operator-assignment`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum OperatorAssignmentMode {
@@ -1056,52 +1032,6 @@ impl From<MaxParamsCountThisJson> for MaxParamsCountThis {
             MaxParamsCountThisJson::Never => MaxParamsCountThis::Never,
             MaxParamsCountThisJson::ExceptVoid => MaxParamsCountThis::ExceptVoid,
             MaxParamsCountThisJson::Always => MaxParamsCountThis::Always,
-        }
-    }
-}
-
-/// Eqeqeq enforcement mode accepted in linter JSON.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "kebab-case")]
-pub enum EqeqeqModeJson {
-    /// Always require strict equality operators.
-    Always,
-    /// Allow loose equality in the upstream smart cases.
-    Smart,
-    /// Allow loose equality only for null checks.
-    AllowNull,
-}
-
-impl From<EqeqeqModeJson> for EqeqeqMode {
-    fn from(value: EqeqeqModeJson) -> Self {
-        match value {
-            EqeqeqModeJson::Always => EqeqeqMode::Always,
-            EqeqeqModeJson::Smart => EqeqeqMode::Smart,
-            EqeqeqModeJson::AllowNull => EqeqeqMode::AllowNull,
-        }
-    }
-}
-
-/// Eqeqeq null policy accepted in linter JSON.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
-pub enum EqeqeqNullPolicyJson {
-    /// Require strict null equality.
-    Always,
-    /// Require loose null equality.
-    Never,
-    /// Ignore null equality style.
-    Ignore,
-}
-
-impl From<EqeqeqNullPolicyJson> for EqeqeqNullPolicy {
-    fn from(value: EqeqeqNullPolicyJson) -> Self {
-        match value {
-            EqeqeqNullPolicyJson::Always => EqeqeqNullPolicy::Always,
-            EqeqeqNullPolicyJson::Never => EqeqeqNullPolicy::Never,
-            EqeqeqNullPolicyJson::Ignore => EqeqeqNullPolicy::Ignore,
         }
     }
 }

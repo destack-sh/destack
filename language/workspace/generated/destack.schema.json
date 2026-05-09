@@ -3011,13 +3011,6 @@
             "null"
           ]
         },
-        "noInnerDeclarationsCheckVarDeclarations": {
-          "description": "Check nested `var` declarations in `no-inner-declarations`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
         "noCondAssignMode": {
           "description": "Assignment policy for `no-cond-assign`.",
           "anyOf": [
@@ -3230,17 +3223,6 @@
             "null"
           ]
         },
-        "eqeqeqMode": {
-          "description": "Enforcement mode for `eqeqeq`.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/EqeqeqModeJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "groupedAccessorPairsOrder": {
           "description": "Ordering policy for `grouped-accessor-pairs`.",
           "anyOf": [
@@ -3257,17 +3239,6 @@
           "type": [
             "boolean",
             "null"
-          ]
-        },
-        "eqeqeqNull": {
-          "description": "Null comparison policy for `eqeqeq`.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/EqeqeqNullPolicyJson"
-            },
-            {
-              "type": "null"
-            }
           ]
         },
         "operatorAssignmentMode": {
@@ -3424,13 +3395,6 @@
         },
         "consistentTypeImportsPreferInlineTypeImports": {
           "description": "Prefer inline `type` specifiers in `consistent-type-imports`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "consistentTypeImportsDisallowTypeAnnotations": {
-          "description": "Disallow `import(\"...\")` type annotations in `consistent-type-imports`.",
           "type": [
             "boolean",
             "null"
@@ -3778,13 +3742,6 @@
             "type": "string"
           }
         },
-        "ignoreExplicitAnyInRestArgs": {
-          "description": "Ignore explicit `any` in variadic parameter types for `no-explicit-any`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
         "allowLoopLabels": {
           "description": "Allow labels on loop statements in `no-labels`.",
           "type": [
@@ -3810,13 +3767,6 @@
             "format": "double"
           }
         },
-        "checkStrictNullEquality": {
-          "description": "Check strict `=== null` and `!== null` comparisons in `no-null`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
         "allowNamespaceDeclarations": {
           "description": "Allow `declare namespace` and `declare module foo {}` in `no-namespace`.",
           "type": [
@@ -3833,23 +3783,6 @@
         },
         "allowPlusplusForLoopAfterthoughts": {
           "description": "Allow `++` and `--` in for-loop afterthoughts for `no-plusplus`.",
-          "type": [
-            "boolean",
-            "null"
-          ]
-        },
-        "allowedRequireImportPatterns": {
-          "description": "Allow static require target patterns for `no-require-imports`.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
-        },
-        "allowRequireImportAliases": {
-          "description": "Allow `import foo = require(\"foo\")` for `no-require-imports`.",
           "type": [
             "boolean",
             "null"
@@ -4149,26 +4082,6 @@
         }
       ]
     },
-    "EqeqeqModeJson": {
-      "description": "Eqeqeq enforcement mode accepted in linter JSON.",
-      "oneOf": [
-        {
-          "description": "Always require strict equality operators.",
-          "type": "string",
-          "const": "always"
-        },
-        {
-          "description": "Allow loose equality in the upstream smart cases.",
-          "type": "string",
-          "const": "smart"
-        },
-        {
-          "description": "Allow loose equality only for null checks.",
-          "type": "string",
-          "const": "allow-null"
-        }
-      ]
-    },
     "GroupedAccessorPairsOrderJson": {
       "description": "JSON form of `grouped-accessor-pairs` ordering.",
       "oneOf": [
@@ -4186,26 +4099,6 @@
           "description": "Require setters before getters.",
           "type": "string",
           "const": "set-before-get"
-        }
-      ]
-    },
-    "EqeqeqNullPolicyJson": {
-      "description": "Eqeqeq null policy accepted in linter JSON.",
-      "oneOf": [
-        {
-          "description": "Require strict null equality.",
-          "type": "string",
-          "const": "always"
-        },
-        {
-          "description": "Require loose null equality.",
-          "type": "string",
-          "const": "never"
-        },
-        {
-          "description": "Ignore null equality style.",
-          "type": "string",
-          "const": "ignore"
         }
       ]
     },

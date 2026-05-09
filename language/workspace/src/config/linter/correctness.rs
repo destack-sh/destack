@@ -29,8 +29,6 @@ pub struct LinterCorrectnessOptions {
     pub no_confusing_void_expression_ignore_void_operator: bool,
     /// Ignore returned void expressions inside void-returning functions.
     pub no_confusing_void_expression_ignore_void_returning_functions: bool,
-    /// Check nested `var` declarations in `no-inner-declarations`.
-    pub no_inner_declarations_check_var_declarations: bool,
     /// Assignment policy for `no-cond-assign`.
     pub no_cond_assign_mode: ConditionAssignmentMode,
     /// Allow empty catch blocks in `no-empty`.
@@ -72,7 +70,6 @@ impl Default for LinterCorrectnessOptions {
             no_self_assign_check_properties: true,
             no_confusing_void_expression_ignore_void_operator: false,
             no_confusing_void_expression_ignore_void_returning_functions: false,
-            no_inner_declarations_check_var_declarations: true,
             no_cond_assign_mode: ConditionAssignmentMode::default(),
             no_empty_allow_empty_catch: false,
             no_empty_pattern_allow_object_patterns_as_parameters: false,
@@ -111,8 +108,6 @@ pub struct LinterCorrectnessJson {
     pub no_confusing_void_expression_ignore_void_operator: Option<bool>,
     /// Ignore returned void expressions inside void-returning functions.
     pub no_confusing_void_expression_ignore_void_returning_functions: Option<bool>,
-    /// Check nested `var` declarations in `no-inner-declarations`.
-    pub no_inner_declarations_check_var_declarations: Option<bool>,
     /// Assignment policy for `no-cond-assign`.
     pub no_cond_assign_mode: Option<ConditionAssignmentModeJson>,
     /// Allow empty catch blocks in `no-empty`.
@@ -212,15 +207,6 @@ impl LinterCorrectnessJson {
                 .correctness
                 .no_confusing_void_expression_ignore_void_returning_functions =
                 no_confusing_void_expression_ignore_void_returning_functions;
-        }
-
-        if let Some(no_inner_declarations_check_var_declarations) =
-            self.no_inner_declarations_check_var_declarations
-        {
-            options
-                .correctness
-                .no_inner_declarations_check_var_declarations =
-                no_inner_declarations_check_var_declarations;
         }
 
         if let Some(no_cond_assign_mode) = self.no_cond_assign_mode {
