@@ -1,7 +1,6 @@
+use destack_codegen_js as js;
 use destack_core::StringPool;
-use destack_source::ModuleId;
 use destack_workspace::TargetOptions;
-use {destack_codegen_js as js, destack_dir as dir};
 
 use super::linker::Rewriter;
 
@@ -11,8 +10,6 @@ struct TestModuleBuilder {
     tree: js::Tree,
     /// The string pool for the module.
     strings: StringPool,
-    /// The next fake DIR source id.
-    next_source_id: u32,
 }
 
 impl TestModuleBuilder {
@@ -21,7 +18,6 @@ impl TestModuleBuilder {
         Self {
             tree: js::Tree::new(),
             strings: StringPool::new(),
-            next_source_id: 0,
         }
     }
 
@@ -34,20 +30,9 @@ impl TestModuleBuilder {
         }
     }
 
-    /// Allocate one fake source id for the requested DIR node type.
-    fn source_id(&mut self, node_type: dir::NodeType) -> dir::LocalNodeIdAny {
-        let source_id = dir::LocalNodeIdAny::new(self.next_source_id, node_type);
-        self.next_source_id += 1;
-
-        source_id
-    }
-
     /// Insert one expression.
     fn expression(&mut self, expression: js::Expression) -> js::LocalNodeId<js::Expression> {
-        let source_id = self.source_id(dir::NodeType::Expression);
-
-        self.tree
-            .insert_from_source_any(expression, ModuleId::EPHEMERAL, source_id)
+        self.tree.insert_generated(expression)
     }
 
     /// Insert one path expression.
@@ -65,27 +50,17 @@ impl TestModuleBuilder {
     /// Insert one binding pattern.
     fn binding_pattern(&mut self, name: &str) -> js::LocalNodeId<js::Pattern> {
         let name = self.strings.intern(name);
-        let source_id = self.source_id(dir::NodeType::Pattern);
 
-        self.tree.insert_from_source_any(
-            js::Pattern::Binding {
-                mutability: Some(js::Mutability::Mutable),
-                name,
-            },
-            ModuleId::EPHEMERAL,
-            source_id,
-        )
+        self.tree.insert_generated(js::Pattern::Binding {
+            mutability: Some(js::Mutability::Mutable),
+            name,
+        })
     }
 
     /// Insert one object pattern.
     fn object_pattern(&mut self) -> js::LocalNodeId<js::Pattern> {
-        let source_id = self.source_id(dir::NodeType::Pattern);
-
-        self.tree.insert_from_source_any(
-            js::Pattern::Object { fields: Vec::new() },
-            ModuleId::EPHEMERAL,
-            source_id,
-        )
+        self.tree
+            .insert_generated(js::Pattern::Object { fields: Vec::new() })
     }
 
     /// Insert one string literal expression.
@@ -167,13 +142,8 @@ impl TestModuleBuilder {
         let arguments = arguments
             .into_iter()
             .map(|value| {
-                let source_id = self.source_id(dir::NodeType::Argument);
-
-                self.tree.insert_from_source_any(
-                    js::Argument::Positional { value },
-                    ModuleId::EPHEMERAL,
-                    source_id,
-                )
+                self.tree
+                    .insert_generated(js::Argument::Positional { value })
             })
             .collect();
 
@@ -190,10 +160,7 @@ impl TestModuleBuilder {
         &mut self,
         statements: Vec<js::LocalNodeId<js::Statement>>,
     ) -> js::LocalNodeId<js::Block> {
-        let source_id = self.source_id(dir::NodeType::Block);
-
-        self.tree
-            .insert_from_source_any(js::Block { statements }, ModuleId::EPHEMERAL, source_id)
+        self.tree.insert_generated(js::Block { statements })
     }
 
     /// Insert one return statement.
@@ -201,13 +168,7 @@ impl TestModuleBuilder {
         &mut self,
         value: Option<js::LocalNodeId<js::Expression>>,
     ) -> js::LocalNodeId<js::Statement> {
-        let source_id = self.source_id(dir::NodeType::Expression);
-
-        self.tree.insert_from_source_any(
-            js::Statement::Return { value },
-            ModuleId::EPHEMERAL,
-            source_id,
-        )
+        self.tree.insert_generated(js::Statement::Return { value })
     }
 
     /// Insert one let statement.
@@ -216,28 +177,18 @@ impl TestModuleBuilder {
         pattern: js::LocalNodeId<js::Pattern>,
         value: Option<js::LocalNodeId<js::Expression>>,
     ) -> js::LocalNodeId<js::Statement> {
-        let declarator_source_id = self.source_id(dir::NodeType::Declarator);
-        let declarator = self.tree.insert_from_source_any(
-            js::Declarator {
-                pattern,
-                ty: None,
-                value,
-            },
-            ModuleId::EPHEMERAL,
-            declarator_source_id,
-        );
-        let statement_source_id = self.source_id(dir::NodeType::Expression);
+        let declarator = self.tree.insert_generated(js::Declarator {
+            pattern,
+            ty: None,
+            value,
+        });
 
-        self.tree.insert_from_source_any(
-            js::Statement::Let {
-                export: None,
-                is_ambient: true,
-                mutability: js::Mutability::Mutable,
-                declarators: vec![declarator],
-            },
-            ModuleId::EPHEMERAL,
-            statement_source_id,
-        )
+        self.tree.insert_generated(js::Statement::Let {
+            export: None,
+            is_ambient: true,
+            mutability: js::Mutability::Mutable,
+            declarators: vec![declarator],
+        })
     }
 
     /// Insert one function declaration.
@@ -247,10 +198,8 @@ impl TestModuleBuilder {
         is_generator: bool,
         body: Option<js::LocalNodeId<js::Block>>,
     ) -> js::LocalNodeId<js::Declaration> {
-        let declaration_source_id = self.source_id(dir::NodeType::Declaration);
-
-        self.tree.insert_from_source_any(
-            js::Declaration::Function(js::FunctionDeclaration {
+        self.tree
+            .insert_generated(js::Declaration::Function(js::FunctionDeclaration {
                 name: None,
                 export: None,
                 is_ambient: true,
@@ -268,10 +217,7 @@ impl TestModuleBuilder {
                     is_generator,
                 },
                 body,
-            }),
-            ModuleId::EPHEMERAL,
-            declaration_source_id,
-        )
+            }))
     }
 }
 

@@ -564,9 +564,8 @@ impl<'a> Printer<'a> {
 #[cfg(test)]
 mod tests {
     use destack_core::StringPool;
-    use destack_dir as dir;
     use destack_fir::format::FileMarker;
-    use destack_source::{FileId, FileType, ModuleId, NodeSpanRegion, NodeSpanType, Span};
+    use destack_source::{FileId, FileType, NodeSpanRegion, NodeSpanType, Span};
 
     use super::Printer;
     use crate::{
@@ -575,31 +574,27 @@ mod tests {
         ScalarLiteral, Statement, Tree, print_roots_minified, print_roots_minified_with_source_map,
     };
 
-    fn dummy_source_id() -> dir::LocalNodeIdAny {
-        dir::LocalNodeIdAny::new(0, dir::NodeType::Expression)
-    }
-
     fn insert_expression(tree: &mut Tree, expression: Expression) -> LocalNodeId<Expression> {
-        tree.insert_from_source_any(expression, ModuleId::EPHEMERAL, dummy_source_id())
+        tree.insert_generated(expression)
     }
 
     fn insert_property(tree: &mut Tree, property: Property) -> LocalNodeId<Property> {
-        tree.insert_from_source_any(property, ModuleId::EPHEMERAL, dummy_source_id())
+        tree.insert_generated(property)
     }
 
     fn insert_argument(tree: &mut Tree, argument: Argument) -> LocalNodeId<Argument> {
-        tree.insert_from_source_any(argument, ModuleId::EPHEMERAL, dummy_source_id())
+        tree.insert_generated(argument)
     }
 
     fn insert_statement(tree: &mut Tree, statement: Statement) -> LocalNodeId<Statement> {
-        tree.insert_from_source_any(statement, ModuleId::EPHEMERAL, dummy_source_id())
+        tree.insert_generated(statement)
     }
 
     fn insert_dependency_item(
         tree: &mut Tree,
         item: DependencyItem,
     ) -> LocalNodeId<DependencyItem> {
-        tree.insert_from_source_any(item, ModuleId::EPHEMERAL, dummy_source_id())
+        tree.insert_generated(item)
     }
 
     fn build_path(strings: &StringPool, segments: &[&str]) -> Path {

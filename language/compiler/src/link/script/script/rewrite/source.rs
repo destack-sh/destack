@@ -77,7 +77,7 @@ impl ScriptLinker<'_> {
         module_id: ModuleId,
         source_contexts: &mut HashMap<ModuleId, MinifySourceContext>,
     ) -> LinkResult<()> {
-        if module_id == ModuleId::EPHEMERAL || source_contexts.contains_key(&module_id) {
+        if source_contexts.contains_key(&module_id) {
             return Ok(());
         }
 
@@ -100,11 +100,6 @@ impl ScriptLinker<'_> {
         module_id: ModuleId,
         source_contexts: &HashMap<ModuleId, MinifySourceContext>,
     ) -> LinkResult<Option<MinifySourceContext>> {
-        // synthetic modules have no source context
-        if module_id == ModuleId::EPHEMERAL {
-            return Ok(None);
-        }
-
         // reuse the cached context when possible
         if let Some(source_context) = source_contexts.get(&module_id) {
             return Ok(Some(source_context.clone()));
@@ -143,10 +138,11 @@ impl ScriptLinker<'_> {
         let mut visitor = ReferencedNodeCollector::default();
         js::walk_roots(&mut visitor, &module.tree, &module.roots);
 
-        // source locations and source-backed symbols
+        // node origins and source-backed symbols
         for node_id in &visitor.visited {
-            let (module_id, _) = module.tree.get_source(*node_id);
-            self.insert_minify_source_context(module_id, source_contexts)?;
+            if let Some(origin) = module.tree.get_origin(*node_id) {
+                self.insert_minify_source_context(origin.module_id, source_contexts)?;
+            }
 
             let Some(js::ScriptSymbolId::Source(symbol_id)) = module.tree.symbol_by_id(*node_id)
             else {
@@ -174,21 +170,25 @@ impl ScriptLinker<'_> {
             return Ok(module.tree.symbol(declaration_id));
         }
 
-        let (module_id, source_id) = module.tree.get_source(declaration_id.id);
-        if module_id == ModuleId::EPHEMERAL {
+        let Some(origin) = module.tree.get_origin(declaration_id.id) else {
             return Ok(module.tree.symbol(declaration_id));
-        }
+        };
 
         let source_context = self
-            .minify_source_context(module_id, source_contexts)?
+            .minify_source_context(origin.module_id, source_contexts)?
             .ok_or_else(|| LinkError::Internal {
                 anchor: (self.package_id).into(),
                 package: self.package_id,
-                message: format!("missing source context for declaration module {module_id:?}"),
+                message: format!(
+                    "missing source context for declaration module {:?}",
+                    origin.module_id
+                ),
             })?;
-        let source_declaration_id = dir::LocalNodeId::<dir::Declaration>::new(source_id);
+        let source_declaration_id = dir::LocalNodeId::<dir::Declaration>::new(origin.node_id);
         let source_declaration = source_context.tree.get(source_declaration_id);
-        let symbol_id = source_declaration.name_symbol().into_global(module_id);
+        let symbol_id = source_declaration
+            .name_symbol()
+            .into_global(origin.module_id);
 
         Ok(Some(js::ScriptSymbolId::Source(symbol_id)))
     }
