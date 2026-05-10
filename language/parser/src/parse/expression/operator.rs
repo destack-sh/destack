@@ -27,6 +27,8 @@ pub(crate) enum TypeUnaryOperator {
     Keyof,
     /// `readonly T`
     Readonly,
+    /// `shared T`
+    Shared,
     /// `T as comptime`
     AsComptime,
 }
@@ -39,6 +41,7 @@ impl TypeUnaryOperator {
             TypeUnaryOperator::Typeof => TYPE_UNARY_PRECEDENCE + 4,
             TypeUnaryOperator::Keyof => TYPE_UNARY_PRECEDENCE + 3,
             TypeUnaryOperator::Readonly => TYPE_UNARY_PRECEDENCE + 3,
+            TypeUnaryOperator::Shared => TYPE_UNARY_PRECEDENCE + 3,
             TypeUnaryOperator::AsComptime => TYPE_UNARY_PRECEDENCE + 2,
         }
     }
@@ -50,6 +53,7 @@ impl TypeUnaryOperator {
             "typeof" => Some(TypeUnaryOperator::Typeof),
             "keyof" => Some(TypeUnaryOperator::Keyof),
             "readonly" => Some(TypeUnaryOperator::Readonly),
+            "shared" => Some(TypeUnaryOperator::Shared),
             _ => None,
         }
     }
@@ -271,12 +275,8 @@ impl Parser {
             && let Some(type_binary_operator) =
                 TypeBinaryOperator::from_token(token_str, token.token.ty)
             && (!self.flags.is_in_for_each() || type_binary_operator != TypeBinaryOperator::In)
-            && (self.flags.is_in_type()
-                || (self.language.is_destack()
-                    && matches!(
-                        type_binary_operator,
-                        TypeBinaryOperator::Extends | TypeBinaryOperator::Implements
-                    )))
+            && (self.language.is_destack()
+                || self.flags.is_in_type() && type_binary_operator == TypeBinaryOperator::Extends)
             && !has_newline
         {
             return Ok((ParseInfixOperator::TypeBinary(type_binary_operator), 1));
@@ -341,7 +341,12 @@ impl Parser {
     pub(crate) fn peek_type_unary_prefix_operator_maybe(&mut self) -> Option<TypeUnaryOperator> {
         let token = *self.peek().ok()?;
         let token_str = self.get_span_str(token.span);
-        TypeUnaryOperator::from_prefix_token(token_str, token.token.ty)
+        let operator = TypeUnaryOperator::from_prefix_token(token_str, token.token.ty)?;
+        if operator == TypeUnaryOperator::Shared && !self.language.is_destack() {
+            return None;
+        }
+
+        Some(operator)
     }
 
     /// Peek a type unary postfix operator.
@@ -575,6 +580,28 @@ impl Parser {
                 );
 
                 Ok(predicate_id)
+            }
+
+            // `K in T`, `T extends U`, `T implements U`
+            ParseInfixOperator::TypeBinary(type_binary_operator) => {
+                let expression = match type_binary_operator {
+                    TypeBinaryOperator::In => TypeExpression::In {
+                        left: left_type_id,
+                        right: right_type_id,
+                    },
+                    TypeBinaryOperator::Extends => TypeExpression::Extends {
+                        left: left_type_id,
+                        right: right_type_id,
+                    },
+                    TypeBinaryOperator::Implements => TypeExpression::Implements {
+                        left: left_type_id,
+                        right: right_type_id,
+                    },
+                };
+                let expression_id = self.insert_node(expression, source_span);
+                self.tree.set_head_span(expression_id, head_span);
+
+                Ok(expression_id)
             }
 
             // everything else is value-only here

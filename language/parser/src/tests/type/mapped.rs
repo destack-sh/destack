@@ -49,7 +49,7 @@ fn test_parse_mapped_type() {
                         });
                     });
                 });
-                assert_node!(parser.tree, *value, TypeExpression::Missing);
+                assert!(value.is_none());
             });
         });
     });
@@ -69,7 +69,8 @@ fn test_parse_mapped_type() {
                 assert_node!(parser.tree, parameter.source_type, TypeExpression::KeyOf { target_type } => {
                     assert_expression_path!(parser, parser.tree.get(*target_type), "Type");
                 });
-                assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                let value = value.expect("expected value type");
+                assert_node!(parser.tree, value, TypeExpression::Literal { value } => {
                     assert_eq!(*value, TypeLiteral::Boolean);
                 });
             });
@@ -87,7 +88,8 @@ fn test_parse_mapped_type() {
                 assert_string!(parser, parameter.name, "Property");
                 assert_eq!(*readonly, MappedTypeModifier::Remove);
                 assert_eq!(*optional, MappedTypeModifier::None);
-                assert_node!(parser.tree, *value, TypeExpression::Index { left, index } => {
+                let value = value.expect("expected value type");
+                assert_node!(parser.tree, value, TypeExpression::Index { left, index } => {
                     assert_expression_path!(parser, parser.tree.get(*left), "Type");
                     assert_expression_path!(parser, parser.tree.get(*index), "Property");
                 });
@@ -106,7 +108,8 @@ fn test_parse_mapped_type() {
                 assert_string!(parser, parameter.name, "Property");
                 assert_eq!(*readonly, MappedTypeModifier::None);
                 assert_eq!(*optional, MappedTypeModifier::Remove);
-                assert_node!(parser.tree, *value, TypeExpression::Index { left, index } => {
+                let value = value.expect("expected value type");
+                assert_node!(parser.tree, value, TypeExpression::Index { left, index } => {
                     assert_expression_path!(parser, parser.tree.get(*left), "Type");
                     assert_expression_path!(parser, parser.tree.get(*index), "Property");
                 });
@@ -134,9 +137,14 @@ fn test_parse_mapped_type() {
                     assert_string!(parser, strings[0], "get");
                     assert_string!(parser, strings[1], "");
                 });
-                assert_node!(parser.tree, *value, TypeExpression::FunctionTypeDeclaration(function) => {
+                let value = value.expect("expected value type");
+                assert_node!(parser.tree, value, TypeExpression::FunctionTypeDeclaration(function) => {
                     assert_eq!(function.parameters.len(), 0);
-                    assert!(function.return_type.is_some());
+                    let return_type = function.return_type.expect("expected return type");
+                    assert_node!(parser.tree, return_type, TypeExpression::Index { left, index } => {
+                        assert_expression_path!(parser, parser.tree.get(*left), "Type");
+                        assert_expression_path!(parser, parser.tree.get(*index), "Property");
+                    });
                 });
             });
         });
@@ -225,7 +233,7 @@ fn test_parse_type_mapped_expression_with_semicolon() {
     });
 }
 
-/// Parse mapped types without explicit value types.
+/// Parse mapped types without explicit value type annotations.
 #[test]
 fn test_parse_type_mapped_expression_without_value_type() {
     let mut test = TestParser::new("type Keys = 'a' | 'b'; type A = { [K in Keys] };");
@@ -233,19 +241,44 @@ fn test_parse_type_mapped_expression_without_value_type() {
     let expressions = parser.parse();
 
     assert_eq!(expressions.len(), 2);
-    assert_eq!(parser.errors.len(), 1);
+    test.assert_no_errors(&parser);
     assert_node!(parser.tree, expressions[1], Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Mapped { readonly, optional, value, .. } => {
                 assert_eq!(*readonly, MappedTypeModifier::None);
                 assert_eq!(*optional, MappedTypeModifier::None);
-                assert_node!(parser.tree, *value, TypeExpression::Missing);
+                assert!(value.is_none());
             });
         });
     });
 }
 
-/// Parse mapped types with readonly and optional modifiers without explicit value types.
+#[test]
+fn test_parse_type_mapped_expression_without_value_type_in_typescript() {
+    let mut test =
+        TestParser::new_with_language(r#"type A = { [K in "a" | "b"] }"#, LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    // type A = { [K in "a" | "b"] }
+    assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Mapped { parameter, readonly, optional, value } => {
+                assert_string!(parser, parameter.name, "K");
+                assert_eq!(*readonly, MappedTypeModifier::None);
+                assert_eq!(*optional, MappedTypeModifier::None);
+                assert!(value.is_none());
+                assert_node!(parser.tree, parameter.source_type, TypeExpression::Union { elements } => {
+                    assert_eq!(elements.len(), 2);
+                });
+            });
+        });
+    });
+}
+
+/// Parse mapped types with modifiers and without explicit value type annotations.
 #[test]
 fn test_parse_type_mapped_expression_without_value_type_with_modifiers() {
     let mut test =
@@ -254,14 +287,14 @@ fn test_parse_type_mapped_expression_without_value_type_with_modifiers() {
     let expressions = parser.parse();
 
     assert_eq!(expressions.len(), 2);
-    assert_eq!(parser.errors.len(), 2);
+    test.assert_no_errors(&parser);
 
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Mapped { readonly, optional, value, .. } => {
                 assert_eq!(*readonly, MappedTypeModifier::Add);
                 assert_eq!(*optional, MappedTypeModifier::None);
-                assert_node!(parser.tree, *value, TypeExpression::Missing);
+                assert!(value.is_none());
             });
         });
     });
@@ -271,7 +304,7 @@ fn test_parse_type_mapped_expression_without_value_type_with_modifiers() {
             assert_node!(parser.tree, *value, TypeExpression::Mapped { readonly, optional, value, .. } => {
                 assert_eq!(*readonly, MappedTypeModifier::None);
                 assert_eq!(*optional, MappedTypeModifier::Add);
-                assert_node!(parser.tree, *value, TypeExpression::Missing);
+                assert!(value.is_none());
             });
         });
     });
@@ -344,7 +377,8 @@ fn test_parse_type_mapped_expression_with_parenthesized_conditional_generic_valu
                                 assert_node!(parser.tree, parameter.source_type, TypeExpression::KeyOf { target_type } => {
                                     assert_expression_path!(parser, parser.tree.get(*target_type), "O");
                                 });
-                                assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
+                                let value = value.expect("expected value type");
+                                assert_node!(parser.tree, value, TypeExpression::Reference { path, generic_arguments } => {
                                     assert_path!(parser, path, "C");
                                     assert_eq!(generic_arguments.len(), 3);
                                     assert_node!(parser.tree, generic_arguments[1], GenericArgument::Type { value } => {
@@ -407,7 +441,8 @@ fn test_parse_type_mapped_expression_with_leading_intersection_parenthesized_con
                             assert_node!(parser.tree, generic_arguments[1], GenericArgument::Type { value } => {
                                 assert_node!(parser.tree, *value, TypeExpression::Mapped { parameter, value, .. } => {
                                     assert_string!(parser, parameter.name, "K");
-                                    assert_node!(parser.tree, *value, TypeExpression::Reference { path, generic_arguments } => {
+                                    let value = value.expect("expected value type");
+                                    assert_node!(parser.tree, value, TypeExpression::Reference { path, generic_arguments } => {
                                         assert_path!(parser, path, "C");
                                         assert_eq!(generic_arguments.len(), 3);
                                     });
@@ -438,6 +473,44 @@ fn test_parse_type_mapped_expression_with_key_remap_conditional() {
                 assert_string!(parser, parameter.name, "K");
                 let key_remap = parameter.key_remap.expect("expected key remap");
                 assert_node!(parser.tree, key_remap, TypeExpression::Conditional { .. });
+            });
+        });
+    });
+}
+
+#[test]
+fn test_parse_type_mapped_expression_with_conditional_infer_constraint() {
+    let mut test = TestParser::new_with_language(
+        "type T = { [P in infer U extends keyof Source ? 1 : 0]: Value }",
+        LanguageType::TypeScript,
+    );
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    // type T = { [P in infer U extends keyof Source ? 1 : 0]: Value }
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Mapped { parameter, value, .. } => {
+                assert_string!(parser, parameter.name, "P");
+                assert_node!(parser.tree, parameter.source_type, TypeExpression::Conditional { left, extends_type, then_type, else_type } => {
+                    assert_node!(parser.tree, *left, TypeExpression::Infer { name, constraint } => {
+                        assert_string!(parser, *name, "U");
+                        assert!(constraint.is_none());
+                    });
+                    assert_node!(parser.tree, *extends_type, TypeExpression::KeyOf { target_type } => {
+                        assert_expression_path!(parser, parser.tree.get(*target_type), "Source");
+                    });
+                    assert_node!(parser.tree, *then_type, TypeExpression::ScalarLiteral { value } => {
+                        assert_eq!(*value, ScalarLiteral::Integer(1));
+                    });
+                    assert_node!(parser.tree, *else_type, TypeExpression::ScalarLiteral { value } => {
+                        assert_eq!(*value, ScalarLiteral::Integer(0));
+                    });
+                });
+                let value = value.expect("expected value type");
+                assert_expression_path!(parser, parser.tree.get(value), "Value");
             });
         });
     });
@@ -500,7 +573,8 @@ fn test_parse_type_mapped_expression_missing_value_type() {
                         assert_path!(parser, *path, "T");
                     });
                 });
-                assert_node!(parser.tree, *value, TypeExpression::Missing);
+                let value = value.expect("expected value type");
+                assert_node!(parser.tree, value, TypeExpression::Missing);
             });
         });
     });
@@ -526,7 +600,8 @@ fn test_parse_type_mapped_expression_missing_close_bracket_before_colon() {
                         assert_path!(parser, *path, "T");
                     });
                 });
-                assert_node!(parser.tree, *value, TypeExpression::Index { left, index } => {
+                let value = value.expect("expected value type");
+                assert_node!(parser.tree, value, TypeExpression::Index { left, index } => {
                     assert_node!(parser.tree, *left, TypeExpression::Reference { path, generic_arguments } => {
                         assert!(generic_arguments.is_empty());
                         assert_path!(parser, *path, "T");
@@ -566,7 +641,8 @@ fn test_parse_type_mapped_expression_with_leading_union_constraint() {
                     assert_expression_path!(parser, parser.tree.get(elements[1]), "Bar");
                 });
 
-                assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                let value = value.expect("expected value type");
+                assert_node!(parser.tree, value, TypeExpression::Literal { value } => {
                     assert_eq!(*value, TypeLiteral::String);
                 });
             });

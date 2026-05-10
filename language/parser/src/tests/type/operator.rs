@@ -75,6 +75,23 @@ fn test_parse_type_unary_prefix_operator_span() {
 }
 
 #[test]
+fn test_parse_typescript_type_expression_keeps_shared_as_identifier() {
+    let mut test = TestParser::new_with_language("shared Value", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let type_id = parser
+        .with_flags(parser.flags.in_type(), |parser| {
+            parser.eat_type_expression()
+        })
+        .unwrap();
+
+    assert_expression_path!(parser, parser.tree.get(type_id), "shared");
+
+    let next_span = parser.peek().unwrap().span;
+    assert_eq!(parser.get_span_str(next_span), "Value");
+    test.assert_no_errors(&parser);
+}
+
+#[test]
 fn test_parse_readonly_type_operator_precedence() {
     let mut test = TestParser::new_with_language(
         "type T = readonly string[] | undefined",
@@ -170,17 +187,15 @@ fn test_parse_type_binary_extends_operator_span() {
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             let binary_id = *value;
-            assert_node!(parser.tree, *value, TypeExpression::Conditional { left, extends_type, then_type, else_type } => {
+            assert_node!(parser.tree, *value, TypeExpression::Extends { left, right } => {
                 assert_node!(parser.tree, *left, TypeExpression::Reference { path, generic_arguments } => {
                     assert!(generic_arguments.is_empty());
                     assert_path!(parser, *path, "Left");
                 });
-                assert_node!(parser.tree, *extends_type, TypeExpression::Reference { path, generic_arguments } => {
+                assert_node!(parser.tree, *right, TypeExpression::Reference { path, generic_arguments } => {
                     assert!(generic_arguments.is_empty());
                     assert_path!(parser, *path, "Right");
                 });
-                assert_node!(parser.tree, *then_type, TypeExpression::Missing);
-                assert_node!(parser.tree, *else_type, TypeExpression::Missing);
             });
 
             let main_span = parser
@@ -190,6 +205,22 @@ fn test_parse_type_binary_extends_operator_span() {
             assert_eq!(parser.get_span_str(main_span), "extends");
         });
     });
+}
+
+#[test]
+fn test_parse_typescript_extends_type_requires_conditional_branches() {
+    let mut test = TestParser::new_with_language("Left extends Right", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let error = parser
+        .with_flags(parser.flags.in_type(), |parser| {
+            parser.eat_type_expression()
+        })
+        .unwrap_err();
+
+    let (span, node_type, token_type) = error.leaf_content();
+    assert_eq!(node_type, None);
+    assert_eq!(token_type, Some(TokenType::Maybe));
+    assert_eq!(parser.get_span_str(span), "");
 }
 
 #[test]
@@ -219,14 +250,81 @@ fn test_parse_type_binary_satisfies_operator_span() {
 fn test_parse_type_binary_implements_operator_span() {
     let mut test = TestParser::new("type T = Value implements Trait");
     let mut parser = test.prepare();
-    assert!(parser.eat_expression(parser.flags).is_err());
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
+
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Implements { left, right } => {
+                assert_node!(parser.tree, *left, TypeExpression::Reference { path, generic_arguments } => {
+                    assert!(generic_arguments.is_empty());
+                    assert_path!(parser, *path, "Value");
+                });
+                assert_node!(parser.tree, *right, TypeExpression::Reference { path, generic_arguments } => {
+                    assert!(generic_arguments.is_empty());
+                    assert_path!(parser, *path, "Trait");
+                });
+            });
+        });
+    });
+}
+
+#[test]
+fn test_parse_typescript_type_expression_stops_before_implements() {
+    let mut test =
+        TestParser::new_with_language("Value implements Trait", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let type_id = parser
+        .with_flags(parser.flags.in_type(), |parser| {
+            parser.eat_type_expression()
+        })
+        .unwrap();
+
+    assert_expression_path!(parser, parser.tree.get(type_id), "Value");
+
+    let next_span = parser.peek().unwrap().span;
+    assert_eq!(parser.get_span_str(next_span), "implements");
+    test.assert_no_errors(&parser);
 }
 
 #[test]
 fn test_parse_type_binary_in_operator_span() {
-    let mut test = TestParser::new("type T = Key in Record");
+    let mut test = TestParser::new(r#"type T = "key" in Record"#);
     let mut parser = test.prepare();
-    assert!(parser.eat_expression(parser.flags).is_err());
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
+
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::In { left, right } => {
+                assert_node!(parser.tree, *left, TypeExpression::ScalarLiteral { value } => {
+                    let ScalarLiteral::String(string_id) = value else {
+                        panic!("expected string literal, got {value:?}");
+                    };
+                    assert_string!(parser, *string_id, "key");
+                });
+                assert_node!(parser.tree, *right, TypeExpression::Reference { path, generic_arguments } => {
+                    assert!(generic_arguments.is_empty());
+                    assert_path!(parser, *path, "Record");
+                });
+            });
+        });
+    });
+}
+
+#[test]
+fn test_parse_typescript_type_expression_stops_before_in() {
+    let mut test = TestParser::new_with_language("Key in Record", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let type_id = parser
+        .with_flags(parser.flags.in_type(), |parser| {
+            parser.eat_type_expression()
+        })
+        .unwrap();
+
+    assert_expression_path!(parser, parser.tree.get(type_id), "Key");
+
+    let next_span = parser.peek().unwrap().span;
+    assert_eq!(parser.get_span_str(next_span), "in");
+    test.assert_no_errors(&parser);
 }
 
 #[test]

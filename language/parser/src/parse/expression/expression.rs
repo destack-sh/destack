@@ -5,7 +5,7 @@ use super::lookahead::ParenthesizedGroupShape;
 use crate::parse::parser::ParserFlags;
 use crate::parse::prelude::*;
 use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
-use destack_source::{NodeSpanBoundary, NodeSpanList, NodeSpanType, Span};
+use destack_source::{NodeSpanBoundary, NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
 use smallvec::SmallVec;
 
 use super::operator::TypeUnaryOperator;
@@ -209,10 +209,53 @@ impl Parser {
         Ok(expression_id)
     }
 
-    /// Return whether the current identifier head could be forced into type space.
-    fn identifier_head_may_need_type_space(&mut self) -> bool {
+    /// Return whether one type expression contains generic arguments.
+    fn type_expression_contains_generic_arguments(
+        &self,
+        type_expression_id: LocalNodeId<TypeExpression>,
+    ) -> bool {
+        match self.tree.get(type_expression_id) {
+            TypeExpression::Reference {
+                generic_arguments, ..
+            } => !generic_arguments.is_empty(),
+            TypeExpression::Member {
+                left,
+                generic_arguments,
+                ..
+            } => {
+                !generic_arguments.is_empty()
+                    || self.type_expression_contains_generic_arguments(*left)
+            }
+            TypeExpression::Parenthesized { expression } => {
+                self.type_expression_contains_generic_arguments(*expression)
+            }
+            _ => false,
+        }
+    }
+
+    /// Return whether one type expression is a generic static projection.
+    fn type_expression_is_generic_projection(
+        &self,
+        type_expression_id: LocalNodeId<TypeExpression>,
+    ) -> bool {
+        matches!(
+            self.tree.get(type_expression_id),
+            TypeExpression::Member { .. }
+        ) && self.type_expression_contains_generic_arguments(type_expression_id)
+    }
+
+    /// Return whether the current identifier may start a forced type expression.
+    fn current_identifier_can_start_forced_type_expression(&mut self) -> bool {
         let next_token_type = self.next_token_type();
         let next_keyword = self.next_keyword();
+
+        // type relations start with ordinary identifier heads in value positions
+        if matches!(
+            next_keyword,
+            Some(Keyword::In | Keyword::Extends | Keyword::Implements)
+        ) {
+            return true;
+        }
 
         // class and extension heads may continue through `.` or generic arguments before `extends`
         if self.flags.is_in_before_block() {
@@ -222,18 +265,33 @@ impl Parser {
             ) || next_keyword == Some(Keyword::Extends);
         }
 
-        // tagged object literal receivers may continue through `.` or generic arguments before `{`
+        // tagged object literal receivers may continue before a later `{`
         matches!(
             next_token_type,
             TokenType::Dot | TokenType::LessThan | TokenType::ShiftLeft | TokenType::OpenBrace
         )
     }
 
-    /// Return whether one parsed identifier type head must stay in type space.
-    fn identifier_type_head_stays_in_type_space(
+    /// Return whether one forced identifier type expression should be committed.
+    fn forced_identifier_type_expression_should_commit(
         &mut self,
         type_expression_id: LocalNodeId<TypeExpression>,
     ) -> bool {
+        // generic projections are static type-member paths
+        if self.type_expression_is_generic_projection(type_expression_id) {
+            return true;
+        }
+
+        // type relation operators keep both operands in type space
+        let is_type_relation_head = self.peek_is(TokenType::Identifier)
+            && matches!(
+                self.peek_any_keyword().ok(),
+                Some(Keyword::In | Keyword::Extends | Keyword::Implements)
+            );
+        if is_type_relation_head {
+            return true;
+        }
+
         // before-block heads stay in type space when `extends` follows
         let is_before_block_extends_head = self.flags.is_in_before_block()
             && self.peek_is(TokenType::Identifier)
@@ -253,12 +311,12 @@ impl Parser {
         start: &ParserSpanStart,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
         // only language modes with value-space type reentry admit this path
-        if self.flags.is_in_static() || !self.language.is_destack() {
+        if !self.language.is_destack() {
             return Ok(None);
         }
 
         // most identifier heads cannot possibly force type space
-        if !self.identifier_head_may_need_type_space() {
+        if !self.current_identifier_can_start_forced_type_expression() {
             return Ok(None);
         }
 
@@ -279,7 +337,7 @@ impl Parser {
         };
 
         // keep only the shapes that the surrounding syntax forces into type space
-        if self.identifier_type_head_stays_in_type_space(type_expression_id) {
+        if self.forced_identifier_type_expression_should_commit(type_expression_id) {
             return Ok(Some(self.wrap_type_expression(type_expression_id)));
         }
 
@@ -517,6 +575,12 @@ impl Parser {
             }
         }
 
+        // type-space heads need the full identifier dispatch path
+        if self.language.is_destack() && self.current_identifier_can_start_forced_type_expression()
+        {
+            return Ok(None);
+        }
+
         let expression_id = self.eat_identifier_expression_path(start)?;
         let expression_id = self.eat_expression_continuation(start, expression_id, false)?;
 
@@ -566,7 +630,13 @@ impl Parser {
             || self.language.is_declaration()
             || matches!(
                 descriptor_head_keyword,
-                Some(Keyword::Export | Keyword::Declare | Keyword::Abstract | Keyword::Static)
+                Some(
+                    Keyword::Export
+                        | Keyword::Declare
+                        | Keyword::Abstract
+                        | Keyword::Shared
+                        | Keyword::Static,
+                )
             );
 
         // non declaration positions always keep the empty header
@@ -705,6 +775,7 @@ impl Parser {
             Keyword::Typeof => TypeUnaryOperator::Typeof,
             Keyword::Keyof => TypeUnaryOperator::Keyof,
             Keyword::Readonly => TypeUnaryOperator::Readonly,
+            Keyword::Shared if self.language.is_destack() => TypeUnaryOperator::Shared,
             _ => unreachable!(),
         };
 
@@ -724,6 +795,9 @@ impl Parser {
             .with_typeof_query(operator == TypeUnaryOperator::Typeof);
         if self.flags.is_in_type_conditional_right() {
             right_expression_context = right_expression_context.in_type_conditional_right();
+        }
+        if self.flags.is_disallow_type_conditional() {
+            right_expression_context = right_expression_context.disallow_type_conditional();
         }
 
         // unary type expression
@@ -753,6 +827,16 @@ impl Parser {
                 )?;
 
                 TypeExpression::Readonly { target_type }
+            }
+            TypeUnaryOperator::Shared => {
+                let target_type = self.eat_type_expression_or_recover_missing(
+                    self.flags
+                        .with_ambient_context(right_ambient_context)
+                        .with_expression_context(right_expression_context),
+                    NodeType::Expression,
+                )?;
+
+                TypeExpression::Shared { target_type }
             }
             _ => unreachable!(),
         };
@@ -869,7 +953,8 @@ impl Parser {
         let is_type_unary_keyword = matches!(
             lookahead.keyword,
             Some(Keyword::Typeof | Keyword::Keyof | Keyword::Readonly)
-        );
+        ) || self.language.is_destack()
+            && lookahead.keyword == Some(Keyword::Shared);
 
         // shorthand lambda form
         if !self.flags.is_in_match_case()
@@ -995,7 +1080,8 @@ impl Parser {
         let is_type_unary_keyword = matches!(
             lookahead.keyword,
             Some(Keyword::Typeof | Keyword::Keyof | Keyword::Readonly)
-        );
+        ) || self.language.is_destack()
+            && lookahead.keyword == Some(Keyword::Shared);
 
         // plain identifier path or contextual literal
         if lookahead.keyword.is_none()
@@ -1153,6 +1239,12 @@ impl Parser {
         // wrapped type expressions keep a type-space parenthesized node
         if let Some(inner_expression_id) = self.wrapped_type_expression_maybe(expression_id) {
             if !self.preserves_parenthesized_wrappers() {
+                self.tree.set_side_span(
+                    inner_expression_id,
+                    NodeSpanType::Region(NodeSpanRegion::Wrapper),
+                    self.get_span_from(start),
+                );
+
                 return self.wrap_type_expression(inner_expression_id);
             }
 
@@ -1171,6 +1263,12 @@ impl Parser {
         }
 
         if !self.preserves_parenthesized_wrappers() {
+            self.tree.set_side_span(
+                expression_id,
+                NodeSpanType::Region(NodeSpanRegion::Wrapper),
+                self.get_span_from(start),
+            );
+
             return expression_id;
         }
 
@@ -1196,6 +1294,12 @@ impl Parser {
         expression_id: LocalNodeId<TypeExpression>,
     ) -> LocalNodeId<TypeExpression> {
         if !self.preserves_parenthesized_wrappers() {
+            self.tree.set_side_span(
+                expression_id,
+                NodeSpanType::Region(NodeSpanRegion::Wrapper),
+                self.get_span_from(start),
+            );
+
             return expression_id;
         }
 
@@ -1237,8 +1341,7 @@ impl Parser {
         let allows_colon_lambda = !is_colon_lambda
             || (self.language.is_destack() || self.language.is_typescript())
                 && !self.flags.is_in_before_type()
-                && !self.flags.is_in_match_case()
-                && !group.has_top_level_comma;
+                && !self.flags.is_in_match_case();
         if !allows_colon_lambda {
             return None;
         }
@@ -1410,6 +1513,13 @@ impl Parser {
         start: &ParserSpanStart,
         group: ParenthesizedGroupShape,
     ) -> ParseResult<Option<LocalNodeId<TypeExpression>>> {
+        // conditional type branches own a following `:`
+        if group.follow_token_type == Some(TokenType::Colon)
+            && self.flags.is_in_type_conditional_right()
+        {
+            return Ok(None);
+        }
+
         if !matches!(
             group.follow_token_type,
             Some(TokenType::Arrow | TokenType::ArrowWide | TokenType::Colon)
@@ -1869,6 +1979,9 @@ impl Parser {
         if self.flags.is_in_type_conditional_right() {
             right_flags = right_flags.in_type_conditional_right();
         }
+        if self.flags.is_disallow_type_conditional() {
+            right_flags = right_flags.disallow_type_conditional();
+        }
 
         let expression = match operator {
             TypeUnaryOperator::Typeof => {
@@ -1900,6 +2013,16 @@ impl Parser {
                 )?;
 
                 TypeExpression::Readonly { target_type }
+            }
+            TypeUnaryOperator::Shared => {
+                let target_type = self.eat_type_expression_or_recover_missing(
+                    self.flags
+                        .with_type(true)
+                        .with_expression_context(right_flags),
+                    NodeType::Expression,
+                )?;
+
+                TypeExpression::Shared { target_type }
             }
             _ => unreachable!(),
         };
@@ -2031,10 +2154,18 @@ impl Parser {
         // fixed array: `[T; N]`
         if self.language.is_destack() && self.peek_is(TokenType::Semicolon) {
             self.bump(); // eat ;
-            let length = self.eat_type_expression_or_recover_missing(
-                self.flags.not_in_position().in_type(),
-                NodeType::TypeExpression,
-            )?;
+            let value_ambient_context = self.flags.with_type(false);
+            let length_context = self
+                .flags
+                .not_in_position()
+                .not_in_left_precedence()
+                .not_in_sequence_expression();
+            let length_flags = self
+                .flags
+                .with_ambient_context(value_ambient_context)
+                .with_expression_context(length_context);
+            let length =
+                self.eat_expression_or_recover_missing(length_flags, NodeType::Expression)?;
             self.eat_close_token_or_recover_missing(
                 TokenType::CloseBracket,
                 NodeType::TypeExpression,
@@ -2079,14 +2210,7 @@ impl Parser {
         &mut self,
         start: &ParserSpanStart,
     ) -> ParseResult<LocalNodeId<Expression>> {
-        let elements = self.with_flags(self.flags.not_in_position(), |parser| {
-            parser.eat_array_literal()
-        })?;
-
-        Ok(self.insert_node(
-            Expression::ArrayExpression { elements },
-            self.get_span_from(start),
-        ))
+        self.eat_bracket_literal_expression(start)
     }
 
     /// Eat one type-space brace primary expression.

@@ -114,12 +114,9 @@ impl Parser {
             )?;
             self.set_node_leading_span(value, value_boundary_start);
             let value_type_span = self.get_span_from(&value_type_start);
-            (value, Some(value_type_span))
+            (Some(value), Some(value_type_span))
         } else {
-            (
-                self.recover_missing_type_expression_here(NodeType::TypeExpression),
-                None,
-            )
+            (None, None)
         };
         if self.peek_is(TokenType::Semicolon) || self.peek_is(TokenType::Comma) {
             self.bump();
@@ -127,7 +124,9 @@ impl Parser {
 
         // mapped value trailing boundary
         let mapped_close_start = self.peek()?.span.start;
-        self.set_node_trailing_span(value, mapped_close_start);
+        if let Some(value) = value {
+            self.set_node_trailing_span(value, mapped_close_start);
+        }
 
         self.eat_type_token_or_recover_missing(TokenType::CloseBrace, NodeType::TypeExpression)?;
 
