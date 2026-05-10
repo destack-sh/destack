@@ -490,6 +490,44 @@ match (x) {
     }
 
     #[test]
+    fn test_parse_match_object_pattern_arms_with_expression_bodies() {
+        let mut test = TestParser::new(
+            r#"
+match (shape) {
+    { kind: "circle", radius } => radius
+    { kind: "square", size } => size
+}
+"#,
+        );
+        let mut parser = test.prepare();
+        let match_id = parser.eat_match().unwrap();
+
+        test.assert_no_errors(&parser);
+
+        assert_node!(parser.tree, match_id, Expression::Match { cases, .. } => {
+            assert_eq!(cases.len(), 2);
+
+            // { kind: "circle", radius } => radius
+            assert_node!(parser.tree, cases[0], MatchCase::Expression { selector: MatchSelector::Pattern { pattern, guard }, body } => {
+                assert!(guard.is_none());
+                assert_node!(parser.tree, *pattern, Pattern::Object { fields } => {
+                    assert_eq!(fields.len(), 2);
+                });
+                assert_expression_path!(parser, parser.tree.get(*body), "radius");
+            });
+
+            // { kind: "square", size } => size
+            assert_node!(parser.tree, cases[1], MatchCase::Expression { selector: MatchSelector::Pattern { pattern, guard }, body } => {
+                assert!(guard.is_none());
+                assert_node!(parser.tree, *pattern, Pattern::Object { fields } => {
+                    assert_eq!(fields.len(), 2);
+                });
+                assert_expression_path!(parser, parser.tree.get(*body), "size");
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_match_with_guard() {
         let mut test = TestParser::new(
             r###"

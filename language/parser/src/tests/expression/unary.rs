@@ -60,6 +60,33 @@ fn test_parse_unary_keyword_operators() {
 }
 
 #[test]
+fn test_parse_parenthesized_unary_exponent_operands() {
+    let input = r#"
+(void ident) ** 2;
+(typeof ident) ** 2;
+(-3) ** 2;
+(+3) ** 2;
+(~3) ** 2;
+(!true) ** 2;
+"#;
+    let mut test = TestParser::new_with_language(input, LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    test.assert_no_errors(&parser);
+
+    assert_eq!(expressions.len(), 6);
+    for expression in expressions {
+        assert_node!(parser.tree, expression, Expression::Binary { left, operator, right } => {
+            assert_eq!(*operator, BinaryOperator::Exponent);
+            assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+                assert_node!(parser.tree, *expression, Expression::Unary { .. });
+            });
+            assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+        });
+    }
+}
+
+#[test]
 fn test_parse_unary_negate_allows_newline_before_operand() {
     let mut test = TestParser::new_with_language("-\n1", LanguageType::JavaScript);
     let mut parser = test.prepare();

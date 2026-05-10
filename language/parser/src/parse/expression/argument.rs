@@ -43,11 +43,6 @@ impl Parser {
         allow_object_literal: bool,
         allow_newline_prefix: bool,
     ) -> bool {
-        // line breaks terminate the speculative ambiguity
-        if self.current_token_is_on_new_line() {
-            return true;
-        }
-
         let token_type = self.peek_token_type();
 
         // static type arguments may be followed by angle closers
@@ -55,6 +50,18 @@ impl Parser {
             || self.flags.is_in_static() && Self::starts_type_angle_close(token_type)
         {
             return true;
+        }
+
+        // these continuations keep the expression in relational operator space
+        if matches!(
+            token_type,
+            TokenType::LessThan
+                | TokenType::ShiftLeft
+                | TokenType::GreaterThan
+                | TokenType::Add
+                | TokenType::Subtract
+        ) {
+            return false;
         }
 
         // conditional and arrow continuations stay valid

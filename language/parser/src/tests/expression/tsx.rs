@@ -231,6 +231,55 @@ fn test_parse_tree_attribute_typed_arrow_value() {
     });
 }
 
+/// Parse a fixed array repeat literal as a tree attribute value.
+#[test]
+fn test_parse_tree_attribute_fixed_array_value() {
+    let mut test = TestParser::new("<Buffer data=[0; count] />");
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    test.assert_no_errors(&parser);
+
+    assert_node!(parser.tree, expression_id, Expression::TreeExpression { arguments, .. } => {
+        let arguments = arguments.as_ref().expect("expected tree arguments");
+        assert_eq!(arguments.len(), 1);
+
+        assert_node!(parser.tree, arguments[0], Argument::Named { name, value, .. } => {
+            assert_name!(parser, *name, "data");
+            assert_node!(parser.tree, *value, Expression::FixedArrayExpression { value, length } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+                assert_expression_path!(parser, parser.tree.get(*length), "count");
+            });
+        });
+    });
+}
+
+/// Recover a fixed array repeat literal in a tree attribute value.
+#[test]
+fn test_parse_tree_attribute_fixed_array_value_recovers_missing_length() {
+    let mut test = TestParser::new("<Buffer data=[0; ] next />");
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "]")]);
+    assert_node!(parser.tree, expression_id, Expression::TreeExpression { arguments, .. } => {
+        let arguments = arguments.as_ref().expect("expected tree arguments");
+        assert_eq!(arguments.len(), 2);
+
+        assert_node!(parser.tree, arguments[0], Argument::Named { name, value, .. } => {
+            assert_name!(parser, *name, "data");
+            assert_node!(parser.tree, *value, Expression::FixedArrayExpression { value, length } => {
+                assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+                assert_node!(parser.tree, *length, Expression::Missing);
+            });
+        });
+
+        assert_node!(parser.tree, arguments[1], Argument::Named { name, value, .. } => {
+            assert_name!(parser, *name, "next");
+            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
+        });
+    });
+}
+
 #[test]
 fn test_parse_ternary_tree_attribute_typed_arrow() {
     let mut test = TestParser::new_with_language(
@@ -351,6 +400,36 @@ fn test_parse_typed_arrow_parameter_with_generic_function_target_type_before_tre
                         assert_eq!(*value, TypeLiteral::Void);
                     });
                 });
+            });
+        });
+    });
+}
+
+#[test]
+fn test_parse_tree_text_after_comment_expression_container() {
+    let mut test = TestParser::new_with_language(
+        r#"<test>
+    {/* comment */}
+     some
+     text
+</test>"#,
+        LanguageType::TypeScriptXml,
+    );
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    assert_node!(parser.tree, expression_id, Expression::TreeExpression { left: Some(left), elements, .. } => {
+        assert_expression_path!(parser, parser.tree.get(*left), "test");
+        let elements = elements.as_ref().expect("expected children");
+        assert_eq!(elements.len(), 2);
+        assert_node!(parser.tree, elements[0], Argument::Positional { value } => {
+            assert_node!(parser.tree, *value, Expression::Stub);
+        });
+        assert_node!(parser.tree, elements[1], Argument::Positional { value } => {
+            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(text)) => {
+                assert_string!(parser, *text, "\n     some\n     text\n");
             });
         });
     });

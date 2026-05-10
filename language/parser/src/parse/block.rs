@@ -278,6 +278,11 @@ impl Parser {
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
         // block statements stay in the statement dispatch
         if token_type == TokenType::OpenBrace {
+            // object literals stay in value space when their property shape is explicit
+            if self.can_parse_object_literal_in_statement_position() {
+                return Ok(None);
+            }
+
             let block_id = self.eat_block(BlockContext::Expression)?;
             let expression_id = self
                 .tree
@@ -501,15 +506,21 @@ impl Parser {
         let start = self.span_start();
 
         // `do` prefix
-        if self.language.is_destack() && self.is_keyword(Keyword::Do) {
+        let has_do_prefix = self.language.is_destack() && self.is_keyword(Keyword::Do);
+        if has_do_prefix {
             self.bump(); // eat keyword
         }
+        let form = if has_do_prefix {
+            BlockForm::Do
+        } else {
+            BlockForm::Explicit
+        };
 
         // body
         self.try_eat_token(TokenType::OpenBrace, TokenType::CloseBrace)
             .for_node_type(NodeType::Block)?;
         let (leading_expressions, tail_expression) = self
-            .eat_block_body_parts_in_context(BlockForm::Explicit, block_context)
+            .eat_block_body_parts_in_context(form, block_context)
             .for_node_type(NodeType::Block)?;
         self.eat_close_token_or_recover_missing(TokenType::CloseBrace, NodeType::Block)?;
 
@@ -517,7 +528,7 @@ impl Parser {
         let block_id = self.insert_node(
             Block {
                 context: block_context,
-                form: BlockForm::Explicit,
+                form,
                 leading_expressions,
                 tail_expression,
             },
@@ -530,7 +541,7 @@ impl Parser {
     /// Eat a block of expressions (without the label, `{`, and `}`).
     /// ASI rules apply such that expressions are automatically coerced into statements in relevant positions.
     pub fn eat_block_body(&mut self, form: BlockForm) -> ParseResult<Vec<LocalNodeId<Expression>>> {
-        let block_context = if form == BlockForm::Explicit {
+        let block_context = if form.is_explicit() {
             BlockContext::Expression
         } else {
             BlockContext::Statement
@@ -635,7 +646,7 @@ impl Parser {
         // finalize the remaining tail expression
         let tail_expression = if let Some(expression_id) = pending_tail_expression {
             // explicit expression blocks can preserve one trailing value
-            if form == BlockForm::Explicit
+            if form.is_explicit()
                 && self.language.is_destack()
                 && block_context == BlockContext::Expression
             {
@@ -731,7 +742,7 @@ impl Parser {
 
         // explicit expression blocks can keep value-capable control tails
         let keeps_value_tail = block_context.is_some_and(|(form, block_context)| {
-            form == BlockForm::Explicit
+            form.is_explicit()
                 && block_context == BlockContext::Expression
                 && self.language.is_destack()
                 && preserves_value_tail
@@ -1121,7 +1132,7 @@ impl Parser {
 mod tests {
     use destack_ast::{
         BlockContext, CommentKind, Declaration, Expression, FunctionDeclaration, FunctionForm,
-        IfForm, LetKind, NodeType, ScalarLiteral, TokenType, YieldCardinality,
+        IfForm, Key, LetKind, Name, NodeType, Property, ScalarLiteral, TokenType, YieldCardinality,
     };
     use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
@@ -1880,6 +1891,111 @@ const value = 1
         });
     }
 
+    /// Parse object literal function body tails as value expressions.
+    #[test]
+    fn test_parse_function_body_keeps_object_literal_tail_expression_value() {
+        let input = r#"
+function next(value: number): IteratorResult<number> {
+    drop(value);
+    { done: true, value }
+}
+"#;
+        let mut test = TestParser::new(input);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        test.assert_no_errors(&parser);
+
+        // function next(...) { drop(value); { done: true, value } }
+        assert_eq!(expressions.len(), 1);
+        let function_expression_id = parser.unwrap_labelled_expression(expressions[0]);
+        assert_node!(parser.tree, function_expression_id, Expression::Declaration(function_id) => {
+            assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { body: Some(body_id), .. }) => {
+                assert_node!(parser.tree, *body_id, Expression::Block(block_id) => {
+                    let block = parser.tree.get(*block_id);
+                    assert_eq!(block.leading_expressions.len(), 1);
+                    assert_node!(parser.tree, block.leading_expressions[0], Expression::Call { left, arguments, .. } => {
+                        assert_expression_path!(parser, parser.tree.get(*left), "drop");
+                        assert_eq!(arguments.len(), 1);
+                    });
+
+                    let tail_expression = block.tail_expression.expect("expected tail expression");
+                    assert_node!(parser.tree, tail_expression, Expression::ObjectExpression { properties, .. } => {
+                        assert_eq!(properties.len(), 2);
+                        assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, is_shorthand } => {
+                            assert_string!(parser, *name, "done");
+                            assert!(!*is_shorthand);
+                            assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Boolean(true)));
+                        });
+                        assert_node!(parser.tree, properties[1], Property::Field { key: Key::Name(Name::Identifier(name)), value, is_shorthand } => {
+                            assert_string!(parser, *name, "value");
+                            assert!(*is_shorthand);
+                            assert_expression_path!(parser, parser.tree.get(*value), "value");
+                        });
+                    });
+                });
+            });
+        });
+    }
+
+    /// Parse object literal match branch tails as value expressions.
+    #[test]
+    fn test_parse_match_branch_keeps_object_literal_tail_expression_value() {
+        let input = r#"
+function apply(result: Result): IteratorResult<number> {
+    match (result) {
+        Yield { value } => {
+            this.value = value;
+            { done: false, value }
+        }
+        Return { value } => {
+            { done: true, value }
+        }
+    }
+}
+"#;
+        let mut test = TestParser::new(input);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        test.assert_no_errors(&parser);
+
+        // function apply(...) { match (...) { ... } }
+        assert_eq!(expressions.len(), 1);
+        let function_expression_id = parser.unwrap_labelled_expression(expressions[0]);
+        assert_node!(parser.tree, function_expression_id, Expression::Declaration(function_id) => {
+            assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { body: Some(body_id), .. }) => {
+                assert_node!(parser.tree, *body_id, Expression::Block(function_block_id) => {
+                    let function_block = parser.tree.get(*function_block_id);
+                    let tail_expression = function_block.tail_expression.expect("expected match tail");
+
+                    assert_node!(parser.tree, tail_expression, Expression::Match { cases, .. } => {
+                        assert_eq!(cases.len(), 2);
+                        for case_id in cases {
+                            assert_node!(parser.tree, *case_id, destack_ast::MatchCase::Block { body: case_block_id, .. } => {
+                                let case_block = parser.tree.get(*case_block_id);
+                                let case_tail = case_block.tail_expression.expect("expected object tail");
+
+                                assert_node!(parser.tree, case_tail, Expression::ObjectExpression { properties, .. } => {
+                                    assert_eq!(properties.len(), 2);
+                                    assert_node!(parser.tree, properties[0], Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
+                                        assert_string!(parser, *name, "done");
+                                        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Boolean(_)));
+                                    });
+                                    assert_node!(parser.tree, properties[1], Property::Field { key: Key::Name(Name::Identifier(name)), value, is_shorthand } => {
+                                        assert_string!(parser, *name, "value");
+                                        assert!(*is_shorthand);
+                                        assert_expression_path!(parser, parser.tree.get(*value), "value");
+                                    });
+                                });
+                            });
+                        }
+                    });
+                });
+            });
+        });
+    }
+
     /// Parse multiline function body tails as value expressions.
     #[test]
     fn test_parse_multiline_function_body_keeps_tail_expression_value() {
@@ -1927,18 +2043,32 @@ function choose(flag: boolean, a: int32, b: int32): int32 {
         assert_eq!(expressions.len(), 1);
         let function_expression_id = parser.unwrap_labelled_expression(expressions[0]);
         assert_node!(parser.tree, function_expression_id, Expression::Declaration(function_id) => {
-                assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { body: Some(body_id), .. }) => {
-                    assert_node!(parser.tree, *body_id, Expression::Block(block_id) => {
-                        let block = parser.tree.get(*block_id);
-                        assert!(block.leading_expressions.is_empty());
+            assert_node!(parser.tree, *function_id, Declaration::Function(FunctionDeclaration { body: Some(body_id), .. }) => {
+                assert_node!(parser.tree, *body_id, Expression::Block(block_id) => {
+                    let block = parser.tree.get(*block_id);
+                    assert_eq!(block.leading_expressions.len(), 0);
 
-                        let tail_expression = block.tail_expression.expect("expected tail expression");
-                    assert_node!(parser.tree, tail_expression, Expression::If { else_expression, .. } => {
+                    let tail_expression = block.tail_expression.expect("expected tail expression");
+                    assert_node!(parser.tree, tail_expression, Expression::If { then_expression, else_expression, .. } => {
+                        assert_node!(parser.tree, *then_expression, Expression::Block(then_block_id) => {
+                            let then_block = parser.tree.get(*then_block_id);
+                            assert_eq!(then_block.leading_expressions.len(), 0);
+                            assert_expression_path!(
+                                parser,
+                                parser.tree.get(then_block.tail_expression.expect("expected then tail")),
+                                "a"
+                            );
+                        });
+
                         let else_expression = else_expression.expect("expected else expression");
                         assert_node!(parser.tree, else_expression, Expression::Block(else_block_id) => {
                             let else_block = parser.tree.get(*else_block_id);
-                            assert!(else_block.leading_expressions.is_empty());
-                            assert!(else_block.tail_expression.is_some());
+                            assert_eq!(else_block.leading_expressions.len(), 0);
+                            assert_expression_path!(
+                                parser,
+                                parser.tree.get(else_block.tail_expression.expect("expected else tail")),
+                                "b"
+                            );
                         });
                     });
                 });

@@ -1911,8 +1911,11 @@ impl Parser {
         recover: TokenType,
         error: Option<ParseError>,
     ) -> ParseResult<()> {
-        // let error = error.unwrap_or_else(|| ParseError::unexpected(self.get_span_from(start)));
         while let Ok(token) = self.peek() {
+            if token.token.ty == TokenType::End {
+                break;
+            }
+
             // recover from here (but report error)
             if token.token.ty == recover {
                 let error = ParseError::from_source_maybe(self.get_span_from(start), error);
@@ -1938,6 +1941,10 @@ impl Parser {
     ) -> ParseResult<()> {
         while let Ok(token) = self.peek() {
             let token_type = token.token.ty;
+
+            if token_type == TokenType::End {
+                break;
+            }
 
             // recover from here and keep the separator or terminator for the caller
             if start.is_before(token.span) && token.token.is_on_new_line
@@ -1967,6 +1974,10 @@ impl Parser {
         while let Ok(token) = self.peek() {
             let token_type = token.token.ty;
 
+            if token_type == TokenType::End {
+                break;
+            }
+
             // recover from here and keep the boundary token for the caller
             if start.is_before(token.span) && token.token.is_on_new_line
                 || Self::is_statement_stop_token(token_type)
@@ -1994,6 +2005,10 @@ impl Parser {
     ) -> ParseResult<Span> {
         while let Ok(token) = self.peek() {
             let token_type = token.token.ty;
+
+            if token_type == TokenType::End {
+                break;
+            }
 
             // recover from here and keep the boundary token for the caller
             if start_span.start < token.span.start && token.token.is_on_new_line
@@ -2052,6 +2067,10 @@ impl Parser {
         while let Ok(token) = self.peek() {
             let token_type = token.token.ty;
 
+            if token_type == TokenType::End {
+                break;
+            }
+
             // recover from here and keep the boundary token for the caller
             if start.is_before(token.span) && token.token.is_on_new_line
                 || token_type == TokenType::CloseBrace
@@ -2078,6 +2097,10 @@ impl Parser {
     ) -> ParseResult<Span> {
         while let Ok(token) = self.peek() {
             let token_type = token.token.ty;
+
+            if token_type == TokenType::End {
+                break;
+            }
 
             // recover from here and keep the boundary token for the caller
             if start_span.start < token.span.start && token.token.is_on_new_line
@@ -2123,6 +2146,10 @@ impl Parser {
         while let Ok(token) = self.peek()
             && token.token.ty != bail
         {
+            if token.token.ty == TokenType::End {
+                break;
+            }
+
             // ok with error if we finally hit the expected token
             if token.token.ty == expected {
                 let error = ParseError::unexpected(self.get_span_from(&start));

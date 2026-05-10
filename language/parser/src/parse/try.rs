@@ -296,6 +296,60 @@ try {
         });
     }
 
+    /// Parse branch tails as value expressions inside try branches.
+    #[test]
+    fn test_parse_try_keeps_branch_tail_expression_values() {
+        let mut test = TestParser::new(
+            r#"
+try {
+    value()
+} catch (error) {
+    fallback(error)
+} finally {
+    cleanup()
+}
+"#,
+        );
+        let mut parser = test.prepare();
+
+        let try_id = parser.eat_try().unwrap();
+
+        assert_node!(parser.tree, try_id, Expression::Try { try_expression, catch_expression: Some(catch_expression), finally_expression: Some(finally_expression), .. } => {
+            assert_node!(parser.tree, *try_expression, Expression::Block(try_block_id) => {
+                let try_block = parser.tree.get(*try_block_id);
+                assert_eq!(try_block.leading_expressions.len(), 0);
+                let tail_expression = try_block.tail_expression.expect("expected try tail");
+                assert_node!(parser.tree, tail_expression, Expression::Call { left, arguments, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "value");
+                    assert_eq!(arguments.len(), 0);
+                });
+            });
+
+            assert_node!(parser.tree, *catch_expression, Expression::Block(catch_block_id) => {
+                let catch_block = parser.tree.get(*catch_block_id);
+                assert_eq!(catch_block.leading_expressions.len(), 0);
+                let tail_expression = catch_block.tail_expression.expect("expected catch tail");
+                assert_node!(parser.tree, tail_expression, Expression::Call { left, arguments, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "fallback");
+                    assert_eq!(arguments.len(), 1);
+                    assert_node!(parser.tree, arguments[0], destack_ast::Argument::Positional { value } => {
+                        assert_expression_path!(parser, parser.tree.get(*value), "error");
+                    });
+                });
+            });
+
+            assert_node!(parser.tree, *finally_expression, Expression::Block(finally_block_id) => {
+                let finally_block = parser.tree.get(*finally_block_id);
+                assert_eq!(finally_block.leading_expressions.len(), 0);
+                let tail_expression = finally_block.tail_expression.expect("expected finally tail");
+                assert_node!(parser.tree, tail_expression, Expression::Call { left, arguments, .. } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "cleanup");
+                    assert_eq!(arguments.len(), 0);
+                });
+            });
+        });
+    }
+
     /// Parse explicit branch semicolons as statements inside try branches.
     #[test]
     fn test_parse_try_keeps_explicit_branch_semicolons_as_statements() {

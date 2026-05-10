@@ -77,6 +77,27 @@ fn test_parse_instantiation_expression_parenthesized() {
     });
 }
 
+/// Parse calls with a parenthesized instantiation callee and outer type arguments.
+#[test]
+fn test_parse_generic_call_with_parenthesized_instantiation_callee() {
+    let mut test = TestParser::new("(getContainer().map<string>)<number>(1)");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    assert_node!(parser.tree, expr_id, Expression::Call { left, generic_arguments, arguments, .. } => {
+        assert_eq!(generic_arguments.len(), 1);
+        assert_eq!(arguments.len(), 1);
+        assert_node!(parser.tree, *left, Expression::Parenthesized { expression } => {
+            assert_node!(parser.tree, *expression, Expression::Instantiation { left, generic_arguments } => {
+                assert_eq!(generic_arguments.len(), 1);
+                assert_node!(parser.tree, *left, Expression::Member { .. });
+            });
+        });
+    });
+}
+
 /// Parse optional-chain generic argument calls in value positions.
 #[test]
 fn test_parse_optional_chain_generic_argument_call() {
@@ -552,5 +573,154 @@ fn test_parse_call_with_instantiation_callee_and_line_comment_before_arguments()
         assert_eq!(arguments.len(), 1);
         assert_expression_path!(parser, parser.tree.get(*left), "foo");
         assert_eq!(generic_arguments.len(), 1);
+    });
+}
+
+#[test]
+fn test_parse_instantiation_expression_unparenthesized_index_access() {
+    let mut test = TestParser::new_with_language("f<number>[\"g\"]", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    assert_node!(parser.tree, expression_id, Expression::Index { left, index, position } => {
+        assert_eq!(*position, PostfixPosition::Direct);
+
+        assert_node!(parser.tree, *left, Expression::Instantiation { left, generic_arguments } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "f");
+            assert_eq!(generic_arguments.len(), 1);
+        });
+
+        assert_node!(parser.tree, index.expect("expected index"), Expression::ScalarLiteral(ScalarLiteral::String(name)) => {
+            assert_string!(parser, *name, "g");
+        });
+    });
+}
+
+#[test]
+fn test_parse_instantiation_expression_unparenthesized_member_access() {
+    let mut test = TestParser::new_with_language("f<number>.value", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    assert_node!(parser.tree, expression_id, Expression::Member { left, name } => {
+        assert_string!(parser, *name, "value");
+
+        assert_node!(parser.tree, *left, Expression::Instantiation { left, generic_arguments } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "f");
+            assert_eq!(generic_arguments.len(), 1);
+        });
+    });
+}
+
+#[test]
+fn test_parse_optional_call_after_instantiation_expression() {
+    let mut test = TestParser::new_with_language("f<number>?.()", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    assert_node!(parser.tree, expression_id, Expression::Call { left, generic_arguments, arguments, position } => {
+        assert_eq!(*position, PostfixPosition::Indirect);
+        assert!(generic_arguments.is_empty());
+        assert!(arguments.is_empty());
+
+        assert_node!(parser.tree, *left, Expression::Maybe { left, position } => {
+            assert_eq!(*position, PostfixPosition::Direct);
+            assert_node!(parser.tree, *left, Expression::Instantiation { left, generic_arguments } => {
+                assert_expression_path!(parser, parser.tree.get(*left), "f");
+                assert_eq!(generic_arguments.len(), 1);
+            });
+        });
+    });
+}
+
+#[test]
+fn test_parse_optional_call_after_function_type_instantiation_expression() {
+    let mut test = TestParser::new_with_language("f<<T>() => T>?.()", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    assert_node!(parser.tree, expression_id, Expression::Call { left, generic_arguments, arguments, position } => {
+        assert_eq!(*position, PostfixPosition::Indirect);
+        assert!(generic_arguments.is_empty());
+        assert!(arguments.is_empty());
+
+        assert_node!(parser.tree, *left, Expression::Maybe { left, position } => {
+            assert_eq!(*position, PostfixPosition::Direct);
+            assert_node!(parser.tree, *left, Expression::Instantiation { left, generic_arguments } => {
+                assert_expression_path!(parser, parser.tree.get(*left), "f");
+                assert_eq!(generic_arguments.len(), 1);
+                assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+                        assert_node!(parser.tree, *value, TypeExpression::FunctionTypeDeclaration(function) => {
+                            assert_eq!(function.generic_parameters.len(), 1);
+                        });
+                });
+            });
+        });
+    });
+}
+
+#[test]
+fn test_parse_instantiation_expression_before_newline_binary_operator() {
+    let mut test = TestParser::new_with_language("f<T>\n?? 1", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    assert_node!(parser.tree, expression_id, Expression::Binary { left, operator, right } => {
+        assert_eq!(*operator, BinaryOperator::Coalesce);
+        assert_node!(parser.tree, *left, Expression::Instantiation { left, generic_arguments } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "f");
+            assert_eq!(generic_arguments.len(), 1);
+        });
+        assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+    });
+}
+
+#[test]
+fn test_parse_instantiation_expression_before_newline_division_operator() {
+    let mut test = TestParser::new_with_language("f<T>\n/ 1", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    assert_node!(parser.tree, expression_id, Expression::Binary { left, operator, right } => {
+        assert_eq!(*operator, BinaryOperator::Divide);
+        assert_node!(parser.tree, *left, Expression::Instantiation { left, generic_arguments } => {
+            assert_expression_path!(parser, parser.tree.get(*left), "f");
+            assert_eq!(generic_arguments.len(), 1);
+        });
+        assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+    });
+}
+
+#[test]
+fn test_parse_relational_expression_before_newline_prefix_expression() {
+    let mut test = TestParser::new_with_language("f <T>\n+1", LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    assert_node!(parser.tree, expression_id, Expression::Binary { left, operator, right } => {
+        assert_eq!(*operator, BinaryOperator::GreaterThan);
+        assert_node!(parser.tree, *left, Expression::Binary { left, operator, right } => {
+            assert_eq!(*operator, BinaryOperator::LessThan);
+            assert_expression_path!(parser, parser.tree.get(*left), "f");
+            assert_expression_path!(parser, parser.tree.get(*right), "T");
+        });
+        assert_node!(parser.tree, *right, Expression::Unary { operator, right } => {
+            assert_eq!(*operator, UnaryOperator::Plus);
+            assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+        });
     });
 }

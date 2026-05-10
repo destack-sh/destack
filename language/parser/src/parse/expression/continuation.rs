@@ -77,6 +77,7 @@ impl InfixRightKind {
             {
                 Self::TypeConditional
             }
+            ParseInfixOperator::TypeBinary(_) if left_is_type_expression => Self::TypeOperator,
             ParseInfixOperator::TypeBinary(_) => Self::InvalidValueTypeOperator,
             _ => Self::Value,
         }
@@ -383,6 +384,10 @@ impl Parser {
             Expression::As { expression, .. } | Expression::Satisfies { expression, .. } => {
                 self.expression_is_simple_assignment_target(*expression)
             }
+            Expression::Unary {
+                operator: UnaryOperator::Dereference,
+                right,
+            } if self.language.is_destack() => self.expression_is_simple_assignment_target(*right),
             Expression::Must { left, .. } => self.expression_is_simple_assignment_target(*left),
             _ => false,
         }
@@ -609,13 +614,6 @@ impl Parser {
         start: &ParserSpanStart,
         left_expression_id: LocalNodeId<Expression>,
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
-        if matches!(
-            self.tree.get(left_expression_id),
-            Expression::Instantiation { .. }
-        ) {
-            return Err(ParseError::unexpected(self.peek()?.span));
-        }
-
         let dot_span = self.peek()?.span;
         let next_token = self.next_token();
         let next_token_type = next_token.token.ty;
@@ -1016,6 +1014,7 @@ impl Parser {
     ) -> ParseResult<Option<LocalNodeId<Expression>>> {
         if !self.language.is_destack()
             || !self.peek_is(TokenType::OpenBrace)
+            || self.current_token_is_on_new_line()
             || self.flags.is_in_before_block()
         {
             return Ok(None);
@@ -1194,13 +1193,6 @@ impl Parser {
 
             // direct indexing
             TokenType::OpenBracket => {
-                if matches!(
-                    self.tree.get(left_expression_id),
-                    Expression::Instantiation { .. }
-                ) {
-                    return Err(ParseError::unexpected(self.peek()?.span));
-                }
-
                 let left_is_maybe =
                     matches!(self.tree.get(left_expression_id), Expression::Maybe { .. });
                 if left_is_maybe {
@@ -1411,38 +1403,43 @@ impl Parser {
 
         // `?` may follow on the same line or after a newline
         let has_conditional_marker = self.peek_is(TokenType::Maybe);
+        if !has_conditional_marker && self.language.is_destack() {
+            let type_expression_id = self.insert_node(
+                TypeExpression::Extends {
+                    left: left_type_id,
+                    right: extends_type,
+                },
+                self.get_span_from(start),
+            );
+
+            return Ok(type_expression_id);
+        }
+        if !has_conditional_marker {
+            return Err(ParseError::expected(self.peek()?.span, TokenType::Maybe));
+        }
 
         // branches
-        let (then_type, else_type) = if has_conditional_marker {
-            self.bump(); // eat ?
+        self.bump(); // eat ?
 
-            let then_context = self.flags.not_in_position();
-            let then_type = self.eat_type_expression_node_or_recover_missing(
-                self.flags
-                    .with_type(true)
-                    .with_expression_context(then_context),
-                NodeType::TypeExpression,
-            )?;
-            self.eat_colon()?;
+        let then_context = self.flags.not_in_position().in_type_conditional_right();
+        let then_type = self.eat_type_expression_node_or_recover_missing(
+            self.flags
+                .with_type(true)
+                .with_expression_context(then_context),
+            NodeType::TypeExpression,
+        )?;
+        self.eat_colon()?;
 
-            let mut else_context = self.flags.not_in_position();
-            if self.flags.is_in_type_conditional_right() {
-                else_context = else_context.in_type_conditional_right();
-            }
-            let else_type = self.eat_type_expression_node_or_recover_missing(
-                self.flags
-                    .with_type(true)
-                    .with_expression_context(else_context),
-                NodeType::TypeExpression,
-            )?;
-
-            (then_type, else_type)
-        } else {
-            let then_type = self.insert_missing_type_expression_here();
-            let else_type = self.insert_missing_type_expression_here();
-
-            (then_type, else_type)
-        };
+        let mut else_context = self.flags.not_in_position();
+        if self.flags.is_in_type_conditional_right() {
+            else_context = else_context.in_type_conditional_right();
+        }
+        let else_type = self.eat_type_expression_node_or_recover_missing(
+            self.flags
+                .with_type(true)
+                .with_expression_context(else_context),
+            NodeType::TypeExpression,
+        )?;
 
         let type_expression_id = self.insert_node(
             TypeExpression::Conditional {
@@ -1487,7 +1484,9 @@ impl Parser {
             }
 
             // stop before ternary or match boundaries
-            if (self.flags.is_in_ternary_condition() || self.flags.is_in_match_case())
+            if (self.flags.is_in_ternary_condition()
+                || self.flags.is_in_match_case()
+                || self.flags.is_in_type_conditional_right())
                 && token_type == TokenType::Colon
             {
                 break;
@@ -1540,7 +1539,7 @@ impl Parser {
                 ParseInfixOperator::Binary(
                     BinaryOperator::ElementwiseOr | BinaryOperator::ElementwiseAnd
                 ) | ParseInfixOperator::Is
-                    | ParseInfixOperator::TypeBinary(TypeBinaryOperator::Extends)
+                    | ParseInfixOperator::TypeBinary(_)
             );
             if !is_supported_type_operator {
                 // invalid type operators fail loudly in strict type space
