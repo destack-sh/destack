@@ -110,6 +110,7 @@ fn type_expression_complexity_inner(
         TypeExpression::Union { .. }
             | TypeExpression::Intersection { .. }
             | TypeExpression::Readonly { .. }
+            | TypeExpression::Shared { .. }
             | TypeExpression::KeyOf { .. }
             | TypeExpression::TypeOfValue { .. }
             | TypeExpression::Must { .. }
@@ -119,6 +120,9 @@ fn type_expression_complexity_inner(
             | TypeExpression::BorrowedOf { .. }
             | TypeExpression::PointerOf { .. }
             | TypeExpression::Conditional { .. }
+            | TypeExpression::In { .. }
+            | TypeExpression::Extends { .. }
+            | TypeExpression::Implements { .. }
             | TypeExpression::Mapped { .. }
             | TypeExpression::Index { .. }
             | TypeExpression::TemplateLiteral { .. }
@@ -151,15 +155,10 @@ fn type_expression_complexity_inner(
                 current_depth,
             ));
         }
-        TypeExpression::FixedArray { element, length } => {
+        TypeExpression::FixedArray { element, .. } => {
             max_depth = max_depth.max(type_expression_complexity_inner(
                 tree,
                 *element,
-                current_depth,
-            ));
-            max_depth = max_depth.max(type_expression_complexity_inner(
-                tree,
-                *length,
                 current_depth,
             ));
         }
@@ -265,6 +264,7 @@ fn type_expression_complexity_inner(
         }
         TypeExpression::Member { left, .. }
         | TypeExpression::Readonly { target_type: left }
+        | TypeExpression::Shared { target_type: left }
         | TypeExpression::KeyOf { target_type: left }
         | TypeExpression::Must { target_type: left }
         | TypeExpression::AsComptime { target_type: left }
@@ -312,6 +312,16 @@ fn type_expression_complexity_inner(
                 current_depth,
             ));
         }
+        TypeExpression::In { left, right }
+        | TypeExpression::Extends { left, right }
+        | TypeExpression::Implements { left, right } => {
+            max_depth = max_depth.max(type_expression_complexity_inner(tree, *left, current_depth));
+            max_depth = max_depth.max(type_expression_complexity_inner(
+                tree,
+                *right,
+                current_depth,
+            ));
+        }
         TypeExpression::Mapped {
             parameter, value, ..
         } => {
@@ -327,11 +337,13 @@ fn type_expression_complexity_inner(
                     current_depth,
                 ));
             }
-            max_depth = max_depth.max(type_expression_complexity_inner(
-                tree,
-                *value,
-                current_depth,
-            ));
+            if let Some(value) = value {
+                max_depth = max_depth.max(type_expression_complexity_inner(
+                    tree,
+                    *value,
+                    current_depth,
+                ));
+            }
         }
         TypeExpression::Index { left, index } => {
             max_depth = max_depth.max(type_expression_complexity_inner(tree, *left, current_depth));

@@ -1097,7 +1097,7 @@ pub fn declaration_at_allowed_root(
     }
     let block_id = ast::LocalNodeId::<ast::Block>::new(parent_id);
     let block = tree.get(block_id);
-    if block.form != ast::BlockForm::Explicit {
+    if !block.is_explicit() {
         return true;
     }
 
@@ -1990,6 +1990,9 @@ pub fn expression_has_side_effects(
                 ast::Argument::Error => true,
             }
         }),
+        ast::Expression::FixedArrayExpression { value, length } => {
+            expression_has_side_effects(ctx, *value) || expression_has_side_effects(ctx, *length)
+        }
 
         // pure: member access (if object is pure)
         ast::Expression::Member { left, .. } | ast::Expression::PrivateMember { left, .. } => {
@@ -2119,6 +2122,9 @@ pub fn type_expression_has_side_effects(
         | ast::TypeExpression::Readonly {
             target_type: expression,
         }
+        | ast::TypeExpression::Shared {
+            target_type: expression,
+        }
         | ast::TypeExpression::KeyOf {
             target_type: expression,
         }
@@ -2196,6 +2202,12 @@ pub fn type_expression_has_side_effects(
                 || type_expression_has_side_effects(ctx, *then_type)
                 || type_expression_has_side_effects(ctx, *else_type)
         }
+        ast::TypeExpression::In { left, right }
+        | ast::TypeExpression::Extends { left, right }
+        | ast::TypeExpression::Implements { left, right } => {
+            type_expression_has_side_effects(ctx, *left)
+                || type_expression_has_side_effects(ctx, *right)
+        }
         ast::TypeExpression::Mapped {
             parameter, value, ..
         } => {
@@ -2203,7 +2215,7 @@ pub fn type_expression_has_side_effects(
                 || parameter
                     .key_remap
                     .is_some_and(|key_remap| type_expression_has_side_effects(ctx, key_remap))
-                || type_expression_has_side_effects(ctx, *value)
+                || value.is_some_and(|value| type_expression_has_side_effects(ctx, value))
         }
         ast::TypeExpression::Index { left, index } => {
             type_expression_has_side_effects(ctx, *left)
