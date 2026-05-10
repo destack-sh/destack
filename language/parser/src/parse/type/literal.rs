@@ -30,7 +30,7 @@ impl Parser {
         match identifier {
             "boolean" => Some(TypeLiteral::Boolean),
             "void" => Some(TypeLiteral::Void),
-            "character" => Some(TypeLiteral::Character),
+            "char" => Some(TypeLiteral::Character),
             "string" => Some(TypeLiteral::String),
             "bigint" => Some(TypeLiteral::Bigint),
             "number" => Some(TypeLiteral::Number),
@@ -168,7 +168,7 @@ impl Parser {
         match next_str {
             "boolean" => Ok(TypeLiteral::Boolean),
             "void" => Ok(TypeLiteral::Void),
-            "character" => Ok(TypeLiteral::Character),
+            "char" => Ok(TypeLiteral::Character),
             "string" => Ok(TypeLiteral::String),
             "bigint" => Ok(TypeLiteral::Bigint),
             "number" => Ok(TypeLiteral::Number),

@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::str::Chars;
 
 use crate::lex::decode_html_entity;
 use crate::parse::prelude::*;
@@ -11,6 +12,79 @@ use destack_ast::{
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 impl Parser {
+    /// Decode one fixed-width hexadecimal character escape.
+    fn decode_fixed_character_escape(characters: &mut Chars<'_>, width: usize) -> Option<char> {
+        let mut value = 0u32;
+
+        for _ in 0..width {
+            let digit = characters.next()?.to_digit(16)?;
+            value = value.checked_mul(16)?.checked_add(digit)?;
+        }
+
+        char::from_u32(value)
+    }
+
+    /// Decode one braced hexadecimal character escape.
+    fn decode_braced_character_escape(characters: &mut Chars<'_>) -> Option<char> {
+        let mut value = 0u32;
+        let mut digits = 0usize;
+
+        loop {
+            let character = characters.next()?;
+            if character == '}' {
+                return (digits > 0).then(|| char::from_u32(value)).flatten();
+            }
+
+            let digit = character.to_digit(16)?;
+            value = value.checked_mul(16)?.checked_add(digit)?;
+            digits += 1;
+        }
+    }
+
+    /// Decode one escaped character payload.
+    fn decode_character_escape(characters: &mut Chars<'_>) -> Option<char> {
+        let escaped = characters.next()?;
+
+        match escaped {
+            '0' => Some('\0'),
+            'b' => Some('\u{08}'),
+            'f' => Some('\u{0C}'),
+            'n' => Some('\n'),
+            'r' => Some('\r'),
+            't' => Some('\t'),
+            'v' => Some('\u{0B}'),
+            'x' => Self::decode_fixed_character_escape(characters, 2),
+            'u' => {
+                if characters.as_str().starts_with('{') {
+                    characters.next();
+                    Self::decode_braced_character_escape(characters)
+                } else {
+                    Self::decode_fixed_character_escape(characters, 4)
+                }
+            }
+            character if character.is_ascii_digit() => None,
+            character => Some(character),
+        }
+    }
+
+    /// Decode one single-quoted character literal.
+    fn decode_character_literal(literal: &str) -> Option<char> {
+        if !literal.starts_with('\'') || !literal.ends_with('\'') || literal.len() < 2 {
+            return None;
+        }
+
+        let content = &literal[1..literal.len() - 1];
+        let mut characters = content.chars();
+        let character = if content.starts_with('\\') {
+            characters.next();
+            Self::decode_character_escape(&mut characters)?
+        } else {
+            characters.next()?
+        };
+
+        characters.next().is_none().then_some(character)
+    }
+
     /// Return true when the current token starts a template literal.
     #[inline]
     pub fn is_template_literal_start(&mut self) -> bool {
@@ -260,8 +334,7 @@ impl Parser {
                     })
             }
 
-            // string literal (ignore quotes)
-            // supports both '...' and "..." delimited string literals
+            // string or Destack character literal
             LiteralType::String {
                 is_terminated,
                 has_invalid_escape,
@@ -273,6 +346,19 @@ impl Parser {
                         NodeType::Expression,
                     ));
                 }
+
+                if self.language.is_destack() && literal_str.starts_with('\'') {
+                    return Self::decode_character_literal(literal_str)
+                        .map(ScalarLiteral::Character)
+                        .ok_or_else(|| {
+                            ParseError::expected_for(
+                                literal_span.span,
+                                TokenType::Literal,
+                                NodeType::Expression,
+                            )
+                        });
+                }
+
                 let content = {
                     // "..." or '...'
                     if literal_str.len() >= 2
@@ -1637,7 +1723,8 @@ mod tests {
     /// Parse string literal.
     #[test]
     fn test_parse_string_literal() {
-        let mut test = TestParser::new(r#""hello" 'hi there'"#);
+        let mut test =
+            TestParser::new_with_language(r#""hello" 'hi there'"#, LanguageType::TypeScript);
         let mut parser = test.prepare();
 
         let literal = parser.eat_scalar_literal().unwrap();
@@ -1661,21 +1748,34 @@ mod tests {
         );
     }
 
-    /// Parse single quoted character length literals as strings.
+    /// Parse Destack single quoted literals as characters.
     #[test]
-    fn test_parse_single_quoted_character_length_literal_as_string() {
+    fn test_parse_single_quoted_character_literal() {
         let mut test = TestParser::new("'a'");
         let mut parser = test.prepare();
 
         let literal = parser.eat_scalar_literal().unwrap();
 
-        assert_string!(
-            parser,
-            match literal {
-                ScalarLiteral::String(id) => id,
-                other => panic!("expected string literal, got {other:?}"),
-            },
-            "a"
+        assert_eq!(literal, ScalarLiteral::Character('a'));
+    }
+
+    /// Parse escaped Destack single quoted literals as characters.
+    #[test]
+    fn test_parse_escaped_single_quoted_character_literal() {
+        let mut test = TestParser::new(r#"'\n' '\'' '\u{41}'"#);
+        let mut parser = test.prepare();
+
+        assert_eq!(
+            parser.eat_scalar_literal().unwrap(),
+            ScalarLiteral::Character('\n')
+        );
+        assert_eq!(
+            parser.eat_scalar_literal().unwrap(),
+            ScalarLiteral::Character('\'')
+        );
+        assert_eq!(
+            parser.eat_scalar_literal().unwrap(),
+            ScalarLiteral::Character('A')
         );
     }
 
@@ -1683,7 +1783,7 @@ mod tests {
     #[test]
     fn test_parse_single_quoted_line_separator_as_string() {
         // source: ('\u{2028}')
-        let mut test = TestParser::new("('\u{2028}')");
+        let mut test = TestParser::new_with_language("('\u{2028}')", LanguageType::TypeScript);
         let mut parser = test.prepare();
 
         parser
@@ -1704,7 +1804,7 @@ mod tests {
     #[test]
     fn test_parse_single_quoted_paragraph_separator_as_string() {
         // source: ('\u{2029}')
-        let mut test = TestParser::new("('\u{2029}')");
+        let mut test = TestParser::new_with_language("('\u{2029}')", LanguageType::TypeScript);
         let mut parser = test.prepare();
 
         parser
@@ -1947,7 +2047,7 @@ mod tests {
 
     #[test]
     fn test_parse_type_literal() {
-        let mut test = TestParser::new("int32 uint8 float boolean symbol unique symbol");
+        let mut test = TestParser::new("int32 uint8 float boolean char symbol unique symbol");
         let mut parser = test.prepare();
         parser.flags.set_in_type(true);
 
@@ -1972,6 +2072,10 @@ mod tests {
         assert!(matches!(
             parser.eat_type_literal(None).unwrap(),
             TypeLiteral::Boolean
+        ));
+        assert!(matches!(
+            parser.eat_type_literal(None).unwrap(),
+            TypeLiteral::Character
         ));
         assert!(matches!(
             parser.eat_type_literal(None).unwrap(),
