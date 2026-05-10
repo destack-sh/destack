@@ -1,6 +1,6 @@
-import path from "path";
-import os from "os";
 import fs from "fs";
+import os from "os";
+import path from "path";
 
 const benchTitle = "Page Load Tests";
 const workDir = fs.mkdtempSync(path.join(os.tmpdir(), "next-stats"));

@@ -1,6 +1,6 @@
 /**
- * @fileoverview This file contains code intended to test our types.
- * It was initially extracted from the `@types/eslint__js` package.
+ * @file This file contains code intended to test our types. It was initially extracted from the
+ *   `@types/eslint__js` package.
  */
 
 /*
@@ -26,6 +26,7 @@
  */
 
 import type { ESLint, Linter } from "eslint";
+
 import js from "../../";
 
 js satisfies ESLint.Plugin;

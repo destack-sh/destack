@@ -7,8 +7,8 @@ import { debugAssert, debugAssertIsNonNull } from "../utils/asserts.ts";
 /**
  * Globals for the file being linted.
  *
- * Globals are deserialized from JSON, so can only contain JSON-compatible values.
- * Each global variable maps to "readonly", "writable", or "off".
+ * Globals are deserialized from JSON, so can only contain JSON-compatible values. Each global
+ * variable maps to "readonly", "writable", or "off".
  */
 export type Globals = Record<string, "readonly" | "writable" | "off">;
 
@@ -29,8 +29,8 @@ export let envs: Readonly<Envs> | null = null;
 /**
  * Updates the globals for the file.
  *
- * TODO(perf): Globals are deserialized once per file to accommodate folder level settings,
- * even if the globals haven't changed.
+ * TODO(perf): Globals are deserialized once per file to accommodate folder level settings, even if
+ * the globals haven't changed.
  *
  * @param globalsJSONInput - Globals for the file as JSON
  */
@@ -61,9 +61,7 @@ export function initGlobals(): void {
     Object.freeze(envs);
 }
 
-/**
- * Reset globals.
- */
+/** Reset globals. */
 export function resetGlobals(): undefined {
     globals = null;
     envs = null;

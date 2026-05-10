@@ -15,7 +15,7 @@ import {foo,bar,baz} from "module"
 Spaces are added after `{` and before `}`.
 
 ```ds expected
-import { foo, bar, baz } from "module";
+import { bar, baz, foo } from "module";
 ```
 
 ### short imports stay on one line
@@ -63,7 +63,7 @@ import { foo as f, bar as b, baz as z } from "module"
 ```
 
 ```ds expected
-import { foo as f, bar as b, baz as z } from "module";
+import { bar as b, foo as f, baz as z } from "module";
 ```
 
 ## Default Imports
@@ -203,7 +203,7 @@ import { type Foo, type Bar, baz } from "module"
 ```
 
 ```ds expected
-import { type Foo, type Bar, baz } from "module";
+import { type Bar, type Foo, baz } from "module";
 ```
 
 ## Line Breaking
@@ -220,9 +220,9 @@ Each import goes on its own line with a trailing comma.
 
 ```ds expected
 import {
-    veryLongName,
     anotherLongName,
     thirdLongName,
+    veryLongName,
 } from "module";
 ```
 
@@ -285,7 +285,7 @@ export { foo, bar } from "module"
 ```
 
 ```ds expected
-export { foo, bar } from "module";
+export { bar, foo } from "module";
 ```
 
 ### re-export with alias
@@ -297,7 +297,7 @@ export { foo as f, bar as b } from "module"
 ```
 
 ```ds expected
-export { foo as f, bar as b } from "module";
+export { bar as b, foo as f } from "module";
 ```
 
 ### re-export as namespace
@@ -321,7 +321,7 @@ export type { Foo, Bar } from "module"
 ```
 
 ```ds expected
-export type { Foo, Bar } from "module";
+export type { Bar, Foo } from "module";
 ```
 
 ## Import Attributes

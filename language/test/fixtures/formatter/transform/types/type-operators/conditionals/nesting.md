@@ -38,7 +38,7 @@ type Unpacked<T> = T extends (infer U)[] ? U : T;
 
 Constrained `infer` clauses stay attached to the `extends` boundary under non-default formatter options.
 
-```ts:main.ts indent-width=2 line-width=80 quote-style=double
+```ts:main.ts indent-width=2 line-width=80
 type X3<T> = T extends [infer U extends number] ? MustBeNumber<U> : never;
 type X4<T> = T extends [infer U extends number, infer U extends number] ? MustBeNumber<U> : never;
 type X5<T> = T extends [infer U extends number, infer U] ? MustBeNumber<U> : never;

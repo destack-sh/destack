@@ -1,8 +1,12 @@
 import assert from "node:assert";
 import { join as pathJoin } from "node:path";
-import { describe, it, expect, beforeEach } from "vitest";
+
+import { beforeEach, describe, expect, it } from "vitest";
+
+import type { Program } from "../src-js/generated/types.d.ts";
 import { parse as parseRaw } from "../src-js/package/parse.ts";
-import { setupFileContext, resetFileContext } from "../src-js/plugins/context.ts";
+import type { ParseOptions } from "../src-js/package/parse.ts";
+import { resetFileContext, setupFileContext } from "../src-js/plugins/context.ts";
 import { buffers } from "../src-js/plugins/lint.ts";
 import {
     ast,
@@ -13,12 +17,10 @@ import {
 import { isSpaceBetween, isSpaceBetweenTokens } from "../src-js/plugins/tokens.ts";
 import { debugAssertIsNonNull } from "../src-js/utils/asserts.ts";
 
-import type { ParseOptions } from "../src-js/package/parse.ts";
-import type { Program } from "../src-js/generated/types.d.ts";
-
 /**
- * Parse source text into AST using Oxc parser.
- * Set up global state, as if was linting the provided file.
+ * Parse source text into AST using Oxc parser. Set up global state, as if was linting the provided
+ * file.
+ *
  * @param filename - Filename
  * @param sourceText - Source text
  * @param options - Parse options

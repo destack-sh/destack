@@ -2,9 +2,8 @@
  * Methods related to settings.
  */
 
-import { deepFreezeJsonValue } from "./json.ts";
 import { debugAssertIsNonNull } from "../utils/asserts.ts";
-
+import { deepFreezeJsonValue } from "./json.ts";
 import type { JsonObject } from "./json.ts";
 
 /**
@@ -23,8 +22,8 @@ export let settings: Readonly<Settings> | null = null;
 /**
  * Updates the settings for the file.
  *
- * TODO(perf): Settings are deserialized once per file to accommodate folder level settings,
- * even if the settings haven't changed.
+ * TODO(perf): Settings are deserialized once per file to accommodate folder level settings, even if
+ * the settings haven't changed.
  *
  * @param settingsJSONInput - Settings for the file as JSON
  */
@@ -32,9 +31,7 @@ export function setSettingsForFile(settingsJSONInput: string): undefined {
     settingsJSON = settingsJSONInput;
 }
 
-/**
- * Deserialize settings from JSON.
- */
+/** Deserialize settings from JSON. */
 export function initSettings(): undefined {
     debugAssertIsNonNull(settingsJSON);
     settings = JSON.parse(settingsJSON);
@@ -42,9 +39,7 @@ export function initSettings(): undefined {
     deepFreezeJsonValue(settings);
 }
 
-/**
- * Reset settings.
- */
+/** Reset settings. */
 export function resetSettings(): undefined {
     settings = null;
     settingsJSON = null;

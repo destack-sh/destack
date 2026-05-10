@@ -8,7 +8,7 @@ JSDoc fixtures cover declaration documentation formatting.
 
 Paragraph breaks in declaration docs are preserved.
 
-```ts:main.ts jsdoc=true line-width=80
+```ts:main.ts line-width=80
 /**
  * creates the reader
  *
@@ -30,7 +30,7 @@ function readReader() {}
 
 Declaration comments can collapse to single-line JSDoc.
 
-```ts:main.ts jsdoc=true line-width=80
+```ts:main.ts line-width=80
 /**
  * reads the value
  */
@@ -56,7 +56,7 @@ const value = 1;
 
 Member-level documentation is formatted.
 
-```ts:main.ts jsdoc=true line-width=80
+```ts:main.ts line-width=80
 class Box {
     /**
      * count value
@@ -98,7 +98,7 @@ interface Shape {
 
 JSDoc on exported declarations formats with the declaration.
 
-```ts:main.ts jsdoc=true line-width=80
+```ts:main.ts line-width=80
 /**
  * creates a reader
  * @param {string} name reader name
@@ -123,7 +123,7 @@ export function createReader(name: string): Reader {
 
 Description tags merge into the leading description.
 
-```ts:main.ts jsdoc=true line-width=80
+```ts:main.ts line-width=80
 /**
  * reads config
  * @description resolves defaults and validates values
@@ -147,7 +147,7 @@ function readConfig() {}
 
 Recognized tag aliases normalize to canonical tag names.
 
-```ts:main.ts jsdoc=true line-width=80
+```ts:main.ts line-width=80
 /**
  * @arg {number} count item count
  * @return {number} total count
@@ -171,7 +171,7 @@ function total(count: number): number {
 
 Property tags format nested option documentation.
 
-```ts:main.ts jsdoc=true line-width=80
+```ts:main.ts line-width=80
 /**
  * creates options
  * @param {object} options builder options
@@ -197,7 +197,7 @@ function createOptions(options: Options) {}
 
 JSDoc comments that do not document declarations are preserved.
 
-```ts:main.ts jsdoc=true line-width=80
+```ts:main.ts line-width=80
 /**
  * do not format me
  */
@@ -217,7 +217,7 @@ read();
 
 JSDoc parameter defaults keep the same normalized description shape.
 
-```ts:main.ts jsdoc=true line-width=80
+```ts:main.ts line-width=80
 /**
  * @param {string} x The string to parse as a number
  * @param {boolean} [int=true] Whether to parse as an integer or float. Default
@@ -241,7 +241,7 @@ function parseNumber(x, int) {}
 
 Typed param tags keep source order.
 
-```ts:main.ts jsdoc=true line-width=80
+```ts:main.ts line-width=80
 /**
  * @param {number} second second value
  * @param {number} first first value
@@ -265,7 +265,7 @@ function add(first, second) {
 
 Dash-separated tag descriptions format as declaration docs.
 
-```js:main.js jsdoc=true line-width=80 indent-width=2
+```js:main.js line-width=80 indent-width=2
 /**
  * @param {string} name - the user name
  */
@@ -297,7 +297,7 @@ function read(x) {}
 
 Short recognized tags collapse to single-line JSDoc.
 
-```js:main.js jsdoc=true line-width=80 indent-width=2
+```js:main.js line-width=80 indent-width=2
 /**
  * @deprecated
  */
@@ -321,7 +321,7 @@ function count() {}
 
 Blank lines between tags and descriptions preserve continuation indentation.
 
-```js:main.js jsdoc=true line-width=80 indent-width=2
+```js:main.js line-width=80 indent-width=2
 /**
  * @param {string} name
  *
@@ -343,7 +343,7 @@ function withParamBlank(name) {}
 
 Typeless parameter and return tags format their descriptions.
 
-```ts:main.ts jsdoc=true line-width=80
+```ts:main.ts line-width=80
 /**
  * parses a source file
  * @param filename source file name
@@ -370,7 +370,7 @@ function parse(filename: string, sourceText: string) {
 
 Typeless param tags keep source order.
 
-```ts:main.ts jsdoc=true line-width=80
+```ts:main.ts line-width=80
 /**
  * @param second second value
  * @param first first value
@@ -390,7 +390,7 @@ function pair(first: number, second: number) {}
 
 Multiline type text is preserved while comment leaders are stripped.
 
-```ts:main.ts jsdoc=true line-width=80
+```ts:main.ts line-width=80
 /**
  * @param {{
  * 	failed?: (renderer: Renderer, error: unknown, reset: () => void) => void;
@@ -412,7 +412,7 @@ function boundary(props) {}
 
 Type parameter documentation formats as prose.
 
-```ts:main.ts jsdoc=true line-width=80
+```ts:main.ts line-width=80
 /**
  * @typeParam T wrapped value
  * @param {T} value input value
@@ -436,7 +436,7 @@ function identity<T>(value: T) {
 
 Metadata and remarks keep their expected line shapes.
 
-```ts:main.ts jsdoc=true line-width=80
+```ts:main.ts line-width=80
 /**
  * @remarks this is longer documentation.
  * @deprecated use `next` instead.
@@ -461,7 +461,7 @@ function old() {}
 
 Default tags keep their value on the tag line.
 
-```ts:main.ts jsdoc=true line-width=60
+```ts:main.ts line-width=60
 /**
  * @default <span v-pre>`"{{browser}}-mv{{manifestVersion}}{{modeSuffix}}"`</span>
  */
@@ -477,7 +477,7 @@ function outDirTemplate() {}
 
 Example tags keep following default values unwrapped.
 
-```ts:main.ts jsdoc=true line-width=60 indent-width=2
+```ts:main.ts line-width=60 indent-width=2
 /**
  * @example
  *   {{browser}} -mv{{manifestVersion}}
@@ -502,7 +502,7 @@ function outDirTemplate() {}
 
 Markdown descriptions normalize emphasis, lists, links, and wrapping.
 
-```ts:main.ts jsdoc=true line-width=70
+```ts:main.ts line-width=70
 /**
  * __bold__ and *italic* text with {@link VeryLongTargetName} that should wrap around the configured width.
  *
@@ -528,7 +528,7 @@ function describe() {}
 
 Example code blocks are formatted as embedded code.
 
-```ts:main.ts jsdoc=true line-width=80
+```ts:main.ts line-width=80
 /**
  * @example
  * ```ts
@@ -552,7 +552,7 @@ function example() {}
 
 Destack code fences are formatted as embedded code.
 
-```ts:main.ts jsdoc=true line-width=80
+```ts:main.ts line-width=80
 /**
  * @example
  * ```ds
@@ -580,7 +580,7 @@ function example() {}
 
 Example snippets in JavaScript files keep TypeScript generic syntax intact.
 
-```js:main.js jsdoc=true line-width=80 indent-width=2
+```js:main.js line-width=80 indent-width=2
 /**
  * @example
  * await storage.getItem<number>("key");
@@ -614,7 +614,7 @@ function bar() {}
 
 Tab-indented JSDoc keeps tab continuation indentation.
 
-```ts:main.ts jsdoc=true line-width=80 indent-style=tab
+```ts:main.ts line-width=80 indent-style=tab
 class Renderer {
 	/**
 	 * @param {{

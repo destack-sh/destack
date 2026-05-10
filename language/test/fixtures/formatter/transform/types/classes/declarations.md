@@ -279,7 +279,7 @@ class Foo {
 
 ### TypeScript class quoted keys
 
-Quoted class members preserve their original quoting unless quote-props mode says otherwise.
+Quoted class members preserve required quotes and remove unnecessary keyword quotes.
 
 ```ts:main.ts
 class Config { "normal" = 1; "data-id" = 2; "default"() { } }
@@ -295,7 +295,7 @@ class Config {
 
 ### Destack class quoted members
 
-Quoted class members preserve their original quoting unless quote-props mode says otherwise.
+Quoted class members preserve required quotes and remove unnecessary keyword quotes.
 
 ```ds
 class Config { "normal" = 1; "data-id" = 2; "default"() { } }
@@ -306,38 +306,6 @@ class Config {
     "normal" = 1;
     "data-id" = 2;
     default() {}
-}
-```
-
-### TypeScript class quote props consistent
-
-Consistent quote props quotes all keys when any require quotes.
-
-```ts:main.ts quote-props=consistent
-class Options { normal = 1; "data-id" = 2; "default"() { } }
-```
-
-```ts expected
-class Options {
-    "normal" = 1;
-    "data-id" = 2;
-    "default"() {}
-}
-```
-
-### Destack class quote props consistent
-
-Consistent quote props applies to shared class member syntax.
-
-```ds quote-props=consistent
-class Options { normal = 1; "data-id" = 2; "default"() { } }
-```
-
-```ds expected
-class Options {
-    "normal" = 1;
-    "data-id" = 2;
-    "default"() {}
 }
 ```
 
@@ -593,7 +561,7 @@ Combined declaration fixtures cover documentation, decorators, heritage clauses,
 
 JSDoc, decorators, exports, heritage clauses, and decorated members keep their relative order.
 
-```ts:main.ts jsdoc=true line-width=80
+```ts:main.ts line-width=80
 /**
  * Stores values.
  * @typeParam T value type

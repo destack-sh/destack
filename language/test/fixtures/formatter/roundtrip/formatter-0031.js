@@ -1,6 +1,6 @@
 import assert from "assert";
 import { readFileSync } from "fs";
-import { version, graphqlSync } from "graphql";
+import { graphqlSync, version } from "graphql";
 import { buildSchema } from "graphql/utilities";
 
 assert.deepStrictEqual(

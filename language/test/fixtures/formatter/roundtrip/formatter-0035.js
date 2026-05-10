@@ -1,4 +1,4 @@
-import { run, group, bench } from "mitata";
+import { bench, group, run } from "mitata";
 
 const arr = new Array(100000).fill(Math.random());
 

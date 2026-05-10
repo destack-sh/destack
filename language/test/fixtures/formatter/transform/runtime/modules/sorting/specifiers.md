@@ -8,7 +8,7 @@ Import specifier fixtures cover sorting inside import and export braces.
 
 Import specifiers should be sorted alphabetically.
 
-```ds organize-imports=on
+```ds
 import { zebra, apple, mango } from "fruits"
 ```
 
@@ -20,7 +20,7 @@ import { apple, mango, zebra } from "fruits";
 
 Default import stays first, remaining specifiers are sorted.
 
-```ds organize-imports=on
+```ds
 import Default, { zebra, apple, mango } from "fruits"
 ```
 
@@ -32,7 +32,7 @@ import Default, { apple, mango, zebra } from "fruits";
 
 Numbers are sorted as integers, not lexicographically.
 
-```ds organize-imports=on
+```ds
 import { item10, item2, item1 } from "items"
 ```
 
@@ -46,7 +46,7 @@ import { item1, item2, item10 } from "items";
 
 Type imports come before value imports.
 
-```ds organize-imports=on
+```ds
 import { value1, type Type1, value2, type Type2 } from "module"
 ```
 
@@ -58,7 +58,7 @@ import { type Type1, type Type2, value1, value2 } from "module";
 
 Type imports sorted, then value imports sorted.
 
-```ds organize-imports=on
+```ds
 import Default, { zebra, type Animal, apple, type Fruit } from "module"
 ```
 
@@ -72,7 +72,7 @@ import Default, { type Animal, type Fruit, apple, zebra } from "module";
 
 Export specifiers are also sorted.
 
-```ds organize-imports=on
+```ds
 export { zebra, apple, mango } from "fruits"
 ```
 
@@ -84,7 +84,7 @@ export { apple, mango, zebra } from "fruits";
 
 Type exports come before value exports.
 
-```ds organize-imports=on
+```ds
 export { value1, type Type1, value2, type Type2 } from "module"
 ```
 
@@ -98,7 +98,7 @@ export { type Type1, type Type2, value1, value2 } from "module";
 
 When an alias is present, sort by the alias (local name).
 
-```ds organize-imports=on
+```ds
 import { foo as zebra, bar as apple } from "module"
 ```
 

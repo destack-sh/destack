@@ -1,4 +1,4 @@
-import { entity, Entity, Reference } from "destack";
+import { Entity, entity, Reference } from "destack";
 
 @description("The status of a Meetup.")
 export enum MeetupStatus {

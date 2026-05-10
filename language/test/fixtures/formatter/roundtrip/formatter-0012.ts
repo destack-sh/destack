@@ -7,12 +7,12 @@
  */
 
 import { ComponentFixture, TestBed } from "@angular/core/testing";
-
-import { Breadcrumb } from "./breadcrumb.component";
-import { NavigationState } from "../../services";
-import { NavigationItem } from "../../interfaces";
 import { By } from "@angular/platform-browser";
 import { provideRouter } from "@angular/router";
+
+import { NavigationItem } from "../../interfaces";
+import { NavigationState } from "../../services";
+import { Breadcrumb } from "./breadcrumb.component";
 
 describe("Breadcrumb", () => {
     let navigationStateSpy: jasmine.SpyObj<NavigationState>;

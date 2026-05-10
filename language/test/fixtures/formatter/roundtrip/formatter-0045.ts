@@ -1,7 +1,7 @@
 import {
-    animationMapKey,
     AnimationPlaybackControls,
     AnimationScope,
+    animationMapKey,
     applyPxDefaults,
     DOMKeyframesDefinition,
     AnimationOptions as DynamicAnimationOptions,
@@ -40,18 +40,17 @@ export function animateElements(
      * WAAPI doesn't support interrupting animations.
      *
      * Therefore, starting animations requires a three-step process:
+     *
      * 1. Stop existing animations (write styles to DOM)
      * 2. Resolve keyframes (read styles from DOM)
      * 3. Create new animations (write styles to DOM)
      *
-     * The hybrid `animate()` function uses AsyncAnimation to resolve
-     * keyframes before creating new animations, which removes style
-     * thrashing. Here, we have much stricter filesize constraints.
-     * Therefore we do this in a synchronous way that ensures that
-     * at least within `animate()` calls there is no style thrashing.
+     * The hybrid `animate()` function uses AsyncAnimation to resolve keyframes before creating new
+     * animations, which removes style thrashing. Here, we have much stricter filesize constraints.
+     * Therefore we do this in a synchronous way that ensures that at least within `animate()` calls
+     * there is no style thrashing.
      *
-     * In the motion-native-animate-mini-interrupt benchmark this
-     * was 80% faster than a single loop.
+     * In the motion-native-animate-mini-interrupt benchmark this was 80% faster than a single loop.
      */
     const animationDefinitions: AnimationDefinition[] = [];
 
@@ -85,8 +84,8 @@ export function animateElements(
             valueOptions.delay &&= secondsToMilliseconds(valueOptions.delay);
 
             /**
-             * If there's an existing animation playing on this element then stop it
-             * before creating a new one.
+             * If there's an existing animation playing on this element then stop it before creating
+             * a new one.
              */
             const map = getAnimationMap(element);
             const key = animationMapKey(valueName, valueOptions.pseudoElement || "");
@@ -134,9 +133,7 @@ export function animateElements(
         animationOptions.keyframes = unresolvedKeyframes as ValueKeyframe[];
     }
 
-    /**
-     * Step 3: Create new animations (write)
-     */
+    /** Step 3: Create new animations (write) */
     const animations: AnimationPlaybackControls[] = [];
     for (let i = 0; i < animationDefinitions.length; i++) {
         const { map, key, options: animationOptions } = animationDefinitions[i];

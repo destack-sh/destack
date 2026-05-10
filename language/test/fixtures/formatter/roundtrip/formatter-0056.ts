@@ -1,7 +1,9 @@
-import { join } from "node:path";
-import { tmpdir } from "node:os";
 import fs from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
+
 import { runCli } from "../utils";
 
 describe("--init", () => {

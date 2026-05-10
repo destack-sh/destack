@@ -6,7 +6,7 @@
 
 Long generic constraints and defaults break cleanly under non-default formatter options.
 
-```ts:main.ts indent-width=2 line-width=80 quote-style=double
+```ts:main.ts indent-width=2 line-width=80
 export type OuterType1<
   LongerLongerLongerLongerInnerType extends LongerLongerLongerLongerOtherType<OneMoreType>
 > = { a: 1 };

@@ -15,7 +15,7 @@ export {foo,bar,baz}
 Spaces are added after `{` and before `}`.
 
 ```ds expected
-export { foo, bar, baz };
+export { bar, baz, foo };
 ```
 
 ### single named export
@@ -51,7 +51,7 @@ export { foo as f, bar as b, baz as z }
 ```
 
 ```ds expected
-export { foo as f, bar as b, baz as z };
+export { bar as b, foo as f, baz as z };
 ```
 
 ### export as default
@@ -293,7 +293,7 @@ export { type Foo, type Bar, type Baz }
 ```
 
 ```ds expected
-export { type Foo, type Bar, type Baz };
+export { type Bar, type Baz, type Foo };
 ```
 
 ## Line Breaking
@@ -310,9 +310,9 @@ Each export goes on its own line with a trailing comma.
 
 ```ds expected
 export {
-    veryLongName,
     anotherLongName,
     thirdLongName,
+    veryLongName,
 };
 ```
 
