@@ -133,11 +133,11 @@ const refs = (&(/* borrow */ value), ^(/* own */ value), *(/* pointer */ value))
 Comments after readonly ownership prefixes group the operand.
 
 ```ds
-const refs = (&readonly /* borrow */ value, *readonly /* pointer */ value)
+const refs = (&readonly /* borrow */ value, ^readonly /* move */ value)
 ```
 
 ```ds expected
-const refs = (&readonly (/* borrow */ value), *readonly (/* pointer */ value));
+const refs = (&readonly (/* borrow */ value), ^readonly (/* move */ value));
 ```
 
 ### reference operators as receivers

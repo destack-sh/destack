@@ -86,6 +86,21 @@ match (result) {
 }
 ```
 
+### match with empty block body
+
+Empty block arms stay compact.
+
+```ds
+match (result) { Ok(value) => value; Err(_) => {} }
+```
+
+```ds expected
+match (result) {
+    Ok(value) => value
+    Err(_) => {}
+}
+```
+
 ### match with object expression body
 
 Object expression bodies keep parentheses after the case arrow.
@@ -505,6 +520,26 @@ switch (type) {
         handleDynamic();
     default:
         handleDefault();
+}
+```
+
+### switch assignment body
+
+Assignment statements in switch cases stay direct.
+
+```ds
+switch (type) {
+    case "static": label = "static";
+    default: label = "other";
+}
+```
+
+```ds expected
+switch (type) {
+    case "static":
+        label = "static";
+    default:
+        label = "other";
 }
 ```
 

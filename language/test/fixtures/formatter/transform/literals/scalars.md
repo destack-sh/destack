@@ -18,13 +18,13 @@ const x = "hello";
 
 ### single quoted string
 
-Single quoted input normalizes to formatter quote style.
+TypeScript single quoted input normalizes to formatter quote style.
 
-```ds
+```ts:main.ts
 const x = 'a'
 ```
 
-```ds expected
+```ts expected
 const x = "a";
 ```
 
@@ -50,6 +50,32 @@ const x = "hello world"
 
 ```ds expected
 const x = "hello world";
+```
+
+## Characters
+
+### character literal
+
+Character literals use single quotes.
+
+```ds
+const x = 'a'
+```
+
+```ds expected
+const x = 'a';
+```
+
+### character literal with quote
+
+Character literals escape embedded single quotes.
+
+```ds
+const x = '\''
+```
+
+```ds expected
+const x = '\'';
 ```
 
 ## Escape Sequences
