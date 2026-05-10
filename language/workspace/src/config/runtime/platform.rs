@@ -145,8 +145,8 @@ pub struct PlatformTlsOptions {
 pub struct PlatformSecurityOptions {
     /// Optional sandbox profile selector.
     pub sandbox_profile: Option<String>,
-    /// Optional capability profile selector.
-    pub capability_profile: Option<String>,
+    /// Optional action profile selector.
+    pub action_profile: Option<String>,
 }
 
 /// OS service runtime options.
@@ -713,8 +713,8 @@ impl PlatformTlsOptionsJson {
 pub struct PlatformSecurityOptionsJson {
     /// Optional sandbox profile selector.
     pub sandbox_profile: Option<String>,
-    /// Optional capability profile selector.
-    pub capability_profile: Option<String>,
+    /// Optional action profile selector.
+    pub action_profile: Option<String>,
 }
 
 impl PlatformSecurityOptionsJson {
@@ -725,9 +725,9 @@ impl PlatformSecurityOptionsJson {
             options.sandbox_profile = Some(sandbox_profile.clone());
         }
 
-        // apply capability profile overrides
-        if let Some(capability_profile) = &self.capability_profile {
-            options.capability_profile = Some(capability_profile.clone());
+        // apply action profile overrides
+        if let Some(action_profile) = &self.action_profile {
+            options.action_profile = Some(action_profile.clone());
         }
     }
 }

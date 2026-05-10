@@ -33,6 +33,21 @@ pub struct TimeOptionsJson {
 }
 
 impl TimeOptionsJson {
+    /// Inherit unset time settings from one parent config.
+    pub fn extend_from(&mut self, parent: &Self) {
+        if self.mode.is_none() {
+            self.mode = parent.mode;
+        }
+
+        if self.epoch_ns.is_none() {
+            self.epoch_ns = parent.epoch_ns;
+        }
+
+        if self.time_zone.is_none() {
+            self.time_zone = parent.time_zone.clone();
+        }
+    }
+
     /// Apply time overrides to a base set of options.
     pub fn apply_to(&self, options: &mut TimeOptions) {
         // apply mode overrides

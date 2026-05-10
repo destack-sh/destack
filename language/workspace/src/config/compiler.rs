@@ -7,7 +7,7 @@ use crate::config::target::{EsTarget, JsModuleFormat};
 /// Normalized Destack compiler options.
 ///
 /// `.ds` semantics are always strict; these options only describe project,
-/// build, interop, and capability policy.
+/// build, interop, and compile-time policy.
 #[derive(Debug, Clone)]
 pub struct CompilerOptions {
     // module & target
@@ -30,7 +30,7 @@ pub struct CompilerOptions {
     /// Derive providers automatically considered for nominal declarations.
     pub derive: Vec<String>,
 
-    // capability restrictions
+    // static restrictions
     /// Policy for GC-managed defaults and allocations.
     pub no_managed: DiagnosticPolicy,
     /// Policy for all heap allocation.
@@ -70,7 +70,7 @@ impl Default for CompilerOptions {
             globals: Vec::new(),
             derive: Vec::new(),
 
-            // capability restrictions
+            // static restrictions
             no_managed: DiagnosticPolicy::Allow,
             no_heap: DiagnosticPolicy::Allow,
             no_runtime: DiagnosticPolicy::Allow,
@@ -229,7 +229,7 @@ pub struct CompilerOptionsJson {
     /// Derive providers automatically considered for nominal declarations.
     pub derive: Option<Vec<String>>,
 
-    // capability restrictions
+    // static restrictions
     /// Policy for GC-managed defaults and allocations.
     pub no_managed: Option<DiagnosticPolicyJson>,
     /// Policy for all heap allocation.
@@ -281,7 +281,7 @@ impl From<&CompilerOptionsJson> for CompilerOptions {
                 .unwrap_or_default(),
             derive: json.derive.clone().unwrap_or_default(),
 
-            // capability restrictions
+            // static restrictions
             no_managed: json
                 .no_managed
                 .map(DiagnosticPolicy::from)

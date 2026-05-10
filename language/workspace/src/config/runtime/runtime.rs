@@ -1,57 +1,41 @@
-use std::collections::BTreeMap;
-
 use destack_artifact::Runtime;
 use serde::{Deserialize, Serialize};
 
 use crate::config::target::AppOptions;
 use crate::{ExecutionMode, ReplayPayloadMode};
 
-use super::random::{RandomMode, RandomOptions};
+use super::random::{RandomMode, RandomOptions, RandomOptionsJson};
 use super::replay::ReplayOptions;
-use super::time::{TimeMode, TimeOptions};
+use super::time::{TimeMode, TimeOptions, TimeOptionsJson};
 use super::{
-    EffectOptions, EffectOptionsJson, EffectSource, HeapOptions, HeapOptionsJson,
-    PlatformAudioOptions, PlatformAudioOptionsJson, PlatformCryptoOptions,
-    PlatformCryptoOptionsJson, PlatformDeviceOptions, PlatformDeviceOptionsJson,
-    PlatformDisplayOptions, PlatformDisplayOptionsJson, PlatformFsOptions, PlatformFsOptionsJson,
-    PlatformGpuOptions, PlatformGpuOptionsJson, PlatformInputOptions, PlatformInputOptionsJson,
-    PlatformIpcOptions, PlatformIpcOptionsJson, PlatformNetOptions, PlatformNetOptionsJson,
-    PlatformOptions, PlatformOptionsJson, PlatformOsOptions, PlatformOsOptionsJson,
-    PlatformProcessOptions, PlatformProcessOptionsJson, PlatformSecurityOptions,
-    PlatformSecurityOptionsJson, PlatformTlsOptions, PlatformTlsOptionsJson,
-    RuntimeDiagnosticOptions, RuntimeDiagnosticOptionsJson, SchedulerMode, SchedulerOptions,
-    SchedulerOptionsJson, SimulationOptions, SimulationOptionsJson, TraceMode, TraceOptions,
-    TraceOptionsJson,
+    HeapOptions, HeapOptionsJson, PlatformAudioOptions, PlatformAudioOptionsJson,
+    PlatformCryptoOptions, PlatformCryptoOptionsJson, PlatformDeviceOptions,
+    PlatformDeviceOptionsJson, PlatformDisplayOptions, PlatformDisplayOptionsJson,
+    PlatformFsOptions, PlatformFsOptionsJson, PlatformGpuOptions, PlatformGpuOptionsJson,
+    PlatformInputOptions, PlatformInputOptionsJson, PlatformIpcOptions, PlatformIpcOptionsJson,
+    PlatformNetOptions, PlatformNetOptionsJson, PlatformOptions, PlatformOptionsJson,
+    PlatformOsOptions, PlatformOsOptionsJson, PlatformProcessOptions, PlatformProcessOptionsJson,
+    PlatformSecurityOptions, PlatformSecurityOptionsJson, PlatformTlsOptions,
+    PlatformTlsOptionsJson, RuntimeDiagnosticOptions, RuntimeDiagnosticOptionsJson, SchedulerMode,
+    SchedulerOptions, SchedulerOptionsJson, SimulationOptions, SimulationOptionsJson, TraceMode,
+    TraceOptions, TraceOptionsJson,
 };
-
-/// Default identity options for one runtime primary worker.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct RuntimeWorkerOptions {
-    /// Default primary worker name for policy selection.
-    pub name: Option<String>,
-    /// Default primary worker labels for policy selection.
-    pub labels: BTreeMap<String, String>,
-}
 
 /// Runtime configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct RuntimeOptions {
-    /// Execution host semantics for this runtime.
-    pub host: Runtime,
-    /// Runtime version for versioned library selection.
-    pub version: Option<String>,
+    /// Runtime environment family.
+    pub environment: Runtime,
     /// Stable runtime name for policy selection.
     pub name: Option<String>,
-    /// Runtime labels for policy selection.
-    pub labels: BTreeMap<String, String>,
-    /// Default primary worker identity for policy selection.
-    pub primary_worker: RuntimeWorkerOptions,
     /// Resolved app model for host availability checks.
     pub app: AppOptions,
     /// Runtime scheduler configuration.
     pub scheduler: SchedulerOptions,
-    /// Runtime effect configuration.
-    pub effect: EffectOptions,
+    /// Runtime clock source configuration.
+    pub time: TimeOptions,
+    /// Runtime randomness source configuration.
+    pub random: RandomOptions,
     /// Runtime simulation configuration.
     pub simulation: SimulationOptions,
     /// Runtime trace configuration.
@@ -108,27 +92,21 @@ impl RuntimeOptions {
             ExecutionMode::Replay => TraceMode::Replay,
         };
 
-        // effect sources
+        // replay uses virtual facts supplied by trace playback
         if mode == ExecutionMode::Replay {
-            self.effect.time = EffectSource::Trace;
-            self.effect.random = EffectSource::Trace;
+            self.time.mode = TimeMode::Virtual;
+            self.random.mode = RandomMode::Deterministic;
         }
     }
 
     /// Apply one collapsed time summary onto the runtime planes.
     pub fn set_time_mode(&mut self, mode: TimeMode) {
-        self.effect.time = match mode {
-            TimeMode::Host => EffectSource::Host,
-            TimeMode::Virtual => EffectSource::Simulation,
-        };
+        self.time.mode = mode;
     }
 
     /// Apply one collapsed randomness summary onto the runtime planes.
     pub fn set_random_mode(&mut self, mode: RandomMode) {
-        self.effect.random = match mode {
-            RandomMode::Host => EffectSource::Host,
-            RandomMode::Deterministic => EffectSource::Simulation,
-        };
+        self.random.mode = mode;
     }
 
     /// Return the collapsed execution summary.
@@ -153,22 +131,12 @@ impl RuntimeOptions {
 
     /// Return the collapsed time-source summary.
     pub fn time_mode(&self) -> TimeMode {
-        match self.effect.time {
-            EffectSource::Host => TimeMode::Host,
-            EffectSource::Trace | EffectSource::Simulation | EffectSource::Deny => {
-                TimeMode::Virtual
-            }
-        }
+        self.time.mode
     }
 
     /// Return the collapsed randomness summary.
     pub fn random_mode(&self) -> RandomMode {
-        match self.effect.random {
-            EffectSource::Host => RandomMode::Host,
-            EffectSource::Trace | EffectSource::Simulation | EffectSource::Deny => {
-                RandomMode::Deterministic
-            }
-        }
+        self.random.mode
     }
 
     /// Return the configured trace payload policy.
@@ -183,28 +151,23 @@ impl RuntimeOptions {
 
     /// Return derived clock configuration for runtime internals.
     pub fn time_options(&self) -> TimeOptions {
-        let mode = self.time_mode();
-        let epoch_ns = self.simulation.time.epoch_ns;
-        let time_zone = self.simulation.time.time_zone.clone();
+        let mut options = self.time.clone();
+        options.epoch_ns = options.epoch_ns.or(self.simulation.time.epoch_ns);
+        options.time_zone = options
+            .time_zone
+            .clone()
+            .or_else(|| self.simulation.time.time_zone.clone());
 
-        TimeOptions {
-            mode,
-            epoch_ns,
-            time_zone,
-        }
+        options
     }
 
     /// Return derived randomness configuration for runtime internals.
     pub fn random_options(&self) -> RandomOptions {
-        let mode = self.random_mode();
-        let seed = self.simulation.random.seed;
-        let per_runnable = self.simulation.random.per_runnable;
+        let mut options = self.random.clone();
+        options.seed = options.seed.or(self.simulation.random.seed);
+        options.per_runnable |= self.simulation.random.per_runnable;
 
-        RandomOptions {
-            mode,
-            seed,
-            per_runnable,
-        }
+        options
     }
 
     /// Return derived trace-storage configuration for runtime internals.
@@ -228,8 +191,8 @@ impl RuntimeOptions {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum RuntimeConfigJson {
-    /// Runtime contract shorthand.
-    Host(Runtime),
+    /// Runtime environment shorthand.
+    Environment(Runtime),
     /// Full runtime configuration object.
     Options(Box<RuntimeOptionsJson>),
 }
@@ -244,8 +207,8 @@ impl RuntimeConfigJson {
     /// Return this runtime config as object form.
     pub fn as_options_json(&self) -> RuntimeOptionsJson {
         match self {
-            Self::Host(host) => RuntimeOptionsJson {
-                host: Some(*host),
+            Self::Environment(environment) => RuntimeOptionsJson {
+                environment: Some(*environment),
                 ..RuntimeOptionsJson::default()
             },
             Self::Options(options) => options.as_ref().clone(),
@@ -278,20 +241,16 @@ pub(crate) fn runtime_options_with_base(
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeOptionsJson {
-    /// Execution host semantics for this runtime.
-    pub host: Option<Runtime>,
-    /// Runtime version for versioned library selection.
-    pub version: Option<String>,
+    /// Runtime environment family.
+    pub environment: Option<Runtime>,
     /// Stable runtime name for policy selection.
     pub name: Option<String>,
-    /// Runtime labels for policy selection.
-    pub labels: Option<BTreeMap<String, String>>,
-    /// Default primary worker identity for policy selection.
-    pub primary_worker: Option<RuntimeWorkerOptionsJson>,
     /// Runtime scheduler configuration.
     pub scheduler: Option<SchedulerOptionsJson>,
-    /// Runtime effect configuration.
-    pub effect: Option<EffectOptionsJson>,
+    /// Runtime clock source configuration.
+    pub time: Option<TimeOptionsJson>,
+    /// Runtime randomness source configuration.
+    pub random: Option<RandomOptionsJson>,
     /// Runtime simulation configuration.
     pub simulation: Option<SimulationOptionsJson>,
     /// Runtime trace configuration.
@@ -330,49 +289,14 @@ pub struct RuntimeOptionsJson {
     pub platform: Option<PlatformOptionsJson>,
 }
 
-/// Primary runtime worker options for JSON deserialization.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub struct RuntimeWorkerOptionsJson {
-    /// Primary worker name for policy selection.
-    pub name: Option<String>,
-    /// Primary worker labels for policy selection.
-    pub labels: Option<BTreeMap<String, String>>,
-}
-
-impl RuntimeWorkerOptionsJson {
-    /// Apply primary worker overrides to one base set of runtime worker options.
-    pub fn apply_to(&self, options: &mut RuntimeWorkerOptions) {
-        // apply primary worker name override
-        if let Some(name) = &self.name {
-            options.name = Some(name.clone());
-        }
-
-        // apply primary worker label override
-        if let Some(labels) = &self.labels {
-            options.labels = labels.clone();
-        }
-    }
-}
-
 impl RuntimeOptionsJson {
     /// Inherit unset runtime settings from one parent config.
     pub fn extend_from(&mut self, parent: &Self) {
-        if self.host.is_none() {
-            self.host = parent.host.clone();
-        }
-        if self.version.is_none() {
-            self.version = parent.version.clone();
+        if self.environment.is_none() {
+            self.environment = parent.environment;
         }
         if self.name.is_none() {
             self.name = parent.name.clone();
-        }
-        if self.labels.is_none() {
-            self.labels = parent.labels.clone();
-        }
-        if self.primary_worker.is_none() {
-            self.primary_worker = parent.primary_worker.clone();
         }
         if let Some(scheduler) = &mut self.scheduler {
             if let Some(parent_scheduler) = &parent.scheduler {
@@ -381,12 +305,19 @@ impl RuntimeOptionsJson {
         } else {
             self.scheduler = parent.scheduler.clone();
         }
-        if let Some(effect) = &mut self.effect {
-            if let Some(parent_effect) = &parent.effect {
-                effect.extend_from(parent_effect);
+        if let Some(time) = &mut self.time {
+            if let Some(parent_time) = &parent.time {
+                time.extend_from(parent_time);
             }
         } else {
-            self.effect = parent.effect.clone();
+            self.time = parent.time.clone();
+        }
+        if let Some(random) = &mut self.random {
+            if let Some(parent_random) = &parent.random {
+                random.extend_from(parent_random);
+            }
+        } else {
+            self.random = parent.random.clone();
         }
         if let Some(simulation) = &mut self.simulation {
             if let Some(parent_simulation) = &parent.simulation {
@@ -458,25 +389,14 @@ impl RuntimeOptionsJson {
 
     /// Apply runtime option overrides to a base set of options.
     pub fn apply_to(&self, options: &mut RuntimeOptions) {
-        // host and version
-        if let Some(host) = self.host {
-            options.host = host;
-        }
-        if let Some(version) = &self.version {
-            options.version = Some(version.clone());
+        // environment
+        if let Some(environment) = self.environment {
+            options.environment = environment;
         }
 
-        // apply runtime identity overrides
+        // runtime identity
         if let Some(name) = &self.name {
             options.name = Some(name.clone());
-        }
-        if let Some(labels) = &self.labels {
-            options.labels = labels.clone();
-        }
-
-        // apply default primary worker identity overrides
-        if let Some(primary_worker) = &self.primary_worker {
-            primary_worker.apply_to(&mut options.primary_worker);
         }
 
         // apply runtime planes
@@ -484,8 +404,12 @@ impl RuntimeOptionsJson {
             scheduler.apply_to(&mut options.scheduler);
         }
 
-        if let Some(effect) = &self.effect {
-            effect.apply_to(&mut options.effect);
+        if let Some(time) = &self.time {
+            time.apply_to(&mut options.time);
+        }
+
+        if let Some(random) = &self.random {
+            random.apply_to(&mut options.random);
         }
 
         if let Some(simulation) = &self.simulation {

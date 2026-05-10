@@ -33,6 +33,21 @@ pub struct RandomOptionsJson {
 }
 
 impl RandomOptionsJson {
+    /// Inherit unset random settings from one parent config.
+    pub fn extend_from(&mut self, parent: &Self) {
+        if self.mode.is_none() {
+            self.mode = parent.mode;
+        }
+
+        if self.seed.is_none() {
+            self.seed = parent.seed;
+        }
+
+        if self.per_runnable.is_none() {
+            self.per_runnable = parent.per_runnable;
+        }
+    }
+
     /// Apply random overrides to a base set of options.
     pub fn apply_to(&self, options: &mut RandomOptions) {
         // apply mode overrides
