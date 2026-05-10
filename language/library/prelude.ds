@@ -215,4 +215,4 @@ export { type Display, type Debug } from "./core/operator/format.ds";
 
 // subscript operators
 export { type Index, type IndexSet } from "./core/operator/subscript.ds";
-export { type ReadonlyDereference, type Dereference } from "./core/operator/dereference.ds";
+export { type Dereference } from "./core/operator/dereference.ds";
