@@ -1,6 +1,6 @@
 import { Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
-import { OsPath } from "../fs/path.ds";
+import { Path } from "../fs/path.ds";
 import { SerialPortHandle, SerialWatchHandle } from "../resource/index.ds";
 
 /// Serial parity mode.
@@ -102,7 +102,7 @@ export struct SerialPortDescriptor {
     /// Host-visible device serial number when available.
     serialNumber?: string;
     /// Device path for the endpoint.
-    path: OsPath;
+    path: Path;
     /// USB vendor identifier when the endpoint is USB backed.
     usbVendorId?: uint16;
     /// USB product identifier when the endpoint is USB backed.

@@ -1,6 +1,6 @@
 import { Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
-import { OsPath } from "../fs/path.ds";
+import { Path } from "../fs/path.ds";
 import { CameraDeviceHandle, CameraStreamHandle, CameraWatchHandle } from "../resource/index.ds";
 
 /// Camera endpoint descriptor.
@@ -590,7 +590,7 @@ export enum CameraAudioCodec {
 /// Camera recording options.
 export struct CameraRecordingOptions {
     /// Destination file path when the caller wants an explicit sink.
-    outputPath?: OsPath;
+    outputPath?: Path;
     /// Preferred recording container format.
     container?: CameraRecordingContainer;
     /// Preferred video codec.
@@ -644,7 +644,7 @@ export struct CameraRecordingState {
 /// Camera recording result payload.
 export struct CameraRecording {
     /// Output file path.
-    path: OsPath;
+    path: Path;
     /// Recording container format.
     container: CameraRecordingContainer;
     /// Encoded video codec when known.

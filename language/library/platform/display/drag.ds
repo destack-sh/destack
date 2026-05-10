@@ -1,6 +1,6 @@
 import { Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
-import { OsPath } from "../fs/path.ds";
+import { Path } from "../fs/path.ds";
 import { DisplayDragSessionHandle, WindowHandle } from "../resource/index.ds";
 
 /// Drag operation selector.
@@ -89,7 +89,7 @@ export struct DisplayDragSourceItem {
     /// Text payload for string items.
     text: string | void;
     /// Filesystem payload for file items.
-    path: OsPath | void;
+    path: Path | void;
     /// Binary payload for binary items.
     bytes: Slice<uint8> | void;
 }
@@ -214,7 +214,7 @@ export declare function dragSessionReadBytes(
 export declare function dragSessionReadPath(
     session: DisplayDragSessionHandle,
     itemIndex: uint32,
-): Result<OsPath, PlatformError>;
+): Result<Path, PlatformError>;
 
 /// Select one accepted operation for one drag session.
 ///

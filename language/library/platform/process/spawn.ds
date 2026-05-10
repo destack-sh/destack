@@ -1,8 +1,9 @@
 import { Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
+import { OpenFlags } from "../fs/file.ds";
+import { Path } from "../fs/path.ds";
+import { FileMode } from "../fs/status.ds";
 import { FileHandle, PipeHandle, ProcessHandle } from "../resource/index.ds";
-import { FileMode, OpenFlags } from "../fs/flags.ds";
-import { OsPath } from "../fs/path.ds";
 
 /// Inherit stdio from the parent process.
 export struct ProcessStdioInherit {
@@ -73,7 +74,7 @@ export struct ProcessFdActionOpen {
     /// Target descriptor.
     target: int32;
     /// Path used by open action.
-    path: OsPath;
+    path: Path;
     /// Open flags for open action.
     flags: OpenFlags;
     /// Open mode for open action.
@@ -86,7 +87,7 @@ export newtype ProcessFdAction = ProcessFdActionClose | ProcessFdActionDup2 | Pr
 /// Process spawn options.
 export struct ProcessSpawnOptions {
     /// Current directory for the child process.
-    cwd: OsPath;
+    cwd: Path;
     /// Whether to create a detached child process.
     detached: boolean;
     /// Whether to reset signal dispositions in the child.
@@ -123,7 +124,7 @@ export struct ProcessSpawnOptions {
     affinity: "any",
 })
 export declare function spawn(
-    command: OsPath,
+    command: Path,
     arguments: Slice<string>,
     environment: Slice<string>,
     options: ProcessSpawnOptions,
@@ -157,7 +158,7 @@ export declare function spawn(
     affinity: "any",
 })
 export declare function spawnWithActions(
-    command: OsPath,
+    command: Path,
     arguments: Slice<string>,
     environment: Slice<string>,
     options: ProcessSpawnOptions,

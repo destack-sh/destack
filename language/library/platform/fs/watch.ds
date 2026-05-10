@@ -1,143 +1,63 @@
-import { Array } from "core";
+import { Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
-import { DirectoryHandle, WatchHandle } from "../resource/index.ds";
-import { OsPath } from "./path.ds";
+import { WatchHandle } from "../resource/index.ds";
+import { Entry } from "./entry.ds";
+import { PathBuffer, PathSpan } from "./path.ds";
 
 /// Filesystem watch mask bitset.
 export newtype WatchMask = uint32;
 
-/// Watch-mask bit for create events.
+/// Watch mask bit for create events.
 export const WATCH_CREATE: WatchMask = WatchMask(1 << 0);
 
-/// Watch-mask bit for remove events.
+/// Watch mask bit for remove events.
 export const WATCH_REMOVE: WatchMask = WatchMask(1 << 1);
 
-/// Watch-mask bit for modify events.
+/// Watch mask bit for modify events.
 export const WATCH_MODIFY: WatchMask = WatchMask(1 << 2);
 
-/// Watch-mask bit for rename events.
+/// Watch mask bit for rename events.
 export const WATCH_RENAME: WatchMask = WatchMask(1 << 3);
 
-/// Watch-mask bit for metadata events.
+/// Watch mask bit for metadata events.
 export const WATCH_METADATA: WatchMask = WatchMask(1 << 4);
 
-/// Watch-mask bit for overflow events.
+/// Watch mask bit for overflow events.
 export const WATCH_OVERFLOW: WatchMask = WatchMask(1 << 5);
 
-/// Watch-mask value that subscribes to all event classes.
+/// Watch mask value that subscribes to all event classes.
 export const WATCH_ALL: WatchMask = WatchMask(0x3f);
 
 /// Filesystem watch options.
 export struct WatchOptions {
     /// Event mask to subscribe to.
-    /// A value of `WatchMask(0)` or `WATCH_ALL` subscribes to every event class.
     mask: WatchMask;
     /// Whether recursive watching is requested.
-    recursive: boolean;
-    /// Whether to follow symlinks.
-    followSymlinks: boolean;
+    isRecursive: boolean;
+    /// Whether symlink entries should be followed.
+    isFollowing: boolean;
 }
 
-/// Shared metadata for filesystem watch events.
-export struct WatchEventMetadata {
-    /// Backend event cookie when available.
-    cookie: uint64;
-}
-
-/// Filesystem create event.
-export struct WatchCreateEvent {
-    /// Discriminator for this watch event variant.
-    kind: "create";
-    /// Shared event metadata.
-    metadata: WatchEventMetadata;
-    /// Created path.
-    path: OsPath;
-}
-
-/// Filesystem remove event.
-export struct WatchRemoveEvent {
-    /// Discriminator for this watch event variant.
-    kind: "remove";
-    /// Shared event metadata.
-    metadata: WatchEventMetadata;
-    /// Removed path.
-    path: OsPath;
-}
-
-/// Filesystem modify event.
-export struct WatchModifyEvent {
-    /// Discriminator for this watch event variant.
-    kind: "modify";
-    /// Shared event metadata.
-    metadata: WatchEventMetadata;
-    /// Modified path.
-    path: OsPath;
-}
-
-/// Filesystem rename event.
-export struct WatchRenameEvent {
-    /// Discriminator for this watch event variant.
-    kind: "rename";
-    /// Shared event metadata.
-    metadata: WatchEventMetadata;
-    /// Source path for rename.
-    path: OsPath;
-    /// Destination or paired path for rename.
-    relatedPath: OsPath;
-}
-
-/// Filesystem metadata-change event.
-export struct WatchMetadataEvent {
-    /// Discriminator for this watch event variant.
-    kind: "metadata";
-    /// Shared event metadata.
-    metadata: WatchEventMetadata;
-    /// Metadata-changed path.
-    path: OsPath;
-}
-
-/// Filesystem overflow event.
-export struct WatchOverflowEvent {
-    /// Discriminator for this watch event variant.
-    kind: "overflow";
-    /// Shared event metadata.
-    metadata: WatchEventMetadata;
-}
-
-/// Filesystem watch event payload.
+/// Filesystem watch event.
 export newtype WatchEvent =
-    | WatchCreateEvent
-    | WatchRemoveEvent
-    | WatchModifyEvent
-    | WatchRenameEvent
-    | WatchMetadataEvent
-    | WatchOverflowEvent;
+    | { kind: "create"; cookie: uint64; path: PathSpan }
+    | { kind: "remove"; cookie: uint64; path: PathSpan }
+    | { kind: "modify"; cookie: uint64; path: PathSpan }
+    | { kind: "rename"; cookie: uint64; path: PathSpan; related: PathSpan }
+    | { kind: "metadata"; cookie: uint64; path: PathSpan }
+    | { kind: "overflow"; cookie: uint64 };
 
-/// Batch of filesystem watch events.
+/// Watch events written by one read operation.
 export struct WatchBatch {
-    /// Event records returned by the backend.
-    events: Array<WatchEvent>;
-    /// Whether the backend reported overflow.
-    overflowed: boolean;
+    /// Number of events written into the output slice.
+    count: uint64;
+    /// Path buffer length consumed by event paths.
+    pathLength: uint64;
+    /// Whether the host reported dropped events.
+    hasOverflow: boolean;
 }
 
-/// Start watching a path and return a watch handle.
-///
-/// Registers the path with the native watch backend and starts event delivery for the selected mask.
-/// Event ordering and coalescing behavior are backend defined.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses inotify on Linux, kqueue on BSD, FSEvents on macOS, and ReadDirectoryChangesW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.watch`.
-///
-/// # Replay
-/// External, recordable.
+/// Start watching one filesystem entry.
 @binding("destack.fs.watch.open", {
     effect: "external",
     replay: "recordable",
@@ -148,26 +68,10 @@ export struct WatchBatch {
     blocking: "sometimes",
     affinity: "any",
 })
-export declare function watch(path: OsPath, options: WatchOptions): Result<WatchHandle, PlatformError>;
+export declare function watch(entry: Entry, options: WatchOptions): Result<WatchHandle, PlatformError>;
 
-/// Start watching a path relative to a directory handle.
-///
-/// Resolves the path relative to the supplied directory and registers the resulting entry with the backend watcher.
-/// Event ordering and coalescing behavior are backend defined.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses inotify on Linux, kqueue on BSD, FSEvents on macOS, and ReadDirectoryChangesW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.watch`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.watch.openat", {
+/// Read watch events into an output slice.
+@binding("destack.fs.watch.read", {
     effect: "external",
     replay: "recordable",
     capabilities: ["fs.watch"],
@@ -177,66 +81,8 @@ export declare function watch(path: OsPath, options: WatchOptions): Result<Watch
     blocking: "sometimes",
     affinity: "any",
 })
-export declare function watchat(
-    directory: DirectoryHandle,
-    path: OsPath,
-    options: WatchOptions,
-): Result<WatchHandle, PlatformError>;
-
-/// Read a batch of events from a watch handle.
-///
-/// Reads available watch records from the backend queue and reports overflow explicitly when events were dropped.
-/// Callers should treat `overflowed` as a signal to resynchronize state.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses inotify event reads on Linux, kevent on BSD, FSEvents stream reads on macOS, and ReadDirectoryChangesW reads on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.watch`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.watch.openRead", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.watch"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function watchRead(handle: WatchHandle): Result<WatchBatch, PlatformError>;
-
-/// Close a watch handle.
-///
-/// Unregisters the watch from the backend and releases associated runtime resources.
-/// No further events are delivered after close succeeds.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend specific handle close and unregister operations.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.watch`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.watch.openClose", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.watch"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function watchClose(handle: WatchHandle): Result<void, PlatformError>;
+export declare function readWatch(
+    watch: WatchHandle,
+    events: Slice<WatchEvent>,
+    paths: PathBuffer,
+): Result<WatchBatch, PlatformError>;

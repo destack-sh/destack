@@ -1,0 +1,168 @@
+import type { PlatformError } from "../error/index.ds";
+import { Entry } from "./entry.ds";
+import { Path, PathBuffer } from "./path.ds";
+import { FileMode } from "./status.ds";
+
+/// Rename operation flags.
+export newtype RenameFlags = uint32;
+
+/// Reject replacing an existing destination.
+export const RENAME_NO_REPLACE: RenameFlags = RenameFlags(0x1);
+
+/// Exchange the source and destination entries atomically.
+export const RENAME_EXCHANGE: RenameFlags = RenameFlags(0x2);
+
+/// Create a whiteout entry as part of the rename when supported.
+export const RENAME_WHITEOUT: RenameFlags = RenameFlags(0x4);
+
+/// Link operation flags.
+export newtype LinkFlags = uint32;
+
+/// Follow a symlink source where the host operation supports it.
+export const LINK_FOLLOW: LinkFlags = LinkFlags(0x1);
+
+/// Symlink target type hint.
+export enum SymlinkKind {
+    /// Let the runtime infer the target type.
+    Auto = 0,
+    /// Create a symlink to a file.
+    File = 1,
+    /// Create a symlink to a directory.
+    Directory = 2,
+}
+
+/// Node device identifier.
+export newtype NodeDevice = uint64;
+
+/// Host filesystem node creation options.
+export struct NodeOptions {
+    /// File mode including file type bits.
+    mode: FileMode;
+    /// Device identifier for device nodes.
+    device: NodeDevice;
+}
+
+/// Rename or exchange one filesystem entry.
+@binding("destack.fs.namespace.rename", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["fs.write"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function rename(
+    from: Entry,
+    to: Entry,
+    flags: RenameFlags,
+): Result<void, PlatformError>;
+
+/// Remove one non-directory filesystem entry.
+@binding("destack.fs.namespace.unlink", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["fs.write"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function unlink(entry: Entry): Result<void, PlatformError>;
+
+/// Create one hard link.
+@binding("destack.fs.namespace.link", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["fs.link"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function link(
+    existing: Entry,
+    created: Entry,
+    flags: LinkFlags,
+): Result<void, PlatformError>;
+
+/// Create one symbolic link.
+@binding("destack.fs.namespace.symlink", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["fs.link"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function symlink(
+    target: Path,
+    created: Entry,
+    kind: SymlinkKind,
+): Result<void, PlatformError>;
+
+/// Read a symbolic link into an output buffer.
+@binding("destack.fs.namespace.readLink", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["fs.read"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function readLink(
+    entry: Entry,
+    buffer: PathBuffer,
+): Result<uint64, PlatformError>;
+
+/// Resolve an entry into an output buffer.
+@binding("destack.fs.namespace.canonicalize", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["fs.metadata"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function canonicalize(
+    entry: Entry,
+    buffer: PathBuffer,
+): Result<uint64, PlatformError>;
+
+/// Create one FIFO node.
+@binding("destack.fs.namespace.fifo", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["fs.node"],
+    platforms: ["unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function createFifo(entry: Entry, mode: FileMode): Result<void, PlatformError>;
+
+/// Create one host filesystem node.
+@binding("destack.fs.namespace.node", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["fs.node"],
+    platforms: ["unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function createNode(
+    entry: Entry,
+    options: NodeOptions,
+): Result<void, PlatformError>;

@@ -1,7 +1,7 @@
 import { Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
 import { DirectoryHandle, FileHandle } from "../resource/index.ds";
-import { OsPath } from "../fs/path.ds";
+import { Path } from "../fs/path.ds";
 
 /// Flags for `execat` operations.
 export newtype ExecAtFlags = uint32;
@@ -34,7 +34,7 @@ export newtype ExecAtFlags = uint32;
     affinity: "any",
 })
 export declare function exec(
-    command: OsPath,
+    command: Path,
     arguments: Slice<string>,
     environment: Slice<string>,
 ): Result<void, PlatformError>;
@@ -68,7 +68,7 @@ export declare function exec(
 })
 export declare function execat(
     directory: DirectoryHandle,
-    path: OsPath,
+    path: Path,
     arguments: Slice<string>,
     environment: Slice<string>,
     flags: ExecAtFlags,

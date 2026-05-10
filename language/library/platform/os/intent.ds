@@ -1,6 +1,6 @@
 import { Array } from "core";
 import type { PlatformError } from "../error/index.ds";
-import { OsPath } from "../fs/path.ds";
+import { Path } from "../fs/path.ds";
 import { IntentHandle } from "../resource/index.ds";
 
 /// Open-url intent payload.
@@ -12,7 +12,7 @@ export struct IntentOpenUrlPayload {
 /// Open-file intent payload.
 export struct IntentOpenFilePayload {
     /// File target payload.
-    path: OsPath;
+    path: Path;
     /// MIME type when provided by host.
     mimeType: string | void;
 }
@@ -28,7 +28,7 @@ export struct IntentShareTextPayload {
 /// Share-files intent payload.
 export struct IntentShareFilesPayload {
     /// Shared file payloads.
-    paths: Array<OsPath>;
+    paths: Array<Path>;
     /// MIME type when provided by host.
     mimeType: string | void;
 }
@@ -40,7 +40,7 @@ export struct IntentCustomActionPayload {
     /// URL payload when provided by host.
     url: string | void;
     /// File payloads when provided by host.
-    paths: Array<OsPath>;
+    paths: Array<Path>;
     /// Text payload when provided by host.
     text: string | void;
     /// MIME type when provided by host.
@@ -325,7 +325,7 @@ export declare function intentOpenUrl(url: string): Result<void, PlatformError>;
     blocking: "sometimes",
     affinity: "any",
 })
-export declare function intentOpenPath(path: OsPath): Result<void, PlatformError>;
+export declare function intentOpenPath(path: Path): Result<void, PlatformError>;
 
 /// Share one text payload through host share routing.
 ///
@@ -385,6 +385,6 @@ export declare function intentShareText(
     affinity: "any",
 })
 export declare function intentSharePaths(
-    paths: Array<OsPath>,
+    paths: Array<Path>,
     mimeType: string | void,
 ): Result<void, PlatformError>;

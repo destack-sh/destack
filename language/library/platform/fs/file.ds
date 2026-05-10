@@ -1,47 +1,203 @@
 import { Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
-import {
-    DirectoryHandle,
-    FileHandle,
-    PipeHandle,
-    ResourceId,
-    SocketHandle,
-} from "../resource/index.ds";
-import {
-    AllocFlags,
-    FdFlags,
-    FileAdvice,
-    FileLockFlags,
-    FileMode,
-    FileOffset,
-    FileSize,
-    OpenResolveFlags,
-    OpenFlags,
-    ReadWriteFlags,
-    SeekWhence,
-    SpliceFlags,
-    StatusFlags,
-    SyncFlags,
-} from "./flags.ds";
-import { OsPath } from "./path.ds";
+import { FileHandle } from "../resource/index.ds";
+import { Entry } from "./entry.ds";
+import { FileOffset, FileRange, FileSize } from "./range.ds";
+import { FileMode } from "./status.ds";
 
-/// Open a file and return a handle.
-///
-/// Open one filesystem entry by path and return a host-backed file handle.
-/// Flag interpretation, creation behavior, and inheritance defaults follow host open semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses open(2) on Unix and CreateFileW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`, `fs.write`.
-///
-/// # Replay
-/// External, recordable.
+/// File open flags.
+export newtype OpenFlags = uint32;
+
+/// Open for reads.
+export const OPEN_READ: OpenFlags = OpenFlags(0x0001);
+
+/// Open for writes.
+export const OPEN_WRITE: OpenFlags = OpenFlags(0x0002);
+
+/// Create the entry when it does not exist.
+export const OPEN_CREATE: OpenFlags = OpenFlags(0x0004);
+
+/// Fail when the created entry already exists.
+export const OPEN_EXCLUSIVE: OpenFlags = OpenFlags(0x0008);
+
+/// Truncate the entry after opening.
+export const OPEN_TRUNCATE: OpenFlags = OpenFlags(0x0010);
+
+/// Append writes to the end of the file.
+export const OPEN_APPEND: OpenFlags = OpenFlags(0x0020);
+
+/// Require the entry to be a directory.
+export const OPEN_DIRECTORY: OpenFlags = OpenFlags(0x0040);
+
+/// Do not follow the final symlink component.
+export const OPEN_NOFOLLOW: OpenFlags = OpenFlags(0x0080);
+
+/// Request nonblocking file behavior.
+export const OPEN_NONBLOCK: OpenFlags = OpenFlags(0x0100);
+
+/// Request uncached direct I/O.
+export const OPEN_DIRECT: OpenFlags = OpenFlags(0x0200);
+
+/// Synchronize written data before writes complete.
+export const OPEN_DATA_SYNC: OpenFlags = OpenFlags(0x0400);
+
+/// Synchronize written data and metadata before writes complete.
+export const OPEN_SYNC: OpenFlags = OpenFlags(0x0800);
+
+/// Resolve flags for path opening.
+export newtype ResolveFlags = uint64;
+
+/// Reject traversal that crosses into a different mount.
+export const RESOLVE_NO_XDEV: ResolveFlags = ResolveFlags(0x01);
+
+/// Reject magic link traversal.
+export const RESOLVE_NO_MAGIC_LINKS: ResolveFlags = ResolveFlags(0x02);
+
+/// Reject symlink traversal.
+export const RESOLVE_NO_SYMLINKS: ResolveFlags = ResolveFlags(0x04);
+
+/// Require the result to stay beneath the starting directory.
+export const RESOLVE_BENEATH: ResolveFlags = ResolveFlags(0x08);
+
+/// Treat the starting directory as the logical root.
+export const RESOLVE_IN_ROOT: ResolveFlags = ResolveFlags(0x10);
+
+/// Use only already cached resolution state.
+export const RESOLVE_CACHED: ResolveFlags = ResolveFlags(0x20);
+
+/// File open options.
+export struct OpenOptions {
+    /// Open behavior flags.
+    flags: OpenFlags;
+    /// File mode used when creating an entry.
+    mode: FileMode;
+    /// Path resolution flags.
+    resolve: ResolveFlags;
+}
+
+/// File read flags.
+export newtype ReadFlags = uint32;
+
+/// Prefer high priority polling I/O when the host supports it.
+export const READ_HIGH_PRIORITY: ReadFlags = ReadFlags(0x1);
+
+/// Request nonblocking cache miss behavior when supported.
+export const READ_NOWAIT: ReadFlags = ReadFlags(0x8);
+
+/// File write flags.
+export newtype WriteFlags = uint32;
+
+/// Apply data-only sync mode to the write.
+export const WRITE_DATA_SYNC: WriteFlags = WriteFlags(0x2);
+
+/// Apply full sync mode to the write.
+export const WRITE_SYNC: WriteFlags = WriteFlags(0x4);
+
+/// Request nonblocking cache miss behavior when supported.
+export const WRITE_NOWAIT: WriteFlags = WriteFlags(0x8);
+
+/// Force append mode for the write.
+export const WRITE_APPEND: WriteFlags = WriteFlags(0x10);
+
+/// File read options.
+export struct ReadOptions {
+    /// Explicit byte offset, or current descriptor position when absent.
+    offset: FileOffset | void;
+    /// Read behavior flags.
+    flags: ReadFlags;
+}
+
+/// File write options.
+export struct WriteOptions {
+    /// Explicit byte offset, or current descriptor position when absent.
+    offset: FileOffset | void;
+    /// Write behavior flags.
+    flags: WriteFlags;
+}
+
+/// Seek origin.
+export enum SeekOrigin {
+    /// Seek from the start of the file.
+    Start = 0,
+    /// Seek from the current position.
+    Current = 1,
+    /// Seek from the end of the file.
+    End = 2,
+}
+
+/// Sync range flags.
+export newtype SyncFlags = uint32;
+
+/// Wait for earlier writeback in the requested range.
+export const SYNC_WAIT_BEFORE: SyncFlags = SyncFlags(0x1);
+
+/// Start writeback for the requested range.
+export const SYNC_WRITE: SyncFlags = SyncFlags(0x2);
+
+/// Wait for writeback completion in the requested range.
+export const SYNC_WAIT_AFTER: SyncFlags = SyncFlags(0x4);
+
+/// File allocation flags.
+export newtype AllocateFlags = uint32;
+
+/// Allocate blocks without extending apparent file size.
+export const ALLOCATE_KEEP_SIZE: AllocateFlags = AllocateFlags(0x01);
+
+/// Deallocate blocks in the requested range.
+export const ALLOCATE_PUNCH_HOLE: AllocateFlags = AllocateFlags(0x02);
+
+/// Do not hide stale data when the host supports that mode.
+export const ALLOCATE_NO_HIDE_STALE: AllocateFlags = AllocateFlags(0x04);
+
+/// Remove the requested range and collapse later data downward.
+export const ALLOCATE_COLLAPSE_RANGE: AllocateFlags = AllocateFlags(0x08);
+
+/// Convert the requested range into explicit zeroed blocks.
+export const ALLOCATE_ZERO_RANGE: AllocateFlags = AllocateFlags(0x10);
+
+/// Insert a hole and push later data upward.
+export const ALLOCATE_INSERT_RANGE: AllocateFlags = AllocateFlags(0x20);
+
+/// Break shared extents before future writes.
+export const ALLOCATE_UNSHARE_RANGE: AllocateFlags = AllocateFlags(0x40);
+
+/// File access pattern advice.
+export enum FileAdvice {
+    /// No special behavior.
+    Normal = 0,
+    /// File will be accessed sequentially.
+    Sequential = 1,
+    /// File will be accessed randomly.
+    Random = 2,
+    /// File data will be needed soon.
+    WillNeed = 3,
+    /// File data will not be needed soon.
+    DontNeed = 4,
+    /// File data will be used once.
+    NoReuse = 5,
+}
+
+/// File lock mode.
+export enum LockMode {
+    /// Acquire a shared lock.
+    Shared = 1,
+    /// Acquire an exclusive lock.
+    Exclusive = 2,
+    /// Release an existing lock.
+    Unlock = 3,
+}
+
+/// File lock options.
+export struct LockOptions {
+    /// Lock mode.
+    mode: LockMode;
+    /// Byte range covered by the lock.
+    range: FileRange;
+    /// Whether the operation should fail instead of blocking.
+    isNonblocking: boolean;
+}
+
+/// Open one filesystem entry as a file handle.
 @binding("destack.fs.file.open", {
     effect: "external",
     replay: "recordable",
@@ -53,140 +209,11 @@ import { OsPath } from "./path.ds";
     affinity: "any",
 })
 export declare function open(
-    path: OsPath,
-    flags: OpenFlags,
-    mode: FileMode,
+    entry: Entry,
+    options: OpenOptions,
 ): Result<FileHandle, PlatformError>;
 
-/// Close an open file handle.
-///
-/// Close the target handle by forwarding the descriptor teardown to the host kernel.
-/// The descriptor becomes invalid immediately for subsequent read or write operations.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses close(2) on Unix and CloseHandle on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.handle`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.file.close", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.handle"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function close(handle: FileHandle): Result<void, PlatformError>;
-
-/// Open a file relative to a directory handle.
-///
-/// Open one filesystem entry resolved relative to an explicit directory handle.
-/// This avoids ambient current-working-directory resolution and keeps caller-controlled base directory scope.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses openat(2) on Unix and NtCreateFile relative opens on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`, `fs.write`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.file.openat", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.read", "fs.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function openat(
-    dir: DirectoryHandle,
-    path: OsPath,
-    flags: OpenFlags,
-    mode: FileMode,
-): Result<FileHandle, PlatformError>;
-
-/// Options for openat2-style calls.
-export struct OpenOptions {
-    /// Open flags.
-    flags: OpenFlags;
-    /// File mode for creation.
-    mode: FileMode;
-    /// Path resolution flags.
-    resolve: OpenResolveFlags;
-}
-
-/// Positioned descriptor cursor for splice style operations.
-export struct SpliceCursor {
-    /// Cursor offset when active.
-    offset: FileOffset | void;
-}
-
-/// Open a file relative to a directory handle with openat2 semantics.
-///
-/// Open one filesystem entry relative to an explicit directory handle with resolve policy flags.
-/// Resolve behavior is passed through to supported hosts and rejected when the host backend cannot honor requested guarantees.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses openat2(2) on Linux and Android, falls back to openat semantics on other Unix targets when resolve flags are empty, and maps to openat semantics on Windows with resolve flags rejected.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`, `fs.write`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.file.openat2", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.read", "fs.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function openat2(
-    dir: DirectoryHandle,
-    path: OsPath,
-    how: OpenOptions,
-): Result<FileHandle, PlatformError>;
-
-/// Read from a file into the provided slice.
-///
-/// Read bytes into one contiguous caller-provided buffer from the current file position.
-/// The file position advances by the exact byte count returned by the host.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses read(2) on Unix and ReadFile on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`.
-///
-/// # Replay
-/// External, recordable.
+/// Read bytes from an open file into an output buffer.
 @binding("destack.fs.file.read", {
     effect: "external",
     replay: "recordable",
@@ -197,25 +224,13 @@ export declare function openat2(
     blocking: "sometimes",
     affinity: "any",
 })
-export declare function read(handle: FileHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>;
+export declare function read(
+    file: FileHandle,
+    buffer: Slice<uint8>,
+    options: ReadOptions,
+): Result<uint64, PlatformError>;
 
-/// Write to a file from the provided slice.
-///
-/// Write bytes from one contiguous caller-provided buffer at the current file position.
-/// The file position advances by the exact byte count accepted by the host.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses write(2) on Unix and WriteFile on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
+/// Write bytes to an open file from an input buffer.
 @binding("destack.fs.file.write", {
     effect: "external",
     replay: "recordable",
@@ -226,671 +241,47 @@ export declare function read(handle: FileHandle, buffer: Slice<uint8>): Result<u
     blocking: "sometimes",
     affinity: "any",
 })
-export declare function write(handle: FileHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>;
-
-/// Read from a file at the given file offset.
-///
-/// Read bytes into one contiguous caller-provided buffer at an explicit file offset.
-/// The descriptor's current file position is not changed by positioned reads.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses pread(2) on Unix and positioned ReadFile on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.file.pread", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function pread(
-    handle: FileHandle,
-    buffer: Slice<uint8>,
-    offset: FileOffset,
-): Result<uint64, PlatformError>;
-
-/// Write to a file at the given file offset.
-///
-/// Write bytes from one contiguous caller-provided buffer at an explicit file offset.
-/// The descriptor's current file position is not changed by positioned writes.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses pwrite(2) on Unix and positioned WriteFile on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.file.pwrite", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function pwrite(
-    handle: FileHandle,
-    buffer: Slice<uint8>,
-    offset: FileOffset,
-): Result<uint64, PlatformError>;
-
-/// Read into multiple buffers.
-///
-/// Read bytes into a scatter buffer list from the current file position.
-/// Buffer fill order follows host iovec semantics and advances the file position by bytes read.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses readv(2) on Unix and vectored file I/O loop on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.file.readv", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function readv(
-    handle: FileHandle,
-    buffers: Slice<Slice<uint8>>,
-): Result<uint64, PlatformError>;
-
-/// Write from multiple buffers.
-///
-/// Write bytes from a gather buffer list at the current file position.
-/// Buffer consumption order follows host iovec semantics and advances the file position by bytes written.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses writev(2) on Unix and vectored file I/O loop on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.file.writev", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function writev(
-    handle: FileHandle,
-    buffers: Slice<Slice<uint8>>,
-): Result<uint64, PlatformError>;
-
-/// Read into multiple buffers at the given file offset.
-///
-/// Read bytes into a scatter buffer list at an explicit file offset.
-/// The descriptor's current file position is not changed by positioned vectored reads.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses preadv(2) on Unix and vectored positioned file I/O loop on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.file.preadv", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function preadv(
-    handle: FileHandle,
-    buffers: Slice<Slice<uint8>>,
-    offset: FileOffset,
-): Result<uint64, PlatformError>;
-
-/// Write from multiple buffers at the given file offset.
-///
-/// Write bytes from a gather buffer list at an explicit file offset.
-/// The descriptor's current file position is not changed by positioned vectored writes.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses pwritev(2) on Unix and vectored positioned file I/O loop on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.file.pwritev", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function pwritev(
-    handle: FileHandle,
-    buffers: Slice<Slice<uint8>>,
-    offset: FileOffset,
-): Result<uint64, PlatformError>;
-
-/// Read into multiple buffers at the given file offset with explicit read flags.
-///
-/// Read bytes into a scatter buffer list at an explicit file offset and apply host read flags.
-/// Flag bits are passed through directly and may enable nowait or high-priority reads on supported kernels.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses preadv2(2) on Linux and runtime fallback to preadv on other targets when flags are zero.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.file.preadv2", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function preadv2(
-    handle: FileHandle,
-    buffers: Slice<Slice<uint8>>,
-    offset: FileOffset,
-    flags: ReadWriteFlags,
-): Result<uint64, PlatformError>;
-
-/// Write from multiple buffers at the given file offset with explicit write flags.
-///
-/// Write bytes from a gather buffer list at an explicit file offset and apply host write flags.
-/// Flag bits are passed through directly and may enable append, sync, or nowait behavior on supported kernels.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses pwritev2(2) on Linux and runtime fallback to pwritev on other targets when flags are zero.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.file.pwritev2", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function pwritev2(
-    handle: FileHandle,
-    buffers: Slice<Slice<uint8>>,
-    offset: FileOffset,
-    flags: ReadWriteFlags,
-): Result<uint64, PlatformError>;
-
-/// Truncate a file.
-///
-/// Truncate the target file to the requested size using host file-size control APIs.
-/// Growth behavior for sparse expansion and zero-fill follows host filesystem policy.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses truncate(2) on Unix and SetEndOfFile via path handle on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.file.truncate", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function truncate(path: OsPath, size: FileOffset): Result<void, PlatformError>;
-
-/// Truncate a file by handle.
-///
-/// Truncate the target file to the requested size using host file-size control APIs.
-/// Growth behavior for sparse expansion and zero-fill follows host filesystem policy.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses ftruncate(2) on Unix and SetEndOfFile on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.file.ftruncate", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function ftruncate(handle: FileHandle, size: FileOffset): Result<void, PlatformError>;
-
-/// Synchronize a file's in-core state with storage.
-///
-/// Synchronize buffered file state to storage for the target file descriptor.
-/// Completion guarantees and writeback scope follow host kernel fsync semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses fsync(2) on Unix and FlushFileBuffers on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.sync`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.file.fsync", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.sync"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function fsync(handle: FileHandle): Result<void, PlatformError>;
-
-/// Synchronize file data only.
-///
-/// Flush file data pages for the target descriptor without requiring full metadata durability.
-/// Metadata needed for data reachability may still be persisted per host kernel rules.
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses fdatasync(2) on Unix and FlushFileBuffers on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.sync`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.file.fdatasync", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.sync"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function fdatasync(handle: FileHandle): Result<void, PlatformError>;
-
-/// Synchronize a filesystem by file handle.
-///
-/// Flush pending filesystem writeback for the mount that contains this handle.
-/// Scope and ordering guarantees follow host mount-level sync semantics.
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses syncfs(2) on Unix and volume flush APIs on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.sync`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.file.syncfs", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.sync"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function syncfs(handle: FileHandle): Result<void, PlatformError>;
-
-/// Synchronize a file range.
-///
-/// Request writeback of one byte range for the target descriptor.
-/// Range ordering, blocking behavior, and fallback support follow host kernel policy.
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses sync_file_range(2) on linux and runtime fallback on other targets.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.sync`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.file.syncFileRange", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.sync"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function syncFileRange(
-    handle: FileHandle,
-    offset: FileOffset,
-    length: FileSize,
-    flags: SyncFlags,
-): Result<void, PlatformError>;
-
-/// Allocate or punch file space.
-///
-/// Reserve, deallocate, or punch one byte range using host allocation controls.
-/// Flag combinations define keep-size and hole-punch behavior where supported.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses fallocate(2) or posix_fallocate on Unix and allocation/truncate APIs on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.file.fallocate", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function fallocate(
-    handle: FileHandle,
-    offset: FileOffset,
-    length: FileSize,
-    flags: AllocFlags,
-): Result<void, PlatformError>;
-
-/// Copy a range between file descriptors.
-///
-/// Copy bytes from one file descriptor range into another descriptor range.
-/// Source and destination offsets are applied exactly as provided to the host operation.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses copy_file_range(2) on linux and runtime copy fallback on other targets.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`, `fs.write`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.file.copyFileRange", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.read", "fs.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function copyFileRange(
-    src: FileHandle,
-    srcOffset: FileOffset,
-    dst: FileHandle,
-    dstOffset: FileOffset,
-    length: FileSize,
-): Result<uint64, PlatformError>;
-
-/// Send file data to a socket.
-///
-/// Transfer file bytes directly from storage-backed pages to a socket endpoint.
-/// Host fast-path behavior may bypass user-space copies when supported.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses sendfile(2) on Unix variants and TransmitFile with userspace fallback on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`, `fs.write`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.file.sendfile", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.read", "fs.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function sendfile(
-    socket: SocketHandle,
+export declare function write(
     file: FileHandle,
-    offset: FileOffset,
-    length: FileSize,
+    buffer: Slice<uint8>,
+    options: WriteOptions,
 ): Result<uint64, PlatformError>;
 
-/// Transfer bytes between descriptors using kernel splice pipelines.
-///
-/// Move bytes between descriptor endpoints and optionally update explicit cursors for each side.
-/// This operation is intended for zero-copy file, pipe, and socket data paths where the host supports splice semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses splice(2) on Linux and runtime fallback on targets without splice support.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.zero.copy`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.file.splice", {
+/// Read bytes from an open file into multiple output buffers.
+@binding("destack.fs.file.readMany", {
     effect: "external",
     replay: "recordable",
-    capabilities: ["io.zero.copy"],
+    capabilities: ["fs.read"],
     platforms: ["windows", "unix"],
     simulation: "model",
     scope: "host",
     blocking: "sometimes",
     affinity: "any",
 })
-export declare function splice(
-    source: ResourceId,
-    sourceCursor: SpliceCursor,
-    target: ResourceId,
-    targetCursor: SpliceCursor,
-    length: FileSize,
-    flags: SpliceFlags,
-): Result<uint64, PlatformError>;
-
-/// Duplicate bytes from one pipe to another without consuming source bytes.
-///
-/// Clone bytes between two pipe descriptors while preserving source pipe contents.
-/// This operation is useful for fanout pipelines where consumers share the same byte stream.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses tee(2) on Linux and runtime fallback on targets without tee support.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.zero.copy`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.file.tee", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["io.zero.copy"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function tee(
-    sourcePipe: PipeHandle,
-    targetPipe: PipeHandle,
-    length: FileSize,
-    flags: SpliceFlags,
-): Result<uint64, PlatformError>;
-
-/// Map user memory pages into a pipe as queued pipe buffers.
-///
-/// Publish one set of user buffers into a pipe endpoint for downstream splice pipelines.
-/// Host kernels may pin pages or copy data depending on flags and memory state.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses vmsplice(2) on Linux and runtime fallback on targets without vmsplice support.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.zero.copy`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.file.vmsplice", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["io.zero.copy"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function vmsplice(
-    pipe: PipeHandle,
+export declare function readMany(
+    file: FileHandle,
     buffers: Slice<Slice<uint8>>,
-    flags: SpliceFlags,
+    options: ReadOptions,
 ): Result<uint64, PlatformError>;
 
-/// Seek within a file and return the new offset.
-///
-/// Reposition the descriptor file offset using the supplied origin and delta.
-/// Returned offset is the new descriptor position after host seek processing.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses lseek(2) on Unix and SetFilePointerEx on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.handle`.
-///
-/// # Replay
-/// External, recordable.
+/// Write bytes to an open file from multiple input buffers.
+@binding("destack.fs.file.writeMany", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["fs.write"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function writeMany(
+    file: FileHandle,
+    buffers: Slice<Slice<uint8>>,
+    options: WriteOptions,
+): Result<uint64, PlatformError>;
+
+/// Reposition an open file and return the new offset.
 @binding("destack.fs.file.seek", {
     effect: "external",
     replay: "recordable",
@@ -902,29 +293,122 @@ export declare function vmsplice(
     affinity: "any",
 })
 export declare function seek(
-    handle: FileHandle,
+    file: FileHandle,
     offset: FileOffset,
-    whence: SeekWhence,
+    origin: SeekOrigin,
 ): Result<FileOffset, PlatformError>;
 
-/// Advise the kernel about access patterns.
-///
-/// Provide expected access pattern hints for one descriptor range.
-/// Advice is best effort and does not change correctness or visibility semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses posix_fadvise(2) on Unix and notSupported on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.metadata`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.file.fadvise", {
+/// Truncate an open file to the requested size.
+@binding("destack.fs.file.truncate", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["fs.write"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function truncate(file: FileHandle, size: FileSize): Result<void, PlatformError>;
+
+/// Synchronize file contents and metadata with storage.
+@binding("destack.fs.file.sync", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["fs.sync"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function sync(file: FileHandle): Result<void, PlatformError>;
+
+/// Synchronize file contents with storage.
+@binding("destack.fs.file.syncData", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["fs.sync"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function syncData(file: FileHandle): Result<void, PlatformError>;
+
+/// Synchronize one byte range with storage.
+@binding("destack.fs.file.syncRange", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["fs.sync"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function syncRange(
+    file: FileHandle,
+    range: FileRange,
+    flags: SyncFlags,
+): Result<void, PlatformError>;
+
+/// Copy bytes between two open files.
+@binding("destack.fs.file.copyRange", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["fs.read", "fs.write"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function copyRange(
+    source: FileHandle,
+    sourceRange: FileRange,
+    target: FileHandle,
+    targetOffset: FileOffset,
+): Result<uint64, PlatformError>;
+
+/// Clone bytes between two open files.
+@binding("destack.fs.file.cloneRange", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["fs.read", "fs.write"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function cloneRange(
+    source: FileHandle,
+    sourceRange: FileRange,
+    target: FileHandle,
+    targetOffset: FileOffset,
+): Result<void, PlatformError>;
+
+/// Allocate, release, or reshape storage for one byte range.
+@binding("destack.fs.file.allocate", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["fs.write"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function allocate(
+    file: FileHandle,
+    range: FileRange,
+    flags: AllocateFlags,
+): Result<void, PlatformError>;
+
+/// Provide access pattern advice for one byte range.
+@binding("destack.fs.file.advise", {
     effect: "external",
     replay: "recordable",
     capabilities: ["fs.metadata"],
@@ -934,121 +418,13 @@ export declare function seek(
     blocking: "sometimes",
     affinity: "any",
 })
-export declare function fadvise(
-    handle: FileHandle,
-    offset: FileOffset,
-    length: FileSize,
+export declare function advise(
+    file: FileHandle,
+    range: FileRange,
     advice: FileAdvice,
 ): Result<void, PlatformError>;
 
-/// Duplicate a file handle.
-///
-/// Duplicate one descriptor and return a new descriptor that references the same open file description.
-/// Both descriptors share file-offset and status-flag state per host dup semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses dup(2) on Unix and DuplicateHandle on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.handle`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.file.dup", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.handle"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function dup(handle: FileHandle): Result<FileHandle, PlatformError>;
-
-/// Duplicate a file handle to a specific target.
-///
-/// Duplicate one descriptor onto a caller-provided target descriptor number.
-/// Existing target descriptor state is replaced according to host dup2 semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses dup2(2) on Unix and DuplicateHandle target replacement on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.handle`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.file.dup2", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.handle"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function dup2(handle: FileHandle, target: FileHandle): Result<FileHandle, PlatformError>;
-
-/// Duplicate a file handle to a specific target with flags.
-///
-/// Duplicate one descriptor onto a target descriptor while applying explicit duplication flags.
-/// Flag support and close-on-exec semantics follow host dup3 behavior.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses dup3(2) on linux and runtime emulation on other targets.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.handle`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.file.dup3", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.handle"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function dup3(
-    handle: FileHandle,
-    target: FileHandle,
-    flags: OpenFlags,
-): Result<FileHandle, PlatformError>;
-
-/// Apply file locks to a file handle.
-///
-/// Apply, release, or test advisory locking state for one file descriptor.
-/// Lock scope and conflict behavior follow host flock/fcntl locking semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses flock/fcntl on Unix and LockFileEx/UnlockFileEx on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.lock`.
-///
-/// # Replay
-/// External, recordable.
+/// Apply or release one advisory file lock.
 @binding("destack.fs.file.lock", {
     effect: "external",
     replay: "recordable",
@@ -1059,26 +435,10 @@ export declare function dup3(
     blocking: "sometimes",
     affinity: "any",
 })
-export declare function lock(handle: FileHandle, flags: FileLockFlags): Result<void, PlatformError>;
+export declare function lock(file: FileHandle, options: LockOptions): Result<void, PlatformError>;
 
-/// Read file descriptor flags.
-///
-/// Read descriptor flags such as close-on-exec from the target file descriptor.
-/// Returned bits reflect current host descriptor state at call time.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses fcntl(F_GETFD) on Unix and runtime handle metadata on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.handle`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.file.getFdFlags", {
+/// Duplicate an open file handle into a new owned resource.
+@binding("destack.fs.file.duplicate", {
     effect: "external",
     replay: "recordable",
     capabilities: ["fs.handle"],
@@ -1088,94 +448,4 @@ export declare function lock(handle: FileHandle, flags: FileLockFlags): Result<v
     blocking: "sometimes",
     affinity: "any",
 })
-export declare function getFdFlags(handle: FileHandle): Result<FdFlags, PlatformError>;
-
-/// Write file descriptor flags.
-///
-/// Write descriptor flags such as close-on-exec to the target file descriptor.
-/// Unsupported flag bits are rejected according to host descriptor control rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses fcntl(F_SETFD) on Unix and runtime handle metadata on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.handle`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.file.setFdFlags", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.handle"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function setFdFlags(handle: FileHandle, flags: FdFlags): Result<void, PlatformError>;
-
-/// Read file status flags.
-///
-/// Read status flags such as append and nonblocking from the target file descriptor.
-/// Returned bits reflect current host descriptor state at call time.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses fcntl(F_GETFL) on Unix and runtime handle metadata on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.handle`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.file.getStatusFlags", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.handle"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function getStatusFlags(handle: FileHandle): Result<StatusFlags, PlatformError>;
-
-/// Write file status flags.
-///
-/// Write status flags such as append and nonblocking to the target file descriptor.
-/// Unsupported or immutable status bits are rejected by host fcntl validation.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses fcntl(F_SETFL) on Unix and runtime handle metadata on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.handle`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.file.setStatusFlags", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.handle"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function setStatusFlags(
-    handle: FileHandle,
-    flags: StatusFlags,
-): Result<void, PlatformError>;
+export declare function duplicate(file: FileHandle): Result<FileHandle, PlatformError>;
