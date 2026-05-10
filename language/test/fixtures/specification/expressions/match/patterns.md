@@ -77,7 +77,7 @@ match (values) {
 Object patterns bind named fields from structural objects.
 
 ```ds
-type Config = { enabled: boolean, retries: int32 };
+type Config = { enabled: boolean; retries: int32 };
 
 declare const config: Config;
 
@@ -94,12 +94,15 @@ match (config) {
 Nested object patterns bind nested object fields.
 
 ```ds
-type Config = { runtime: { retries: int32 }, enabled: boolean };
+type Config = { runtime: { retries: int32 }; enabled: boolean };
 
 declare const config: Config;
 
 match (config) {
-    { runtime: { retries }, enabled } => {
+    {
+        runtime: { retries },
+        enabled,
+    } => {
         retries satisfies int32;
         enabled satisfies boolean;
     }
@@ -112,8 +115,8 @@ Wildcards ignore selected fields while other fields bind.
 
 ```ds
 type Config =
-    | { kind: "a", retries: int32, enabled: boolean }
-    | { kind: "b", retries: int32, enabled: boolean };
+    | { kind: "a"; retries: int32; enabled: boolean }
+    | { kind: "b"; retries: int32; enabled: boolean };
 
 declare const config: Config;
 
@@ -132,8 +135,8 @@ Struct patterns require the type name.
 
 ```ds
 struct Point {
-    x: int32
-    y: int32
+    x: int32;
+    y: int32;
 }
 
 function sum(value: Point): int32 {
@@ -149,8 +152,8 @@ Bare object patterns do not match nominal structs.
 
 ```ds
 struct Point {
-    x: int32
-    y: int32
+    x: int32;
+    y: int32;
 }
 
 function sum(value: Point): int32 {
@@ -200,7 +203,7 @@ match (values) {
 Object rest patterns bind the remaining fields.
 
 ```ds
-type Config = { enabled: boolean, retries: int32 };
+type Config = { enabled: boolean; retries: int32 };
 
 declare const config: Config;
 

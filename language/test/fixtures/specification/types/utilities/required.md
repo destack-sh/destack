@@ -8,8 +8,8 @@
 
 ```ds
 interface Person {
-    name?: string
-    age?: number
+    name?: string;
+    age?: number;
 }
 
 type FullPerson = Required<Person>;
@@ -22,8 +22,8 @@ ok satisfies FullPerson;
 
 ```ds
 interface Person {
-    name?: string
-    age?: number
+    name?: string;
+    age?: number;
 }
 
 type FullPerson = Required<Person>;
@@ -37,7 +37,7 @@ const bad: FullPerson = { name: "Ada" };
 
 ```ds
 interface Person {
-    name?: string | undefined
+    name?: string | undefined;
 }
 
 type FullPerson = Required<Person>;
@@ -50,7 +50,7 @@ ok satisfies FullPerson;
 
 ```ds
 interface Person {
-    readonly name?: string
+    readonly name?: string;
 }
 
 type FullPerson = Required<Person>;

@@ -8,10 +8,10 @@ Object literals are assignable to compatible interfaces.
 
 ```ds
 interface Person {
-    name: string
+    name: string;
 }
 
-const person = { name: "Ada" }
+const person = { name: "Ada" };
 person satisfies Person;
 ```
 
@@ -21,11 +21,11 @@ Object literals missing required fields are not assignable.
 
 ```ds
 interface Person {
-    name: string
-    age: number
+    name: string;
+    age: number;
 }
 
-const person = { name: "Ada" }
+const person = { name: "Ada" };
 person satisfies Person;
 ```
 
@@ -37,7 +37,7 @@ Extra fields are rejected for object literals assigned to interfaces.
 
 ```ds
 interface Person {
-    name: string
+    name: string;
 }
 
 const person: Person = { name: "Ada", age: 42 };
@@ -51,10 +51,10 @@ Non-literal values are structurally assignable even with extra fields.
 
 ```ds
 interface Person {
-    name: string
+    name: string;
 }
 
-const raw = { name: "Ada", age: 42 }
+const raw = { name: "Ada", age: 42 };
 raw satisfies Person;
 ```
 
@@ -64,10 +64,10 @@ Optional fields can be omitted in object literals.
 
 ```ds
 interface Person {
-    name?: string
+    name?: string;
 }
 
-const person = {}
+const person = {};
 person satisfies Person;
 ```
 
@@ -75,10 +75,10 @@ person satisfies Person;
 
 ```ds
 interface Target {
-    value?: number
+    value?: number;
 }
 
-const value: Target = { value: undefined }
+const value: Target = { value: undefined };
 ```
 
 - contains: not assignable
@@ -89,14 +89,14 @@ Optional fields are not assignable to required fields.
 
 ```ds
 interface Target {
-    name: string
+    name: string;
 }
 
 interface Source {
-    name?: string
+    name?: string;
 }
 
-const source: Source = {}
+const source: Source = {};
 source satisfies Target;
 ```
 
@@ -108,14 +108,14 @@ Required fields are assignable to optional fields.
 
 ```ds
 interface Target {
-    name?: string
+    name?: string;
 }
 
 interface Source {
-    name: string
+    name: string;
 }
 
-const source: Source = { name: "Ada" }
+const source: Source = { name: "Ada" };
 source satisfies Target;
 ```
 
@@ -125,15 +125,15 @@ Assignments reject optional fields when required is expected.
 
 ```ds
 interface Target {
-    name: string
+    name: string;
 }
 
 interface Source {
-    name?: string
+    name?: string;
 }
 
-const source: Source = {}
-const target: Target = source
+const source: Source = {};
+const target: Target = source;
 ```
 
 - contains: not assignable
@@ -146,11 +146,11 @@ Assignments allow required fields when optional is expected.
 
 ```ds
 interface Target {
-    name?: string
+    name?: string;
 }
 
 interface Source {
-    name: string
+    name: string;
 }
 
 const source: Source = { name: "Ada" };
@@ -163,11 +163,11 @@ Declarations in .ds merge into a single interface.
 
 ```ds:types.ds
 export interface Widget {
-    value: number
+    value: number;
 }
 
 export interface Widget {
-    label: string
+    label: string;
 }
 
 export const widget: Widget;
@@ -186,11 +186,11 @@ Duplicate interface declarations are rejected outside declaration files.
 
 ```ds
 interface Duplicate {
-    value: number
+    value: number;
 }
 
 interface Duplicate {
-    label: string
+    label: string;
 }
 ```
 
@@ -202,14 +202,14 @@ Compatible interfaces are assignable based on shape.
 
 ```ds
 interface Named {
-    name: string
+    name: string;
 }
 
 interface Person {
-    name: string
+    name: string;
 }
 
-const person: Person = { name: "Ada" }
+const person: Person = { name: "Ada" };
 person satisfies Named;
 ```
 
@@ -223,12 +223,12 @@ Nominal interfaces are not satisfied structurally.
 newtype interface Add<T> {
     type Output;
 
-    add(other: T): this.Output
+    add(other: T): this.Output;
 }
 
 struct Vec2 {
-    x: float32
-    y: float32
+    x: float32;
+    y: float32;
 
     add(other: Vec2): Vec2 {
         Vec2 { x: this.x + other.x, y: this.y + other.y }
@@ -248,12 +248,12 @@ Nominal interfaces require an explicit implements clause.
 newtype interface Add<T> {
     type Output;
 
-    add(other: T): this.Output
+    add(other: T): this.Output;
 }
 
 struct Vec2 {
-    x: float32
-    y: float32
+    x: float32;
+    y: float32;
 }
 
 extension of Vec2 implements Add<Vec2> {

@@ -10,8 +10,8 @@ Enum instances expose declared methods.
 
 ```ds
 enum Status {
-    Active = 1
-    Inactive = 2
+    Active = 1,
+    Inactive = 2,
 
     isActive(): boolean {
         match (this) {
@@ -33,8 +33,8 @@ Enum statics can expose shared values.
 
 ```ds
 enum Status {
-    Active = 1
-    Inactive = 2
+    Active = 1,
+    Inactive = 2,
 
     static Default = Status.Active;
 }

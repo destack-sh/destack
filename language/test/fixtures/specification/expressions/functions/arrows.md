@@ -27,7 +27,7 @@ add satisfies (a: number, b: number) => number;
 Value-level arrow functions cannot declare explicit this parameters.
 
 ```ds
-let f = (this: string) => {}
+let f = (this: string) => {};
 ```
 
 - contains: invalid function

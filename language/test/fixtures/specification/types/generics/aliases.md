@@ -9,7 +9,7 @@ Type aliases can bind type parameters and static value parameters.
 Type aliases accept explicit type arguments.
 
 ```ds
-type Box<T> = { value: T }
+type Box<T> = { value: T };
 
 declare function makeBox(): Box<number>;
 
@@ -22,7 +22,7 @@ value satisfies Box<number>;
 Type arguments must satisfy declared bounds.
 
 ```ds
-type Box<T: number> = { value: T }
+type Box<T: number> = { value: T };
 
 declare function makeBox(): Box<number>;
 
@@ -36,7 +36,7 @@ let value: Box<string> = makeBox();
 Static value arguments are checked against declared types.
 
 ```ds
-type Buffer<T, comptime N: number> = { value: T }
+type Buffer<T, comptime N: number> = { value: T };
 
 declare function makeBuffer(): Buffer<string, 4>;
 
@@ -49,7 +49,7 @@ buffer satisfies Buffer<string, 4>;
 Static value arguments must be static expressions.
 
 ```ds
-type Buffer<T, comptime N: number> = { value: T }
+type Buffer<T, comptime N: number> = { value: T };
 
 declare function makeBuffer(): Buffer<string, 4>;
 
@@ -63,7 +63,7 @@ let buffer: Buffer<string, comptime 4> = makeBuffer();
 Static value arguments must satisfy declared types.
 
 ```ds
-type Buffer<T, comptime N: number> = { value: T }
+type Buffer<T, comptime N: number> = { value: T };
 
 declare function makeBuffer(): Buffer<string, 4>;
 
@@ -79,7 +79,7 @@ let buffer: Buffer<string, true> = makeBuffer();
 Type parameters fall back to defaults when omitted.
 
 ```ds
-type Box<T = number> = { value: T }
+type Box<T = number> = { value: T };
 
 declare function makeBox(): Box;
 
@@ -92,7 +92,7 @@ value satisfies Box<number>;
 Static value arguments fall back to defaults when omitted.
 
 ```ds
-type Buffer<T, comptime N: number = 4> = { value: T }
+type Buffer<T, comptime N: number = 4> = { value: T };
 
 declare function makeBuffer(): Buffer<string>;
 
@@ -105,7 +105,7 @@ buffer satisfies Buffer<string, 4>;
 Static value defaults must be static expressions.
 
 ```ds
-type Buffer<T, comptime N: number = comptime 4> = { value: T }
+type Buffer<T, comptime N: number = comptime 4> = { value: T };
 
 declare function makeBuffer(): Buffer<string>;
 
@@ -121,10 +121,13 @@ let buffer: Buffer<string> = makeBuffer();
 Tuple static arguments stay grouped when passed through aliases.
 
 ```ds
-type And<Types extends (boolean, boolean)> =
-    Types[0] extends true ? (Types[1] extends true ? true : false) : false;
+type And<Types: (boolean, boolean)> = Types[0] extends true
+    ? Types[1] extends true
+        ? true
+        : false
+    : false;
 type MutuallyExtends<Left, Right> = And<
-  (Left extends Right ? true : false, Right extends Left ? true : false)
+    (Left extends Right ? true : false, Right extends Left ? true : false)
 >;
 
 type Result = MutuallyExtends<number, number>;
@@ -150,8 +153,11 @@ value satisfies (number, string);
 Tuple static arguments stay grouped across imported aliases.
 
 ```ds:utils.ds
-export type And<Types extends (boolean, boolean)> =
-    Types[0] extends true ? (Types[1] extends true ? true : false) : false;
+export type And<Types: (boolean, boolean)> = Types[0] extends true
+    ? Types[1] extends true
+        ? true
+        : false
+    : false;
 ```
 
 ```ds:branding.ds
@@ -188,8 +194,11 @@ value satisfies (number, string);
 Tuple static arguments remain grouped through nested alias wrappers.
 
 ```ds
-type And<Types extends (boolean, boolean)> =
-    Types[0] extends true ? (Types[1] extends true ? true : false) : false;
+type And<Types: (boolean, boolean)> = Types[0] extends true
+    ? Types[1] extends true
+        ? true
+        : false
+    : false;
 type Wrap<T> = T;
 type Alias = Wrap<And<(true, true)>>;
 
@@ -202,11 +211,14 @@ value satisfies true;
 Type alias references preserve tuple static arguments across imports.
 
 ```ds:utils.ds
-export type And<Types extends (boolean, boolean)> =
-    Types[0] extends true ? (Types[1] extends true ? true : false) : false;
+export type And<Types: (boolean, boolean)> = Types[0] extends true
+    ? Types[1] extends true
+        ? true
+        : false
+    : false;
 
 export type MutuallyExtends<Left, Right> = And<
-  (Left extends Right ? true : false, Right extends Left ? true : false)
+    (Left extends Right ? true : false, Right extends Left ? true : false)
 >;
 ```
 

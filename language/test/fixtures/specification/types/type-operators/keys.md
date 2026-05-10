@@ -36,8 +36,8 @@ const bad: Keys = "title";
 ### keyof unions keep shared keys
 
 ```ds
-type Left = { shared: string, left: int32 };
-type Right = { shared: string, right: int32 };
+type Left = { shared: string; left: int32 };
+type Right = { shared: string; right: int32 };
 
 type Keys = keyof (Left | Right);
 
@@ -47,8 +47,8 @@ const ok: Keys = "shared";
 ### keyof unions reject missing keys
 
 ```ds
-type Left = { shared: string, left: int32 };
-type Right = { shared: string, right: int32 };
+type Left = { shared: string; left: int32 };
+type Right = { shared: string; right: int32 };
 
 type Keys = keyof (Left | Right);
 
@@ -60,8 +60,8 @@ const bad: Keys = "left";
 ### keyof intersections include all keys
 
 ```ds
-type Left = { shared: string, left: int32 };
-type Right = { shared: string, right: int32 };
+type Left = { shared: string; left: int32 };
+type Right = { shared: string; right: int32 };
 
 type Keys = keyof (Left & Right);
 
@@ -73,8 +73,8 @@ const right: Keys = "right";
 ### keyof uses instantiated keys
 
 ```ds
-type Keys<T extends { a: number }> = keyof T;
-type Actual = Keys<{ a: number, b: string }>;
+type Keys<T: { a: number }> = keyof T;
+type Actual = Keys<{ a: number; b: string }>;
 
 const key: Actual = "b";
 key satisfies "a" | "b";
@@ -166,8 +166,8 @@ const ok: HasTitle = false;
 ### in uses shared union keys
 
 ```ds
-type Left = { shared: string, left: int32 };
-type Right = { shared: string, right: int32 };
+type Left = { shared: string; left: int32 };
+type Right = { shared: string; right: int32 };
 
 type HasLeft = "left" in (Left | Right);
 type HasShared = "shared" in (Left | Right);
@@ -179,8 +179,8 @@ const shared: HasShared = true;
 ### in uses intersection keys
 
 ```ds
-type Left = { shared: string, left: int32 };
-type Right = { shared: string, right: int32 };
+type Left = { shared: string; left: int32 };
+type Right = { shared: string; right: int32 };
 
 type HasLeft = "left" in (Left & Right);
 

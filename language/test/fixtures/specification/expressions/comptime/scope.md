@@ -84,7 +84,7 @@ let counter = 0;
 
 comptime {
     counter += 1;
-}
+};
 ```
 
 - contains: static expression

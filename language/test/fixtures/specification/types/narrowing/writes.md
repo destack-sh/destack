@@ -26,7 +26,7 @@ if (value != null) {
 Reassigning a discriminated union value removes member access from the previous branch.
 
 ```ds
-type Ready = { kind: "ready", payload: string };
+type Ready = { kind: "ready"; payload: string };
 type Idle = { kind: "idle" };
 
 let box: { state: Ready | Idle } = { state: { kind: "ready", payload: "ok" } };
@@ -89,7 +89,7 @@ value satisfies string;
 Writes through an alias invalidate discriminant member availability on the original value.
 
 ```ds
-type Ready = { kind: "ready", payload: string };
+type Ready = { kind: "ready"; payload: string };
 type Idle = { kind: "idle" };
 
 let box: { state: Ready | Idle } = { state: { kind: "ready", payload: "ok" } };

@@ -9,7 +9,7 @@ Newtypes can bind type parameters and static value parameters.
 Newtypes accept explicit type arguments.
 
 ```ds
-newtype Box<T> = { value: T }
+newtype Box<T> = { value: T };
 
 declare function makeBox(): Box<number>;
 
@@ -22,7 +22,7 @@ value satisfies Box<number>;
 Type arguments must satisfy declared bounds.
 
 ```ds
-newtype Box<T: number> = { value: T }
+newtype Box<T: number> = { value: T };
 
 declare function makeBox(): Box<number>;
 
@@ -36,7 +36,7 @@ let value: Box<string> = makeBox();
 Static value arguments are checked against declared types.
 
 ```ds
-newtype Buffer<T, comptime N: number> = { value: T }
+newtype Buffer<T, comptime N: number> = { value: T };
 
 declare function makeBuffer(): Buffer<string, 4>;
 
@@ -49,7 +49,7 @@ buffer satisfies Buffer<string, 4>;
 Newtype static value arguments must be static expressions.
 
 ```ds
-newtype Buffer<T, comptime N: number> = { value: T }
+newtype Buffer<T, comptime N: number> = { value: T };
 
 declare function makeBuffer(): Buffer<string, 4>;
 
@@ -63,7 +63,7 @@ let buffer: Buffer<string, comptime 4> = makeBuffer();
 Static value arguments must satisfy declared types.
 
 ```ds
-newtype Buffer<T, comptime N: number> = { value: T }
+newtype Buffer<T, comptime N: number> = { value: T };
 
 declare function makeBuffer(): Buffer<string, 4>;
 
@@ -79,7 +79,7 @@ let buffer: Buffer<string, true> = makeBuffer();
 Type parameters fall back to defaults when omitted.
 
 ```ds
-newtype Box<T = number> = { value: T }
+newtype Box<T = number> = { value: T };
 
 declare function makeBox(): Box;
 
@@ -92,7 +92,7 @@ value satisfies Box<number>;
 Static value arguments fall back to defaults when omitted.
 
 ```ds
-newtype Buffer<T, comptime N: number = 4> = { value: T }
+newtype Buffer<T, comptime N: number = 4> = { value: T };
 
 declare function makeBuffer(): Buffer<string>;
 

@@ -10,8 +10,8 @@ Mapped types produce fields for each key.
 type Flags<T> = { [K in keyof T]: boolean };
 
 interface Person {
-    name: string
-    age: number
+    name: string;
+    age: number;
 }
 
 const ok: Flags<Person> = { name: true, age: false };
@@ -25,8 +25,8 @@ Mapped fields must satisfy the mapped value type.
 type Flags<T> = { [K in keyof T]: boolean };
 
 interface Person {
-    name: string
-    age: number
+    name: string;
+    age: number;
 }
 
 const bad: Flags<Person> = { name: true, age: "no" };
@@ -42,8 +42,8 @@ Optional modifiers allow missing fields.
 type Optional<T> = { [K in keyof T]?: T[K] };
 
 interface Person {
-    name: string
-    age: number
+    name: string;
+    age: number;
 }
 
 const ok: Optional<Person> = {};
@@ -58,8 +58,8 @@ Optional fields still require compatible types.
 type Optional<T> = { [K in keyof T]?: T[K] };
 
 interface Person {
-    name: string
-    age: number
+    name: string;
+    age: number;
 }
 
 const bad: Optional<Person> = { name: "Ada", age: "no" };
@@ -75,7 +75,7 @@ Optional removal forces required fields.
 type RequiredKeys<T> = { [K in keyof T]-?: T[K] };
 
 interface Person {
-    name?: string
+    name?: string;
 }
 
 const bad: RequiredKeys<Person> = {};
@@ -91,8 +91,8 @@ Key remaps can merge fields into new keys.
 type Renamed<T> = { [K in keyof T as "value"]: T[K] };
 
 interface Person {
-    name: string
-    age: number
+    name: string;
+    age: number;
 }
 
 const ok: Renamed<Person> = { value: "Ada" };
@@ -107,8 +107,8 @@ Remapped fields must still satisfy the mapped value type.
 type Renamed<T> = { [K in keyof T as "value"]: T[K] };
 
 interface Person {
-    name: string
-    age: number
+    name: string;
+    age: number;
 }
 
 const bad: Renamed<Person> = { value: true };
@@ -124,8 +124,8 @@ Readonly modifiers make fields immutable.
 type Frozen<T> = { readonly [K in keyof T]: T[K] };
 
 interface Person {
-    name: string
-    age: number
+    name: string;
+    age: number;
 }
 
 const frozen: Frozen<Person> = { name: "Ada", age: 42 };
@@ -143,8 +143,8 @@ type Frozen<T> = { readonly [K in keyof T]: T[K] };
 type Mutable<T> = { -readonly [K in keyof T]: T[K] };
 
 interface Person {
-    name: string
-    age: number
+    name: string;
+    age: number;
 }
 
 const ok: Mutable<Person> = { name: "Ada", age: 42 };
@@ -159,7 +159,7 @@ type Optional<T> = { [K in keyof T]?: T[K] };
 type Required<T> = { [K in keyof T]-?: T[K] };
 
 interface Person {
-    name: string
+    name: string;
 }
 
 const bad: Required<Optional<Person>> = {};

@@ -54,7 +54,7 @@ if (null !== value && undefined !== value) {
 
 ```ds
 const value: string | null | undefined = null;
-if ((value !== null) && (value !== undefined)) {
+if (value !== null && value !== undefined) {
     value satisfies string;
 } else {
     value satisfies null | undefined;

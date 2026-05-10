@@ -9,12 +9,16 @@ Unary `-` uses numeric rules for builtin numbers and `Negate` for receiver overl
 Unary `-` dispatches to `Negate` on the receiver.
 
 ```ds
-struct Signed { value: int }
+struct Signed {
+    value: int;
+}
 
 extension of Signed implements Negate {
     type Output = Signed;
 
-    negate(): this.Output { return this }
+    negate(): this.Output {
+        return this;
+    }
 }
 
 declare function getSigned(): Signed;
@@ -28,12 +32,16 @@ value satisfies Signed;
 Unary `-` requires a matching `Negate` implementation.
 
 ```ds
-struct Signed { value: int }
+struct Signed {
+    value: int;
+}
 
 extension of Signed implements Plus {
     type Output = Signed;
 
-    plus(): this.Output { return this }
+    plus(): this.Output {
+        return this;
+    }
 }
 
 declare function getSigned(): Signed;

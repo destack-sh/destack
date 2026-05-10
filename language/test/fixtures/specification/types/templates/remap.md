@@ -8,12 +8,12 @@ Key remapping can use template literal keys while preserving each field type.
 
 ```ds
 type HandlerMap<T> = {
-    [K in keyof T as `on-${K}`]: T[K]
+    [K in keyof T as `on-${K}`]: T[K];
 };
 
 interface Events {
-    ready: boolean
-    message: string
+    ready: boolean;
+    message: string;
 }
 
 const handlers: HandlerMap<Events> = {
@@ -28,11 +28,11 @@ A remapped key still uses the original field type.
 
 ```ds
 type HandlerMap<T> = {
-    [K in keyof T as `on-${K}`]: T[K]
+    [K in keyof T as `on-${K}`]: T[K];
 };
 
 interface Events {
-    ready: boolean
+    ready: boolean;
 }
 
 const handlers: HandlerMap<Events> = {
@@ -49,7 +49,7 @@ The result is the original field type.
 
 ```ds
 type HandlerMap<T> = {
-    [K in keyof T as `on-${K}`]: T[K]
+    [K in keyof T as `on-${K}`]: T[K];
 };
 
 type Value = HandlerMap<{ name: string }>["on-name"];
@@ -65,8 +65,8 @@ A remapped key can use a template part inferred from the original key.
 ```ds
 type PayloadName<E> = E extends `evt:${infer Name}` ? Name : never;
 
-type PayloadMap<E extends string> = {
-    [K in E as `payload:${K}`]: PayloadName<K>
+type PayloadMap<E: string> = {
+    [K in E as `payload:${K}`]: PayloadName<K>;
 };
 
 type Names = PayloadMap<"evt:user" | "evt:order">;
@@ -84,13 +84,13 @@ order satisfies "order";
 
 ```ds
 type HandlerMap<T> = {
-    [K in keyof T as `on-${K}`]: T[K]
+    [K in keyof T as `on-${K}`]: T[K];
 };
 
 const handlers = {
     "on-open": true,
     "on-close": false,
-} satisfies HandlerMap<{ open: boolean, close: boolean }>;
+} satisfies HandlerMap<{ open: boolean; close: boolean }>;
 
 handlers["on-open"] satisfies boolean;
 ```

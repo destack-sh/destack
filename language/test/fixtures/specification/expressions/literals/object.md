@@ -10,7 +10,7 @@ Objects infer property types from their values.
 
 ```ds
 const x = { a: 1, b: "two" };
-x satisfies { a: number, b: string };
+x satisfies { a: number; b: string };
 ```
 
 ### object with shorthand properties
@@ -21,7 +21,7 @@ Shorthand fields use the binding type.
 const name = "Ada";
 const age = 42;
 const person = { name, age };
-person satisfies { name: string, age: number };
+person satisfies { name: string; age: number };
 ```
 
 ### empty object
@@ -48,7 +48,7 @@ Const assertions preserve literal property types.
 
 ```ds
 const x = { a: 1, b: "two" } as const;
-x satisfies { readonly a: 1, readonly b: "two" };
+x satisfies { readonly a: 1; readonly b: "two" };
 ```
 
 ## object spreads
@@ -60,7 +60,7 @@ Object literals incorporate spread fields.
 ```ds
 const base = { a: 1, b: "two" };
 const value = { ...base, c: true };
-value satisfies { a: number, b: string, c: boolean };
+value satisfies { a: number; b: string; c: boolean };
 ```
 
 ### object spread overrides fields
@@ -70,7 +70,7 @@ Later fields override earlier spread fields.
 ```ds
 const base = { a: 1, b: 2 };
 const value = { ...base, b: "two" };
-value satisfies { a: number, b: string };
+value satisfies { a: number; b: string };
 ```
 
 ### object spread preserves unions
@@ -91,7 +91,7 @@ Object spreads unwrap structural type aliases.
 type Base = { a: number };
 const base: Base = { a: 1 };
 const value = { ...base, b: "two" };
-value satisfies { a: number, b: string };
+value satisfies { a: number; b: string };
 ```
 
 ### object spread merges intersections
@@ -101,7 +101,7 @@ Object spreads merge intersection shapes.
 ```ds
 const base: { a: number } & { b: string } = { a: 1, b: "two" };
 const value = { ...base, c: true };
-value satisfies { a: number, b: string, c: boolean };
+value satisfies { a: number; b: string; c: boolean };
 ```
 
 ## contextual objects
@@ -111,8 +111,8 @@ value satisfies { a: number, b: string, c: boolean };
 Object literals use contextual types for property inference.
 
 ```ds
-const value: { a: number, b: string } = { a: 1, b: "hi" };
-value satisfies { a: number, b: string };
+const value: { a: number; b: string } = { a: 1, b: "hi" };
+value satisfies { a: number; b: string };
 ```
 
 ### contextual object literal mismatch
@@ -120,7 +120,7 @@ value satisfies { a: number, b: string };
 Object literal properties must satisfy contextual field types.
 
 ```ds
-const value: { a: number, b: string } = { a: 1, b: 2 };
+const value: { a: number; b: string } = { a: 1, b: 2 };
 ```
 
 - contains: not assignable
@@ -130,10 +130,10 @@ const value: { a: number, b: string } = { a: 1, b: 2 };
 Contextual object types are preserved through aliases.
 
 ```ds
-type Point = { x: number, y: number };
+type Point = { x: number; y: number };
 
 const value: Point = { x: 1, y: 2 };
-value satisfies { x: number, y: number };
+value satisfies { x: number; y: number };
 ```
 
 ### contextual object literal alias mismatch
@@ -141,7 +141,7 @@ value satisfies { x: number, y: number };
 Alias contextual types still enforce property constraints.
 
 ```ds
-type Point = { x: number, y: number };
+type Point = { x: number; y: number };
 
 const value: Point = { x: 1, y: "hi" };
 ```

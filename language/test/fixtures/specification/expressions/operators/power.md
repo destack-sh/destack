@@ -23,12 +23,16 @@ value satisfies number;
 `**` dispatches to `Power` on the receiver.
 
 ```ds
-struct Scalar { value: int }
+struct Scalar {
+    value: int;
+}
 
 extension of Scalar implements Power<Scalar> {
     type Output = Scalar;
 
-    power(other: Scalar): this.Output { return this }
+    power(other: Scalar): this.Output {
+        return this;
+    }
 }
 
 declare function getScalar(): Scalar;
@@ -45,12 +49,16 @@ value satisfies Scalar;
 `**` requires a matching `Power` implementation.
 
 ```ds
-struct Scalar { value: int }
+struct Scalar {
+    value: int;
+}
 
 extension of Scalar implements Multiply<Scalar> {
     type Output = Scalar;
 
-    multiply(other: Scalar): this.Output { return this }
+    multiply(other: Scalar): this.Output {
+        return this;
+    }
 }
 
 declare function getScalar(): Scalar;

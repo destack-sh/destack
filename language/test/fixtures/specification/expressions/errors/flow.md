@@ -21,7 +21,7 @@ Finally does not affect the try expression type.
 const value = try {
     1
 } finally {
-    2
+    2;
 };
 value satisfies int;
 ```
@@ -55,7 +55,7 @@ const value = try {
     e satisfies unknown;
     "fallback"
 } finally {
-    2
+    2;
 };
 value satisfies int | string;
 ```

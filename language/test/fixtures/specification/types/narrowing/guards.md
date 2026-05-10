@@ -69,8 +69,12 @@ const ok = value instanceof Point;
 ### in narrows required keys
 
 ```ds
-interface WithName { name: string }
-interface WithId { id: number }
+interface WithName {
+    name: string;
+}
+interface WithId {
+    id: number;
+}
 
 function narrow(value: WithName | WithId): void {
     if ("name" in value) {

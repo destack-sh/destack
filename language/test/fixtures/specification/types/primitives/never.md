@@ -9,8 +9,10 @@ The `never` type (bottom type).
 Never is the bottom type, assignable to any type.
 
 ```ds
-function fail(): never { throw "error" }
-const x: number = fail()
+function fail(): never {
+    throw "error";
+}
+const x: number = fail();
 ```
 
 ### never to string
@@ -18,8 +20,10 @@ const x: number = fail()
 A function returning never can be assigned to any type.
 
 ```ds
-function fail(): never { throw "error" }
-const x: string = fail()
+function fail(): never {
+    throw "error";
+}
+const x: string = fail();
 ```
 
 ## values are not assignable to never

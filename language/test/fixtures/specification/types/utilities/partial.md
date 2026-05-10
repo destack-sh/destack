@@ -8,8 +8,8 @@
 
 ```ds
 interface Person {
-    name: string
-    age: number
+    name: string;
+    age: number;
 }
 
 type OptionalPerson = Partial<Person>;
@@ -24,8 +24,8 @@ ok2 satisfies OptionalPerson;
 
 ```ds
 interface Person {
-    name: string
-    age: number
+    name: string;
+    age: number;
 }
 
 type OptionalPerson = Partial<Person>;
@@ -39,8 +39,8 @@ const bad: OptionalPerson = { name: "Ada", extra: true };
 
 ```ds
 interface Person {
-    name: string
-    age: number
+    name: string;
+    age: number;
 }
 
 type OptionalPerson = Partial<Person>;
@@ -54,8 +54,8 @@ const bad: OptionalPerson = { name: "Ada", age: "no" };
 
 ```ds
 interface Person {
-    readonly name: string
-    age: number
+    readonly name: string;
+    age: number;
 }
 
 type OptionalPerson = Partial<Person>;

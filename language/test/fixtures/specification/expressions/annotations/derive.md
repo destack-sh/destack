@@ -37,8 +37,8 @@ user.debug() satisfies string;
 
 ```ds
 module {
-    derive: [Clone];
-}
+    derive: [Clone],
+};
 
 struct User {
     id: int64;

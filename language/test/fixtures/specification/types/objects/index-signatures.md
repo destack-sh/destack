@@ -132,7 +132,7 @@ Structural object types without index signatures are assignable when fields matc
 
 ```ds
 type Bag = { [key: string]: int32 };
-type Point = { x: int32, y: int32 };
+type Point = { x: int32; y: int32 };
 
 let point: Point = { x: 1, y: 2 };
 let bag: Bag = point;
@@ -144,7 +144,7 @@ Fields with incompatible value types are rejected.
 
 ```ds
 type Bag = { [key: string]: int32 };
-type Mixed = { x: int32, y: string };
+type Mixed = { x: int32; y: string };
 
 let mixed: Mixed = { x: 1, y: "two" };
 let bag: Bag = mixed;
@@ -175,11 +175,11 @@ let value: int32 = bag["a"];
 
 ```ds
 interface Bag {
-    [key: string]: number
+    [key: string]: number;
 }
 
-const bag: Bag = { a: 1 }
-let value = bag.missing
+const bag: Bag = { a: 1 };
+let value = bag.missing;
 ```
 
 - contains: only available via index signature

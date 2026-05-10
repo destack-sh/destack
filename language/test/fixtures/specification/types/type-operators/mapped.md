@@ -7,9 +7,9 @@ Mapped types iterate over static key unions.
 ### mapped types use instantiated keys
 
 ```ds
-type Flags<T extends { a: number }> = { [K in keyof T]: boolean };
+type Flags<T: { a: number }> = { [K in keyof T]: boolean };
 
-type Actual = Flags<{ a: number, b: string }>;
+type Actual = Flags<{ a: number; b: string }>;
 
 const ok: Actual = { a: true, b: false };
 ok satisfies Actual;
@@ -22,7 +22,7 @@ type Prefix<T> = {
     [K in keyof T as `get${Capitalize<K & string>}`]: T[K];
 };
 
-type Accessors = Prefix<{ name: string, age: int32 }>;
+type Accessors = Prefix<{ name: string; age: int32 }>;
 type Values = Accessors["getName" | "getAge"];
 
 const name: Values = "Ada";

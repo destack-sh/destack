@@ -11,11 +11,11 @@ They can use both the matched value and bindings introduced by the pattern.
 
 ```ds
 struct Foo {
-    x: int32
+    x: int32;
 }
 
 struct Bar {
-    y: int32
+    y: int32;
 }
 
 function pick(value: Foo | Bar): int32 {
@@ -54,12 +54,12 @@ Pattern bindings are in scope for the guard.
 
 ```ds
 struct Point {
-    x: int32
-    y: int32
+    x: int32;
+    y: int32;
 }
 
 struct Other {
-    y: int32
+    y: int32;
 }
 
 function clamp(point: Point | Other): int32 {
@@ -76,11 +76,11 @@ Later arms see the original matched type.
 
 ```ds
 struct Foo {
-    x: int32
+    x: int32;
 }
 
 struct Bar {
-    y: int32
+    y: int32;
 }
 
 function pick(value: Foo | Bar): int32 {
@@ -116,11 +116,11 @@ function pick(value: string | int32): int32 {
 
 ```ds
 struct Foo {
-    x: int32
+    x: int32;
 }
 
 struct Bar {
-    y: int32
+    y: int32;
 }
 
 function pick(value: Foo | Bar): int32 {

@@ -67,15 +67,18 @@ store.onChange satisfies (listener: (event: ChangeEvent) => void) => Disposable;
 newtype route = (string,);
 newtype exposeHealth = ();
 
-extension of route implements Macro<FunctionDeclaration>
-{
+extension of route implements Macro<FunctionDeclaration> {
     static expand(target: FunctionDeclaration, context: ExpansionContext, config: this): void {
-        context.ensureDeclaration("RouteDefinition", () => comptime eval<Declaration>(ds`
+        context.ensureDeclaration(
+            "RouteDefinition",
+            () =>
+                comptime eval<Declaration>(ds`
             type RouteDefinition = {
                 path: string;
                 handler: unknown;
             };
-        `));
+        `),
+        );
 
         const declaration = comptime eval<Declaration>(ds`
             const ROUTE_DEFINITION_${context.name.toUpperCase()} = {

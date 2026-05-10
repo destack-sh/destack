@@ -8,11 +8,11 @@ Object literals with fields not present in any union member are rejected.
 
 ```ds
 interface Named {
-    name: string
+    name: string;
 }
 
 interface Aged {
-    age: int32
+    age: int32;
 }
 
 const value: Named | Aged = { name: "Ada", extra: true };
@@ -28,11 +28,11 @@ Object literals must satisfy every intersection member.
 
 ```ds
 interface Named {
-    name: string
+    name: string;
 }
 
 interface Aged {
-    age: int32
+    age: int32;
 }
 
 const value: Named & Aged = { name: "Ada" };
@@ -46,11 +46,11 @@ Object literals satisfy intersections when all fields are present.
 
 ```ds
 interface Named {
-    name: string
+    name: string;
 }
 
 interface Aged {
-    age: int32
+    age: int32;
 }
 
 const value: Named & Aged = { name: "Ada", age: 42 };
@@ -86,7 +86,7 @@ const value: Person = source;
 Generic target positions infer full source shape without excess checks.
 
 ```ds
-function keep<T extends { name: string }>(value: T): T {
+function keep<T: { name: string }>(value: T): T {
     return value;
 }
 
@@ -101,9 +101,7 @@ value.extra satisfies boolean;
 Fresh literals targeting discriminated unions reject non-member fields.
 
 ```ds
-type Shape =
-    | { kind: "a"; value: number }
-    | { kind: "b"; value: string };
+type Shape = { kind: "a"; value: number } | { kind: "b"; value: string };
 
 const value: Shape = { kind: "a" as const, value: 1, extra: true };
 ```
@@ -115,9 +113,7 @@ const value: Shape = { kind: "a" as const, value: 1, extra: true };
 Non-fresh values may carry extra fields when structurally assignable to a member.
 
 ```ds
-type Shape =
-    | { kind: "a"; value: number }
-    | { kind: "b"; value: string };
+type Shape = { kind: "a"; value: number } | { kind: "b"; value: string };
 
 const source = { kind: "a" as const, value: 1, extra: true };
 const value: Shape = source;
@@ -241,9 +237,7 @@ const value: Person = make();
 Fresh discriminant literals reject excess fields through renamed re-export paths.
 
 ```ds:shape.ds
-export type Shape =
-    | { kind: "a"; value: number }
-    | { kind: "b"; value: string };
+export type Shape = { kind: "a"; value: number } | { kind: "b"; value: string };
 ```
 
 ```ds:index.ds
@@ -263,9 +257,7 @@ const value: PublicShape = { kind: "a" as const, value: 1, extra: true };
 Fresh spread literals still reject explicit excess fields for discriminant union targets through renamed re-exports.
 
 ```ds:shape.ds
-export type Shape =
-    | { kind: "a"; value: number }
-    | { kind: "b"; value: string };
+export type Shape = { kind: "a"; value: number } | { kind: "b"; value: string };
 ```
 
 ```ds:index.ds

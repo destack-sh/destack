@@ -10,9 +10,7 @@ Result typing is still handled by arm body joins.
 Object discriminants select the matching union member.
 
 ```ds
-type Shape =
-    | { kind: "circle", radius: number }
-    | { kind: "square", size: number };
+type Shape = { kind: "circle"; radius: number } | { kind: "square"; size: number };
 
 declare let shape: Shape;
 
@@ -111,9 +109,7 @@ match (pair) {
 Nested object payloads narrow with the selected tuple member.
 
 ```ds
-type Event =
-    | (1, { kind: "text", value: string })
-    | (2, { kind: "code", value: int32 });
+type Event = (1, { kind: "text"; value: string }) | (2, { kind: "code"; value: int32 });
 
 declare let event: Event;
 
@@ -132,17 +128,19 @@ match (event) {
 Nested tuple payloads narrow from literal tuple positions.
 
 ```ds
-type Envelope =
-    | { kind: "text", payload: (1, string) }
-    | { kind: "code", payload: (2, int32) };
+type Envelope = { kind: "text"; payload: (1, string) } | { kind: "code"; payload: (2, int32) };
 
 declare let envelope: Envelope;
 
 match (envelope) {
-    { payload: (1, value) } => {
+    {
+        payload: (1, value),
+    } => {
         value satisfies string;
     }
-    { payload: (2, value) } => {
+    {
+        payload: (2, value),
+    } => {
         value satisfies int32;
     }
 }
@@ -153,9 +151,7 @@ match (envelope) {
 Ignored discriminant fields do not narrow unrelated payloads.
 
 ```ds
-type Envelope =
-    | { kind: "text", payload: string }
-    | { kind: "code", payload: int32 };
+type Envelope = { kind: "text"; payload: string } | { kind: "code"; payload: int32 };
 
 declare let envelope: Envelope;
 
@@ -172,16 +168,20 @@ Nested object tags select the matching payload member.
 
 ```ds
 type Envelope =
-    | { kind: "text", data: { tag: 1, value: string } }
-    | { kind: "code", data: { tag: 2, value: int32 } };
+    | { kind: "text"; data: { tag: 1; value: string } }
+    | { kind: "code"; data: { tag: 2; value: int32 } };
 
 declare let envelope: Envelope;
 
 match (envelope) {
-    { data: { tag: 1, value } } => {
+    {
+        data: { tag: 1, value },
+    } => {
         value satisfies string;
     }
-    { data: { tag: 2, value } } => {
+    {
+        data: { tag: 2, value },
+    } => {
         value satisfies int32;
     }
 }
@@ -194,9 +194,7 @@ match (envelope) {
 Arm body types join into the match result.
 
 ```ds
-type Shape =
-    | { kind: "circle", radius: number }
-    | { kind: "square", size: number };
+type Shape = { kind: "circle"; radius: number } | { kind: "square"; size: number };
 
 declare let shape: Shape;
 

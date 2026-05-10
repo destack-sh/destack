@@ -9,7 +9,7 @@
 ```ds
 type Fn = OmitThisParameter<(this: { id: string }, value: number) => string>;
 
-const fn: Fn = value => String(value);
+const fn: Fn = (value) => String(value);
 fn(1) satisfies string;
 ```
 
@@ -18,7 +18,7 @@ fn(1) satisfies string;
 ```ds
 type Fn = OmitThisParameter<(this: { id: string }, value: number) => string>;
 
-const fn: Fn = value => String(value);
+const fn: Fn = (value) => String(value);
 fn("bad");
 ```
 
@@ -29,6 +29,6 @@ fn("bad");
 ```ds
 type Fn = OmitThisParameter<(value: number) => string>;
 
-const fn: Fn = value => String(value);
+const fn: Fn = (value) => String(value);
 fn(1) satisfies string;
 ```

@@ -33,12 +33,16 @@ const value = true - 2;
 `-` dispatches to `Subtract` on the receiver.
 
 ```ds
-struct Scalar { value: int }
+struct Scalar {
+    value: int;
+}
 
 extension of Scalar implements Subtract<Scalar> {
     type Output = Scalar;
 
-    subtract(other: Scalar): this.Output { return this }
+    subtract(other: Scalar): this.Output {
+        return this;
+    }
 }
 
 declare function getScalar(): Scalar;
@@ -55,12 +59,16 @@ value satisfies Scalar;
 `-` requires a matching `Subtract` implementation.
 
 ```ds
-struct Scalar { value: int }
+struct Scalar {
+    value: int;
+}
 
 extension of Scalar implements Add<Scalar> {
     type Output = Scalar;
 
-    add(other: Scalar): this.Output { return this }
+    add(other: Scalar): this.Output {
+        return this;
+    }
 }
 
 declare function getScalar(): Scalar;
@@ -104,12 +112,16 @@ value satisfies uint8;
 `-%` is not an overloadable operator.
 
 ```ds
-struct Scalar { value: int }
+struct Scalar {
+    value: int;
+}
 
 extension of Scalar implements Subtract<Scalar> {
     type Output = Scalar;
 
-    subtract(other: Scalar): this.Output { return this }
+    subtract(other: Scalar): this.Output {
+        return this;
+    }
 }
 
 declare function getScalar(): Scalar;

@@ -17,7 +17,7 @@ const pair: (int32, string) = (1, "hello");
 Tuple assignments must satisfy fixed positional arity.
 
 ```ds
-const pair: (int32, string) = (1);
+const pair: (int32, string) = (1,);
 ```
 
 - contains: not assignable

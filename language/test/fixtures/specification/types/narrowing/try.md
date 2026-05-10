@@ -25,7 +25,7 @@ value satisfies string;
 Discriminant narrowing from the try path does not leak past catch writes.
 
 ```ds
-type Ready = { kind: "ready", payload: string };
+type Ready = { kind: "ready"; payload: string };
 type Idle = { kind: "idle" };
 
 let state: Ready | Idle = { kind: "ready", payload: "ok" };

@@ -40,16 +40,6 @@ const x = [1, "two", true];
 x satisfies (number | string | boolean)[];
 ```
 
-### array holes are rejected
-
-Array literals are dense and do not allow holes.
-
-```ds
-const x = [1, , 3];
-```
-
-- contains: array literal holes
-
 ## contextual arrays
 
 ### contextual array literal

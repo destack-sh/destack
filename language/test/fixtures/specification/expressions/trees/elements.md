@@ -11,7 +11,7 @@ Tree elements are accepted expressions.
 ```ds
 declare const A: unknown;
 
-let node = <A/>;
+let node = <A />;
 node;
 ```
 
@@ -69,6 +69,10 @@ Tree elements support nested child tree expressions.
 declare const A: unknown;
 declare const B: unknown;
 
-const node = <A><B value={1} /></A>;
+const node = (
+    <A>
+        <B value={1} />
+    </A>
+);
 node;
 ```

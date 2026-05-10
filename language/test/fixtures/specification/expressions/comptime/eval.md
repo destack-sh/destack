@@ -35,7 +35,11 @@ declarations satisfies Declaration[];
 
 ```ds
 const body = comptime "return target + suffix;";
-const makeName = comptime new Function<(target: string, suffix: string) => string>("target", "suffix", body);
+const makeName = comptime new Function<(target: string, suffix: string) => string>(
+    "target",
+    "suffix",
+    body,
+);
 
 makeName("user", "Id") satisfies string;
 ```

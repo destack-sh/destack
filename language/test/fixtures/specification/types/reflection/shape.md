@@ -12,8 +12,8 @@ struct User {
 }
 
 const type = Type.of<User>();
-type satisfies Type<User>;
-type satisfies dir.Type;
+(type) satisfies Type<User>;
+(type) satisfies dir.Type;
 type.id satisfies TypeId;
 ```
 
@@ -29,7 +29,7 @@ struct User {
 const type = Type.of<User>();
 
 if (type.kind == "reference") {
-    type satisfies dir.ReferenceType;
+    (type) satisfies dir.ReferenceType;
     type.symbol satisfies dir.Symbol;
 }
 ```
@@ -42,7 +42,7 @@ Structural object types reflect through DIR object fields.
 const type = Type.of<{ name: string; age?: uint }>();
 
 if (type.kind == "object") {
-    type satisfies dir.ObjectType;
+    (type) satisfies dir.ObjectType;
     type.fields satisfies readonly dir.TypeField[];
 }
 ```
@@ -55,7 +55,7 @@ Fixed arrays reflect as sized array types.
 const type = Type.of<[uint8; 4]>();
 
 if (type.kind == "arraySized") {
-    type satisfies dir.ArraySizedType;
+    (type) satisfies dir.ArraySizedType;
     type.element satisfies dir.Type;
     type.count satisfies dir.Type;
 }
@@ -69,7 +69,7 @@ Tuple types reflect through DIR tuple elements.
 const type = Type.of<(string, int32)>();
 
 if (type.kind == "tuple") {
-    type satisfies dir.TupleType;
+    (type) satisfies dir.TupleType;
     type.elements satisfies readonly dir.TypeElement[];
 }
 ```
@@ -82,7 +82,7 @@ Union types reflect through DIR union elements.
 const type = Type.of<string | int32>();
 
 if (type.kind == "union") {
-    type satisfies dir.UnionType;
+    (type) satisfies dir.UnionType;
     type.elements satisfies readonly dir.Type[];
 }
 ```

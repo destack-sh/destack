@@ -9,8 +9,7 @@ Strict functions reject missing parameter and local types.
 Parameters without annotations or defaults are rejected.
 
 ```ds
-function handle(value) {
-}
+function handle(value) {}
 ```
 
 - contains: implicit any type

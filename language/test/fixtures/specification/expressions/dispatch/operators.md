@@ -15,7 +15,9 @@ struct Right {}
 extension of Right implements Add<Left> {
     type Output = Right;
 
-    add(other: Left): this.Output { return Right {} }
+    add(other: Left): this.Output {
+        return Right {};
+    }
 }
 
 declare let left: Left;
@@ -31,19 +33,28 @@ left + right;
 Reversed operand order uses the reversed receiver.
 
 ```ds
-struct Vector2 { x: int32; y: int32 }
-struct Scalar { value: int32 }
+struct Vector2 {
+    x: int32;
+    y: int32;
+}
+struct Scalar {
+    value: int32;
+}
 
 extension of Vector2 implements Add<Scalar> {
     type Output = Vector2;
 
-    add(other: Scalar): this.Output { return this }
+    add(other: Scalar): this.Output {
+        return this;
+    }
 }
 
 extension of Scalar implements Add<Vector2> {
     type Output = Vector2;
 
-    add(other: Vector2): this.Output { return other }
+    add(other: Vector2): this.Output {
+        return other;
+    }
 }
 
 declare let vector: Vector2;
@@ -66,13 +77,17 @@ struct Counter {}
 extension of Counter implements Add<number> {
     type Output = "number";
 
-    add(other: number): this.Output { return "number" }
+    add(other: number): this.Output {
+        return "number";
+    }
 }
 
 extension of Counter implements Add<int32> {
     type Output = "int32";
 
-    add(other: int32): this.Output { return "int32" }
+    add(other: int32): this.Output {
+        return "int32";
+    }
 }
 
 declare let counter: Counter;
@@ -97,19 +112,23 @@ import { Counter } from "./counter.ds";
 export extension CounterNumberAdd of Counter implements Add<number> {
     type Output = "number";
 
-    add(other: number): this.Output { return "number" }
+    add(other: number): this.Output {
+        return "number";
+    }
 }
 
 export extension CounterIntAdd of Counter implements Add<int32> {
     type Output = "int32";
 
-    add(other: int32): this.Output { return "int32" }
+    add(other: int32): this.Output {
+        return "int32";
+    }
 }
 ```
 
 ```ds:main.ds
 import { Counter } from "./counter.ds";
-import { CounterNumberAdd, CounterIntAdd } from "./extensions.ds";
+import { CounterIntAdd, CounterNumberAdd } from "./extensions.ds";
 
 declare let counter: Counter;
 
@@ -131,7 +150,9 @@ import { Counter } from "./counter.ds";
 export extension FirstAdd of Counter implements Add<number> {
     type Output = "first";
 
-    add(other: number): this.Output { return "first" }
+    add(other: number): this.Output {
+        return "first";
+    }
 }
 ```
 
@@ -141,7 +162,9 @@ import { Counter } from "./counter.ds";
 export extension SecondAdd of Counter implements Add<number> {
     type Output = "second";
 
-    add(other: number): this.Output { return "second" }
+    add(other: number): this.Output {
+        return "second";
+    }
 }
 ```
 

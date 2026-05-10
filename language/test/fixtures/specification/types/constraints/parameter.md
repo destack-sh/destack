@@ -17,7 +17,9 @@ function clone<T: Readable>(value: T): T {
     return value;
 }
 
-const value: Readable = { read() {} };
+const value: Readable = {
+    read() {},
+};
 clone<Readable>(value);
 ```
 
@@ -55,7 +57,9 @@ function clone<T: Readable>(value: T): T {
     return value;
 }
 
-clone({ read() {} });
+clone({
+    read() {},
+});
 ```
 
 ### inferred arguments reject unmet constraints
@@ -71,7 +75,9 @@ function clone<T: Readable>(value: T): T {
     return value;
 }
 
-clone({ merge() {} });
+clone({
+    merge() {},
+});
 ```
 
 - contains: not assignable

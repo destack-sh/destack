@@ -7,7 +7,7 @@
 `as const` values checked with `satisfies` keep nested literal precision.
 
 ```ds
-const value = ({ env: { mode: "dev" } } as const) satisfies { env: { mode: string } };
+const value = { env: { mode: "dev" } } as const satisfies { env: { mode: string } };
 
 value.env.mode satisfies "dev";
 ```

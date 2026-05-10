@@ -28,8 +28,8 @@ let bad: ValueType = "no";
 
 ```ds
 class Counter {
-    static version: int32
-    value: int32
+    static version: int32;
+    value: int32;
 
     constructor(value: int32) {
         this.value = value;
@@ -38,7 +38,7 @@ class Counter {
 
 type CounterCtor = typeof Counter;
 
-declare function takesCounter(ctor: { new(value: int32): Counter }): void;
+declare function takesCounter(ctor: { new (value: int32): Counter }): void;
 
 takesCounter(Counter);
 
@@ -49,8 +49,8 @@ let okVersion: CounterCtor["version"] = 1;
 
 ```ds
 class Counter {
-    static version: int32
-    value: int32
+    static version: int32;
+    value: int32;
 
     constructor(value: int32) {
         this.value = value;
@@ -68,7 +68,9 @@ let badVersion: CounterCtor["version"] = "no";
 
 ```ds
 class Counter {
-    static next(value: int32): int32 { return value + 1 }
+    static next(value: int32): int32 {
+        return value + 1;
+    }
 }
 
 type CounterCtor = typeof Counter;
@@ -84,7 +86,9 @@ let okFn: CounterNext = Counter.next;
 
 ```ds
 class Counter {
-    static next(value: int32): int32 { return value + 1 }
+    static next(value: int32): int32 {
+        return value + 1;
+    }
 }
 
 type CounterCtor = typeof Counter;

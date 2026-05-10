@@ -258,12 +258,11 @@ let bad: Split<"a"> = ("", "a");
 Recursive template-literal parameter extraction keeps every parameter name discovered along the path.
 
 ```ds
-type Params<T extends string> =
-    T extends `${string}:${infer Param}/${infer Rest}`
-        ? Param | Params<Rest>
-        : T extends `${string}:${infer Param}`
-            ? Param
-            : never;
+type Params<T: string> = T extends `${string}:${infer Param}/${infer Rest}`
+    ? Param | Params<Rest>
+    : T extends `${string}:${infer Param}`
+      ? Param
+      : never;
 
 type RouteParams = Params<"/users/:userId/posts/:postId">;
 
@@ -276,12 +275,11 @@ key satisfies "userId" | "postId";
 The extracted parameter-name union rejects names that never appear in the template pattern.
 
 ```ds
-type Params<T extends string> =
-    T extends `${string}:${infer Param}/${infer Rest}`
-        ? Param | Params<Rest>
-        : T extends `${string}:${infer Param}`
-            ? Param
-            : never;
+type Params<T: string> = T extends `${string}:${infer Param}/${infer Rest}`
+    ? Param | Params<Rest>
+    : T extends `${string}:${infer Param}`
+      ? Param
+      : never;
 
 type RouteParams = Params<"/users/:userId/posts/:postId">;
 

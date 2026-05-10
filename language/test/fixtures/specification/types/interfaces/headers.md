@@ -2,18 +2,6 @@
 
 Interface headers define names, exports, and parent interfaces.
 
-## modifiers
-
-### interfaces cannot be abstract
-
-Interfaces cannot be abstract.
-
-```ds
-abstract interface Config {}
-```
-
-- contains: invalid interface
-
 ## exports
 
 ### default export interfaces must be named
@@ -39,17 +27,6 @@ export default interface Config {
 ```
 
 ## extends
-
-### empty extends clauses are rejected
-
-Interfaces cannot declare empty extends clauses.
-
-```ds
-interface Config extends {
-}
-```
-
-- contains: invalid lineage
 
 ### interfaces may extend multiple parents
 

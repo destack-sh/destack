@@ -10,13 +10,13 @@ Interface field access uses member names, not concrete layout order.
 
 ```ds
 interface PointLike {
-    x: int32
-    y: int32
+    x: int32;
+    y: int32;
 }
 
 struct Point implements PointLike {
-    y: int32
-    x: int32
+    y: int32;
+    x: int32;
 }
 
 const point: PointLike = Point { y: 2, x: 1 };
@@ -31,11 +31,11 @@ Structural interfaces accept matching fields.
 
 ```ds
 interface Named {
-    name: string
+    name: string;
 }
 
 struct User {
-    name: string
+    name: string;
 }
 
 const user: Named = User { name: "Ada" };
@@ -48,11 +48,11 @@ Interface fields are mutable by default.
 
 ```ds
 interface PointLike {
-    x: int32
+    x: int32;
 }
 
 struct Point {
-    x: int32
+    x: int32;
 }
 
 let point: PointLike = Point { x: 1 };
@@ -66,11 +66,11 @@ Readonly interface fields can use ordinary read casts.
 
 ```ds
 interface PointLike {
-    readonly x: int32 | float32
+    readonly x: int32 | float32;
 }
 
 struct Point {
-    x: int32
+    x: int32;
 }
 
 const point: PointLike = Point { x: 1 };
@@ -83,11 +83,11 @@ Mutable interface fields must accept writes through the interface type.
 
 ```ds
 interface PointLike {
-    x: int32 | float32
+    x: int32 | float32;
 }
 
 struct Point {
-    x: int32
+    x: int32;
 }
 
 const point: PointLike = Point { x: 1 };
@@ -101,8 +101,8 @@ Accessors can provide explicit read-write adaptation.
 
 ```ds
 interface PointLike {
-    get x(): int32 | float32
-    set x(value: int32 | float32)
+    get x(): int32 | float32;
+    set x(value: int32 | float32);
 }
 
 class Point implements PointLike {
@@ -128,19 +128,19 @@ Nested readonly fields use the same interface view rules.
 
 ```ds
 interface PointLike {
-    readonly x: int32 | float32
+    readonly x: int32 | float32;
 }
 
 interface ShapeLike {
-    readonly origin: PointLike
+    readonly origin: PointLike;
 }
 
 struct Point {
-    x: int32
+    x: int32;
 }
 
 struct Shape {
-    origin: Point
+    origin: Point;
 }
 
 const shape: ShapeLike = Shape { origin: Point { x: 1 } };
@@ -155,7 +155,7 @@ Interface method calls use the concrete method target.
 
 ```ds
 interface Writer {
-    write(chunk: [byte]): usize
+    write(chunk: [byte]): usize;
 }
 
 struct Buffer implements Writer {
@@ -177,7 +177,7 @@ Newtype interfaces are not satisfied structurally.
 
 ```ds
 newtype interface Writer {
-    write(chunk: [byte]): usize
+    write(chunk: [byte]): usize;
 }
 
 struct Buffer {
@@ -199,7 +199,7 @@ Interface index access keeps the index signature result type.
 
 ```ds
 interface Bag<T> {
-    [key: string]: T | undefined
+    [key: string]: T | undefined;
 }
 
 declare const bag: Bag<int32>;
@@ -215,7 +215,7 @@ Records can be viewed through structural index signatures.
 
 ```ds
 interface Bag<T> {
-    [key: string]: T | undefined
+    [key: string]: T | undefined;
 }
 
 const bag: Bag<int32> = { alpha: 1, beta: 2 };
@@ -230,12 +230,12 @@ Fixed object-shaped values can provide readonly index views.
 
 ```ds
 interface Bag<T> {
-    readonly [key: string]: T | undefined
+    readonly [key: string]: T | undefined;
 }
 
 struct Point {
-    x: int32
-    y: int32
+    x: int32;
+    y: int32;
 }
 
 const bag: Bag<int32> = Point { x: 1, y: 2 };
@@ -250,7 +250,7 @@ Class fields can provide readonly index views.
 
 ```ds
 interface Bag<T> {
-    readonly [key: string]: T | undefined
+    readonly [key: string]: T | undefined;
 }
 
 class Point {
@@ -270,12 +270,12 @@ Fixed object-shaped values do not provide indexed writes.
 
 ```ds
 interface Bag<T> {
-    [key: string]: T | undefined
+    [key: string]: T | undefined;
 }
 
 struct Point {
-    x: int32
-    y: int32
+    x: int32;
+    y: int32;
 }
 
 const bag: Bag<int32> = Point { x: 1, y: 2 };
@@ -289,7 +289,7 @@ Class fields do not provide indexed writes.
 
 ```ds
 interface Bag<T> {
-    [key: string]: T | undefined
+    [key: string]: T | undefined;
 }
 
 class Point {

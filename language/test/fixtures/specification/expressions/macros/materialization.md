@@ -16,8 +16,7 @@ type MemoizeState = {
     cacheName: string;
 };
 
-extension of memoize implements Macro<FunctionDeclaration, MemoizeState>
-{
+extension of memoize implements Macro<FunctionDeclaration, MemoizeState> {
     static expand(
         target: FunctionDeclaration,
         context: ExpansionContext,

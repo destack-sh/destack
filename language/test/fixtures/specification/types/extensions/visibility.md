@@ -15,10 +15,15 @@ Extension visibility depends on where the extension is declared relative to the 
 Inherent extensions are visible next to the type they extend.
 
 ```ds
-struct Point { x: number; y: number }
+struct Point {
+    x: number;
+    y: number;
+}
 
 extension of Point {
-    length(): number { return 0 }
+    length(): number {
+        return 0;
+    }
 }
 
 declare function getPoint(): Point;
@@ -32,15 +37,20 @@ point.length() satisfies number;
 Inherent extensions are visible in other files that import the type.
 
 ```ds:types.ds
-export struct Vector2 { x: number; y: number }
+export struct Vector2 {
+    x: number;
+    y: number;
+}
 
 extension of Vector2 {
-    magnitude(): number { return 0 }
+    magnitude(): number {
+        return 0;
+    }
 }
 ```
 
 ```ds:main.ds
-import { Vector2 } from "./types.ds"
+import { Vector2 } from "./types.ds";
 
 declare function getVector(): Vector2;
 
@@ -55,19 +65,24 @@ vector.magnitude() satisfies number;
 Local extensions are not visible outside the file where they are declared.
 
 ```ds:types.ds
-export struct Vector2 { x: number; y: number }
+export struct Vector2 {
+    x: number;
+    y: number;
+}
 ```
 
 ```ds:extensions.ds
-import { Vector2 } from "./types.ds"
+import { Vector2 } from "./types.ds";
 
 extension of Vector2 {
-    magnitude(): number { return 0 }
+    magnitude(): number {
+        return 0;
+    }
 }
 ```
 
 ```ds:main.ds
-import { Vector2 } from "./types.ds"
+import { Vector2 } from "./types.ds";
 
 declare function getVector(): Vector2;
 
@@ -84,10 +99,15 @@ const m = vector.magnitude();
 Named extensions have a name before the `of` keyword.
 
 ```ds
-struct Point { x: number; y: number }
+struct Point {
+    x: number;
+    y: number;
+}
 
 extension PointHelpers of Point {
-    distance(): number { return 0 }
+    distance(): number {
+        return 0;
+    }
 }
 
 declare function getPoint(): Point;
@@ -101,20 +121,25 @@ point.distance() satisfies number;
 Named extensions are visible when explicitly imported.
 
 ```ds:types.ds
-export struct Point { x: number; y: number }
+export struct Point {
+    x: number;
+    y: number;
+}
 ```
 
 ```ds:extensions.ds
-import { Point } from "./types.ds"
+import { Point } from "./types.ds";
 
 export extension PointHelpers of Point {
-    distance(): number { return 0 }
+    distance(): number {
+        return 0;
+    }
 }
 ```
 
 ```ds:main.ds
-import { Point } from "./types.ds"
-import { PointHelpers } from "./extensions.ds"
+import { PointHelpers } from "./extensions.ds";
+import { Point } from "./types.ds";
 
 declare function getPoint(): Point;
 
@@ -127,19 +152,24 @@ point.distance() satisfies number;
 Named extensions are not visible without an explicit import.
 
 ```ds:types.ds
-export struct Point { x: number; y: number }
+export struct Point {
+    x: number;
+    y: number;
+}
 ```
 
 ```ds:extensions.ds
-import { Point } from "./types.ds"
+import { Point } from "./types.ds";
 
 export extension PointHelpers of Point {
-    distance(): number { return 0 }
+    distance(): number {
+        return 0;
+    }
 }
 ```
 
 ```ds:main.ds
-import { Point } from "./types.ds"
+import { Point } from "./types.ds";
 
 declare function getPoint(): Point;
 

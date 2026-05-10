@@ -47,7 +47,7 @@ triple(1, "ok", [1]);
 `keyof` defaults are computed from the inferred object argument and produce the corresponding key union.
 
 ```ds
-declare function read<T extends { a: number; b: string }, K extends keyof T = keyof T>(value: T, key?: K): T[K];
+declare function read<T: { a: number; b: string }, K: keyof T = keyof T>(value: T, key?: K): T[K];
 
 const value = read({ a: 1, b: "x" });
 value satisfies number | string;
@@ -58,7 +58,7 @@ value satisfies number | string;
 Providing a concrete key argument narrows indexed access below the broader default key union.
 
 ```ds
-declare function read<T extends { a: number; b: string }, K extends keyof T = keyof T>(value: T, key?: K): T[K];
+declare function read<T: { a: number; b: string }, K: keyof T = keyof T>(value: T, key?: K): T[K];
 
 const value = read({ a: 1, b: "x" }, "a");
 value satisfies number;

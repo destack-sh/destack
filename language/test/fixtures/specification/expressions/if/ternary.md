@@ -203,9 +203,7 @@ route.kind satisfies "api" | "admin";
 Const assertions on both ternary branches preserve object member literal unions.
 
 ```ds
-const route = true
-    ? ({ kind: "api" } as const)
-    : ({ kind: "admin" } as const);
+const route = true ? ({ kind: "api" } as const) : ({ kind: "admin" } as const);
 
 route.kind satisfies "api" | "admin";
 ```
@@ -215,9 +213,7 @@ route.kind satisfies "api" | "admin";
 Branch-level const assertions preserve object member literal unions across module boundaries.
 
 ```ds:values.ds
-export const route = true
-    ? ({ kind: "api" } as const)
-    : ({ kind: "admin" } as const);
+export const route = true ? ({ kind: "api" } as const) : ({ kind: "admin" } as const);
 ```
 
 ```ds:main.ds
@@ -288,7 +284,7 @@ result satisfies "api" | "admin";
 Const ternary template unions preserve span unions in template-argument inference.
 
 ```ds
-declare function parse<T extends string>(value: `id:${T}`): T;
+declare function parse<T: string>(value: `id:${T}`): T;
 
 const route = true ? "id:users" : "id:posts";
 const span = parse(route);
@@ -301,7 +297,7 @@ span satisfies "users" | "posts";
 Mutable ternary templates widen before template-argument inference and fail narrow template matches.
 
 ```ds
-declare function parse<T extends string>(value: `id:${T}`): T;
+declare function parse<T: string>(value: `id:${T}`): T;
 
 let route = true ? "id:users" : "id:posts";
 parse(route);

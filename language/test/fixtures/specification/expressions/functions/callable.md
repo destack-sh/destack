@@ -10,7 +10,7 @@ Function values are assignable to callable interfaces.
 
 ```ds
 interface Fn {
-    (value: string): number
+    (value: string): number;
 }
 
 const parse = (value: string): number => 1;
@@ -23,7 +23,7 @@ Function values with incompatible return types are not assignable.
 
 ```ds
 interface Fn {
-    (value: string): number
+    (value: string): number;
 }
 
 const parse = (value: string): string => value;
@@ -58,7 +58,7 @@ Callable interfaces satisfy compatible call signature object types.
 
 ```ds
 interface Fn {
-    (): number
+    (): number;
 }
 
 const fn: Fn = (): number => 1;
@@ -73,15 +73,15 @@ Function assignment checks parameter variance.
 
 ```ds
 interface FnWide {
-    (value: string | number): void
+    (value: string | number): void;
 }
 
 interface FnNarrow {
-    (value: string): void
+    (value: string): void;
 }
 
 function narrow(value: string): void {}
-let wide: FnWide = narrow
+let wide: FnWide = narrow;
 ```
 
 - contains: not assignable

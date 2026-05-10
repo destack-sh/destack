@@ -77,8 +77,7 @@ class Box {
 }
 
 @noManaged
-function take(value: Box): void {
-}
+function take(value: Box): void {}
 ```
 
 - contains: managed memory is disabled

@@ -8,7 +8,7 @@ Structs use tagged literals for construction.
 
 ```ds
 struct Counter {
-    value: int32
+    value: int32;
 
     increment(): Counter {
         Counter { value: this.value + 1 }
@@ -24,14 +24,14 @@ next satisfies Counter;
 
 ```ds
 struct Counter {
-    value: int32
+    value: int32;
 
     increment(): Counter {
         Counter { value: this.value + 1 }
     }
 }
 
-const value = Counter { value: 1 }.increment().value;
+const value = (Counter { value: 1 }).increment().value;
 value satisfies int32;
 ```
 
@@ -39,8 +39,8 @@ value satisfies int32;
 
 ```ds
 struct Point {
-    x: int32
-    y: int32
+    x: int32;
+    y: int32;
 }
 
 const point = Point { x: 1 };
@@ -52,8 +52,8 @@ const point = Point { x: 1 };
 
 ```ds
 struct Point {
-    x: int32
-    y: int32
+    x: int32;
+    y: int32;
 }
 
 const point = Point { x: 1, y: 2, z: 3 };
@@ -67,8 +67,8 @@ const point = Point { x: 1, y: 2, z: 3 };
 
 ```ds
 struct Point {
-    x: int32
-    y: int32
+    x: int32;
+    y: int32;
 }
 
 const point = new Point(1, 2);
@@ -80,7 +80,7 @@ const point = new Point(1, 2);
 
 ```ds
 struct Counter {
-    value: int32
+    value: int32;
 
     increment(): int32 {
         this.value = this.value + 1;
@@ -99,7 +99,7 @@ next satisfies int32;
 
 ```ds
 struct Counter {
-    value: int32
+    value: int32;
 }
 
 const counter: Counter = { value: 1 };

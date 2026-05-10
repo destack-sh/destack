@@ -58,7 +58,7 @@ export * from "./types.ds";
 ```
 
 ```ds:main.ds
-import { value, User } from "./mod.ds";
+import { User, value } from "./mod.ds";
 
 value satisfies number;
 type Alias = User;

@@ -72,14 +72,11 @@ Exported values keep the type produced by a local generic chain.
 
 ```ds:registry-chain.ds
 export interface Registry<R> {
-    get<K extends keyof R>(key: K): R[K];
+    get<K: keyof R>(key: K): R[K];
 }
 
 export interface RegistryChain<R> {
-    entry<K extends string, Value>(
-        key: K,
-        value: Value
-    ): RegistryChain<R & { [P in K]: Value }>;
+    entry<K: string, Value>(key: K, value: Value): RegistryChain<R & { [P in K]: Value }>;
 
     build(): Registry<R>;
 }
@@ -99,7 +96,7 @@ export const registry = createRegistry()
 ```ds:main.ds
 import { registry } from "./registry.ds";
 
-registry.get("user") satisfies { id: number, name: string };
+registry.get("user") satisfies { id: number; name: string };
 registry.get("count") satisfies number;
 ```
 
@@ -109,14 +106,11 @@ Exported values keep key constraints produced by a local generic chain.
 
 ```ds:registry-chain.ds
 export interface Registry<R> {
-    get<K extends keyof R>(key: K): R[K];
+    get<K: keyof R>(key: K): R[K];
 }
 
 export interface RegistryChain<R> {
-    entry<K extends string, Value>(
-        key: K,
-        value: Value
-    ): RegistryChain<R & { [P in K]: Value }>;
+    entry<K: string, Value>(key: K, value: Value): RegistryChain<R & { [P in K]: Value }>;
 
     build(): Registry<R>;
 }
@@ -127,9 +121,7 @@ export declare function createRegistry(): RegistryChain<{}>;
 ```ds:registry.ds
 import { createRegistry } from "./registry-chain.ds";
 
-export const registry = createRegistry()
-    .entry("user", { id: 1, name: "Ada" })
-    .build();
+export const registry = createRegistry().entry("user", { id: 1, name: "Ada" }).build();
 ```
 
 ```ds:main.ds
@@ -166,7 +158,7 @@ Exported values may depend on declared import signatures.
 
 ```ds:builder.ds
 export declare const createCounter: () => {
-    count: (value: string) => number
+    count: (value: string) => number;
 };
 ```
 

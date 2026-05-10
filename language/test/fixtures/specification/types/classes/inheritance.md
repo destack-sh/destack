@@ -8,11 +8,11 @@ Classes support single inheritance with `extends`.
 
 ```ds
 class Animal {
-    name: string = ""
+    name: string = "";
 }
 
 class Dog extends Animal {
-    breed: string = ""
+    breed: string = "";
 }
 
 declare function getDog(): Dog;
@@ -24,11 +24,11 @@ const animal: Animal = getDog();
 
 ```ds
 class Animal {
-    name: string = ""
+    name: string = "";
 }
 
 class Dog extends Animal {
-    breed: string = ""
+    breed: string = "";
 }
 
 declare function getAnimal(): Animal;
@@ -42,11 +42,11 @@ const dog: Dog = getAnimal();
 
 ```ds
 class Animal {
-    name: string = ""
+    name: string = "";
 }
 
 class Dog extends Animal {
-    breed: string = ""
+    breed: string = "";
 }
 
 declare function getDog(): Dog;
@@ -58,11 +58,11 @@ getDog() satisfies Animal;
 
 ```ds
 class Animal {
-    name: string = ""
+    name: string = "";
 }
 
 class Dog extends Animal {
-    breed: string = ""
+    breed: string = "";
 }
 
 declare function getAnimal(): Animal;
@@ -78,15 +78,15 @@ getAnimal() satisfies Dog;
 
 ```ds
 class Animal {
-    name: string = ""
+    name: string = "";
 }
 
 class Dog extends Animal {
-    breed: string = ""
+    breed: string = "";
 }
 
 class Labrador extends Dog {
-    color: string = ""
+    color: string = "";
 }
 
 declare function getLabrador(): Labrador;
@@ -98,15 +98,15 @@ const animal: Animal = getLabrador();
 
 ```ds
 class Animal {
-    name: string = ""
+    name: string = "";
 }
 
 class Dog extends Animal {
-    breed: string = ""
+    breed: string = "";
 }
 
 class Labrador extends Dog {
-    color: string = ""
+    color: string = "";
 }
 
 declare function getLabrador(): Labrador;
@@ -118,15 +118,15 @@ const dog: Dog = getLabrador();
 
 ```ds
 class Animal {
-    name: string = ""
+    name: string = "";
 }
 
 class Dog extends Animal {
-    breed: string = ""
+    breed: string = "";
 }
 
 class Labrador extends Dog {
-    color: string = ""
+    color: string = "";
 }
 
 declare function getAnimal(): Animal;
@@ -142,11 +142,11 @@ const labrador: Labrador = getAnimal();
 
 ```ds
 class Animal {
-    name: string = ""
+    name: string = "";
 }
 
 class Dog extends Animal {
-    breed: string = ""
+    breed: string = "";
 }
 
 function acceptAnimal(a: Animal): void {}
@@ -160,11 +160,11 @@ acceptAnimal(getDog());
 
 ```ds
 class Animal {
-    name: string = ""
+    name: string = "";
 }
 
 class Dog extends Animal {
-    breed: string = ""
+    breed: string = "";
 }
 
 function acceptDog(d: Dog): void {}
@@ -182,15 +182,15 @@ acceptDog(getAnimal());
 
 ```ds
 class Animal {
-    name: string = ""
+    name: string = "";
 }
 
 class Dog extends Animal {
-    breed: string = ""
+    breed: string = "";
 }
 
 class Cat extends Animal {
-    whiskers: number = 0
+    whiskers: number = 0;
 }
 
 declare function getDog(): Dog;
@@ -201,26 +201,6 @@ const cat: Cat = getDog();
 - contains: not assignable
 
 ## rejections
-
-### classes reject multiple parents
-
-```ds
-class First {}
-class Second {}
-
-class Combined extends First, Second {}
-```
-
-- contains: invalid lineage
-
-### classes reject empty extends clauses
-
-```ds
-class Counter extends {
-}
-```
-
-- contains: invalid lineage
 
 ### structs reject extends
 

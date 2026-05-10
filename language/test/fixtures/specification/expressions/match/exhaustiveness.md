@@ -8,9 +8,9 @@ Enum matches must cover every field or use a fallback arm.
 
 ```ds
 enum State {
-    Ready
-    Loading
-    Error
+    Ready,
+    Loading,
+    Error,
 }
 
 function label(state: State): string {
@@ -29,9 +29,9 @@ Covering every enum field is exhaustive.
 
 ```ds
 enum State {
-    Ready
-    Loading
-    Error
+    Ready,
+    Loading,
+    Error,
 }
 
 function label(state: State): string {
@@ -49,9 +49,9 @@ A fallback arm covers the remaining enum fields.
 
 ```ds
 enum State {
-    Ready
-    Loading
-    Error
+    Ready,
+    Loading,
+    Error,
 }
 
 function label(state: State): string {
@@ -303,9 +303,7 @@ function normalize(pair: Pair): int32 {
 Discriminated unions must cover every tag or use a fallback arm.
 
 ```ds
-type Shape =
-    | { kind: "circle", radius: int32 }
-    | { kind: "square", size: int32 };
+type Shape = { kind: "circle"; radius: int32 } | { kind: "square"; size: int32 };
 
 function area(shape: Shape): int32 {
     match (shape) {
@@ -321,9 +319,7 @@ function area(shape: Shape): int32 {
 Discriminated unions are exhaustive when every discriminant is covered.
 
 ```ds
-type Shape =
-    | { kind: "circle", radius: int32 }
-    | { kind: "square", size: int32 };
+type Shape = { kind: "circle"; radius: int32 } | { kind: "square"; size: int32 };
 
 function area(shape: Shape): int32 {
     match (shape) {
@@ -339,9 +335,9 @@ Union patterns on tag fields cover each listed variant.
 
 ```ds
 type Shape =
-    | { kind: "circle", radius: int32 }
-    | { kind: "square", size: int32 }
-    | { kind: "triangle", side: int32 };
+    | { kind: "circle"; radius: int32 }
+    | { kind: "square"; size: int32 }
+    | { kind: "triangle"; side: int32 };
 
 function area(shape: Shape): int32 {
     match (shape) {
@@ -356,9 +352,7 @@ function area(shape: Shape): int32 {
 A fallback arm covers the remaining variants.
 
 ```ds
-type Shape =
-    | { kind: "circle", radius: int32 }
-    | { kind: "square", size: int32 };
+type Shape = { kind: "circle"; radius: int32 } | { kind: "square"; size: int32 };
 
 function area(shape: Shape): int32 {
     match (shape) {
@@ -374,12 +368,15 @@ Nested object discriminant matches must still cover every union variant.
 
 ```ds
 type Envelope =
-    | { kind: "text", data: { tag: 1, value: string } }
-    | { kind: "code", data: { tag: 2, value: int32 } };
+    | { kind: "text"; data: { tag: 1; value: string } }
+    | { kind: "code"; data: { tag: 2; value: int32 } };
 
 function label(envelope: Envelope): int32 {
     match (envelope) {
-        { kind: "text", data: { tag: 1, value: _ } } => 1
+        {
+            kind: "text",
+            data: { tag: 1, value: _ },
+        } => 1
     }
 }
 ```
@@ -391,9 +388,7 @@ function label(envelope: Envelope): int32 {
 Wildcard tag fields cover the remaining variants.
 
 ```ds
-type Envelope =
-    | { kind: "text", payload: string }
-    | { kind: "code", payload: int32 };
+type Envelope = { kind: "text"; payload: string } | { kind: "code"; payload: int32 };
 
 function label(envelope: Envelope): int32 {
     match (envelope) {

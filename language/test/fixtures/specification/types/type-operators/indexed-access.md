@@ -27,7 +27,7 @@ type Missing = User["missing"];
 ### numeric keys on object types stay indexed access
 
 ```ds
-type Pair = { 0: string, 1: int32 };
+type Pair = { 0: string; 1: int32 };
 type Right = Pair[1];
 
 declare const value: Right;
@@ -83,7 +83,7 @@ const bad: Value = true;
 
 ```ds
 type ValueAt<T, K: keyof T> = T[K];
-type User = { name: string, age: int32 };
+type User = { name: string; age: int32 };
 
 declare const value: ValueAt<User, "name">;
 value satisfies string;
@@ -112,7 +112,7 @@ first satisfies string;
 ### dynamic array indexing yields element types
 
 ```ds
-type Element<T extends string[]> = T[number];
+type Element<T: string[]> = T[number];
 
 declare const value: Element<string[]>;
 value satisfies string;
@@ -134,9 +134,7 @@ value satisfies [uint8; 4];
 Indexed access over optional members in a union includes `undefined` in the resulting value type.
 
 ```ds
-type Input =
-    | { kind: "a", value?: number }
-    | { kind: "b", value: string };
+type Input = { kind: "a"; value?: number } | { kind: "b"; value: string };
 
 type Value = Input["value"];
 
@@ -149,9 +147,7 @@ maybe satisfies number | string | undefined;
 Those optional indexed reads reject assignment into required-only target reads.
 
 ```ds
-type Input =
-    | { kind: "a", value?: number }
-    | { kind: "b", value: string };
+type Input = { kind: "a"; value?: number } | { kind: "b"; value: string };
 
 type Value = Input["value"];
 
@@ -166,9 +162,7 @@ maybe satisfies number | string;
 Optional-union indexed reads also reject values outside the member union.
 
 ```ds
-type Input =
-    | { kind: "a", value?: number }
-    | { kind: "b", value: string };
+type Input = { kind: "a"; value?: number } | { kind: "b"; value: string };
 
 type Value = Input["value"];
 

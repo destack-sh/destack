@@ -23,9 +23,7 @@ circle satisfies Shape;
 
 ```ds
 @derive(Tagged)
-newtype AppError =
-    | { kind: "missing"; path: string }
-    | { kind: "denied"; code: int32 };
+newtype AppError = { kind: "missing"; path: string } | { kind: "denied"; code: int32 };
 
 const error = AppError.Missing({ path: "config.json" });
 
@@ -56,9 +54,7 @@ circle satisfies Shape;
 
 ```ds
 @derive(Tagged({ case: "camelCase" }))
-newtype Event =
-    | { kind: "parse-error"; line: int32 }
-    | { kind: "file-missing"; path: string };
+newtype Event = { kind: "parse-error"; line: int32 } | { kind: "file-missing"; path: string };
 
 const parse = Event.parseError({ line: 10 });
 const missing = Event.fileMissing({ path: "config.json" });
@@ -71,9 +67,7 @@ missing satisfies Event;
 
 ```ds
 @derive(Tagged)
-newtype Event =
-    | { kind: "parse-error"; line: int32 }
-    | { kind: "file-missing"; path: string };
+newtype Event = { kind: "parse-error"; line: int32 } | { kind: "file-missing"; path: string };
 
 const parse = Event.ParseError({ line: 10 });
 const missing = Event.FileMissing({ path: "config.json" });
@@ -86,9 +80,7 @@ missing satisfies Event;
 
 ```ds
 @derive(Tagged({ case: "snake_case" }))
-newtype Event =
-    | { kind: "parseError"; line: int32 }
-    | { kind: "fileMissing"; path: string };
+newtype Event = { kind: "parseError"; line: int32 } | { kind: "fileMissing"; path: string };
 
 const parse = Event.parse_error({ line: 10 });
 const missing = Event.file_missing({ path: "config.json" });
@@ -101,9 +93,7 @@ missing satisfies Event;
 
 ```ds
 @derive(Tagged({ case: "SCREAMING_SNAKE_CASE" }))
-newtype Event =
-    | { kind: "parseError"; line: int32 }
-    | { kind: "fileMissing"; path: string };
+newtype Event = { kind: "parseError"; line: int32 } | { kind: "fileMissing"; path: string };
 
 const parse = Event.PARSE_ERROR({ line: 10 });
 const missing = Event.FILE_MISSING({ path: "config.json" });
@@ -116,9 +106,7 @@ missing satisfies Event;
 
 ```ds
 @derive(Tagged({ names: { "1": "Ready", "2": "Done" } }))
-newtype State =
-    | { kind: 1; path: string }
-    | { kind: 2; code: int32 };
+newtype State = { kind: 1; path: string } | { kind: 2; code: int32 };
 
 const ready = State.Ready({ path: "config.json" });
 const done = State.Done({ code: 0 });
@@ -157,9 +145,7 @@ newtype Value = string | int32;
 
 ```ds
 @derive(Tagged)
-newtype Event =
-    | { kind: 1; path: string }
-    | { kind: 2; code: int32 };
+newtype Event = { kind: 1; path: string } | { kind: 2; code: int32 };
 ```
 
 - contains: discriminant
@@ -168,9 +154,7 @@ newtype Event =
 
 ```ds
 @derive(Tagged({ names: { "1": "Ready" } }))
-newtype Event =
-    | { kind: 1; path: string }
-    | { kind: 2; code: int32 };
+newtype Event = { kind: 1; path: string } | { kind: 2; code: int32 };
 ```
 
 - contains: discriminant
@@ -179,9 +163,7 @@ newtype Event =
 
 ```ds
 @derive(Tagged)
-newtype Event =
-    | { kind: "message"; text: string }
-    | { kind: "message"; code: int32 };
+newtype Event = { kind: "message"; text: string } | { kind: "message"; code: int32 };
 ```
 
 - contains: duplicate
@@ -190,9 +172,7 @@ newtype Event =
 
 ```ds
 @derive(Tagged({ case: "camelCase" }))
-newtype Event =
-    | { kind: "parse-error"; line: int32 }
-    | { kind: "parse_error"; path: string };
+newtype Event = { kind: "parse-error"; line: int32 } | { kind: "parse_error"; path: string };
 ```
 
 - contains: duplicate

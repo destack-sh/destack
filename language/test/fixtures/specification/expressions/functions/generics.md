@@ -10,7 +10,7 @@ Explicit type arguments specialize function references.
 
 ```ds
 function identity<T>(value: T): T {
-    return value
+    return value;
 }
 const as_number = identity<number>;
 as_number satisfies (value: number) => number;
@@ -22,7 +22,7 @@ Type parameters are inferred from call arguments.
 
 ```ds
 function identity<T>(value: T): T {
-    return value
+    return value;
 }
 const one = identity(1);
 one satisfies 1;
@@ -34,7 +34,7 @@ Call arguments must satisfy concrete parameter types.
 
 ```ds
 function identity<T>(value: T): T {
-    return value
+    return value;
 }
 identity<number>("hi");
 ```
@@ -47,7 +47,7 @@ Static value arguments are checked against declared types.
 
 ```ds
 function choose<comptime Flag: boolean>(value: number): number {
-    return value
+    return value;
 }
 choose<true>(1);
 choose<1>(1);
@@ -61,7 +61,7 @@ Static value arguments fall back to defaults when omitted.
 
 ```ds
 function choose<comptime Flag: boolean = true>(value: number): number {
-    return value
+    return value;
 }
 choose(1);
 ```
@@ -72,7 +72,7 @@ Default static values must satisfy declared types.
 
 ```ds
 function broken<comptime Flag: boolean = 1>(value: number): number {
-    return value
+    return value;
 }
 broken(1);
 ```
@@ -96,7 +96,7 @@ Member calls apply inherited comptime arguments from the receiver type.
 
 ```ds
 interface Container<T> {
-    map<U>(value: T): U
+    map<U>(value: T): U;
 }
 
 declare function getContainer(): Container<number>;
@@ -112,7 +112,7 @@ Member comptime arguments are applied before call typing.
 
 ```ds
 interface Container<T> {
-    map<U>(value: T): U
+    map<U>(value: T): U;
 }
 
 declare function getContainer(): Container<number>;
@@ -129,7 +129,7 @@ Instantiation expressions must be parenthesized before member or index access.
 
 ```ds
 function make<T>(value: T): T {
-    return value
+    return value;
 }
 
 make<number>.value;
@@ -144,10 +144,10 @@ Parenthesized instantiation expressions can be used for member access.
 
 ```ds
 function make<T>(value: T): T {
-    return value
+    return value;
 }
 
-const next = (make<number>)(1);
+const next = make<number>(1);
 next satisfies number;
 ```
 
@@ -157,7 +157,7 @@ Comptime arguments cannot appear on both a member and its call.
 
 ```ds
 interface Container<T> {
-    map<U>(value: T): U
+    map<U>(value: T): U;
 }
 
 declare function getContainer(): Container<number>;

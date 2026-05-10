@@ -9,15 +9,18 @@ Decorator values can implement `Macro` to change their target during compilation
 ```ds
 newtype route = (string,);
 
-extension of route implements Macro<FunctionDeclaration>
-{
+extension of route implements Macro<FunctionDeclaration> {
     static expand(target: FunctionDeclaration, context: ExpansionContext, config: this): void {
-        context.ensureDeclaration("RouteDefinition", () => comptime eval<Declaration>(ds`
+        context.ensureDeclaration(
+            "RouteDefinition",
+            () =>
+                comptime eval<Declaration>(ds`
             type RouteDefinition = {
                 path: string;
                 handler: unknown;
             };
-        `));
+        `),
+        );
 
         const declaration = comptime eval<Declaration>(ds`
             const ROUTE_DEFINITION_${context.name.toUpperCase()} = {
@@ -44,15 +47,18 @@ ROUTE_DEFINITION_USERS.handler satisfies () => string;
 ```ds:macros.ds
 export newtype route = (string,);
 
-export extension of route implements Macro<FunctionDeclaration>
-{
+export extension of route implements Macro<FunctionDeclaration> {
     static expand(target: FunctionDeclaration, context: ExpansionContext, config: this): void {
-        context.ensureDeclaration("RouteDefinition", () => comptime eval<Declaration>(ds`
+        context.ensureDeclaration(
+            "RouteDefinition",
+            () =>
+                comptime eval<Declaration>(ds`
             type RouteDefinition = {
                 path: string;
                 handler: unknown;
             };
-        `));
+        `),
+        );
 
         const declaration = comptime eval<Declaration>(ds`
             const ROUTE_DEFINITION_${context.name.toUpperCase()} = {

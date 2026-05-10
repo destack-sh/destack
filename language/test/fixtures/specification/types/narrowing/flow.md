@@ -26,7 +26,7 @@ if (value !== null) {
 A mutation through an object alias invalidates discriminant-based member availability on the original binding.
 
 ```ds
-type Ready = { kind: "ready", payload: string };
+type Ready = { kind: "ready"; payload: string };
 type Idle = { kind: "idle" };
 
 let box: { state: Ready | Idle } = { state: { kind: "ready", payload: "ok" } };
@@ -48,7 +48,7 @@ if (box.state.kind === "ready") {
 Mutations performed by returned helper closures invalidate previously narrowed discriminant members.
 
 ```ds
-type Ready = { kind: "ready", payload: string };
+type Ready = { kind: "ready"; payload: string };
 type Idle = { kind: "idle" };
 
 let box: { state: Ready | Idle } = { state: { kind: "ready", payload: "ok" } };
@@ -92,7 +92,7 @@ current satisfies string;
 After control-flow joins that assign different variants, only members shared by all variants remain accessible.
 
 ```ds
-type A = { kind: "a", payload: string };
+type A = { kind: "a"; payload: string };
 type B = { kind: "b" };
 
 let value: A | B = { kind: "a", payload: "ok" };

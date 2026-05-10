@@ -10,8 +10,8 @@ Integer enums are nominal and do not implicitly coerce to integers.
 
 ```ds
 enum Status {
-    Active = 1
-    Inactive = 2
+    Active = 1,
+    Inactive = 2,
 }
 
 const status = Status.Active;
@@ -26,8 +26,8 @@ Casting to the integer backing type is explicit.
 
 ```ds
 enum Status {
-    Active = 1
-    Inactive = 2
+    Active = 1,
+    Inactive = 2,
 }
 
 const status = Status.Active;
@@ -41,8 +41,8 @@ Casting from the integer backing type to the enum is explicit.
 
 ```ds
 enum Status {
-    Active = 1
-    Inactive = 2
+    Active = 1,
+    Inactive = 2,
 }
 
 const status = 1 as Status;
@@ -55,8 +55,8 @@ Integer values do not implicitly coerce to enums.
 
 ```ds
 enum Status {
-    Active = 1
-    Inactive = 2
+    Active = 1,
+    Inactive = 2,
 }
 
 const status: Status = 1;
@@ -72,8 +72,8 @@ String enums are nominal and do not implicitly coerce to string.
 
 ```ds
 enum Flavor {
-    Sweet = "sweet"
-    Sour = "sour"
+    Sweet = "sweet",
+    Sour = "sour",
 }
 
 const flavor = Flavor.Sweet;
@@ -88,8 +88,8 @@ Casting to string is explicit.
 
 ```ds
 enum Flavor {
-    Sweet = "sweet"
-    Sour = "sour"
+    Sweet = "sweet",
+    Sour = "sour",
 }
 
 const flavor = Flavor.Sweet;
@@ -103,8 +103,8 @@ Casting from string to the enum is explicit.
 
 ```ds
 enum Flavor {
-    Sweet = "sweet"
-    Sour = "sour"
+    Sweet = "sweet",
+    Sour = "sour",
 }
 
 const flavor = "sweet" as Flavor;
@@ -117,8 +117,8 @@ Enum members must agree on backing type.
 
 ```ds
 enum Mixed {
-    First = 1
-    Second = "two"
+    First = 1,
+    Second = "two",
 }
 ```
 

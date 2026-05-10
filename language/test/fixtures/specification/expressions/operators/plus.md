@@ -47,12 +47,16 @@ combined satisfies int32[];
 Unary `+` dispatches to `Plus` on the receiver.
 
 ```ds
-struct Signed { value: int }
+struct Signed {
+    value: int;
+}
 
 extension of Signed implements Plus {
     type Output = Signed;
 
-    plus(): this.Output { return this }
+    plus(): this.Output {
+        return this;
+    }
 }
 
 declare function getSigned(): Signed;
@@ -66,12 +70,16 @@ value satisfies Signed;
 Unary `+` requires a matching `Plus` implementation.
 
 ```ds
-struct Signed { value: int }
+struct Signed {
+    value: int;
+}
 
 extension of Signed implements Negate {
     type Output = Signed;
 
-    negate(): this.Output { return this }
+    negate(): this.Output {
+        return this;
+    }
 }
 
 declare function getSigned(): Signed;
@@ -87,13 +95,16 @@ value satisfies Signed;
 `+` dispatches to `Add` on the receiver.
 
 ```ds
-struct Vector2 { x: number; y: number }
+struct Vector2 {
+    x: number;
+    y: number;
+}
 
 extension of Vector2 implements Add<Vector2> {
     type Output = Vector2;
 
     add(other: Vector2): this.Output {
-        return Vector2 { x: 0, y: 0 }
+        return Vector2 { x: 0, y: 0 };
     }
 }
 
@@ -111,11 +122,14 @@ sum satisfies Vector2;
 A matching method without `implements Add` is not an overload.
 
 ```ds
-struct Vector2 { x: number; y: number }
+struct Vector2 {
+    x: number;
+    y: number;
+}
 
 extension of Vector2 {
     add(other: Vector2): Vector2 {
-        return Vector2 { x: 0, y: 0 }
+        return Vector2 { x: 0, y: 0 };
     }
 }
 
@@ -134,13 +148,19 @@ left + right;
 `Add<T>` only accepts right operands assignable to `T`.
 
 ```ds
-struct Scalar { value: int }
-struct Other { value: int }
+struct Scalar {
+    value: int;
+}
+struct Other {
+    value: int;
+}
 
 extension of Scalar implements Add<Scalar> {
     type Output = Scalar;
 
-    add(other: Scalar): this.Output { return this }
+    add(other: Scalar): this.Output {
+        return this;
+    }
 }
 
 declare function getScalar(): Scalar;
@@ -186,12 +206,16 @@ saturated satisfies uint8;
 `+%` is not an overloadable operator.
 
 ```ds
-struct Scalar { value: int }
+struct Scalar {
+    value: int;
+}
 
 extension of Scalar implements Add<Scalar> {
     type Output = Scalar;
 
-    add(other: Scalar): this.Output { return this }
+    add(other: Scalar): this.Output {
+        return this;
+    }
 }
 
 declare function getScalar(): Scalar;

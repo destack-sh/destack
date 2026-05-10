@@ -12,7 +12,7 @@ struct User {
 }
 
 const type: Type<User> = User;
-type satisfies Type<User>;
+(type) satisfies Type<User>;
 ```
 
 ### Type.of creates reflected types
@@ -25,7 +25,7 @@ struct User {
 }
 
 const type = Type.of<User>();
-type satisfies Type<User>;
+(type) satisfies Type<User>;
 type.id satisfies TypeId;
 ```
 

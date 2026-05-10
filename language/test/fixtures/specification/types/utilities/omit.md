@@ -8,8 +8,8 @@
 
 ```ds
 interface Person {
-    name: string
-    age: number
+    name: string;
+    age: number;
 }
 
 type WithoutAge = Omit<Person, "age">;
@@ -22,8 +22,8 @@ ok satisfies WithoutAge;
 
 ```ds
 interface Person {
-    name: string
-    age: number
+    name: string;
+    age: number;
 }
 
 type WithoutAge = Omit<Person, "age">;
@@ -37,8 +37,8 @@ const bad: WithoutAge = { name: "Ada", age: 42 };
 
 ```ds
 interface Person {
-    name: string
-    age: number
+    name: string;
+    age: number;
 }
 
 type WithoutAll = Omit<Person, "name" | "age">;
@@ -50,8 +50,8 @@ const ok: WithoutAll = {};
 
 ```ds
 interface Person {
-    name: string
-    age: number
+    name: string;
+    age: number;
 }
 
 type WithoutAll = Omit<Person, "name" | "age">;
@@ -65,8 +65,8 @@ const bad: WithoutAll = { name: "Ada" };
 
 ```ds
 interface Person {
-    name: string
-    age: number
+    name: string;
+    age: number;
 }
 
 type WithoutAge = Omit<Person, "missing">;
@@ -79,8 +79,8 @@ ok satisfies Person;
 
 ```ds
 interface Person {
-    readonly name: string
-    age: number
+    readonly name: string;
+    age: number;
 }
 
 type NameOnly = Omit<Person, "age">;

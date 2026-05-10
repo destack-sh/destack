@@ -8,7 +8,7 @@ Keyof on a symbol index signature yields symbol.
 
 ```ds
 interface SymbolBag {
-    [key: symbol]: int32
+    [key: symbol]: int32;
 }
 
 type Keys = keyof SymbolBag;
@@ -26,8 +26,8 @@ Keyof includes the specific well-known symbol.
 
 ```ds
 interface IterableBox {
-    [Symbol.iterator]: int32
-    name: string
+    [Symbol.iterator]: int32;
+    name: string;
 }
 
 type Keys = keyof IterableBox;
@@ -46,11 +46,11 @@ Registry symbol keys can be used in object types.
 
 ```ds
 interface RegistryBox {
-    [Symbol.for("token")]: string
+    [Symbol.for("token")]: string;
 }
 
-const box: RegistryBox = { [Symbol.for("token")]: "ok" }
-box[Symbol.for("token")] satisfies string
+const box: RegistryBox = { [Symbol.for("token")]: "ok" };
+box[Symbol.for("token")] satisfies string;
 ```
 
 ### unique symbol keys are accepted
@@ -58,14 +58,14 @@ box[Symbol.for("token")] satisfies string
 Unique symbols can be used as object keys.
 
 ```ds
-const token: unique symbol = Symbol("token")
+const token: unique symbol = Symbol("token");
 
 interface TokenBox {
-    [token]: int32
+    [token]: int32;
 }
 
-const box: TokenBox = { [token]: 1 }
-box[token] satisfies int32
+const box: TokenBox = { [token]: 1 };
+box[token] satisfies int32;
 ```
 
 ### keyof preserves unique symbol keys
@@ -73,10 +73,10 @@ box[token] satisfies int32
 Keyof preserves the unique symbol key.
 
 ```ds
-const token: unique symbol = Symbol("token")
+const token: unique symbol = Symbol("token");
 
 interface TokenBox {
-    [token]: int32
+    [token]: int32;
 }
 
 type Keys = keyof TokenBox;
@@ -89,10 +89,10 @@ const ok: Keys = token;
 Keyof does not accept unrelated symbols.
 
 ```ds
-const token: unique symbol = Symbol("token")
+const token: unique symbol = Symbol("token");
 
 interface TokenBox {
-    [token]: int32
+    [token]: int32;
 }
 
 type Keys = keyof TokenBox;

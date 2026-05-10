@@ -7,7 +7,7 @@
 Numeric spans infer literal numbers when canonical.
 
 ```ds
-declare function parse<T extends number>(value: `${T}`): T;
+declare function parse<T: number>(value: `${T}`): T;
 
 let ok = parse("42");
 ok satisfies 42;
@@ -18,7 +18,7 @@ ok satisfies 42;
 Bigint spans infer literal bigints when canonical.
 
 ```ds
-declare function parse<T extends bigint>(value: `${T}`): T;
+declare function parse<T: bigint>(value: `${T}`): T;
 
 let ok = parse("42");
 ok satisfies 42n;
@@ -29,7 +29,7 @@ ok satisfies 42n;
 Bigint spans reject non literal strings.
 
 ```ds
-declare function parse<T extends bigint>(value: `${T}`): T;
+declare function parse<T: bigint>(value: `${T}`): T;
 
 let bad = parse("+1");
 ```
@@ -41,7 +41,7 @@ let bad = parse("+1");
 Fixed width int spans infer literal ints when canonical.
 
 ```ds
-declare function parse<T extends int32>(value: `${T}`): T;
+declare function parse<T: int32>(value: `${T}`): T;
 
 let ok = parse("42");
 ok satisfies 42;
@@ -52,7 +52,7 @@ ok satisfies 42;
 Fixed width int spans reject out of range strings.
 
 ```ds
-declare function parse<T extends int8>(value: `${T}`): T;
+declare function parse<T: int8>(value: `${T}`): T;
 
 let bad = parse("128");
 ```
@@ -64,7 +64,7 @@ let bad = parse("128");
 Numeric spans reject strings that do not parse as numbers.
 
 ```ds
-declare function parse<T extends number>(value: `${T}`): T;
+declare function parse<T: number>(value: `${T}`): T;
 
 let bad = parse("no");
 ```
@@ -76,7 +76,7 @@ let bad = parse("no");
 Non-canonical numeric strings infer to the number primitive.
 
 ```ds
-declare function parse<T extends number>(value: `${T}`): T;
+declare function parse<T: number>(value: `${T}`): T;
 
 let nonCanonical = parse("1e3");
 let ok: number = nonCanonical;
@@ -87,7 +87,7 @@ let ok: number = nonCanonical;
 Non-canonical numeric strings are not inferred as literals.
 
 ```ds
-declare function parse<T extends number>(value: `${T}`): T;
+declare function parse<T: number>(value: `${T}`): T;
 
 let nonCanonical = parse("1e3");
 let bad: 1000 = nonCanonical;
@@ -100,7 +100,7 @@ let bad: 1000 = nonCanonical;
 Bigint spans infer literal bigints when canonical.
 
 ```ds
-declare function parseBig<T extends bigint>(value: `${T}`): T;
+declare function parseBig<T: bigint>(value: `${T}`): T;
 
 let ok = parseBig("-1");
 ok satisfies -1n;
@@ -111,7 +111,7 @@ ok satisfies -1n;
 Non-canonical bigint strings infer to the bigint primitive.
 
 ```ds
-declare function parseBig<T extends bigint>(value: `${T}`): T;
+declare function parseBig<T: bigint>(value: `${T}`): T;
 
 let nonCanonical = parseBig("0x1");
 let ok: bigint = nonCanonical;
@@ -122,7 +122,7 @@ let ok: bigint = nonCanonical;
 Non-canonical bigint strings are not inferred as literals.
 
 ```ds
-declare function parseBig<T extends bigint>(value: `${T}`): T;
+declare function parseBig<T: bigint>(value: `${T}`): T;
 
 let nonCanonical = parseBig("0x1");
 let bad: 1n = nonCanonical;
@@ -135,7 +135,7 @@ let bad: 1n = nonCanonical;
 Invalid bigint strings reject inference.
 
 ```ds
-declare function parseBig<T extends bigint>(value: `${T}`): T;
+declare function parseBig<T: bigint>(value: `${T}`): T;
 
 let bad = parseBig("01");
 let bad2 = parseBig("+1");
@@ -149,7 +149,7 @@ let bad2 = parseBig("+1");
 Leading zeros are rejected for bigint inference.
 
 ```ds
-declare function parseBig<T extends bigint>(value: `${T}`): T;
+declare function parseBig<T: bigint>(value: `${T}`): T;
 
 let bad = parseBig("01");
 ```
@@ -161,7 +161,7 @@ let bad = parseBig("01");
 Plus signs are rejected for bigint inference.
 
 ```ds
-declare function parseBig<T extends bigint>(value: `${T}`): T;
+declare function parseBig<T: bigint>(value: `${T}`): T;
 
 let bad = parseBig("+1");
 ```

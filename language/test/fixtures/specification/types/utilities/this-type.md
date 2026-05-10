@@ -16,7 +16,7 @@ const descriptor: Descriptor = {
     value: "ready",
     method() {
         return this.value;
-    }
+    },
 };
 
 descriptor.method() satisfies string;
@@ -34,7 +34,7 @@ const descriptor: Descriptor = {
     value: "ready",
     method() {
         return this.missing;
-    }
+    },
 };
 ```
 

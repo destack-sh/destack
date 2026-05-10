@@ -67,7 +67,7 @@ struct Maybe<T, E> {
 extension<T, E> of Maybe<T, E> implements Try {
     type Value = T;
     type Failure = E;
-    
+
     static fromValue(value: T): Maybe<T, E> {
         Maybe { branchValue: TryContinue { kind: "continue", value } }
     }

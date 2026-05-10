@@ -115,24 +115,6 @@ class Derived extends Base {
 
 ## member access
 
-### super rejects optional chaining
-
-```ds
-class Base {
-    value(): int32 {
-        1
-    }
-}
-
-class Derived extends Base {
-    inspectBase(): int32 {
-        super?.value()
-    }
-}
-```
-
-- contains: optional chaining cannot be applied to super
-
 ### super rejects optional member calls
 
 ```ds

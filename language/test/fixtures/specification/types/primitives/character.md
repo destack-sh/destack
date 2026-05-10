@@ -7,7 +7,7 @@
 Character literals are assignable to the character type.
 
 ```ds
-let value: character = 'a';
+let value: char = 'a';
 ```
 
 ### character does not widen to string
@@ -25,7 +25,7 @@ let value: string = 'a';
 String literals are not assignable to character.
 
 ```ds
-let value: character = "a";
+let value: char = "a";
 ```
 
 - contains: not assignable
@@ -45,6 +45,6 @@ let value: int32 = 'a';
 Character values are assignable to unions that include character.
 
 ```ds
-let value: character | string = 'a';
-value satisfies character | string;
+let value: char | string = 'a';
+value satisfies char | string;
 ```
