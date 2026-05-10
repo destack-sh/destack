@@ -1,7 +1,7 @@
 import { Array } from "core";
 import type { PlatformError } from "../error/index.ds";
 import { ProcessId } from "./ids.ds";
-import { OsPath } from "../fs/path.ds";
+import { Path } from "../fs/path.ds";
 
 /// Flags for `unshare` operations.
 export newtype ProcessUnshareFlags = uint64;
@@ -118,7 +118,7 @@ export declare function unshare(flags: ProcessUnshareFlags): Result<void, Platfo
     blocking: "sometimes",
     affinity: "any",
 })
-export declare function chroot(path: OsPath): Result<void, PlatformError>;
+export declare function chroot(path: Path): Result<void, PlatformError>;
 
 /// Install one syscall filter program.
 ///
@@ -208,4 +208,4 @@ export declare function setHostName(name: string): Result<void, PlatformError>;
     blocking: "sometimes",
     affinity: "any",
 })
-export declare function setNetworkNamespace(path: OsPath): Result<void, PlatformError>;
+export declare function setNetworkNamespace(path: Path): Result<void, PlatformError>;

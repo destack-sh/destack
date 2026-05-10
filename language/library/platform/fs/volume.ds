@@ -1,0 +1,95 @@
+import type { PlatformError } from "../error/index.ds";
+import { FileHandle } from "../resource/index.ds";
+import { Entry } from "./entry.ds";
+
+/// Volume mount flags.
+export newtype VolumeFlags = uint64;
+
+/// Volume status field mask.
+export newtype VolumeMask = uint32;
+
+/// Request transfer size fields.
+export const VOLUME_TRANSFER: VolumeMask = VolumeMask(0x0003);
+
+/// Request block count fields.
+export const VOLUME_BLOCKS: VolumeMask = VolumeMask(0x001c);
+
+/// Request file node count fields.
+export const VOLUME_FILES: VolumeMask = VolumeMask(0x0060);
+
+/// Request volume identifier.
+export const VOLUME_ID: VolumeMask = VolumeMask(0x0080);
+
+/// Request mount flags.
+export const VOLUME_FLAGS: VolumeMask = VolumeMask(0x0100);
+
+/// Request maximum filename length.
+export const VOLUME_NAME_LENGTH: VolumeMask = VolumeMask(0x0200);
+
+/// Request all fields the host can provide.
+export const VOLUME_ALL: VolumeMask = VolumeMask(0x03ff);
+
+/// Volume status returned by host metadata operations.
+export struct VolumeStatus {
+    /// Mask of fields populated by the host.
+    mask: VolumeMask;
+    /// Preferred transfer block size.
+    blockSize: uint64;
+    /// Fragment block size.
+    fragmentSize: uint64;
+    /// Total data block count.
+    blocks: uint64;
+    /// Free data block count.
+    blocksFree: uint64;
+    /// Free data block count available to unprivileged users.
+    blocksAvailable: uint64;
+    /// Total file node count.
+    files: uint64;
+    /// Free file node count.
+    filesFree: uint64;
+    /// Volume identifier.
+    id: uint64;
+    /// Volume mount flags.
+    flags: VolumeFlags;
+    /// Maximum filename length.
+    nameLength: uint64;
+}
+
+/// Read status for the volume containing an entry.
+@binding("destack.fs.volume.entry", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["fs.metadata"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function entryVolume(entry: Entry): Result<VolumeStatus, PlatformError>;
+
+/// Read status for the volume containing an open file.
+@binding("destack.fs.volume.file", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["fs.metadata"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function fileVolume(file: FileHandle): Result<VolumeStatus, PlatformError>;
+
+/// Synchronize the volume containing an open file.
+@binding("destack.fs.volume.sync", {
+    effect: "external",
+    replay: "recordable",
+    capabilities: ["fs.sync"],
+    platforms: ["windows", "unix"],
+    simulation: "model",
+    scope: "host",
+    blocking: "sometimes",
+    affinity: "any",
+})
+export declare function syncVolume(file: FileHandle): Result<void, PlatformError>;

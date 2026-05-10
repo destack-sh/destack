@@ -1,9 +1,11 @@
-
-export * from "./attrs.ds";
-export * from "./dir.ds";
+export * from "./attribute.ds";
+export * from "./directory.ds";
+export * from "./entry.ds";
 export * from "./file.ds";
-export * from "./flags.ds";
+export * from "./namespace.ds";
 export * from "./path.ds";
-export * from "./stat.ds";
+export * from "./range.ds";
+export * from "./status.ds";
+export * from "./volume.ds";
 export * from "./watch.ds";
 export * from "./xattr.ds";

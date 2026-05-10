@@ -1,0 +1,13 @@
+/// File offset in bytes.
+export newtype FileOffset = int64;
+
+/// File size in bytes.
+export newtype FileSize = uint64;
+
+/// File byte range.
+export struct FileRange {
+    /// Starting byte offset.
+    offset: FileOffset;
+    /// Range length in bytes.
+    length: FileSize;
+}

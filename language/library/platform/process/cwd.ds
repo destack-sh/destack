@@ -1,10 +1,10 @@
 import type { PlatformError } from "../error/index.ds";
-import { OsPath } from "../fs/path.ds";
+import { Path } from "../fs/path.ds";
 
 /// Return the current working directory.
 ///
 /// Query the calling process working directory without changing process state.
-/// The returned path preserves host encoding through `OsPath`.
+/// The returned path preserves host encoding through `Path`.
 ///
 /// # Platform
 /// Unix and Windows.
@@ -28,7 +28,7 @@ import { OsPath } from "../fs/path.ds";
     blocking: "sometimes",
     affinity: "any",
 })
-export declare function cwd(): Result<OsPath, PlatformError>;
+export declare function cwd(): Result<Path, PlatformError>;
 
 /// Change the current working directory.
 ///
@@ -57,4 +57,4 @@ export declare function cwd(): Result<OsPath, PlatformError>;
     blocking: "sometimes",
     affinity: "any",
 })
-export declare function chdir(path: OsPath): Result<void, PlatformError>;
+export declare function chdir(path: Path): Result<void, PlatformError>;

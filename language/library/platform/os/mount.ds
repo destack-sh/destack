@@ -1,12 +1,12 @@
 import type { PlatformError } from "../error/index.ds";
-import { OsPath } from "../fs/path.ds";
+import { Path } from "../fs/path.ds";
 
 /// Mount table entry.
 export struct MountEntry {
     /// Source device or backing object when the host exposes one.
     source?: string;
     /// Target mount path.
-    target: OsPath;
+    target: Path;
     /// Filesystem type name when the host exposes one.
     fileSystem?: string;
     /// Host-defined mount flags bitmask when the host exposes one.

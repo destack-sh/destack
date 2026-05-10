@@ -1,756 +1,85 @@
-import { Array, Slice } from "core";
+import { Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
 import { FileHandle } from "../resource/index.ds";
-import { OsPath } from "./path.ds";
+import { Entry } from "./entry.ds";
 
-/// Extended attribute flags.
+/// Extended attribute creation flags.
 export newtype XattrFlags = uint32;
 
-/// Create the attribute, fail if it exists.
+/// Create an attribute and fail if it already exists.
 export const XATTR_CREATE: XattrFlags = XattrFlags(0x1);
-/// Replace the attribute, fail if it does not exist.
+
+/// Replace an attribute and fail if it does not exist.
 export const XATTR_REPLACE: XattrFlags = XattrFlags(0x2);
 
-/// Read an extended attribute by path.
-///
-/// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
-/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses getxattr(2) on Unix and extended-attribute APIs where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.xattr.getxattr", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.xattr"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function getxattr(path: OsPath, name: string): Result<Array<uint8>, PlatformError>;
+/// Target for extended attribute operations.
+export newtype XattrTarget =
+    | { kind: "entry"; entry: Entry; isFollowing: boolean }
+    | { kind: "file"; file: FileHandle };
 
-/// Read an extended attribute by path with a raw name payload.
-///
-/// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
-/// Raw name bytes preserve host namespace data without UTF transcoding.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses getxattr(2) on Unix and extended-attribute APIs where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.xattr.getxattrBytes", {
+/// Read one extended attribute into an output buffer.
+@binding("destack.fs.xattr.read", {
     effect: "external",
     replay: "recordable",
     capabilities: ["fs.xattr"],
-    platforms: ["windows", "unix"],
+    platforms: ["unix"],
     simulation: "model",
     scope: "host",
     blocking: "sometimes",
     affinity: "any",
 })
-export declare function getxattrBytes(
-    path: OsPath,
+export declare function readXattr(
+    target: XattrTarget,
     name: Slice<uint8>,
-): Result<Array<uint8>, PlatformError>;
+    buffer: Slice<uint8>,
+): Result<uint64, PlatformError>;
 
-/// Read an extended attribute without following symlinks.
-///
-/// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
-/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses lgetxattr(2) on Unix and reparse-aware xattr query where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.xattr.lgetxattr", {
+/// Write one extended attribute.
+@binding("destack.fs.xattr.write", {
     effect: "external",
     replay: "recordable",
     capabilities: ["fs.xattr"],
-    platforms: ["windows", "unix"],
+    platforms: ["unix"],
     simulation: "model",
     scope: "host",
     blocking: "sometimes",
     affinity: "any",
 })
-export declare function lgetxattr(path: OsPath, name: string): Result<Array<uint8>, PlatformError>;
-
-/// Read an extended attribute without following symlinks, using a raw name payload.
-///
-/// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
-/// Raw name bytes preserve host namespace data without UTF transcoding.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses lgetxattr(2) on Unix and reparse-aware xattr query where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.xattr.lgetxattrBytes", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.xattr"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function lgetxattrBytes(
-    path: OsPath,
-    name: Slice<uint8>,
-): Result<Array<uint8>, PlatformError>;
-
-/// Read an extended attribute by handle.
-///
-/// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
-/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses fgetxattr(2) on Unix and handle-based xattr query where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.xattr.fgetxattr", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.xattr"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function fgetxattr(
-    handle: FileHandle,
-    name: string,
-): Result<Array<uint8>, PlatformError>;
-
-/// Read an extended attribute by handle with a raw name payload.
-///
-/// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
-/// Raw name bytes preserve host namespace data without UTF transcoding.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses fgetxattr(2) on Unix and handle-based xattr query where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.xattr.fgetxattrBytes", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.xattr"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function fgetxattrBytes(
-    handle: FileHandle,
-    name: Slice<uint8>,
-): Result<Array<uint8>, PlatformError>;
-
-/// Set an extended attribute by path.
-///
-/// Set the requested control value on the descriptor through the native option interface.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses setxattr(2) on Unix and extended-attribute APIs where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.xattr.setxattr", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.xattr"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function setxattr(
-    path: OsPath,
-    name: string,
-    value: Slice<uint8>,
-    flags: XattrFlags,
-): Result<void, PlatformError>;
-
-/// Set an extended attribute by path with a raw name payload.
-///
-/// Set the requested control value on the descriptor through the native option interface.
-/// Raw name bytes preserve host namespace data without UTF transcoding.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses setxattr(2) on Unix and extended-attribute APIs where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.xattr.setxattrBytes", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.xattr"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function setxattrBytes(
-    path: OsPath,
+export declare function writeXattr(
+    target: XattrTarget,
     name: Slice<uint8>,
     value: Slice<uint8>,
     flags: XattrFlags,
 ): Result<void, PlatformError>;
 
-/// Set an extended attribute without following symlinks.
-///
-/// Set the requested control value on the descriptor through the native option interface.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses lsetxattr(2) on Unix and reparse-aware xattr write where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.xattr.lsetxattr", {
+/// List extended attribute names into an output buffer.
+@binding("destack.fs.xattr.list", {
     effect: "external",
     replay: "recordable",
     capabilities: ["fs.xattr"],
-    platforms: ["windows", "unix"],
+    platforms: ["unix"],
     simulation: "model",
     scope: "host",
     blocking: "sometimes",
     affinity: "any",
 })
-export declare function lsetxattr(
-    path: OsPath,
-    name: string,
-    value: Slice<uint8>,
-    flags: XattrFlags,
-): Result<void, PlatformError>;
+export declare function listXattrs(
+    target: XattrTarget,
+    buffer: Slice<uint8>,
+): Result<uint64, PlatformError>;
 
-/// Set an extended attribute without following symlinks, using a raw name payload.
-///
-/// Set the requested control value on the descriptor through the native option interface.
-/// Raw name bytes preserve host namespace data without UTF transcoding.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses lsetxattr(2) on Unix and reparse-aware xattr write where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.xattr.lsetxattrBytes", {
+/// Remove one extended attribute.
+@binding("destack.fs.xattr.remove", {
     effect: "external",
     replay: "recordable",
     capabilities: ["fs.xattr"],
-    platforms: ["windows", "unix"],
+    platforms: ["unix"],
     simulation: "model",
     scope: "host",
     blocking: "sometimes",
     affinity: "any",
 })
-export declare function lsetxattrBytes(
-    path: OsPath,
-    name: Slice<uint8>,
-    value: Slice<uint8>,
-    flags: XattrFlags,
-): Result<void, PlatformError>;
-
-/// Set an extended attribute by handle.
-///
-/// Set the requested control value on the descriptor through the native option interface.
-/// The binding performs one control transaction and returns the exact host outcome without policy retries.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses fsetxattr(2) on Unix and handle-based xattr write where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.xattr.fsetxattr", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.xattr"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function fsetxattr(
-    handle: FileHandle,
-    name: string,
-    value: Slice<uint8>,
-    flags: XattrFlags,
-): Result<void, PlatformError>;
-
-/// Set an extended attribute by handle with a raw name payload.
-///
-/// Set the requested control value on the descriptor through the native option interface.
-/// Raw name bytes preserve host namespace data without UTF transcoding.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses fsetxattr(2) on Unix and handle-based xattr write where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.xattr.fsetxattrBytes", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.xattr"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function fsetxattrBytes(
-    handle: FileHandle,
-    name: Slice<uint8>,
-    value: Slice<uint8>,
-    flags: XattrFlags,
-): Result<void, PlatformError>;
-
-/// List extended attribute names by path.
-///
-/// List extended attribute names by path via host kernel APIs.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses listxattr(2) on Unix and xattr enumeration APIs where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.xattr.listxattr", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.xattr"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function listxattr(path: OsPath): Result<Array<string>, PlatformError>;
-
-/// List extended attribute names by path as raw byte payloads.
-///
-/// List extended attribute names by path via host kernel APIs.
-/// Raw name bytes preserve host namespace data without UTF transcoding.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses listxattr(2) on Unix and xattr enumeration APIs where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.xattr.listxattrBytes", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.xattr"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function listxattrBytes(path: OsPath): Result<Array<uint8[]>, PlatformError>;
-
-/// List extended attribute names without following symlinks.
-///
-/// List extended attribute names without following symlinks via host kernel APIs.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses llistxattr(2) on Unix and reparse-aware xattr enumeration on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.xattr.llistxattr", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.xattr"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function llistxattr(path: OsPath): Result<Array<string>, PlatformError>;
-
-/// List extended attribute names without following symlinks as raw byte payloads.
-///
-/// List extended attribute names without following symlinks via host kernel APIs.
-/// Raw name bytes preserve host namespace data without UTF transcoding.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses llistxattr(2) on Unix and reparse-aware xattr enumeration on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.xattr.llistxattrBytes", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.xattr"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function llistxattrBytes(path: OsPath): Result<Array<uint8[]>, PlatformError>;
-
-/// List extended attribute names by handle.
-///
-/// List extended attribute names by handle via host kernel APIs.
-/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses flistxattr(2) on Unix and handle-based xattr enumeration on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.xattr.flistxattr", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.xattr"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function flistxattr(handle: FileHandle): Result<Array<string>, PlatformError>;
-
-/// List extended attribute names by handle as raw byte payloads.
-///
-/// List extended attribute names by handle via host kernel APIs.
-/// Raw name bytes preserve host namespace data without UTF transcoding.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses flistxattr(2) on Unix and handle-based xattr enumeration on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.xattr.flistxattrBytes", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.xattr"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function flistxattrBytes(handle: FileHandle): Result<Array<uint8[]>, PlatformError>;
-
-/// Remove an extended attribute by path.
-///
-/// Remove the target resource through a single host namespace operation with no runtime fallback path.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses removexattr(2) on Unix and xattr delete APIs where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.xattr.removexattr", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.xattr"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function removexattr(path: OsPath, name: string): Result<void, PlatformError>;
-
-/// Remove an extended attribute by path with a raw name payload.
-///
-/// Remove the target resource through a single host namespace operation with no runtime fallback path.
-/// Raw name bytes preserve host namespace data without UTF transcoding.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses removexattr(2) on Unix and xattr delete APIs where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.xattr.removexattrBytes", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.xattr"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function removexattrBytes(path: OsPath, name: Slice<uint8>): Result<void, PlatformError>;
-
-/// Remove an extended attribute without following symlinks.
-///
-/// Remove the target resource through a single host namespace operation with no runtime fallback path.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses lremovexattr(2) on Unix and reparse-aware xattr delete on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.xattr.lremovexattr", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.xattr"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function lremovexattr(path: OsPath, name: string): Result<void, PlatformError>;
-
-/// Remove an extended attribute without following symlinks, using a raw name payload.
-///
-/// Remove the target resource through a single host namespace operation with no runtime fallback path.
-/// Raw name bytes preserve host namespace data without UTF transcoding.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses lremovexattr(2) on Unix and reparse-aware xattr delete on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.xattr.lremovexattrBytes", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.xattr"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function lremovexattrBytes(
-    path: OsPath,
-    name: Slice<uint8>,
-): Result<void, PlatformError>;
-
-/// Remove an extended attribute by handle.
-///
-/// Remove the target resource through a single host namespace operation with no runtime fallback path.
-/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses fremovexattr(2) on Unix and handle-based xattr delete on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.xattr.fremovexattr", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.xattr"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function fremovexattr(handle: FileHandle, name: string): Result<void, PlatformError>;
-
-/// Remove an extended attribute by handle with a raw name payload.
-///
-/// Remove the target resource through a single host namespace operation with no runtime fallback path.
-/// Raw name bytes preserve host namespace data without UTF transcoding.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses fremovexattr(2) on Unix and handle-based xattr delete on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.fs.xattr.fremovexattrBytes", {
-    effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.xattr"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
-})
-export declare function fremovexattrBytes(
-    handle: FileHandle,
+export declare function removeXattr(
+    target: XattrTarget,
     name: Slice<uint8>,
 ): Result<void, PlatformError>;

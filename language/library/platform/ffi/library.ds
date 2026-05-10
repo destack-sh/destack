@@ -1,6 +1,6 @@
 import type { PlatformError } from "../error/index.ds";
 import { LibraryHandle } from "../resource/index.ds";
-import { OsPath } from "../fs/path.ds";
+import { Path } from "../fs/path.ds";
 
 /// Dynamic library bindings.
 /// Open a dynamic library.
@@ -30,7 +30,7 @@ import { OsPath } from "../fs/path.ds";
     blocking: "sometimes",
     affinity: "any",
 })
-export declare function open(path: OsPath, flags: uint32): Result<LibraryHandle, PlatformError>;
+export declare function open(path: Path, flags: uint32): Result<LibraryHandle, PlatformError>;
 
 /// Close a dynamic library.
 ///

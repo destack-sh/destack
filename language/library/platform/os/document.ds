@@ -1,6 +1,6 @@
 import { Array, Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
-import { OsPath } from "../fs/path.ds";
+import { Path } from "../fs/path.ds";
 import { DocumentHandle, DocumentPickHandle } from "../resource/index.ds";
 
 /// Document-provider access mode.
@@ -43,7 +43,7 @@ export struct DocumentDescriptor {
     /// Whether this descriptor represents one directory.
     isDirectory: boolean;
     /// Runtime-visible local path when the host grants direct local access or one sandbox copy exists.
-    localPath?: OsPath;
+    localPath?: Path;
 }
 
 /// Document bindings.

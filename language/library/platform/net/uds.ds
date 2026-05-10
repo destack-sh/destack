@@ -1,6 +1,6 @@
 import type { PlatformError } from "../error/index.ds";
 import { ListenerHandle, SocketHandle } from "../resource/index.ds";
-import { OsPath } from "../fs/path.ds";
+import { Path } from "../fs/path.ds";
 import { SocketPair, SocketType } from "./socket.ds";
 
 /// Filesystem-backed unix domain socket address payload.
@@ -8,7 +8,7 @@ export struct UdsPathAddress {
     /// Discriminator for this uds address variant.
     kind: "path";
     /// Filesystem socket path.
-    path: OsPath;
+    path: Path;
 }
 
 /// Linux abstract unix domain socket address payload.
@@ -63,7 +63,7 @@ export declare function udsConnect(address: UdsAddress): Result<SocketHandle, Pl
 /// Listen on a UDS address.
 ///
 /// Place the bound socket into passive listen mode with the requested backlog semantics.
-/// Path addresses are forwarded from `OsPath` without runtime normalization, while abstract and unnamed addresses follow host AF_UNIX rules.
+/// Path addresses are forwarded from `Path` without runtime normalization, while abstract and unnamed addresses follow host AF_UNIX rules.
 ///
 /// # Platform
 /// Unix and Windows only when AF_UNIX support is available at runtime.

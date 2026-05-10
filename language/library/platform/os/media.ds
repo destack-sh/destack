@@ -1,6 +1,6 @@
 import { Array } from "core";
 import type { PlatformError } from "../error/index.ds";
-import { OsPath } from "../fs/path.ds";
+import { Path } from "../fs/path.ds";
 
 /// Media asset class.
 export enum MediaAssetKind {
@@ -146,7 +146,7 @@ export declare function mediaRead(id: string): Result<MediaAssetDescriptor, Plat
     affinity: "any",
 })
 export declare function mediaImportPath(
-    path: OsPath,
+    path: Path,
     kind: MediaAssetKind,
 ): Result<string, PlatformError>;
 

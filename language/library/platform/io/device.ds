@@ -1,6 +1,6 @@
 import { Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
-import { OsPath } from "../fs/path.ds";
+import { Path } from "../fs/path.ds";
 import { DeviceHandle } from "../resource/index.ds";
 import { DescriptorRequest, DescriptorResult } from "./control.ds";
 
@@ -33,7 +33,7 @@ import { DescriptorRequest, DescriptorResult } from "./control.ds";
     affinity: "any",
 })
 export declare function deviceOpen(
-    path: OsPath,
+    path: Path,
     flags: uint32,
     mode: uint32,
 ): Result<DeviceHandle, PlatformError>;
