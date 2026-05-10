@@ -25,10 +25,10 @@ export struct AllocationError {
     message?: string;
 }
 
-/// Raw allocation in space `S`.
-export newtype Allocation<S: Space = "local"> = {
+/// Raw allocation in space `S`, viewed as elements of `T`.
+export newtype Allocation<T = uint8, S: Space = "local"> = {
     /// The allocated pointer.
-    pointer: WithSpace<*uint8, S>;
+    pointer: WithSpace<*T, S>;
     /// The allocated layout.
     layout: AllocationLayout;
 };
@@ -36,13 +36,13 @@ export newtype Allocation<S: Space = "local"> = {
 /// Low-level allocator for raw memory in space `S`.
 export newtype interface Allocator<S: Space = "local"> {
     /// Allocate raw memory.
-    allocate(layout: AllocationLayout): Result<Allocation<S>, AllocationError>;
+    allocate<T = uint8>(layout: AllocationLayout): Result<Allocation<T, S>, AllocationError>;
 
     /// Free raw memory.
-    deallocate(allocation: Allocation<S>): void;
+    deallocate<T>(allocation: Allocation<T, S>): void;
 
     /// Resize raw memory.
-    resize(allocation: Allocation<S>, layout: AllocationLayout): Result<Allocation<S>, AllocationError>;
+    resize<T>(allocation: Allocation<T, S>, layout: AllocationLayout): Result<Allocation<T, S>, AllocationError>;
 }
 
 /// Return the default allocator for space `S`.
