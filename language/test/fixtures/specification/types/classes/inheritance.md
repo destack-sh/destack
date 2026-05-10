@@ -20,6 +20,29 @@ declare function getDog(): Dog;
 const animal: Animal = getDog();
 ```
 
+### final classes construct normally
+
+```ds
+final class Session {
+    id: string = "";
+}
+
+const session = new Session();
+session satisfies Session;
+```
+
+### final classes reject inheritance
+
+```ds
+final class Session {
+    id: string = "";
+}
+
+class DerivedSession extends Session {}
+```
+
+- contains: cannot extend final class
+
 ### parents do not assign to children
 
 ```ds

@@ -105,6 +105,12 @@
             "note": "unsupported definite assignment assertions on variable declarations"
         },
         {
+            "patterns": ["ts/class/accessor-property.ts", "ts/union/issue-16176.ts"],
+            "status": "ignore",
+            "reason": "scope",
+            "note": "mixed fixtures with unsupported definite assignment assertions on class members"
+        },
+        {
             "patterns": ["ts/union/issue-16902.ts"],
             "status": "ignore",
             "reason": "scope",
