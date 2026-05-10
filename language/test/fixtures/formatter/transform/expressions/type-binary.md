@@ -114,6 +114,18 @@ const value = input as unknown as Result
 const value = input as unknown as Result;
 ```
 
+### chained assertion with union target
+
+Nested assertions keep grouping when the inner target is a union.
+
+```ts:main.ts
+const value = ("ok" as string | number) as string
+```
+
+```ts expected
+const value = ("ok" as string | number) as string;
+```
+
 ### assertion in ternary test
 
 Assertions in ternary tests keep grouping parentheses.

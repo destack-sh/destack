@@ -334,6 +334,20 @@ type IsNumber = int32 extends number;
 type IsDrawable = DrawnPoint implements Drawable;
 ```
 
+### static type relation composite operands
+
+Static type relations keep composite operands grouped.
+
+```ds
+type HasEither = "left" in (Left | Right)
+type HasBoth = "left" in (Left & Right)
+```
+
+```ds expected
+type HasEither = "left" in (Left | Right);
+type HasBoth = "left" in (Left & Right);
+```
+
 ## Ownership Types
 
 ### borrowed reference type
