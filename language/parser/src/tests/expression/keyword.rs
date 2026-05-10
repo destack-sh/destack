@@ -3,6 +3,50 @@ use crate::{assert_comment, assert_expression_path, assert_node, assert_string};
 use destack_ast::*;
 use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanType};
 
+/// Parse a do block expression with a value tail.
+#[test]
+fn test_parse_do_block_expression() {
+    let mut test = TestParser::new(
+        r#"
+let value = do {
+    let base = 1;
+    base + 2
+};
+"#,
+    );
+    let mut parser = test.prepare();
+    let roots = parser.parse();
+
+    assert_eq!(roots.len(), 1);
+    assert_node!(parser.tree, roots[0], Expression::Let { declarators, .. } => {
+        assert_eq!(declarators.len(), 1);
+        assert_node!(parser.tree, declarators[0], Declarator { value: Some(value), .. } => {
+            assert_node!(parser.tree, *value, Expression::Block(block_id) => {
+                assert_node!(parser.tree, *block_id, Block { form, leading_expressions, tail_expression, .. } => {
+                    assert_eq!(*form, BlockForm::Do);
+                    assert_eq!(leading_expressions.len(), 1);
+                    assert_node!(parser.tree, leading_expressions[0], Expression::Let { declarators, .. } => {
+                        assert_eq!(declarators.len(), 1);
+                        assert_node!(parser.tree, declarators[0], Declarator { pattern, value, .. } => {
+                            assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                                assert_string!(parser, *name, "base");
+                            });
+                            assert_node!(parser.tree, value.expect("expected initializer"), Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+                        });
+                    });
+                    assert_node!(parser.tree, tail_expression.expect("expected do block tail"), Expression::Binary { left, operator, right } => {
+                        assert_expression_path!(parser, parser.tree.get(*left), "base");
+                        assert_eq!(*operator, BinaryOperator::Add);
+                        assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
+                    });
+                });
+            });
+        });
+    });
+
+    test.assert_no_errors(&parser);
+}
+
 /// Parse an if extends condition without consuming the block.
 #[test]
 fn test_parse_if_extends_type_reference() {
@@ -22,11 +66,9 @@ fn test_parse_if_extends_type_reference() {
         };
         // x extends Foo
         assert_node!(parser.tree, condition_id, Expression::Type { value } => {
-            assert_node!(parser.tree, *value, TypeExpression::Conditional { left, extends_type, then_type, else_type } => {
+            assert_node!(parser.tree, *value, TypeExpression::Extends { left, right } => {
                 assert_expression_path!(parser, parser.tree.get(*left), "x");
-                assert_expression_path!(parser, parser.tree.get(*extends_type), "Foo");
-                assert_node!(parser.tree, *then_type, TypeExpression::Missing);
-                assert_node!(parser.tree, *else_type, TypeExpression::Missing);
+                assert_expression_path!(parser, parser.tree.get(*right), "Foo");
             });
         });
         // { body }
@@ -36,6 +78,30 @@ fn test_parse_if_extends_type_reference() {
                 assert_eq!(expressions.len(), 1);
                 let body_statement_id = parser.unwrap_labelled_expression(expressions[0]);
                 assert_expression_path!(parser, parser.tree.get(body_statement_id), "body");
+            });
+        });
+    });
+
+    test.assert_no_errors(&parser);
+}
+
+/// Parse a static conditional type as a value expression.
+#[test]
+fn test_parse_type_relation_ternary_value_condition() {
+    let mut test = TestParser::new(r#"const width = Row extends string ? 4 : 2"#);
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::Let { declarators, .. } => {
+        assert_eq!(declarators.len(), 1);
+        assert_node!(parser.tree, declarators[0], Declarator { value: Some(value), .. } => {
+            assert_node!(parser.tree, *value, Expression::Type { value } => {
+                assert_node!(parser.tree, *value, TypeExpression::Conditional { left, extends_type, then_type, else_type } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "Row");
+                    assert_node!(parser.tree, *extends_type, TypeExpression::Literal { value: TypeLiteral::String });
+                    assert_node!(parser.tree, *then_type, TypeExpression::ScalarLiteral { value: ScalarLiteral::Integer(4) });
+                    assert_node!(parser.tree, *else_type, TypeExpression::ScalarLiteral { value: ScalarLiteral::Integer(2) });
+                });
             });
         });
     });
@@ -449,18 +515,24 @@ fn test_parse_abstract_newline_as_identifier_then_class() {
     });
 }
 
-/// Reject `declare enum\nE\n{}` and preserve the expression sequence.
+/// Parse `declare enum\nE\n{}` with a focused enum newline error.
 #[test]
-fn test_reject_declare_enum_newline_and_preserve_expression_sequence() {
+fn test_parse_declare_enum_newline_reports_error_and_preserves_following_sequence() {
     let mut test = TestParser::new_with_language("declare enum\nE\n{}", LanguageType::TypeScript);
     let mut parser = test.prepare();
     let expressions = parser.parse();
 
-    test.assert_error_leaves(&parser, &[(None, None, "enum")]);
+    test.assert_error_leaves(
+        &parser,
+        &[
+            (None, None, "enum"),
+            (Some(NodeType::Expression), None, "enum"),
+        ],
+    );
 
     assert_eq!(expressions.len(), 4);
     assert_expression_path!(parser, parser.tree.get(expressions[0]), "declare");
-    assert_expression_path!(parser, parser.tree.get(expressions[1]), "enum");
+    assert_node!(parser.tree, expressions[1], Expression::Error);
     assert_expression_path!(parser, parser.tree.get(expressions[2]), "E");
     assert_node!(parser.tree, expressions[3], Expression::Block(..));
 }
