@@ -647,6 +647,7 @@ impl Parser {
                     Keyword::Export
                         | Keyword::Declare
                         | Keyword::Abstract
+                        | Keyword::Final
                         | Keyword::Shared
                         | Keyword::Static,
                 )
@@ -1453,6 +1454,7 @@ impl Parser {
     fn eat_function_type_parameter_head(&mut self) -> ParseResult<()> {
         self.eat_binding_modifiers_prefix_maybe(
             true,
+            false,
             false,
             self.flags.is_in_static(),
             false,

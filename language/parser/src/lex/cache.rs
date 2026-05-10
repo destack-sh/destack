@@ -29,10 +29,21 @@ pub(crate) fn keyword_from_identifier(identifier: &str) -> Option<Keyword> {
             )
             | (
                 5,
-                b'a' | b'b' | b'c' | b'i' | b'k' | b'm' | b'n' | b's' | b't' | b'u' | b'w' | b'y'
+                b'a' | b'b'
+                    | b'c'
+                    | b'f'
+                    | b'i'
+                    | b'k'
+                    | b'm'
+                    | b'n'
+                    | b's'
+                    | b't'
+                    | b'u'
+                    | b'w'
+                    | b'y'
             )
             | (6, b'a' | b'd' | b'e' | b'i' | b'p' | b'r' | b's' | b't')
-            | (7, b'a' | b'd' | b'e' | b'f' | b'n' | b'p')
+            | (7, b'a' | b'd' | b'e' | b'f' | b'n' | b'p' | b'v')
             | (8, b'a' | b'c' | b'd' | b'f' | b'o' | b'p' | b'r')
             | (9, b'e' | b'i' | b'n' | b'p' | b's')
             | (10, b'i')

@@ -6,8 +6,8 @@ use destack_ast::{
 
 use super::super::PendingDecorators;
 use super::common::{
-    DECLARATION_START_TOKENS, DeclarationHeader, DescriptorHead, is_declaration_keyword,
-    is_type_relation_keyword,
+    is_declaration_keyword, is_type_relation_keyword, DeclarationHeader, DescriptorHead,
+    DECLARATION_START_TOKENS,
 };
 
 impl Parser {
@@ -31,6 +31,9 @@ impl Parser {
             keyword,
             Some(Keyword::Export | Keyword::Declare | Keyword::Abstract | Keyword::Static,)
         ) {
+            return true;
+        }
+        if self.language.is_destack() && keyword == Some(Keyword::Final) {
             return true;
         }
         if self.language.is_destack() && keyword == Some(Keyword::Shared) {
@@ -434,6 +437,21 @@ impl Parser {
                 .is_ok_and(is_declaration_keyword);
         if header.is_abstract {
             self.bump(); // eat abstract
+        }
+
+        // final modifier
+        header.is_final = self.language.is_destack()
+            && self.is_keyword(Keyword::Final)
+            && !self.flags.is_in_variant()
+            && !self.lookahead(|parser| {
+                parser.bump();
+                parser.current_token_is_on_new_line()
+            })
+            && self
+                .peek_next_any_keyword()
+                .is_ok_and(|keyword| keyword == Keyword::Class);
+        if header.is_final {
+            self.bump(); // eat final
         }
 
         // shared placement modifier
