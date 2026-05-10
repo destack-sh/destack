@@ -374,6 +374,34 @@ abstract class Child extends Base {
 }
 ```
 
+### final class
+
+`final` prints before the class keyword.
+
+```ds
+final class Service { start(): void {} }
+```
+
+```ds expected
+final class Service {
+    start(): void {}
+}
+```
+
+### virtual method
+
+`virtual` prints before the method key.
+
+```ds
+class Widget { virtual render(): void {} }
+```
+
+```ds expected
+class Widget {
+    virtual render(): void {}
+}
+```
+
 ### TypeScript declaration method signatures use semicolons
 
 TypeScript declaration class signatures end with semicolons.

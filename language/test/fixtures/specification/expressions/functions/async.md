@@ -104,3 +104,17 @@ async function read(): Promise<string> {
     return inner;
 }
 ```
+
+### await! unwraps async result values
+
+`await!` awaits a fallible promise and unwraps the success value.
+
+```ds
+declare const value: Promise<Result<string, Error>>;
+
+async function read(): Promise<string> {
+    const inner = await! value;
+    inner satisfies string;
+    return inner;
+}
+```

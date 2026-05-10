@@ -31,6 +31,23 @@ const next = counter.increment();
 next satisfies int32;
 ```
 
+### virtual methods type check as instance methods
+
+```ds
+class Counter {
+    value: int32 = 0;
+
+    virtual increment(): int32 {
+        this.value = this.value + 1;
+        this.value
+    }
+}
+
+const counter = new Counter();
+const next = counter.increment();
+next satisfies int32;
+```
+
 ### instance members are unavailable on class values
 
 ```ds

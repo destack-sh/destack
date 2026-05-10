@@ -1,6 +1,6 @@
 # Declaration Annotations
 
-## Declaration Syntax Edges
+## Declaration Forms
 
 ### constructor parameter modifiers
 
@@ -88,7 +88,7 @@ declare module "B" {
 }
 ```
 
-### overload signatures with syntax edge parameters
+### overload signatures with optional and rest parameters
 
 Overload signatures with optional and rest parameters are parsed.
 

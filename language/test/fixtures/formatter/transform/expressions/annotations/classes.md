@@ -102,3 +102,72 @@ class Box {
     method() {}
 }
 ```
+
+### private accessor hash type annotation
+
+Private accessor members keep hash names and type annotations.
+
+```ts:main.ts
+class Foo {
+  accessor #p: any;
+}
+```
+
+```ts expected
+class Foo {
+    accessor #p: any;
+}
+```
+
+### abstract accessor type annotation
+
+Abstract accessor members keep type annotations.
+
+```ts:main.ts
+abstract class Foo {
+  abstract accessor prop7: number;
+}
+```
+
+```ts expected
+abstract class Foo {
+    abstract accessor prop7: number;
+}
+```
+
+### decorator class expression as superclass
+
+Decorated class expressions in superclass positions keep their wrapper.
+
+```js:main.js
+class Outer extends
+  @deco
+  class {} {}
+```
+
+```js expected
+class Outer extends (
+    @deco
+    class {}
+) {}
+```
+
+### accessor modifiers with decorators
+
+Accessor members keep mixed modifiers and hash names.
+
+```ts:main.ts
+abstract class Foo {
+  abstract accessor prop7: number;
+  accessor #p: any;
+  accessor a: any;
+}
+```
+
+```ts expected
+abstract class Foo {
+    abstract accessor prop7: number;
+    accessor #p: any;
+    accessor a: any;
+}
+```

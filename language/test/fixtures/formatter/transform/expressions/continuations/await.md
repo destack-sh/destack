@@ -55,3 +55,17 @@ const result = await? fetch(url)
 ```ds expected
 const result = await? fetch(url);
 ```
+
+## Await Must
+
+### await! expression
+
+The `!` marker prints directly after `await`.
+
+```ds
+const result = await! fetch(url)
+```
+
+```ds expected
+const result = await! fetch(url);
+```
