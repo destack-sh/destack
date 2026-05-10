@@ -38,6 +38,7 @@ fn class_extends_expression_needs_parentheses(expression: &Expression) -> bool {
             | Expression::Unary { .. }
             | Expression::Await { .. }
             | Expression::AwaitMaybe { .. }
+            | Expression::AwaitMust { .. }
             | Expression::Binary { .. }
             | Expression::Is { .. }
             | Expression::InstanceOf { .. }
@@ -143,6 +144,7 @@ fn type_cast_like_needs_parentheses(
         Expression::Unary { right, .. }
         | Expression::Await { expression: right }
         | Expression::AwaitMaybe { expression: right }
+        | Expression::AwaitMust { expression: right }
         | Expression::Must { left: right, .. } => *right == parent_child_id,
 
         // member or call lhs
@@ -418,6 +420,7 @@ fn expression_lambda_needs_parentheses_in_parent(
             | Expression::Unary { .. }
             | Expression::Await { .. }
             | Expression::AwaitMaybe { .. }
+            | Expression::AwaitMust { .. }
             | Expression::Binary { .. }
             | Expression::Is { .. }
             | Expression::InstanceOf { .. }
@@ -712,6 +715,7 @@ fn expression_is_update_or_lower_precedence(
             | Expression::Unary { .. }
             | Expression::Await { .. }
             | Expression::AwaitMaybe { .. }
+            | Expression::AwaitMust { .. }
             | Expression::Comptime { .. }
             | Expression::Binary { .. }
             | Expression::Is { .. }
@@ -1062,7 +1066,7 @@ pub(crate) fn expression_needs_parentheses_in_parent(
     // await-like expressions need parentheses in lower-precedence or type-relation parents
     if matches!(
         context.tree.get(node_id),
-        Expression::Await { .. } | Expression::AwaitMaybe { .. }
+        Expression::Await { .. } | Expression::AwaitMaybe { .. } | Expression::AwaitMust { .. }
     ) {
         return expression_await_like_needs_parentheses_in_parent(
             context,

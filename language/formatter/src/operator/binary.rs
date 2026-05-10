@@ -217,6 +217,7 @@ pub(crate) fn expression_precedence(expr: &Expression) -> u16 {
         // prefix expressions
         Expression::Await { .. }
         | Expression::AwaitMaybe { .. }
+        | Expression::AwaitMust { .. }
         | Expression::Comptime { .. }
         | Expression::Yield { .. }
         | Expression::MoveOf { .. }

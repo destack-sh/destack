@@ -82,6 +82,7 @@ fn write_expression_trailing_annotations<'ast>(
         | Expression::BorrowOf { .. }
         | Expression::Await { .. }
         | Expression::AwaitMaybe { .. }
+        | Expression::AwaitMust { .. }
         | Expression::Comptime { .. }
         | Expression::Member { .. }
         | Expression::PrivateMember { .. }
@@ -247,6 +248,7 @@ fn format_expression_body<'ast>(
         | Expression::BorrowOf { .. }
         | Expression::Await { .. }
         | Expression::AwaitMaybe { .. }
+        | Expression::AwaitMust { .. }
         | Expression::Comptime { .. }
         | Expression::Member { .. }
         | Expression::PrivateMember { .. }

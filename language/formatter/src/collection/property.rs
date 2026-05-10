@@ -21,9 +21,9 @@ use crate::operator::{
 };
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_ast::{
-    BinaryOperator, Comment, Expression, FunctionSignature, Key, Keyword, LocalNodeId, Mutability,
-    Name, Node, NodeType, Parameter, Property, ScalarLiteral, Tree, TreeImpl, TypeExpression,
-    Visibility, is_identifier_compat,
+    BinaryOperator, Comment, Expression, FunctionSignature, Key, Keyword, LocalNodeId,
+    MethodAbstraction, Mutability, Name, Node, NodeType, Parameter, Property, ScalarLiteral, Tree,
+    TreeImpl, TypeExpression, Visibility, is_identifier_compat,
 };
 use destack_core::StringId;
 use destack_fir::format::{FormatNodes, FormatResult, Formatter as FirFormatter, VecBuffer, text};
@@ -310,19 +310,6 @@ fn write_static_prefix<'ast>(
     Ok(())
 }
 
-/// Write one comptime prefix.
-fn write_comptime_prefix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    is_comptime: bool,
-) -> FormatResult<()> {
-    // comptime
-    if is_comptime {
-        write!(f, [Keyword::Comptime, space()])?;
-    }
-
-    Ok(())
-}
-
 /// Write one readonly prefix.
 fn write_readonly_prefix<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -370,19 +357,6 @@ fn write_optional_suffix<'ast>(
     // optional
     if is_optional {
         write!(f, [token("?")])?;
-    }
-
-    Ok(())
-}
-
-/// Write one definite-assignment suffix.
-fn write_definite_suffix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    is_definite: bool,
-) -> FormatResult<()> {
-    // definite assignment
-    if is_definite {
-        write!(f, [token("!")])?;
     }
 
     Ok(())
@@ -448,7 +422,6 @@ fn format_object_property_value<'ast>(
         false,
         false,
         None,
-        false,
         false,
         false,
         force_quote_keys,
@@ -520,7 +493,6 @@ fn write_field_like_left<'ast, T>(
     mutability: Option<Mutability>,
     is_accessor: bool,
     is_optional: bool,
-    is_definite: bool,
     force_quote_keys: bool,
 ) -> FormatResult<()>
 where
@@ -555,7 +527,6 @@ where
 
     // key suffixes
     write_optional_suffix(f, is_optional)?;
-    write_definite_suffix(f, is_definite)?;
 
     // value
     if let Some(value) = value {
@@ -606,7 +577,6 @@ pub(crate) fn format_field_like<'ast, T>(
     mutability: Option<Mutability>,
     is_accessor: bool,
     is_optional: bool,
-    is_definite: bool,
     default: Option<LocalNodeId<Expression>>,
     force_quote_keys: bool,
 ) -> FormatResult<()>
@@ -630,7 +600,6 @@ where
             mutability,
             is_accessor,
             is_optional,
-            is_definite,
             force_quote_keys,
         )?;
         return Ok(());
@@ -652,7 +621,6 @@ where
         mutability,
         is_accessor,
         is_optional,
-        is_definite,
         force_quote_keys,
     )?;
     let left_nodes = buffer.into_vec();
@@ -711,15 +679,15 @@ where
 pub(crate) fn format_method_like<'ast, N>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<N>,
+    key: Option<Key>,
+    signature: &FunctionSignature,
+    abstraction: MethodAbstraction,
+    body: Option<LocalNodeId<Expression>>,
     visibility: Option<Visibility>,
     is_ambient: bool,
     is_static: bool,
     is_accessor: bool,
-    is_comptime: bool,
     is_optional: bool,
-    key: Option<Key>,
-    signature: &FunctionSignature,
-    body: Option<LocalNodeId<Expression>>,
     force_quote_keys: bool,
 ) -> FormatResult<()>
 where
@@ -732,7 +700,9 @@ where
     write_ambient_prefix(f, is_ambient)?;
     write_visibility_prefix(f, visibility)?;
     write_static_prefix(f, is_static)?;
-    write_comptime_prefix(f, is_comptime)?;
+    if abstraction == MethodAbstraction::Virtual {
+        write!(f, [Keyword::Virtual, space()])?;
+    }
     write_accessor_prefix(f, is_accessor)?;
 
     // shared function header prefix
@@ -1002,15 +972,15 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                 format_method_like(
                     f,
                     node_id,
+                    *key,
+                    signature,
+                    MethodAbstraction::Concrete,
+                    *body,
                     None,
                     false,
                     false,
                     false,
                     false,
-                    false,
-                    *key,
-                    signature,
-                    *body,
                     force_quote_keys,
                 )
             });

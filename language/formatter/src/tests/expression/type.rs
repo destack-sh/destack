@@ -1042,10 +1042,10 @@ fn test_format_union_doc_head_width_behavior() {
 fn test_format_union_annotation_width_behavior() {
     assert_format_program_reference_widths(
         r#"export default class TestUnionTypeAnnotation1 {
-  private prop!: /* comment */
+  private prop: /* comment */
     LongLongLongLongLongLongType[] | LongLongLongLongLongLongType[];
 
-  private accessor prop2!: /* comment */
+  private accessor prop2: /* comment */
     LongLongLongLongLongLongType[] | LongLongLongLongLongLongType[];
 }
 
@@ -1059,10 +1059,10 @@ export interface TestUnionTypeAnnotation2 {
             (
                 80,
                 r#"export default class TestUnionTypeAnnotation1 {
-  private prop!: /* comment */
+  private prop: /* comment */
     LongLongLongLongLongLongType[] | LongLongLongLongLongLongType[];
 
-  private accessor prop2!: /* comment */
+  private accessor prop2: /* comment */
     LongLongLongLongLongLongType[] | LongLongLongLongLongLongType[];
 }
 
@@ -1075,9 +1075,9 @@ export interface TestUnionTypeAnnotation2 {
             (
                 100,
                 r#"export default class TestUnionTypeAnnotation1 {
-  private prop!: /* comment */ LongLongLongLongLongLongType[] | LongLongLongLongLongLongType[];
+  private prop: /* comment */ LongLongLongLongLongLongType[] | LongLongLongLongLongLongType[];
 
-  private accessor prop2!: /* comment */
+  private accessor prop2: /* comment */
     LongLongLongLongLongLongType[] | LongLongLongLongLongLongType[];
 }
 

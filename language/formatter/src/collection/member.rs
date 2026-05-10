@@ -200,13 +200,13 @@ impl<'ast> FormatNode<'ast, Member> for Member {
         if let Member::Method {
             key,
             signature,
+            abstraction,
             body,
             visibility,
+            is_optional,
             is_ambient,
             is_static,
             is_accessor,
-            is_comptime,
-            is_optional,
             ..
         } = self
         {
@@ -216,15 +216,15 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                 format_method_like(
                     f,
                     node_id,
+                    *key,
+                    signature,
+                    *abstraction,
+                    *body,
                     *visibility,
                     *is_ambient,
                     *is_static,
                     *is_accessor,
-                    *is_comptime,
                     *is_optional,
-                    *key,
-                    signature,
-                    *body,
                     force_quote_keys,
                 )?;
 
@@ -341,7 +341,6 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                     is_abstract,
                     is_override,
                     is_static,
-                    is_definite,
                     is_accessor,
                     ..
                 } => {
@@ -361,7 +360,6 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                         *mutability,
                         *is_accessor,
                         *is_optional,
-                        *is_definite,
                         *default,
                         force_quote_keys,
                     )?;
