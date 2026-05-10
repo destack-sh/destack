@@ -1,32 +1,11 @@
 import { type Promise } from "../core/async/promise.ds";
-import { intrinsic } from "../core/decorator/intrinsic.ds";
 
-/// Deterministic ownership finalization capability.
-///
-/// The compiler uses `Drop` when an owned value reaches its end of life.
-/// Explicit `drop(value)` also consumes the value and calls this protocol when available.
-export newtype interface Drop {
-    drop(): void;
-}
-
-/// Deterministic synchronous cleanup capability.
-///
-/// The compiler uses `Dispose` for ownership based cleanup and for explicit
-/// `using` scopes.
-/// Automatic insertion is only valid when the value has one deterministic end
-/// of life.
+/// Deterministic synchronous cleanup capability, called at the end of a `using` scope.
 export newtype interface Dispose {
     dispose(): void;
 }
 
-/// Deterministic asynchronous cleanup capability.
-///
-/// The compiler uses `AsyncDispose` for async ownership cleanup and for
-/// `await using` scopes.
+/// Deterministic asynchronous cleanup capability, called at the end of an `await using` scope.
 export newtype interface AsyncDispose {
     asyncDispose(): Promise<void>;
 }
-
-/// End ownership of `value` at this point.
-@intrinsic("drop")
-export declare function drop<T>(value: ^T): void;

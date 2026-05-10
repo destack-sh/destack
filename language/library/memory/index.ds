@@ -55,7 +55,8 @@ export {
     defaultAllocator,
 } from "./allocator.ds";
 export { type Copy, type Clone, type Send, type Sync } from "./capability.ds";
-export { type Drop, type Dispose, type AsyncDispose, drop } from "./dispose.ds";
+export { type Drop, drop } from "./drop.ds";
+export { type Dispose, type AsyncDispose } from "./dispose.ds";
 export {
     memcpy,
     memmove,
