@@ -8,7 +8,9 @@ use tracing_subscriber::prelude::*;
 
 use destack_test::core::{RunOptions, Runner, Suite, fixtures_dir};
 use destack_test::mdtest::discover_md_files;
-use destack_test::specification::SpecificationSuite;
+use destack_test::specification::{
+    SpecificationFormatSuite, SpecificationSuite, format_specification_fixtures,
+};
 
 const SPEC_STACK_BYTES: &str = "268435456";
 const SPEC_CHILD_ENV: &str = "DESTACK_SPEC_CHILD";
@@ -27,6 +29,14 @@ struct SpecificationOptions {
     #[command(flatten)]
     test: RunOptions,
 
+    /// Format source blocks in specification markdown fixtures.
+    #[arg(long)]
+    format: bool,
+
+    /// Check source blocks in specification markdown fixtures.
+    #[arg(long)]
+    format_check: bool,
+
     /// Isolate tests in subprocesses by group, file, or test.
     #[arg(long, value_enum, default_value_t = IsolationLevel::None)]
     isolate: IsolationLevel,
@@ -42,6 +52,30 @@ fn main() -> ExitCode {
     }
 
     let options = SpecificationOptions::parse();
+
+    if options.format {
+        return match format_specification_fixtures() {
+            Ok(changed) => {
+                println!("formatted {changed} specification markdown files");
+                ExitCode::SUCCESS
+            }
+            Err(error) => {
+                eprintln!("{error}");
+                ExitCode::FAILURE
+            }
+        };
+    }
+
+    if options.format_check {
+        let suite = match SpecificationFormatSuite::load() {
+            Ok(suite) => suite,
+            Err(error) => {
+                eprintln!("{error}");
+                return ExitCode::FAILURE;
+            }
+        };
+        return Runner::run_suite(suite, &options.test);
+    }
 
     // run a single unified suite in normal mode
     let is_child = std::env::var_os(SPEC_CHILD_ENV).is_some();
