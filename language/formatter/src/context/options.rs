@@ -2,8 +2,9 @@ use destack_fir::format::FormatOptions;
 use destack_fir::print::PrintOptions;
 use destack_source::{IndentStyle, LanguageType, LineEnding};
 use destack_workspace::{
-    ArrowParentheses, FormatterOptions, ImportSortOrder, JsdocOptions, OrganizeImports,
-    QuoteProperty, QuoteStyle, TrailingComma,
+    ArrowParentheses, FormatterOptions, ImportSortOrder, JsdocCommentLineStrategy,
+    JsdocLineWrappingStyle, JsdocOptions, OrganizeImports, QuoteProperty, QuoteStyle,
+    TrailingComma,
 };
 
 /// Destack format options.
@@ -43,14 +44,25 @@ pub struct DestackFormatOptions {
 
     // imports
     /// Whether to organize/sort imports and exports.
-    pub organize_imports: OrganizeImports = OrganizeImports::Off,
+    pub organize_imports: OrganizeImports = OrganizeImports::On,
     /// Sort order for import/export specifiers within `{ }`.
     pub import_sort_order: ImportSortOrder = ImportSortOrder::Natural,
     /// Respect file-level formatter ignore directives.
     pub respect_file_ignore: bool = true,
 
     /// Jsdoc comment body formatting options.
-    pub jsdoc: Option<JsdocOptions> = None,
+    pub jsdoc: JsdocOptions = JsdocOptions {
+        capitalize_descriptions: true,
+        comment_line_strategy: JsdocCommentLineStrategy::SingleLine,
+        separate_tag_groups: false,
+        separate_returns_from_param: false,
+        description_with_dot: false,
+        add_default_to_description: true,
+        prefer_code_fences: false,
+        line_wrapping_style: JsdocLineWrappingStyle::Greedy,
+        description_tag: false,
+        keep_unparsable_example_indent: false,
+    },
 }
 
 impl DestackFormatOptions {
@@ -116,17 +128,8 @@ impl DestackFormatOptions {
             indent_style: options.indent_style,
             indent_width: options.indent_width,
             line_width: options.line_width,
-            quote_style: options.quote_style,
-            trailing_comma: options.trailing_comma,
-            bracket_spacing: options.bracket_spacing,
-            arrow_parentheses: options.arrow_parentheses,
-            quote_props: options.quote_property,
-            bracket_same_line: options.bracket_same_line,
-            single_attribute_per_line: options.single_attribute_per_line,
-            organize_imports: options.organize_imports,
-            import_sort_order: options.import_sort_order,
             respect_file_ignore: true,
-            jsdoc: options.jsdoc,
+            ..Self::default()
         }
     }
 }

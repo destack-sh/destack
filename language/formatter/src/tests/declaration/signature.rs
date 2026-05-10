@@ -208,51 +208,26 @@ fn test_format_type_literal_parameter_layout() {
     );
 }
 
-/// Mapped types should respect bracket spacing options exactly.
+/// Mapped types should keep canonical bracket spacing.
 #[test]
 fn test_format_mapped_type_bracket_spacing() {
     let input = r#"export type Bar<T> = {[P in keyof T]: string}
 "#;
 
-    let spaced_options = DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
     assert_format_program_roundtrip_with_file_type(
         input,
         r#"export type Bar<T> = { [P in keyof T]: string };
 "#,
         FileType::TypeScript,
-        spaced_options,
+        DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
     );
 
-    let spaced_wide_options =
-        DestackFormatOptions::default_with_line_width(100).with_indent_width(2);
     assert_format_program_roundtrip_with_file_type(
         input,
         r#"export type Bar<T> = { [P in keyof T]: string };
 "#,
         FileType::TypeScript,
-        spaced_wide_options,
-    );
-
-    let mut compact_options =
-        DestackFormatOptions::default_with_line_width(80).with_indent_width(2);
-    compact_options.bracket_spacing = false;
-    assert_format_program_roundtrip_with_file_type(
-        input,
-        r#"export type Bar<T> = {[P in keyof T]: string};
-"#,
-        FileType::TypeScript,
-        compact_options,
-    );
-
-    let mut compact_wide_options =
-        DestackFormatOptions::default_with_line_width(100).with_indent_width(2);
-    compact_wide_options.bracket_spacing = false;
-    assert_format_program_roundtrip_with_file_type(
-        input,
-        r#"export type Bar<T> = {[P in keyof T]: string};
-"#,
-        FileType::TypeScript,
-        compact_wide_options,
+        DestackFormatOptions::default_with_line_width(100).with_indent_width(2),
     );
 }
 

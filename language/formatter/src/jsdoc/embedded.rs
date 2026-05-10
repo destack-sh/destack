@@ -1,5 +1,5 @@
 use destack_source::{File, FileId, FileType, LanguageType, Uri};
-use destack_workspace::{FormatterOptions, TrailingComma};
+use destack_workspace::FormatterOptions;
 
 use crate::{DestackFormatOptions, format_file_source};
 
@@ -149,8 +149,11 @@ fn format_embedded_code_with_file_types(
     file_types: &[FileType],
 ) -> Option<String> {
     let trimmed = code.trim();
-    if trimmed.starts_with('{') {
+    if starts_object_literal_example(trimmed) {
         return format_embedded_object_literal(trimmed, base_options, file_types);
+    }
+    if trimmed.starts_with('{') {
+        return None;
     }
 
     file_types
@@ -158,7 +161,24 @@ fn format_embedded_code_with_file_types(
         .find_map(|file_type| format_embedded_source(code, *file_type, *base_options))
 }
 
-/// Try to format an object literal snippet without adding a trailing comma.
+/// Return whether brace-starting example code can be formatted as an object literal.
+fn starts_object_literal_example(trimmed: &str) -> bool {
+    let Some(rest) = trimmed.strip_prefix('{') else {
+        return false;
+    };
+
+    // object members cannot begin with a second `{`
+    let Some(first) = rest.trim_start().chars().next() else {
+        return false;
+    };
+
+    matches!(
+        first,
+        '"' | '\'' | '[' | '.' | '_' | '$' | '0'..='9' | 'a'..='z' | 'A'..='Z'
+    )
+}
+
+/// Try to format an object literal snippet.
 fn format_embedded_object_literal(
     trimmed: &str,
     base_options: &FormatterOptions,
@@ -170,13 +190,10 @@ fn format_embedded_object_literal(
         return None;
     }
 
-    let mut object_options = *base_options;
-    object_options.trailing_comma = TrailingComma::None;
-
     let wrapped = format!("({trimmed})");
     let formatted = file_types
         .iter()
-        .find_map(|file_type| format_embedded_source(&wrapped, *file_type, object_options))?;
+        .find_map(|file_type| format_embedded_source(&wrapped, *file_type, *base_options))?;
     let formatted = formatted.trim_end();
 
     if let Some(inner) = formatted
@@ -240,16 +257,6 @@ fn embedded_options(format_options: &DestackFormatOptions, line_width: u16) -> F
         indent_style: format_options.indent_style,
         indent_width: format_options.indent_width,
         line_width,
-        quote_style: format_options.quote_style,
-        trailing_comma: format_options.trailing_comma,
-        bracket_spacing: format_options.bracket_spacing,
-        arrow_parentheses: format_options.arrow_parentheses,
-        quote_property: format_options.quote_props,
-        bracket_same_line: format_options.bracket_same_line,
-        single_attribute_per_line: format_options.single_attribute_per_line,
-        organize_imports: format_options.organize_imports,
-        import_sort_order: format_options.import_sort_order,
-        jsdoc: None,
     }
 }
 

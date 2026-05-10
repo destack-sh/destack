@@ -17,7 +17,7 @@ fn test_format_import() {
 fn test_format_import_with_items_from() {
     assert_format!(
         r#"import {foo,bar,baz} from "foo""#,
-        r#"import { foo, bar, baz } from "foo""#,
+        r#"import { bar, baz, foo } from "foo""#,
         |p| p.parse_expression(),
         DestackFormatOptions::default_with_line_width(60)
     );

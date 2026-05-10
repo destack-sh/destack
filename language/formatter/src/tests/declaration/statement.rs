@@ -1,19 +1,10 @@
 use destack_ast::BlockContext;
 use destack_source::FileType;
-use destack_workspace::OrganizeImports;
 
 use crate::{
     DestackFormatOptions, assert_format, assert_format_program,
     assert_format_program_reference_widths, assert_format_program_roundtrip_with_file_type,
 };
-
-/// Return formatter options with import organization enabled.
-fn organize_imports_options() -> DestackFormatOptions {
-    DestackFormatOptions {
-        organize_imports: OrganizeImports::On,
-        ..DestackFormatOptions::default()
-    }
-}
 
 /// Semicolons should be inserted for non-tail statement expressions.
 /// Tail expressions in value-position blocks should stay semicolonless.
@@ -315,25 +306,21 @@ fn test_format_program_keeps_adjacent_doc_comments_leading() {
  */
 declare let sessionStorage: Storage;
 /** @category Cache */
-/**
- * Provides access to the Cache API.
- */
+/** Provides access to the Cache API. */
 declare let caches: CacheStorage;
 "#,
         r#"/**
  * Deno's `sessionStorage` API operates similarly to the {@linkcode localStorage} API.
  *
  * @example
- * ```ts
- * const value = sessionStorage.getItem("key");
- * console.log(value); // Output: "value"
- * ```
+ *     ```ts
+ *     const value = sessionStorage.getItem("key");
+ *     console.log(value); // Output: "value"
+ *     ```
  */
 declare let sessionStorage: Storage;
 /** @category Cache */
-/**
- * Provides access to the Cache API.
- */
+/** Provides access to the Cache API. */
 declare let caches: CacheStorage;
 "#,
         FileType::TypeScriptDeclaration,
@@ -349,7 +336,7 @@ fn test_format_program_keeps_next_declaration_doc_comment_leading() {
 declare const second: string
 "#,
         r#"declare const first: string;
-/** doc */
+/** Doc */
 declare const second: string;
 "#,
         FileType::TypeScriptDeclaration,
@@ -444,7 +431,7 @@ import fs from "node:fs";
 import thing from "pkg";
 "#,
         FileType::Destack,
-        organize_imports_options()
+        DestackFormatOptions::default()
     );
 }
 
@@ -465,7 +452,7 @@ import alias from "~/core";
 import rel from "./rel";
 "#,
         FileType::Destack,
-        organize_imports_options()
+        DestackFormatOptions::default()
     );
 }
 

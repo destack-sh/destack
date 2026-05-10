@@ -104,7 +104,7 @@ impl From<FormatterOptions> for JsonFormatOptions {
             indent_style: opts.indent_style,
             indent_width: opts.indent_width,
             line_width: opts.line_width as u8,
-            trailing_comma: opts.trailing_comma.in_collections(),
+            trailing_comma: false,
         }
     }
 }

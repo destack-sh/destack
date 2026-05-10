@@ -18,12 +18,8 @@ pub(crate) fn format_jsdoc_comment<'ast>(
         return Ok(false);
     }
 
-    // jsdoc formatting is opt-in
-    let Some(jsdoc_options) = f.context().options.jsdoc.as_ref() else {
-        return Ok(false);
-    };
-
     // comments wrap within the remaining line width
+    let jsdoc_options = &f.context().options.jsdoc;
     let source = f.context().source_text();
     let line_width = usize::from(f.context().options.line_width);
     let tab_width = usize::from(f.context().options.indent_width);

@@ -147,16 +147,6 @@ fn workspace_test_options(options: DestackFormatOptions) -> FormatterOptions {
         indent_style: options.indent_style,
         indent_width: options.indent_width,
         line_width: options.line_width,
-        quote_style: options.quote_style,
-        trailing_comma: options.trailing_comma,
-        bracket_spacing: options.bracket_spacing,
-        arrow_parentheses: options.arrow_parentheses,
-        quote_property: options.quote_props,
-        bracket_same_line: options.bracket_same_line,
-        single_attribute_per_line: options.single_attribute_per_line,
-        organize_imports: options.organize_imports,
-        import_sort_order: options.import_sort_order,
-        jsdoc: options.jsdoc,
     }
 }
 

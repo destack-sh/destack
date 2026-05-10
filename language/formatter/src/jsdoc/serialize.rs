@@ -188,9 +188,6 @@ impl<'o> JsdocFormatter<'o> {
             };
             prev_tag_had_trailing_blank = source_has_trailing_blank;
 
-            // track content before formatting this tag
-            let tag_start = self.content_lines.byte_len();
-
             // preserve missing space between tag kind and `{type}`
             let has_no_space_before_type = {
                 let kind_end = tag.kind.span.end as usize;
@@ -217,19 +214,14 @@ impl<'o> JsdocFormatter<'o> {
                 self.format_generic_tag(normalized_kind, tag, should_capitalize);
             }
 
-            // add trailing blanks only when the formatted tag or source needs one
-            let tag_newline_count = self.content_lines.line_count_since(tag_start);
-            let needs_trailing_blank = if normalized_kind == "example" && tag_newline_count > 1 {
-                // separate multiline @example from a following different tag kind
-                effective_tags
-                    .get(tag_index + 1)
-                    .is_some_and(|&(_, next_kind)| next_kind != normalized_kind)
-            } else {
-                // preserve source blank lines after block descriptions
-                effective_tags.get(tag_index + 1).is_some()
-                    && source_has_trailing_blank
-                    && self.content_lines.last_line_is_block_end()
-            };
+            // separate fenced examples from following tags
+            let is_fenced_example =
+                normalized_kind == "example" && self.content_lines.last_line_is_code_fence();
+
+            // preserve source blank lines after block descriptions
+            let needs_trailing_blank = effective_tags.get(tag_index + 1).is_some()
+                && (is_fenced_example
+                    || (source_has_trailing_blank && self.content_lines.last_line_is_block_end()));
             if needs_trailing_blank && !self.content_lines.last_is_empty() {
                 self.content_lines.push_empty();
             }

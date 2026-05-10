@@ -74,14 +74,10 @@ fn test_format_enum_member_blank_lines() {
 }
 "#,
         r#"enum FFIType {
-    /**
-     * 8-bit signed integer
-     */
+    /** 8-bit signed integer */
     i8 = 1,
 
-    /**
-     * 8-bit unsigned integer
-     */
+    /** 8-bit unsigned integer */
     u8 = 2,
 }
 "#,
@@ -178,9 +174,7 @@ fn test_format_ignored_member_leading_doc_comment() {
 }
 "#,
         r#"interface RedisClient {
-    /**
-     * Get hash field values with expiration options
-     */
+    /** Get hash field values with expiration options */
     //prettier-ignore
     hgetex(key: KeyLike, fieldsKeyword: "FIELDS", numfields: number, ...fields: KeyLike[]): Promise<Array<string | null>>;
 }
