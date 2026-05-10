@@ -71,6 +71,26 @@ pub enum FunctionRole {
     Call,
 }
 
+/// The abstraction mode of a class method.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub enum MethodAbstraction {
+    /// A non-overridable concrete method.
+    #[default]
+    Concrete,
+    /// A concrete method that subclasses may override.
+    Virtual,
+    /// A method that subclasses must implement.
+    Abstract,
+}
+
+impl MethodAbstraction {
+    /// Return whether the method is abstract.
+    #[inline]
+    pub const fn is_abstract(self) -> bool {
+        matches!(self, Self::Abstract)
+    }
+}
+
 /// A property of an object-like literal.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Property {
@@ -171,24 +191,21 @@ pub enum Member {
         is_abstract: bool,
         is_override: bool,
         is_static: bool,
-        is_definite: bool,
         is_accessor: bool,
-        is_comptime: bool,
     },
     /// Named member function.
     Method {
         key: Option<Key>,
         signature: FunctionSignature,
+        abstraction: MethodAbstraction,
         body: Option<LocalNodeId<Expression>>,
         visibility: Option<Visibility>,
         symbol: LocalSymbolId,
         is_optional: bool,
         is_ambient: bool,
-        is_abstract: bool,
         is_override: bool,
         is_static: bool,
         is_accessor: bool,
-        is_comptime: bool,
     },
     /// Type embedding.
     Embed {
