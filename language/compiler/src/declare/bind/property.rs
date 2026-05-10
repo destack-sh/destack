@@ -2,8 +2,8 @@ use destack_artifact::Ast;
 use destack_ast::{self as ast, StringId};
 use destack_dir::{
     BindingTable, DeclaredModule, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark,
-    Member, Mutability, NodeType, Property, ScopeKind, StaticKey, SymbolBinding, SymbolForm,
-    SymbolRole, SymbolSpace, Tree, Type, TypeTable, UnevaluatedType, Visibility,
+    Member, MethodAbstraction, Mutability, NodeType, Property, ScopeKind, StaticKey, SymbolBinding,
+    SymbolForm, SymbolRole, SymbolSpace, Tree, Type, TypeTable, UnevaluatedType, Visibility,
 };
 use destack_workspace::Module;
 
@@ -34,6 +34,15 @@ impl Compiler {
     /// Bind an AST mutability into a DIR mutability.
     fn bind_member_mutability(&self, mutability: Option<ast::Mutability>) -> Option<Mutability> {
         mutability.map(|mutability| self.bind_mutability(mutability))
+    }
+
+    /// Bind an AST method abstraction into a DIR method abstraction.
+    fn bind_method_abstraction(&self, abstraction: ast::MethodAbstraction) -> MethodAbstraction {
+        match abstraction {
+            ast::MethodAbstraction::Concrete => MethodAbstraction::Concrete,
+            ast::MethodAbstraction::Virtual => MethodAbstraction::Virtual,
+            ast::MethodAbstraction::Abstract => MethodAbstraction::Abstract,
+        }
     }
 
     /// Insert a declared type entry for one node when present.
@@ -473,9 +482,7 @@ impl Compiler {
                 is_abstract,
                 is_override,
                 is_static,
-                is_definite,
                 is_accessor,
-                is_comptime,
             } => {
                 let visibility = self.bind_member_visibility(*visibility, Some(key));
                 let key = self.bind_key(
@@ -540,9 +547,7 @@ impl Compiler {
                         is_abstract: *is_abstract,
                         is_override: *is_override,
                         is_static: *is_static,
-                        is_definite: *is_definite,
                         is_accessor: *is_accessor,
-                        is_comptime: *is_comptime,
                         symbol: symbol_id,
                     },
                 );
@@ -558,15 +563,14 @@ impl Compiler {
             ast::Member::Method {
                 key,
                 signature,
+                abstraction,
                 body,
-                is_optional,
                 visibility,
+                is_optional,
                 is_ambient,
-                is_abstract,
                 is_override,
                 is_static,
                 is_accessor,
-                is_comptime,
             } => {
                 let visibility = self.bind_member_visibility(*visibility, key.as_ref());
                 let (symbol_id, method_scope_id) = self.bind_anonymous_item_with_scope(
@@ -648,15 +652,14 @@ impl Compiler {
                     Member::Method {
                         key,
                         signature,
+                        abstraction: self.bind_method_abstraction(*abstraction),
                         body,
-                        is_optional: *is_optional,
                         visibility,
                         is_ambient: self.bind_ambientness(*is_ambient),
-                        is_abstract: *is_abstract,
+                        is_optional: *is_optional,
                         is_override: *is_override,
                         is_static: *is_static,
                         is_accessor: *is_accessor,
-                        is_comptime: *is_comptime,
                         symbol: symbol_id,
                     },
                 );

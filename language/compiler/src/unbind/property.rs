@@ -17,6 +17,18 @@ impl Compiler {
         is_ambient
     }
 
+    /// Unbind a DIR method abstraction into an AST method abstraction.
+    fn unbind_method_abstraction(
+        &self,
+        abstraction: dir::MethodAbstraction,
+    ) -> ast::MethodAbstraction {
+        match abstraction {
+            dir::MethodAbstraction::Concrete => ast::MethodAbstraction::Concrete,
+            dir::MethodAbstraction::Virtual => ast::MethodAbstraction::Virtual,
+            dir::MethodAbstraction::Abstract => ast::MethodAbstraction::Abstract,
+        }
+    }
+
     /// Unbind a DIR property to an AST property.
     pub(super) fn unbind_property(
         &self,
@@ -291,9 +303,7 @@ impl Compiler {
                 is_abstract,
                 is_override,
                 is_static,
-                is_definite,
                 is_accessor,
-                is_comptime,
                 ..
             } => {
                 let key = self.unbind_key(
@@ -345,23 +355,20 @@ impl Compiler {
                     is_abstract: *is_abstract,
                     is_override: *is_override,
                     is_static: *is_static,
-                    is_definite: *is_definite,
                     is_accessor: *is_accessor,
-                    is_comptime: *is_comptime,
                 }
             }
             dir::Member::Method {
                 key,
                 signature,
+                abstraction,
                 body,
-                is_optional,
                 visibility,
+                is_optional,
                 is_ambient,
-                is_abstract,
                 is_override,
                 is_static,
                 is_accessor,
-                is_comptime,
                 ..
             } => {
                 let key = key.map(|key| {
@@ -402,16 +409,15 @@ impl Compiler {
                 ast::Member::Method {
                     key,
                     signature,
+                    abstraction: self.unbind_method_abstraction(*abstraction),
                     body,
-                    is_optional: *is_optional,
                     visibility: visibility
                         .map(|visibility| self.unbind_visibility(visibility, context)),
                     is_ambient: self.unbind_ambientness(*is_ambient, context),
-                    is_abstract: *is_abstract,
+                    is_optional: *is_optional,
                     is_override: *is_override,
                     is_static: *is_static,
                     is_accessor: *is_accessor,
-                    is_comptime: *is_comptime,
                 }
             }
             dir::Member::Embed {

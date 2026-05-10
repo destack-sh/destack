@@ -1330,6 +1330,11 @@ impl Compiler {
                     ast::Expression::AwaitMaybe { expression }
                 }
 
+                dir::Expression::AwaitMust { expression } => {
+                    let expression = self.unbind_expression(module, *expression, tree, symbols, types, ast_tree, ast_strings, context);
+                    ast::Expression::AwaitMust { expression }
+                }
+
                 dir::Expression::Comptime { body } => {
                     let body = self.unbind_expression(module, *body, tree, symbols, types, ast_tree, ast_strings, context);
                     ast::Expression::Comptime { body }

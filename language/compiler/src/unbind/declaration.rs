@@ -491,6 +491,7 @@ impl Compiler {
                     export,
                     is_ambient,
                     is_abstract: declaration.is_abstract,
+                    is_final: declaration.is_final,
                     generic_parameters,
                     where_clauses,
                     extends_expression,

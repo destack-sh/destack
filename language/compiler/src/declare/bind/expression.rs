@@ -2441,6 +2441,23 @@ impl Compiler {
                 );
                 Expression::AwaitMaybe { expression }
             }
+            ast::Expression::AwaitMust { expression } => {
+                let expression = self.bind_expression(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_scope,
+                    declared_modules,
+                    scope,
+                    *expression,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                    space,
+                );
+                Expression::AwaitMust { expression }
+            }
             ast::Expression::Comptime { body } => {
                 let body = self.bind_expression(
                     module,
