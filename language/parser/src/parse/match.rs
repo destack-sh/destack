@@ -690,14 +690,14 @@ match (result) {
         let mut test = TestParser::new(
             r###"
 switch (left.type) {
-    case 'static':
+    case "static":
         left.field;
         break;
-    case 'dynamic':
+    case "dynamic":
         left.value;
         something();
         // implicitly break
-    case 'literal':
+    case "literal":
         something();
         // implicitly break, one statement (no block
     default:
@@ -712,10 +712,10 @@ switch (left.type) {
         assert_node!(parser.tree, switch_id, Expression::Match { form: MatchForm::Switch, value: _, cases } => {
             assert_eq!(cases.len(), 4);
 
-            // case 'static' (block)
+            // case "static" block
             assert_node!(parser.tree, cases[0], MatchCase::Block { selector: MatchSelector::Pattern { pattern, guard }, body } => {
                 assert!(guard.is_none());
-                // 'static'
+                // selector
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(literal)) => {
                         assert_string!(parser, *literal, "static");
@@ -728,10 +728,10 @@ switch (left.type) {
                 });
             });
 
-            // case 'dynamic' (block)
+            // case "dynamic" block
             assert_node!(parser.tree, cases[1], MatchCase::Block { selector: MatchSelector::Pattern { pattern, guard }, body } => {
                 assert!(guard.is_none());
-                // 'dynamic'
+                // selector
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(literal)) => {
                         assert_string!(parser, *literal, "dynamic");
@@ -744,16 +744,16 @@ switch (left.type) {
                 });
             });
 
-            // case 'literal' (expression)
+            // case "literal" expression
             assert_node!(parser.tree, cases[2], MatchCase::Expression { selector: MatchSelector::Pattern { pattern, guard }, body } => {
                 assert!(guard.is_none());
-                // 'literal'
+                // selector
                 assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
                     assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(literal)) => {
                         assert_string!(parser, *literal, "literal");
                     });
                 });
-                // body (one statement, no block)
+                // body
                 assert_node!(parser.tree, *body, Expression::Call { left, .. } => {
                     assert_expression_path!(parser, parser.tree.get(*left), "something");
                 });

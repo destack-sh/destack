@@ -27,6 +27,7 @@ Some JS/TS syntax and legacy behavior is either ambiguous, obsolete, or just not
 
 - **Ambiguous generic arrow**: `<T>() => ...` is ambiguous in `.tsx`, and `.ds` inherits this since it supports TSX syntax natively.
 - **Sequence expressions**: `(A, B, C)` is - confusingly - a "sequence expression" in JS, which nobody ever really types out by hand, and `.ds` instead uses `(A, B, C)` for explicit tuples.
+- **Single-quoted literals**: In `'A'` is a `char`, not a `string`. Use double-quoted string literals for text, while `.ts` and `.tsx` keep TypeScript's ordinary single-quoted strings.
 - **Enum coercion**: `enum Level { A = 1, B = 2, C = 3 }` is _just_ an alias in TypeScript, but we do _not_ coerce `Level.A` to `number` without an explicit cast.
 - **Flow and JSDoc _typing_**: We support TypeScript only.
   Flow syntax and special JSDoc type analysis are not part of `.ds`.
@@ -35,6 +36,7 @@ Some JS/TS syntax and legacy behavior is either ambiguous, obsolete, or just not
 - **`any`**: `.ds` uses `unknown` as the top type.
   TypeScript `any` is rejected because it makes arbitrary property access, calls, and assignments appear valid without proof.
   Existing TS code must narrow through `unknown` or use explicit casts at interop boundaries.
+- **CommonJS**: Destack source does not support `require`, `module.exports`, mutable `exports`, require-cache monkeypatching, `export =`, or `import x = require("x")`.
 - **Definite assignment assertions**: `let x!: T` and `field!: T` are rejected in `.ds`.
   Locals and fields must be actually initialized before use, either by an initializer or by ordinary definite assignment analysis.
 - **XML namespace resolution**: Destack does not implement XML `xmlns` namespace binding semantics.
@@ -47,12 +49,11 @@ In `.ds`, values have statically known shape, and classes have a fixed static ob
 
 - **Declaration expressions**: Declaration expressions like `const C = class { }` require runtime type generation, which is incompatible with proper AOT compilation.
 - **Dynamic code generation**: Dynamic _runtime_ `eval` / `new Function` / class generation are in conflict with a strict AOT model and unsupported, **but** Destack supports explicit `comptime eval` / `new Function`.
-- **Dynamic module loading**: Runtime `import(expr)` is not general module loading in source code.
-  JS output may still use dynamic imports for chunk loading when the target requires it.
+- **Dynamic imports**: Dynamic `import(..)`, `require(..)` is not general module loading in source code.
 - **Prototype objects**: `.prototype`, `.__proto__`, `.constructor`, `Object.getPrototypeOf`, `Object.setPrototypeOf`, and `Object.create(proto)` all rely on the prototype-based object model and are not supported.
 - **Shape mutation**: `delete`, `Object.defineProperty`, `Object.defineProperties`, `Reflect.defineProperty`, `Reflect.deleteProperty`, and shape-changing `Object.assign` are forbidden.
 - **Metaobject dispatch**: `Proxy` and most `Reflect.*` APIs exist to intercept or emulate dynamic object behavior, so they are also unsupported.
-- **CommonJS**: Destack source does not support `require`, `module.exports`, mutable `exports`, require-cache monkeypatching, `export =`, or `import x = require("x")`.
+- **Class index signatures**: TypeScript permits structural index signatures inside classes, but Destack classes have fixed declared members. Put index signatures on structural object types or interfaces instead.
 - **Circular inference**: Destack does not support circular inference _across_ modules. Modules may export types they can establish from local declarations _and_ imports, and downstream modules may build on those exports, but downstream uses do not refine upstream declarations.
 
 ### Protocols
@@ -89,7 +90,7 @@ Destack provides a more complete primitive type system:
 - pointer-sized integers, i.e. integers as wide as the target pointer size, spelled `isize` and `usize`
 - `int` and `uint` as aliases to `int64` and `uint64`
 - `number` as an alias for `float`, and `float` as an alias to `float64`
-- `character` as a single Unicode scalar value, distinct from `string`
+- `char` as a single Unicode scalar value, distinct from `string`
 - `unknown` as the explicit top type
 - `never` as the explicit bottom type
 - no `any`
@@ -111,7 +112,7 @@ balance satisfies float64;
 const n: number = 1.0;
 n satisfies float;
 
-const initial: character = 'A';
+const initial: char = 'A';
 const input: unknown = readInput();
 ```
 
