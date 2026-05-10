@@ -7,7 +7,6 @@ use destack_mir as mir;
 
 mod alias;
 mod available_expressions;
-mod borrow;
 mod call_graph;
 mod call_targets;
 mod constant_propagation;
@@ -18,7 +17,6 @@ mod lifetime;
 mod liveness;
 mod loop_analysis;
 mod memory_ssa;
-mod ownership;
 mod post_dominator_tree;
 mod range;
 mod reaching_definitions;
@@ -26,7 +24,6 @@ mod scalar_evolution;
 
 pub use alias::*;
 pub use available_expressions::*;
-pub use borrow::*;
 pub use call_graph::*;
 pub use call_targets::*;
 pub use constant_propagation::*;
@@ -37,7 +34,6 @@ pub use lifetime::*;
 pub use liveness::*;
 pub use loop_analysis::*;
 pub use memory_ssa::*;
-pub use ownership::*;
 pub use post_dominator_tree::*;
 pub use range::*;
 pub use reaching_definitions::*;
@@ -180,8 +176,6 @@ impl<'a> FunctionAnalyses<'a> {
     ) -> Self {
         let mut dependency_graph = DependencyGraph::default();
 
-        // register known function analyses and their dependencies
-        // (this will be populated as analyses are migrated)
         Self::register_all(&mut dependency_graph);
 
         Self {
@@ -205,8 +199,6 @@ impl<'a> FunctionAnalyses<'a> {
         register_analysis::<AvailableExpressions>(graph);
         register_analysis::<ScalarEvolution>(graph);
         register_analysis::<RangeAnalysis>(graph);
-        register_analysis::<OwnershipAnalysis>(graph);
-        register_analysis::<BorrowAnalysis>(graph);
         register_analysis::<AliasAnalysis>(graph);
         register_analysis::<MemorySSA>(graph);
     }
@@ -632,8 +624,6 @@ b0:
         assert_registered_dependencies::<ConstantPropagation>(graph);
         assert_registered_dependencies::<ScalarEvolution>(graph);
         assert_registered_dependencies::<RangeAnalysis>(graph);
-        assert_registered_dependencies::<OwnershipAnalysis>(graph);
-        assert_registered_dependencies::<BorrowAnalysis>(graph);
         assert_registered_dependencies::<AliasAnalysis>(graph);
     }
 
