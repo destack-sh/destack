@@ -12,7 +12,7 @@ use crate::annotation::{
 };
 use crate::declaration::dependency::format_dependency_statement_expression;
 use crate::declaration::sequence::{
-    expression_is_in_statement_position, expression_is_value_block_tail,
+    expression_is_in_statement_context, expression_is_value_block_tail,
 };
 use crate::declaration::{
     format_let_else_statement_expression, format_let_statement_expression,
@@ -67,7 +67,7 @@ fn value_branch_expression_should_expand<'ast>(
     }
 
     f.context().options.language_type.is_destack()
-        && expression_is_in_statement_position(f.context(), node_id)
+        && expression_is_in_statement_context(f.context(), node_id)
 }
 
 /// Return whether one try expression should expand explicit branch blocks.

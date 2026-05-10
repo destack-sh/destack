@@ -1,11 +1,12 @@
 use crate::DestackFormatContext;
-use crate::declaration::expression_is_in_statement_position;
+use crate::declaration::expression_is_in_statement_context;
 use crate::operator::{binary_operator_format_precedence, should_flatten_binary};
 use destack_ast::{
     Argument, AssignPattern, BinaryOperator, Declaration, Expression, FunctionForm, IfCondition,
-    IfForm, LocalNodeId, MatchCase, NodeType, OperatorPrecedence, Property,
+    IfForm, LocalNodeId, MatchCase, MatchForm, NodeType, OperatorPrecedence, Property,
+    TypeExpression,
 };
-use destack_source::Span;
+use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 /// Return whether one expression is a class extends expression.
 fn is_class_extends(
@@ -63,6 +64,38 @@ fn expression_is_match_case_body(
 
     let case_id = LocalNodeId::<MatchCase>::new(parent_id);
     matches!(context.tree.get(case_id), MatchCase::Expression { body, .. } if *body == parent_child_id)
+}
+
+/// Return whether one expression is the body of a switch case.
+fn expression_is_switch_case_body(
+    context: &DestackFormatContext<'_>,
+    parent_id: u32,
+    parent_type: NodeType,
+    parent_child_id: LocalNodeId<Expression>,
+) -> bool {
+    if parent_type != NodeType::MatchCase {
+        return false;
+    }
+
+    let case_id = LocalNodeId::<MatchCase>::new(parent_id);
+    let case_body_matches = match context.tree.get(case_id) {
+        MatchCase::Expression { body, .. } => *body == parent_child_id,
+        MatchCase::Block { .. } => false,
+    };
+    if !case_body_matches {
+        return false;
+    }
+
+    let Some((match_id, NodeType::Expression)) = context.parent(case_id) else {
+        return false;
+    };
+    matches!(
+        context.tree.get(LocalNodeId::<Expression>::new(match_id)),
+        Expression::Match {
+            form: MatchForm::Switch,
+            ..
+        }
+    )
 }
 
 /// Return whether one expression is a spread value.
@@ -177,8 +210,8 @@ fn expression_is_statement_sensitive_identifier(
     )
 }
 
-/// Return whether one expression is the left chain of `as` or `satisfies` in statement position.
-fn expression_is_type_relation_left_chain_in_statement_position(
+/// Return whether one statement-context expression is the left chain of `as` or `satisfies`.
+fn expression_is_type_relation_left_chain_in_statement_context(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -190,10 +223,10 @@ fn expression_is_type_relation_left_chain_in_statement_position(
 
     loop {
         let Some((parent_id, parent_type)) = context.parent(current_id) else {
-            return saw_type_relation && expression_is_in_statement_position(context, current_id);
+            return saw_type_relation && expression_is_in_statement_context(context, current_id);
         };
 
-        // non-expression parents decide statement position
+        // non-expression parents decide statement context
         if parent_type != NodeType::Expression {
             let parent_is_lambda_body = if parent_type == NodeType::Declaration {
                 let parent_declaration_id = LocalNodeId::<Declaration>::new(parent_id);
@@ -211,7 +244,7 @@ fn expression_is_type_relation_left_chain_in_statement_position(
             };
 
             return saw_type_relation
-                && expression_is_in_statement_position(context, current_id)
+                && expression_is_in_statement_context(context, current_id)
                 && !parent_is_lambda_body;
         }
 
@@ -283,8 +316,8 @@ fn expression_is_lambda_declaration(
     )
 }
 
-/// Return whether one assignment expression needs parentheses in statement position.
-fn expression_assignment_needs_parentheses_in_statement_position(
+/// Return whether one assignment expression needs parentheses in statement context.
+fn expression_assignment_needs_parentheses_in_statement_context(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
     left: LocalNodeId<AssignPattern>,
@@ -296,12 +329,12 @@ fn expression_assignment_needs_parentheses_in_statement_position(
     matches!(context.tree.get(left), AssignPattern::Object { .. })
 }
 
-/// Return whether one named class or function declaration is in declaration statement position.
+/// Return whether one named class or function declaration is in declaration statement context.
 fn expression_is_named_declaration_statement(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
-    if !expression_is_in_statement_position(context, node_id) {
+    if !expression_is_in_statement_context(context, node_id) {
         return false;
     }
 
@@ -410,6 +443,25 @@ fn expression_lambda_needs_parentheses_in_parent(
         || expression_is_call_like_callee(context, parent_expression_id, parent_child_id)
 }
 
+/// Return whether one assertion expression targets a composite type.
+fn assertion_expression_has_composite_target(
+    context: &DestackFormatContext<'_>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    let target_type = match context.tree.get(expression_id) {
+        Expression::As { target_type, .. } | Expression::Satisfies { target_type, .. } => {
+            *target_type
+        }
+        _ => return false,
+    };
+
+    matches!(
+        context.tree.get(target_type),
+        TypeExpression::Union { elements } | TypeExpression::Intersection { elements }
+            if elements.len() > 1
+    )
+}
+
 /// Return whether one `as` or `satisfies` expression needs parentheses in its parent.
 fn expression_as_or_satisfies_needs_parentheses_in_parent(
     context: &DestackFormatContext<'_>,
@@ -423,6 +475,13 @@ fn expression_as_or_satisfies_needs_parentheses_in_parent(
     }
 
     match parent_expression {
+        // chained assertions
+        Expression::As { expression, .. } | Expression::Satisfies { expression, .. }
+            if *expression == parent_child_id =>
+        {
+            assertion_expression_has_composite_target(context, parent_child_id)
+        }
+
         // ternary branches
         Expression::If {
             form: IfForm::Ternary,
@@ -720,6 +779,87 @@ fn parenthesized_wrapper_required_by_parent(
         || expression_is_call_like_callee(context, parent_expression_id, parent_child_id)
 }
 
+/// Return whether one instantiation wrapper is required by a postfix parent.
+fn parenthesized_instantiation_wrapper_required_by_parent(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+    expression_id: LocalNodeId<Expression>,
+) -> bool {
+    if !matches!(
+        context.tree.get(expression_id),
+        Expression::Instantiation { .. }
+    ) {
+        return false;
+    }
+
+    let Some((parent_id, parent_type, parent_child_id)) =
+        effective_expression_parent(context, node_id)
+    else {
+        return false;
+    };
+    if parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
+    let parent_expression = context.tree.get(parent_expression_id);
+
+    instantiation_wrapper_is_semantic_in_parent(parent_expression, parent_child_id)
+}
+
+/// Return whether one node came from a skipped transparent wrapper.
+fn expression_has_transparent_wrapper(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    context
+        .tree
+        .get_side_span(node_id, NodeSpanType::Region(NodeSpanRegion::Wrapper))
+        .is_some()
+}
+
+/// Return whether one instantiation wrapper changes postfix parsing.
+fn instantiation_wrapper_is_semantic_in_parent(
+    parent_expression: &Expression,
+    parent_child_id: LocalNodeId<Expression>,
+) -> bool {
+    match parent_expression {
+        Expression::Call {
+            left,
+            generic_arguments,
+            ..
+        } => *left == parent_child_id && !generic_arguments.is_empty(),
+        Expression::Member { left, .. }
+        | Expression::PrivateMember { left, .. }
+        | Expression::Index { left, .. } => *left == parent_child_id,
+        _ => false,
+    }
+}
+
+/// Return whether one skipped transparent wrapper must be restored in its parent.
+pub(crate) fn transparent_wrapper_needs_parentheses_in_parent(
+    context: &DestackFormatContext<'_>,
+    node_id: LocalNodeId<Expression>,
+) -> bool {
+    if !expression_has_transparent_wrapper(context, node_id) {
+        return false;
+    }
+    if !matches!(context.tree.get(node_id), Expression::Instantiation { .. }) {
+        return false;
+    }
+
+    let Some((parent_id, parent_type)) = context.parent(node_id) else {
+        return false;
+    };
+    if parent_type != NodeType::Expression {
+        return false;
+    }
+
+    let parent_expression = context.tree.get(LocalNodeId::<Expression>::new(parent_id));
+
+    instantiation_wrapper_is_semantic_in_parent(parent_expression, node_id)
+}
+
 /// Return whether one expression needs derived parentheses in its parent.
 pub(crate) fn expression_needs_parentheses_in_parent(
     context: &DestackFormatContext<'_>,
@@ -730,7 +870,7 @@ pub(crate) fn expression_needs_parentheses_in_parent(
         context.tree.get(node_id),
         Expression::Parenthesized { .. } | Expression::As { .. } | Expression::Satisfies { .. }
     ) && expression_is_statement_sensitive_identifier(context, node_id)
-        && expression_is_type_relation_left_chain_in_statement_position(context, node_id)
+        && expression_is_type_relation_left_chain_in_statement_context(context, node_id)
     {
         return true;
     }
@@ -740,7 +880,7 @@ pub(crate) fn expression_needs_parentheses_in_parent(
         context.tree.get(node_id),
         Expression::Assign { left, .. }
             if matches!(context.tree.get(*left), AssignPattern::Object { .. })
-    ) && expression_is_in_statement_position(context, node_id)
+    ) && expression_is_in_statement_context(context, node_id)
     {
         return true;
     }
@@ -751,11 +891,13 @@ pub(crate) fn expression_needs_parentheses_in_parent(
         return false;
     };
 
-    // statement position
+    // statement context
     if parent_type != NodeType::Expression {
         let is_class_extends = is_class_extends(context, parent_id, parent_type, parent_child_id);
         let is_match_case_body =
             expression_is_match_case_body(context, parent_id, parent_type, parent_child_id);
+        let is_switch_case_body =
+            expression_is_switch_case_body(context, parent_id, parent_type, parent_child_id);
         if is_class_extends && class_extends_expression_needs_parentheses(context.tree.get(node_id))
         {
             return true;
@@ -771,8 +913,12 @@ pub(crate) fn expression_needs_parentheses_in_parent(
                 parent_type == NodeType::AssignPattern || is_class_extends
             }
             Expression::Assign { left, .. } => {
-                if expression_is_in_statement_position(context, node_id) {
-                    return expression_assignment_needs_parentheses_in_statement_position(
+                if is_switch_case_body {
+                    return false;
+                }
+
+                if expression_is_in_statement_context(context, node_id) {
+                    return expression_assignment_needs_parentheses_in_statement_context(
                         context, node_id, *left,
                     );
                 }
@@ -782,8 +928,8 @@ pub(crate) fn expression_needs_parentheses_in_parent(
             Expression::ObjectExpression { ty, .. } => {
                 ty.is_none()
                     && (is_match_case_body
-                        || expression_is_in_statement_position(context, node_id)
-                        || expression_is_type_relation_left_chain_in_statement_position(
+                        || expression_is_in_statement_context(context, node_id)
+                        || expression_is_type_relation_left_chain_in_statement_context(
                             context, node_id,
                         )
                         || expression_is_lambda_body_position(context, node_id))
@@ -795,7 +941,7 @@ pub(crate) fn expression_needs_parentheses_in_parent(
                     return false;
                 }
 
-                expression_is_in_statement_position(context, node_id)
+                expression_is_in_statement_context(context, node_id)
                     || decorated_class_extends_needs_parentheses(
                         context,
                         node_id,
@@ -810,6 +956,11 @@ pub(crate) fn expression_needs_parentheses_in_parent(
 
     let parent_expression_id = LocalNodeId::<Expression>::new(parent_id);
     let parent_expression = context.tree.get(parent_expression_id);
+
+    // skipped transparent wrappers are restored when they carry parse meaning
+    if transparent_wrapper_needs_parentheses_in_parent(context, node_id) {
+        return true;
+    }
 
     // `new` callees parenthesize calls and optional or call-derived member chains
     if expression_new_callee_needs_parentheses(context, node_id, parent_expression, parent_child_id)
@@ -850,12 +1001,12 @@ pub(crate) fn expression_needs_parentheses_in_parent(
             || expression_is_call_like_callee(context, parent_expression_id, parent_child_id);
     }
 
-    // object expressions need parentheses in ambiguous statement positions
+    // object expressions need parentheses in ambiguous statement contexts
     if matches!(
         context.tree.get(node_id),
         Expression::ObjectExpression { .. }
     ) {
-        return expression_is_type_relation_left_chain_in_statement_position(context, node_id);
+        return expression_is_type_relation_left_chain_in_statement_context(context, node_id);
     }
 
     // ternary conditions need parentheses when nested inside another ternary condition
@@ -866,7 +1017,10 @@ pub(crate) fn expression_needs_parentheses_in_parent(
             ..
         }
     ) {
-        return type_cast_like_needs_parentheses(parent_expression, parent_child_id)
+        return matches!(
+            parent_expression,
+            Expression::As { .. } | Expression::Satisfies { .. }
+        ) || type_cast_like_needs_parentheses(parent_expression, parent_child_id)
             || expression_is_call_like_callee(context, parent_expression_id, parent_child_id)
             || matches!(
                 parent_expression,
@@ -944,7 +1098,7 @@ pub(crate) fn parenthesized_expression_needs_preserved_wrapper(
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     // object expressions need statement start disambiguation
-    if expression_is_in_statement_position(context, node_id)
+    if expression_is_in_statement_context(context, node_id)
         && matches!(
             context.tree.get(expression_id),
             Expression::ObjectExpression { ty: None, .. }
@@ -953,9 +1107,14 @@ pub(crate) fn parenthesized_expression_needs_preserved_wrapper(
         return true;
     }
 
-    // statement position owns its parentheses directly
-    if expression_is_in_statement_position(context, node_id) {
+    // statement context owns its parentheses directly
+    if expression_is_in_statement_context(context, node_id) {
         return false;
+    }
+
+    // instantiation wrappers distinguish callee type arguments from outer type arguments
+    if parenthesized_instantiation_wrapper_required_by_parent(context, node_id, expression_id) {
+        return true;
     }
 
     // inner expressions that already need parentheses must not gain another pair

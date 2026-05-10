@@ -12,7 +12,7 @@ use crate::chain::transparent_inner_expression;
 use crate::collection::literal::{format_scalar_literal, format_template_literal};
 use crate::collection::{TrailingSeparator, separated_entries};
 use crate::context::with_following_span_start;
-use crate::declaration::expression_is_in_statement_position;
+use crate::declaration::expression_is_in_statement_context;
 use crate::operator::format_generic_argument_list;
 use crate::tree::format_tree_literal_expression;
 use crate::{DestackFormatContext, DestackFormatter};
@@ -91,7 +91,7 @@ fn sequence_expression_tail_needs_indent(
     };
 
     if parent_type != NodeType::Expression {
-        return expression_is_in_statement_position(context, node_id);
+        return expression_is_in_statement_context(context, node_id);
     }
 
     matches!(

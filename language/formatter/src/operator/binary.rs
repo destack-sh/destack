@@ -238,7 +238,7 @@ pub(crate) fn expression_precedence(expr: &Expression) -> u16 {
         Expression::If {
             form: IfForm::Ternary,
             ..
-        } => OperatorPrecedence::AssignmentBoolean as u16 - 1,
+        } => OperatorPrecedence::Assignment as u16 - 1,
 
         // atomic/primary expressions
         _ => u16::MAX,

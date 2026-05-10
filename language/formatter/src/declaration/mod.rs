@@ -23,5 +23,5 @@ pub(crate) use self::semicolon::{
     statement_wrapper_needs_semicolon, write_statement_terminator,
     write_statement_terminator_after_anchor, write_statement_terminator_with_following_start,
 };
-pub(crate) use self::sequence::expression_is_in_statement_position;
+pub(crate) use self::sequence::expression_is_in_statement_context;
 pub(crate) use self::statement::empty_block_with_infix_annotations;

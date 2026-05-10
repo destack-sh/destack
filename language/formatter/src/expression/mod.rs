@@ -23,6 +23,7 @@ pub(crate) use self::member::{
 };
 pub(crate) use self::parentheses::{
     expression_needs_parentheses_in_parent, parenthesized_expression_needs_preserved_wrapper,
+    transparent_wrapper_needs_parentheses_in_parent,
 };
 pub(crate) use self::primary::{
     format_primary_expression, write_primary_expression_trailing_annotations,
