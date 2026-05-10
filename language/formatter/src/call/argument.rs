@@ -11,8 +11,7 @@ use super::pattern::{
     argument_is_template_literal, call_uses_simple_list_layout, expression_is_long_curried_call,
 };
 use crate::annotation::{
-    format_leading_comments, format_trailing_comments, infix_or_postfix_annotations,
-    prefix_annotations,
+    format_trailing_comments, infix_or_postfix_annotations, prefix_annotations,
 };
 use crate::expression::write_expression_without_trailing_comments;
 use crate::tree::has_multiline_jsx_argument;
@@ -113,13 +112,12 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
             return write_call_argument_node_body(f, node_id);
         }
 
-        let node_span = f.context().span(node_id);
         let trailing_span = argument_trailing_span(f.context(), node_id);
         let enclosing_span = argument_enclosing_span(f.context(), node_id);
         let following_span_start = f.context().following_span_start();
 
-        // leading comments
-        write!(f, [format_leading_comments(node_span)])?;
+        // leading comments and annotations
+        write!(f, [prefix_annotations(f.context(), node_id)])?;
 
         // payload
         write_call_argument_payload(self, f)?;
@@ -132,7 +130,9 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
                 trailing_span,
                 following_span_start,
             )]
-        )
+        )?;
+
+        write!(f, [infix_or_postfix_annotations(f.context(), node_id)])
     }
 }
 

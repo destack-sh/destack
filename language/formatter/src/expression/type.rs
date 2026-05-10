@@ -63,8 +63,12 @@ fn type_needs_postfix_parentheses(
         TypeExpression::Union { elements } => elements.len() > 1,
         TypeExpression::Intersection { elements } => elements.len() > 1,
         TypeExpression::Conditional { .. }
+        | TypeExpression::In { .. }
+        | TypeExpression::Extends { .. }
+        | TypeExpression::Implements { .. }
         | TypeExpression::Mapped { .. }
         | TypeExpression::Readonly { .. }
+        | TypeExpression::Shared { .. }
         | TypeExpression::KeyOf { .. }
         | TypeExpression::TypeOfValue { .. }
         | TypeExpression::Must { .. }
@@ -91,7 +95,11 @@ fn type_needs_index_object_parentheses(
             elements.len() > 1
         }
         TypeExpression::Conditional { .. }
+        | TypeExpression::In { .. }
+        | TypeExpression::Extends { .. }
+        | TypeExpression::Implements { .. }
         | TypeExpression::Readonly { .. }
+        | TypeExpression::Shared { .. }
         | TypeExpression::KeyOf { .. }
         | TypeExpression::TypeOfValue { .. }
         | TypeExpression::Must { .. }
@@ -490,6 +498,16 @@ fn write_conditional_type<'ast>(
     }
 
     Ok(())
+}
+
+/// Write one static boolean type relation.
+fn write_type_relation(
+    f: &mut DestackFormatter<'_, '_>,
+    left: LocalNodeId<TypeExpression>,
+    keyword: Keyword,
+    right: LocalNodeId<TypeExpression>,
+) -> FormatResult<()> {
+    write!(f, [left, space(), keyword, space(), right])
 }
 
 /// Return comments after one mapped opening brace.
@@ -1509,7 +1527,9 @@ fn type_parent_requires_parentheses(
         }
 
         // unary type operators bind tighter than unions, intersections, and conditionals
-        TypeExpression::Readonly { target_type } => *target_type == child_id,
+        TypeExpression::Readonly { target_type } | TypeExpression::Shared { target_type } => {
+            *target_type == child_id
+        }
         TypeExpression::KeyOf { target_type } => {
             *target_type == child_id
                 && !matches!(
@@ -1526,6 +1546,18 @@ fn type_parent_requires_parentheses(
 
         // value space typeof keeps its own precedence
         TypeExpression::TypeOfValue { .. } => false,
+
+        // relations keep composite operands grouped
+        TypeExpression::In { left, right }
+        | TypeExpression::Extends { left, right }
+        | TypeExpression::Implements { left, right } => {
+            (*left == child_id || *right == child_id)
+                && matches!(
+                    context.tree.get(child_id),
+                    TypeExpression::Union { elements } | TypeExpression::Intersection { elements }
+                        if elements.len() > 1
+                )
+        }
 
         _ => false,
     }
@@ -1596,6 +1628,9 @@ fn function_like_type_needs_parentheses_in_type_parent(
                     function_like.return_type,
                 )
         }
+        TypeExpression::In { left, right }
+        | TypeExpression::Extends { left, right }
+        | TypeExpression::Implements { left, right } => *left == child_id || *right == child_id,
 
         TypeExpression::Union { elements } | TypeExpression::Intersection { elements } => {
             elements.len() > 1
@@ -1698,7 +1733,24 @@ pub(crate) fn type_expression_needs_parentheses_in_parent(
             }
             _ => type_parent_requires_parentheses(context, parent_id, parent_child_id),
         },
+        TypeExpression::In { .. }
+        | TypeExpression::Extends { .. }
+        | TypeExpression::Implements { .. } => match context.tree.get(parent_id) {
+            TypeExpression::Conditional {
+                left, extends_type, ..
+            } => *left == parent_child_id || *extends_type == parent_child_id,
+            TypeExpression::In { left, right }
+            | TypeExpression::Extends { left, right }
+            | TypeExpression::Implements { left, right } => {
+                *left == parent_child_id || *right == parent_child_id
+            }
+            TypeExpression::Union { elements } | TypeExpression::Intersection { elements } => {
+                elements.len() > 1
+            }
+            _ => type_parent_requires_parentheses(context, parent_id, parent_child_id),
+        },
         TypeExpression::Readonly { .. }
+        | TypeExpression::Shared { .. }
         | TypeExpression::KeyOf { .. }
         | TypeExpression::TypeOfValue { .. }
         | TypeExpression::Must { .. }
@@ -2527,6 +2579,9 @@ pub(crate) fn write_type_expression_body<'ast>(
         TypeExpression::Readonly { target_type } => {
             write!(f, [Keyword::Readonly, space(), target_type])?;
         }
+        TypeExpression::Shared { target_type } => {
+            write!(f, [token("shared"), space(), target_type])?;
+        }
         TypeExpression::KeyOf { target_type } => {
             write!(f, [Keyword::Keyof, space(), target_type])?;
         }
@@ -2558,8 +2613,12 @@ pub(crate) fn write_type_expression_body<'ast>(
         } => {
             write!(f, [token("^")])?;
 
-            if *mutability == Some(Mutability::Immutable) {
-                write!(f, [Keyword::Readonly, space()])?;
+            if let Some(mutability) = mutability {
+                match mutability {
+                    Mutability::Immutable => write!(f, [Keyword::Readonly, space()])?,
+                    Mutability::Exclusive => write!(f, [Keyword::Exclusive, space()])?,
+                    Mutability::Mutable => {}
+                }
             }
 
             if let Some(variance) = variance {
@@ -2579,8 +2638,12 @@ pub(crate) fn write_type_expression_body<'ast>(
         } => {
             write!(f, [token("&")])?;
 
-            if *mutability == Some(Mutability::Immutable) {
-                write!(f, [Keyword::Readonly, space()])?;
+            if let Some(mutability) = mutability {
+                match mutability {
+                    Mutability::Immutable => write!(f, [Keyword::Readonly, space()])?,
+                    Mutability::Exclusive => write!(f, [Keyword::Exclusive, space()])?,
+                    Mutability::Mutable => {}
+                }
             }
 
             if let Some(variance) = variance {
@@ -2599,8 +2662,12 @@ pub(crate) fn write_type_expression_body<'ast>(
         } => {
             write!(f, [token("*")])?;
 
-            if *mutability == Some(Mutability::Immutable) {
-                write!(f, [Keyword::Readonly, space()])?;
+            if let Some(mutability) = mutability {
+                match mutability {
+                    Mutability::Immutable => write!(f, [Keyword::Readonly, space()])?,
+                    Mutability::Exclusive => write!(f, [Keyword::Exclusive, space()])?,
+                    Mutability::Mutable => {}
+                }
             }
 
             write_prefix_type_operand(f, node_id, *target_type)?;
@@ -2618,6 +2685,15 @@ pub(crate) fn write_type_expression_body<'ast>(
             else_type,
         } => {
             write_conditional_type(f, node_id, *left, *extends_type, *then_type, *else_type)?;
+        }
+        TypeExpression::In { left, right } => {
+            write_type_relation(f, *left, Keyword::In, *right)?;
+        }
+        TypeExpression::Extends { left, right } => {
+            write_type_relation(f, *left, Keyword::Extends, *right)?;
+        }
+        TypeExpression::Implements { left, right } => {
+            write_type_relation(f, *left, Keyword::Implements, *right)?;
         }
         TypeExpression::Mapped {
             parameter,
@@ -2676,7 +2752,9 @@ pub(crate) fn write_type_expression_body<'ast>(
 
                 // value
                 write!(f, [group(&format_key)])?;
-                write_mapped_value_type_annotation(f, node_id, *value)?;
+                if let Some(value) = value {
+                    write_mapped_value_type_annotation(f, node_id, *value)?;
+                }
 
                 Ok(())
             });
@@ -2887,7 +2965,10 @@ impl<'ast> FormatNode<'ast, TypeMember> for TypeMember {
                 value,
                 ..
             } => {
-                write!(f, [Keyword::Const, space(), *name])?;
+                write!(
+                    f,
+                    [Keyword::Comptime, space(), Keyword::Const, space(), *name]
+                )?;
 
                 if let Some(declared_type) = declared_type {
                     write!(f, [token(":"), space(), *declared_type])?;

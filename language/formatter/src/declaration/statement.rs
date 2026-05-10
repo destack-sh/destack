@@ -196,7 +196,7 @@ pub(crate) fn should_inline_block<'ast>(
     }
 
     // explicit non-value blocks should stay expanded, except empty blocks above
-    if block.form == BlockForm::Explicit && !block_allows_value_tail(f.context(), block_id) {
+    if block.is_explicit() && !block_allows_value_tail(f.context(), block_id) {
         return false;
     }
 
@@ -238,10 +238,6 @@ fn empty_block_requires_expanded_layout(
             return false;
         };
 
-        if parent_type == NodeType::MatchCase {
-            return true;
-        }
-
         if parent_type == NodeType::Expression {
             return empty_block_expands_in_expression_container(
                 context,
@@ -282,9 +278,6 @@ fn empty_block_expands_in_expression_container(
         return false;
     };
 
-    if container_type == NodeType::MatchCase {
-        return true;
-    }
     if container_type != NodeType::Expression {
         return false;
     }
@@ -337,6 +330,9 @@ pub fn format_block<'ast>(
     let block_span_end = f.context().span(node_id).end;
 
     write!(f, [prefix_annotations(f.context(), node_id)])?;
+    if f.context().tree.get(node_id).form == BlockForm::Do {
+        write!(f, [token("do"), space()])?;
+    }
     write_block_body(f, node_id)?;
     f.context_mut()
         .comments_mut()
@@ -353,6 +349,9 @@ pub(crate) fn format_block_wide<'ast>(
     let block_span_end = f.context().span(node_id).end;
 
     write!(f, [prefix_annotations(f.context(), node_id)])?;
+    if f.context().tree.get(node_id).form == BlockForm::Do {
+        write!(f, [token("do"), space()])?;
+    }
     format_block_body_wide(f, node_id)?;
     f.context_mut()
         .comments_mut()
@@ -370,6 +369,9 @@ impl<'ast> FormatNode<'ast, Block> for Block {
         let block_span_end = f.context().span(node_id).end;
 
         write!(f, [prefix_annotations(f.context(), node_id)])?;
+        if self.form == BlockForm::Do {
+            write!(f, [token("do"), space()])?;
+        }
         write!(f, [group(&format_with(|f| write_block_body(f, node_id)))])?;
         f.context_mut()
             .comments_mut()

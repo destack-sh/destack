@@ -12,6 +12,18 @@ fn test_format_argument_named() {
     );
 }
 
+/// Call argument decorators should be preserved.
+#[test]
+fn test_format_decorated_call_argument() {
+    assert_format_program!(
+        r#"call(@if(true) value)
+"#,
+        r#"call(@if(true) value);
+"#,
+        FileType::Destack,
+    );
+}
+
 /// Multiline JSX arguments should force expanded multi-argument call layout.
 #[test]
 fn test_format_multiline_jsx_argument_forces_expanded_call_layout() {
