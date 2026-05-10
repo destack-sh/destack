@@ -26,6 +26,14 @@
       "status": "ignore",
       "reason": "typing",
       "note": "variance modifiers are validated like Babel/TSC, SWC suite does not expect errors here"
+    },
+    {
+      "patterns": [
+        "jsx/basic/issue-6522/input.js"
+      ],
+      "status": "ignore",
+      "reason": "legacy",
+      "note": "mixed fixture includes `var`, the supported tree newline cases are covered in parser tests"
     }
   ]
 }

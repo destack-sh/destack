@@ -79,6 +79,69 @@
     },
     {
       "patterns": [
+        "ok/ts_index_signature_class_member.ts",
+        "ok/ts_index_signature_class_member_can_be_static.ts"
+      ],
+      "status": "ignore",
+      "reason": "syntax",
+      "note": "class index signatures are not supported"
+    },
+    {
+      "patterns": [
+        "ok/import_call.js",
+        "ok/ts_import_type.ts",
+        "ok/ts_import_type_arguments.ts"
+      ],
+      "status": "ignore",
+      "reason": "syntax",
+      "note": "dynamic import expressions and import types are not supported"
+    },
+    {
+      "patterns": [
+        "ok/ts_export_assignment_identifier.ts",
+        "ok/ts_export_assignment_qualified_name.ts",
+        "ok/ts_export_namespace_clause.ts",
+        "ok/ts_external_module_declaration.ts",
+        "ok/ts_import_equals_declaration.ts"
+      ],
+      "status": "ignore",
+      "reason": "syntax",
+      "note": "CommonJS and namespace compatibility syntax is not supported"
+    },
+    {
+      "patterns": [
+        "ok/export_variable_clause.js",
+        "ok/issue_2790.ts",
+        "ok/ts_ambient_var_statement.ts",
+        "ok/ts_new_operator.ts",
+        "ok/var_decl.js"
+      ],
+      "status": "ignore",
+      "reason": "syntax",
+      "note": "var declarations are not supported"
+    },
+    {
+      "patterns": [
+        "ok/exponent_unary_parenthesized.js",
+        "ok/js_unary_expressions.js",
+        "ok/jsx_children_expression.jsx",
+        "ok/unary_delete.js",
+        "ok/unary_delete_nested.js"
+      ],
+      "status": "ignore",
+      "reason": "syntax",
+      "note": "delete expressions are not supported"
+    },
+    {
+      "patterns": [
+        "ok/ts_instantiation_expressions_new_line.ts"
+      ],
+      "status": "ignore",
+      "reason": "syntax",
+      "note": "mixed fixture contains unsupported legacy import/delete syntax"
+    },
+    {
+      "patterns": [
         "ok/ts_instantiation_expressions_1.ts"
       ],
       "status": "known-fail",
