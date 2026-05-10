@@ -20,6 +20,18 @@
             "note": "The source fixture is non-idempotent"
         },
         {
+            "patterns": ["js/comments/calls/last-argument-group.js"],
+            "status": "ignore",
+            "reason": "scope",
+            "note": "unsupported legacy `var` declaration syntax"
+        },
+        {
+            "patterns": ["js/comments/import-expression.js"],
+            "status": "ignore",
+            "reason": "scope",
+            "note": "unsupported dynamic import expression syntax"
+        },
+        {
             "patterns": [
                 "js/comments/assignments.js",
                 "ts/comments/assignments.ts"
@@ -35,6 +47,7 @@
                 "js/jsdoc/capitalization.js",
                 "js/jsdoc/import-sorting.js",
                 "js/jsdoc/inline-type-cast.js",
+                "js/jsdoc/default-no-wrap.js",
                 "js/jsdoc/single-line.js",
                 "js/jsdoc/template-default-value.js",
                 "js/jsdoc/typedef-continuation.js",
@@ -84,6 +97,12 @@
             "status": "known-fail-idempotence",
             "reason": "idempotence",
             "note": "The source fixture is non-idempotent"
+        },
+        {
+            "patterns": ["ts/variable-declarations/definite.ts"],
+            "status": "ignore",
+            "reason": "scope",
+            "note": "unsupported definite assignment assertions on variable declarations"
         },
         {
             "patterns": ["ts/union/issue-16902.ts"],
