@@ -302,7 +302,11 @@ impl<'ast> FormatNode<'ast, TypeExpression> for TypeExpression {
                     MappedTypeModifier::None => {}
                 }
 
-                write!(f, [token(":"), space(), value, token("}")])?;
+                if let Some(value) = value {
+                    write!(f, [token(":"), space(), *value])?;
+                }
+
+                write!(f, [token("}")])?;
             }
             TypeExpression::Index { left, index } => {
                 write!(f, [left, token("["), index, token("]")])?;

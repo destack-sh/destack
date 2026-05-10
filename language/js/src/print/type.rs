@@ -129,8 +129,10 @@ impl<'a> Printer<'a> {
                     MappedTypeModifier::None => {}
                 }
 
-                self.write_punct(":");
-                self.print_type_id(*value)?;
+                if let Some(value) = value {
+                    self.write_punct(":");
+                    self.print_type_id(*value)?;
+                }
                 self.write_punct("}");
             }
             TypeExpression::Index { left, index } => {
@@ -935,7 +937,7 @@ mod tests {
                     readonly: MappedTypeModifier::Present,
                     optional: MappedTypeModifier::Present,
                 },
-                value: mapped_value,
+                value: Some(mapped_value),
             },
         );
 

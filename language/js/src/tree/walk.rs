@@ -1513,8 +1513,10 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_type_expression(tree, key_remap, key_remap_ty);
             }
 
-            let value_ty = tree.get(*value);
-            visitor.visit_type_expression(tree, *value, value_ty);
+            if let Some(value) = value {
+                let value_ty = tree.get(*value);
+                visitor.visit_type_expression(tree, *value, value_ty);
+            }
         }
         TypeExpression::Index { left, index } => {
             let left_ty = tree.get(*left);
