@@ -895,6 +895,7 @@ impl Compiler {
                     self_symbol,
                     scope: scope_id,
                     is_abstract: declaration.is_abstract,
+                    is_final: declaration.is_final,
                     generic_parameters,
                     where_clauses,
                     extends_expression,

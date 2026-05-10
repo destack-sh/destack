@@ -332,7 +332,6 @@ impl ModuleLowerer<'_> {
                 mutability,
                 visibility,
                 is_static,
-                is_definite,
                 is_accessor,
                 symbol: _,
                 ..
@@ -361,10 +360,6 @@ impl ModuleLowerer<'_> {
                         None
                     },
                 );
-                let modifiers = modifiers.map(|mut modifiers| {
-                    modifiers.definite = *is_definite;
-                    modifiers
-                });
                 let key = self.lower_key(*key)?;
                 let value = declared_type
                     .map(|value| self.lower_type_annotation_expression(value))
