@@ -55,6 +55,19 @@ struct ParsedExpression {
     is_parenthesized: bool,
 }
 
+/// Return true when one contextual type keyword starts a member path.
+fn contextual_type_keyword_starts_member_path(lookahead: &IdentifierPrimaryLookahead) -> bool {
+    let is_contextual_type_keyword = matches!(
+        lookahead.keyword,
+        Some(Keyword::Keyof | Keyword::Readonly | Keyword::Shared)
+    );
+    let has_member_access = lookahead.next_token_type == TokenType::Dot
+        || (lookahead.next_token_type == TokenType::Maybe
+            && lookahead.following_token_type == TokenType::Dot);
+
+    is_contextual_type_keyword && has_member_access
+}
+
 impl ParsedExpression {
     /// Create one parsed expression without transparent parenthesized wrapping.
     const fn plain(expression_id: LocalNodeId<Expression>) -> Self {
@@ -981,6 +994,11 @@ impl Parser {
             return self.eat_identifier_expression_path(start);
         }
 
+        // contextual type keywords remain identifier heads for member paths
+        if contextual_type_keyword_starts_member_path(&lookahead) {
+            return self.eat_identifier_expression_path(start);
+        }
+
         // unary keyword expressions
         if is_unary_keyword {
             return self.eat_value_unary_keyword_primary_expression(
@@ -1094,6 +1112,11 @@ impl Parser {
                 return Ok(type_expression_id);
             }
 
+            return self.eat_type_identifier_expression_path(start);
+        }
+
+        // contextual type keywords remain identifier heads for member paths
+        if contextual_type_keyword_starts_member_path(&lookahead) {
             return self.eat_type_identifier_expression_path(start);
         }
 

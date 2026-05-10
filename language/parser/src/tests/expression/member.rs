@@ -62,6 +62,48 @@ fn test_parse_member_expression_as_member_chain() {
     assert_value_expression_path!(parser, parser.tree.get(expression_id), "foo.bar");
 }
 
+/// Parse contextual type keyword heads in Destack member chains.
+#[test]
+fn test_parse_destack_contextual_type_keyword_member_expression() {
+    let input = r#"
+keyof.nested.ok satisfies string;
+readonly.nested.ok satisfies number;
+shared?.nested.ok satisfies boolean;
+"#;
+    let mut test = TestParser::new_with_language(input, LanguageType::Destack);
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    test.assert_no_errors(&parser);
+
+    assert_eq!(expressions.len(), 3);
+    assert_node!(parser.tree, expressions[0], Expression::Satisfies { expression, target_type } => {
+        assert_value_expression_path!(parser, parser.tree.get(*expression), "keyof.nested.ok");
+        assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+            assert_eq!(*value, TypeLiteral::String);
+        });
+    });
+    assert_node!(parser.tree, expressions[1], Expression::Satisfies { expression, target_type } => {
+        assert_value_expression_path!(parser, parser.tree.get(*expression), "readonly.nested.ok");
+        assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+            assert_eq!(*value, TypeLiteral::Number);
+        });
+    });
+    assert_node!(parser.tree, expressions[2], Expression::Satisfies { expression, target_type } => {
+        assert_node!(parser.tree, *expression, Expression::Member { left, name, .. } => {
+            assert_string!(parser, *name, "ok");
+            assert_node!(parser.tree, *left, Expression::Member { left, name, .. } => {
+                assert_string!(parser, *name, "nested");
+                assert_node!(parser.tree, *left, Expression::Maybe { left, position: PostfixPosition::Direct } => {
+                    assert_value_expression_path!(parser, parser.tree.get(*left), "shared");
+                });
+            });
+        });
+        assert_node!(parser.tree, *target_type, TypeExpression::Literal { value } => {
+            assert_eq!(*value, TypeLiteral::Boolean);
+        });
+    });
+}
+
 /// Parse super member access.
 #[test]
 fn test_parse_super_member_expression() {
