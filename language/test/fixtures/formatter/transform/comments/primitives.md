@@ -187,3 +187,90 @@ call(a, b);
 // @ts-ignore
 value = compute(1, 2);
 ```
+
+## Block Comments
+
+### multiline block comment preservation
+
+Multiline block comments are preserved with formatting.
+
+```ds
+{
+    /*
+     * Comment 1
+     */
+    const x = 1
+}
+```
+
+```ds expected
+{
+    /*
+     * Comment 1
+     */
+    const x = 1;
+}
+```
+
+### doc comment on declaration
+
+Doc comments precede declarations.
+
+```ds
+{
+    /** some multiline
+     * doc comment
+     * over multiple lines */
+    const X = 1
+}
+```
+
+```ds expected
+{
+    /** some multiline
+     * doc comment
+     * over multiple lines */
+    const X = 1;
+}
+```
+
+
+## Line Comments
+
+### line comment after statement
+
+Line comments after statements are preserved.
+
+```ds
+{
+    const x = 1; // important value
+    const y = 2; // another value
+}
+```
+
+```ds expected
+{
+    const x = 1; // important value
+    const y = 2; // another value
+}
+```
+
+### multiple line comments before declaration
+
+Multiple consecutive line comments are preserved.
+
+```ds
+{
+    // comment part 1
+    // comment part 2
+    const A = 1
+}
+```
+
+```ds expected
+{
+    // comment part 1
+    // comment part 2
+    const A = 1;
+}
+```
