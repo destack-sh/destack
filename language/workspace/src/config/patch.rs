@@ -98,7 +98,7 @@ mod tests {
         let mut json = json!({
             "formatter": {
                 "lineWidth": 80,
-                "quoteStyle": "double"
+                "indentWidth": 2
             }
         });
         let patches = vec![ConfigPatch {
@@ -115,7 +115,7 @@ mod tests {
             json!({
                 "formatter": {
                     "lineWidth": 100,
-                    "quoteStyle": "double"
+                    "indentWidth": 2
                 }
             })
         );

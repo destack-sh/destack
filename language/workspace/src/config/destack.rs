@@ -430,7 +430,7 @@ impl DestackConfig {
         if child_formatter.line_ending.is_none() {
             formatter.line_ending = parent_formatter.line_ending;
         }
-        if child_formatter.indent_style.is_none() && child_formatter.use_tabs.is_none() {
+        if child_formatter.indent_style.is_none() {
             formatter.indent_style = parent_formatter.indent_style;
         }
         if child_formatter.indent_width.is_none() {
@@ -439,34 +439,6 @@ impl DestackConfig {
         if child_formatter.line_width.is_none() {
             formatter.line_width = parent_formatter.line_width;
         }
-        if child_formatter.quote_style.is_none() && child_formatter.single_quote.is_none() {
-            formatter.quote_style = parent_formatter.quote_style;
-        }
-        if child_formatter.trailing_comma.is_none() {
-            formatter.trailing_comma = parent_formatter.trailing_comma;
-        }
-        if child_formatter.bracket_spacing.is_none() {
-            formatter.bracket_spacing = parent_formatter.bracket_spacing;
-        }
-        if child_formatter.arrow_parens.is_none() {
-            formatter.arrow_parentheses = parent_formatter.arrow_parentheses;
-        }
-        if child_formatter.quote_props.is_none() {
-            formatter.quote_property = parent_formatter.quote_property;
-        }
-        if child_formatter.bracket_same_line.is_none() {
-            formatter.bracket_same_line = parent_formatter.bracket_same_line;
-        }
-        if child_formatter.single_attribute_per_line.is_none() {
-            formatter.single_attribute_per_line = parent_formatter.single_attribute_per_line;
-        }
-        if child_formatter.organize_imports.is_none() {
-            formatter.organize_imports = parent_formatter.organize_imports;
-        }
-        if child_formatter.import_sort_order.is_none() {
-            formatter.import_sort_order = parent_formatter.import_sort_order;
-        }
-
         // linter
         let child_linter = &self.options.linter;
         let linter = &mut self.linter;
