@@ -142,6 +142,8 @@ pub struct ClassDeclaration {
     pub is_ambient: bool,
     /// Whether the declaration is abstract.
     pub is_abstract: bool,
+    /// Whether the declaration is final.
+    pub is_final: bool,
 }
 
 /// The kind of an enum declaration.

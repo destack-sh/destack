@@ -329,6 +329,9 @@ pub enum Expression {
     /// Await with immediate error propagation (`await? expr`).
     /// Normalized to `Maybe { left: Await { expression } }` after binding.
     AwaitMaybe { expression: LocalNodeId<Expression> },
+    /// Await with immediate trapping error propagation (`await! expr`).
+    /// Normalized to `Must { left: Await { expression } }` after binding.
+    AwaitMust { expression: LocalNodeId<Expression> },
     /// Compile-time evaluated expression.
     Comptime { body: LocalNodeId<Expression> },
     /// Yield expression.
@@ -427,6 +430,7 @@ impl Expression {
             Expression::Throw { .. } => "throw",
             Expression::Await { .. } => "await",
             Expression::AwaitMaybe { .. } => "await?",
+            Expression::AwaitMust { .. } => "await!",
             Expression::Comptime { .. } => "comptime",
             Expression::Yield { .. } => "yield",
             Expression::Return { .. } => "return",
