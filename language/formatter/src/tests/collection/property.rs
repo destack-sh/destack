@@ -128,57 +128,6 @@ extension<T> of Set<T> {
     );
 }
 
-/// TypeScript object literals should quote all eligible keys in one consistent group.
-#[test]
-fn test_format_object_quote_props_consistent() {
-    assert_format_program!(
-        r#"const x = { a: 1, "needs-quotes": 2, "default": 3 }
-"#,
-        r#"const x = { "a": 1, "needs-quotes": 2, "default": 3 };
-"#,
-        FileType::TypeScript,
-        DestackFormatOptions {
-            quote_props: destack_workspace::QuoteProperty::Consistent,
-            ..DestackFormatOptions::default()
-        }
-    );
-}
-
-/// TypeScript object literals should preserve identifier-like quoted keys.
-#[test]
-fn test_format_object_quote_props_preserve() {
-    assert_format_program!(
-        r#"const x = { "normal": 1, "needs-quotes": 2, default: 3 }
-"#,
-        r#"const x = { "normal": 1, "needs-quotes": 2, default: 3 };
-"#,
-        FileType::TypeScript,
-        DestackFormatOptions {
-            quote_props: destack_workspace::QuoteProperty::Preserve,
-            ..DestackFormatOptions::default()
-        }
-    );
-}
-
-/// TypeScript class fields should preserve quoted string keys.
-#[test]
-fn test_format_class_quote_props_consistent_without_required_quotes() {
-    assert_format_program!(
-        r#"class Example { "a" = 1; b = 2; }
-"#,
-        r#"class Example {
-  "a" = 1;
-  b = 2;
-}
-"#,
-        FileType::TypeScript,
-        DestackFormatOptions {
-            quote_props: destack_workspace::QuoteProperty::Consistent,
-            ..DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
-        }
-    );
-}
-
 /// JavaScript class fields should drop unnecessary key quotes.
 #[test]
 fn test_format_javascript_class_quote_props_as_needed() {

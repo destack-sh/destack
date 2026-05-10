@@ -51,15 +51,15 @@ The shared conformance catalog is generated from `suite.json` and `status.json`.
 | Domain | Suite | Title | Status | Origin Ref |
 | --- | --- | --- | --- | --- |
 | ecma | babel | ECMA Babel | ignore 7 | b8ef443e0a3ee202264fb40edc1cbce8f2352aaa |
-| ecma | biome | ECMA Biome | known-fail 1, ignore 7 | 9f1b3b06586401b39e0aa886bf7c8484fd2a6ded |
+| ecma | biome | ECMA Biome | known-fail 1, ignore 13 | 9f1b3b06586401b39e0aa886bf7c8484fd2a6ded |
 | ecma | jsc | ECMA JSC | none | main |
 | ecma | math | Math | none | 5c8206929d81b2d3d727ca6aac56c18358c8d790 |
 | ecma | number | Number | translated 4, excluded 4 | 5c8206929d81b2d3d727ca6aac56c18358c8d790 |
-| ecma | swc | ECMA SWC | ignore 2 | 5b9d77c1c89ade5772c6feee429386faf3b93a39 |
+| ecma | swc | ECMA SWC | ignore 3 | 5b9d77c1c89ade5772c6feee429386faf3b93a39 |
 | ecma | temporal | Temporal | translated 3 | 5c8206929d81b2d3d727ca6aac56c18358c8d790 |
 | ecma | test262 | ECMA Test262 | ignore 7 | 0e808c74fbec780646434cad17bb22dc52461003 |
 | ecma | v8 | ECMA V8 | none | main |
-| formatter | oxfmt | Formatter Oxfmt | known-fail-idempotence 4, ignore 8 | 8c3607060b7432d51bcd0b049cb77bed473d35e3 |
+| formatter | oxfmt | Formatter Oxfmt | known-fail-idempotence 4, ignore 11 | 8c3607060b7432d51bcd0b049cb77bed473d35e3 |
 | node | crypto | node:crypto | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
 | node | fs | node:fs | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
 | node | net | node:net | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |

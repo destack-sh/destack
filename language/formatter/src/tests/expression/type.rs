@@ -143,13 +143,9 @@ fn test_format_type_member_doc_comment_after_missing_terminator() {
 }
 "#,
         r#"interface WebidlErrors {
-    /**
-     * @description Instantiate an error
-     */
+    /** Instantiate an error */
     exception(opts: { header: string; message: string }): TypeError;
-    /**
-     * @description Instantiate an error when conversion from one type to another has failed
-     */
+    /** Instantiate an error when conversion from one type to another has failed */
     conversionFailed(opts: { prefix: string; argument: string; types: string[] }): TypeError;
 }
 "#,
@@ -198,9 +194,7 @@ fn test_format_type_member_blank_line_before_doc_comment() {
     method(options: {
         source: string;
 
-        /**
-         * Library names to link against
-         */
+        /** Library names to link against */
         library?: string[] | string;
     }): void;
 }
@@ -288,13 +282,14 @@ fn test_format_class_method_trailing_line_comment() {
         r#"declare namespace cluster {
     export class Worker extends EventEmitter {
         /**
-         * events.EventEmitter
-         *   1. disconnect
-         *   2. error
-         *   3. exit
-         *   4. listening
-         *   5. message
-         *   6. online
+         * Events.EventEmitter
+         *
+         * 1. Disconnect
+         * 2. Error
+         * 3. Exit
+         * 4. Listening
+         * 5. Message
+         * 6. Online
          */
         addListener(event: string, listener: (...args: any[]) => void): this;
         addListener(event: "disconnect", listener: () => void): this;

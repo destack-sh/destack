@@ -36,11 +36,11 @@ pub(super) fn format_description_markdown(
         return String::new();
     }
 
-    let jsdoc_opts = format_options.and_then(|opts| opts.jsdoc.as_ref());
-    let description_with_dot = jsdoc_opts.is_some_and(|o| o.description_with_dot);
-    let prefer_code_fences = jsdoc_opts.is_some_and(|o| o.prefer_code_fences);
-    let line_wrapping_style =
-        jsdoc_opts.map_or(JsdocLineWrappingStyle::default(), |o| o.line_wrapping_style);
+    let jsdoc_options = format_options.map(|options| &options.jsdoc);
+    let description_with_dot = jsdoc_options.is_some_and(|options| options.description_with_dot);
+    let prefer_code_fences = jsdoc_options.is_some_and(|options| options.prefer_code_fences);
+    let line_wrapping_style = jsdoc_options
+        .map_or(JsdocLineWrappingStyle::default(), |options| options.line_wrapping_style);
 
     // use the light paragraph wrapper when no markdown tree is needed
     if tag_string_length == 0 && !needs_markdown_parsing(text) {

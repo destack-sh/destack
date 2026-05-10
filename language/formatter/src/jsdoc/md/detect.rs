@@ -91,8 +91,8 @@ pub(super) fn needs_markdown_parsing(text: &str) -> bool {
                             }
                             if j < len && j + 1 < len && bytes[j + 1] == b' ' {
                                 match bytes[j] {
-                                    b'.' | b')' if is_block_start => return true,
-                                    b'-' => return true, // legacy marker always
+                                    b'-' => return true,
+                                    b'.' | b')' if is_block_start || spaces > 0 => return true,
                                     _ => {}
                                 }
                             }
@@ -140,4 +140,30 @@ pub(super) fn needs_markdown_parsing(text: &str) -> bool {
         i += 1;
     }
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::needs_markdown_parsing;
+
+    #[test]
+    fn test_detect_indented_ordered_list_lines() {
+        let text = "events.EventEmitter\n  1. disconnect\n  2. error";
+
+        assert!(needs_markdown_parsing(text));
+    }
+
+    #[test]
+    fn test_skip_plain_paragraph_wrapped_number_sentence() {
+        let text = "Where each value is a relative width to the scale and ranges between 0 and\n1. They add extra margins";
+
+        assert!(!needs_markdown_parsing(text));
+    }
+
+    #[test]
+    fn test_detect_legacy_ordered_list_markers() {
+        let text = "Some items:\n1- foo bar\n2- baz qux";
+
+        assert!(needs_markdown_parsing(text));
+    }
 }

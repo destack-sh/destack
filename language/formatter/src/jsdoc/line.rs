@@ -55,23 +55,9 @@ impl LineBuffer {
         !self.has_content
     }
 
-    /// Return the current byte length.
-    pub(super) fn byte_len(&self) -> usize {
-        self.buf.len()
-    }
-
-    /// Count line separators written after one byte offset.
-    pub(super) fn line_count_since(&self, from_byte: usize) -> usize {
-        self.buf[from_byte..]
-            .bytes()
-            .filter(|&b| b == b'\n')
-            .count()
-    }
-
     /// Return whether the last non-empty line ends a block-level element.
     pub(super) fn last_line_is_block_end(&self) -> bool {
-        // find the last non-empty line
-        let last = self.buf.rsplit('\n').find(|l| !l.is_empty()).unwrap_or("");
+        let last = self.last_non_empty_line();
         let trimmed = last.trim_start();
 
         // unordered lists and fenced code
@@ -95,6 +81,16 @@ impl LineBuffer {
             return true;
         }
         false
+    }
+
+    /// Return whether the last non-empty line is a code fence.
+    pub(super) fn last_line_is_code_fence(&self) -> bool {
+        self.last_non_empty_line().trim_start().starts_with("```")
+    }
+
+    /// Return the last non-empty line.
+    fn last_non_empty_line(&self) -> &str {
+        self.buf.rsplit('\n').find(|l| !l.is_empty()).unwrap_or("")
     }
 
     /// Return the line buffer as a string.
