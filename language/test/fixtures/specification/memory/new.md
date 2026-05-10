@@ -39,10 +39,10 @@ class Box {
     value: int32 = 0;
 }
 
-let box: shared ^Box = new Box();
+let box: shared (^Box) = new Box();
 
-box satisfies shared ^Box;
-box satisfies ^shared Box;
+box satisfies shared (^Box);
+box satisfies ^(shared Box);
 ```
 
 ## placement

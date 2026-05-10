@@ -66,8 +66,8 @@ struct Cell {
     value: int32;
 }
 
-shared ^Cell satisfies ^shared Cell;
-shared ^Cell satisfies WithSpace<^Cell, "shared">;
+shared (^Cell) satisfies ^(shared Cell);
+shared (^Cell) satisfies WithSpace<^Cell, "shared">;
 ```
 
 ### local and ambient are algebra forms
@@ -236,5 +236,5 @@ struct Payload {
     value: int32;
 }
 
-WithBase<shared ^readonly Cell, Payload> satisfies shared ^readonly Payload;
+WithBase<shared (^readonly Cell), Payload> satisfies shared (^readonly Payload);
 ```

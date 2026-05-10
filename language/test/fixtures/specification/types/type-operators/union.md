@@ -7,14 +7,14 @@ Union type assignability.
 ### unions accept any member
 
 ```ds
-let x: string | number = "hello"
-x = 42
+let x: string | number = "hello";
+x = 42;
 ```
 
 ### members assign to unions
 
 ```ds
-const x: string | number = "hello"
+const x: string | number = "hello";
 ```
 
 ## union assignability
@@ -22,8 +22,8 @@ const x: string | number = "hello"
 ### declared members assign to unions
 
 ```ds
-const x: string = "hello"
-const y: string | number = x
+const x: string = "hello";
+const y: string | number = x;
 ```
 
 ## union normalization

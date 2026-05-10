@@ -9,20 +9,28 @@ Union member calls require a visible method for every union member.
 Inherent extensions are visible wherever the type is imported.
 
 ```ds:types.ds
-export struct Cat { name: string }
-export struct Dog { name: string }
+export struct Cat {
+    name: string;
+}
+export struct Dog {
+    name: string;
+}
 
 extension of Cat {
-    speak(): string { "meow" }
+    speak(): string {
+        "meow"
+    }
 }
 
 extension of Dog {
-    speak(): string { "woof" }
+    speak(): string {
+        "woof"
+    }
 }
 ```
 
 ```ds:main.ds
-import { Cat, Dog } from "./types.ds"
+import { Cat, Dog } from "./types.ds";
 
 declare function getPet(): Cat | Dog;
 
@@ -37,24 +45,32 @@ sound satisfies string;
 Named extensions on foreign types must be imported to participate in resolution.
 
 ```ds:types.ds
-export struct Cat { name: string }
-export struct Dog { name: string }
+export struct Cat {
+    name: string;
+}
+export struct Dog {
+    name: string;
+}
 ```
 
 ```ds:extensions.ds
-import { Cat, Dog } from "./types.ds"
+import { Cat, Dog } from "./types.ds";
 
 export extension CatTalk of Cat {
-    speak(): string { "meow" }
+    speak(): string {
+        "meow"
+    }
 }
 
 export extension DogTalk of Dog {
-    speak(): string { "woof" }
+    speak(): string {
+        "woof"
+    }
 }
 ```
 
 ```ds:main.ds
-import { Cat, Dog } from "./types.ds"
+import { Cat, Dog } from "./types.ds";
 
 declare function getPet(): Cat | Dog;
 
@@ -68,25 +84,33 @@ getPet().speak();
 Named extensions are visible when explicitly imported.
 
 ```ds:types.ds
-export struct Cat { name: string }
-export struct Dog { name: string }
+export struct Cat {
+    name: string;
+}
+export struct Dog {
+    name: string;
+}
 ```
 
 ```ds:extensions.ds
-import { Cat, Dog } from "./types.ds"
+import { Cat, Dog } from "./types.ds";
 
 export extension CatTalk of Cat {
-    speak(): string { "meow" }
+    speak(): string {
+        "meow"
+    }
 }
 
 export extension DogTalk of Dog {
-    speak(): string { "woof" }
+    speak(): string {
+        "woof"
+    }
 }
 ```
 
 ```ds:main.ds
-import { Cat, Dog } from "./types.ds"
-import { CatTalk, DogTalk } from "./extensions.ds"
+import { CatTalk, DogTalk } from "./extensions.ds";
+import { Cat, Dog } from "./types.ds";
 
 declare function getPet(): Cat | Dog;
 
@@ -99,29 +123,37 @@ sound satisfies string;
 Re-exported named extensions remain visible when imported by name.
 
 ```ds:types.ds
-export struct Cat { name: string }
-export struct Dog { name: string }
+export struct Cat {
+    name: string;
+}
+export struct Dog {
+    name: string;
+}
 ```
 
 ```ds:extensions.ds
-import { Cat, Dog } from "./types.ds"
+import { Cat, Dog } from "./types.ds";
 
 export extension CatTalk of Cat {
-    speak(): string { "meow" }
+    speak(): string {
+        "meow"
+    }
 }
 
 export extension DogTalk of Dog {
-    speak(): string { "woof" }
+    speak(): string {
+        "woof"
+    }
 }
 ```
 
 ```ds:barrel.ds
-export { CatTalk, DogTalk } from "./extensions.ds"
+export { CatTalk, DogTalk } from "./extensions.ds";
 ```
 
 ```ds:main.ds
-import { Cat, Dog } from "./types.ds"
-import { CatTalk, DogTalk } from "./barrel.ds"
+import { CatTalk, DogTalk } from "./barrel.ds";
+import { Cat, Dog } from "./types.ds";
 
 declare function getPet(): Cat | Dog;
 
@@ -134,25 +166,33 @@ sound satisfies string;
 Namespace imports do not implicitly activate named extensions.
 
 ```ds:types.ds
-export struct Cat { name: string }
-export struct Dog { name: string }
+export struct Cat {
+    name: string;
+}
+export struct Dog {
+    name: string;
+}
 ```
 
 ```ds:extensions.ds
-import { Cat, Dog } from "./types.ds"
+import { Cat, Dog } from "./types.ds";
 
 export extension CatTalk of Cat {
-    speak(): string { "meow" }
+    speak(): string {
+        "meow"
+    }
 }
 
 export extension DogTalk of Dog {
-    speak(): string { "woof" }
+    speak(): string {
+        "woof"
+    }
 }
 ```
 
 ```ds:main.ds
-import { Cat, Dog } from "./types.ds"
-import * as ext from "./extensions.ds"
+import * as ext from "./extensions.ds";
+import { Cat, Dog } from "./types.ds";
 
 declare function getPet(): Cat | Dog;
 
@@ -166,25 +206,33 @@ getPet().speak();
 Union method calls require visible extensions for every union member.
 
 ```ds:types.ds
-export struct Cat { name: string }
-export struct Dog { name: string }
+export struct Cat {
+    name: string;
+}
+export struct Dog {
+    name: string;
+}
 ```
 
 ```ds:extensions.ds
-import { Cat, Dog } from "./types.ds"
+import { Cat, Dog } from "./types.ds";
 
 export extension CatTalk of Cat {
-    speak(): string { "meow" }
+    speak(): string {
+        "meow"
+    }
 }
 
 export extension DogTalk of Dog {
-    speak(): string { "woof" }
+    speak(): string {
+        "woof"
+    }
 }
 ```
 
 ```ds:main.ds
-import { Cat, Dog } from "./types.ds"
-import { CatTalk } from "./extensions.ds"
+import { CatTalk } from "./extensions.ds";
+import { Cat, Dog } from "./types.ds";
 
 declare function getPet(): Cat | Dog;
 
@@ -198,25 +246,33 @@ getPet().speak();
 Renamed named extension imports preserve union method resolution.
 
 ```ds:types.ds
-export struct Cat { name: string }
-export struct Dog { name: string }
+export struct Cat {
+    name: string;
+}
+export struct Dog {
+    name: string;
+}
 ```
 
 ```ds:extensions.ds
-import { Cat, Dog } from "./types.ds"
+import { Cat, Dog } from "./types.ds";
 
 export extension CatTalk of Cat {
-    speak(): string { "meow" }
+    speak(): string {
+        "meow"
+    }
 }
 
 export extension DogTalk of Dog {
-    speak(): string { "woof" }
+    speak(): string {
+        "woof"
+    }
 }
 ```
 
 ```ds:main.ds
-import { Cat, Dog } from "./types.ds"
-import { CatTalk as CatSpeak, DogTalk as DogSpeak } from "./extensions.ds"
+import { CatTalk as CatSpeak, DogTalk as DogSpeak } from "./extensions.ds";
+import { Cat, Dog } from "./types.ds";
 
 declare function getPet(): Cat | Dog;
 

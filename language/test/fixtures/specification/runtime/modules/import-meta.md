@@ -27,8 +27,7 @@ runtime satisfies "destack" | "js";
 `import.meta.platform` returns the target platform for the profile.
 
 ```ds
-const platform = import.meta.platform;
-platform satisfies
+type Platform =
     | "web"
     | "windows"
     | "macos"
@@ -49,6 +48,9 @@ platform satisfies
     | "emscripten"
     | "bare-metal"
     | "universal";
+
+const platform = import.meta.platform;
+platform satisfies Platform;
 ```
 
 ### target metadata is typed
@@ -57,14 +59,7 @@ platform satisfies
 
 ```ds
 const family = import.meta.target.family;
-family satisfies
-    | "web"
-    | "windows"
-    | "unix"
-    | "wasm"
-    | "bare-metal"
-    | "universal"
-    | "other";
+family satisfies "web" | "windows" | "unix" | "wasm" | "bare-metal" | "universal" | "other";
 
 const vendor: string = import.meta.target.vendor;
 const env: string | undefined = import.meta.target.env;
@@ -100,8 +95,7 @@ const dir: string | undefined = import.meta.dir;
 `import.meta.env` exposes string values and helpers.
 
 ```ds
-const mode: "development" | "production" | "test" | undefined =
-    import.meta.env.NODE_ENV;
+const mode: "development" | "production" | "test" | undefined = import.meta.env.NODE_ENV;
 const dev: boolean = import.meta.env.DEV;
 const prod: boolean = import.meta.env.PROD;
 const test: boolean = import.meta.env.TEST;

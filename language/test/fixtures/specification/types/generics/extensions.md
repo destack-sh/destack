@@ -7,7 +7,9 @@
 Generic parameters on extensions flow into member signatures.
 
 ```ds
-struct Box<T> { value: T }
+struct Box<T> {
+    value: T;
+}
 
 extension<T> of Box<T> {
     get(): T {
@@ -26,7 +28,9 @@ boxed.get() satisfies number;
 Static value parameters on extensions are validated.
 
 ```ds
-struct Buffer<T, comptime N: number> { value: T }
+struct Buffer<T, comptime N: number> {
+    value: T;
+}
 
 extension<T, comptime N: number> of Buffer<T, N> {
     get(): T {
@@ -47,14 +51,14 @@ Extension parameters follow the target type argument order.
 ```ds
 struct Pair<A, B> {
     left: A;
-    right: B
+    right: B;
 }
 
 extension<Left, Right> of Pair<Right, Left> {
     swap(): Pair<Left, Right> {
         return Pair<Left, Right> {
             left: this.right,
-            right: this.left
+            right: this.left,
         };
     }
 }
@@ -71,7 +75,7 @@ Extensions inherit default comptime arguments from target type references.
 
 ```ds
 struct Buffer<T, comptime N: number = 4> {
-    value: T
+    value: T;
 }
 
 extension<T, comptime N: number> of Buffer<T, N> {
@@ -92,7 +96,7 @@ Extension methods still enforce substituted generic parameter contracts.
 
 ```ds
 struct Buffer<T, comptime N: number> {
-    value: T
+    value: T;
 }
 
 extension<T, comptime N: number> of Buffer<T, N> {
@@ -116,7 +120,7 @@ Defaulted comptime arguments are visible inside extension methods.
 
 ```ds
 struct Registry<T, comptime N: number = 2> {
-    value: T
+    value: T;
 }
 
 extension<T, comptime N: number> of Registry<T, N> {

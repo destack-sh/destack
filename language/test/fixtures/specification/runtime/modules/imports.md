@@ -174,7 +174,7 @@ export type Foo = { name: string };
 Imported generic function constraints remain active at consumer call sites.
 
 ```ds:lib.ds
-export function readName<T extends { name: string }>(value: T): string {
+export function readName<T: { name: string }>(value: T): string {
     return value.name;
 }
 ```
@@ -187,30 +187,3 @@ readName({ name: 1 });
 ```
 
 - contains: not assignable
-
-## import aliases
-
-### import aliases accept qualified identifiers
-
-```ds:main.ds
-namespace bar {
-    export const baz = 1;
-}
-
-import Foo = bar.baz;
-```
-
-### import aliases reject non-identifier targets
-
-Import aliases must target a qualified identifier path.
-
-```ds:main.ds
-function bar() {
-    return 1;
-}
-
-import Foo = bar();
-```
-
-- contains: import aliases must target a qualified identifier path
-

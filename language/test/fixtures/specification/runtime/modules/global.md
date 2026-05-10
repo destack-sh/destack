@@ -8,8 +8,8 @@ A `global` block contributes real values when its module is in the graph.
 
 ```ds:globals.ds
 global {
-    const answer: int32 = 42;
-}
+    answer: (int32 = 42),
+};
 ```
 
 ```ds:main.ds
@@ -24,14 +24,14 @@ Real global values cannot be declared twice.
 
 ```ds:a.ds
 global {
-    const answer: int32 = 42;
-}
+    answer: (int32 = 42),
+};
 ```
 
 ```ds:b.ds
 global {
-    const answer: int32 = 7;
-}
+    answer: (int32 = 7),
+};
 ```
 
 ```ds:main.ds
@@ -49,8 +49,8 @@ Configured global roots are part of the module closure.
 
 ```ds:globals.ds
 global {
-    const runtimeName: string = "test";
-}
+    runtimeName: (string = "test"),
+};
 ```
 
 ```ds:main.ds
@@ -70,7 +70,7 @@ Global augmentations become available once the declaring module is in the import
 ```ds:globals.ds
 declare global {
     interface GlobalThing {
-        value: number
+        value: number;
     }
 }
 ```
@@ -88,7 +88,7 @@ Global augmentations do not apply when the declaring module is not part of the i
 ```ds:globals.ds
 declare global {
     interface GlobalThing {
-        value: number
+        value: number;
     }
 }
 ```
@@ -106,7 +106,7 @@ Multiple global augmentations merge into a single type.
 ```ds:a.ds
 declare global {
     interface GlobalThing {
-        value: number
+        value: number;
     }
 }
 ```
@@ -114,7 +114,7 @@ declare global {
 ```ds:b.ds
 declare global {
     interface GlobalThing {
-        label: string
+        label: string;
     }
 }
 ```
@@ -241,7 +241,7 @@ declare abstract class Iterator<T> {
 
 declare global {
     let Iterator: {
-        new<T>(): Iterator<T>;
+        new <T>(): Iterator<T>;
     };
 }
 ```
@@ -262,7 +262,7 @@ declare module "foo" {
 
     global {
         interface GlobalThing {
-            value: Local
+            value: Local;
         }
     }
 }

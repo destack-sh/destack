@@ -73,12 +73,16 @@ combined satisfies Map<string, int32>;
 `&` dispatches to `And` on the receiver.
 
 ```ds
-struct Bits { value: int }
+struct Bits {
+    value: int;
+}
 
 extension of Bits implements And<Bits> {
     type Output = Bits;
 
-    and(other: Bits): this.Output { return this }
+    and(other: Bits): this.Output {
+        return this;
+    }
 }
 
 declare function getBits(): Bits;
@@ -95,12 +99,16 @@ value satisfies Bits;
 `|` dispatches to `Or` on the receiver.
 
 ```ds
-struct Bits { value: int }
+struct Bits {
+    value: int;
+}
 
 extension of Bits implements Or<Bits> {
     type Output = Bits;
 
-    or(other: Bits): this.Output { return this }
+    or(other: Bits): this.Output {
+        return this;
+    }
 }
 
 declare function getBits(): Bits;
@@ -117,12 +125,16 @@ value satisfies Bits;
 `^` dispatches to `Xor` on the receiver.
 
 ```ds
-struct Bits { value: int }
+struct Bits {
+    value: int;
+}
 
 extension of Bits implements Xor<Bits> {
     type Output = Bits;
 
-    xor(other: Bits): this.Output { return this }
+    xor(other: Bits): this.Output {
+        return this;
+    }
 }
 
 declare function getBits(): Bits;
@@ -139,12 +151,16 @@ value satisfies Bits;
 `~` dispatches to `Not` on the receiver.
 
 ```ds
-struct Bits { value: int }
+struct Bits {
+    value: int;
+}
 
 extension of Bits implements Not {
     type Output = Bits;
 
-    not(): this.Output { return this }
+    not(): this.Output {
+        return this;
+    }
 }
 
 declare function getBits(): Bits;
@@ -158,12 +174,16 @@ value satisfies Bits;
 `&` requires a matching `And` implementation.
 
 ```ds
-struct Bits { value: int }
+struct Bits {
+    value: int;
+}
 
 extension of Bits implements ShiftLeft<Bits> {
     type Output = Bits;
 
-    shiftLeft(other: Bits): this.Output { return this }
+    shiftLeft(other: Bits): this.Output {
+        return this;
+    }
 }
 
 declare function getBits(): Bits;
@@ -181,12 +201,16 @@ left & right;
 `|` requires a matching `Or` implementation.
 
 ```ds
-struct Bits { value: int }
+struct Bits {
+    value: int;
+}
 
 extension of Bits implements And<Bits> {
     type Output = Bits;
 
-    and(other: Bits): this.Output { return this }
+    and(other: Bits): this.Output {
+        return this;
+    }
 }
 
 declare function getBits(): Bits;
@@ -204,12 +228,16 @@ left | right;
 `^` requires a matching `Xor` implementation.
 
 ```ds
-struct Bits { value: int }
+struct Bits {
+    value: int;
+}
 
 extension of Bits implements And<Bits> {
     type Output = Bits;
 
-    and(other: Bits): this.Output { return this }
+    and(other: Bits): this.Output {
+        return this;
+    }
 }
 
 declare function getBits(): Bits;
@@ -227,12 +255,16 @@ left ^ right;
 `~` requires a matching `Not` implementation.
 
 ```ds
-struct Bits { value: int }
+struct Bits {
+    value: int;
+}
 
 extension of Bits implements Plus {
     type Output = Bits;
 
-    plus(): this.Output { return this }
+    plus(): this.Output {
+        return this;
+    }
 }
 
 declare function getBits(): Bits;
@@ -248,13 +280,19 @@ value satisfies Bits;
 `And<T>` only accepts right operands assignable to `T`.
 
 ```ds
-struct Bits { value: int }
-struct OtherBits { value: int }
+struct Bits {
+    value: int;
+}
+struct OtherBits {
+    value: int;
+}
 
 extension of Bits implements And<Bits> {
     type Output = Bits;
 
-    and(other: Bits): this.Output { return this }
+    and(other: Bits): this.Output {
+        return this;
+    }
 }
 
 declare function getBits(): Bits;

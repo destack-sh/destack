@@ -8,11 +8,11 @@ Structs are nominal value types.
 
 ```ds
 struct Point {
-    x: int32
+    x: int32;
 }
 
 class PointClass {
-    x: int32 = 0
+    x: int32 = 0;
 }
 
 const point = Point { x: 1 };
@@ -25,11 +25,11 @@ const value: PointClass = point;
 
 ```ds
 struct Point {
-    x: int32
+    x: int32;
 }
 
 class PointClass {
-    x: int32 = 0
+    x: int32 = 0;
 }
 
 const point = new PointClass();
@@ -44,11 +44,11 @@ const value: Point = point;
 
 ```ds
 interface HasX {
-    x: int32
+    x: int32;
 }
 
 struct Point {
-    x: int32
+    x: int32;
 }
 
 const point = Point { x: 1 };
@@ -60,11 +60,11 @@ value satisfies HasX;
 
 ```ds
 interface HasName {
-    name?: string
+    name?: string;
 }
 
 struct Person {
-    name: string
+    name: string;
 }
 
 const person: HasName = Person { name: "Ada" };
@@ -75,7 +75,7 @@ person satisfies HasName;
 
 ```ds
 struct Point {
-    x: int32
+    x: int32;
 }
 
 const point = Point { x: 1 };
@@ -87,11 +87,11 @@ value satisfies object;
 
 ```ds
 interface Drawable {
-    draw(): void
+    draw(): void;
 }
 
 struct Point implements Drawable {
-    x: int32
+    x: int32;
 
     draw(): void {}
 }
@@ -104,11 +104,11 @@ point satisfies Drawable;
 
 ```ds
 interface Drawable {
-    draw(): void
+    draw(): void;
 }
 
 struct Point {
-    x: int32
+    x: int32;
 }
 
 const point: Drawable = Point { x: 1 };
@@ -120,11 +120,11 @@ const point: Drawable = Point { x: 1 };
 
 ```ds
 interface HasX {
-    x: int32
+    x: int32;
 }
 
 struct Point {
-    x: float32
+    x: float32;
 }
 
 const point: HasX = Point { x: 1.5 };
@@ -138,11 +138,11 @@ const point: HasX = Point { x: 1.5 };
 
 ```ds
 struct Base {
-    value: int32
+    value: int32;
 }
 
 struct Child extends Base {
-    value: int32
+    value: int32;
 }
 ```
 

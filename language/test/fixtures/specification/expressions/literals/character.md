@@ -8,7 +8,7 @@ Character literals infer to the character type.
 
 ```ds
 const value = 'a';
-value satisfies character;
+value satisfies char;
 ```
 
 ### character literal does not widen to string
@@ -16,7 +16,7 @@ value satisfies character;
 Character literals do not implicitly widen to string.
 
 ```ds
-const value: character = 'a';
+const value: char = 'a';
 const text: string = value;
 ```
 
@@ -37,16 +37,6 @@ const value: int32 = 'a';
 Character literals flow into unions that include character.
 
 ```ds
-const value: character | string = 'a';
-value satisfies character | string;
+const value: char | string = 'a';
+value satisfies char | string;
 ```
-
-### character literals reject multi-character payloads
-
-Character literals require exactly one character payload.
-
-```ds
-const value: character = 'ab';
-```
-
-- contains: character

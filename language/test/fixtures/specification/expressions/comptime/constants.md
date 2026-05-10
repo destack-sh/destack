@@ -55,7 +55,7 @@ lane satisfies [uint8; 4];
 Comptime expressions can include static conditional logic.
 
 ```ds
-const width = comptime (if (true) { 8 } else { 4 });
+const width = comptime if (true) { 8 } else { 4 };
 type Lane = [uint8; width];
 
 const lane: Lane = [1, 2, 3, 4, 5, 6, 7, 8];

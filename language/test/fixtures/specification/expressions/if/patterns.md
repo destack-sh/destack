@@ -65,7 +65,7 @@ if (let [first, ...rest] = values) {
 Object rest patterns bind the remaining fields.
 
 ```ds
-type Config = { enabled: boolean, retries: int32 };
+type Config = { enabled: boolean; retries: int32 };
 
 declare const config: Config;
 
@@ -217,8 +217,8 @@ Struct patterns use the type tag.
 
 ```ds
 struct Point {
-    x: int32
-    y: int32
+    x: int32;
+    y: int32;
 }
 
 declare const point: Point;
@@ -235,8 +235,8 @@ Bare object patterns do not match nominal structs.
 
 ```ds
 struct Point {
-    x: int32
-    y: int32
+    x: int32;
+    y: int32;
 }
 
 declare const point: Point;
@@ -256,8 +256,8 @@ Enum patterns in if (let ...) narrow to the matched variant.
 
 ```ds
 enum State {
-    Ready
-    Failed
+    Ready,
+    Failed,
 }
 
 declare const state: State;

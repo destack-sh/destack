@@ -47,10 +47,14 @@ value satisfies boolean;
 Ordering operators dispatch to `Compare` on the receiver.
 
 ```ds
-struct Measure { value: int }
+struct Measure {
+    value: int;
+}
 
 extension of Measure implements Compare<Measure> {
-    compare(other: Measure): Ordering { return Ordering.Equal }
+    compare(other: Measure): Ordering {
+        return Ordering.Equal;
+    }
 }
 
 declare function getMeasure(): Measure;
@@ -76,10 +80,14 @@ isGreaterEqual satisfies boolean;
 Ordering operators require `Compare` for non-builtin value types.
 
 ```ds
-struct Measure { value: int }
+struct Measure {
+    value: int;
+}
 
 extension of Measure implements Equal<Measure> {
-    equal(other: Measure): boolean { return true }
+    equal(other: Measure): boolean {
+        return true;
+    }
 }
 
 declare function getMeasure(): Measure;
@@ -97,11 +105,17 @@ left < right;
 `Compare<R>` only accepts right operands assignable to `R`.
 
 ```ds
-struct Measure { value: int }
-struct OtherMeasure { value: int }
+struct Measure {
+    value: int;
+}
+struct OtherMeasure {
+    value: int;
+}
 
 extension of Measure implements Compare<Measure> {
-    compare(other: Measure): Ordering { return Ordering.Equal }
+    compare(other: Measure): Ordering {
+        return Ordering.Equal;
+    }
 }
 
 declare function getMeasure(): Measure;

@@ -10,7 +10,7 @@ Dereference turns wrapper values into borrowed access.
 
 ```ds
 struct Ref<T> {
-    value: T
+    value: T;
 }
 
 extension<T> of Ref<T> implements ReadonlyDereference {
@@ -33,7 +33,7 @@ value satisfies &readonly int32;
 
 ```ds
 struct Ref<T> {
-    value: T
+    value: T;
 }
 
 declare function getRef(): Ref<int32>;
@@ -51,7 +51,7 @@ Assignment through `*value` requires `Dereference`.
 
 ```ds
 struct Ref<T> {
-    value: T
+    value: T;
 }
 
 extension<T> of Ref<T> implements Dereference {
@@ -79,7 +79,7 @@ let value = getRef();
 
 ```ds
 struct Ref<T> {
-    value: T
+    value: T;
 }
 
 extension<T> of Ref<T> implements ReadonlyDereference {
@@ -106,12 +106,12 @@ Member lookup checks the wrapper before readonly autoderef.
 
 ```ds
 struct User {
-    name: string
-    age: int32
+    name: string;
+    age: int32;
 }
 
 struct Box<T> {
-    value: T
+    value: T;
 
     name(): "box" {
         "box"
@@ -142,11 +142,11 @@ Member assignment through autoderef requires `Dereference`.
 
 ```ds
 struct User {
-    name: string
+    name: string;
 }
 
 struct Box<T> {
-    value: T
+    value: T;
 }
 
 extension<T> of Box<T> implements Dereference {
@@ -174,11 +174,11 @@ Readonly autoderef does not allow member assignment.
 
 ```ds
 struct User {
-    name: string
+    name: string;
 }
 
 struct Rc<T> {
-    value: T
+    value: T;
 }
 
 extension<T> of Rc<T> implements ReadonlyDereference {

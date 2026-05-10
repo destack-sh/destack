@@ -18,7 +18,7 @@ value satisfies "hello";
 Template literal arguments can infer span types.
 
 ```ds
-declare function take<T extends string>(value: `prefix-${T}`): T;
+declare function take<T: string>(value: `prefix-${T}`): T;
 
 declare let value: `prefix-${"a" | "b"}`;
 let result = take(value);
@@ -30,7 +30,7 @@ result satisfies "a" | "b";
 Inferred spans preserve union members.
 
 ```ds
-declare function take<T extends string>(value: `prefix-${T}`): T;
+declare function take<T: string>(value: `prefix-${T}`): T;
 
 declare let value: `prefix-${"a" | "b"}`;
 let result = take(value);
@@ -44,7 +44,7 @@ let bad: "a" = result;
 Call inference respects constrained template spans.
 
 ```ds
-declare function take<T extends "a" | "b">(value: `prefix-${T}`): T;
+declare function take<T: "a" | "b">(value: `prefix-${T}`): T;
 
 let ok = take("prefix-a");
 ok satisfies "a";
@@ -55,7 +55,7 @@ ok satisfies "a";
 Constrained spans reject values outside the union.
 
 ```ds
-declare function take<T extends "a" | "b">(value: `prefix-${T}`): T;
+declare function take<T: "a" | "b">(value: `prefix-${T}`): T;
 
 let bad = take("prefix-c");
 ```
@@ -67,7 +67,7 @@ let bad = take("prefix-c");
 Template literal arguments flow into generic spans.
 
 ```ds
-declare function takeAny<T extends string>(value: `${T}`): T;
+declare function takeAny<T: string>(value: `${T}`): T;
 
 declare let value: `prefix-${"a"}`;
 let result = takeAny(value);
@@ -79,7 +79,7 @@ result satisfies `prefix-${"a"}`;
 Inference preserves the full template literal shape.
 
 ```ds
-declare function takeAny<T extends string>(value: `${T}`): T;
+declare function takeAny<T: string>(value: `${T}`): T;
 
 declare let value: `prefix-${"a"}`;
 let result = takeAny(value);
@@ -106,7 +106,7 @@ ok satisfies "";
 Const literals preserve the captured span for template argument inference.
 
 ```ds
-declare function parse<T extends string>(value: `id:${T}`): T;
+declare function parse<T: string>(value: `id:${T}`): T;
 
 const value = "id:users";
 const result = parse(value);
@@ -121,7 +121,7 @@ result satisfies "users";
 Imported template parser calls keep const literal precision at the call site.
 
 ```ds:helper.ds
-export function parse<T extends string>(value: `id:${T}`): T {
+export function parse<T: string>(value: `id:${T}`): T {
     return "users" as T;
 }
 ```
@@ -140,7 +140,7 @@ result satisfies "users";
 Imported template parser calls still reject widened mutable scalar inputs.
 
 ```ds:helper.ds
-export function parse<T extends string>(value: `id:${T}`): T {
+export function parse<T: string>(value: `id:${T}`): T {
     return "users" as T;
 }
 ```
@@ -159,7 +159,7 @@ parse(value);
 Imported generic `${T}` parser calls keep const scalar precision.
 
 ```ds:helper.ds
-export function identitySpan<T extends string>(value: `${T}`): T {
+export function identitySpan<T: string>(value: `${T}`): T {
     return "users" as T;
 }
 ```
@@ -178,7 +178,7 @@ result satisfies "users";
 Contextual template unions preserve span unions for template argument inference.
 
 ```ds
-declare function parse<T extends string>(value: `id:${T}`): T;
+declare function parse<T: string>(value: `id:${T}`): T;
 
 const value: `id:${"users" | "posts"}` = true ? "id:users" : "id:posts";
 const result = parse(value);
@@ -191,7 +191,7 @@ result satisfies "users" | "posts";
 Widened `let` string inputs do not satisfy narrow template argument shapes.
 
 ```ds
-declare function parse<T extends string>(value: `id:${T}`): T;
+declare function parse<T: string>(value: `id:${T}`): T;
 
 let value = "id:users";
 parse(value);
@@ -204,7 +204,7 @@ parse(value);
 Widened `let` scalar inputs infer `T = string` for generic `${T}` positions.
 
 ```ds
-declare function identitySpan<T extends string>(value: `${T}`): T;
+declare function identitySpan<T: string>(value: `${T}`): T;
 
 let value = "users";
 const result = identitySpan(value);
@@ -217,7 +217,7 @@ result satisfies string;
 Const scalar inputs keep literal precision through `${T}` argument inference.
 
 ```ds
-declare function identitySpan<T extends string>(value: `${T}`): T;
+declare function identitySpan<T: string>(value: `${T}`): T;
 
 const value = "users";
 const result = identitySpan(value);
@@ -230,7 +230,7 @@ result satisfies "users";
 Const ternary unions preserve span unions in generic `${T}` argument inference.
 
 ```ds
-declare function identitySpan<T extends string>(value: `${T}`): T;
+declare function identitySpan<T: string>(value: `${T}`): T;
 
 const value = true ? "users" : "posts";
 const result = identitySpan(value);
@@ -243,7 +243,7 @@ result satisfies "users" | "posts";
 Renamed re-exports preserve template argument inference precision.
 
 ```ds:helper.ds
-export function parse<T extends string>(value: `id:${T}`): T {
+export function parse<T: string>(value: `id:${T}`): T {
     return "users" as T;
 }
 ```
@@ -266,7 +266,7 @@ result satisfies "users";
 Export-star forwarding preserves narrow template rejection for widened mutable inputs.
 
 ```ds:helper.ds
-export function parse<T extends string>(value: `id:${T}`): T {
+export function parse<T: string>(value: `id:${T}`): T {
     return "users" as T;
 }
 ```
@@ -289,7 +289,7 @@ parse(value);
 Namespace imports preserve generic `${T}` inference for const literals.
 
 ```ds:helper.ds
-export function identitySpan<T extends string>(value: `${T}`): T {
+export function identitySpan<T: string>(value: `${T}`): T {
     return "users" as T;
 }
 ```
@@ -308,7 +308,7 @@ result satisfies "users";
 Const ternary arguments preserve union span precision for template literal inference.
 
 ```ds
-declare function parse<T extends string>(value: `id:${T}`): T;
+declare function parse<T: string>(value: `id:${T}`): T;
 
 const value = true ? "id:users" : "id:posts";
 const result = parse(value);
@@ -321,7 +321,7 @@ result satisfies "users" | "posts";
 Mutable ternary arguments widen and no longer satisfy narrow template literal shapes.
 
 ```ds
-declare function parse<T extends string>(value: `id:${T}`): T;
+declare function parse<T: string>(value: `id:${T}`): T;
 
 let value = true ? "id:users" : "id:posts";
 parse(value);
@@ -334,7 +334,7 @@ parse(value);
 Renamed re-exports preserve generic `${T}` const literal precision.
 
 ```ds:helper.ds
-export function identitySpan<T extends string>(value: `${T}`): T {
+export function identitySpan<T: string>(value: `${T}`): T {
     return "users" as T;
 }
 ```
@@ -357,7 +357,7 @@ result satisfies "users";
 Export-star forwarding preserves mutable scalar widening for generic `${T}` inference.
 
 ```ds:helper.ds
-export function identitySpan<T extends string>(value: `${T}`): T {
+export function identitySpan<T: string>(value: `${T}`): T {
     return "users" as T;
 }
 ```
@@ -380,7 +380,7 @@ result satisfies string;
 Const object members preserve literal precision through `${T}` inference.
 
 ```ds
-declare function identitySpan<T extends string>(value: `${T}`): T;
+declare function identitySpan<T: string>(value: `${T}`): T;
 
 const config = { id: "users" } as const;
 const result = identitySpan(config.id);
@@ -393,7 +393,7 @@ result satisfies "users";
 Mutable object members widen before `${T}` argument inference.
 
 ```ds
-declare function identitySpan<T extends string>(value: `${T}`): T;
+declare function identitySpan<T: string>(value: `${T}`): T;
 
 let config = { id: "users" };
 const result = identitySpan(config.id);
@@ -406,7 +406,7 @@ result satisfies string;
 Widened mutable object members do not satisfy narrow template literal argument shapes.
 
 ```ds
-declare function parse<T extends string>(value: `id:${T}`): T;
+declare function parse<T: string>(value: `id:${T}`): T;
 
 let config = { id: "id:users" };
 parse(config.id);

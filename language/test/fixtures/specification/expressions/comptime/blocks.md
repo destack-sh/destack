@@ -13,7 +13,7 @@ const size = comptime 4;
 
 comptime {
     assert(size == 4);
-}
+};
 
 size satisfies 4;
 ```
@@ -31,7 +31,7 @@ import { size } from "./config.ds";
 
 comptime {
     assert(size == 4);
-}
+};
 
 size satisfies 4;
 ```
@@ -43,7 +43,7 @@ Failed comptime assertions are compile-time errors.
 ```ds
 comptime {
     assert(false);
-}
+};
 ```
 
 - contains: assertion

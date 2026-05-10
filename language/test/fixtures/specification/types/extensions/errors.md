@@ -9,10 +9,15 @@ Rejected extension method calls.
 Calling a method that doesn't exist on the type or extensions is an error.
 
 ```ds
-struct Point { x: number; y: number }
+struct Point {
+    x: number;
+    y: number;
+}
 
 extension of Point {
-    magnitude(): number { return 0 }
+    magnitude(): number {
+        return 0;
+    }
 }
 
 declare function getPoint(): Point;
@@ -28,11 +33,20 @@ point.nonexistent();
 Extension methods are scoped to their type.
 
 ```ds
-struct Point { x: number; y: number }
-struct Vector3 { x: number; y: number; z: number }
+struct Point {
+    x: number;
+    y: number;
+}
+struct Vector3 {
+    x: number;
+    y: number;
+    z: number;
+}
 
 extension of Point {
-    magnitude(): number { return 0 }
+    magnitude(): number {
+        return 0;
+    }
 }
 
 declare function getVector(): Vector3;
@@ -50,10 +64,14 @@ vector.magnitude();
 Extension method arguments must satisfy their declared parameter types.
 
 ```ds
-struct Calculator { value: number }
+struct Calculator {
+    value: number;
+}
 
 extension of Calculator {
-    add(a: number, b: number): number { return 0 }
+    add(a: number, b: number): number {
+        return 0;
+    }
 }
 
 declare function getCalculator(): Calculator;
@@ -71,19 +89,24 @@ calculator.add("one", 2);
 Local extension on foreign type is not visible from other files.
 
 ```ds:types.ds
-export struct Vector2 { x: number; y: number }
+export struct Vector2 {
+    x: number;
+    y: number;
+}
 ```
 
 ```ds:extensions.ds
-import { Vector2 } from "./types.ds"
+import { Vector2 } from "./types.ds";
 
 extension of Vector2 {
-    magnitude(): number { return 0 }
+    magnitude(): number {
+        return 0;
+    }
 }
 ```
 
 ```ds:main.ds
-import { Vector2 } from "./types.ds"
+import { Vector2 } from "./types.ds";
 
 declare function getVector(): Vector2;
 

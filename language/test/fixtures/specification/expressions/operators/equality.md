@@ -50,7 +50,9 @@ different satisfies boolean;
 Struct values do not have identity equality.
 
 ```ds
-struct Point { x: int }
+struct Point {
+    x: int;
+}
 
 declare function getPoint(): Point;
 
@@ -84,10 +86,14 @@ same satisfies boolean;
 `==` and `!=` dispatch to `Equal` on the receiver.
 
 ```ds
-struct Measure { value: int }
+struct Measure {
+    value: int;
+}
 
 extension of Measure implements Equal<Measure> {
-    equal(other: Measure): boolean { return true }
+    equal(other: Measure): boolean {
+        return true;
+    }
 }
 
 declare function getMeasure(): Measure;
@@ -107,10 +113,14 @@ isNotEqual satisfies boolean;
 Value equality requires `Equal` for non-builtin value types.
 
 ```ds
-struct Measure { value: int }
+struct Measure {
+    value: int;
+}
 
 extension of Measure implements Compare<Measure> {
-    compare(other: Measure): Ordering { return Ordering.Equal }
+    compare(other: Measure): Ordering {
+        return Ordering.Equal;
+    }
 }
 
 declare function getMeasure(): Measure;

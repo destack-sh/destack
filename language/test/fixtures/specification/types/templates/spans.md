@@ -7,7 +7,7 @@
 The same `${T}` part must match the same text every time it appears.
 
 ```ds
-declare function parse_repeat<T extends string>(value: `${T}-${T}`): T;
+declare function parse_repeat<T: string>(value: `${T}-${T}`): T;
 
 const segment = parse_repeat("row-row");
 segment satisfies "row";
@@ -18,7 +18,7 @@ segment satisfies "row";
 Different text does not satisfy one repeated `${T}` part.
 
 ```ds
-declare function parse_repeat<T extends string>(value: `${T}-${T}`): T;
+declare function parse_repeat<T: string>(value: `${T}-${T}`): T;
 
 parse_repeat("row-col");
 ```
@@ -30,7 +30,7 @@ parse_repeat("row-col");
 Mutable `string` inputs are too wide for a repeated literal part.
 
 ```ds
-declare function parse_repeat<T extends string>(value: `${T}-${T}`): T;
+declare function parse_repeat<T: string>(value: `${T}-${T}`): T;
 
 let input = "row-row";
 parse_repeat(input);
@@ -45,9 +45,9 @@ parse_repeat(input);
 Callbacks receive the literal text captured from the template.
 
 ```ds
-declare function with_parsed<T extends string, U>(value: `id:${T}`, callback: (segment: T) => U): U;
+declare function with_parsed<T: string, U>(value: `id:${T}`, callback: (segment: T) => U): U;
 
-const segment = with_parsed("id:users", segment => segment);
+const segment = with_parsed("id:users", (segment) => segment);
 segment satisfies "users";
 ```
 
@@ -56,10 +56,10 @@ segment satisfies "users";
 Nested callbacks keep the captured literal text.
 
 ```ds
-declare function with_parsed<T extends string, U>(value: `id:${T}`, callback: (segment: T) => U): U;
+declare function with_parsed<T: string, U>(value: `id:${T}`, callback: (segment: T) => U): U;
 declare function apply<U>(callback: () => U): U;
 
-const segment = with_parsed("id:users", value => apply(() => value));
+const segment = with_parsed("id:users", (value) => apply(() => value));
 segment satisfies "users";
 ```
 
@@ -68,10 +68,10 @@ segment satisfies "users";
 Callbacks that require a template input reject widened mutable strings.
 
 ```ds
-declare function with_parsed<T extends string, U>(value: `id:${T}`, callback: (segment: T) => U): U;
+declare function with_parsed<T: string, U>(value: `id:${T}`, callback: (segment: T) => U): U;
 
 let input = "id:users";
-with_parsed(input, value => value);
+with_parsed(input, (value) => value);
 ```
 
 - contains: not assignable
@@ -83,7 +83,7 @@ with_parsed(input, value => value);
 Builders keep const parts in the constructed template type.
 
 ```ds
-declare function build_id<T extends string>(segment: T): `id:${T}`;
+declare function build_id<T: string>(segment: T): `id:${T}`;
 
 const key = build_id("users");
 key satisfies "id:users";
@@ -94,7 +94,7 @@ key satisfies "id:users";
 Builders widen mutable parts to `string`.
 
 ```ds
-declare function build_id<T extends string>(segment: T): `id:${T}`;
+declare function build_id<T: string>(segment: T): `id:${T}`;
 
 let segment = "users";
 const key = build_id(segment);
@@ -107,7 +107,7 @@ key satisfies `id:${string}`;
 Once an input is mutable, the built template does not keep its old literal text.
 
 ```ds
-declare function build_id<T extends string>(segment: T): `id:${T}`;
+declare function build_id<T: string>(segment: T): `id:${T}`;
 
 let segment = "users";
 const key = build_id(segment);
@@ -122,7 +122,7 @@ key satisfies "id:users";
 Template splitting uses the first boundary that matches the literal delimiter.
 
 ```ds
-declare function split_pair<A extends string, B extends string>(value: `${A}:${B}`): (A, B);
+declare function split_pair<A: string, B: string>(value: `${A}:${B}`): (A, B);
 
 const pair = split_pair("left:right:tail");
 pair satisfies ("left", "right:tail");
@@ -133,7 +133,7 @@ pair satisfies ("left", "right:tail");
 The same split rejects assignments that assume a later boundary.
 
 ```ds
-declare function split_pair<A extends string, B extends string>(value: `${A}:${B}`): (A, B);
+declare function split_pair<A: string, B: string>(value: `${A}:${B}`): (A, B);
 
 const pair = split_pair("left:right:tail");
 pair satisfies ("left:right", "tail");
@@ -146,7 +146,7 @@ pair satisfies ("left:right", "tail");
 With literal prefixes, the captured suffix can be empty.
 
 ```ds
-declare function parse_suffix<T extends string>(value: `prefix${T}`): T;
+declare function parse_suffix<T: string>(value: `prefix${T}`): T;
 
 const suffix = parse_suffix("prefix");
 suffix satisfies "";
@@ -159,10 +159,10 @@ suffix satisfies "";
 Const ternaries keep the captured union through template calls.
 
 ```ds
-declare function with_parsed<T extends string, U>(value: `id:${T}`, callback: (segment: T) => U): U;
+declare function with_parsed<T: string, U>(value: `id:${T}`, callback: (segment: T) => U): U;
 
 const input = true ? "id:users" : "id:posts";
-const segment = with_parsed(input, value => value);
+const segment = with_parsed(input, (value) => value);
 
 segment satisfies "users" | "posts";
 ```
@@ -172,10 +172,10 @@ segment satisfies "users" | "posts";
 Mutable ternaries widen before template calls and no longer satisfy narrow templates.
 
 ```ds
-declare function with_parsed<T extends string, U>(value: `id:${T}`, callback: (segment: T) => U): U;
+declare function with_parsed<T: string, U>(value: `id:${T}`, callback: (segment: T) => U): U;
 
 let input = true ? "id:users" : "id:posts";
-with_parsed(input, value => value);
+with_parsed(input, (value) => value);
 ```
 
 - contains: not assignable
@@ -185,7 +185,7 @@ with_parsed(input, value => value);
 Renamed imports keep repeated template parts intact.
 
 ```ds:helper.ds
-export declare function parse_repeat<T extends string>(value: `${T}-${T}`): T;
+export declare function parse_repeat<T: string>(value: `${T}-${T}`): T;
 ```
 
 ```ds:index.ds
@@ -204,7 +204,7 @@ segment satisfies "col";
 The same renamed import path rejects mismatched repeated parts.
 
 ```ds:helper.ds
-export declare function parse_repeat<T extends string>(value: `${T}-${T}`): T;
+export declare function parse_repeat<T: string>(value: `${T}-${T}`): T;
 ```
 
 ```ds:index.ds

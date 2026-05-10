@@ -23,12 +23,16 @@ value satisfies number;
 `/` dispatches to `Divide` on the receiver.
 
 ```ds
-struct Scalar { value: int }
+struct Scalar {
+    value: int;
+}
 
 extension of Scalar implements Divide<Scalar> {
     type Output = Scalar;
 
-    divide(other: Scalar): this.Output { return this }
+    divide(other: Scalar): this.Output {
+        return this;
+    }
 }
 
 declare function getScalar(): Scalar;
@@ -45,12 +49,16 @@ value satisfies Scalar;
 `/` requires a matching `Divide` implementation.
 
 ```ds
-struct Scalar { value: int }
+struct Scalar {
+    value: int;
+}
 
 extension of Scalar implements Add<Scalar> {
     type Output = Scalar;
 
-    add(other: Scalar): this.Output { return this }
+    add(other: Scalar): this.Output {
+        return this;
+    }
 }
 
 declare function getScalar(): Scalar;

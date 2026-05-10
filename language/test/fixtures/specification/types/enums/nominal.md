@@ -10,15 +10,15 @@ Enums declared in different modules remain distinct even when their members matc
 
 ```ds:left.ds
 export enum Status {
-    Active = 1
-    Inactive = 2
+    Active = 1,
+    Inactive = 2,
 }
 ```
 
 ```ds:right.ds
 export enum Status {
-    Active = 1
-    Inactive = 2
+    Active = 1,
+    Inactive = 2,
 }
 ```
 

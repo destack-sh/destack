@@ -11,8 +11,8 @@ Removing readonly and optional markers requires all fields to be present.
 
 ```ds
 interface Person {
-    readonly name: string
-    age?: number
+    readonly name: string;
+    age?: number;
 }
 
 type MutableRequired<T> = { -readonly [K in keyof T]-?: T[K] };
@@ -43,8 +43,8 @@ Remapping keys to `never` drops those keys from the resulting type.
 
 ```ds
 interface Shape {
-    a: number
-    b: string
+    a: number;
+    b: string;
 }
 
 type WithoutA<T> = { [K in keyof T as K extends "a" ? never : K]: T[K] };
@@ -61,8 +61,8 @@ Remapping multiple keys to the same key merges their value types.
 
 ```ds
 interface Shape {
-    a: number
-    b: string
+    a: number;
+    b: string;
 }
 
 type Merge<T> = { [K in keyof T as "value"]: T[K] };
@@ -78,12 +78,12 @@ Remapped keys can be produced by template literal expressions.
 
 ```ds
 interface Shape {
-    a: number
-    b: string
+    a: number;
+    b: string;
 }
 
 type Prefixed<T> = {
-    [K in keyof T as K extends string ? `get_${K}` : never]: () => T[K]
+    [K in keyof T as K extends string ? `get_${K}` : never]: () => T[K];
 };
 
 const ok: Prefixed<Shape> = {
@@ -98,12 +98,12 @@ Template literal remapped keys still enforce value types.
 
 ```ds
 interface Shape {
-    a: number
-    b: string
+    a: number;
+    b: string;
 }
 
 type Prefixed<T> = {
-    [K in keyof T as K extends string ? `get_${K}` : never]: () => T[K]
+    [K in keyof T as K extends string ? `get_${K}` : never]: () => T[K];
 };
 
 const bad: Prefixed<Shape> = {

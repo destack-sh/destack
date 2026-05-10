@@ -17,7 +17,9 @@ function clone<T>(value: T): T where T: Readable {
     return value;
 }
 
-const value: Readable = { read() {} };
+const value: Readable = {
+    read() {},
+};
 clone<Readable>(value);
 ```
 
@@ -34,17 +36,18 @@ interface Mergeable {
     merge(): void;
 }
 
-function merge<T, U>(value: T, other: U): T where (
-    T: Readable,
-    U: Mergeable
-) {
+function merge<T, U>(value: T, other: U): T where (T: Readable, U: Mergeable) {
     value;
     other;
     return value;
 }
 
-const value: Readable = { read() {} };
-const other: Mergeable = { merge() {} };
+const value: Readable = {
+    read() {},
+};
+const other: Mergeable = {
+    merge() {},
+};
 
 merge<Readable, Mergeable>(value, other);
 ```
@@ -83,17 +86,18 @@ interface Mergeable {
     merge(): void;
 }
 
-function merge<T, U>(value: T, other: U): T where (
-    T: Readable,
-    U: Mergeable
-) {
+function merge<T, U>(value: T, other: U): T where (T: Readable, U: Mergeable) {
     value;
     other;
     return value;
 }
 
-const value: Readable = { read() {} };
-const other: Readable = { read() {} };
+const value: Readable = {
+    read() {},
+};
+const other: Readable = {
+    read() {},
+};
 
 merge<Readable, Readable>(value, other);
 ```
@@ -115,7 +119,9 @@ function clone<T>(value: T): T where T: Readable {
     return value;
 }
 
-clone({ read() {} });
+clone({
+    read() {},
+});
 ```
 
 ### where rejects inferred arguments
@@ -131,7 +137,9 @@ function clone<T>(value: T): T where T: Readable {
     return value;
 }
 
-clone({ merge() {} });
+clone({
+    merge() {},
+});
 ```
 
 - contains: not assignable

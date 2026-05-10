@@ -30,7 +30,7 @@ Labeled loops can be exited with a matching break.
 
 ```ds
 let value: void = outer: loop {
-    break outer;
+    break :outer;
 };
 ```
 

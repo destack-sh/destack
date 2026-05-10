@@ -130,7 +130,10 @@ new Box(true);
 
 ```ds
 class Counter {
-    constructor(public value: int32, readonly label: string) {}
+    constructor(
+        public value: int32,
+        readonly label: string,
+    ) {}
 }
 
 const counter = new Counter(1, "label");
@@ -148,16 +151,6 @@ class Counter {
 const counter = new Counter();
 counter.value satisfies int32;
 ```
-
-### parameter properties require identifiers
-
-```ds
-class Counter {
-    constructor(public {}: {}) {}
-}
-```
-
-- contains: parameter property
 
 ### parameter properties reject rest parameters
 

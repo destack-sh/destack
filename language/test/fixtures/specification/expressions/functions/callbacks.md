@@ -11,7 +11,7 @@ Callback parameters use the declared parameter type.
 ```ds
 declare function drive(callback: (value: string) => void): void;
 
-drive(value => {
+drive((value) => {
     value satisfies string;
 });
 ```
@@ -24,8 +24,8 @@ Nested callback calls keep contextual parameter types.
 declare function drive<T>(value: T, callback: (value: T) => void): void;
 declare function wrap(callback: (value: string) => string): string;
 
-const result = wrap(value => {
-    drive(value, current => {
+const result = wrap((value) => {
+    drive(value, (current) => {
         current satisfies string;
     });
 
@@ -46,7 +46,7 @@ declare function choose(value: string): "string";
 declare function choose(value: number): "number";
 declare function drive(callback: (value: string) => "string"): "ok";
 
-const result = drive(value => choose(value));
+const result = drive((value) => choose(value));
 result satisfies "ok";
 ```
 
@@ -59,7 +59,7 @@ declare function choose(value: string): "string";
 declare function choose(value: number): "number";
 declare function drive(callback: (value: string) => "string"): "ok";
 
-const result = drive(value => choose(value));
+const result = drive((value) => choose(value));
 result satisfies "number";
 ```
 
@@ -76,7 +76,7 @@ declare function drive<T>(value: T, callback: (value: T) => void): void;
 
 let input = "ready";
 
-drive(input, value => {
+drive(input, (value) => {
     value satisfies "ready";
 });
 ```

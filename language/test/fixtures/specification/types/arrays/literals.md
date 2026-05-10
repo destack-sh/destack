@@ -46,7 +46,10 @@ const pair: [int32; 2] = [1, 2, 3];
 Nested fixed array annotations accept matching nested literal shapes.
 
 ```ds
-const matrix: [[int32; 2]; 2] = [[1, 2], [3, 4]];
+const matrix: [[int32; 2]; 2] = [
+    [1, 2],
+    [3, 4],
+];
 matrix satisfies [[int32; 2]; 2];
 ```
 

@@ -9,7 +9,7 @@ Tree tags resolve either as values or as configured intrinsic tags.
 Value tags can be resolved from structural component shape.
 
 ```ds
-declare function Button(props: { kind: string, children?: unknown[] }): unknown;
+declare function Button(props: { kind: string; children?: unknown[] }): unknown;
 
 const node = <Button kind="primary">ok</Button>;
 node;
@@ -20,7 +20,7 @@ node;
 The language does not reserve key and ref prop names globally.
 
 ```ds
-declare function Button(props: { key: string, ref: string, children?: unknown[] }): unknown;
+declare function Button(props: { key: string; ref: string; children?: unknown[] }): unknown;
 
 const node = <Button key="k1" ref="r1" />;
 node;
@@ -46,9 +46,11 @@ Fragments resolve through TreeTagBuilder and fail without one.
 ```ds
 declare function Button(props: { children?: unknown[] }): unknown;
 
-const node = <>
-    <Button />
-</>;
+const node = (
+    <>
+        <Button />
+    </>
+);
 node;
 ```
 
@@ -73,7 +75,7 @@ node;
 Later explicit props override earlier spread props.
 
 ```ds
-declare function Button(props: { a: number, b: number, children?: unknown[] }): unknown;
+declare function Button(props: { a: number; b: number; children?: unknown[] }): unknown;
 
 const base = { a: 1, b: 2 };
 const node = <Button {...base} b={3} />;

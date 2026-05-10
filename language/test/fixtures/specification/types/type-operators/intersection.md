@@ -42,7 +42,7 @@ let value: C = { value: "ok" };
 
 ```ds
 type A = { value: number };
-type B = { value: number, extra: string };
+type B = { value: number; extra: string };
 type C = A & B;
 
 let value: C = { value: 1, extra: "ok" };

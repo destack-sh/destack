@@ -8,11 +8,11 @@ Union member access returns a single type when all variants agree.
 
 ```ds
 struct User {
-    name: string
+    name: string;
 }
 
 struct Admin {
-    name: string
+    name: string;
 }
 
 declare function getPerson(): User | Admin;
@@ -27,11 +27,11 @@ Type aliases do not change union member access.
 
 ```ds
 struct User {
-    id: int32
+    id: int32;
 }
 
 struct Guest {
-    id: string
+    id: string;
 }
 
 type Person = User | Guest;
@@ -48,11 +48,11 @@ Every union variant must expose the accessed member.
 
 ```ds
 struct User {
-    name: string
+    name: string;
 }
 
 struct Guest {
-    id: string
+    id: string;
 }
 
 type Person = User | Guest;
@@ -70,7 +70,7 @@ Nullable variants do not expose ordinary members.
 
 ```ds
 struct User {
-    name: string
+    name: string;
 }
 
 type Person = User | null;
@@ -88,11 +88,11 @@ Optional members keep `undefined` in the result type.
 
 ```ds
 struct User {
-    nickname?: string
+    nickname?: string;
 }
 
 struct Admin {
-    nickname?: string
+    nickname?: string;
 }
 
 declare function getPerson(): User | Admin;
@@ -107,11 +107,11 @@ Nested member access is rejected when a nested variant is missing the member.
 
 ```ds
 struct User {
-    profile: { displayName: string }
+    profile: { displayName: string };
 }
 
 struct Guest {
-    profile: { id: int32 }
+    profile: { id: int32 };
 }
 
 declare function getPerson(): User | Guest;
@@ -193,7 +193,7 @@ struct Cat {
 }
 
 struct Dog {
-    name: string
+    name: string;
 }
 
 extension of Dog {
@@ -306,8 +306,12 @@ sound satisfies string | int32;
 Extension overloads contribute their selected return types.
 
 ```ds
-struct Cat { name: string }
-struct Dog { name: string }
+struct Cat {
+    name: string;
+}
+struct Dog {
+    name: string;
+}
 
 extension of Cat {
     speak(): string {

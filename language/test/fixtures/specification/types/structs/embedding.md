@@ -8,11 +8,11 @@ Embedded structs contribute fields directly to the outer struct.
 
 ```ds
 struct Transform {
-    x: int32
+    x: int32;
 }
 
 struct Entity {
-    ...Transform
+    ...Transform;
 }
 
 const entity = Entity { x: 1 };
@@ -23,16 +23,16 @@ entity.x satisfies int32;
 
 ```ds
 struct Position {
-    x: int32
+    x: int32;
 }
 
 struct Velocity {
-    y: int32
+    y: int32;
 }
 
 struct Transform {
-    ...Position
-    ...Velocity
+    ...Position;
+    ...Velocity;
 }
 
 const transform = Transform { x: 1, y: 2 };
@@ -44,17 +44,17 @@ transform.y satisfies int32;
 
 ```ds
 struct Base {
-    id: int32
+    id: int32;
 }
 
 struct Middle {
-    ...Base
-    name: string
+    ...Base;
+    name: string;
 }
 
 struct Outer {
-    ...Middle
-    active: boolean
+    ...Middle;
+    active: boolean;
 }
 
 const outer = Outer { id: 1, name: "ok", active: true };
@@ -67,22 +67,22 @@ outer.active satisfies boolean;
 
 ```ds
 struct Root {
-    id: int32
+    id: int32;
 }
 
 struct Branch {
-    ...Root
-    label: string
+    ...Root;
+    label: string;
 }
 
 struct Trunk {
-    ...Branch
-    active: boolean
+    ...Branch;
+    active: boolean;
 }
 
 struct Canopy {
-    ...Trunk
-    count: int32
+    ...Trunk;
+    count: int32;
 }
 
 const canopy = Canopy { id: 1, label: "ok", active: true, count: 2 };
@@ -96,11 +96,11 @@ canopy.count satisfies int32;
 
 ```ds
 struct Transform {
-    x: int32
+    x: int32;
 }
 
 struct Entity {
-    ...Transform
+    ...Transform;
 }
 
 const entity = Entity {};
@@ -112,12 +112,12 @@ const entity = Entity {};
 
 ```ds
 struct Transform {
-    x: int32
+    x: int32;
 }
 
 struct Entity {
-    ...Transform
-    x: string
+    ...Transform;
+    x: string;
 }
 ```
 
@@ -129,11 +129,11 @@ Only structs can be embedded into structs.
 
 ```ds
 class Transform {
-    x: int32 = 0
+    x: int32 = 0;
 }
 
 struct Entity {
-    ...Transform
+    ...Transform;
 }
 ```
 

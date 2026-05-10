@@ -6,9 +6,11 @@
 
 ```ds
 class Counter {
-    private value: int32 = 0
+    private value: int32 = 0;
 
-    get(): int32 { this.value }
+    get(): int32 {
+        this.value
+    }
 }
 
 const counter = new Counter();
@@ -21,9 +23,11 @@ const out = counter.value;
 
 ```ds
 class Counter {
-    #value: int32 = 0
+    #value: int32 = 0;
 
-    get(): int32 { this.#value }
+    get(): int32 {
+        this.#value
+    }
 }
 
 const counter = new Counter();
@@ -36,9 +40,11 @@ const out = counter.#value;
 
 ```ds
 class Counter {
-    #value: int32 = 0
+    #value: int32 = 0;
 
-    get(): int32 { this.#value }
+    get(): int32 {
+        this.#value
+    }
 }
 
 const counter = new Counter();
@@ -49,11 +55,13 @@ const out = counter.get();
 
 ```ds
 class Base {
-    #value: int32 = 0
+    #value: int32 = 0;
 }
 
 class Child extends Base {
-    get(): int32 { this.#value }
+    get(): int32 {
+        this.#value
+    }
 }
 ```
 
@@ -63,9 +71,13 @@ class Child extends Base {
 
 ```ds
 class Counter {
-    #next(): int32 { 1 }
+    #next(): int32 {
+        1
+    }
 
-    get(): int32 { this.#next() }
+    get(): int32 {
+        this.#next()
+    }
 }
 
 const counter = new Counter();
@@ -76,7 +88,9 @@ const out = counter.get();
 
 ```ds
 class Counter {
-    #next(): int32 { 1 }
+    #next(): int32 {
+        1
+    }
 }
 
 const counter = new Counter();

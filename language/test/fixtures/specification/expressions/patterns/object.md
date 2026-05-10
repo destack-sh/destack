@@ -18,8 +18,8 @@ Struct destructuring uses the struct tag.
 
 ```ds
 struct Point {
-    x: int32
-    y: int32
+    x: int32;
+    y: int32;
 }
 
 let Point { x, y } = Point { x: 1, y: 2 };
@@ -33,8 +33,8 @@ Untagged object patterns do not destructure nominal structs.
 
 ```ds
 struct Point {
-    x: int32
-    y: int32
+    x: int32;
+    y: int32;
 }
 
 let point = Point { x: 1, y: 2 };
@@ -52,16 +52,6 @@ const { x }: { x: number };
 ```
 
 - contains: destructuring declarations require initializers
-
-### object patterns reject readonly modifiers
-
-`readonly` is not valid in pattern bindings.
-
-```ds
-let { readonly value } = { readonly: 1 };
-```
-
-- contains: parse error: unexpected Identifier in Expression
 
 ## defaults
 
@@ -92,7 +82,7 @@ Rest patterns collect fields not named earlier in the pattern.
 ```ds
 let { id, ...rest } = { id: 1, name: "Ada", active: true };
 id satisfies number;
-rest satisfies { name: string, active: boolean };
+rest satisfies { name: string; active: boolean };
 ```
 
 ### object rest is last

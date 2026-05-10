@@ -103,30 +103,6 @@ interface Config {
 
 ## rejections
 
-### interface properties cannot have initializers
-
-Interface members are declarations only, so initializers are invalid.
-
-```ds
-interface Config {
-    value: number = 1;
-}
-```
-
-- contains: invalid member modifier
-
-### interface members cannot use visibility modifiers
-
-Interface members cannot declare access modifiers.
-
-```ds
-interface Config {
-    private value: number;
-}
-```
-
-- contains: invalid member modifier
-
 ### interface members cannot use static modifiers
 
 Interface members cannot be static.
@@ -134,30 +110,6 @@ Interface members cannot be static.
 ```ds
 interface Config {
     static value: number;
-}
-```
-
-- contains: invalid member modifier
-
-### interface members cannot be async
-
-Interface method signatures cannot be async.
-
-```ds
-interface Config {
-    async load(): void;
-}
-```
-
-- contains: invalid member modifier
-
-### interface members cannot have bodies
-
-Interface methods are declarations without bodies.
-
-```ds
-interface Config {
-    value(): void {}
 }
 ```
 

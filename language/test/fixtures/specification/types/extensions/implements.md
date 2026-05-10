@@ -10,14 +10,17 @@ Extensions can implement interfaces for types.
 
 ```ds
 interface Describable {
-    describe(): string
+    describe(): string;
 }
 
-struct Point { x: number; y: number }
+struct Point {
+    x: number;
+    y: number;
+}
 
 extension of Point implements Describable {
     describe(): string {
-        return ""
+        return "";
     }
 }
 
@@ -34,18 +37,22 @@ Extensions can implement multiple interfaces.
 
 ```ds
 interface Printable {
-    print(): void
+    print(): void;
 }
 
 interface Serializable {
-    serialize(): string
+    serialize(): string;
 }
 
-struct Document { content: string }
+struct Document {
+    content: string;
+}
 
 extension of Document implements Printable, Serializable {
     print(): void {}
-    serialize(): string { return "" }
+    serialize(): string {
+        return "";
+    }
 }
 
 declare function getDocument(): Document;
@@ -63,14 +70,16 @@ Extensions that implement interfaces must provide all required members.
 
 ```ds
 interface Printable {
-    print(): void
+    print(): void;
 }
 
 interface Serializable {
-    serialize(): string
+    serialize(): string;
 }
 
-struct Document { content: string }
+struct Document {
+    content: string;
+}
 
 extension of Document implements Printable, Serializable {
     print(): void {}
@@ -85,12 +94,14 @@ Extensions can satisfy imported interface contracts across module boundaries.
 
 ```ds:contracts.ds
 export interface Printable {
-    print(): string
+    print(): string;
 }
 ```
 
 ```ds:model.ds
-export struct Document { content: string }
+export struct Document {
+    content: string;
+}
 ```
 
 ```ds:main.ds
@@ -98,7 +109,9 @@ import { Printable } from "./contracts.ds";
 import { Document } from "./model.ds";
 
 extension of Document implements Printable {
-    print(): string { return this.content }
+    print(): string {
+        return this.content;
+    }
 }
 
 declare function getDocument(): Document;
@@ -113,16 +126,18 @@ Imported interface contracts still require all members in extension implementati
 
 ```ds:contracts.ds
 export interface Printable {
-    print(): string
+    print(): string;
 }
 
 export interface Serializable {
-    serialize(): string
+    serialize(): string;
 }
 ```
 
 ```ds:model.ds
-export struct Document { content: string }
+export struct Document {
+    content: string;
+}
 ```
 
 ```ds:main.ds
@@ -130,7 +145,9 @@ import { Printable, Serializable } from "./contracts.ds";
 import { Document } from "./model.ds";
 
 extension of Document implements Printable, Serializable {
-    print(): string { return this.content }
+    print(): string {
+        return this.content;
+    }
 }
 ```
 

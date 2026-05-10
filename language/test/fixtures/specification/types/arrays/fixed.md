@@ -38,7 +38,9 @@ let dynamic: string[] = fixed;
 Fixed arrays are assignable to dynamic arrays in function calls.
 
 ```ds
-function take(values: int32[]): int32[] { return values; }
+function take(values: int32[]): int32[] {
+    return values;
+}
 let fixed: [int32; 2] = [1, 2];
 let dynamic = take(fixed);
 ```

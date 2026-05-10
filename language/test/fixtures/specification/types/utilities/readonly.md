@@ -8,8 +8,8 @@
 
 ```ds
 interface Person {
-    name: string
-    age: number
+    name: string;
+    age: number;
 }
 
 type Frozen = Readonly<Person>;
@@ -22,7 +22,7 @@ ok satisfies Frozen;
 
 ```ds
 interface Person {
-    name?: string
+    name?: string;
 }
 
 type Frozen = Readonly<Person>;
@@ -35,8 +35,8 @@ ok satisfies Frozen;
 
 ```ds
 interface Person {
-    name: string
-    age: number
+    name: string;
+    age: number;
 }
 
 type Frozen = Readonly<Person>;
@@ -52,8 +52,8 @@ frozen.name = "Grace";
 ```ds
 interface Person {
     profile: {
-        name: string
-    }
+        name: string;
+    };
 }
 
 type Frozen = Readonly<Person>;

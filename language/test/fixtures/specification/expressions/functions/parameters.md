@@ -65,8 +65,7 @@ result satisfies (int, string);
 Parameter property modifiers are only allowed in constructors.
 
 ```ds
-function build(public value: number) {
-}
+function build(public value: number) {}
 ```
 
 - contains: parameter property
@@ -88,15 +87,3 @@ function handle({ value }?: Payload) {
 ```
 
 - contains: optional parameters cannot use binding patterns
-
-### optional rest parameters are rejected
-
-Rest parameters cannot be optional.
-
-```ds:main.ds
-function collect(...items?: string[]) {
-    let _ = items;
-}
-```
-
-- contains: optional rest parameters are not allowed

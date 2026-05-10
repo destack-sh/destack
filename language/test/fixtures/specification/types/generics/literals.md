@@ -236,7 +236,7 @@ result satisfies "api" | "admin";
 Const literals satisfy constrained generic parameters with literal precision.
 
 ```ds
-declare function choose<T extends "dev" | "prod">(value: T): T;
+declare function choose<T: "dev" | "prod">(value: T): T;
 
 const mode = "dev";
 const result = choose(mode);
@@ -249,7 +249,7 @@ result satisfies "dev";
 Widened mutable literals do not satisfy constrained literal generic parameters.
 
 ```ds
-declare function choose<T extends "dev" | "prod">(value: T): T;
+declare function choose<T: "dev" | "prod">(value: T): T;
 
 let mode = "dev";
 choose(mode);
@@ -262,7 +262,7 @@ choose(mode);
 Const ternary unions remain precise when inferring constrained generic parameters.
 
 ```ds
-declare function choose<T extends "dev" | "prod">(value: T): T;
+declare function choose<T: "dev" | "prod">(value: T): T;
 
 const mode = true ? "dev" : "prod";
 const result = choose(mode);
@@ -275,7 +275,7 @@ result satisfies "dev" | "prod";
 Mutable ternary literals widen and fail constrained literal generic inference.
 
 ```ds
-declare function choose<T extends "dev" | "prod">(value: T): T;
+declare function choose<T: "dev" | "prod">(value: T): T;
 
 let mode = true ? "dev" : "prod";
 choose(mode);
@@ -290,7 +290,7 @@ choose(mode);
 Const object literals preserve discriminants through constrained generic inference.
 
 ```ds
-declare function select<T extends { kind: "a" | "b" }>(value: T): T;
+declare function select<T: { kind: "a" | "b" }>(value: T): T;
 
 const value = { kind: "a" as const, payload: 1 };
 const result = select(value);
@@ -303,7 +303,7 @@ result.kind satisfies "a";
 Widened object discriminants do not satisfy constrained literal generic inference.
 
 ```ds
-declare function select<T extends { kind: "a" | "b" }>(value: T): T;
+declare function select<T: { kind: "a" | "b" }>(value: T): T;
 
 let value = { kind: "a", payload: 1 };
 select(value);
@@ -316,7 +316,7 @@ select(value);
 Template span inference keeps const span literals under constrained generics.
 
 ```ds
-declare function parse<T extends "users" | "posts">(value: `id:${T}`): T;
+declare function parse<T: "users" | "posts">(value: `id:${T}`): T;
 
 const value = "id:users";
 const result = parse(value);
@@ -329,7 +329,7 @@ result satisfies "users";
 Widened mutable strings do not satisfy constrained template span generics.
 
 ```ds
-declare function parse<T extends "users" | "posts">(value: `id:${T}`): T;
+declare function parse<T: "users" | "posts">(value: `id:${T}`): T;
 
 let value = "id:users";
 parse(value);
@@ -344,7 +344,7 @@ parse(value);
 A constrained generic call keeps its own literal result, but a later `let` from the same source still widens.
 
 ```ds
-declare function as_lit<T extends string>(value: T): T;
+declare function as_lit<T: string>(value: T): T;
 
 const seed = "users";
 const kept = as_lit(seed);
@@ -359,7 +359,7 @@ widened satisfies string;
 The widened binding is not assignable to the original literal type.
 
 ```ds
-declare function as_lit<T extends string>(value: T): T;
+declare function as_lit<T: string>(value: T): T;
 
 const seed = "users";
 const kept = as_lit(seed);
@@ -375,7 +375,7 @@ widened satisfies "users";
 Cross-module calls use the imported signature, and the later `let` is still inferred locally.
 
 ```ds:lib.ds
-export function as_lit<T extends string>(value: T): T {
+export function as_lit<T: string>(value: T): T {
     return value;
 }
 ```
@@ -396,7 +396,7 @@ widened satisfies string;
 Default parameter values infer the parameter type, not a fresh literal.
 
 ```ds
-declare function as_lit<T extends string>(value: T): T;
+declare function as_lit<T: string>(value: T): T;
 
 function read(mode = "users") {
     const kept = as_lit(mode);

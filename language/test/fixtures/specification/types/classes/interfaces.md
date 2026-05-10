@@ -9,7 +9,7 @@ The `implements` clause is an explicit checked declaration.
 
 ```ds
 interface Printable {
-    print(): void
+    print(): void;
 }
 
 class Document implements Printable {
@@ -25,7 +25,7 @@ const printable: Printable = getDocument();
 
 ```ds
 interface Printable {
-    print(): void
+    print(): void;
 }
 
 class Document implements Printable {
@@ -41,7 +41,7 @@ getDocument() satisfies Printable;
 
 ```ds
 interface Printable {
-    print(): void
+    print(): void;
 }
 
 class Document implements Printable {
@@ -61,7 +61,7 @@ const document: Document = getPrintable();
 
 ```ds
 interface Printable {
-    print(): void
+    print(): void;
 }
 
 class Document implements Printable {
@@ -81,11 +81,11 @@ acceptPrintable(getDocument());
 
 ```ds
 interface Printable {
-    print(): void
+    print(): void;
 }
 
 interface Saveable {
-    save(): void
+    save(): void;
 }
 
 class Document implements Printable, Saveable {
@@ -105,11 +105,11 @@ const saveable: Saveable = getDocument();
 
 ```ds
 class Base {
-    id: number = 0
+    id: number = 0;
 }
 
 interface Printable {
-    print(): void
+    print(): void;
 }
 
 class Document extends Base implements Printable {
@@ -128,11 +128,11 @@ const printable: Printable = getDocument();
 
 ```ds
 interface HasId {
-    id: number
+    id: number;
 }
 
 class Document {
-    id: number = 0
+    id: number = 0;
 }
 
 declare function getDocument(): Document;
@@ -144,11 +144,11 @@ const hasId: HasId = getDocument();
 
 ```ds
 interface HasId {
-    id: number
+    id: number;
 }
 
 class Document {
-    name: string = ""
+    name: string = "";
 }
 
 declare function getDocument(): Document;
@@ -162,12 +162,12 @@ const hasId: HasId = getDocument();
 
 ```ds
 interface HasName {
-    name: string
+    name: string;
 }
 
 struct Person {
-    name: string
-    age: number
+    name: string;
+    age: number;
 }
 
 declare function getPerson(): Person;
@@ -179,27 +179,16 @@ const named: HasName = getPerson();
 
 ```ds
 interface Named {
-    name: string
+    name: string;
 }
 
 class User {
-    name: string = ""
-    email: string = ""
-    age: number = 0
+    name: string = "";
+    email: string = "";
+    age: number = 0;
 }
 
 declare function getUser(): User;
 
 const named: Named = getUser();
 ```
-
-## rejections
-
-### classes reject empty implements clauses
-
-```ds
-class Counter implements {
-}
-```
-
-- contains: invalid lineage

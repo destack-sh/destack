@@ -9,7 +9,9 @@ Structs can bind type parameters and static value parameters.
 Struct type references accept explicit type arguments.
 
 ```ds
-struct Box<T> { value: T }
+struct Box<T> {
+    value: T;
+}
 
 declare function makeBox(): Box<number>;
 
@@ -22,7 +24,9 @@ value satisfies Box<number>;
 Type arguments must satisfy declared bounds.
 
 ```ds
-struct Box<T: number> { value: T }
+struct Box<T: number> {
+    value: T;
+}
 
 declare function makeBox(): Box<number>;
 
@@ -36,7 +40,9 @@ let value: Box<string> = makeBox();
 Static value arguments are checked against declared types.
 
 ```ds
-struct Buffer<T, comptime N: number> { value: T }
+struct Buffer<T, comptime N: number> {
+    value: T;
+}
 
 declare function makeBuffer(): Buffer<string, 4>;
 
@@ -49,7 +55,9 @@ buffer satisfies Buffer<string, 4>;
 Static value arguments must satisfy declared types.
 
 ```ds
-struct Buffer<T, comptime N: number> { value: T }
+struct Buffer<T, comptime N: number> {
+    value: T;
+}
 
 declare function makeBuffer(): Buffer<string, 4>;
 
@@ -65,7 +73,9 @@ let buffer: Buffer<string, true> = makeBuffer();
 Type parameters fall back to defaults when omitted.
 
 ```ds
-struct Box<T = number> { value: T }
+struct Box<T = number> {
+    value: T;
+}
 
 declare function makeBox(): Box;
 
@@ -78,7 +88,9 @@ value satisfies Box<number>;
 Static value arguments fall back to defaults when omitted.
 
 ```ds
-struct Buffer<T, comptime N: number = 4> { value: T }
+struct Buffer<T, comptime N: number = 4> {
+    value: T;
+}
 
 declare function makeBuffer(): Buffer<string>;
 

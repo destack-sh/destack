@@ -7,7 +7,7 @@
 A direct object-literal argument stays fresh so excess property checking still runs at the call boundary.
 
 ```ds
-type Ready = { kind: "ready", payload: string };
+type Ready = { kind: "ready"; payload: string };
 
 declare const use_ready: (value: Ready) => void;
 
@@ -21,7 +21,7 @@ use_ready({ kind: "ready", payload: "ok", extra: true });
 Once the same literal flows through a variable binding, freshness is dropped and excess checks relax.
 
 ```ds
-type Ready = { kind: "ready", payload: string };
+type Ready = { kind: "ready"; payload: string };
 
 declare const use_ready: (value: Ready) => void;
 

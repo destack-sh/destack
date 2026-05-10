@@ -140,10 +140,10 @@ let bad: ValueOf<{ value: boolean }> = 1;
 Repeated `infer` bindings merge inferred candidates.
 
 ```ds
-type Both<T> = T extends { a: infer U, b: infer U } ? U : "no";
+type Both<T> = T extends { a: infer U; b: infer U } ? U : "no";
 
-let ok: Both<{ a: string, b: string }> = "ok";
-let ok2: Both<{ a: string, b: int32 }> = 1;
+let ok: Both<{ a: string; b: string }> = "ok";
+let ok2: Both<{ a: string; b: int32 }> = 1;
 ok2 satisfies string | number;
 ```
 
@@ -152,9 +152,9 @@ ok2 satisfies string | number;
 Merged inferences reject incompatible values.
 
 ```ds
-type Both<T> = T extends { a: infer U, b: infer U } ? U : "no";
+type Both<T> = T extends { a: infer U; b: infer U } ? U : "no";
 
-let bad: Both<{ a: string, b: int32 }> = true;
+let bad: Both<{ a: string; b: int32 }> = true;
 ```
 
 - contains: not assignable
@@ -296,7 +296,7 @@ let badDist: Dist<`foo-a` | `bar-b`> = "b";
 Distribution only applies to naked type parameters.
 
 ```ds
-type NonDistLiteral = (`foo-a` | `bar-b`) extends `foo-${infer A}` ? A : "no";
+type NonDistLiteral = `foo-a` | `bar-b` extends `foo-${infer A}` ? A : "no";
 
 let ok: NonDistLiteral = "no";
 ```
@@ -306,7 +306,7 @@ let ok: NonDistLiteral = "no";
 Non type parameter inputs reject the true branch.
 
 ```ds
-type NonDistLiteral = (`foo-a` | `bar-b`) extends `foo-${infer A}` ? A : "no";
+type NonDistLiteral = `foo-a` | `bar-b` extends `foo-${infer A}` ? A : "no";
 
 let bad: NonDistLiteral = "a";
 ```
@@ -318,7 +318,7 @@ let bad: NonDistLiteral = "a";
 Non-distributive unions merge inferred candidates.
 
 ```ds
-type NonDistAll = (`foo-a` | `foo-b`) extends `foo-${infer A}` ? A : "no";
+type NonDistAll = `foo-a` | `foo-b` extends `foo-${infer A}` ? A : "no";
 
 let ok: NonDistAll = "a";
 let ok2: NonDistAll = "b";
@@ -329,7 +329,7 @@ let ok2: NonDistAll = "b";
 Non-distributive unions reject the else branch when matches exist.
 
 ```ds
-type NonDistAll = (`foo-a` | `foo-b`) extends `foo-${infer A}` ? A : "no";
+type NonDistAll = `foo-a` | `foo-b` extends `foo-${infer A}` ? A : "no";
 
 let bad: NonDistAll = "no";
 ```
@@ -341,11 +341,11 @@ let bad: NonDistAll = "no";
 Union patterns merge inferred candidates.
 
 ```ds
-type Right<T> = T extends ({ a: infer U } | { b: infer U }) ? U : "no";
+type Right<T> = T extends { a: infer U } | { b: infer U } ? U : "no";
 
 let okA: Right<{ a: string }> = "ok";
 let okB: Right<{ b: int32 }> = 1;
-let okBoth: Right<{ a: string, b: int32 }> = "ok";
+let okBoth: Right<{ a: string; b: int32 }> = "ok";
 let okNone: Right<{ c: boolean }> = "no";
 ```
 
@@ -354,9 +354,9 @@ let okNone: Right<{ c: boolean }> = "no";
 Union patterns reject incompatible values.
 
 ```ds
-type Right<T> = T extends ({ a: infer U } | { b: infer U }) ? U : "no";
+type Right<T> = T extends { a: infer U } | { b: infer U } ? U : "no";
 
-let bad: Right<{ a: string, b: int32 }> = true;
+let bad: Right<{ a: string; b: int32 }> = true;
 ```
 
 - contains: not assignable
@@ -366,7 +366,7 @@ let bad: Right<{ a: string, b: int32 }> = true;
 Unmatched unions reject the true branch.
 
 ```ds
-type Right<T> = T extends ({ a: infer U } | { b: infer U }) ? U : "no";
+type Right<T> = T extends { a: infer U } | { b: infer U } ? U : "no";
 
 let badNone: Right<{ c: boolean }> = "ok";
 ```
@@ -543,10 +543,10 @@ Nested conditional clauses resolve the nearest inferred type variable.
 
 ```ds
 type Nested<T> = T extends { value: unknown }
-  ? T["value"] extends { inner: infer Inner }
-    ? Inner
-    : never
-  : never;
+    ? T["value"] extends { inner: infer Inner }
+        ? Inner
+        : never
+    : never;
 
 let ok: Nested<{ value: { inner: int32 } }> = 1;
 ok satisfies int32;

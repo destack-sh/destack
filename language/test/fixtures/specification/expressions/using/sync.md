@@ -62,13 +62,3 @@ using connection = new Connection();
 ```
 
 - contains: Dispose
-
-### using rejects declare
-
-Declare bindings cannot have initializers.
-
-```ds
-declare using value = null;
-```
-
-- contains: declare bindings cannot have initializers

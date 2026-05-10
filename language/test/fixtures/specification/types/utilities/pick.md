@@ -8,8 +8,8 @@
 
 ```ds
 interface Person {
-    name: string
-    age?: number
+    name: string;
+    age?: number;
 }
 
 type AgeOnly = Pick<Person, "age">;
@@ -24,8 +24,8 @@ ok2 satisfies AgeOnly;
 
 ```ds
 interface Person {
-    name: string
-    age?: number
+    name: string;
+    age?: number;
 }
 
 type AgeOnly = Pick<Person, "age">;
@@ -39,8 +39,8 @@ const bad: AgeOnly = { name: "Ada" };
 
 ```ds
 interface Person {
-    name: string
-    age: number
+    name: string;
+    age: number;
 }
 
 type NameOnly = Pick<Person, "name">;
@@ -53,8 +53,8 @@ ok satisfies NameOnly;
 
 ```ds
 interface Person {
-    name: string
-    age: number
+    name: string;
+    age: number;
 }
 
 type NameAge = Pick<Person, "name" | "age">;
@@ -88,8 +88,8 @@ const bad: Picked = { value: true };
 
 ```ds
 interface Person {
-    name: string
-    age: number
+    name: string;
+    age: number;
 }
 
 type NameAge = Pick<Person, "name" | "age">;
@@ -103,8 +103,8 @@ const bad: NameAge = { name: "Ada" };
 
 ```ds
 interface Person {
-    name: string
-    age: number
+    name: string;
+    age: number;
 }
 
 type NameOnly = Pick<Person, "name">;
@@ -118,8 +118,8 @@ const bad: NameOnly = { name: "Ada", extra: true };
 
 ```ds
 interface Person {
-    name: string
-    age: number
+    name: string;
+    age: number;
 }
 
 type NameOnly = Pick<Person, "name">;
@@ -133,8 +133,8 @@ const bad: NameOnly = { name: "Ada", age: 42 };
 
 ```ds
 interface Person {
-    name: string
-    age: number
+    name: string;
+    age: number;
 }
 
 type NameOnly = Pick<Person, "name">;
@@ -148,8 +148,8 @@ const bad: NameOnly = {};
 
 ```ds
 interface Person {
-    name: string
-    age: number
+    name: string;
+    age: number;
 }
 
 type NameOnly = Pick<Person, "name" | "missing">;
@@ -161,8 +161,8 @@ type NameOnly = Pick<Person, "name" | "missing">;
 
 ```ds
 interface Person {
-    readonly name: string
-    age: number
+    readonly name: string;
+    age: number;
 }
 
 type NameOnly = Pick<Person, "name">;

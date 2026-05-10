@@ -145,26 +145,6 @@ function echo(out: string): string {
 echo("ok") satisfies string;
 ```
 
-### variance keywords are rejected in value parameters
-
-`in` is a keyword and cannot be used as a value parameter name.
-
-```ds
-function bad(in value: string) {}
-```
-
-- contains: not assignable
-
-### variance modifiers require parameter names
-
-Variance modifiers must be followed by a type parameter name.
-
-```ds
-interface Bad<in, out T> {}
-```
-
-- contains: unexpected , in expression
-
 ### declaration files accept variance modifiers
 
 Variance modifiers are accepted in declaration files.

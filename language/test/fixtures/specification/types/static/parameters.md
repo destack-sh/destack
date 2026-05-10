@@ -189,8 +189,8 @@ Enum members are accepted value arguments for matching enum types.
 
 ```ds
 enum Mode {
-    Fast = "fast"
-    Slow = "slow"
+    Fast = "fast",
+    Slow = "slow",
 }
 
 type Run<comptime M: Mode> = { mode: M };
@@ -205,8 +205,8 @@ Imported enum members are accepted value arguments.
 
 ```ds:utils.ds
 export enum Mode {
-    Fast = "fast"
-    Slow = "slow"
+    Fast = "fast",
+    Slow = "slow",
 }
 ```
 
@@ -225,8 +225,8 @@ Enum members do not coerce to their backing types.
 
 ```ds
 enum Mode {
-    Fast = 1
-    Slow = 2
+    Fast = 1,
+    Slow = 2,
 }
 
 type Run<comptime N: int32> = { value: N };
@@ -287,10 +287,10 @@ declare let value: Listed<[1, true]>;
 Object static expressions may be used as value arguments.
 
 ```ds
-type Tagged<comptime Tag: { name: string, count: int32 }> = { tag: Tag };
+type Tagged<comptime Tag: { name: string; count: int32 }> = { tag: Tag };
 
-declare let value: Tagged<{ name: "alpha", count: 1 }>;
-value satisfies Tagged<{ name: "alpha", count: 1 }>;
+declare let value: Tagged<{ name: "alpha"; count: 1 }>;
+value satisfies Tagged<{ name: "alpha"; count: 1 }>;
 ```
 
 ### static value parameters reject mismatched objects
@@ -298,9 +298,9 @@ value satisfies Tagged<{ name: "alpha", count: 1 }>;
 Object comptime arguments must match the declared shape.
 
 ```ds
-type Tagged<comptime Tag: { name: string, count: int32 }> = { tag: Tag };
+type Tagged<comptime Tag: { name: string; count: int32 }> = { tag: Tag };
 
-declare let value: Tagged<{ name: "alpha", count: true }>;
+declare let value: Tagged<{ name: "alpha"; count: true }>;
 ```
 
 - contains: not assignable
@@ -388,12 +388,12 @@ value satisfies Sized<(4, 8)>;
 Object literals can infer object value parameters.
 
 ```ds
-type Tagged<comptime Tag: { name: string, count: int32 }> = { tag: Tag };
+type Tagged<comptime Tag: { name: string; count: int32 }> = { tag: Tag };
 
-declare function make<comptime Tag: { name: string, count: int32 }>(value: Tag): Tagged<Tag>;
+declare function make<comptime Tag: { name: string; count: int32 }>(value: Tag): Tagged<Tag>;
 
 let value = make({ name: "alpha", count: 1 });
-value satisfies Tagged<{ name: "alpha", count: 1 }>;
+value satisfies Tagged<{ name: "alpha"; count: 1 }>;
 ```
 
 ### static value inference accepts enum members
@@ -402,8 +402,8 @@ Enum member arguments infer enum value parameters.
 
 ```ds
 enum Mode {
-    Fast = "fast"
-    Slow = "slow"
+    Fast = "fast",
+    Slow = "slow",
 }
 
 type Run<comptime M: Mode> = { mode: M };

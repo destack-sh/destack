@@ -9,12 +9,16 @@ Subscript operators use builtin indexed access and receiver interfaces for overl
 Index access uses the Index interface when implemented.
 
 ```ds
-struct Bag { value: int }
+struct Bag {
+    value: int;
+}
 
 extension of Bag implements Index<int> {
     type Output = int;
 
-    index(key: int): this.Output { return key }
+    index(key: int): this.Output {
+        return key;
+    }
 }
 
 declare function getBag(): Bag;
@@ -31,7 +35,9 @@ value satisfies int;
 Index assignment uses the IndexSet interface when implemented.
 
 ```ds
-struct Bag { value: int }
+struct Bag {
+    value: int;
+}
 
 extension of Bag implements IndexSet<int, int> {
     indexSet(key: int, value: int): void {}
@@ -48,7 +54,9 @@ bag[1] = 2;
 Index assignment requires the value to match the index set parameter type.
 
 ```ds
-struct Bag { value: int }
+struct Bag {
+    value: int;
+}
 
 extension of Bag implements IndexSet<int, int> {
     indexSet(key: int, value: int): void {}
@@ -67,7 +75,9 @@ bag[1] = "nope";
 Index access requires an `Index` implementation.
 
 ```ds
-struct Bag { value: int }
+struct Bag {
+    value: int;
+}
 
 declare function getBag(): Bag;
 
@@ -83,7 +93,9 @@ value satisfies int;
 Index assignment requires an `IndexSet` implementation.
 
 ```ds
-struct Bag { value: int }
+struct Bag {
+    value: int;
+}
 
 declare function getBag(): Bag;
 
@@ -98,12 +110,16 @@ bag[1] = 2;
 Index access rejects keys that do not match the index key type.
 
 ```ds
-struct Bag { value: int }
+struct Bag {
+    value: int;
+}
 
 extension of Bag implements Index<int> {
     type Output = int;
 
-    index(key: int): this.Output { return key }
+    index(key: int): this.Output {
+        return key;
+    }
 }
 
 declare function getBag(): Bag;

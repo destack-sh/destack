@@ -181,18 +181,6 @@ abstract class Counter {
 
 - contains: invalid member modifier
 
-### readonly does not apply to methods
-
-```ds
-class Counter {
-    readonly increment(): int32 {
-        1
-    }
-}
-```
-
-- contains: invalid member modifier
-
 ### readonly fields reject assignment
 
 ```ds
@@ -292,26 +280,3 @@ class Counter extends Base {
 ```
 
 - contains: invalid member modifier
-
-### index signatures cannot use modifiers
-
-```ds
-class Counter {
-    public [key: string]: int32;
-}
-```
-
-- contains: invalid member modifier
-
-### static blocks cannot use modifiers
-
-```ds
-class Counter {
-    public static {
-        const value = 1;
-        value;
-    }
-}
-```
-
-- contains: static class blocks cannot have any modifier

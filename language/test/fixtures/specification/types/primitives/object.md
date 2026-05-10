@@ -9,7 +9,7 @@ The `object` type, which represents any non-primitive value.
 The object type is assignable to itself.
 
 ```ds
-const x: object = {} as object
+const x: object = {} as object;
 ```
 
 ### object literal to object
@@ -17,7 +17,7 @@ const x: object = {} as object
 Object literals are assignable to object.
 
 ```ds
-const x: object = { a: 1, b: "hello" }
+const x: object = { a: 1, b: "hello" };
 ```
 
 ### array to object
@@ -25,7 +25,7 @@ const x: object = { a: 1, b: "hello" }
 Arrays are assignable to object.
 
 ```ds
-const x: object = [1, 2, 3]
+const x: object = [1, 2, 3];
 ```
 
 ### function to object
@@ -33,8 +33,8 @@ const x: object = [1, 2, 3]
 Functions are assignable to object.
 
 ```ds
-const fn = () => {}
-const x: object = fn
+const fn = () => {};
+const x: object = fn;
 ```
 
 ## object rejects primitives
@@ -44,7 +44,7 @@ const x: object = fn
 Primitive number is not assignable to object.
 
 ```ds
-const x: object = 42
+const x: object = 42;
 ```
 
 - contains: not assignable
@@ -54,7 +54,7 @@ const x: object = 42
 Primitive string is not assignable to object.
 
 ```ds
-const x: object = "hello"
+const x: object = "hello";
 ```
 
 - contains: not assignable
@@ -64,7 +64,7 @@ const x: object = "hello"
 Primitive boolean is not assignable to object.
 
 ```ds
-const x: object = true
+const x: object = true;
 ```
 
 - contains: not assignable
@@ -74,7 +74,7 @@ const x: object = true
 Null is not assignable to object.
 
 ```ds
-const x: object = null
+const x: object = null;
 ```
 
 - contains: not assignable
@@ -84,7 +84,7 @@ const x: object = null
 Undefined is not assignable to object.
 
 ```ds
-const x: object = undefined
+const x: object = undefined;
 ```
 
 - contains: not assignable

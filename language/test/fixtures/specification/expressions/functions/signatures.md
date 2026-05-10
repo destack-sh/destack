@@ -41,7 +41,7 @@ function greet(name: string): string {
 Declared function signatures can use async markers.
 
 ```ds
-declare async function load(): Promise<void>
+declare async function load(): Promise<void>;
 ```
 
 ### declared generator functions are allowed
@@ -49,7 +49,7 @@ declare async function load(): Promise<void>
 Declared function signatures can use generator markers.
 
 ```ds
-declare function* ids(): Generator<int32, void, unknown>
+declare function* ids(): Generator<int32, void, unknown>;
 ```
 
 ### declared functions cannot have bodies

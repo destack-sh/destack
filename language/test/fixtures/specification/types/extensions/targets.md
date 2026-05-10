@@ -11,12 +11,12 @@ Extensions can add methods to a struct defined in the same file.
 ```ds
 struct Point {
     x: number;
-    y: number
+    y: number;
 }
 
 extension of Point {
     magnitude(): number {
-        return 0
+        return 0;
     }
 }
 
@@ -33,12 +33,12 @@ Extension methods are resolved separately from the type's own members.
 ```ds
 struct Point {
     x: number;
-    y: number
+    y: number;
 }
 
 extension of Point {
     magnitude(): number {
-        return 0
+        return 0;
     }
 }
 
@@ -54,17 +54,20 @@ point.y satisfies number;
 A type can have multiple extension blocks.
 
 ```ds
-struct Vector2 { x: number; y: number }
+struct Vector2 {
+    x: number;
+    y: number;
+}
 
 extension of Vector2 {
     add(other: Vector2): Vector2 {
-        return Vector2 { x: 0, y: 0 }
+        return Vector2 { x: 0, y: 0 };
     }
 }
 
 extension of Vector2 {
     scale(factor: number): Vector2 {
-        return Vector2 { x: 0, y: 0 }
+        return Vector2 { x: 0, y: 0 };
     }
 }
 
@@ -110,12 +113,12 @@ Extensions can add methods to interfaces.
 
 ```ds
 interface Shape {
-    area(): number
+    area(): number;
 }
 
 extension of Shape {
     describe(): string {
-        return ""
+        return "";
     }
 }
 
@@ -135,12 +138,12 @@ Extensions can add methods to enums.
 enum Status {
     Active,
     Inactive,
-    Pending
+    Pending,
 }
 
 extension of Status {
     isActive(): boolean {
-        return true
+        return true;
     }
 }
 

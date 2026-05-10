@@ -56,8 +56,8 @@ Struct patterns use the nominal tag.
 
 ```ds
 struct Point {
-    x: int32
-    y: int32
+    x: int32;
+    y: int32;
 }
 
 function read(point: Point): int32 {
@@ -137,7 +137,7 @@ function read(values: [int32; 3] | null): int32 {
 Object fields bind after the pattern succeeds.
 
 ```ds
-function read(value: { id: int32, name: string } | null): int32 {
+function read(value: { id: int32; name: string } | null): int32 {
     let { id, name } = value else {
         return 0;
     };

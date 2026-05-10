@@ -79,7 +79,7 @@ if (let x = value) {
     x
 }
 
-x
+x;
 ```
 
 - contains: missing symbol

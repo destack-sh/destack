@@ -66,7 +66,7 @@ const value = 1;
 `@if` is not allowed on parameters.
 
 ```ds
-function demo(@if(true) value: number): void { }
+function demo(@if(true) value: number): void {}
 ```
 
 - contains: invalid static if: static if is only allowed on declarations, members, enum fields, or statements
@@ -89,7 +89,7 @@ type Box = {
 `@if` is not allowed on call arguments.
 
 ```ds
-function call(value: number): void { }
+function call(value: number): void {}
 
 call(@if(true) 1);
 ```

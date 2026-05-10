@@ -12,7 +12,6 @@ When false, `@if` removes interface members.
 interface Box {
     @if(false)
     missing: MissingType;
-
     @if(false)
     missingMethod(): MissingType;
 
@@ -31,7 +30,6 @@ When true, `@if` includes interface members.
 interface Box {
     @if(true)
     value: number;
-
     @if(true)
     increment(): number;
 }

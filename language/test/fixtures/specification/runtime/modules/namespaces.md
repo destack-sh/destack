@@ -7,7 +7,7 @@
 A namespace produced by `export * as` exposes exported type aliases.
 
 ```ds:types.ds
-export type Segment<T extends string> = T extends `id:${infer U}` ? U : never;
+export type Segment<T: string> = T extends `id:${infer U}` ? U : never;
 ```
 
 ```ds:namespace.ds
@@ -68,7 +68,7 @@ Item;
 Template-literal constraints still reject non-matching inputs through namespace imports.
 
 ```ds:types.ds
-export type Segment<T extends string> = T extends `id:${infer U}` ? U : never;
+export type Segment<T: string> = T extends `id:${infer U}` ? U : never;
 ```
 
 ```ds:namespace.ds

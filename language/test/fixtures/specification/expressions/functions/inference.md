@@ -10,7 +10,7 @@ Parameters are inferred from default values.
 
 ```ds
 function greet(name = "hi") {
-    return name
+    return name;
 }
 greet satisfies (name: string) => string;
 ```
@@ -22,7 +22,7 @@ greet satisfies (name: string) => string;
 Lambda parameter types are inferred from annotations.
 
 ```ds
-const add: (a: number, b: number) => number = (a, b) => a + b
+const add: (a: number, b: number) => number = (a, b) => a + b;
 add satisfies (a: number, b: number) => number;
 ```
 
@@ -31,7 +31,7 @@ add satisfies (a: number, b: number) => number;
 Lambda return type must satisfy the contextual return type.
 
 ```ds
-const add: (a: number, b: number) => number = (a, b) => "hi"
+const add: (a: number, b: number) => number = (a, b) => "hi";
 ```
 
 - contains: not assignable
@@ -42,9 +42,9 @@ Lambda parameter types are inferred from parameter types.
 
 ```ds
 function apply(transform: (value: number) => number) {
-    return transform(1)
+    return transform(1);
 }
-apply((value) => value + 1)
+apply((value) => value + 1);
 ```
 
 ### contextual lambda from argument mismatch
@@ -53,9 +53,9 @@ Lambda return type must satisfy the contextual return type.
 
 ```ds
 function apply(transform: (value: number) => number) {
-    return transform(1)
+    return transform(1);
 }
-apply((value) => "hi")
+apply((value) => "hi");
 ```
 
 - contains: not assignable
@@ -65,10 +65,10 @@ apply((value) => "hi")
 Object literals use parameter types for contextual typing.
 
 ```ds
-function use_point(point: { x: number, y: number }) {
-    return point.x
+function use_point(point: { x: number; y: number }) {
+    return point.x;
 }
-use_point({ x: 1, y: 2 })
+use_point({ x: 1, y: 2 });
 ```
 
 ### contextual object argument mismatch
@@ -76,10 +76,10 @@ use_point({ x: 1, y: 2 })
 Object literal properties must satisfy contextual field types.
 
 ```ds
-function use_point(point: { x: number, y: number }) {
-    return point.x
+function use_point(point: { x: number; y: number }) {
+    return point.x;
 }
-use_point({ x: 1, y: "hi" })
+use_point({ x: 1, y: "hi" });
 ```
 
 - contains: not assignable
@@ -90,9 +90,9 @@ Tuple literals use parameter types for contextual typing.
 
 ```ds
 function sum(pair: (number, number)) {
-    return pair
+    return pair;
 }
-sum((1, 2))
+sum((1, 2));
 ```
 
 ### contextual tuple argument mismatch
@@ -101,9 +101,9 @@ Tuple literal elements must satisfy contextual element types.
 
 ```ds
 function sum(pair: (number, number)) {
-    return pair
+    return pair;
 }
-sum((1, "hi"))
+sum((1, "hi"));
 ```
 
 - contains: not assignable
@@ -114,9 +114,9 @@ Array literals use parameter types for contextual typing.
 
 ```ds
 function total(values: number[]) {
-    return values
+    return values;
 }
-total([1, 2, 3])
+total([1, 2, 3]);
 ```
 
 ### contextual array argument mismatch
@@ -125,9 +125,9 @@ Array literal elements must satisfy contextual element types.
 
 ```ds
 function total(values: number[]) {
-    return values
+    return values;
 }
-total([1, "hi"])
+total([1, "hi"]);
 ```
 
 - contains: not assignable
@@ -139,13 +139,10 @@ total([1, "hi"])
 Arrow properties infer contextual callback types regardless of sibling order.
 
 ```ds:main.ds
-declare function callIt<T>(obj: {
-    produce: (x: number) => T,
-    consume: (y: T) => void,
-}): void;
+declare function callIt<T>(obj: { produce: (x: number) => T; consume: (y: T) => void }): void;
 
 callIt({
-    consume: y => y.toFixed(),
+    consume: (y) => y.toFixed(),
     produce: (x: number) => x * 2,
 });
 ```
@@ -155,14 +152,15 @@ callIt({
 Method syntax does not infer parameter types from sibling members.
 
 ```ds:main.ds
-declare function callIt<T>(obj: {
-    produce: (x: number) => T,
-    consume: (y: T) => void,
-}): void;
+declare function callIt<T>(obj: { produce: (x: number) => T; consume: (y: T) => void }): void;
 
 callIt({
-    consume(y) { return y.toFixed(); },
-    produce(x: number) { return x * 2; },
+    consume(y) {
+        return y.toFixed();
+    },
+    produce(x: number) {
+        return x * 2;
+    },
 });
 ```
 
@@ -175,13 +173,10 @@ callIt({
 Arrow properties contextually infer generic payloads regardless of sibling ordering.
 
 ```ds:main.ds
-declare function build<T>(spec: {
-    payload: () => T,
-    consume: (value: T) => string,
-}): string;
+declare function build<T>(spec: { payload: () => T; consume: (value: T) => string }): string;
 
 const output = build({
-    consume: value => value.toUpperCase(),
+    consume: (value) => value.toUpperCase(),
     payload: () => "ready",
 });
 
@@ -193,14 +188,15 @@ output satisfies string;
 Method syntax does not gain arrow-style sibling contextual inference in object literals.
 
 ```ds:main.ds
-declare function build<T>(spec: {
-    payload: () => T,
-    consume: (value: T) => string,
-}): string;
+declare function build<T>(spec: { payload: () => T; consume: (value: T) => string }): string;
 
 build({
-    consume(value) { return value.toUpperCase(); },
-    payload() { return "ready"; },
+    consume(value) {
+        return value.toUpperCase();
+    },
+    payload() {
+        return "ready";
+    },
 });
 ```
 
@@ -211,10 +207,7 @@ build({
 Renamed re-exports do not affect arrow contextual inference.
 
 ```ds:api.ds
-export declare function build<T>(spec: {
-    payload: () => T,
-    consume: (value: T) => string,
-}): string;
+export declare function build<T>(spec: { payload: () => T; consume: (value: T) => string }): string;
 ```
 
 ```ds:index.ds
@@ -225,7 +218,7 @@ export { build as make } from "./api.ds";
 import { make } from "./index.ds";
 
 const output = make({
-    consume: value => value.toUpperCase(),
+    consume: (value) => value.toUpperCase(),
     payload: () => "ready",
 });
 
@@ -242,7 +235,7 @@ Generic callback inference preserves tuple literal precision from const tuple ar
 declare function mapOne<T, U>(value: T, callback: (input: T) => U): U;
 
 const tuple = [1, 2] as const;
-const head = mapOne(tuple, input => input[0]);
+const head = mapOne(tuple, (input) => input[0]);
 
 head satisfies 1;
 ```
@@ -255,7 +248,7 @@ Generic callback inference widens mutable array element reads to their primitive
 declare function mapOne<T, U>(value: T, callback: (input: T) => U): U;
 
 let values = [1, 2];
-const head = mapOne(values, input => input[0]);
+const head = mapOne(values, (input) => input[0]);
 
 head satisfies number;
 ```
@@ -268,7 +261,7 @@ Generic callback inference does not preserve mutable array element literal types
 declare function mapOne<T, U>(value: T, callback: (input: T) => U): U;
 
 let values = [1, 2];
-const head = mapOne(values, input => input[0]);
+const head = mapOne(values, (input) => input[0]);
 
 head satisfies 1;
 ```
@@ -291,7 +284,7 @@ export { mapOne as runOne } from "./api.ds";
 import { runOne } from "./index.ds";
 
 const tuple = [1, 2] as const;
-const head = runOne(tuple, input => input[0]);
+const head = runOne(tuple, (input) => input[0]);
 
 head satisfies 1;
 ```
@@ -303,12 +296,9 @@ head satisfies 1;
 Nested callbacks preserve contextual generic payload types through outer callback positions.
 
 ```ds:main.ds
-declare function withValue<T>(
-    value: T,
-    callback: (read: () => T) => string,
-): string;
+declare function withValue<T>(value: T, callback: (read: () => T) => string): string;
 
-const output = withValue("ready", read => read());
+const output = withValue("ready", (read) => read());
 output satisfies string;
 ```
 
@@ -317,12 +307,9 @@ output satisfies string;
 Nested callbacks reject payload usage that is incompatible with the inferred contextual generic type.
 
 ```ds:main.ds
-declare function withValue<T>(
-    value: T,
-    callback: (read: () => T) => string,
-): string;
+declare function withValue<T>(value: T, callback: (read: () => T) => string): string;
 
-withValue("ready", read => read().toFixed());
+withValue("ready", (read) => read().toFixed());
 ```
 
 - contains: tofixed
@@ -333,12 +320,12 @@ Nested arrow properties remain order-insensitive for contextual generic object i
 
 ```ds:main.ds
 declare function wire<T>(spec: {
-    make: () => { value: T },
-    use: (input: { value: T }) => string,
+    make: () => { value: T };
+    use: (input: { value: T }) => string;
 }): string;
 
 const output = wire({
-    use: input => {
+    use: (input) => {
         input.value satisfies string;
         return input.value;
     },
@@ -354,13 +341,17 @@ Nested method syntax does not gain arrow-style sibling contextual inference.
 
 ```ds:main.ds
 declare function wire<T>(spec: {
-    make: () => { value: T },
-    use: (input: { value: T }) => string,
+    make: () => { value: T };
+    use: (input: { value: T }) => string;
 }): string;
 
 wire({
-    use(input) { return input.value.toUpperCase(); },
-    make() { return { value: "ready" }; },
+    use(input) {
+        return input.value.toUpperCase();
+    },
+    make() {
+        return { value: "ready" };
+    },
 });
 ```
 
