@@ -180,7 +180,7 @@ pub enum TypeExpression {
     Mapped {
         parameter: TypeMappedParameter,
         modifiers: TypeMappedModifiers,
-        value: LocalNodeId<TypeExpression>,
+        value: Option<LocalNodeId<TypeExpression>>,
     },
     /// Index access type.
     Index {
