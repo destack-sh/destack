@@ -9,9 +9,9 @@ use serde_json::Value;
 
 use crate::config::{
     CompilerOptions, EnvironmentOptions, FormatterOptions, LinterOptions, ModeOptions,
-    ProfileOptions, ProfileOptionsJson, RuntimeOptions, TargetOptions, builtin_modes,
-    environment_options_from_json, extend_environment_options, parse_jsonc_file,
-    runtime_options_from_json, runtime_options_with_base,
+    PolicyOptions, PolicyOptionsJson, ProfileOptions, ProfileOptionsJson, RuntimeOptions,
+    TargetOptions, builtin_modes, environment_options_from_json, extend_environment_options,
+    parse_jsonc_file, runtime_options_from_json, runtime_options_with_base,
 };
 
 use super::compiler::CompilerOptionsJson;
@@ -57,6 +57,9 @@ pub struct DestackOptions {
     /// Compiler options.
     #[serde(default)]
     pub compiler: CompilerOptionsJson,
+    /// Package policy declarations and rules.
+    #[serde(default)]
+    pub policy: PolicyOptionsJson,
     /// Runtime options.
     #[serde(default)]
     pub runtime: RuntimeConfigJson,
@@ -134,6 +137,8 @@ pub struct DestackConfig {
     pub exclude: Vec<String>,
     /// Compiler options.
     pub compiler: CompilerOptions,
+    /// Package policy declarations and rules.
+    pub policy: PolicyOptions,
     /// Runtime options.
     pub runtime: RuntimeOptions,
     /// Formatter options.
@@ -166,6 +171,17 @@ impl DestackConfig {
             .linter
             .validate()
             .map_err(|error| serde_json::Error::io(Error::new(ErrorKind::InvalidData, error)))?;
+        options
+            .policy
+            .validate()
+            .map_err(|error| serde_json::Error::io(Error::new(ErrorKind::InvalidData, error)))?;
+        if let Some(targets) = &options.targets {
+            for target in targets.values() {
+                target.validate().map_err(|error| {
+                    serde_json::Error::io(Error::new(ErrorKind::InvalidData, error))
+                })?;
+            }
+        }
 
         let path = file
             .path
@@ -184,6 +200,8 @@ impl DestackConfig {
             ))
         })?;
         let compiler = CompilerOptions::from(&options.compiler);
+        let mut policy = PolicyOptions::default();
+        options.policy.apply_to(&mut policy);
         let runtime = runtime_options_from_json(Some(&options.runtime));
         let targets = options
             .targets
@@ -194,7 +212,11 @@ impl DestackConfig {
                     .map(|(name, target_json)| {
                         (
                             name.clone(),
-                            TargetOptions::from_json_with_runtime(target_json, &runtime),
+                            TargetOptions::from_json_with_runtime_and_policy(
+                                target_json,
+                                &runtime,
+                                &policy,
+                            ),
                         )
                     })
                     .collect()
@@ -231,6 +253,7 @@ impl DestackConfig {
             include: options.include.clone().unwrap_or_default(),
             exclude: options.exclude.clone().unwrap_or_default(),
             compiler,
+            policy,
             runtime,
             formatter,
             linter,
@@ -270,6 +293,16 @@ impl DestackConfig {
 
     /// Validate resolved config invariants.
     pub fn validate(&self) -> Result<(), serde_json::Error> {
+        self.policy
+            .validate()
+            .map_err(|error| serde_json::Error::io(Error::new(ErrorKind::InvalidData, error)))?;
+
+        for target in self.targets.values() {
+            target.policy.validate().map_err(|error| {
+                serde_json::Error::io(Error::new(ErrorKind::InvalidData, error))
+            })?;
+        }
+
         for (mode, options) in &self.modes {
             for parent in &options.extends {
                 if parent == mode {
@@ -422,6 +455,10 @@ impl DestackConfig {
             compiler.no_emit = parent_compiler.no_emit;
         }
 
+        // policy
+        self.policy =
+            PolicyOptions::from_json_with_parent(Some(&self.options.policy), &parent.policy);
+
         // formatter
         let child_formatter = &self.options.formatter;
         let formatter = &mut self.formatter;
@@ -439,6 +476,7 @@ impl DestackConfig {
         if child_formatter.line_width.is_none() {
             formatter.line_width = parent_formatter.line_width;
         }
+
         // linter
         let child_linter = &self.options.linter;
         let linter = &mut self.linter;
@@ -476,7 +514,14 @@ impl DestackConfig {
         if let Some(targets) = &self.options.targets {
             for name in targets.keys() {
                 let target_json = self.merged_target_json(parent, name)?;
-                let options = TargetOptions::from_json_with_runtime(&target_json, &self.runtime);
+                target_json.validate().map_err(|error| {
+                    serde_json::Error::io(Error::new(ErrorKind::InvalidData, error))
+                })?;
+                let options = TargetOptions::from_json_with_runtime_and_policy(
+                    &target_json,
+                    &self.runtime,
+                    &self.policy,
+                );
                 self.targets.insert(name.clone(), options);
             }
         }

@@ -1,16 +1,15 @@
-use std::hash::{Hash, Hasher};
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-/// App model for packaging and runtime capability planning.
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+/// App declaration used for host integration.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct AppOptions {
     /// Stable app identity for packaging and host-facing integration.
     pub identity: AppIdentityOptions,
     /// Permission options keyed by permission selector.
-    pub permissions: IndexMap<AppPermission, AppPermissionOptions>,
+    pub permissions: BTreeMap<AppPermission, AppPermissionOptions>,
     /// Intent options for app activation and routing.
     pub intents: AppIntentOptions,
     /// Notification options for local and remote notifications.
@@ -25,29 +24,6 @@ pub struct AppOptions {
     pub credentials: AppCredentialOptions,
     /// Location options beyond permission usage strings.
     pub location: AppLocationOptions,
-}
-
-impl Hash for AppOptions {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        // identity
-        self.identity.hash(state);
-
-        // permissions
-        self.permissions.len().hash(state);
-        for (permission, options) in &self.permissions {
-            permission.hash(state);
-            options.hash(state);
-        }
-
-        // remaining semantic sections
-        self.intents.hash(state);
-        self.notifications.hash(state);
-        self.background.hash(state);
-        self.services.hash(state);
-        self.document.hash(state);
-        self.credentials.hash(state);
-        self.location.hash(state);
-    }
 }
 
 impl AppOptions {
@@ -122,7 +98,7 @@ pub struct AppOptionsJson {
     /// Stable app identity for packaging and host-facing integration.
     pub identity: Option<AppIdentityOptionsJson>,
     /// Permission options keyed by permission selector.
-    pub permissions: Option<IndexMap<AppPermission, AppPermissionOptionsJson>>,
+    pub permissions: Option<BTreeMap<AppPermission, AppPermissionOptionsJson>>,
     /// Intent options for app activation and routing.
     pub intents: Option<AppIntentOptionsJson>,
     /// Notification options for local and remote notifications.
@@ -174,7 +150,7 @@ pub struct AppIdentityOptionsJson {
 }
 
 /// App permission selector.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub enum AppPermission {

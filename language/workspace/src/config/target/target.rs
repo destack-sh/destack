@@ -6,7 +6,7 @@ use serde::Deserialize;
 
 use indexmap::IndexMap;
 
-use crate::CompilerOptions;
+use crate::{CompilerOptions, PolicyOptions, PolicyOptionsJson};
 
 use super::super::runtime::{
     ExecutionMode, ExecutionModeJson, RuntimeConfigJson, RuntimeOptions, runtime_options_with_base,
@@ -74,8 +74,10 @@ pub struct Target {
     pub bundle_output: BundleOutputOptions,
     /// Minification options.
     pub minify: BundleMinifyOptions,
-    /// App declaration for packaging and runtime capability planning.
+    /// App declaration used for host integration.
     pub app: AppOptions,
+    /// Policy declarations and rules for this target.
+    pub policy: PolicyOptions,
     /// Emitted artifact family (js, ts, html, wasm, native).
     pub emit: EmitFormat,
     /// Runtime execution contract.
@@ -209,6 +211,7 @@ impl std::hash::Hash for Target {
         self.bundle_output.hash(state);
         self.minify.hash(state);
         self.app.hash(state);
+        self.policy.hash(state);
         self.emit.hash(state);
         self.runtime.hash(state);
         self.runtime_version.hash(state);
@@ -318,7 +321,7 @@ impl Target {
         let mut target = Self::from_default_options(name);
         target.emit = EmitFormat::Js;
         target.runtime = Runtime::Js;
-        target.runtime_options.host = Runtime::Js;
+        target.runtime_options.environment = Runtime::Js;
         target.platform = Platform::Universal;
         target.declaration = true;
 
@@ -330,7 +333,7 @@ impl Target {
         let mut target = Self::from_default_options(name);
         target.emit = EmitFormat::Ts;
         target.runtime = Runtime::Js;
-        target.runtime_options.host = Runtime::Js;
+        target.runtime_options.environment = Runtime::Js;
         target.platform = Platform::Universal;
 
         target
@@ -341,7 +344,7 @@ impl Target {
         let mut target = Self::from_default_options(name);
         target.emit = EmitFormat::Html;
         target.runtime = Runtime::Js;
-        target.runtime_options.host = Runtime::Js;
+        target.runtime_options.environment = Runtime::Js;
         target.platform = Platform::Web;
 
         target
@@ -352,7 +355,7 @@ impl Target {
         let mut target = Self::from_default_options(name);
         target.emit = EmitFormat::Wasm;
         target.runtime = Runtime::Destack;
-        target.runtime_options.host = Runtime::Destack;
+        target.runtime_options.environment = Runtime::Destack;
         target.platform = Platform::Web;
         target.optimize = true;
 
@@ -364,7 +367,7 @@ impl Target {
         let mut target = Self::from_default_options(name);
         target.emit = EmitFormat::Wasm;
         target.runtime = Runtime::Destack;
-        target.runtime_options.host = Runtime::Destack;
+        target.runtime_options.environment = Runtime::Destack;
         target.platform = Platform::Wasi;
         target.optimize = true;
 
@@ -376,7 +379,7 @@ impl Target {
         let mut target = Self::from_default_options(name);
         target.emit = EmitFormat::Native;
         target.runtime = Runtime::Destack;
-        target.runtime_options.host = Runtime::Destack;
+        target.runtime_options.environment = Runtime::Destack;
         target.platform = Platform::Universal;
         target.optimize = true;
 
@@ -626,15 +629,13 @@ impl Target {
     /// Set the runtime.
     pub fn with_runtime(mut self, runtime: Runtime) -> Self {
         self.runtime = runtime;
-        self.runtime_options.host = runtime;
+        self.runtime_options.environment = runtime;
         self
     }
 
     /// Set the runtime version.
     pub fn with_runtime_version(mut self, runtime_version: impl Into<String>) -> Self {
-        let runtime_version = runtime_version.into();
-        self.runtime_version = Some(runtime_version.clone());
-        self.runtime_options.version = Some(runtime_version);
+        self.runtime_version = Some(runtime_version.into());
         self
     }
 
@@ -1021,8 +1022,10 @@ pub struct TargetOptions {
     pub bundle_output: BundleOutputOptions,
     /// Minification options.
     pub minify: BundleMinifyOptions,
-    /// App declaration for packaging and runtime capability planning.
+    /// App declaration used for host integration.
     pub app: AppOptions,
+    /// Policy declarations and rules for this target.
+    pub policy: PolicyOptions,
 
     // optimization
     /// Whether optimization is enabled.
@@ -1121,6 +1124,7 @@ impl Default for TargetOptions {
             bundle_output: BundleOutputOptions::default(),
             minify: BundleMinifyOptions::default(),
             app: AppOptions::default(),
+            policy: PolicyOptions::default(),
             optimize: false,
             optimize_level: OptimizeLevel::O0,
             unroll_threshold: None,
@@ -1222,6 +1226,7 @@ impl TargetOptions {
             bundle_output: self.bundle_output.clone(),
             minify: self.minify.clone(),
             app: self.app.clone(),
+            policy: self.policy.clone(),
             optimize: self.optimize,
             optimize_level: self.optimize_level,
             unroll_threshold: self.unroll_threshold,
@@ -1245,6 +1250,15 @@ impl TargetOptions {
 
     /// Derive target options from JSON and base runtime options.
     pub fn from_json_with_runtime(json: &TargetJson, base_runtime: &RuntimeOptions) -> Self {
+        Self::from_json_with_runtime_and_policy(json, base_runtime, &PolicyOptions::default())
+    }
+
+    /// Derive target options from JSON, base runtime options, and base policy.
+    pub fn from_json_with_runtime_and_policy(
+        json: &TargetJson,
+        base_runtime: &RuntimeOptions,
+        base_policy: &PolicyOptions,
+    ) -> Self {
         // derive entry points
         let entry: Vec<PathBuf> = json
             .entry
@@ -1274,6 +1288,9 @@ impl TargetOptions {
 
         // resolve one target app declaration for runtime host planning
         let app = json.app.as_ref().map(AppOptions::from).unwrap_or_default();
+
+        // merge target policy over package policy
+        let policy = PolicyOptions::from_json_with_parent(json.policy.as_ref(), base_policy);
 
         // derive the emit family early so output defaults can reuse the target shape
         let emit = json.emit.map(EmitFormat::from).unwrap_or_default();
@@ -1333,8 +1350,8 @@ impl TargetOptions {
             include: json.include.clone().unwrap_or_default(),
             exclude: json.exclude.clone().unwrap_or_default(),
             emit,
-            runtime: runtime_options.host,
-            runtime_version: runtime_options.version.clone(),
+            runtime: runtime_options.environment,
+            runtime_version: None,
             platform: json
                 .platform
                 .as_deref()
@@ -1404,6 +1421,7 @@ impl TargetOptions {
             bundle_output,
             minify,
             app,
+            policy,
             optimize: json.optimize,
             optimize_level: json
                 .optimize_level
@@ -1485,7 +1503,7 @@ pub struct TargetJson {
     // emit family
     /// Emitted artifact family (e.g., JavaScript, TypeScript, HTML, WebAssembly, Native).
     pub emit: Option<EmitFormatJson>,
-    /// Runtime contract shorthand or full runtime configuration.
+    /// Runtime environment shorthand or full runtime configuration.
     pub runtime: Option<RuntimeConfigJson>,
     /// Host platform or packaging surface (e.g., web, ios, android, macos, linux, windows).
     pub platform: Option<String>,
@@ -1579,8 +1597,10 @@ pub struct TargetJson {
     pub output: Option<BundleOutputOptionsJson>,
     /// Minification options.
     pub minify: Option<BundleMinifyOptionsJson>,
-    /// App declaration for packaging and runtime capability planning.
+    /// App declaration used for host integration.
     pub app: Option<AppOptionsJson>,
+    /// Policy declarations and rules for this target.
+    pub policy: Option<PolicyOptionsJson>,
     // optimization
     /// Whether optimization is enabled.
     #[serde(default)]
@@ -1618,6 +1638,17 @@ pub struct TargetJson {
     pub shift_checks: Option<ShiftCheckPolicyJson>,
     /// Check failure behavior.
     pub check_failure: Option<CheckFailurePolicyJson>,
+}
+
+impl TargetJson {
+    /// Validate explicit target declarations before they are normalized.
+    pub fn validate(&self) -> Result<(), String> {
+        if let Some(policy) = &self.policy {
+            policy.validate()?;
+        }
+
+        Ok(())
+    }
 }
 
 /// Resolves the bundle mode for a target.
