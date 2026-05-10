@@ -24,6 +24,8 @@ pub enum Keyword {
     Static,
     /// Final modifier (reserved).
     Final,
+    /// Virtual dispatch modifier.
+    Virtual,
     /// Accessor modifier (auto-accessor).
     Accessor,
     /// Default export type.
@@ -243,6 +245,7 @@ impl Keyword {
             Keyword::Shared => "shared",
             Keyword::Static => "static",
             Keyword::Final => "final",
+            Keyword::Virtual => "virtual",
             Keyword::Accessor => "accessor",
             Keyword::Default => "default",
 
@@ -350,6 +353,7 @@ impl FromStr for Keyword {
             "shared" => Ok(Keyword::Shared),
             "static" => Ok(Keyword::Static),
             "final" => Ok(Keyword::Final),
+            "virtual" => Ok(Keyword::Virtual),
             "accessor" => Ok(Keyword::Accessor),
             "default" => Ok(Keyword::Default),
 

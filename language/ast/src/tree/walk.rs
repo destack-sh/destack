@@ -904,12 +904,9 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
 
         Expression::Continue { label: _ } => {}
 
-        Expression::Await { expression } => {
-            let expression_node = tree.get(*expression);
-            visitor.visit_expression(tree, *expression, expression_node);
-        }
-
-        Expression::AwaitMaybe { expression } => {
+        Expression::Await { expression }
+        | Expression::AwaitMaybe { expression }
+        | Expression::AwaitMust { expression } => {
             let expression_node = tree.get(*expression);
             visitor.visit_expression(tree, *expression, expression_node);
         }
@@ -1624,9 +1621,7 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
             is_abstract: _,
             is_override: _,
             is_static: _,
-            is_definite: _,
             is_accessor: _,
-            is_comptime: _,
         } => {
             walk_key(visitor, tree, key);
             if let Some(declared_type) = declared_type {
@@ -1641,15 +1636,14 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
         Member::Method {
             key,
             signature,
+            abstraction: _,
             body,
-            is_optional: _,
             visibility: _,
+            is_optional: _,
             is_ambient: _,
-            is_abstract: _,
             is_override: _,
             is_static: _,
             is_accessor: _,
-            is_comptime: _,
         } => {
             if let Some(key) = key {
                 walk_key(visitor, tree, key);
