@@ -333,6 +333,14 @@ pub enum Expression {
     /// ```
     AwaitMaybe { expression: LocalNodeId<Expression> },
 
+    /// Await an expression with immediate trapping error propagation (`await! expr`).
+    ///
+    /// Examples:
+    /// ```
+    /// await! someFallibleAsyncFunction()
+    /// ```
+    AwaitMust { expression: LocalNodeId<Expression> },
+
     /// Yield an expression.
     ///
     /// Examples:
