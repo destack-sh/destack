@@ -128,7 +128,7 @@ pub enum Error {
     /// Invalid arguments to intrinsic.
     InvalidIntrinsicArguments { intrinsic: String } = 25,
 
-    /// Attempted to write through an immutable reference.
+    /// Attempted to write through a readonly reference.
     ImmutableReferenceWrite { reference: String } = 26,
 
     /// Yielded during a non-yielding execution.
@@ -293,7 +293,7 @@ impl Error {
                 format!("invalid arguments to intrinsic: {intrinsic}")
             }
             Self::ImmutableReferenceWrite { reference } => {
-                format!("cannot write through immutable reference: {reference}")
+                format!("cannot write through readonly reference: {reference}")
             }
             Self::UnexpectedYield => "yielded during non-yielding execution".to_string(),
             Self::ResumeWithoutYield => "attempted to resume without a pending yield".to_string(),

@@ -461,7 +461,7 @@ fn validate_zero_scalar_type(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) 
         mir::Type::Reference {
             kind: _,
             address_space: _,
-            mutability: _,
+            access: _,
             is_nullable,
             ..
         } => {
