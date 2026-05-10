@@ -103,7 +103,7 @@ Block comments between `as` and target types stay attached to the assertion.
 
 Trailing block comments on assertion chains stay attached before the following member call.
 
-```ts:main.ts indent-width=2 line-width=80 quote-style=double
+```ts:main.ts indent-width=2 line-width=80
 (activeService as unknown as QuickInputController) /* TS fail */
   .pick();
 ```
@@ -117,7 +117,7 @@ Trailing block comments on assertion chains stay attached before the following m
 
 Multiline block comments before `const` stay attached to the assertion boundary.
 
-```ts:main.ts indent-width=2 line-width=80 quote-style=double
+```ts:main.ts indent-width=2 line-width=80
 {
 1 as /*
 comment
@@ -137,7 +137,7 @@ comment
 
 Block comments between `as` and `satisfies` targets stay attached to the same operator boundary.
 
-```ts:main.ts indent-width=2 line-width=80 quote-style=double
+```ts:main.ts indent-width=2 line-width=80
 {
 1 as /* between */ Foo;
 1 satisfies /* sat-between */ Foo;

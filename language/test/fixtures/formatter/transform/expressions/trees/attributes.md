@@ -161,39 +161,3 @@ const node = (
     />
 );
 ```
-
-### bracket same line option
-
-For self-closing elements, `bracket_same_line` still leaves `/>` on its own line.
-
-```tsx:main.tsx line-width=40 bracket-same-line=true
-const node = <Panel title="Settings" description="Long description" icon={settingsIcon} />
-```
-
-```tsx expected
-const node = (
-    <Panel
-        title="Settings"
-        description="Long description"
-        icon={settingsIcon}
-    />
-);
-```
-
-### single attribute per line option
-
-When `single_attribute_per_line` is true, each attribute is on its own line for expanded elements.
-
-```tsx:main.tsx single-attribute-per-line=true
-const node = <Button variant="primary" size="large" disabled />
-```
-
-```tsx expected
-const node = (
-    <Button
-        variant="primary"
-        size="large"
-        disabled
-    />
-);
-```

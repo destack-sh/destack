@@ -8,7 +8,7 @@ Import sorting fixtures cover import groups, side effects, scoped packages, and 
 
 Builtin imports (using protocol prefix like `node:`, `bun:`, `deno:`) come before external packages.
 
-```ds organize-imports=on
+```ds
 {
     import lodash from "lodash"
     import fs from "node:fs"
@@ -29,7 +29,7 @@ Builtin imports (using protocol prefix like `node:`, `bun:`, `deno:`) come befor
 
 Any protocol prefix (not just `node:`) is recognized as a builtin.
 
-```ds organize-imports=on
+```ds
 {
     import lodash from "lodash"
     import test from "bun:test"
@@ -50,7 +50,7 @@ Any protocol prefix (not just `node:`) is recognized as a builtin.
 
 External packages come before relative imports.
 
-```ds organize-imports=on
+```ds
 {
     import local from "./local"
     import lodash from "lodash"
@@ -69,7 +69,7 @@ External packages come before relative imports.
 
 Path aliases come before relative imports.
 
-```ds organize-imports=on
+```ds
 {
     import local from "./local"
     import util from "@/utils"
@@ -90,7 +90,7 @@ Path aliases come before relative imports.
 
 Packages are sorted alphabetically within their group.
 
-```ds organize-imports=on
+```ds
 {
     import zod from "zod"
     import axios from "axios"
@@ -110,7 +110,7 @@ Packages are sorted alphabetically within their group.
 
 Relative imports are sorted alphabetically.
 
-```ds organize-imports=on
+```ds
 {
     import z from "./z"
     import a from "./a"
@@ -132,7 +132,7 @@ Relative imports are sorted alphabetically.
 
 Side-effect imports are not reordered and stay at the top.
 
-```ds organize-imports=on
+```ds
 {
     import "./setup"
     import lodash from "lodash"
@@ -155,7 +155,7 @@ Side-effect imports are not reordered and stay at the top.
 
 Scoped packages like `@org/pkg` are treated as regular packages.
 
-```ds organize-imports=on
+```ds
 {
     import local from "./local"
     import scoped from "@org/package"
@@ -178,7 +178,7 @@ Scoped packages like `@org/pkg` are treated as regular packages.
 
 All groups in their correct order.
 
-```ds organize-imports=on
+```ds
 {
     import "./polyfill"
     import local from "./components/Button"

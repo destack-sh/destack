@@ -24,9 +24,7 @@ function* iterateNodeModules(p) {
     }
 }
 
-/**
- * @param {string} p
- */
+/** @param {string} p */
 function rimraf(p) {
     // The rimraf package uses maxRetries=10 on Windows, but Node's fs.rm does not have that special case.
     return fs.rmSync(p, {

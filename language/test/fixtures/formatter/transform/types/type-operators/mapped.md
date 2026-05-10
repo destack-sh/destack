@@ -69,7 +69,7 @@ type Values<T> = {
 
 Short exported mapped types stay inline under non-default formatter options.
 
-```ts:main.ts indent-width=2 line-width=80 quote-style=double
+```ts:main.ts indent-width=2 line-width=80
 export type Bar<T> = {[P in keyof T]: string}
 ```
 
@@ -81,7 +81,7 @@ export type Bar<T> = { [P in keyof T]: string };
 
 Mapped types with `as` remaps preserve their remap expressions under non-default formatter options.
 
-```ts:main.ts indent-width=2 line-width=80 quote-style=double
+```ts:main.ts indent-width=2 line-width=80
 type MappedTypeWithNewKeys<T> = {
   [K in keyof T as NewKeyType]: T[K]
 };

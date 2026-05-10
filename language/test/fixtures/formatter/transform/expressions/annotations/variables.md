@@ -30,7 +30,7 @@ const buffer: @addrspace("shared") &Buffer = value;
 
 Decorator prefixed variable types stay inline after `:` under non-default formatter options.
 
-```ts:main.ts indent-width=2 line-width=80 quote-style=double
+```ts:main.ts indent-width=2 line-width=80
 {
     const buffer: @addrspace("shared") &Buffer = value;
 }

@@ -77,7 +77,7 @@ type Value = First | Second; // second-tail
 
 Union boundary comments stay attached to the same arms under non-default formatter options.
 
-```ts:main.ts indent-width=2 line-width=80 quote-style=double
+```ts:main.ts indent-width=2 line-width=80
 interface _KeywordDef {
   type?: JSONType | JSONType[] // data types that keyword applies to
 }
@@ -125,7 +125,7 @@ type C2 =
 
 Leading doc comments on the first union arm stay attached to that arm under non-default formatter options.
 
-```ts:main.ts indent-width=2 line-width=80 quote-style=double
+```ts:main.ts indent-width=2 line-width=80
 export type AddressAllocator =
 (/** Reserve a specific IP address. The pool is inferred from the address since IP pools cannot have overlapping ranges. */
 | {
@@ -377,7 +377,7 @@ type Value<T> =
 
 Line comments after `?` stay attached to the consequent under non-default formatter options.
 
-```ts:main.ts indent-width=2 line-width=80 quote-style=double
+```ts:main.ts indent-width=2 line-width=80
 type A = B extends T
   ? // comment
     foo
@@ -395,7 +395,7 @@ type A = B extends T
 
 Nested multiline comments stay attached to the same conditional branches under non-default formatter options.
 
-```ts:main.ts indent-width=2 line-width=80 quote-style=double
+```ts:main.ts indent-width=2 line-width=80
 type T = test extends B
   ? /* comment
        comment

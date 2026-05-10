@@ -1,10 +1,10 @@
 import { runCli } from "./bindings";
 import {
-    initExternalFormatter,
+    disposeExternalFormatter,
     formatEmbeddedCode,
     formatFile,
+    initExternalFormatter,
     sortTailwindClasses,
-    disposeExternalFormatter,
 } from "./cli/worker-proxy";
 
 // napi-JS `oxfmt` CLI entry point

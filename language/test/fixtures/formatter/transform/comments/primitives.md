@@ -52,9 +52,9 @@ const x = 1
 const x = 1;
 ```
 
-### block doc comment with fenced code block
+### block doc comment with fenced code block indentation
 
-Block doc comments keep fenced code blocks intact.
+Block doc comments format fenced code block indentation.
 
 ```ts:main.ts indent-style=tab
 /**
@@ -62,8 +62,8 @@ Block doc comments keep fenced code blocks intact.
  *
  * ```ts
  * const store = toStore(
- *   () => count,
- *   (v) => (count = v),
+ * 	() => count,
+ * 	(v) => (count = v),
  * );
  * ```
  */
@@ -76,8 +76,8 @@ function withFencedCodeBlock() {}
  *
  * ```ts
  * const store = toStore(
- *   () => count,
- *   (v) => (count = v),
+ * 	() => count,
+ * 	(v) => (count = v),
  * );
  * ```
  */
@@ -227,9 +227,7 @@ Doc comments precede declarations.
 
 ```ds expected
 {
-    /** some multiline
-     * doc comment
-     * over multiple lines */
+    /** Some multiline doc comment over multiple lines */
     const X = 1;
 }
 ```

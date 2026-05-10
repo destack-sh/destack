@@ -3,8 +3,8 @@
 // oxlint-disable no-console
 
 /**
- * Get changed files from GitHub events (pull request or push).
- * This module provides a reusable function for detecting changed files.
+ * Get changed files from GitHub events (pull request or push). This module provides a reusable
+ * function for detecting changed files.
  */
 
 import https from "https";
@@ -12,6 +12,7 @@ import process from "process";
 
 /**
  * Make a GitHub API request
+ *
  * @param {string} path - API path
  * @returns {Promise<any>} API response
  */
@@ -50,6 +51,7 @@ function githubApi(path) {
 
 /**
  * Get changed files based on the GitHub event type
+ *
  * @returns {Promise<string[] | null>} Array of changed file paths, or null to signal "run all"
  */
 async function getChangedFiles() {

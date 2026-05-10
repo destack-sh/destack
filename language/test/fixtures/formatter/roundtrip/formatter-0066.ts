@@ -6,39 +6,27 @@
  * Each workspace can be created, used, and then cleared to free up resources.
  */
 
+import type { RuleDetails } from "../plugins/load.ts";
+import type { Options } from "../plugins/options.ts";
 import { debugAssert } from "../utils/asserts.ts";
 
-import type { Options } from "../plugins/options.ts";
-import type { RuleDetails } from "../plugins/load.ts";
-
-/**
- * Settings for a workspace.
- */
+/** Settings for a workspace. */
 interface Workspace {
     cwd: string;
     rules: RuleDetails[];
     allOptions: Readonly<Options>[];
 }
 
-/**
- * Active workspaces.
- * Keyed by workspace URI.
- */
+/** Active workspaces. Keyed by workspace URI. */
 export const workspaces = new Map<string, Workspace>();
 
-/**
- * Most recent workspace that was used.
- */
+/** Most recent workspace that was used. */
 export let currentWorkspace: Workspace | null = null;
 
-/**
- * URI of most recent workspace that was used.
- */
+/** URI of most recent workspace that was used. */
 export let currentWorkspaceUri: string | null = null;
 
-/**
- * Create a new workspace.
- */
+/** Create a new workspace. */
 export function createWorkspace(workspaceUri: string): undefined {
     // This assertion is commented out because we currently don't destroy workspaces.
     // See comment in `destroyWorkspace` below.
@@ -59,10 +47,7 @@ export function createWorkspace(workspaceUri: string): undefined {
     currentWorkspaceUri = null;
 }
 
-/**
- * Destroy a workspace.
- * Unloads all plugin data associated with this workspace.
- */
+/** Destroy a workspace. Unloads all plugin data associated with this workspace. */
 export function destroyWorkspace(workspaceUri: string): undefined {
     // We currently don't destroy workspaces.
     //
@@ -91,6 +76,7 @@ export function destroyWorkspace(workspaceUri: string): undefined {
 
 /**
  * Set the current workspace.
+ *
  * @param workspace - Workspace object
  * @param workspaceUri - Workspace URI
  */

@@ -1,4 +1,5 @@
 import * as nodeCrypto from "node:crypto";
+
 import { vi } from "vitest";
 
 /**
@@ -9,9 +10,7 @@ if (!globalThis.crypto) {
     vi.stubGlobal("CryptoKey", nodeCrypto.webcrypto.CryptoKey);
 }
 
-/**
- * Cache API
- */
+/** Cache API */
 type StoreMap = Map<string | Request, Response>;
 
 class MockCache {

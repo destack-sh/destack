@@ -34,7 +34,7 @@ function build(value: Buffer): @addrspace("shared") &Buffer {
 
 Decorator prefixed return types stay attached after `:` under non-default formatter options.
 
-```ts:main.ts indent-width=2 line-width=80 quote-style=double
+```ts:main.ts indent-width=2 line-width=80
 {
     function build(value: Buffer): @addrspace("shared") &Buffer { return value; }
 }

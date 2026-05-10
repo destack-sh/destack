@@ -1,6 +1,6 @@
 import assert from "node:assert";
 
-import type { Plugin, Rule, ESTree } from "#oxlint/plugins";
+import type { ESTree, Plugin, Rule } from "#oxlint/plugins";
 
 type Node = ESTree.Node;
 

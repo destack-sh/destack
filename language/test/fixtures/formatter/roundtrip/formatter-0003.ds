@@ -1,7 +1,7 @@
 // Complex formatting roundtrip test
 
-import { createServer, Router, Response } from "destack/http";
 import { Database, Query } from "destack/db";
+import { createServer, Response, Router } from "destack/http";
 
 type UserId = string;
 type Result<T> = { ok: true; value: T } | { ok: false; error: Error };

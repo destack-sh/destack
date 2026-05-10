@@ -8,79 +8,55 @@ class StripInternalClass {
 }
 
 class StripInternalClassFields {
-    /**
-     * @internal
-     */
+    /** @internal */
     internalProperty: string = "internal";
 
     // @internal
     internalMethod(): void {}
 }
 
-/**
-@internal
-*/
+/** @internal */
 function stripInternalFunction() {
     console.log("test");
 }
 
-export { stripInternalFunction, StripInternalClass, StripInternalClassFields };
+export { StripInternalClass, StripInternalClassFields, stripInternalFunction };
 
-/**
-@internal
-*/
+/** @internal */
 export function stripInternalExportedFunction() {
     console.log("test");
 }
 
-/**
-@internal*/
+/** @internal */
 export const stripInternalExportedConst = "test";
 
-/**
-@internal*/
+/** @internal */
 export interface StripInternalExportedInterface {}
 
 export interface StripInternalInterfaceSignatures {
-    /**
-     * @internal
-     */
+    /** @internal */
     internalMethod(): void;
-    /**
-     * @internal
-     */
+    /** @internal */
     internalProperty: number;
-    /**
-     * @internal
-     */
+    /** @internal */
     new (): any;
 }
 
 export type StripInternalTypeSignatures = {
-    /**
-     * @internal
-     */
+    /** @internal */
     internalMethod(): void;
-    /**
-     * @internal
-     */
+    /** @internal */
     internalProperty: number;
-    /**
-     * @internal
-     */
+    /** @internal */
     new (): any;
 };
 
 export namespace StripInternalNamespaceInner {
-    /**
-     * @internal
-     */
+    /** @internal */
     export function internalFunction() {
         console.log("test");
     }
 }
 
-/**
- * @internal
- */
+/** @internal */
 export namespace StripInternalNamespace {}

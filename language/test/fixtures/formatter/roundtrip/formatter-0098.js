@@ -17,9 +17,7 @@ class DirectoryIgnorer {
         this.ignorePatterns = patterns;
     }
 
-    /**
-     * @param {string} absolutePathOrPattern
-     */
+    /** @param {string} absolutePathOrPattern */
     shouldIgnore(absolutePathOrPattern) {
         const directoryNames = path.relative(cwd, absolutePathOrPattern).split(path.sep);
         return directoryNames.some((directoryName) => this.#directories.has(directoryName));

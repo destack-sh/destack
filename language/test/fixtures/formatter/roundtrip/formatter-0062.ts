@@ -8,7 +8,7 @@ export type * as ESTree from "./generated/types";
 // Plugin types
 export type { Context, LanguageOptions } from "./plugins/context.ts";
 export type { Fix, Fixer, FixFn } from "./plugins/fix.ts";
-export type { Globals, Envs } from "./plugins/globals.ts";
+export type { Envs, Globals } from "./plugins/globals.ts";
 export type { CreateOnceRule, CreateRule, Plugin, Rule } from "./plugins/load.ts";
 export type { Options, RuleOptionsSchema } from "./plugins/options.ts";
 export type { Diagnostic, DiagnosticData, Suggestion } from "./plugins/report.ts";
@@ -24,12 +24,9 @@ export type {
 export type { Settings } from "./plugins/settings.ts";
 export type { SourceCode } from "./plugins/source_code.ts";
 export type {
+    BooleanToken,
     CountOptions,
     FilterFn,
-    RangeOptions,
-    SkipOptions,
-    Token,
-    BooleanToken,
     IdentifierToken,
     JSXIdentifierToken,
     JSXTextToken,
@@ -38,16 +35,19 @@ export type {
     NumericToken,
     PrivateIdentifierToken,
     PunctuatorToken,
+    RangeOptions,
     RegularExpressionToken,
+    SkipOptions,
     StringToken,
     TemplateToken,
+    Token,
 } from "./plugins/tokens.ts";
 export type {
-    RuleMeta,
-    RuleDocs,
     RuleDeprecatedInfo,
-    RuleReplacedByInfo,
+    RuleDocs,
+    RuleMeta,
     RuleReplacedByExternalSpecifier,
+    RuleReplacedByInfo,
 } from "./plugins/rule_meta.ts";
 export type { LineColumn, Location, Range, Ranged, Span } from "./plugins/location.ts";
 export type {

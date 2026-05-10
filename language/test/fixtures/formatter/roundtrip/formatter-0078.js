@@ -7,17 +7,15 @@ import {
 // Getter for private `#visitorsArr` property of `Visitor` class. Initialized in class body below.
 let getVisitorsArrTemp;
 
-/**
- * Visitor class, used to visit an AST.
- */
+/** Visitor class, used to visit an AST. */
 export class Visitor {
     #visitorsArr;
 
     /**
      * Create `Visitor`.
      *
-     * Provide an object where keys are names of AST nodes you want to visit,
-     * and values are visitor functions which receive AST node objects of that type.
+     * Provide an object where keys are names of AST nodes you want to visit, and values are visitor
+     * functions which receive AST node objects of that type.
      *
      * Keys can also be postfixed with `:exit` to visit when exiting the node, rather than entering.
      *
@@ -26,7 +24,7 @@ export class Visitor {
      *     BinaryExpression(binExpr) {
      *         // Do stuff when entering a `BinaryExpression`
      *     },
-     *     'BinaryExpression:exit'(binExpr) {
+     *     "BinaryExpression:exit"(binExpr) {
      *         // Do stuff when exiting a `BinaryExpression`
      *     },
      * });
@@ -52,10 +50,10 @@ export const getVisitorsArr = getVisitorsArrTemp;
  *
  * Each element of array is one of:
  *
- * * No visitor for this type = `null`.
- * * Visitor for leaf node = visit function.
- * * Visitor for non-leaf node = object of form `{ enter, exit }`,
- *   where each property is either a visitor function or `null`.
+ * - No visitor for this type = `null`.
+ * - Visitor for leaf node = visit function.
+ * - Visitor for non-leaf node = object of form `{ enter, exit }`, where each property is either a
+ *   visitor function or `null`.
  *
  * @param {Object} visitor - Visitors object from user
  * @returns {Array<Object|Function|null>} - Array of visitors

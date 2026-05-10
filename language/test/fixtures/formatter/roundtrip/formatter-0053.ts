@@ -1,6 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { writeFile, rm } from "node:fs/promises";
+
+import { describe, expect, it } from "vitest";
+
 import { runAndSnapshot } from "../utils";
 
 const fixturesDir = join(import.meta.dirname, "fixtures");

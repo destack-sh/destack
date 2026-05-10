@@ -7,10 +7,11 @@
  */
 
 import { h } from "preact";
+
 import { BlockEntryRenderable } from "../entities/renderables.mjs";
+import { API_REFERENCE_CONTAINER } from "../styling/css-classes.mjs";
 import { HeaderApi } from "./header-api";
 import { RawHtml } from "./raw-html";
-import { API_REFERENCE_CONTAINER } from "../styling/css-classes.mjs";
 
 /** Component to render a block API reference document. */
 export function BlockReference(entry: BlockEntryRenderable) {
