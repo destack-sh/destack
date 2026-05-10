@@ -345,6 +345,8 @@ struct Player {
 ### Classes
 
 Classes remain the TypeScript-shaped model for managed objects with identity, except of course without a prototype chain or any dynamic class shenanigans.
+Also, class fields require every instance field to be initialized by its declaration, a parameter property, or every constructor path.
+(Optional fields do not need eager initialization, they default to `undefined`.)
 
 ```ds
 class Counter {
@@ -364,8 +366,23 @@ const counter: Counter = new Counter(1);
 counter.increment() satisfies int32;
 ```
 
-Class fields use strict initialization: every required instance field must be initialized by its declaration, a parameter property, or every constructor path.
-(Optional fields do not need eager initialization.)
+Class methods are concrete by default and must be `virtual` to enable virtual dispatch for an instance method in a subclass, and `abstract` to require an override before the class can be constructed.
+
+```ds
+abstract class Logger {
+    abstract write(message: string): void;
+
+    virtual flush(): void {}
+}
+```
+
+Additionally, classes may be marked `final` to prevent downstream classes from extending the declaration.
+
+```ds
+final class PacketHeader {
+    length: uint32;
+}
+```
 
 ### Arrays, Slices and Tuples
 
@@ -1180,8 +1197,7 @@ match (parsePort(input)) {
 }
 ```
 
-`Result` is great for synchronous error handling, and `AsyncResult` extends the exact same idea to `Promise`-based asynchronous error handling.
-`AsyncResult<T, E>` is really just a newtype wrapper around `Promise<Result<T, E>>` with some additional helpers:
+`Result` is great for synchronous error handling, and `AsyncResult` extends the exact same idea to `Promise`-based asynchronous errors with a convenient wrapper around `Promise<Result<T, E>>`.
 
 ```ds
 export newtype AsyncResult<T, E> = Promise<Result<T, E>>;
@@ -1194,6 +1210,8 @@ async function loadProfile(id: UserId): AsyncResult<Profile, NetworkError | Deco
     return Result.ok(profile);
 }
 ```
+
+For `await`, we also have some `await? expr` sugar for `(await expr)?`, and `await! expr` is sugar for `(await expr)!`.
 
 #### Maybe, Must and Coalesce
 
