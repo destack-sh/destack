@@ -289,9 +289,10 @@ impl Parser {
 mod tests {
     use destack_ast::{
         CommentKind, Declaration, Decorator, DecoratorPosition, EnumDeclaration, EnumField,
-        EnumKind, Expression, GenericParameter, ScalarLiteral, TypeExpression, WhereClause,
+        EnumKind, Expression, GenericParameter, NodeType, ScalarLiteral, TypeExpression,
+        WhereClause,
     };
-    use destack_source::{NodeSpanRegion, NodeSpanType};
+    use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
 
     use crate::parse::expression::common::DeclarationHeader;
     use crate::{TestParser, assert_comment, assert_node, assert_path, assert_string};
@@ -319,6 +320,31 @@ enum Foo extends Day {}
                 assert_path!(parser, *path, "Day");
             });
         });
+    }
+
+    #[test]
+    fn test_parse_recovers_enum_without_body() {
+        let mut test = TestParser::new_with_language(
+            r#"
+enum;
+enum A;
+"#,
+            LanguageType::TypeScript,
+        );
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+
+        assert_eq!(expressions.len(), 2);
+        assert_node!(parser.tree, expressions[0], Expression::Error);
+        assert_node!(parser.tree, expressions[1], Expression::Error);
+        test.assert_error_leaves(
+            &parser,
+            &[
+                (Some(NodeType::Expression), None, "enum"),
+                (None, None, ";"),
+                (Some(NodeType::Expression), None, ";"),
+            ],
+        );
     }
 
     #[test]

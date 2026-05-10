@@ -29,8 +29,11 @@ impl Parser {
         let keyword = self.current_keyword();
         if matches!(
             keyword,
-            Some(Keyword::Export | Keyword::Declare | Keyword::Abstract | Keyword::Static)
+            Some(Keyword::Export | Keyword::Declare | Keyword::Abstract | Keyword::Static,)
         ) {
+            return true;
+        }
+        if self.language.is_destack() && keyword == Some(Keyword::Shared) {
             return true;
         }
 
@@ -66,7 +69,7 @@ impl Parser {
     /// { [key]: value }
     /// { ...spread }
     /// ```
-    pub(super) fn can_parse_object_literal_in_statement_position(&mut self) -> bool {
+    pub(crate) fn can_parse_object_literal_in_statement_position(&mut self) -> bool {
         // only allow this when statement-position object literals are enabled
         if !self.language.is_destack() {
             return false;
@@ -244,7 +247,13 @@ impl Parser {
         let keyword = self.current_keyword();
         let is_modifier_keyword = matches!(
             keyword,
-            Some(Keyword::Export | Keyword::Declare | Keyword::Abstract | Keyword::Static)
+            Some(
+                Keyword::Export
+                    | Keyword::Declare
+                    | Keyword::Abstract
+                    | Keyword::Shared
+                    | Keyword::Static,
+            )
         );
         let is_global_identifier = !is_modifier_keyword
             && can_start_global_or_module_declaration
@@ -425,6 +434,21 @@ impl Parser {
                 .is_ok_and(is_declaration_keyword);
         if header.is_abstract {
             self.bump(); // eat abstract
+        }
+
+        // shared placement modifier
+        header.is_shared = self.language.is_destack()
+            && self.is_keyword(Keyword::Shared)
+            && self.lookahead(|parser| {
+                parser.bump();
+                !parser.current_token_is_on_new_line()
+                    && matches!(
+                        parser.current_keyword(),
+                        Some(Keyword::Const | Keyword::Let)
+                    )
+            });
+        if header.is_shared {
+            self.bump(); // eat shared
         }
 
         // global declaration

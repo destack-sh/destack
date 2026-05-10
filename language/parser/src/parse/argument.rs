@@ -438,8 +438,7 @@ impl Parser {
                         | Keyword::Readonly
                         | Keyword::Const
                         | Keyword::Accessor
-                        | Keyword::Comptime
-                )
+                ) || self.language.is_destack() && keyword == Keyword::Comptime
             }) || is_out_variance_modifier;
             if !can_start_modifier {
                 break;
@@ -632,7 +631,10 @@ impl Parser {
             }
 
             // timing modifiers (comptime)
-            if !modifiers.is_comptime && self.is_keyword(Keyword::Comptime) {
+            if self.language.is_destack()
+                && !modifiers.is_comptime
+                && self.is_keyword(Keyword::Comptime)
+            {
                 if !self.next_token_starts_comptime_target() {
                     break;
                 }
@@ -1049,7 +1051,7 @@ impl Parser {
                 continue;
             }
 
-            if self.is_keyword(Keyword::Comptime) {
+            if self.language.is_destack() && self.is_keyword(Keyword::Comptime) {
                 self.bump(); // eat comptime
                 is_comptime = true;
                 continue;
@@ -1437,7 +1439,11 @@ impl Parser {
                     .tree
                     .insert(Expression::Stub, self.get_span_from(&start));
 
-                self.bump(); // eat }
+                if in_tree_child {
+                    self.bump_tree_child(); // eat }
+                } else {
+                    self.bump(); // eat }
+                }
                 let argument_id =
                     self.insert_node(Argument::Positional { value }, self.get_span_from(&start));
                 return Ok(argument_id);
@@ -1626,16 +1632,12 @@ impl Parser {
                     let value_start = self.span_start();
                     let value_ambient_context = self.flags.with_tree_literal(false);
                     let value_expression_context = self.flags.not_in_position();
-                    let elements = self.with_flags(
+                    self.with_flags(
                         self.flags
                             .with_ambient_context(value_ambient_context)
                             .with_expression_context(value_expression_context),
-                        |parser| parser.eat_array_literal(),
-                    )?;
-                    self.insert_node(
-                        Expression::ArrayExpression { elements },
-                        self.get_span_from(&value_start),
-                    )
+                        |parser| parser.eat_bracket_literal_expression(&value_start),
+                    )?
                 }
                 // tree literal attribute value
                 else if self.language.supports_jsx() && self.peek_is(TokenType::LessThan) {

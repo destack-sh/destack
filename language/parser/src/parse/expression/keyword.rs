@@ -318,6 +318,7 @@ impl Parser {
                 let enum_id = self.eat_enum(start, EnumKind::Enum, header)?;
                 Ok(Some(self.insert_declaration_expression(start, enum_id)))
             }
+            Keyword::Enum => Err(ParseError::unexpected(self.peek()?.span)),
             Keyword::Interface if next_is_declaration_start || next_is_on_new_line => {
                 let interface_id = self.eat_interface(start, header, TypeKind::Structural)?;
                 Ok(Some(
@@ -548,6 +549,7 @@ impl Parser {
                     self.insert_declaration_type_expression(start, enum_id),
                 ))
             }
+            Keyword::Enum => Err(ParseError::unexpected(self.peek()?.span)),
 
             // const enum declaration
             Keyword::Const if next_keyword == Some(Keyword::Enum) => {
@@ -834,6 +836,7 @@ impl Parser {
                 let enum_id = self.eat_enum(start, EnumKind::Enum, header)?;
                 Ok(Some(self.insert_declaration_expression(start, enum_id)))
             }
+            Keyword::Enum => Err(ParseError::unexpected(self.peek()?.span)),
             // const enum or binding declaration
             Keyword::Const => {
                 // parse const enum declaration

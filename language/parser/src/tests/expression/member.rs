@@ -6,6 +6,46 @@ use crate::{
 use destack_ast::*;
 use destack_source::LanguageType;
 
+#[test]
+fn test_parse_keyword_and_private_member_expressions() {
+    let input = r#"
+foo.bar
+foo.await
+foo.yield
+foo.for
+foo?.for
+foo?.bar
+class Test {
+  #bar
+  test(other) {
+    this.#bar;
+    this?.#bar;
+    other.#bar;
+    other?.#bar;
+  }
+}
+"#;
+    let mut test = TestParser::new_with_language(input, LanguageType::JavaScript);
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    test.assert_no_errors(&parser);
+
+    assert_eq!(expressions.len(), 7);
+    for expression in &expressions[..6] {
+        assert!(
+            matches!(
+                parser.tree.get(*expression),
+                Expression::Member { .. }
+                    | Expression::PrivateMember { .. }
+                    | Expression::Maybe { .. }
+            ),
+            "expected member expression, got {:?}",
+            parser.tree.get(*expression)
+        );
+    }
+    assert_node!(parser.tree, expressions[6], Expression::Declaration(_));
+}
+
 /// Parse a dotted value reference as a runtime member chain.
 #[test]
 fn test_parse_member_expression_as_member_chain() {

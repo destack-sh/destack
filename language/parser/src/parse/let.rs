@@ -83,7 +83,7 @@ impl Parser {
         kind: LetKind,
         mutability: Mutability,
     ) -> ParseResult<LocalNodeId<Expression>> {
-        let first_declarator = self.eat_declarator(false, false)?;
+        let first_declarator = self.eat_declarator(false, true)?;
 
         // let else
         if self.is_keyword(Keyword::Else) {
@@ -152,6 +152,7 @@ impl Parser {
                 kind,
                 export: header.export,
                 is_ambient: header.is_ambient,
+                is_shared: header.is_shared,
                 mutability,
                 declarators,
             },
@@ -225,6 +226,11 @@ impl Parser {
         if keyword == Keyword::Readonly || keyword == Keyword::Const {
             self.bump(); // eat readonly
             Ok(Some(Mutability::Immutable))
+        }
+        // exclusive
+        else if keyword == Keyword::Exclusive {
+            self.bump(); // eat exclusive
+            Ok(Some(Mutability::Exclusive))
         }
         // mutable by default
         else {
@@ -393,8 +399,11 @@ impl Parser {
             pattern_result?
         };
 
-        // declaration declarators must use binding patterns
-        if !allow_match_pattern && !self.declarator_pattern_is_valid_binding(pattern_id) {
+        // non Destack declaration declarators must use plain binding patterns
+        if !allow_match_pattern
+            && !self.language.is_destack()
+            && !self.declarator_pattern_is_valid_binding(pattern_id)
+        {
             return Err(ParseError::unexpected(self.tree.get_span(pattern_id)));
         }
 
@@ -550,6 +559,55 @@ const x: int32 = 1
                 assert_node!(parser.tree, value_id, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
             });
         });
+    }
+
+    #[test]
+    fn test_parse_shared_const_binding() {
+        let mut test = TestParser::new(
+            r###"
+class Registry {}
+
+shared const registry: Registry = new Registry();
+"###,
+        );
+        let mut parser = test.prepare();
+
+        let roots = parser.parse();
+
+        test.assert_no_errors(&parser);
+        assert_eq!(roots.len(), 2);
+
+        assert_node!(parser.tree, roots[1], Expression::Let { kind, is_shared, declarators, .. } => {
+            assert_eq!(*kind, LetKind::Const);
+            assert!(*is_shared);
+            assert_eq!(declarators.len(), 1);
+
+            assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, value } => {
+                assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
+                    assert_string!(parser, *name, "registry");
+                });
+
+                let ty = ty.expect("expected type annotation");
+                assert_expression_path!(parser, parser.tree.get(ty), "Registry");
+
+                let value = value.expect("expected initializer");
+                assert_node!(parser.tree, value, Expression::New { .. });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_typescript_shared_const_keeps_shared_identifier() {
+        let mut test =
+            TestParser::new_with_language("shared const value = 1", LanguageType::TypeScript);
+        let mut parser = test.prepare();
+        let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+        assert_expression_path!(parser, parser.tree.get(expression_id), "shared");
+
+        let next_span = parser.peek().unwrap().span;
+        assert_eq!(parser.get_span_str(next_span), "const");
+        test.assert_no_errors(&parser);
     }
 
     #[test]
@@ -1173,7 +1231,7 @@ const registry: Map<
 
             // let { x } = value
             assert_node!(parser.tree, *declarator, Declarator { pattern, value, .. } => {
-                assert!(value.is_some());
+                assert_expression_path!(parser, parser.tree.get(value.expect("expected initializer")), "value");
                 assert_node!(parser.tree, *pattern, Pattern::Object { fields } => {
                     assert_eq!(fields.len(), 1);
                 });
@@ -1190,6 +1248,66 @@ const registry: Map<
                     .expect("expected else branch expression");
 
                 assert_node!(parser.tree, branch_expression, Expression::Return { .. } => {
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_let_else_literal_pattern() {
+        let mut test = TestParser::new(r#"let "ok" = value else { return }"#);
+        let mut parser = test.prepare();
+        let start = parser.span_start();
+        let expression_id = parser
+            .eat_let(&start, DeclarationHeader::default())
+            .unwrap();
+
+        // let "ok" = value else { return }
+        assert_node!(parser.tree, expression_id, Expression::LetElse { declarator, else_branch, .. } => {
+            assert_node!(parser.tree, *declarator, Declarator { pattern, value, .. } => {
+                assert_expression_path!(parser, parser.tree.get(value.expect("expected initializer")), "value");
+                assert_node!(parser.tree, *pattern, Pattern::Expression { value } => {
+                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(value)) => {
+                        assert_eq!(parser.strings.get(*value), "ok");
+                    });
+                });
+            });
+
+            assert_node!(parser.tree, *else_branch, Expression::Block(block_id) => {
+                let block = parser.tree.get(*block_id);
+                let branch_expression = block
+                    .leading_expressions
+                    .first()
+                    .copied()
+                    .or(block.tail_expression)
+                    .expect("expected else branch expression");
+
+                assert_node!(parser.tree, branch_expression, Expression::Return { .. } => {
+                });
+            });
+        });
+    }
+
+    #[test]
+    fn test_parse_literal_pattern_without_let_else() {
+        let mut test = TestParser::new(r#"let "ok" = value"#);
+        let mut parser = test.prepare();
+        let start = parser.span_start();
+        let expression_id = parser
+            .eat_let(&start, DeclarationHeader::default())
+            .unwrap();
+
+        // let "ok" = value
+        assert_node!(parser.tree, expression_id, Expression::Let { declarators, .. } => {
+            assert_eq!(declarators.len(), 1);
+            assert_node!(parser.tree, declarators[0], Declarator { pattern, value, .. } => {
+                assert_node!(parser.tree, *pattern, Pattern::Expression { value: pattern_value } => {
+                    assert_node!(parser.tree, *pattern_value, Expression::ScalarLiteral(ScalarLiteral::String(value)) => {
+                        assert_eq!(parser.strings.get(*value), "ok");
+                    });
+                });
+                assert_node!(parser.tree, value.expect("expected initializer"), Expression::Identifier { name } => {
+                    assert_eq!(parser.strings.get(*name), "value");
                 });
             });
         });
