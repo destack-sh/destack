@@ -167,6 +167,40 @@ fn write_match_case_prefix<'ast>(
     write_annotation_sequence(f, &prefix_annotation_ids)
 }
 
+/// Write a match or switch selector guard.
+fn write_match_selector_guard<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    case_id: LocalNodeId<MatchCase>,
+    pattern_id: LocalNodeId<Pattern>,
+    guard_id: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let guard_clause_span = f
+        .context()
+        .tree
+        .get_side_span(case_id, NodeSpanType::Region(NodeSpanRegion::Clause))
+        .ok_or(FormatError::SyntaxError {
+            message: "match guard requires a clause span",
+        })?;
+    let guard_prefix_comments = f
+        .context()
+        .comments()
+        .comments_in_range(f.context().span(pattern_id).end, guard_clause_span.start)
+        .to_vec();
+
+    write!(
+        f,
+        [
+            FormatTrailingComments::Comments(&guard_prefix_comments),
+            space(),
+            Keyword::If,
+            space(),
+            token("("),
+            format_with(|f| write_grouped_control_head(f, &guard_id)),
+            token(")")
+        ]
+    )
+}
+
 /// Format a statement body block, preserving wrapper semantics.
 pub(crate) fn format_statement_body_block<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -853,7 +887,7 @@ fn write_if_else_separator<'ast>(
     let then_is_explicit_block = matches!(
         f.context().tree.get(then_expression_id),
         Expression::Block(block_id)
-            if f.context().tree.get(*block_id).form == BlockForm::Explicit
+            if f.context().tree.get(*block_id).is_explicit()
     );
     let else_on_same_line = then_is_explicit_block && (!has_line_comment || !has_dangling_comments);
     let line_comment_after_explicit_block =
@@ -1050,31 +1084,7 @@ fn format_selector_with_style<'ast>(
             MatchSelector::Pattern { pattern, guard } => {
                 write!(f, [*pattern])?;
                 if let Some(guard) = guard {
-                    let guard_clause_span = f
-                        .context()
-                        .tree
-                        .get_side_span(case_id, NodeSpanType::Region(NodeSpanRegion::Clause))
-                        .ok_or(FormatError::SyntaxError {
-                            message: "match guard requires a clause span",
-                        })?;
-                    let guard_prefix_comments = f
-                        .context()
-                        .comments()
-                        .comments_in_range(f.context().span(*pattern).end, guard_clause_span.start)
-                        .to_vec();
-
-                    write!(
-                        f,
-                        [
-                            FormatTrailingComments::Comments(&guard_prefix_comments),
-                            space(),
-                            Keyword::If,
-                            space(),
-                            token("("),
-                            format_with(|f| write_grouped_control_head(f, guard)),
-                            token(")")
-                        ]
-                    )?;
+                    write_match_selector_guard(f, case_id, *pattern, *guard)?;
                 }
             }
             MatchSelector::Default => {
@@ -1084,20 +1094,11 @@ fn format_selector_with_style<'ast>(
     } else {
         match selector {
             MatchSelector::Pattern { pattern, guard } => {
-                write!(f, [Keyword::Case, space(), *pattern, token(":")])?;
+                write!(f, [Keyword::Case, space(), *pattern])?;
                 if let Some(guard) = guard {
-                    write!(
-                        f,
-                        [
-                            space(),
-                            Keyword::If,
-                            space(),
-                            token("("),
-                            *guard,
-                            token(")")
-                        ]
-                    )?;
+                    write_match_selector_guard(f, case_id, *pattern, *guard)?;
                 }
+                write!(f, [token(":")])?;
             }
             MatchSelector::Default => {
                 write!(f, [Keyword::Default, token(":")])?;
@@ -1277,7 +1278,7 @@ pub(crate) fn format_while_expression<'ast>(
         }
         // do <body> while (<condition>)
         WhileForm::DoWhile => {
-            let is_block_body = f.context().tree.get(body).form == BlockForm::Explicit;
+            let is_block_body = f.context().tree.get(body).is_explicit();
 
             write!(f, [Keyword::Do])?;
             if statement_body_requires_head_space(f.context(), body) {
@@ -1544,7 +1545,7 @@ pub(crate) fn format_match_case_with_style<'ast>(
                 write!(f, [space(), token("=>"), space(), *body])?;
             } else {
                 let block = f.context().tree.get(*body);
-                if block.form == BlockForm::Explicit {
+                if block.is_explicit() {
                     write!(f, [space(), *body])?;
                 } else if !block.is_empty() {
                     write!(
@@ -1575,7 +1576,7 @@ fn switch_case_expression_body_is_explicit_block(
     };
 
     let block = context.tree.get(*block_id);
-    block.form == BlockForm::Explicit
+    block.is_explicit()
 }
 
 impl<'ast> FormatNode<'ast, MatchCase> for MatchCase {

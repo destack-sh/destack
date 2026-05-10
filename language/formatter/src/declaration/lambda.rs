@@ -96,8 +96,8 @@ impl<'ast> Format<DestackFormatContext<'ast>> for FormatMaybeCachedLambdaBody {
     }
 }
 
-/// Return whether one lambda declaration appears in statement position.
-fn lambda_declaration_is_statement_position(
+/// Return whether one lambda declaration appears in statement context.
+fn lambda_declaration_is_statement_context(
     context: &DestackFormatContext<'_>,
     node_id: LocalNodeId<Declaration>,
 ) -> bool {
@@ -181,7 +181,7 @@ fn lambda_declaration_needs_trailing_semicolon(
     node_id: LocalNodeId<Declaration>,
     export: Option<ExportKind>,
 ) -> bool {
-    export.is_some() || lambda_declaration_is_statement_position(context, node_id)
+    export.is_some() || lambda_declaration_is_statement_context(context, node_id)
 }
 
 /// Return whether one expression is a multiline template that starts on the same line.

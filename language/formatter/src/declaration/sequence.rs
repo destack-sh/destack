@@ -1162,7 +1162,7 @@ pub(crate) fn block_allows_value_tail(
         return false;
     }
 
-    !expression_is_in_statement_position(context, block_expression_id)
+    !expression_is_in_statement_context(context, block_expression_id)
 }
 
 /// Return true when this expression is the value tail of one block.
@@ -1186,8 +1186,8 @@ pub(crate) fn expression_is_value_block_tail(
     block_allows_value_tail(context, block_id)
 }
 
-/// Return true when this expression is in statement position.
-pub(crate) fn expression_is_in_statement_position(
+/// Return true when this expression is formatted in a statement context.
+pub(crate) fn expression_is_in_statement_context(
     context: &DestackFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -1210,7 +1210,7 @@ pub(crate) fn expression_is_in_statement_position(
                     else_expression,
                     ..
                 } => {
-                    if !control_branch_inherits_statement_position(context) {
+                    if !control_branch_inherits_statement_context(context) {
                         return false;
                     }
 
@@ -1229,14 +1229,7 @@ pub(crate) fn expression_is_in_statement_position(
                     finally_expression,
                     ..
                 } => {
-                    if finally_expression
-                        .as_ref()
-                        .is_some_and(|finally_expression| finally_expression.id == expression_id.id)
-                    {
-                        return true;
-                    }
-
-                    if !control_branch_inherits_statement_position(context) {
+                    if !control_branch_inherits_statement_context(context) {
                         return false;
                     }
 
@@ -1244,30 +1237,35 @@ pub(crate) fn expression_is_in_statement_position(
                         || catch_expression
                             .as_ref()
                             .is_some_and(|catch_expression| catch_expression.id == expression_id.id)
+                        || finally_expression
+                            .as_ref()
+                            .is_some_and(|finally_expression| {
+                                finally_expression.id == expression_id.id
+                            })
                 }
                 Expression::Labelled { body, .. } => body.id == expression_id.id,
                 _ => false,
             };
 
             should_inherit_parent_position
-                && expression_is_in_statement_position(context, parent_expression_id)
+                && expression_is_in_statement_context(context, parent_expression_id)
         }
-        NodeType::Block => expression_is_in_statement_position_inside_parent_block(
+        NodeType::Block => expression_is_in_statement_context_inside_parent_block(
             context,
             LocalNodeId::<Block>::new(parent_id),
             expression_id,
         ),
-        NodeType::Declaration => expression_is_in_statement_position_inside_parent_declaration(
+        NodeType::Declaration => expression_is_in_statement_context_inside_parent_declaration(
             context,
             LocalNodeId::<Declaration>::new(parent_id),
             expression_id,
         ),
-        NodeType::Member => expression_is_in_statement_position_inside_parent_member(
+        NodeType::Member => expression_is_in_statement_context_inside_parent_member(
             context,
             LocalNodeId::<Member>::new(parent_id),
             expression_id,
         ),
-        NodeType::Property => expression_is_in_statement_position_inside_parent_property(
+        NodeType::Property => expression_is_in_statement_context_inside_parent_property(
             context,
             LocalNodeId::<Property>::new(parent_id),
             expression_id,
@@ -1276,13 +1274,13 @@ pub(crate) fn expression_is_in_statement_position(
     }
 }
 
-/// Return true when value-capable control branches use statement formatting in this language.
-fn control_branch_inherits_statement_position(context: &DestackFormatContext<'_>) -> bool {
+/// Return true when value-capable control branches inherit statement context.
+fn control_branch_inherits_statement_context(context: &DestackFormatContext<'_>) -> bool {
     !context.options.language_type.is_destack()
 }
 
-/// Return true when one child expression is statement-position inside one parent block.
-fn expression_is_in_statement_position_inside_parent_block(
+/// Return true when one block child is formatted in a statement context.
+fn expression_is_in_statement_context_inside_parent_block(
     context: &DestackFormatContext<'_>,
     parent_block_id: LocalNodeId<Block>,
     expression_id: LocalNodeId<Expression>,
@@ -1303,8 +1301,8 @@ fn expression_is_in_statement_position_inside_parent_block(
     !block_allows_value_tail(context, parent_block_id)
 }
 
-/// Return true when one child expression is statement-position inside one parent declaration.
-fn expression_is_in_statement_position_inside_parent_declaration(
+/// Return true when one declaration child is formatted in a statement context.
+fn expression_is_in_statement_context_inside_parent_declaration(
     context: &DestackFormatContext<'_>,
     parent_declaration_id: LocalNodeId<Declaration>,
     expression_id: LocalNodeId<Expression>,
@@ -1317,7 +1315,7 @@ fn expression_is_in_statement_position_inside_parent_declaration(
                 return false;
             }
 
-            function_body_is_statement_position(context, &function.signature)
+            function_body_is_statement_context(context, &function.signature)
         }),
         Declaration::Global(global) => global.expressions.contains(&expression_id),
         Declaration::Namespace(namespace) => namespace.expressions.contains(&expression_id),
@@ -1325,8 +1323,8 @@ fn expression_is_in_statement_position_inside_parent_declaration(
     }
 }
 
-/// Return true when one child expression is statement-position inside one parent member.
-fn expression_is_in_statement_position_inside_parent_member(
+/// Return true when one member child is formatted in a statement context.
+fn expression_is_in_statement_context_inside_parent_member(
     context: &DestackFormatContext<'_>,
     parent_member_id: LocalNodeId<Member>,
     expression_id: LocalNodeId<Expression>,
@@ -1338,7 +1336,7 @@ fn expression_is_in_statement_position_inside_parent_member(
             signature, body, ..
         } => body.as_ref().is_some_and(|body_expression_id| {
             body_expression_id.id == expression_id.id
-                && function_body_is_statement_position(context, signature)
+                && function_body_is_statement_context(context, signature)
         }),
         Member::StaticBlock { body, .. } | Member::ComptimeBlock { body, .. } => {
             body.id == expression_id.id
@@ -1347,8 +1345,8 @@ fn expression_is_in_statement_position_inside_parent_member(
     }
 }
 
-/// Return true when one child expression is statement-position inside one parent property method.
-fn expression_is_in_statement_position_inside_parent_property(
+/// Return true when one property child is formatted in a statement context.
+fn expression_is_in_statement_context_inside_parent_property(
     context: &DestackFormatContext<'_>,
     parent_property_id: LocalNodeId<Property>,
     expression_id: LocalNodeId<Expression>,
@@ -1360,14 +1358,14 @@ fn expression_is_in_statement_position_inside_parent_property(
             signature, body, ..
         } => body.as_ref().is_some_and(|body_expression_id| {
             body_expression_id.id == expression_id.id
-                && function_body_is_statement_position(context, signature)
+                && function_body_is_statement_context(context, signature)
         }),
         _ => false,
     }
 }
 
-/// Return true when one function-like body should be statement-position.
-fn function_body_is_statement_position(
+/// Return true when one function-like body is formatted in a statement context.
+fn function_body_is_statement_context(
     context: &DestackFormatContext<'_>,
     signature: &FunctionSignature,
 ) -> bool {

@@ -1,7 +1,7 @@
 use crate::annotation::{FormatTrailingComments, block_infix_annotations, format_leading_comments};
 use crate::chain::transparent_inner_expression;
 use crate::context::MemoizeFormatExt;
-use crate::declaration::expression_is_in_statement_position;
+use crate::declaration::expression_is_in_statement_context;
 use crate::tree::{
     FormatTreeOpeningElement, is_jsx_whitespace_char, should_force_break_tree_attributes,
     tree_argument_is_wrapped_in_braces, tree_child_breaks_element,
@@ -750,7 +750,7 @@ pub(crate) fn tree_literal_wraps_on_break(
     node_id: LocalNodeId<Expression>,
 ) -> bool {
     // top-level expression statements stay unwrapped
-    if expression_is_in_statement_position(context, node_id)
+    if expression_is_in_statement_context(context, node_id)
         && !tree_literal_is_lambda_body(context, node_id)
     {
         return false;

@@ -121,6 +121,19 @@ fn test_format_member_instantiation_chain_breaks_at_narrow_width() {
     );
 }
 
+/// Parenthesized instantiation callees should keep grouping before outer type arguments.
+#[test]
+fn test_format_parenthesized_instantiation_callee_keeps_grouping() {
+    assert_format_program_roundtrip_with_file_type(
+        r#"(getContainer().map<string>)<number>(1)
+"#,
+        r#"(getContainer().map<string>)<number>(1);
+"#,
+        FileType::Destack,
+        DestackFormatOptions::default_with_line_width(100),
+    );
+}
+
 /// Short statement-position heads should merge the first chain group.
 #[test]
 fn test_format_member_chain_merges_short_statement_head() {
