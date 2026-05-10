@@ -13,9 +13,7 @@ use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileId, FileType, IndentStyle,
     LanguageType, PrintOptions, Uri, print_diff,
 };
-use destack_workspace::{
-    ArrowParentheses, FormatterOptions, QuoteProperty, QuoteStyle, TrailingComma,
-};
+use destack_workspace::FormatterOptions;
 use serde::Deserialize;
 
 /// Formatter smoke category prefix.
@@ -380,59 +378,6 @@ fn load_smoke_formatter_options(path: Option<&Path>) -> Result<FormatterOptions,
         options = options.with_indent_style(indent_style);
     }
 
-    if let Some(quote_style) = options_file.quote_style {
-        let quote_style = match quote_style.as_str() {
-            "double" => QuoteStyle::Double,
-            "single" => QuoteStyle::Single,
-            "semantic" => QuoteStyle::Semantic,
-            _ => {
-                return Err(format!("unsupported quote-style `{quote_style}`"));
-            }
-        };
-        options = options.with_quote_style(quote_style);
-    }
-
-    if let Some(trailing_comma) = options_file.trailing_comma {
-        let trailing_comma = match trailing_comma.as_str() {
-            "all" => TrailingComma::All,
-            "es5" => TrailingComma::Es5,
-            "none" => TrailingComma::None,
-            _ => {
-                return Err(format!("unsupported trailing-comma `{trailing_comma}`"));
-            }
-        };
-        options = options.with_trailing_comma(trailing_comma);
-    }
-
-    if let Some(bracket_spacing) = options_file.bracket_spacing {
-        options = options.with_bracket_spacing(bracket_spacing);
-    }
-
-    if let Some(arrow_parentheses) = options_file.arrow_parentheses {
-        let arrow_parentheses = match arrow_parentheses.as_str() {
-            "always" => ArrowParentheses::Always,
-            "avoid" => ArrowParentheses::Avoid,
-            _ => {
-                return Err(format!(
-                    "unsupported arrow-parentheses `{arrow_parentheses}`"
-                ));
-            }
-        };
-        options = options.with_arrow_parens(arrow_parentheses);
-    }
-
-    if let Some(quote_property) = options_file.quote_property {
-        let quote_property = match quote_property.as_str() {
-            "as-needed" => QuoteProperty::AsNeeded,
-            "consistent" => QuoteProperty::Consistent,
-            "preserve" => QuoteProperty::Preserve,
-            _ => {
-                return Err(format!("unsupported quote-property `{quote_property}`"));
-            }
-        };
-        options = options.with_quote_props(quote_property);
-    }
-
     Ok(options)
 }
 
@@ -446,14 +391,4 @@ struct SmokeFormatterOptionsFile {
     line_width: Option<u16>,
     /// The optional indent style string.
     indent_style: Option<String>,
-    /// The optional quote style string.
-    quote_style: Option<String>,
-    /// The optional trailing comma string.
-    trailing_comma: Option<String>,
-    /// The optional bracket spacing flag.
-    bracket_spacing: Option<bool>,
-    /// The optional arrow parentheses string.
-    arrow_parentheses: Option<String>,
-    /// The optional quote property string.
-    quote_property: Option<String>,
 }

@@ -131,36 +131,6 @@ fn formatter_json_value(formatter: FormatterOptions) -> Value {
         },
         "indentWidth": formatter.indent_width,
         "lineWidth": formatter.line_width,
-        "quoteStyle": match formatter.quote_style {
-            destack_workspace::QuoteStyle::Double => "double",
-            destack_workspace::QuoteStyle::Single => "single",
-            destack_workspace::QuoteStyle::Semantic => "semantic",
-        },
-        "trailingComma": match formatter.trailing_comma {
-            destack_workspace::TrailingComma::All => "all",
-            destack_workspace::TrailingComma::Es5 => "es5",
-            destack_workspace::TrailingComma::None => "none",
-        },
-        "bracketSpacing": formatter.bracket_spacing,
-        "arrowParens": match formatter.arrow_parentheses {
-            destack_workspace::ArrowParentheses::Always => "always",
-            destack_workspace::ArrowParentheses::Avoid => "avoid",
-        },
-        "quoteProps": match formatter.quote_property {
-            destack_workspace::QuoteProperty::AsNeeded => "as-needed",
-            destack_workspace::QuoteProperty::Consistent => "consistent",
-            destack_workspace::QuoteProperty::Preserve => "preserve",
-        },
-        "bracketSameLine": formatter.bracket_same_line,
-        "singleAttributePerLine": formatter.single_attribute_per_line,
-        "organizeImports": match formatter.organize_imports {
-            destack_workspace::OrganizeImports::On => "on",
-            destack_workspace::OrganizeImports::Off => "off",
-        },
-        "importSortOrder": match formatter.import_sort_order {
-            destack_workspace::ImportSortOrder::Natural => "natural",
-            destack_workspace::ImportSortOrder::Alphabetical => "alphabetical",
-        },
     })
 }
 
