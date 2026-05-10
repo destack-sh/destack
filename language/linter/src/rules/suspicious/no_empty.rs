@@ -39,7 +39,7 @@ impl LintRule for NoEmpty {
         for node_id in ctx.tree.iter_nodes::<ast::Block>() {
             // skip implicit blocks, only explicit braces can be empty statements
             let block = ctx.tree.get(node_id);
-            if block.form != ast::BlockForm::Explicit {
+            if !block.is_explicit() {
                 continue;
             }
 

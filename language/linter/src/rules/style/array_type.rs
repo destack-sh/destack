@@ -324,6 +324,7 @@ fn type_argument_needs_parentheses(expression: &ast::TypeExpression) -> bool {
             | ast::TypeExpression::Const
             | ast::TypeExpression::This
             | ast::TypeExpression::Readonly { .. }
+            | ast::TypeExpression::Shared { .. }
             | ast::TypeExpression::KeyOf { .. }
             | ast::TypeExpression::TypeOfValue { .. }
             | ast::TypeExpression::Must { .. }

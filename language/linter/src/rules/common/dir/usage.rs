@@ -242,6 +242,7 @@ impl NodeVisitor for ReadSymbolCollector<'_> {
             is_ambient: _,
             mutability: _,
             declarators,
+            is_shared: _,
         } = expression
         {
             for declarator_id in declarators {

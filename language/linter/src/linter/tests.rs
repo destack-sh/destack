@@ -192,14 +192,7 @@ fn anchor_ast(_module_id: ModuleId, file: &File) -> Ast {
     let mut tree = ast::Tree::new();
     let anchor_expression = insert_anchor_expression(&mut tree, file.id);
 
-    Ast::from_tree(
-        tree,
-        Vec::new(),
-        StringPool::new(),
-        Vec::new(),
-        Vec::new(),
-        anchor_expression,
-    )
+    Ast::from_tree(tree, Vec::new(), Vec::new(), Vec::new(), anchor_expression)
 }
 
 /// Parse one code module into AST.

@@ -237,6 +237,7 @@ pub fn type_expression_contains_reference_segment(
         }
 
         dir::TypeExpression::Readonly { target_type }
+        | dir::TypeExpression::Shared { target_type }
         | dir::TypeExpression::KeyOf { target_type }
         | dir::TypeExpression::Must { target_type }
         | dir::TypeExpression::AsComptime { target_type }
@@ -287,7 +288,9 @@ pub fn type_expression_contains_reference_segment(
                 || parameter.key_remap.is_some_and(|key_remap| {
                     type_expression_contains_reference_segment(tree, key_remap, target_segment)
                 })
-                || type_expression_contains_reference_segment(tree, *value, target_segment)
+                || value.is_some_and(|value| {
+                    type_expression_contains_reference_segment(tree, value, target_segment)
+                })
         }
 
         dir::TypeExpression::TemplateLiteral { strings: _, spans } => spans.iter().any(|span_id| {
