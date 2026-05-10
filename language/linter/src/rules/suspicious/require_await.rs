@@ -432,7 +432,7 @@ impl NodeVisitor for RequireAwaitBodyVisitor<'_> {
 fn expression_has_await_signal(expression: &Expression) -> bool {
     matches!(
         expression,
-        Expression::Await { .. } | Expression::AwaitMaybe { .. }
+        Expression::Await { .. } | Expression::AwaitMaybe { .. } | Expression::AwaitMust { .. }
     ) || matches!(expression, Expression::ForEach { asynchrony, .. } if *asynchrony == Asynchrony::Async)
         || matches!(expression, Expression::Using { asynchrony, .. } if *asynchrony == Asynchrony::Async)
 }

@@ -211,7 +211,9 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
 
         // branch by expression kind
         match expression {
-            dir::Expression::Await { .. } | dir::Expression::AwaitMaybe { .. } => true,
+            dir::Expression::Await { .. }
+            | dir::Expression::AwaitMaybe { .. }
+            | dir::Expression::AwaitMust { .. } => true,
             dir::Expression::Unary {
                 operator: dir::UnaryOperator::Void,
                 ..

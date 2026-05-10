@@ -539,8 +539,9 @@ pub fn expression_discarded_call_like_value(
             continue;
         }
 
-        if let dir::Expression::Await { expression } | dir::Expression::AwaitMaybe { expression } =
-            expression
+        if let dir::Expression::Await { expression }
+        | dir::Expression::AwaitMaybe { expression }
+        | dir::Expression::AwaitMust { expression } = expression
         {
             let value_id = expression_unwrap_parenthesized(tree, *expression);
             if matches!(
@@ -970,7 +971,8 @@ fn expression_contains_reference_segment(
         dir::Expression::As { expression, .. }
         | dir::Expression::Satisfies { expression, .. }
         | dir::Expression::Await { expression }
-        | dir::Expression::AwaitMaybe { expression } => {
+        | dir::Expression::AwaitMaybe { expression }
+        | dir::Expression::AwaitMust { expression } => {
             expression_contains_reference_segment(tree, *expression, target_segment)
         }
 

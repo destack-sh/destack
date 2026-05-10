@@ -191,9 +191,9 @@ fn await_operand_expression_id(
     expression: &dir::Expression,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
     match expression {
-        dir::Expression::Await { expression } | dir::Expression::AwaitMaybe { expression } => {
-            Some(*expression)
-        }
+        dir::Expression::Await { expression }
+        | dir::Expression::AwaitMaybe { expression }
+        | dir::Expression::AwaitMust { expression } => Some(*expression),
         _ => None,
     }
 }
