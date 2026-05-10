@@ -12,10 +12,7 @@ use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileId, FileType, IndentStyle,
     LanguageType, PrintOptions, Uri, print_diff,
 };
-use destack_workspace::{
-    ArrowParentheses, FormatterOptions, JsdocOptions, OrganizeImports, QuoteProperty, QuoteStyle,
-    TrailingComma,
-};
+use destack_workspace::FormatterOptions;
 
 /// Run a single formatter transform test.
 ///
@@ -63,52 +60,6 @@ pub(super) fn run(test: &MdTestCase) -> CaseResult {
             formatter_options = formatter_options.with_indent_style(indent_style);
         }
     }
-    if let Some(quote_style) = input_file.options.get("quote-style")
-        && let Some(quote_style) = QuoteStyle::parse(quote_style)
-    {
-        formatter_options = formatter_options.with_quote_style(quote_style);
-    }
-    if let Some(trailing_comma) = input_file.options.get("trailing-comma")
-        && let Some(trailing_comma) = TrailingComma::parse(trailing_comma)
-    {
-        formatter_options = formatter_options.with_trailing_comma(trailing_comma);
-    }
-    if let Some(bracket_spacing) = input_file.options.get("bracket-spacing")
-        && let Ok(value) = bracket_spacing.parse::<bool>()
-    {
-        formatter_options = formatter_options.with_bracket_spacing(value);
-    }
-    if let Some(arrow_parentheses) = input_file.options.get("arrow-parentheses")
-        && let Some(arrow_parentheses) = ArrowParentheses::parse(arrow_parentheses)
-    {
-        formatter_options = formatter_options.with_arrow_parens(arrow_parentheses);
-    }
-    if let Some(bracket_same_line) = input_file.options.get("bracket-same-line")
-        && let Ok(value) = bracket_same_line.parse::<bool>()
-    {
-        formatter_options = formatter_options.with_bracket_same_line(value);
-    }
-    if let Some(single_attr_per_line) = input_file.options.get("single-attribute-per-line")
-        && let Ok(value) = single_attr_per_line.parse::<bool>()
-    {
-        formatter_options = formatter_options.with_single_attribute_per_line(value);
-    }
-    if let Some(organize_imports) = input_file.options.get("organize-imports")
-        && let Some(value) = OrganizeImports::parse(organize_imports)
-    {
-        formatter_options = formatter_options.with_organize_imports(value);
-    }
-    if let Some(quote_props) = input_file.options.get("quote-props")
-        && let Some(value) = QuoteProperty::parse(quote_props)
-    {
-        formatter_options = formatter_options.with_quote_props(value);
-    }
-    if let Some(jsdoc) = input_file.options.get("jsdoc")
-        && let Ok(value) = jsdoc.parse::<bool>()
-    {
-        formatter_options.jsdoc = value.then(JsdocOptions::default);
-    }
-
     // create file
     let uri = Uri::from_string(format!("/test/{}", input_file.path));
     let file_id = FileId::from_logical_str(uri.as_ref());

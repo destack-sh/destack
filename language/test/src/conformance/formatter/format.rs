@@ -10,7 +10,7 @@ use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, DiffOptions, File, FileId, FileType, LanguageType,
     PrintOptions, Uri, print_diff,
 };
-use destack_workspace::{FormatterOptions, QuoteStyle};
+use destack_workspace::{FormatterOptions, OrganizeImports};
 
 use crate::core::format_diagnostics;
 
@@ -169,7 +169,6 @@ pub(super) fn default_conformance_formatter_options() -> FormatterOptions {
     FormatterOptions::default()
         .with_indent_width(2)
         .with_line_width(80)
-        .with_quote_style(QuoteStyle::Double)
 }
 
 /// Format parsed expressions into source output.
@@ -186,7 +185,10 @@ fn format_expressions(
     let side_span = parser.compute_side_span();
     let strings = parser.strings.as_ref();
     let parents = NodeParentIndex::from_expression_roots(&parser.tree, expressions);
-    let format_options = DestackFormatOptions::from_formatter_options(formatter, language_type);
+    let mut format_options = DestackFormatOptions::from_formatter_options(formatter, language_type);
+
+    // compare source formatting without whole file import rewrites
+    format_options.organize_imports = OrganizeImports::Off;
     let context = DestackFormatContext::new(
         format_options,
         file,

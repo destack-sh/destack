@@ -1,10 +1,7 @@
 use std::path::Path;
 
 use destack_source::{IndentStyle, LineEnding};
-use destack_workspace::{
-    ArrowParentheses, FormatterOptions, JsdocCommentLineStrategy, JsdocLineWrappingStyle,
-    JsdocOptions, QuoteProperty, QuoteStyle, TrailingComma,
-};
+use destack_workspace::FormatterOptions;
 
 use crate::conformance::ExpectedOutput;
 
@@ -197,43 +194,8 @@ fn apply_oxfmt_options_line(options_line: &str, options: &mut FormatterOptions) 
                     };
                 }
             }
-            "singleQuote" => {
-                if let Some(single_quote) = parse_bool(value) {
-                    options.quote_style = if single_quote {
-                        QuoteStyle::Single
-                    } else {
-                        QuoteStyle::Double
-                    };
-                }
-            }
-            "trailingComma" => {
-                options.trailing_comma = match value_string {
-                    "all" => TrailingComma::All,
-                    "es5" => TrailingComma::Es5,
-                    "none" => TrailingComma::None,
-                    _ => options.trailing_comma,
-                };
-            }
-            "bracketSpacing" => {
-                if let Some(bracket_spacing) = parse_bool(value) {
-                    options.bracket_spacing = bracket_spacing;
-                }
-            }
-            "arrowParens" => {
-                options.arrow_parentheses = match value_string {
-                    "always" => ArrowParentheses::Always,
-                    "avoid" => ArrowParentheses::Avoid,
-                    _ => options.arrow_parentheses,
-                };
-            }
-            "quoteProps" => {
-                options.quote_property = match value_string {
-                    "as-needed" => QuoteProperty::AsNeeded,
-                    "consistent" => QuoteProperty::Consistent,
-                    "preserve" => QuoteProperty::Preserve,
-                    _ => options.quote_property,
-                };
-            }
+            "singleQuote" | "trailingComma" | "bracketSpacing" | "arrowParens"
+            | "quoteProps" => {}
             "endOfLine" => {
                 options.line_ending = match value_string {
                     "lf" => LineEnding::LineFeed,
@@ -242,109 +204,9 @@ fn apply_oxfmt_options_line(options_line: &str, options: &mut FormatterOptions) 
                     _ => options.line_ending,
                 };
             }
-            "bracketSameLine" => {
-                if let Some(bracket_same_line) = parse_bool(value) {
-                    options.bracket_same_line = bracket_same_line;
-                }
-            }
-            "singleAttributePerLine" => {
-                if let Some(single_attribute_per_line) = parse_bool(value) {
-                    options.single_attribute_per_line = single_attribute_per_line;
-                }
-            }
-            "jsdoc" => {
-                let mut jsdoc_options = options.jsdoc.unwrap_or_default();
-                apply_jsdoc_options_value(value, &mut jsdoc_options);
-                options.jsdoc = Some(jsdoc_options);
-            }
+            "bracketSameLine" | "singleAttributePerLine" => {}
+            "jsdoc" => {}
             "semi" => {}
-            _ => {}
-        }
-    }
-}
-
-/// Apply a JSDoc options object value.
-fn apply_jsdoc_options_value(value: &str, options: &mut JsdocOptions) {
-    let value = value.trim();
-    let Some(inner) = value
-        .strip_prefix('{')
-        .and_then(|value| value.strip_suffix('}'))
-    else {
-        return;
-    };
-
-    for entry in split_option_entries(inner) {
-        let entry = entry.trim();
-        if entry.is_empty() {
-            continue;
-        }
-
-        let Some((raw_key, raw_value)) = entry.split_once(':') else {
-            continue;
-        };
-
-        let key = raw_key.trim();
-        let value = raw_value.trim();
-        let value_string = strip_quotes(value);
-
-        match key {
-            "capitalizeDescriptions" | "capitalize_descriptions" => {
-                if let Some(capitalize_descriptions) = parse_bool(value) {
-                    options.capitalize_descriptions = capitalize_descriptions;
-                }
-            }
-            "commentLineStrategy" | "comment_line_strategy" => {
-                options.comment_line_strategy = match value_string {
-                    "single-line" | "singleLine" | "single_line" => {
-                        JsdocCommentLineStrategy::SingleLine
-                    }
-                    "multiline" => JsdocCommentLineStrategy::Multiline,
-                    "keep" => JsdocCommentLineStrategy::Keep,
-                    _ => options.comment_line_strategy,
-                };
-            }
-            "separateTagGroups" | "separate_tag_groups" => {
-                if let Some(separate_tag_groups) = parse_bool(value) {
-                    options.separate_tag_groups = separate_tag_groups;
-                }
-            }
-            "separateReturnsFromParam" | "separate_returns_from_param" => {
-                if let Some(separate_returns_from_param) = parse_bool(value) {
-                    options.separate_returns_from_param = separate_returns_from_param;
-                }
-            }
-            "descriptionWithDot" | "description_with_dot" => {
-                if let Some(description_with_dot) = parse_bool(value) {
-                    options.description_with_dot = description_with_dot;
-                }
-            }
-            "addDefaultToDescription" | "add_default_to_description" => {
-                if let Some(add_default_to_description) = parse_bool(value) {
-                    options.add_default_to_description = add_default_to_description;
-                }
-            }
-            "preferCodeFences" | "prefer_code_fences" => {
-                if let Some(prefer_code_fences) = parse_bool(value) {
-                    options.prefer_code_fences = prefer_code_fences;
-                }
-            }
-            "lineWrappingStyle" | "line_wrapping_style" => {
-                options.line_wrapping_style = match value_string {
-                    "greedy" => JsdocLineWrappingStyle::Greedy,
-                    "balance" => JsdocLineWrappingStyle::Balance,
-                    _ => options.line_wrapping_style,
-                };
-            }
-            "descriptionTag" | "description_tag" => {
-                if let Some(description_tag) = parse_bool(value) {
-                    options.description_tag = description_tag;
-                }
-            }
-            "keepUnparsableExampleIndent" | "keep_unparsable_example_indent" => {
-                if let Some(keep_unparsable_example_indent) = parse_bool(value) {
-                    options.keep_unparsable_example_indent = keep_unparsable_example_indent;
-                }
-            }
             _ => {}
         }
     }
@@ -372,7 +234,19 @@ fn has_unsupported_options(options_line: &str) -> bool {
 
         let key = raw_key.trim();
         let value = raw_value.trim();
-        if key == "semi" && parse_bool(value) == Some(false) {
+        let value_string = strip_quotes(value);
+
+        let is_unsupported = match key {
+            "singleQuote" => parse_bool(value) == Some(true),
+            "trailingComma" => !matches!(value_string, "all"),
+            "bracketSpacing" => parse_bool(value) == Some(false),
+            "arrowParens" => !matches!(value_string, "always"),
+            "quoteProps" => !matches!(value_string, "as-needed" | "asNeeded"),
+            "bracketSameLine" | "singleAttributePerLine" => parse_bool(value) == Some(true),
+            "semi" => parse_bool(value) == Some(false),
+            _ => false,
+        };
+        if is_unsupported {
             return true;
         }
     }
@@ -462,10 +336,7 @@ mod tests {
         apply_oxfmt_options_line, parse_oxfmt_snapshot_output, parse_oxfmt_snapshot_variant,
     };
     use destack_source::IndentStyle;
-    use destack_workspace::{
-        ArrowParentheses, FormatterOptions, JsdocCommentLineStrategy, JsdocLineWrappingStyle,
-        JsdocOptions, QuoteProperty, QuoteStyle, TrailingComma,
-    };
+    use destack_workspace::FormatterOptions;
 
     #[test]
     fn test_parse_oxfmt_snapshot_output_with_options_block() {
@@ -500,7 +371,7 @@ mod tests {
     }
 
     #[test]
-    fn test_apply_oxfmt_options_line() {
+    fn test_apply_oxfmt_options_line_sets_layout_options() {
         let mut options = FormatterOptions::default();
         apply_oxfmt_options_line(
             "{ printWidth: 120, tabWidth: 3, useTabs: true, singleQuote: true, trailingComma: 'none', bracketSpacing: false, arrowParens: 'avoid', quoteProps: 'consistent' }",
@@ -510,42 +381,28 @@ mod tests {
         assert_eq!(options.line_width, 120);
         assert_eq!(options.indent_width, 3);
         assert_eq!(options.indent_style, IndentStyle::Tab);
-        assert_eq!(options.quote_style, QuoteStyle::Single);
-        assert!(!options.bracket_spacing);
-        assert_eq!(options.arrow_parentheses, ArrowParentheses::Avoid);
-        assert_eq!(options.quote_property, QuoteProperty::Consistent);
     }
 
     #[test]
-    fn test_apply_oxfmt_options_line_with_nested_jsdoc_options() {
+    fn test_apply_oxfmt_options_line_skips_nested_comment_options() {
         let mut options = FormatterOptions::default();
         apply_oxfmt_options_line(
-            "{ printWidth: 72, jsdoc: { commentLineStrategy: 'multiline', lineWrappingStyle: 'balance', separateTagGroups: true, keepUnparsableExampleIndent: true }, trailingComma: 'all' }",
+            "{ jsdoc: { commentLineStrategy: 'multiline', lineWrappingStyle: 'balance', separateTagGroups: true, keepUnparsableExampleIndent: true }, printWidth: 72 }",
             &mut options,
         );
 
-        let expected_jsdoc = JsdocOptions {
-            comment_line_strategy: JsdocCommentLineStrategy::Multiline,
-            line_wrapping_style: JsdocLineWrappingStyle::Balance,
-            separate_tag_groups: true,
-            keep_unparsable_example_indent: true,
-            ..JsdocOptions::default()
-        };
-
         assert_eq!(options.line_width, 72);
-        assert_eq!(options.trailing_comma, TrailingComma::All);
-        assert_eq!(options.jsdoc, Some(expected_jsdoc));
     }
 
     #[test]
-    fn test_parse_oxfmt_snapshot_variant_skips_unsupported_semi_false_variant() {
-        let snapshot = "==================== Output ====================\n-------------------------------\n{ printWidth: 80, semi: false }\n-------------------------------\nconst x = 1\n\n------------------------------\n{ printWidth: 80, semi: true }\n------------------------------\nconst x = 1;\n";
+    fn test_parse_oxfmt_snapshot_variant_skips_unsupported_style_variant() {
+        let snapshot = "==================== Output ====================\n-------------------------------\n{ printWidth: 80, singleQuote: true, semi: false }\n-------------------------------\nconst x = 'value'\n\n------------------------------\n{ printWidth: 80, singleQuote: false, semi: true }\n------------------------------\nconst x = \"value\";\n";
         let (output, options_line) =
             parse_oxfmt_snapshot_variant(snapshot).expect("output should parse");
-        assert_eq!(output, "const x = 1;\n");
+        assert_eq!(output, "const x = \"value\";\n");
         assert_eq!(
             options_line.as_deref(),
-            Some("{ printWidth: 80, semi: true }")
+            Some("{ printWidth: 80, singleQuote: false, semi: true }")
         );
     }
 }

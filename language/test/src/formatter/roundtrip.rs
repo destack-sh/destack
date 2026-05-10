@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::core::{Case, CaseResult, check_diagnostics};
+use crate::core::{Case, CaseResult, RunOptions, check_diagnostics};
 use destack_ast::{NodeParentIndex, TokenSpan};
 use destack_core::StringPool;
 use destack_fir::format as fir_format;
@@ -12,7 +12,7 @@ use destack_workspace::FormatterOptions;
 /// Run a single formatter roundtrip test.
 ///
 /// Verifies that formatting a well-formatted file produces identical output.
-pub(super) fn run(test: &Case) -> CaseResult {
+pub(super) fn run(test: &Case, options: &RunOptions) -> CaseResult {
     // read original
     let original = match std::fs::read_to_string(&test.path) {
         Ok(content) => content,
@@ -80,6 +80,13 @@ pub(super) fn run(test: &Case) -> CaseResult {
 
     if formatted == original {
         CaseResult::Passed
+    } else if options.update_snapshots {
+        match std::fs::write(&test.path, formatted) {
+            Ok(()) => CaseResult::Passed,
+            Err(error) => CaseResult::Failed {
+                message: format!("failed to update formatter roundtrip fixture: {error}"),
+            },
+        }
     } else {
         print_diff(&original, &formatted, &DiffOptions::new());
 

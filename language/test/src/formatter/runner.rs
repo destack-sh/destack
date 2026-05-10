@@ -74,11 +74,11 @@ impl Suite for FormatterSuite {
         self.cases.clone()
     }
 
-    fn run(&self, case: &Case, _context: &RunContext<'_>) -> CaseResult {
+    fn run(&self, case: &Case, context: &RunContext<'_>) -> CaseResult {
         if let Some(md_test) = self.mdtests.get(&case.full_name()) {
             transform::run(md_test)
         } else {
-            roundtrip::run(case)
+            roundtrip::run(case, context.options)
         }
     }
 

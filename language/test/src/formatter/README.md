@@ -7,7 +7,7 @@ The formatter test suite includes two types of tests:
 
 ## Fixtures
 
-- `fixtures/formatter/transform/*.md` - MDTest transform tests
+- `fixtures/formatter/transform/**/*.md` - MDTest transform tests
 - `fixtures/formatter/roundtrip/*.{ds,d.ds,js,jsx,ts,tsx,d.ts}` - Roundtrip stability tests
 
 Roundtrip fixtures using JS, JSX, TS, and TSX should be canonicalized with the shared formatter conformance baseline before being added.
