@@ -620,7 +620,7 @@ impl Compiler {
                     ast_strings,
                     context,
                 );
-                let length = self.unbind_type_expression(
+                let length = self.unbind_expression(
                     module,
                     *length,
                     tree,
@@ -899,6 +899,20 @@ impl Compiler {
 
                 ast::TypeExpression::Readonly { target_type }
             }
+            dir::TypeExpression::Shared { target_type } => {
+                let target_type = self.unbind_type_expression(
+                    module,
+                    *target_type,
+                    tree,
+                    symbols,
+                    types,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+
+                ast::TypeExpression::Shared { target_type }
+            }
             dir::TypeExpression::KeyOf { target_type } => {
                 let target_type = self.unbind_type_expression(
                     module,
@@ -1135,6 +1149,78 @@ impl Compiler {
                     else_type,
                 }
             }
+            dir::TypeExpression::In { left, right } => {
+                let left = self.unbind_type_expression(
+                    module,
+                    *left,
+                    tree,
+                    symbols,
+                    types,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+                let right = self.unbind_type_expression(
+                    module,
+                    *right,
+                    tree,
+                    symbols,
+                    types,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+
+                ast::TypeExpression::In { left, right }
+            }
+            dir::TypeExpression::Extends { left, right } => {
+                let left = self.unbind_type_expression(
+                    module,
+                    *left,
+                    tree,
+                    symbols,
+                    types,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+                let right = self.unbind_type_expression(
+                    module,
+                    *right,
+                    tree,
+                    symbols,
+                    types,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+
+                ast::TypeExpression::Extends { left, right }
+            }
+            dir::TypeExpression::Implements { left, right } => {
+                let left = self.unbind_type_expression(
+                    module,
+                    *left,
+                    tree,
+                    symbols,
+                    types,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+                let right = self.unbind_type_expression(
+                    module,
+                    *right,
+                    tree,
+                    symbols,
+                    types,
+                    ast_tree,
+                    ast_strings,
+                    context,
+                );
+
+                ast::TypeExpression::Implements { left, right }
+            }
             dir::TypeExpression::Mapped {
                 parameter,
                 readonly,
@@ -1171,16 +1257,18 @@ impl Compiler {
                 };
                 let readonly = self.unbind_type_modifier(*readonly);
                 let optional = self.unbind_type_modifier(*optional);
-                let value = self.unbind_type_expression(
-                    module,
-                    *value,
-                    tree,
-                    symbols,
-                    types,
-                    ast_tree,
-                    ast_strings,
-                    context,
-                );
+                let value = value.map(|value| {
+                    self.unbind_type_expression(
+                        module,
+                        value,
+                        tree,
+                        symbols,
+                        types,
+                        ast_tree,
+                        ast_strings,
+                        context,
+                    )
+                });
 
                 ast::TypeExpression::Mapped {
                     parameter,
@@ -1312,6 +1400,7 @@ impl Compiler {
         match mutability {
             dir::Mutability::Immutable => ast::Mutability::Immutable,
             dir::Mutability::Mutable => ast::Mutability::Mutable,
+            dir::Mutability::Exclusive => ast::Mutability::Exclusive,
         }
     }
 

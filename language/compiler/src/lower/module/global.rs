@@ -319,6 +319,6 @@ impl ModuleLowerer<'_> {
 pub(crate) fn lower_mutability(mutability: dir::Mutability) -> mir::Mutability {
     match mutability {
         dir::Mutability::Immutable => mir::Mutability::Immutable,
-        dir::Mutability::Mutable => mir::Mutability::Mutable,
+        dir::Mutability::Mutable | dir::Mutability::Exclusive => mir::Mutability::Mutable,
     }
 }

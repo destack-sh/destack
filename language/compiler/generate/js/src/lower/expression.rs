@@ -223,11 +223,12 @@ impl ModuleLowerer<'_> {
             dir::Expression::Let {
                 export: _,
                 is_ambient: _,
+                is_shared: _,
                 mutability,
                 declarators,
             } => {
                 let keyword = match mutability {
-                    dir::Mutability::Mutable => js::BindingKeyword::Let,
+                    dir::Mutability::Mutable | dir::Mutability::Exclusive => js::BindingKeyword::Let,
                     dir::Mutability::Immutable => js::BindingKeyword::Const,
                 };
                 let mut lowered_declarators = Vec::with_capacity(declarators.len());
@@ -469,6 +470,7 @@ impl ModuleLowerer<'_> {
             dir::Expression::Let {
                 export,
                 is_ambient,
+                is_shared: _,
                 mutability,
                 declarators: dir_declarators,
             } => {
