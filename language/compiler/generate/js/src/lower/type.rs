@@ -24,7 +24,7 @@ impl ModuleLowerer<'_> {
     pub fn lower_mutability(&self, mutability: dir::Mutability) -> js::Mutability {
         match mutability {
             dir::Mutability::Immutable => js::Mutability::Immutable,
-            dir::Mutability::Mutable => js::Mutability::Mutable,
+            dir::Mutability::Mutable | dir::Mutability::Exclusive => js::Mutability::Mutable,
         }
     }
 
@@ -787,7 +787,7 @@ impl ModuleLowerer<'_> {
                 let ty = js::TypeExpression::Mapped {
                     parameter,
                     modifiers,
-                    value,
+                    value: Some(value),
                 };
                 self.tree
                     .insert_from_source_any(ty, self.module.id, source_id)

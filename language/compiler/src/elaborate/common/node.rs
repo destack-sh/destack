@@ -243,6 +243,7 @@ impl Compiler {
             Expression::Let {
                 export: None,
                 is_ambient: false,
+                is_shared: false,
                 mutability: let_mutability,
                 declarators: vec![declarator_id],
             },

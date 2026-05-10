@@ -619,12 +619,14 @@ impl Compiler {
             ast::Expression::Let {
                 kind: _,
                 export,
-                                    is_ambient,
+                is_ambient,
+                is_shared,
                 mutability,
                 declarators: ast_declarators,
             } => {
                 let export = export.map(|export| self.bind_export_kind(export));
                 let is_ambient = *is_ambient;
+                let is_shared = *is_shared;
                 let binding = if is_ambient {
                     SymbolBinding::Ambient
                 } else {
@@ -662,6 +664,7 @@ impl Compiler {
                     Expression::Let {
                         export,
                         is_ambient,
+                        is_shared,
                         mutability,
                         declarators,
                     },
@@ -1608,6 +1611,37 @@ impl Compiler {
                     })
                     .collect();
                 Expression::ArrayExpression { elements }
+            }
+            ast::Expression::FixedArrayExpression { value, length } => {
+                let value = self.bind_expression(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_scope,
+                    declared_modules,
+                    scope,
+                    *value,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                    SymbolSpace::Value,
+                );
+                let length = self.bind_expression(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_scope,
+                    declared_modules,
+                    scope,
+                    *length,
+                    Some(expression_id),
+                    tree,
+                    symbols,
+                    types,
+                    SymbolSpace::Value,
+                );
+                Expression::FixedArrayExpression { value, length }
             }
             ast::Expression::TreeExpression {
                 left,

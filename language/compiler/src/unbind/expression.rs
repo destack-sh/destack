@@ -449,6 +449,7 @@ impl Compiler {
                 dir::Expression::Let {
                     export,
                     is_ambient,
+                    is_shared,
                     mutability,
                     declarators,
                 } => {
@@ -456,7 +457,7 @@ impl Compiler {
                     let ast_mutability = self.unbind_mutability(context, *mutability);
                     let kind = match mutability {
                         dir::Mutability::Immutable => ast::LetKind::Const,
-                        dir::Mutability::Mutable => ast::LetKind::Let,
+                        dir::Mutability::Mutable | dir::Mutability::Exclusive => ast::LetKind::Let,
                     };
                     let export = export.map(|export| self.unbind_export_kind(export));
                     let is_ambient = self.unbind_ambientness(*is_ambient, context);
@@ -467,6 +468,7 @@ impl Compiler {
                         kind,
                         export,
                         is_ambient,
+                        is_shared: *is_shared,
                         mutability: ast_mutability,
                         declarators,
                     }
@@ -926,6 +928,12 @@ impl Compiler {
                         self.unbind_argument(module, *el, tree, symbols, types, ast_tree, ast_strings, context)
                     }).collect();
                     ast::Expression::ArrayExpression { elements }
+                }
+
+                dir::Expression::FixedArrayExpression { value, length } => {
+                    let value = self.unbind_expression(module, *value, tree, symbols, types, ast_tree, ast_strings, context);
+                    let length = self.unbind_expression(module, *length, tree, symbols, types, ast_tree, ast_strings, context);
+                    ast::Expression::FixedArrayExpression { value, length }
                 }
 
                 dir::Expression::TupleExpression { elements } => {

@@ -57,6 +57,7 @@ impl Compiler {
                 Expression::Let {
                     export,
                     is_ambient,
+                    is_shared,
                     mutability,
                     declarators,
                 } => {
@@ -108,6 +109,7 @@ impl Compiler {
                                 &declarator,
                                 *export,
                                 *is_ambient,
+                                *is_shared,
                                 *mutability,
                                 &expressions,
                             )?;
@@ -127,6 +129,7 @@ impl Compiler {
                                 &declarator,
                                 *export,
                                 *is_ambient,
+                                *is_shared,
                                 *mutability,
                                 inner_block,
                             )?;
@@ -237,6 +240,7 @@ impl Compiler {
                 Expression::Let {
                     export,
                     is_ambient,
+                    is_shared,
                     mutability,
                     declarators,
                 } => {
@@ -278,6 +282,7 @@ impl Compiler {
                                         &declarator,
                                         *export,
                                         *is_ambient,
+                                        *is_shared,
                                         *mutability,
                                         &expressions,
                                     )?;
@@ -296,6 +301,7 @@ impl Compiler {
                                         &declarator,
                                         *export,
                                         *is_ambient,
+                                        *is_shared,
                                         *mutability,
                                         inner_block,
                                     )?;
@@ -493,6 +499,7 @@ impl Compiler {
         declarator: &Declarator,
         export: Option<ExportKind>,
         is_ambient: bool,
+        is_shared: bool,
         mutability: Mutability,
         seq_expressions: &[LocalNodeId<Expression>],
     ) -> ElaborateResult<bool> {
@@ -538,6 +545,7 @@ impl Compiler {
             Expression::Let {
                 export,
                 is_ambient,
+                is_shared,
                 mutability,
                 declarators: vec![new_declarator],
             },
@@ -560,6 +568,7 @@ impl Compiler {
         declarator: &Declarator,
         export: Option<ExportKind>,
         is_ambient: bool,
+        is_shared: bool,
         mutability: Mutability,
         inner_block_id: LocalNodeId<Block>,
     ) -> ElaborateResult<bool> {
@@ -599,6 +608,7 @@ impl Compiler {
             Expression::Let {
                 export,
                 is_ambient,
+                is_shared,
                 mutability,
                 declarators: vec![uninit_declarator],
             },

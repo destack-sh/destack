@@ -994,7 +994,7 @@ impl Compiler {
                     types,
                     space,
                 );
-                let length = self.bind_type_expression(
+                let length = self.bind_expression(
                     module,
                     ast,
                     namespace_scope,
@@ -1006,7 +1006,7 @@ impl Compiler {
                     tree,
                     symbols,
                     types,
-                    space,
+                    SymbolSpace::Value,
                 );
 
                 tree.insert(
@@ -1382,6 +1382,24 @@ impl Compiler {
 
                 tree.insert(type_expression_id, TypeExpression::Readonly { target_type })
             }
+            ast::TypeExpression::Shared { target_type } => {
+                let target_type = self.bind_type_expression(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_scope,
+                    declared_modules,
+                    scope,
+                    *target_type,
+                    Some(type_expression_id.into()),
+                    tree,
+                    symbols,
+                    types,
+                    space,
+                );
+
+                tree.insert(type_expression_id, TypeExpression::Shared { target_type })
+            }
             ast::TypeExpression::KeyOf { target_type } => {
                 let target_type = self.bind_type_expression(
                     module,
@@ -1699,6 +1717,105 @@ impl Compiler {
                     },
                 )
             }
+            ast::TypeExpression::In { left, right } => {
+                let left = self.bind_type_expression(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_scope,
+                    declared_modules,
+                    scope,
+                    *left,
+                    Some(type_expression_id.into()),
+                    tree,
+                    symbols,
+                    types,
+                    space,
+                );
+                let right = self.bind_type_expression(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_scope,
+                    declared_modules,
+                    scope,
+                    *right,
+                    Some(type_expression_id.into()),
+                    tree,
+                    symbols,
+                    types,
+                    space,
+                );
+
+                tree.insert(type_expression_id, TypeExpression::In { left, right })
+            }
+            ast::TypeExpression::Extends { left, right } => {
+                let left = self.bind_type_expression(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_scope,
+                    declared_modules,
+                    scope,
+                    *left,
+                    Some(type_expression_id.into()),
+                    tree,
+                    symbols,
+                    types,
+                    space,
+                );
+                let right = self.bind_type_expression(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_scope,
+                    declared_modules,
+                    scope,
+                    *right,
+                    Some(type_expression_id.into()),
+                    tree,
+                    symbols,
+                    types,
+                    space,
+                );
+
+                tree.insert(type_expression_id, TypeExpression::Extends { left, right })
+            }
+            ast::TypeExpression::Implements { left, right } => {
+                let left = self.bind_type_expression(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_scope,
+                    declared_modules,
+                    scope,
+                    *left,
+                    Some(type_expression_id.into()),
+                    tree,
+                    symbols,
+                    types,
+                    space,
+                );
+                let right = self.bind_type_expression(
+                    module,
+                    ast,
+                    namespace_scope,
+                    global_scope,
+                    declared_modules,
+                    scope,
+                    *right,
+                    Some(type_expression_id.into()),
+                    tree,
+                    symbols,
+                    types,
+                    space,
+                );
+
+                tree.insert(
+                    type_expression_id,
+                    TypeExpression::Implements { left, right },
+                )
+            }
             ast::TypeExpression::Mapped {
                 parameter,
                 readonly,
@@ -1766,20 +1883,22 @@ impl Compiler {
                     parameter_scope_id,
                     symbols.get_scope_mark(parameter_scope_id),
                 );
-                let value = self.bind_type_expression(
-                    module,
-                    ast,
-                    namespace_scope,
-                    global_scope,
-                    declared_modules,
-                    parameter_scope,
-                    *value,
-                    Some(type_expression_id.into()),
-                    tree,
-                    symbols,
-                    types,
-                    space,
-                );
+                let value = value.map(|value| {
+                    self.bind_type_expression(
+                        module,
+                        ast,
+                        namespace_scope,
+                        global_scope,
+                        declared_modules,
+                        parameter_scope,
+                        value,
+                        Some(type_expression_id.into()),
+                        tree,
+                        symbols,
+                        types,
+                        space,
+                    )
+                });
 
                 tree.insert(
                     type_expression_id,
@@ -1938,6 +2057,7 @@ impl Compiler {
         match mutability {
             ast::Mutability::Immutable => Mutability::Immutable,
             ast::Mutability::Mutable => Mutability::Mutable,
+            ast::Mutability::Exclusive => Mutability::Exclusive,
         }
     }
 
