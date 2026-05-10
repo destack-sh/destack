@@ -39,6 +39,30 @@ fn test_parse_tuple_literal() {
     });
 }
 
+/// Parse a singleton tuple literal with a required trailing comma.
+#[test]
+fn test_parse_singleton_tuple_expression_literal() {
+    let mut test = TestParser::new("const value = (1,)");
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    assert_node!(parser.tree, expression_id, Expression::Let { declarators, .. } => {
+        assert_eq!(declarators.len(), 1);
+        assert_node!(parser.tree, declarators[0], Declarator { value, .. } => {
+            assert_node!(
+                parser.tree,
+                value.expect("expected initializer"),
+                Expression::TupleExpression { elements }
+            => {
+                assert_eq!(elements.len(), 1);
+                assert_node!(parser.tree, elements[0], Argument::Positional { value } => {
+                    assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+                });
+            });
+        });
+    });
+}
+
 /// Parse a tuple literal over multiple lines.
 #[test]
 fn test_parse_tuple_literal_multiline() {
@@ -200,6 +224,62 @@ fn test_parse_statement_position_block_with_array_literal() {
                 assert!(elements.is_empty());
             });
         });
+    });
+}
+
+/// Parse a fixed array repeat literal.
+#[test]
+fn test_parse_fixed_array_literal() {
+    let mut test = TestParser::new("[0; 32]");
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    // [0; 32]
+    assert_node!(parser.tree, expression_id, Expression::FixedArrayExpression { value, length } => {
+        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+        assert_node!(parser.tree, *length, Expression::ScalarLiteral(ScalarLiteral::Integer(32)));
+    });
+}
+
+/// Recover a missing fixed array repeat value.
+#[test]
+fn test_parse_fixed_array_literal_recovers_missing_value() {
+    let mut test = TestParser::new("[; 32]");
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, ";")]);
+    assert_node!(parser.tree, expression_id, Expression::FixedArrayExpression { value, length } => {
+        assert_node!(parser.tree, *value, Expression::Missing);
+        assert_node!(parser.tree, *length, Expression::ScalarLiteral(ScalarLiteral::Integer(32)));
+    });
+}
+
+/// Recover a missing fixed array repeat length.
+#[test]
+fn test_parse_fixed_array_literal_recovers_missing_length() {
+    let mut test = TestParser::new("[0; ]");
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "]")]);
+    assert_node!(parser.tree, expression_id, Expression::FixedArrayExpression { value, length } => {
+        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+        assert_node!(parser.tree, *length, Expression::Missing);
+    });
+}
+
+/// Recover a missing fixed array close bracket.
+#[test]
+fn test_parse_fixed_array_literal_recovers_missing_close_bracket() {
+    let mut test = TestParser::new("[0; 32");
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "")]);
+    assert_node!(parser.tree, expression_id, Expression::FixedArrayExpression { value, length } => {
+        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Integer(0)));
+        assert_node!(parser.tree, *length, Expression::ScalarLiteral(ScalarLiteral::Integer(32)));
     });
 }
 

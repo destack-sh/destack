@@ -41,6 +41,74 @@ fn assert_expression_rejects_at(input: &str, language: LanguageType, expected_le
     assert_eq!(leaf, expected_leaf);
 }
 
+fn assert_assign_or_parenthesized_assign(
+    parser: &crate::Parser,
+    expression: LocalNodeId<Expression>,
+) {
+    match parser.tree.get(expression) {
+        Expression::Assign { .. } => {}
+        Expression::Parenthesized { expression } => {
+            assert_node!(parser.tree, *expression, Expression::Assign { .. });
+        }
+        other => panic!("expected assignment expression, got {other:?}"),
+    }
+}
+
+#[test]
+fn test_parse_assignment_destructuring_targets() {
+    let input = r#"
+foo += bar = b ??= 3;
+foo -= bar;
+(foo = bar);
+[foo, bar] = baz;
+[foo, bar = "default", ...rest] = baz;
+[,,,foo,bar] = baz;
+({ bar, baz } = {});
+({ bar: [baz = "baz"], foo = "foo", ...rest } = {});
+"#;
+    let mut test = TestParser::new_with_language(input, LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    test.assert_no_errors(&parser);
+
+    assert_eq!(expressions.len(), 8);
+    for expression in expressions {
+        assert_assign_or_parenthesized_assign(&parser, expression);
+    }
+}
+
+#[test]
+fn test_parse_assignment_member_targets() {
+    let input = r#"
+foo += bar = b ??= 3;
+a.foo -= bar;
+(foo = bar);
+(((foo))) = bar;
+a["test"] = bar;
+a.call().chain().member = x;
+++count === 3
+a['b'] = c[d] = "test"
+"#;
+    let mut test = TestParser::new_with_language(input, LanguageType::TypeScript);
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+    test.assert_no_errors(&parser);
+
+    assert_eq!(expressions.len(), 8);
+    assert_node!(parser.tree, expressions[0], Expression::Assign { .. });
+    assert_node!(parser.tree, expressions[1], Expression::Assign { .. });
+    assert_node!(parser.tree, expressions[2], Expression::Parenthesized { expression } => {
+        assert_node!(parser.tree, *expression, Expression::Assign { .. });
+    });
+    assert_node!(parser.tree, expressions[3], Expression::Assign { .. });
+    assert_node!(parser.tree, expressions[4], Expression::Assign { .. });
+    assert_node!(parser.tree, expressions[5], Expression::Assign { .. });
+    assert_node!(parser.tree, expressions[6], Expression::Binary { operator, .. } => {
+        assert_eq!(*operator, BinaryOperator::EqualStrict);
+    });
+    assert_node!(parser.tree, expressions[7], Expression::Assign { .. });
+}
+
 /// Addition is left associative.
 #[test]
 fn test_parse_precedence_addition_left_associative() {

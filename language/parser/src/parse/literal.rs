@@ -860,6 +860,80 @@ impl Parser {
         Ok(argument_id)
     }
 
+    /// Eat a bracket literal expression including the surrounding brackets.
+    pub fn eat_bracket_literal_expression(
+        &mut self,
+        start: &ParserSpanStart,
+    ) -> ParseResult<LocalNodeId<Expression>> {
+        self.eat_token(TokenType::OpenBracket)?;
+
+        if self.peek_is(TokenType::CloseBracket) {
+            self.bump();
+
+            return Ok(self.insert_node(
+                Expression::ArrayExpression { elements: vec![] },
+                self.get_span_from(start),
+            ));
+        }
+
+        let expression_context = self
+            .flags
+            .not_in_position()
+            .not_in_left_precedence()
+            .not_in_sequence_expression();
+        let flags = self.flags.with_expression_context(expression_context);
+
+        if self.peek_is(TokenType::Comma) {
+            let elements = self.with_flags(flags, |parser| {
+                parser.eat_sequence_literal_body(None, TokenType::CloseBracket)
+            })?;
+            self.eat_close_token_or_recover_missing(TokenType::CloseBracket, NodeType::Expression)?;
+
+            return Ok(self.insert_node(
+                Expression::ArrayExpression { elements },
+                self.get_span_from(start),
+            ));
+        }
+
+        if self.language.is_destack() && self.peek_is(TokenType::Semicolon) {
+            let value = self.recover_missing_expression_here(NodeType::Expression);
+            self.bump();
+            let length = self.eat_expression_or_recover_missing(flags, NodeType::Expression)?;
+            self.eat_close_token_or_recover_missing(TokenType::CloseBracket, NodeType::Expression)?;
+
+            return Ok(self.insert_node(
+                Expression::FixedArrayExpression { value, length },
+                self.get_span_from(start),
+            ));
+        }
+
+        let first = self.with_flags(flags, |parser| parser.eat_positional_argument())?;
+        if self.language.is_destack()
+            && self.peek_is(TokenType::Semicolon)
+            && let Argument::Positional { value } = self.tree.get(first)
+        {
+            let value = *value;
+            self.bump();
+            let length = self.eat_expression_or_recover_missing(flags, NodeType::Expression)?;
+            self.eat_close_token_or_recover_missing(TokenType::CloseBracket, NodeType::Expression)?;
+
+            return Ok(self.insert_node(
+                Expression::FixedArrayExpression { value, length },
+                self.get_span_from(start),
+            ));
+        }
+
+        let elements = self.with_flags(flags, |parser| {
+            parser.eat_sequence_literal_body(Some(first), TokenType::CloseBracket)
+        })?;
+        self.eat_close_token_or_recover_missing(TokenType::CloseBracket, NodeType::Expression)?;
+
+        Ok(self.insert_node(
+            Expression::ArrayExpression { elements },
+            self.get_span_from(start),
+        ))
+    }
+
     /// Eat an array literal (including the surrounding brackets).
     pub fn eat_array_literal(&mut self) -> ParseResult<Vec<LocalNodeId<Argument>>> {
         self.eat_token(TokenType::OpenBracket)?;
@@ -1132,10 +1206,8 @@ impl Parser {
             if next_token_type == TokenType::Divide {
                 return Err(ParseError::unexpected(unexpected_span));
             }
-            if !matches!(
-                next_token_type,
-                TokenType::GreaterThan | TokenType::Divide | TokenType::Identifier
-            ) {
+            let starts_tag_close = self.peek_starts_tree_tag_close();
+            if !starts_tag_close && next_token_type != TokenType::Identifier {
                 return Err(ParseError::unexpected(unexpected_span));
             }
 
@@ -3375,6 +3447,7 @@ mod tests {
         let mut test = TestParser::new_with_language(r#"<>=x</>"#, LanguageType::JavaScriptXml);
         let mut parser = test.prepare();
         let expression = parser.eat_tree_literal().unwrap();
+        test.assert_no_errors(&parser);
 
         assert_node!(parser.tree, expression, Expression::TreeExpression { elements, .. } => {
             let elements = elements.as_ref().expect("expected elements");
@@ -3387,12 +3460,48 @@ mod tests {
         });
     }
 
+    /// Parse nested tree fragment text that starts with `=`.
+    #[test]
+    fn test_parse_nested_tree_fragment_text_with_equals_prefix() {
+        let input = r#"
+<>
+    <>=x</>
+</>;
+"#;
+        let mut test = TestParser::new_with_language(input, LanguageType::JavaScriptXml);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+        test.assert_no_errors(&parser);
+
+        assert_eq!(expressions.len(), 1);
+        assert_node!(parser.tree, expressions[0], Expression::TreeExpression { left, elements, .. } => {
+            assert!(left.is_none());
+            let elements = elements.as_ref().expect("expected elements");
+            assert_eq!(elements.len(), 1);
+
+            assert_node!(parser.tree, elements[0], Argument::Positional { value } => {
+                assert_node!(parser.tree, *value, Expression::TreeExpression { left, elements, .. } => {
+                    assert!(left.is_none());
+                    let elements = elements.as_ref().expect("expected nested elements");
+                    assert_eq!(elements.len(), 1);
+
+                    assert_node!(parser.tree, elements[0], Argument::Positional { value } => {
+                        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::String(string_id)) => {
+                            assert_string!(parser, *string_id, "=x");
+                        });
+                    });
+                });
+            });
+        });
+    }
+
     /// Parse tree fragments followed by `>=1` as binary expressions.
     #[test]
     fn test_parse_tree_fragment_followed_by_greater_than_or_equal() {
         let mut test = TestParser::new_with_language(r#"<>x</>>=1"#, LanguageType::JavaScriptXml);
         let mut parser = test.prepare();
         let expression = parser.eat_expression(parser.flags).unwrap();
+        test.assert_no_errors(&parser);
 
         assert_node!(parser.tree, expression, Expression::Binary { left, operator, right } => {
             assert_eq!(*operator, BinaryOperator::GreaterThanOrEqual);
@@ -3408,11 +3517,45 @@ mod tests {
             TestParser::new_with_language(r#"<span>x</span>>=1"#, LanguageType::JavaScriptXml);
         let mut parser = test.prepare();
         let expression = parser.eat_expression(parser.flags).unwrap();
+        test.assert_no_errors(&parser);
 
         assert_node!(parser.tree, expression, Expression::Binary { left, operator, right } => {
             assert_eq!(*operator, BinaryOperator::GreaterThanOrEqual);
             assert_node!(parser.tree, *left, Expression::TreeExpression { .. });
             assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(1)));
+        });
+    }
+
+    /// Parse a top-level sequence of tree text and comparison forms.
+    #[test]
+    fn test_parse_tree_text_and_greater_than_or_equal_sequence() {
+        let input = r#"
+<>=x</>;
+<>x</>>=1;
+<span>=x</span>;
+<span>x</span>>=1;
+"#;
+        let mut test = TestParser::new_with_language(input, LanguageType::JavaScriptXml);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+        test.assert_no_errors(&parser);
+
+        assert_eq!(expressions.len(), 4);
+        assert_node!(
+            parser.tree,
+            expressions[0],
+            Expression::TreeExpression { .. }
+        );
+        assert_node!(parser.tree, expressions[1], Expression::Binary { operator, .. } => {
+            assert_eq!(*operator, BinaryOperator::GreaterThanOrEqual);
+        });
+        assert_node!(
+            parser.tree,
+            expressions[2],
+            Expression::TreeExpression { .. }
+        );
+        assert_node!(parser.tree, expressions[3], Expression::Binary { operator, .. } => {
+            assert_eq!(*operator, BinaryOperator::GreaterThanOrEqual);
         });
     }
 
@@ -3705,6 +3848,7 @@ function x() {
         let mut test = TestParser::new_with_language(input, LanguageType::JavaScriptXml);
         let mut parser = test.prepare();
         let expressions = parser.parse();
+        test.assert_no_errors(&parser);
 
         assert_eq!(expressions.len(), 1);
         assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
@@ -3730,6 +3874,7 @@ class Foo {}
         let mut test = TestParser::new_with_language(input, LanguageType::JavaScriptXml);
         let mut parser = test.prepare();
         let expressions = parser.parse();
+        test.assert_no_errors(&parser);
 
         // ensure fragments after classes parse with multiple children
         assert_eq!(expressions.len(), 2);
@@ -3737,6 +3882,81 @@ class Foo {}
         assert_node!(parser.tree, tree_expression, Expression::TreeExpression { left, elements, .. } => {
             assert!(left.is_none());
             let elements = elements.as_ref().expect("expected elements");
+            assert_eq!(elements.len(), 2);
+        });
+    }
+
+    /// Parse tree elements after newline-terminated declarations and blocks.
+    #[test]
+    fn test_parse_tree_after_newline_terminated_roots() {
+        let input = r#"
+let x
+<Comp></Comp>
+
+let y
+
+<Comp></Comp>
+
+let z;
+<Comp></Comp>
+
+function x() {
+    let value
+    <div />
+}
+
+{ foo: 'test' }
+<Comp></Comp>
+
+function test1() {}
+<Comp></Comp>
+
+class Foo {}
+<>
+<Comp></Comp>
+<Comp></Comp>
+</>
+"#;
+        let mut test = TestParser::new_with_language(input, LanguageType::JavaScriptXml);
+        let mut parser = test.prepare();
+        let expressions = parser.parse();
+        test.assert_no_errors(&parser);
+
+        assert_eq!(expressions.len(), 13);
+        assert_node!(parser.tree, expressions[0], Expression::Let { .. });
+        assert_node!(
+            parser.tree,
+            expressions[1],
+            Expression::TreeExpression { .. }
+        );
+        assert_node!(parser.tree, expressions[2], Expression::Let { .. });
+        assert_node!(
+            parser.tree,
+            expressions[3],
+            Expression::TreeExpression { .. }
+        );
+        assert_node!(parser.tree, expressions[4], Expression::Let { .. });
+        assert_node!(
+            parser.tree,
+            expressions[5],
+            Expression::TreeExpression { .. }
+        );
+        assert_node!(parser.tree, expressions[6], Expression::Declaration(_));
+        assert_node!(parser.tree, expressions[7], Expression::Block(_));
+        assert_node!(
+            parser.tree,
+            expressions[8],
+            Expression::TreeExpression { .. }
+        );
+        assert_node!(parser.tree, expressions[9], Expression::Declaration(_));
+        assert_node!(
+            parser.tree,
+            expressions[10],
+            Expression::TreeExpression { .. }
+        );
+        assert_node!(parser.tree, expressions[11], Expression::Declaration(_));
+        assert_node!(parser.tree, expressions[12], Expression::TreeExpression { elements, .. } => {
+            let elements = elements.as_ref().expect("expected fragment elements");
             assert_eq!(elements.len(), 2);
         });
     }

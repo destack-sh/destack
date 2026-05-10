@@ -253,7 +253,8 @@ fn test_parse_type_mapped_expression() {
                     assert_string!(parser, strings[1], "");
                     assert_expression_path!(parser, parser.tree.get(spans[0]), "K");
                 });
-                assert_node!(parser.tree, *value, TypeExpression::Index { left, index } => {
+                let value = value.expect("expected value type");
+                assert_node!(parser.tree, value, TypeExpression::Index { left, index } => {
                     assert_node!(parser.tree, *left, TypeExpression::Reference { path, generic_arguments } => {
                         assert!(generic_arguments.is_empty());
                         assert_path!(parser, *path, "T");

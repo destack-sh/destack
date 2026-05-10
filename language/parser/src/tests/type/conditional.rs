@@ -28,6 +28,30 @@ fn test_parse_type_conditional_with_infer_constraint() {
     });
 }
 
+/// Parse tuple types in conditional type branches.
+#[test]
+fn test_parse_type_conditional_tuple_then_branch() {
+    let mut test =
+        TestParser::new("type Pair<T> = T extends `${infer A}-${infer B}` ? (A, B) : never");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
+
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Conditional { then_type, else_type, .. } => {
+                assert_node!(parser.tree, *then_type, TypeExpression::Tuple { elements } => {
+                    assert_eq!(elements.len(), 2);
+                });
+                assert_node!(parser.tree, *else_type, TypeExpression::Literal { value } => {
+                    assert_eq!(*value, TypeLiteral::Never);
+                });
+            });
+        });
+    });
+
+    test.assert_no_errors(&parser);
+}
+
 /// Parse conditional types where infer-extends is a constraint inside parentheses.
 #[test]
 fn test_parse_type_conditional_infer_extends_parenthesized_constraint() {
@@ -296,13 +320,11 @@ fn test_parse_type_extends_with_union_right() {
     // type T = A extends B | C
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Conditional { left, extends_type, then_type, else_type } => {
+            assert_node!(parser.tree, *value, TypeExpression::Extends { left, right } => {
                 assert_expression_path!(parser, parser.tree.get(*left), "A");
-                assert_node!(parser.tree, *extends_type, TypeExpression::Union { elements } => {
+                assert_node!(parser.tree, *right, TypeExpression::Union { elements } => {
                     assert_eq!(elements.len(), 2);
                 });
-                assert_node!(parser.tree, *then_type, TypeExpression::Missing);
-                assert_node!(parser.tree, *else_type, TypeExpression::Missing);
             });
         });
     });
@@ -447,10 +469,9 @@ fn test_parse_type_extends_readonly_array() {
     // type T = A extends readonly unknown[]
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
         assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Conditional { extends_type, then_type, else_type, .. } => {
-                assert_node!(parser.tree, *extends_type, TypeExpression::Readonly { .. });
-                assert_node!(parser.tree, *then_type, TypeExpression::Missing);
-                assert_node!(parser.tree, *else_type, TypeExpression::Missing);
+            assert_node!(parser.tree, *value, TypeExpression::Extends { left, right } => {
+                assert_expression_path!(parser, parser.tree.get(*left), "A");
+                assert_node!(parser.tree, *right, TypeExpression::Readonly { .. });
             });
         });
     });

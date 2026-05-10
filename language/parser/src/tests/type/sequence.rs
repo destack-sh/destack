@@ -1,5 +1,5 @@
 use crate::tests::*;
-use crate::{assert_name, assert_node, assert_path, assert_string};
+use crate::{assert_expression_path, assert_name, assert_node, assert_path, assert_string};
 use destack_ast::*;
 use destack_source::LanguageType;
 
@@ -57,12 +57,47 @@ fn test_parse_fixed_array_type() {
                     assert!(generic_arguments.is_empty());
                     assert_path!(parser, *path, "EventTarget");
                 });
-                assert_node!(parser.tree, *length, TypeExpression::ScalarLiteral { value } => {
-                    assert_eq!(*value, ScalarLiteral::Integer(32));
+                assert_node!(parser.tree, *length, Expression::ScalarLiteral(ScalarLiteral::Integer(32)));
+            });
+        });
+    });
+}
+
+#[test]
+fn test_parse_fixed_array_type_value_length_expression() {
+    let mut test = TestParser::new("type T<comptime N: uint> = [EventTarget; N * 2]");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
+
+    // type T<comptime N: uint> = [EventTarget; N * 2]
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::FixedArray { length, .. } => {
+                assert_node!(parser.tree, *length, Expression::Binary { left, operator, right } => {
+                    assert_expression_path!(parser, parser.tree.get(*left), "N");
+                    assert_eq!(*operator, BinaryOperator::Multiply);
+                    assert_node!(parser.tree, *right, Expression::ScalarLiteral(ScalarLiteral::Integer(2)));
                 });
             });
         });
     });
+}
+
+#[test]
+fn test_parse_fixed_array_type_recovers_missing_length_expression() {
+    let mut test = TestParser::new("type T = [EventTarget; ]");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
+
+    // type T = [EventTarget; ]
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::FixedArray { length, .. } => {
+                assert_node!(parser.tree, *length, Expression::Missing);
+            });
+        });
+    });
+    test.assert_error_leaves(&parser, &[(Some(NodeType::Expression), None, "]")]);
 }
 
 #[test]

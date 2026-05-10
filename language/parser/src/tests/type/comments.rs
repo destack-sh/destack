@@ -1248,11 +1248,12 @@ fn test_parse_without_parenthesized_wrappers_trims_mapped_union_last_arm() {
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Mapped { value: mapped_value, .. } => {
-                assert_node!(parser.tree, *mapped_value, TypeExpression::Union { elements } => {
+                let mapped_value = mapped_value.expect("expected value type");
+                assert_node!(parser.tree, mapped_value, TypeExpression::Union { elements } => {
                     assert_eq!(elements.len(), 2);
 
                     let last_arm_span = parser.tree.get_span(elements[1]);
-                    let union_span = parser.tree.get_span(*mapped_value);
+                    let union_span = parser.tree.get_span(mapped_value);
 
                     assert_eq!(parser.get_span_str(last_arm_span), "undefined");
                     assert_eq!(parser.get_span_str(union_span), "T[K] // arm-a\n    | undefined");
