@@ -500,6 +500,7 @@ fn expression_is_known_effectful_statement(expression: &ast::Expression) -> bool
             | ast::Expression::New { .. }
             | ast::Expression::Await { .. }
             | ast::Expression::AwaitMaybe { .. }
+            | ast::Expression::AwaitMust { .. }
             | ast::Expression::Yield { .. }
             | ast::Expression::Import { .. }
             | ast::Expression::Export { .. }

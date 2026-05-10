@@ -250,15 +250,14 @@ fn callable_boundary_asynchrony(
             let dir::Member::Method {
                 key: _,
                 signature,
+                abstraction: _,
                 body: _,
-                is_optional: _,
                 visibility: _,
+                is_optional: _,
                 is_ambient: _,
-                is_abstract: _,
                 is_override: _,
                 is_static: _,
                 is_accessor: _,
-                is_comptime: _,
                 symbol: _,
             } = member
             else {

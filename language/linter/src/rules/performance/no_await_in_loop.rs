@@ -124,7 +124,9 @@ fn await_loop_candidate(expression: &ast::Expression) -> Option<AwaitLoopCandida
     // match await expressions
     if matches!(
         expression,
-        ast::Expression::Await { .. } | ast::Expression::AwaitMaybe { .. }
+        ast::Expression::Await { .. }
+            | ast::Expression::AwaitMaybe { .. }
+            | ast::Expression::AwaitMust { .. }
     ) {
         return Some(AwaitLoopCandidate::AwaitExpression);
     }

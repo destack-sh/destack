@@ -235,6 +235,7 @@ fn is_void_expression_candidate(
         dir::Expression::Call { .. }
             | dir::Expression::Await { .. }
             | dir::Expression::AwaitMaybe { .. }
+            | dir::Expression::AwaitMust { .. }
             | dir::Expression::TaggedTemplateExpression { .. }
     )
 }

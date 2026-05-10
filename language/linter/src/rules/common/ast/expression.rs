@@ -1508,6 +1508,16 @@ pub fn expression_is_equal(
             },
         ) => expression_is_equal(ctx, *left_expression, *right_expression),
 
+        // await! expressions: compare inner expression
+        (
+            ast::Expression::AwaitMust {
+                expression: left_expression,
+            },
+            ast::Expression::AwaitMust {
+                expression: right_expression,
+            },
+        ) => expression_is_equal(ctx, *left_expression, *right_expression),
+
         // throw expressions: compare value
         (
             ast::Expression::Throw { value: left_value },
@@ -2045,6 +2055,7 @@ pub fn expression_has_side_effects(
         | ast::Expression::New { .. }
         | ast::Expression::Await { .. }
         | ast::Expression::AwaitMaybe { .. }
+        | ast::Expression::AwaitMust { .. }
         | ast::Expression::Yield { .. }
         | ast::Expression::Throw { .. } => true,
 

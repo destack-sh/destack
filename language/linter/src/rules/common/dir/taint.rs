@@ -423,7 +423,9 @@ impl<'a> TaintAnalysis<'a> {
                 );
                 labels.apply_sanitizer(&sanitizer_labels);
             }
-            dir::Expression::Await { expression } | dir::Expression::AwaitMaybe { expression } => {
+            dir::Expression::Await { expression }
+            | dir::Expression::AwaitMaybe { expression }
+            | dir::Expression::AwaitMust { expression } => {
                 // awaits preserve taint
                 let awaited_labels =
                     self.expression_taint_labels_inner(*expression, expression_stack, symbol_stack);
