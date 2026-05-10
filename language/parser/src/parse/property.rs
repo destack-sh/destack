@@ -3,8 +3,8 @@
 use destack_ast::{
     AssignOperator, AssignPattern, Asynchrony, BlockContext, ConstructorTypeDeclaration,
     Expression, FunctionForm, FunctionRole, FunctionSignature, FunctionTypeDeclaration, Key,
-    Keyword, LocalNodeId, Member, Name, NodeType, Parameter, Property, StringId, TokenType,
-    TypeExpression, TypeMember, Visibility,
+    Keyword, LocalNodeId, Member, MethodAbstraction, Name, NodeType, Parameter, Property, StringId,
+    TokenType, TypeExpression, TypeMember, Visibility,
 };
 use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Span};
 
@@ -13,9 +13,10 @@ use crate::parse::argument::BindingModifiers;
 use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 
 /// The keywords that can appear before a binding.
-pub static BINDING_MODIFIERS: [Keyword; 8] = [
+pub static BINDING_MODIFIERS: [Keyword; 9] = [
     Keyword::Static,
     Keyword::Abstract,
+    Keyword::Virtual,
     Keyword::Override,
     Keyword::Readonly,
     Keyword::Public,
@@ -260,8 +261,25 @@ impl Parser {
             return Err(ParseError::unexpected(self.peek()?.span));
         }
 
-        // reject optional + definite assignment combo
-        if modifiers.is_some_and(|modifiers| modifiers.is_optional && modifiers.is_definite) {
+        // reject definite assignment assertions
+        if modifiers.is_some_and(|modifiers| modifiers.is_definite) {
+            let error_span = self
+                .prev()
+                .map(|token| token.span)
+                .unwrap_or(self.peek()?.span);
+            return Err(ParseError::unexpected(error_span));
+        }
+
+        // reject impossible abstraction combinations
+        if modifiers.is_some_and(|modifiers| modifiers.is_abstract && modifiers.is_virtual) {
+            let error_span = self
+                .prev()
+                .map(|token| token.span)
+                .unwrap_or(self.peek()?.span);
+            return Err(ParseError::unexpected(error_span));
+        }
+
+        if modifiers.is_some_and(|modifiers| modifiers.is_static && modifiers.is_virtual) {
             let error_span = self
                 .prev()
                 .map(|token| token.span)
@@ -939,7 +957,8 @@ impl Parser {
         }
 
         // modifiers and head
-        let modifiers = self.eat_binding_modifiers_prefix_maybe(true, true, false, false, false)?;
+        let modifiers =
+            self.eat_binding_modifiers_prefix_maybe(true, true, false, false, false, false)?;
         let ParsedPropertyMemberHead {
             modifiers,
             key,
@@ -985,6 +1004,9 @@ impl Parser {
             if associated_comptime_name.is_some() {
                 return Err(ParseError::unexpected(self.peek()?.span));
             }
+            if modifiers.is_some_and(|modifiers| modifiers.is_comptime) {
+                return Err(ParseError::unexpected(self.peek()?.span));
+            }
 
             // abstraction
             // methods without key or role are implicit calls
@@ -993,6 +1015,11 @@ impl Parser {
             } else {
                 role
             };
+            if modifiers.is_some_and(|modifiers| modifiers.is_virtual)
+                && matches!(role, Some(FunctionRole::Constructor | FunctionRole::New))
+            {
+                return Err(ParseError::unexpected(self.peek()?.span));
+            }
 
             // modifiers postfix (again after parameters)
             let modifiers = self.eat_binding_modifiers_postfix_maybe(modifiers)?;
@@ -1651,7 +1678,8 @@ impl Parser {
         }
 
         // modifiers prefix
-        let modifiers = self.eat_binding_modifiers_prefix_maybe(true, true, true, true, true)?;
+        let modifiers =
+            self.eat_binding_modifiers_prefix_maybe(true, true, true, true, true, true)?;
 
         // duplicate static modifier across newlines
         if modifiers
@@ -1764,15 +1792,16 @@ impl Parser {
             let member = Member::Method {
                 key,
                 signature,
+                abstraction: modifiers.map_or(MethodAbstraction::Concrete, |modifiers| {
+                    modifiers.method_abstraction()
+                }),
                 body,
-                is_optional: modifiers.is_some_and(|modifiers| modifiers.is_optional),
                 visibility: modifiers.and_then(|modifiers| modifiers.visibility),
+                is_optional: modifiers.is_some_and(|modifiers| modifiers.is_optional),
                 is_ambient: self.is_ambient_for_modifiers(modifiers.as_ref()),
-                is_abstract: modifiers.is_some_and(|modifiers| modifiers.is_abstract),
                 is_override: modifiers.is_some_and(|modifiers| modifiers.is_override),
                 is_static: modifiers.is_some_and(|modifiers| modifiers.is_static),
                 is_accessor: modifiers.is_some_and(|modifiers| modifiers.is_accessor),
-                is_comptime: modifiers.is_some_and(|modifiers| modifiers.is_comptime),
             };
             let member_id = self.insert_node(member, self.get_span_from(&start));
 
@@ -1869,6 +1898,11 @@ impl Parser {
             if value.is_none() && default.is_none() && !self.can_insert_semicolon() {
                 return Err(ParseError::unexpected(self.peek()?.span));
             }
+            if associated_comptime_name.is_none()
+                && modifiers.is_some_and(|modifiers| modifiers.is_comptime || modifiers.is_virtual)
+            {
+                return Err(ParseError::unexpected(self.peek()?.span));
+            }
             let member = if let Some(name) = associated_comptime_name {
                 Member::AssociatedConst {
                     name,
@@ -1891,9 +1925,7 @@ impl Parser {
                     is_abstract: modifiers.is_some_and(|modifiers| modifiers.is_abstract),
                     is_override: modifiers.is_some_and(|modifiers| modifiers.is_override),
                     is_static: modifiers.is_some_and(|modifiers| modifiers.is_static),
-                    is_definite: modifiers.is_some_and(|modifiers| modifiers.is_definite),
                     is_accessor: modifiers.is_some_and(|modifiers| modifiers.is_accessor),
-                    is_comptime: modifiers.is_some_and(|modifiers| modifiers.is_comptime),
                 }
             };
             let member_id = self.insert_node(member, self.get_span_from(&start));
@@ -1976,9 +2008,9 @@ mod tests {
     use destack_ast::{
         Argument, AssignOperator, Asynchrony, BinaryOperator, Block, ClassDeclaration, CommentKind,
         Declaration, Expression, FunctionDeclaration, FunctionForm, FunctionRole, GenericArgument,
-        GenericParameter, IntegerType, InterfaceDeclaration, Key, Member, Name, NodeType,
-        Parameter, Property, ScalarLiteral, TokenType, TypeExpression, TypeLiteral, TypeMember,
-        TypePredicateSubject, Visibility,
+        GenericParameter, IntegerType, InterfaceDeclaration, Key, Member, MethodAbstraction, Name,
+        NodeType, Parameter, Property, ScalarLiteral, TokenType, TypeExpression, TypeLiteral,
+        TypeMember, TypePredicateSubject, Visibility,
     };
     use destack_source::LanguageType;
 
@@ -2003,30 +2035,21 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_member_definite_assignment() {
+    fn test_parse_member_diagnoses_definite_assignment() {
         let mut test = TestParser::new_with_language("prop!: Foo", LanguageType::TypeScript);
         let mut parser = test.prepare();
 
-        let member = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member, Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), default: None, .. } => {
-            assert_string!(parser, *name, "prop");
-            assert_expression_path!(parser, parser.tree.get(*value), "Foo");
-        });
+        let error = parser.eat_member().unwrap_err();
+        assert_eq!(parser.get_span_str(error.leaf_span()), "!");
     }
 
     #[test]
-    fn test_parse_member_accessor_definite_assignment() {
+    fn test_parse_member_accessor_diagnoses_definite_assignment() {
         let mut test = TestParser::new_with_language("accessor a!: any", LanguageType::TypeScript);
         let mut parser = test.prepare();
 
-        let member = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member, Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(value), is_accessor, .. } => {
-            assert!(*is_accessor);
-            assert_string!(parser, *name, "a");
-            assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
-                assert_eq!(*value, TypeLiteral::Any);
-            });
-        });
+        let error = parser.eat_member().unwrap_err();
+        assert_eq!(parser.get_span_str(error.leaf_span()), "!");
     }
 
     #[test]
@@ -2139,11 +2162,25 @@ port2 = {
         let mut parser = test.prepare();
 
         let member = parser.eat_member().unwrap();
-        assert_node!(parser.tree, member, Member::Method { key: Some(Key::Name(Name::Identifier(name))), signature, is_abstract, is_override, .. } => {
+        assert_node!(parser.tree, member, Member::Method { key: Some(Key::Name(Name::Identifier(name))), signature, abstraction, is_override, .. } => {
             assert_string!(parser, *name, "foo");
             assert!(signature.is_abstract);
-            assert!(*is_abstract);
+            assert_eq!(*abstraction, MethodAbstraction::Abstract);
             assert!(*is_override);
+        });
+    }
+
+    #[test]
+    fn test_parse_member_virtual_method() {
+        let mut test = TestParser::new("virtual foo(): void {}");
+        let mut parser = test.prepare();
+
+        let member = parser.eat_member().unwrap();
+        assert_node!(parser.tree, member, Member::Method { key: Some(Key::Name(Name::Identifier(name))), signature, abstraction, body: Some(body), .. } => {
+            assert_string!(parser, *name, "foo");
+            assert_eq!(*abstraction, MethodAbstraction::Virtual);
+            assert!(!signature.is_abstract);
+            assert_node!(parser.tree, *body, Expression::Block(_));
         });
     }
 
@@ -2616,17 +2653,12 @@ comptime: number"#,
     }
 
     #[test]
-    fn test_parse_property_definite_assignment() {
+    fn test_parse_property_diagnoses_definite_assignment() {
         let mut test = TestParser::new_with_language("prop!: LongType[]", LanguageType::TypeScript);
         let mut parser = test.prepare();
-        let property = parser.eat_property().unwrap();
-        assert_node!(parser.tree, property, Property::Field { key: Key::Name(Name::Identifier(name)), value, .. } => {
-            assert_string!(parser, *name, "prop");
-            assert_node!(parser.tree, *value, Expression::Index { left, index, .. } => {
-                assert!(index.is_none());
-                assert_expression_path!(parser, parser.tree.get(*left), "LongType");
-            });
-        });
+
+        let error = parser.eat_property().unwrap_err();
+        assert_eq!(parser.get_span_str(error.leaf_span()), "!");
     }
 
     #[test]

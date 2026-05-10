@@ -134,6 +134,7 @@ impl Parser {
                 export: header.export,
                 is_ambient: header.is_ambient,
                 is_abstract: header.is_abstract,
+                is_final: header.is_final,
                 generic_parameters: generic_parameters.unwrap_or_default(),
                 where_clauses: where_clauses.unwrap_or_default(),
                 extends_expression,

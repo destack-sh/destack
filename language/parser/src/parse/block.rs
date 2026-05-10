@@ -923,6 +923,7 @@ impl Parser {
     /// ```
     /// await someFunction()
     /// await? someFallibleAsync()
+    /// await! someFallibleAsync()
     /// ```
     pub fn eat_await(&mut self) -> ParseResult<LocalNodeId<Expression>> {
         let start = self.span_start();
@@ -930,10 +931,17 @@ impl Parser {
         // keyword
         self.eat_keyword(Keyword::Await)?;
 
-        // check for await? (sugar for (await expr)?)
-        let is_maybe = self.peek_is(TokenType::Maybe);
+        // check for adjacent await? or await! markers
+        let previous_end = self.prev().map(|previous| previous.span.end);
+        let current_start = self.peek().ok().map(|token| token.span.start);
+        let marker_is_adjacent = previous_end.is_some() && previous_end == current_start;
+        let is_maybe = marker_is_adjacent && self.peek_is(TokenType::Maybe);
+        let is_must = marker_is_adjacent && self.peek_is(TokenType::Not);
         if is_maybe {
             self.bump(); // eat ?
+        }
+        if is_must {
+            self.bump(); // eat !
         }
 
         // allow multiline await operands
@@ -941,9 +949,13 @@ impl Parser {
         // expression
         let expression_id = self.eat_expression_not_in_position()?;
 
-        // await or await?
+        // await, await?, or await!
         let expression = if is_maybe {
             Expression::AwaitMaybe {
+                expression: expression_id,
+            }
+        } else if is_must {
+            Expression::AwaitMust {
                 expression: expression_id,
             }
         } else {
@@ -1344,6 +1356,22 @@ mod tests {
         let await_id = parser.eat_await().unwrap();
         // await? someFunction()
         assert_node!(parser.tree, await_id, Expression::AwaitMaybe { expression } => {
+            // someFunction()
+            assert_node!(parser.tree, *expression, Expression::Call { position: _, left, generic_arguments: _, arguments } => {
+                assert_expression_path!(parser, parser.tree.get(*left), "someFunction");
+                assert!(arguments.is_empty());
+            });
+        });
+    }
+
+    #[test]
+    fn test_await_must_expression() {
+        let mut test = TestParser::new("await! someFunction()");
+        let mut parser = test.prepare();
+        let await_id = parser.eat_await().unwrap();
+
+        // await! someFunction()
+        assert_node!(parser.tree, await_id, Expression::AwaitMust { expression } => {
             // someFunction()
             assert_node!(parser.tree, *expression, Expression::Call { position: _, left, generic_arguments: _, arguments } => {
                 assert_expression_path!(parser, parser.tree.get(*left), "someFunction");

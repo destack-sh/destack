@@ -1,7 +1,7 @@
 use destack_ast::{
     Argument, Expression, GenericArgument, GenericParameter, Keyword, LiteralType, LocalNodeId,
-    Name, NodeType, Parameter, Pattern, ScalarLiteral, StringId, TokenSpan, TokenType,
-    TypeExpression, VarianceModifier, Visibility,
+    MethodAbstraction, Name, NodeType, Parameter, Pattern, ScalarLiteral, StringId, TokenSpan,
+    TokenType, TypeExpression, VarianceModifier, Visibility,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
@@ -25,6 +25,8 @@ pub(crate) struct BindingModifiers {
     pub is_static: bool,
     /// Whether `abstract` was present.
     pub is_abstract: bool,
+    /// Whether `virtual` was present.
+    pub is_virtual: bool,
     /// Whether `override` was present.
     pub is_override: bool,
     /// Whether `readonly` was present.
@@ -45,6 +47,17 @@ impl BindingModifiers {
     /// Return whether the modifier set is empty.
     pub(crate) fn is_empty(self) -> bool {
         self == Self::default()
+    }
+
+    /// Return the method abstraction represented by these modifiers.
+    pub(crate) fn method_abstraction(self) -> MethodAbstraction {
+        if self.is_abstract {
+            MethodAbstraction::Abstract
+        } else if self.is_virtual {
+            MethodAbstraction::Virtual
+        } else {
+            MethodAbstraction::Concrete
+        }
     }
 }
 
@@ -372,7 +385,7 @@ impl Parser {
         )
     }
 
-    /// Return true when `abstract` and `override` can be parsed as modifiers.
+    /// Return true when an abstraction keyword can be parsed as a modifier.
     fn can_parse_abstraction_modifier(&mut self) -> bool {
         !self.lookahead(|parser| {
             parser.bump();
@@ -383,9 +396,6 @@ impl Parser {
         }) && !self.lookahead(|parser| {
             parser.bump();
             parser.peek_is(TokenType::LessThan)
-        }) && !self.lookahead(|parser| {
-            parser.bump();
-            parser.peek_is(TokenType::OpenParenthesis)
         })
     }
 
@@ -394,6 +404,7 @@ impl Parser {
         &mut self,
         allow_readonly_key: bool,
         allow_accessor_modifier: bool,
+        allow_virtual_modifier: bool,
         allow_variance_modifier: bool,
         allow_declare_modifier: bool,
         validate_modifier_order: bool,
@@ -425,7 +436,7 @@ impl Parser {
                         && (parser.peek_is(TokenType::Identifier) || parser.is_keyword(Keyword::In))
                 });
             let can_start_modifier = current_keyword.is_some_and(|keyword| {
-                matches!(
+                let is_standard_modifier = matches!(
                     keyword,
                     Keyword::In
                         | Keyword::Public
@@ -438,7 +449,14 @@ impl Parser {
                         | Keyword::Readonly
                         | Keyword::Const
                         | Keyword::Accessor
-                ) || self.language.is_destack() && keyword == Keyword::Comptime
+                );
+                let is_virtual_modifier = allow_virtual_modifier
+                    && self.language.is_destack()
+                    && keyword == Keyword::Virtual;
+                let is_comptime_modifier =
+                    self.language.is_destack() && keyword == Keyword::Comptime;
+
+                is_standard_modifier || is_virtual_modifier || is_comptime_modifier
             }) || is_out_variance_modifier;
             if !can_start_modifier {
                 break;
@@ -553,6 +571,21 @@ impl Parser {
                 }
                 self.bump(); // eat abstract
                 modifiers.is_abstract = true;
+                has_modifiers = true;
+                progress = true;
+            }
+
+            // abstraction modifiers (virtual)
+            if allow_virtual_modifier
+                && self.language.is_destack()
+                && self.is_keyword(Keyword::Virtual)
+                && abstraction_is_modifier
+            {
+                if !self.next_same_line_token_starts_member_name() {
+                    break;
+                }
+                self.bump(); // eat virtual
+                modifiers.is_virtual = true;
                 has_modifiers = true;
                 progress = true;
             }
@@ -699,6 +732,7 @@ impl Parser {
 
         let mut modifiers = self.eat_binding_modifiers_prefix_maybe(
             true,
+            false,
             false,
             self.flags.is_in_static(),
             false,
@@ -2723,7 +2757,7 @@ n"#,
         );
         let mut parser = test.prepare();
         let modifiers = parser
-            .eat_binding_modifiers_prefix_maybe(true, true, true, true, true)
+            .eat_binding_modifiers_prefix_maybe(true, true, true, true, true, true)
             .unwrap();
 
         assert!(modifiers.is_none());
@@ -2738,7 +2772,7 @@ n"#,
         );
         let mut parser = test.prepare();
         let modifiers = parser
-            .eat_binding_modifiers_prefix_maybe(true, true, true, true, true)
+            .eat_binding_modifiers_prefix_maybe(true, true, true, true, true, true)
             .unwrap()
             .unwrap();
 

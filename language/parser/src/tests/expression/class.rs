@@ -25,6 +25,23 @@ fn test_parse_class_expression_with_implements() {
     });
 }
 
+/// Parse a final class expression.
+#[test]
+fn test_parse_final_class_expression() {
+    let mut test = TestParser::new("final class Service {}");
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+
+    test.assert_no_errors(&parser);
+
+    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { name, is_final, .. }) => {
+            assert_string!(parser, name.expect("expected class name").string(), "Service");
+            assert!(*is_final);
+        });
+    });
+}
+
 /// Parse a class expression when heritage starts on the next line.
 #[test]
 fn test_parse_class_expression_with_newline_implements() {

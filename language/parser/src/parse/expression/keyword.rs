@@ -803,6 +803,21 @@ impl Parser {
         }
 
         match keyword {
+            // final class declaration
+            Keyword::Final
+                if self.language.is_destack()
+                    && !next_has_line_break
+                    && next_keyword == Some(Keyword::Class) =>
+            {
+                let mut header = header;
+                header.is_final = true;
+                self.eat_keyword(Keyword::Final)?;
+
+                let allow_anonymous_class = header.export == Some(ExportKind::Default)
+                    || !self.flags.is_in_statement_position();
+                let struct_id = self.eat_struct_or_class(start, header, allow_anonymous_class)?;
+                Ok(Some(self.insert_declaration_expression(start, struct_id)))
+            }
             // namespace declaration
             Keyword::Namespace
                 if is_declaration_start
