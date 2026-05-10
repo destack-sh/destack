@@ -208,7 +208,9 @@ pub(crate) fn is_assignment_left_target(
             Expression::Assign { left, .. } => {
                 return assign_pattern_contains_expression(context, *left, current_expression_id);
             }
-            Expression::Await { expression } | Expression::AwaitMaybe { expression }
+            Expression::Await { expression }
+            | Expression::AwaitMaybe { expression }
+            | Expression::AwaitMust { expression }
                 if expression.id == current_expression_id.id =>
             {
                 current_expression_id = ancestor_expression_id;

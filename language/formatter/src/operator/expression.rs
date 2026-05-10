@@ -9,8 +9,8 @@ use crate::chain::{
 };
 use crate::declaration::statement::format_block_wide;
 use crate::expression::{
-    ExpressionLeftSide, expression_needs_parentheses_in_parent, format_index_expression,
-    format_member_expression,
+    expression_needs_parentheses_in_parent, format_index_expression, format_member_expression,
+    ExpressionLeftSide,
 };
 use crate::operator::assign::format_assign_expression;
 use crate::operator::binary::format_binary_expression;
@@ -53,9 +53,9 @@ fn await_expression_argument(
     node_id: LocalNodeId<Expression>,
 ) -> Option<LocalNodeId<Expression>> {
     match context.tree.get(node_id) {
-        Expression::Await { expression } | Expression::AwaitMaybe { expression } => {
-            Some(*expression)
-        }
+        Expression::Await { expression }
+        | Expression::AwaitMaybe { expression }
+        | Expression::AwaitMust { expression } => Some(*expression),
         _ => None,
     }
 }
@@ -114,6 +114,39 @@ fn await_expression_groups_object_indent(
     };
 
     expression_leftmost(context, argument_id) != node_id
+}
+
+/// Write one await-like expression.
+fn format_await_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    node_id: LocalNodeId<Expression>,
+    operand: LocalNodeId<Expression>,
+    marker: Option<&'static str>,
+) -> FormatResult<()> {
+    let format_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        write!(f, [token("await")])?;
+        if let Some(marker) = marker {
+            write!(f, [token(marker)])?;
+        }
+        write!(f, [space(), operand])
+    });
+
+    // callee or object indentation
+    if expression_is_await_callee_or_object_context(f.context(), node_id) {
+        let indented = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            write!(f, [soft_block_indent(&format_inner)])
+        });
+
+        if await_expression_groups_object_indent(f.context(), node_id) {
+            write!(f, [group(&indented)])?;
+        } else {
+            write!(f, [indented])?;
+        }
+
+        return Ok(());
+    }
+
+    write!(f, [format_inner])
 }
 
 /// Return whether one operator expression serializes infix annotations as postfix-only annotations.
@@ -238,46 +271,15 @@ pub(crate) fn format_operator_expression<'ast>(
             write_prefix_expression_operand(f, node_id, *right)?;
         }
 
-        // await
+        // await-like
         Expression::Await { expression } => {
-            let format_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                write!(f, [token("await"), space(), expression])
-            });
-
-            if expression_is_await_callee_or_object_context(f.context(), node_id) {
-                let indented = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                    write!(f, [soft_block_indent(&format_inner)])
-                });
-
-                if await_expression_groups_object_indent(f.context(), node_id) {
-                    write!(f, [group(&indented)])?;
-                } else {
-                    write!(f, [indented])?;
-                }
-            } else {
-                write!(f, [format_inner])?;
-            }
+            format_await_expression(f, node_id, *expression, None)?;
         }
-
-        // await?
         Expression::AwaitMaybe { expression } => {
-            let format_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                write!(f, [token("await"), token("?"), space(), expression])
-            });
-
-            if expression_is_await_callee_or_object_context(f.context(), node_id) {
-                let indented = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                    write!(f, [soft_block_indent(&format_inner)])
-                });
-
-                if await_expression_groups_object_indent(f.context(), node_id) {
-                    write!(f, [group(&indented)])?;
-                } else {
-                    write!(f, [indented])?;
-                }
-            } else {
-                write!(f, [format_inner])?;
-            }
+            format_await_expression(f, node_id, *expression, Some("?"))?;
+        }
+        Expression::AwaitMust { expression } => {
+            format_await_expression(f, node_id, *expression, Some("!"))?;
         }
 
         // comptime

@@ -158,6 +158,7 @@ pub(crate) fn tree_child_should_inline_braced_expression(
         | Expression::TaggedTemplateExpression { .. }
         | Expression::Await { .. }
         | Expression::AwaitMaybe { .. }
+        | Expression::AwaitMust { .. }
         | Expression::Binary { .. }
         | Expression::Member { .. }
         | Expression::PrivateMember { .. }

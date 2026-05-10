@@ -644,13 +644,13 @@ pub(crate) fn assignment_like_parent(
                 }
 
                 // transparent wrappers around the rhs
-                let is_wrapper_parent = matches!(
-                    parent_expr,
+                let is_wrapper_parent = match parent_expr {
                     Expression::Await { expression }
-                        | Expression::AwaitMaybe { expression }
-                        | Expression::Parenthesized { expression }
-                        if expression.id == current_id
-                );
+                    | Expression::AwaitMaybe { expression }
+                    | Expression::AwaitMust { expression }
+                    | Expression::Parenthesized { expression } => expression.id == current_id,
+                    _ => false,
+                };
 
                 if is_wrapper_parent {
                     current_id = parent_id;
@@ -697,9 +697,9 @@ pub(crate) fn transparent_inner_expression(
                     Some(*expression)
                 }
             }
-            Expression::Await { expression } | Expression::AwaitMaybe { expression } => {
-                Some(*expression)
-            }
+            Expression::Await { expression }
+            | Expression::AwaitMaybe { expression }
+            | Expression::AwaitMust { expression } => Some(*expression),
             _ => None,
         };
 

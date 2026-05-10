@@ -645,6 +645,9 @@ pub(crate) fn format_class_declaration<'ast>(
         if declaration.is_abstract {
             write!(f, [Keyword::Abstract, space()])?;
         }
+        if declaration.is_final {
+            write!(f, [Keyword::Final, space()])?;
+        }
 
         // head
         write!(f, [Keyword::Class])?;

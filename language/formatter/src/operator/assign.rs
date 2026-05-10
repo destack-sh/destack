@@ -1179,6 +1179,7 @@ impl AssignmentLike {
                     context.tree.get(right),
                     Expression::Await { .. }
                         | Expression::AwaitMaybe { .. }
+                        | Expression::AwaitMust { .. }
                         | Expression::Comptime { .. }
                 );
                 let rhs_is_class_declaration =
@@ -1689,7 +1690,9 @@ fn assignment_rhs_innermost_expression<'a>(
     loop {
         current_expression_id = match context.tree.get(current_expression_id) {
             Expression::Unary { right, .. } => *right,
-            Expression::Await { expression } | Expression::AwaitMaybe { expression } => *expression,
+            Expression::Await { expression }
+            | Expression::AwaitMaybe { expression }
+            | Expression::AwaitMust { expression } => *expression,
             Expression::Yield {
                 value: Some(value), ..
             } => *value,

@@ -207,9 +207,9 @@ abstract class AbstractAccessor {
   abstract accessor foo: string;
 }
 
-// Accessor with definite assignment
-class Definite {
-  accessor foo!: string;
+// Accessor without initializer
+class Declared {
+  accessor foo: string;
 }
 
 // Accessor with long type annotation and value
@@ -280,9 +280,9 @@ abstract class AbstractAccessor {
   abstract accessor foo: string;
 }
 
-// Accessor with definite assignment
-class Definite {
-  accessor foo!: string;
+// Accessor without initializer
+class Declared {
+  accessor foo: string;
 }
 
 // Accessor with long type annotation and value
@@ -348,9 +348,9 @@ abstract class AbstractAccessor {
   abstract accessor foo: string;
 }
 
-// Accessor with definite assignment
-class Definite {
-  accessor foo!: string;
+// Accessor without initializer
+class Declared {
+  accessor foo: string;
 }
 
 // Accessor with long type annotation and value
