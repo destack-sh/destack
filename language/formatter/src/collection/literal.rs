@@ -150,23 +150,9 @@ pub(crate) fn format_scalar_literal<'ast>(
             }
         }
         ScalarLiteral::Character(value) => {
-            let mut quote_style = f.context().options.quote_style;
-            if quote_style == QuoteStyle::Semantic {
-                quote_style = QuoteStyle::Double;
-            }
             let content = value.to_string();
-            let preferred_quote = quote_style.char_for(content.as_str());
-            let quote_char = minimized_quote_char(content.as_str(), preferred_quote);
-            let quote_str = if quote_char == '"' { "\"" } else { "'" };
-            let escaped_content = escape_string_literal_content(content.as_str(), quote_char);
-            write!(
-                f,
-                [
-                    token(quote_str),
-                    text(escaped_content.as_str()),
-                    token(quote_str)
-                ]
-            )?;
+            let escaped_content = escape_string_literal_content(content.as_str(), '\'');
+            write!(f, [token("'"), text(escaped_content.as_str()), token("'")])?;
         }
         ScalarLiteral::String(string_id) => {
             let mut quote_style = f.context().options.quote_style;

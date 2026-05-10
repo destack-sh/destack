@@ -564,6 +564,7 @@ pub(crate) fn format_let_statement_expression<'ast>(
     kind: LetKind,
     export: Option<ExportKind>,
     is_ambient: bool,
+    is_shared: bool,
     declarators: &[LocalNodeId<Declarator>],
 ) -> FormatResult<()> {
     let tree = f.context().tree;
@@ -610,6 +611,10 @@ pub(crate) fn format_let_statement_expression<'ast>(
             }
 
             write_ambient_prefix(f, is_ambient)?;
+
+            if is_shared {
+                write!(f, [token("shared"), space()])?;
+            }
 
             // binding keyword
             match kind {

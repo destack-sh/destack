@@ -68,8 +68,12 @@ fn format_prefixed_pattern<'ast>(
 ) -> FormatResult<()> {
     write!(f, [token(prefix)])?;
 
-    if mutability == Some(Mutability::Immutable) {
-        write!(f, [token("readonly"), space()])?;
+    if let Some(mutability) = mutability {
+        match mutability {
+            Mutability::Immutable => write!(f, [token("readonly"), space()])?,
+            Mutability::Exclusive => write!(f, [token("exclusive"), space()])?,
+            Mutability::Mutable => {}
+        }
     }
 
     write!(f, [right])?;

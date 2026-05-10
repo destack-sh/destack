@@ -5,18 +5,20 @@ use super::{
     sequence_expression_needs_parens,
 };
 use crate::annotation::{
-    block_infix_annotations, format_dangling_comments, infix_or_postfix_annotations,
-    postfix_annotations,
+    FormatTrailingComments, block_infix_annotations, format_dangling_comments,
+    infix_or_postfix_annotations, postfix_annotations, write_comment_slice,
 };
 use crate::chain::transparent_inner_expression;
 use crate::collection::literal::{format_scalar_literal, format_template_literal};
 use crate::collection::{TrailingSeparator, separated_entries};
-use crate::context::with_following_span_start;
+use crate::context::{FormatNodeWithoutTrailingComments, with_following_span_start};
 use crate::declaration::expression_is_in_statement_context;
 use crate::operator::format_generic_argument_list;
 use crate::tree::format_tree_literal_expression;
 use crate::{DestackFormatContext, DestackFormatter};
-use destack_ast::{Argument, Expression, Keyword, LocalNodeId, NodeType, Tree};
+use destack_ast::{
+    Argument, Expression, Keyword, LocalNodeId, NodeType, TokenSpan, TokenType, Tree,
+};
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{
     block_indent, format_with, group, hard_line_break, indent, line_suffix_boundary,
@@ -306,6 +308,75 @@ pub(crate) fn format_primary_array_expression<'ast>(
     Ok(())
 }
 
+/// Return the source semicolon separating one fixed array value and length.
+fn fixed_array_source_separator(
+    context: &DestackFormatContext<'_>,
+    value: LocalNodeId<Expression>,
+    length: LocalNodeId<Expression>,
+) -> Option<TokenSpan> {
+    let value_span = context.span(value);
+    let length_start = context.expression_token_start(length);
+    let separator = context.next_non_trivia_token_after_span(value_span)?;
+
+    if separator.token.ty != TokenType::Semicolon || separator.span.end > length_start {
+        return None;
+    }
+
+    Some(separator)
+}
+
+/// Format a fixed array repeat literal primary expression.
+fn format_primary_fixed_array_expression<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    value: LocalNodeId<Expression>,
+    length: LocalNodeId<Expression>,
+) -> FormatResult<()> {
+    let body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        let context = f.context();
+        let value_span = context.span(value);
+        let value_anchor_end = context
+            .last_non_trivia_token_in_span(value_span)
+            .map_or(value_span.end, |token| token.span.end);
+        let length_start = context.expression_token_start(length);
+        let separator = fixed_array_source_separator(context, value, length);
+        let comments = context
+            .comments()
+            .comments_in_range(value_anchor_end, length_start);
+
+        let (comments_before_separator, comments_after_separator) =
+            if let Some(separator) = separator {
+                let index = comments
+                    .iter()
+                    .position(|comment| comment.span.start >= separator.span.end)
+                    .unwrap_or(comments.len());
+                comments.split_at(index)
+            } else {
+                (comments, &[][..])
+            };
+
+        write!(f, [FormatNodeWithoutTrailingComments(value)])?;
+        write_comment_slice(f, comments_before_separator)?;
+        write!(f, [token(";")])?;
+        write!(
+            f,
+            [
+                FormatTrailingComments::Comments(comments_after_separator),
+                soft_line_break_or_space(),
+                length
+            ]
+        )
+    });
+
+    write!(
+        f,
+        [group(&format_args![
+            token("["),
+            soft_block_indent(&body),
+            token("]")
+        ])]
+    )
+}
+
 /// Return whether an array should expand under nested array and object rules.
 fn array_expression_should_break(tree: &Tree, elements: &[LocalNodeId<Argument>]) -> bool {
     if elements.len() < 2 {
@@ -538,6 +609,11 @@ pub(crate) fn format_primary_expression<'ast>(
             elements: elements_ids,
         } => {
             format_primary_array_expression(f, node_id, elements_ids)?;
+        }
+
+        // fixed array literal
+        Expression::FixedArrayExpression { value, length } => {
+            format_primary_fixed_array_expression(f, *value, *length)?;
         }
 
         // tuple literal

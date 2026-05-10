@@ -65,6 +65,7 @@ fn write_expression_trailing_annotations<'ast>(
         | Expression::TemplateExpression { .. }
         | Expression::TaggedTemplateExpression { .. }
         | Expression::ArrayExpression { .. }
+        | Expression::FixedArrayExpression { .. }
         | Expression::TupleExpression { .. }
         | Expression::SequenceExpression { .. }
         | Expression::ObjectExpression { .. }
@@ -228,6 +229,7 @@ fn format_expression_body<'ast>(
         | Expression::TemplateExpression { .. }
         | Expression::TaggedTemplateExpression { .. }
         | Expression::ArrayExpression { .. }
+        | Expression::FixedArrayExpression { .. }
         | Expression::TupleExpression { .. }
         | Expression::SequenceExpression { .. }
         | Expression::ObjectExpression { .. }

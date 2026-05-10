@@ -225,10 +225,12 @@ pub(crate) fn format_operator_expression<'ast>(
             right,
         } => {
             write!(f, [token("^")])?;
-            if let Some(mutability) = mutability
-                && *mutability == Mutability::Immutable
-            {
-                write!(f, [token("readonly"), space()])?;
+            if let Some(mutability) = mutability {
+                match mutability {
+                    Mutability::Immutable => write!(f, [token("readonly"), space()])?,
+                    Mutability::Exclusive => write!(f, [token("exclusive"), space()])?,
+                    Mutability::Mutable => {}
+                }
             }
             if let Some(variance) = variance {
                 write!(f, [variance.to_keyword(), space()])?;
@@ -296,10 +298,12 @@ pub(crate) fn format_operator_expression<'ast>(
             right,
         } => {
             write!(f, [token("&")])?;
-            if let Some(mutability) = mutability
-                && *mutability == Mutability::Immutable
-            {
-                write!(f, [token("readonly"), space()])?;
+            if let Some(mutability) = mutability {
+                match mutability {
+                    Mutability::Immutable => write!(f, [token("readonly"), space()])?,
+                    Mutability::Exclusive => write!(f, [token("exclusive"), space()])?,
+                    Mutability::Mutable => {}
+                }
             }
             if let Some(variance) = variance {
                 write!(f, [variance.to_keyword(), space()])?;
