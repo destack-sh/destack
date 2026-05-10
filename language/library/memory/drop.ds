@@ -1,0 +1,10 @@
+import { intrinsic } from "../core/decorator/intrinsic.ds";
+
+/// Deterministic ownership finalization capability.
+export newtype interface Drop {
+    drop(): void;
+}
+
+/// End ownership of `value` at this point.
+@intrinsic("drop")
+export declare function drop<T>(value: ^T): void;
