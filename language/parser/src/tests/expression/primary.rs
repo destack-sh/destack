@@ -7,7 +7,7 @@ use crate::{
 };
 use destack_ast::*;
 use destack_core::StringPool;
-use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanType};
+use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
 
 /// Parse import meta as one dedicated expression root.
 #[test]
@@ -205,10 +205,15 @@ fn test_parse_without_parenthesized_wrappers_keeps_inner_expression_span() {
             NodeSpanType::Boundary(NodeSpanBoundary::Leading),
         )
         .expect("missing expression leading span");
+    let wrapper_span = parser
+        .tree
+        .get_side_span(expression_id, NodeSpanType::Region(NodeSpanRegion::Wrapper))
+        .expect("missing expression wrapper span");
     let comment = parser.tree.comments()[0];
 
     assert_eq!(parser.get_span_str(expression_span), "value");
     assert_eq!(parser.get_span_str(leading_span), "/* keep */ ");
+    assert_eq!(parser.get_span_str(wrapper_span), "(/* keep */ value)");
     assert_eq!(comment.attached_to, expression_span.start);
 }
 

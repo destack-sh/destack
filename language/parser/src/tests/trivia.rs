@@ -1187,6 +1187,30 @@ fn test_decorator_attaches_to_call_argument() {
 }
 
 #[test]
+fn test_keyword_decorator_attaches_to_call_argument() {
+    let (parser, expressions) = parse_source("run(@if(true) value)", LanguageType::Destack);
+
+    assert_eq!(expressions.len(), 1);
+    let expression_id = parser.unwrap_labelled_expression(expressions[0]);
+    assert_node!(parser.tree, expression_id, Expression::Call { arguments, .. } => {
+        assert_eq!(arguments.len(), 1);
+        let argument_id = arguments[0];
+        let annotations = parser.tree.get_decorators(argument_id.id);
+        assert_eq!(annotations.len(), 1);
+        assert_node!(parser.tree, annotations[0], Decorator { expression, .. } => {
+            assert_node!(parser.tree, *expression, Expression::Call { left, arguments, .. } => {
+                assert_expression_path!(parser, parser.tree.get(*left), "if");
+                assert_eq!(arguments.len(), 1);
+            });
+        });
+
+        assert_node!(parser.tree, argument_id, Argument::Positional { value, .. } => {
+            assert_expression_path!(parser, parser.tree.get(*value), "value");
+        });
+    });
+}
+
+#[test]
 fn test_comments_and_blanks_are_not_semantic_annotations() {
     let (parser, expressions) = parse_source("a // tail\n\nb", LanguageType::TypeScript);
 

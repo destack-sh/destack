@@ -115,6 +115,51 @@ fn test_parse_lambda_function_value() {
     });
 }
 
+/// Parse a typed lambda with multiple parameters and a return annotation.
+#[test]
+fn test_parse_typed_lambda_value_with_multiple_parameters() {
+    let mut test = TestParser::new_with_language(
+        r#"const add = (a: number, b: number): number => a + b;
+add satisfies (a: number, b: number) => number;"#,
+        LanguageType::Destack,
+    );
+    let mut parser = test.prepare();
+    let expressions = parser.parse();
+
+    test.assert_no_errors(&parser);
+    assert_eq!(expressions.len(), 2);
+
+    // const add = (a: number, b: number): number => a + b
+    assert_node!(parser.tree, expressions[0], Expression::Let { declarators, .. } => {
+        assert_eq!(declarators.len(), 1);
+        assert_node!(parser.tree, declarators[0], Declarator { value: Some(value), .. } => {
+            assert_node!(parser.tree, *value, Expression::Declaration(declaration_id) => {
+                assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
+                    assert_eq!(signature.form, FunctionForm::Lambda);
+                    assert_eq!(signature.parameters.len(), 2);
+                    assert_node!(parser.tree, signature.return_type.expect("expected return type"), TypeExpression::Literal { value } => {
+                        assert_eq!(*value, TypeLiteral::Number);
+                    });
+                    assert_node!(parser.tree, body.expect("expected lambda body"), Expression::Binary { operator, .. } => {
+                        assert_eq!(*operator, BinaryOperator::Add);
+                    });
+                });
+            });
+        });
+    });
+
+    // add satisfies (a: number, b: number) => number
+    assert_node!(parser.tree, expressions[1], Expression::Satisfies { expression, target_type } => {
+        assert_expression_path!(parser, parser.tree.get(*expression), "add");
+        assert_node!(parser.tree, *target_type, TypeExpression::FunctionTypeDeclaration(function) => {
+            assert_eq!(function.parameters.len(), 2);
+            assert_node!(parser.tree, function.return_type.expect("expected return type"), TypeExpression::Literal { value } => {
+                assert_eq!(*value, TypeLiteral::Number);
+            });
+        });
+    });
+}
+
 /// Parse function expression callbacks with a newline before the body block.
 #[test]
 fn test_parse_call_with_function_expression_newline_before_body() {
