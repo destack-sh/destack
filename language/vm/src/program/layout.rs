@@ -407,10 +407,11 @@ fn build_layout(
             kind,
             element,
             address_space,
-            mutability,
+            access,
+            ..
         } => {
             let (data, _length) =
-                mir::slice_header_types(*kind, *element, *mutability, address_space.clone());
+                mir::slice_header_types(*kind, *element, *access, address_space.clone());
             let data = tree
                 .iter_nodes::<mir::Type>()
                 .find_map(|(type_id, ty)| (ty == &data).then_some(type_id))

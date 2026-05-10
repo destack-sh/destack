@@ -83,30 +83,33 @@ impl ReferenceAddressSpace {
 /// Metadata for reference values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ReferenceMeta {
-    bits: u8,
+    bits: u16,
 }
 
 /// The packed bit mask for the reference kind.
-const REF_KIND_MASK: u8 = 0x7;
+const REF_KIND_MASK: u16 = 0x7;
 
-/// The packed bit that marks mutable references.
-const REF_MUTABLE_BIT: u8 = 1 << 3;
+/// The shift used for packed reference access.
+const REF_ACCESS_SHIFT: u8 = 3;
+
+/// The packed bit mask for reference access.
+const REF_ACCESS_MASK: u16 = 0x3 << REF_ACCESS_SHIFT;
 
 /// The packed bit that marks nullable references.
-const REF_NULLABLE_BIT: u8 = 1 << 4;
+const REF_NULLABLE_BIT: u16 = 1 << 5;
 
 /// The shift used for the packed reference address space.
-const REF_ADDRESS_SPACE_SHIFT: u8 = 5;
+const REF_ADDRESS_SPACE_SHIFT: u8 = 6;
 
 /// The packed bit mask for the reference address space.
-const REF_ADDRESS_SPACE_MASK: u8 = 0x7 << REF_ADDRESS_SPACE_SHIFT;
+const REF_ADDRESS_SPACE_MASK: u16 = 0x7 << REF_ADDRESS_SPACE_SHIFT;
 
 impl ReferenceMeta {
     /// Empty reference metadata.
     pub const NONE: Self = Self { bits: 0 };
 
     /// Create reference metadata from raw bits.
-    pub fn from_bits(bits: u8) -> Self {
+    pub fn from_bits(bits: u16) -> Self {
         Self { bits }
     }
 
@@ -114,7 +117,7 @@ impl ReferenceMeta {
     pub fn new(
         kind: mir::ReferenceKind,
         address_space: mir::AddressSpace,
-        mutability: mir::Mutability,
+        access: mir::Access,
         is_nullable: bool,
     ) -> Self {
         let kind_bits = match kind {
@@ -123,12 +126,16 @@ impl ReferenceMeta {
             mir::ReferenceKind::Borrowed => 3,
             mir::ReferenceKind::Raw => 4,
         };
-        let address_space_bits = ReferenceAddressSpace::from_mir(address_space).to_bits();
+        let access_bits = match access {
+            mir::Access::Readonly => 0,
+            mir::Access::Mutable => 1,
+            mir::Access::Exclusive => 2,
+        };
+        let address_space_bits =
+            u16::from(ReferenceAddressSpace::from_mir(address_space).to_bits());
 
-        let mut bits = kind_bits | (address_space_bits << REF_ADDRESS_SPACE_SHIFT);
-        if matches!(mutability, mir::Mutability::Mutable) {
-            bits |= REF_MUTABLE_BIT;
-        }
+        let mut bits = kind_bits | (access_bits << REF_ACCESS_SHIFT);
+        bits |= address_space_bits << REF_ADDRESS_SPACE_SHIFT;
         if is_nullable {
             bits |= REF_NULLABLE_BIT;
         }
@@ -148,14 +155,15 @@ impl ReferenceMeta {
         }
     }
 
-    /// Get the reference mutability when available.
-    pub fn mutability(self) -> Option<mir::Mutability> {
+    /// Get the reference access when available.
+    pub fn access(self) -> Option<mir::Access> {
         self.kind()?;
 
-        if self.bits & REF_MUTABLE_BIT != 0 {
-            Some(mir::Mutability::Mutable)
-        } else {
-            Some(mir::Mutability::Immutable)
+        match (self.bits & REF_ACCESS_MASK) >> REF_ACCESS_SHIFT {
+            0 => Some(mir::Access::Readonly),
+            1 => Some(mir::Access::Mutable),
+            2 => Some(mir::Access::Exclusive),
+            _ => None,
         }
     }
 
@@ -166,12 +174,12 @@ impl ReferenceMeta {
 
     /// Get the reference address space.
     pub fn address_space(self) -> ReferenceAddressSpace {
-        let bits = (self.bits & REF_ADDRESS_SPACE_MASK) >> REF_ADDRESS_SPACE_SHIFT;
+        let bits = ((self.bits & REF_ADDRESS_SPACE_MASK) >> REF_ADDRESS_SPACE_SHIFT) as u8;
         ReferenceAddressSpace::from_bits(bits)
     }
 
     /// Return the raw metadata bits.
-    pub fn bits(self) -> u8 {
+    pub fn bits(self) -> u16 {
         self.bits
     }
 }
