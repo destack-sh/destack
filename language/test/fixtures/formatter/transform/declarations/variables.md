@@ -171,6 +171,20 @@ let { value } = result else {
 };
 ```
 
+### let else with literal pattern
+
+Literal let-else patterns keep the fallback block attached to `else`.
+
+```ds
+let "ok" = value else { return }
+```
+
+```ds expected
+let "ok" = value else {
+    return;
+};
+```
+
 ### let else with tagged pattern
 
 Tagged patterns stay attached before the fallback block.

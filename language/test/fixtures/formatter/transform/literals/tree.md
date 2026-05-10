@@ -58,6 +58,18 @@ Attribute values can be expressions in braces.
 <Button onClick={handleClick} disabled={isLoading} />;
 ```
 
+### attribute with fixed array value
+
+Fixed array repeat literals can be passed as attribute values.
+
+```ds
+<Buffer data=[0; count] />
+```
+
+```ds expected
+<Buffer data=[0; count] />;
+```
+
 ## Elements with Children
 
 ### element with text child

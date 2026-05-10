@@ -333,6 +333,47 @@ call?.(
 );
 ```
 
+### last argument boundary comments
+
+Comments around the final callback control whether the call stays grouped.
+
+```ts:main.ts
+call(editor /* comment */, () => {
+  //
+});
+call(editor, /* comment */
+  () => {
+    //
+  }
+);
+call(/* */ editor /* comment */, () => {
+  //
+});
+call(/* comment */
+  () => {
+    //
+  }
+);
+```
+
+```ts expected
+call(editor /* comment */, () => {
+    //
+});
+call(editor /* comment */, () => {
+    //
+});
+call(/* */ editor /* comment */, () => {
+    //
+});
+call(
+    /* comment */
+    () => {
+        //
+    },
+);
+```
+
 ### multiple function expressions break
 
 Function expressions break to multiple lines when repeated.
