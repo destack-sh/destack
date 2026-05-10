@@ -457,6 +457,45 @@ function old() {}
 function old() {}
 ```
 
+### jsdoc default tag preserves long values
+
+Default tags keep their value on the tag line.
+
+```ts:main.ts jsdoc=true line-width=60
+/**
+ * @default <span v-pre>`"{{browser}}-mv{{manifestVersion}}{{modeSuffix}}"`</span>
+ */
+function outDirTemplate() {}
+```
+
+```ts expected
+/** @default <span v-pre>`"{{browser}}-mv{{manifestVersion}}{{modeSuffix}}"`</span> */
+function outDirTemplate() {}
+```
+
+### jsdoc example default tag
+
+Example tags keep following default values unwrapped.
+
+```ts:main.ts jsdoc=true line-width=60 indent-width=2
+/**
+ * @example
+ *   {{browser}} -mv{{manifestVersion}}
+ *
+ * @default <span v-pre>`"{{browser}}-mv{{manifestVersion}}{{modeSuffix}}"`</span>
+ */
+function outDirTemplate() {}
+```
+
+```ts expected
+/**
+ * @example
+ *   {{browser}} -mv{{manifestVersion}}
+ * @default <span v-pre>`"{{browser}}-mv{{manifestVersion}}{{modeSuffix}}"`</span>
+ */
+function outDirTemplate() {}
+```
+
 ## Markdown
 
 ### jsdoc markdown description

@@ -1,6 +1,6 @@
 # Try Statements
 
-Try expressions preserve branch values while finally clauses remain effect-only.
+Try expressions preserve branch values across try, catch, and finally blocks.
 
 ## Try Blocks
 
@@ -211,7 +211,7 @@ try { foo() } finally { cleanup() }
 try {
     foo()
 } finally {
-    cleanup();
+    cleanup()
 }
 ```
 
@@ -229,7 +229,7 @@ try {
 } catch (e) {
     handle(e)
 } finally {
-    cleanup();
+    cleanup()
 }
 ```
 
@@ -271,7 +271,7 @@ function read(): void {
 
 ### try function tail with finally
 
-Finally blocks stay effect-only when try and catch branches provide the result.
+Finally blocks keep their expression tails like other try branches.
 
 ```ds
 function read(): number { try { value() } catch (error) { fallback(error) } finally { cleanup() } }
@@ -284,7 +284,7 @@ function read(): number {
     } catch (error) {
         fallback(error)
     } finally {
-        cleanup();
+        cleanup()
     }
 }
 ```

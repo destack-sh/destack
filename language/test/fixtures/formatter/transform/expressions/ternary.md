@@ -185,3 +185,17 @@ render(loading ? <Spinner /> : <Content />)
 ```ds expected
 render(loading ? <Spinner /> : <Content />);
 ```
+
+### ternary as const assertion value
+
+Ternary expressions keep grouping when asserted as const.
+
+```ds
+const value = (true ? 1 : 2) as const
+const checked = (enabled ? value : fallback) satisfies number
+```
+
+```ds expected
+const value = (true ? 1 : 2) as const;
+const checked = (enabled ? value : fallback) satisfies number;
+```

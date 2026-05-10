@@ -112,10 +112,12 @@ Fixed array types keep their length expression.
 
 ```ds
 type Bytes = [byte; 32]
+type Lane<comptime N: uint> = [byte; N * 2]
 ```
 
 ```ds expected
 type Bytes = [byte; 32];
+type Lane<comptime N: uint> = [byte; N * 2];
 ```
 
 ### bracket tuple union
@@ -314,6 +316,22 @@ type Keys = keyof typeof values
 
 ```ds expected
 type Keys = keyof typeof values;
+```
+
+### static type relations
+
+Static type relations format as infix type expressions.
+
+```ds
+type HasName = "name" in Person
+type IsNumber = int32 extends number
+type IsDrawable = DrawnPoint implements Drawable
+```
+
+```ds expected
+type HasName = "name" in Person;
+type IsNumber = int32 extends number;
+type IsDrawable = DrawnPoint implements Drawable;
 ```
 
 ## Ownership Types
