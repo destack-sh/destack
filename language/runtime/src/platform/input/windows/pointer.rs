@@ -309,22 +309,6 @@ pub(super) fn pointer_warp(
 }
 
 /// Enable or disable pointer capture.
-///
-/// Toggle pointer capture for one opened pointer-capable device and one optional window target.
-/// Captured pointers can continue delivering events outside focused bounds when supported for that target scope.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where capture or one window scope is unavailable.
-/// Uses backend-specific pointer capture primitives for global or window-scoped paths.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `input.grab`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_input_pointer_capture(
     binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
@@ -341,24 +325,6 @@ pub(crate) unsafe fn destack_input_pointer_capture(
 }
 
 /// Read one relative pointer state snapshot.
-///
-/// Return one relative motion and button state snapshot for one opened pointer-capable device.
-/// Delta values are projected from the current snapshot and the last stored pointer baseline while relative mode is active.
-/// Pen-capable devices can populate pressure and tilt metadata.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend pointer snapshots plus runtime-managed relative baselines.
-/// Relative mode must be enabled before this lane becomes readable.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `input.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_input_pointer_relative_state(
     binding: &BindingCallContext,
     out: *mut InputPointerState,
@@ -381,22 +347,6 @@ pub(crate) unsafe fn destack_input_pointer_relative_state(
 }
 
 /// Set pointer grab mode.
-///
-/// Apply one grab mode for one opened pointer-capable device and one optional window target.
-/// Grab modes can confine or lock pointer movement depending on backend support and target scope.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where one grab mode or one window scope is unavailable.
-/// Uses backend-specific pointer grab or lock primitives for global or window-scoped paths.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `input.grab`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_input_pointer_set_grab_mode(
     binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
@@ -413,22 +363,6 @@ pub(crate) unsafe fn destack_input_pointer_set_grab_mode(
 }
 
 /// Enable or disable relative pointer mode.
-///
-/// Toggle relative pointer mode for one opened pointer-capable device.
-/// Relative mode semantics follow backend pointer-lock behavior.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where relative mode is unavailable.
-/// Uses backend-specific relative mode toggles for active input endpoints.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `input.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_input_pointer_set_relative_mode(
     binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
@@ -443,24 +377,6 @@ pub(crate) unsafe fn destack_input_pointer_set_relative_mode(
 }
 
 /// Read one absolute pointer state snapshot.
-///
-/// Return one current pointer position and button state snapshot for one opened pointer-capable device.
-/// Position values follow backend coordinate space for that device.
-/// Pen-capable devices can populate pressure and tilt metadata.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific pointer state queries from evdev or libinput-style streams on Unix.
-/// Uses raw-input or console pointer state snapshots on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `input.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_input_pointer_state(
     binding: &BindingCallContext,
     out: *mut InputPointerState,
@@ -483,22 +399,6 @@ pub(crate) unsafe fn destack_input_pointer_state(
 }
 
 /// Warp pointer position.
-///
-/// Set one pointer position for one opened pointer-capable device and one optional window target.
-/// Warped coordinates are interpreted in backend-native window or surface space for the selected target scope.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where pointer warping or one window scope is unavailable.
-/// Uses backend-specific pointer warp operations for global or window-scoped paths.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `input.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_input_pointer_warp(
     binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,

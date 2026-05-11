@@ -60,15 +60,20 @@ pub(crate) fn destack_runtime_worker_create(
     });
     let name = runtime_decode.decode_optional(options.name)?;
     let labels = runtime_decode.decode_optional(options.labels)?;
-    let runtime_options = RuntimeRequestCodec::worker_create_options(name, labels);
+    let worker_options = RuntimeRequestCodec::worker_options(name, labels);
 
     // spawn one worker in the live runtime
     let control = control();
     let mut table = control.lock();
     let entry = table.runtime_entry(RuntimeHandleCodec::decode_runtime_handle(runtime_handle))?;
     let world = table.world_mut(entry.world_handle_id)?;
-    let worker_id =
-        world.spawn_worker_with_options(entry.runtime_id, &runtime_options, empty_vm_engine()?)?;
+    let runtime_options = Default::default();
+    let worker_id = world.spawn_worker(
+        entry.runtime_id,
+        &runtime_options,
+        worker_options,
+        empty_vm_engine()?,
+    )?;
 
     Ok(RuntimeHandleCodec::encode_worker_handle(
         table.register_worker(entry.world_handle_id, entry.runtime_id, worker_id),

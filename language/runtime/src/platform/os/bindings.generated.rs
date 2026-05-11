@@ -104,8 +104,8 @@ use crate::platform::{
     abi as platform_abi,
 };
 use crate::runtime::bindings::{
-    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
-    BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+    BindingAffinity, BindingDescriptor, BindingProvider, BindingRegistry, BindingReplayKind,
+    BindingReplayPolicy, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
 use crate::runtime::trace::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
@@ -7104,1446 +7104,1346 @@ struct OsPowerStateReplayRecord {
 }
 
 /// Binding descriptor for destack.os.background.complete.
-pub(crate) const OS_BACKGROUND_COMPLETE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_BACKGROUND_COMPLETE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.background.complete",
     "export function backgroundComplete(executionId: string, result: BackgroundTaskResult): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.background.control"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.background.event.close.
-pub(crate) const OS_BACKGROUND_EVENT_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_BACKGROUND_EVENT_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.background.event.close",
     "export function backgroundEventClose(handle: BackgroundEventHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["os.background.read"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.background.event.open.
-pub(crate) const OS_BACKGROUND_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_BACKGROUND_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.background.event.open",
     "export function backgroundEventOpen(options: BackgroundEventOpenOptions): Result<BackgroundEventHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["os.background.read"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.background.event.read.
-pub(crate) const OS_BACKGROUND_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_BACKGROUND_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.background.event.read",
     "export function backgroundEventRead(handle: BackgroundEventHandle, timeoutNs: uint64): Result<BackgroundEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["os.background.read"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.background.event.tryRead.
-pub(crate) const OS_BACKGROUND_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_BACKGROUND_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.background.event.tryRead",
     "export function backgroundEventTryRead(handle: BackgroundEventHandle): Result<BackgroundEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["os.background.read"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.background.list.
 pub(crate) const OS_BACKGROUND_LIST: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.background.list",
         "export function backgroundList(): Result<BackgroundTaskDescriptor[], PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["os.background.read"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.background.register.
-pub(crate) const OS_BACKGROUND_REGISTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_BACKGROUND_REGISTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.background.register",
     "export function backgroundRegister(options: BackgroundTaskOptions): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.background.control"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.background.status.
 pub(crate) const OS_BACKGROUND_STATUS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.background.status",
         "export function backgroundStatus(): Result<BackgroundStatus, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["os.background.read"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.background.triggerTest.
 pub(crate) const OS_BACKGROUND_TRIGGER_TEST: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.background.triggerTest",
         "export function backgroundTriggerTest(identifier: string): Result<boolean, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["os.background.control"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.background.unregister.
 pub(crate) const OS_BACKGROUND_UNREGISTER: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.background.unregister",
         "export function backgroundUnregister(identifier: string): Result<void, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["os.background.control"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.calendar.eventCreate.
-pub(crate) const OS_CALENDAR_EVENT_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_CALENDAR_EVENT_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.calendar.eventCreate",
     "export function calendarEventCreate(event: CalendarEventDraft): Result<string, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.calendar.write"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.calendar.eventDelete.
 pub(crate) const OS_CALENDAR_EVENT_DELETE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.calendar.eventDelete",
         "export function calendarEventDelete(id: string): Result<void, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["os.calendar.write"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.calendar.eventList.
-pub(crate) const OS_CALENDAR_EVENT_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_CALENDAR_EVENT_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.calendar.eventList",
     "export function calendarEventList(query: CalendarEventQuery): Result<CalendarEvent[], PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.calendar.read"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.calendar.eventRead.
 pub(crate) const OS_CALENDAR_EVENT_READ: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.calendar.eventRead",
         "export function calendarEventRead(id: string): Result<CalendarEvent, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["os.calendar.read"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.calendar.eventUpdate.
-pub(crate) const OS_CALENDAR_EVENT_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_CALENDAR_EVENT_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.calendar.eventUpdate",
     "export function calendarEventUpdate(id: string, event: CalendarEventDraft): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.calendar.write"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.calendar.list.
 pub(crate) const OS_CALENDAR_LIST: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.calendar.list",
         "export function calendarList(): Result<CalendarDescriptor[], PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["os.calendar.read"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.contact.create.
 pub(crate) const OS_CONTACT_CREATE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.contact.create",
         "export function contactCreate(contact: ContactDraft): Result<string, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["os.contact.write"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.contact.delete.
 pub(crate) const OS_CONTACT_DELETE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.contact.delete",
         "export function contactDelete(id: string): Result<void, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["os.contact.write"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.contact.list.
 pub(crate) const OS_CONTACT_LIST: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.contact.list",
         "export function contactList(query: ContactQuery): Result<ContactPage, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["os.contact.read"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.contact.read.
 pub(crate) const OS_CONTACT_READ: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.contact.read",
         "export function contactRead(id: string): Result<Contact, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["os.contact.read"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.contact.search.
-pub(crate) const OS_CONTACT_SEARCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_CONTACT_SEARCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.contact.search",
     "export function contactSearch(queryText: string, query: ContactQuery): Result<ContactPage, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.contact.read"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.contact.update.
-pub(crate) const OS_CONTACT_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_CONTACT_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.contact.update",
     "export function contactUpdate(id: string, contact: ContactDraft): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.contact.write"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.credentials.authenticate.
-pub(crate) const OS_CREDENTIALS_AUTHENTICATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_CREDENTIALS_AUTHENTICATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.credentials.authenticate",
     "export function credentialsAuthenticate(options: CredentialAuthenticationOptions): Result<CredentialAuthenticationResult, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.credentials.auth"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.credentials.contains.
-pub(crate) const OS_CREDENTIALS_CONTAINS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_CREDENTIALS_CONTAINS: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.credentials.contains",
     "export function credentialsContains(service: string, account: string, accessGroup: string): Result<boolean, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.credentials.read"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.credentials.delete.
-pub(crate) const OS_CREDENTIALS_DELETE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_CREDENTIALS_DELETE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.credentials.delete",
     "export function credentialsDelete(service: string, account: string, accessGroup: string): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.credentials.write"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.credentials.read.
-pub(crate) const OS_CREDENTIALS_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_CREDENTIALS_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.credentials.read",
     "export function credentialsRead(query: CredentialQuery): Result<CredentialRecord, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.credentials.read"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.credentials.write.
-pub(crate) const OS_CREDENTIALS_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_CREDENTIALS_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.credentials.write",
     "export function credentialsWrite(options: CredentialWriteOptions): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.credentials.write"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.document.close.
 pub(crate) const OS_DOCUMENT_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.document.close",
         "export function documentClose(handle: DocumentHandle): Result<void, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["os.document.control"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.document.flush.
 pub(crate) const OS_DOCUMENT_FLUSH: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.document.flush",
         "export function documentFlush(handle: DocumentHandle): Result<void, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["os.document.write"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.document.open.
-pub(crate) const OS_DOCUMENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_DOCUMENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.document.open",
     "export function documentOpen(uri: string, access: DocumentAccess): Result<DocumentHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.document.control"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.document.pickClose.
-pub(crate) const OS_DOCUMENT_PICK_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_DOCUMENT_PICK_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.document.pickClose",
     "export function documentPickClose(handle: DocumentPickHandle): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.document.pick"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.document.pickOpen.
-pub(crate) const OS_DOCUMENT_PICK_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_DOCUMENT_PICK_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.document.pickOpen",
     "export function documentPickOpen(options: DocumentPickOptions): Result<DocumentPickHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.document.pick"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.document.pickRead.
-pub(crate) const OS_DOCUMENT_PICK_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_DOCUMENT_PICK_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.document.pickRead",
     "export function documentPickRead(handle: DocumentPickHandle, timeoutNs: uint64): Result<DocumentDescriptor[], PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.document.pick"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.document.pickTryRead.
-pub(crate) const OS_DOCUMENT_PICK_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_DOCUMENT_PICK_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.document.pickTryRead",
     "export function documentPickTryRead(handle: DocumentPickHandle): Result<DocumentDescriptor[], PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.document.pick"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.document.read.
-pub(crate) const OS_DOCUMENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_DOCUMENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.document.read",
     "export function documentRead(handle: DocumentHandle, maxBytes: uint32, timeoutNs: uint64): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.document.read"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.document.tryRead.
-pub(crate) const OS_DOCUMENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_DOCUMENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.document.tryRead",
     "export function documentTryRead(handle: DocumentHandle, maxBytes: uint32): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.document.read"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.document.write.
-pub(crate) const OS_DOCUMENT_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_DOCUMENT_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.document.write",
     "export function documentWrite(handle: DocumentHandle, bytes: Slice<uint8>, timeoutNs: uint64): Result<uint32, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.document.write"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.host.identity.
 pub(crate) const OS_HOST_IDENTITY: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.host.identity",
         "export function hostIdentity(): Result<HostIdentity, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["os.hostname", "os.sysinfo"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.info.bootTimeUnixNs.
 pub(crate) const OS_INFO_BOOT_TIME_UNIX_NS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.info.bootTimeUnixNs",
         "export function bootTimeUnixNs(): Result<uint64, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["os.sysinfo"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.info.loadAverage.
 pub(crate) const OS_INFO_LOAD_AVERAGE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.info.loadAverage",
         "export function loadAverage(): Result<LoadAverage, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["os.sysinfo"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos"]);
+    .with_platforms(&["android", "ios", "linux", "macos"]);
 
 /// Binding descriptor for destack.os.info.systemSnapshot.
 pub(crate) const OS_INFO_SYSTEM_SNAPSHOT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.info.systemSnapshot",
         "export function systemSnapshot(): Result<SystemSnapshot, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["os.sysinfo"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.info.uptimeNs.
 pub(crate) const OS_INFO_UPTIME_NS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.info.uptimeNs",
         "export function uptimeNs(): Result<uint64, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["os.sysinfo"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.intent.canOpenUrl.
 pub(crate) const OS_INTENT_CAN_OPEN_URL: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.intent.canOpenUrl",
         "export function intentCanOpenUrl(url: string): Result<boolean, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["os.intent.write"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.intent.close.
 pub(crate) const OS_INTENT_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.intent.close",
         "export function intentClose(handle: IntentHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["os.intent.read"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.intent.open.
-pub(crate) const OS_INTENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_INTENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.intent.open",
     "export function intentOpen(options: IntentOpenOptions): Result<IntentHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["os.intent.write"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.intent.openPath.
 pub(crate) const OS_INTENT_OPEN_PATH: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.intent.openPath",
         "export function intentOpenPath(path: OsPath): Result<void, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["os.intent.write"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.intent.openUrl.
 pub(crate) const OS_INTENT_OPEN_URL: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.intent.openUrl",
         "export function intentOpenUrl(url: string): Result<void, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["os.intent.write"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.intent.read.
-pub(crate) const OS_INTENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_INTENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.intent.read",
     "export function intentRead(handle: IntentHandle, timeoutNs: uint64): Result<IntentEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["os.intent.read"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.intent.sharePaths.
-pub(crate) const OS_INTENT_SHARE_PATHS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_INTENT_SHARE_PATHS: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.intent.sharePaths",
     "export function intentSharePaths(paths: OsPath[], mimeType: string | void): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.intent.write"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.intent.shareText.
-pub(crate) const OS_INTENT_SHARE_TEXT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_INTENT_SHARE_TEXT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.intent.shareText",
     "export function intentShareText(text: string, mimeType: string | void): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.intent.write"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.intent.tryRead.
 pub(crate) const OS_INTENT_TRY_READ: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.intent.tryRead",
         "export function intentTryRead(handle: IntentHandle): Result<IntentEvent, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["os.intent.read"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.lifecycle.close.
 pub(crate) const OS_LIFECYCLE_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.lifecycle.close",
         "export function lifecycleClose(handle: LifecycleEventHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["os.lifecycle.read"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.lifecycle.open.
 pub(crate) const OS_LIFECYCLE_OPEN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.lifecycle.open",
         "export function lifecycleOpen(): Result<LifecycleEventHandle, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["os.lifecycle.read"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.lifecycle.read.
-pub(crate) const OS_LIFECYCLE_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_LIFECYCLE_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.lifecycle.read",
     "export function lifecycleRead(handle: LifecycleEventHandle, timeoutNs: uint64): Result<LifecycleEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["os.lifecycle.read"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.lifecycle.state.
 pub(crate) const OS_LIFECYCLE_STATE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.lifecycle.state",
         "export function lifecycleState(): Result<LifecycleState, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["os.lifecycle.read"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.lifecycle.tryRead.
-pub(crate) const OS_LIFECYCLE_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_LIFECYCLE_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.lifecycle.tryRead",
     "export function lifecycleTryRead(handle: LifecycleEventHandle): Result<LifecycleEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["os.lifecycle.read"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.location.lastKnown.
 pub(crate) const OS_LOCATION_LAST_KNOWN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.location.lastKnown",
         "export function locationLastKnown(): Result<LocationSample, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["os.location.read"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.location.servicesEnabled.
 pub(crate) const OS_LOCATION_SERVICES_ENABLED: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.location.servicesEnabled",
         "export function locationServicesEnabled(): Result<boolean, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["os.location.read"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.location.watchClose.
-pub(crate) const OS_LOCATION_WATCH_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_LOCATION_WATCH_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.location.watchClose",
     "export function locationWatchClose(handle: LocationWatchHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["os.location.watch"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.location.watchOpen.
-pub(crate) const OS_LOCATION_WATCH_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_LOCATION_WATCH_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.location.watchOpen",
     "export function locationWatchOpen(options: LocationWatchOptions): Result<LocationWatchHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["os.location.watch"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.location.watchRead.
-pub(crate) const OS_LOCATION_WATCH_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_LOCATION_WATCH_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.location.watchRead",
     "export function locationWatchRead(handle: LocationWatchHandle, timeoutNs: uint64): Result<LocationSample, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["os.location.watch"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.location.watchTryRead.
-pub(crate) const OS_LOCATION_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_LOCATION_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.location.watchTryRead",
     "export function locationWatchTryRead(handle: LocationWatchHandle): Result<LocationSample, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["os.location.watch"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.media.delete.
 pub(crate) const OS_MEDIA_DELETE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.media.delete",
         "export function mediaDelete(ids: string[]): Result<uint32, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["os.media.write"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.media.importPath.
-pub(crate) const OS_MEDIA_IMPORT_PATH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_MEDIA_IMPORT_PATH: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.media.importPath",
     "export function mediaImportPath(path: OsPath, kind: MediaAssetKind): Result<string, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.media.write"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.media.list.
 pub(crate) const OS_MEDIA_LIST: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.media.list",
         "export function mediaList(query: MediaQuery): Result<MediaPage, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["os.media.read"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.media.read.
 pub(crate) const OS_MEDIA_READ: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.media.read",
         "export function mediaRead(id: string): Result<MediaAssetDescriptor, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["os.media.read"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.mount.list.
 pub(crate) const OS_MOUNT_LIST: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.mount.list",
         "export function mountList(): Result<MountEntry[], PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["os.mount"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.network.state.
 pub(crate) const OS_NETWORK_STATE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.network.state",
         "export function networkState(): Result<NetworkState, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["os.network.read"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.network.watchClose.
-pub(crate) const OS_NETWORK_WATCH_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_NETWORK_WATCH_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.network.watchClose",
     "export function networkWatchClose(handle: NetworkWatchHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["os.network.watch"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.network.watchOpen.
 pub(crate) const OS_NETWORK_WATCH_OPEN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.network.watchOpen",
         "export function networkWatchOpen(): Result<NetworkWatchHandle, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["os.network.watch"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.network.watchRead.
-pub(crate) const OS_NETWORK_WATCH_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_NETWORK_WATCH_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.network.watchRead",
     "export function networkWatchRead(handle: NetworkWatchHandle, timeoutNs: uint64): Result<NetworkEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["os.network.watch"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.network.watchTryRead.
-pub(crate) const OS_NETWORK_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_NETWORK_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.network.watchTryRead",
     "export function networkWatchTryRead(handle: NetworkWatchHandle): Result<NetworkEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["os.network.watch"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.cancel.
 pub(crate) const OS_NOTIFICATION_CANCEL: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.notification.cancel",
         "export function notificationCancel(id: string): Result<void, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["os.notification.post"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.cancelAll.
 pub(crate) const OS_NOTIFICATION_CANCEL_ALL: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.notification.cancelAll",
         "export function notificationCancelAll(): Result<void, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["os.notification.post"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.categoryList.
 pub(crate) const OS_NOTIFICATION_CATEGORY_LIST: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.notification.categoryList",
         "export function notificationCategoryList(): Result<NotificationCategory[], PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["os.notification.post"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.categorySet.
-pub(crate) const OS_NOTIFICATION_CATEGORY_SET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_NOTIFICATION_CATEGORY_SET: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.notification.categorySet",
     "export function notificationCategorySet(categories: NotificationCategory[]): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.notification.post"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.event.close.
-pub(crate) const OS_NOTIFICATION_EVENT_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_NOTIFICATION_EVENT_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.notification.event.close",
     "export function notificationEventClose(handle: NotificationEventHandle): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.notification.permission"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.event.open.
-pub(crate) const OS_NOTIFICATION_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_NOTIFICATION_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.notification.event.open",
     "export function notificationEventOpen(options: NotificationEventOpenOptions): Result<NotificationEventHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.notification.permission"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.event.read.
-pub(crate) const OS_NOTIFICATION_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_NOTIFICATION_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.notification.event.read",
     "export function notificationEventRead(handle: NotificationEventHandle, timeoutNs: uint64): Result<NotificationEvent, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.notification.permission"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.event.tryRead.
-pub(crate) const OS_NOTIFICATION_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_NOTIFICATION_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.notification.event.tryRead",
     "export function notificationEventTryRead(handle: NotificationEventHandle): Result<NotificationEvent, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.notification.permission"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.pendingCancel.
 pub(crate) const OS_NOTIFICATION_PENDING_CANCEL: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.notification.pendingCancel",
         "export function notificationPendingCancel(id: string): Result<void, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["os.notification.post"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.pendingCancelAll.
 pub(crate) const OS_NOTIFICATION_PENDING_CANCEL_ALL: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.notification.pendingCancelAll",
         "export function notificationPendingCancelAll(): Result<void, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["os.notification.post"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.pendingList.
-pub(crate) const OS_NOTIFICATION_PENDING_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_NOTIFICATION_PENDING_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.notification.pendingList",
     "export function notificationPendingList(): Result<NotificationScheduledDescriptor[], PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["os.notification.post"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.permissionState.
-pub(crate) const OS_NOTIFICATION_PERMISSION_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_NOTIFICATION_PERMISSION_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.notification.permissionState",
     "export function notificationPermissionState(): Result<NotificationPermissionState, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["os.notification.permission"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.post.
-pub(crate) const OS_NOTIFICATION_POST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_NOTIFICATION_POST: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.notification.post",
     "export function notificationPost(request: NotificationRequest): Result<string, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.notification.post"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.requestPermissionClose.
-pub(crate) const OS_NOTIFICATION_REQUEST_PERMISSION_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_NOTIFICATION_REQUEST_PERMISSION_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.notification.requestPermissionClose",
     "export function notificationRequestPermissionClose(handle: NotificationPermissionRequestHandle): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.notification.permission"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.requestPermissionOpen.
-pub(crate) const OS_NOTIFICATION_REQUEST_PERMISSION_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_NOTIFICATION_REQUEST_PERMISSION_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.notification.requestPermissionOpen",
     "export function notificationRequestPermissionOpen(): Result<NotificationPermissionRequestHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.notification.permission"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.requestPermissionRead.
-pub(crate) const OS_NOTIFICATION_REQUEST_PERMISSION_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_NOTIFICATION_REQUEST_PERMISSION_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.notification.requestPermissionRead",
     "export function notificationRequestPermissionRead(handle: NotificationPermissionRequestHandle, timeoutNs: uint64): Result<NotificationPermissionState, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.notification.permission"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.requestPermissionTryRead.
-pub(crate) const OS_NOTIFICATION_REQUEST_PERMISSION_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_NOTIFICATION_REQUEST_PERMISSION_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.notification.requestPermissionTryRead",
     "export function notificationRequestPermissionTryRead(handle: NotificationPermissionRequestHandle): Result<NotificationPermissionState, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.notification.permission"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.notification.schedule.
-pub(crate) const OS_NOTIFICATION_SCHEDULE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_NOTIFICATION_SCHEDULE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.notification.schedule",
     "export function notificationSchedule(request: NotificationRequest): Result<string, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.notification.post"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.permission.openSettings.
 pub(crate) const OS_PERMISSION_OPEN_SETTINGS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.permission.openSettings",
         "export function permissionOpenSettings(): Result<void, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["os.permission.request"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.permission.requestClose.
-pub(crate) const OS_PERMISSION_REQUEST_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_PERMISSION_REQUEST_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.permission.requestClose",
     "export function permissionRequestClose(handle: PermissionRequestHandle): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.permission.request"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.permission.requestManyOpen.
-pub(crate) const OS_PERMISSION_REQUEST_MANY_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_PERMISSION_REQUEST_MANY_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.permission.requestManyOpen",
     "export function permissionRequestManyOpen(permissions: Permission[]): Result<PermissionRequestHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.permission.request"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.permission.requestOpen.
-pub(crate) const OS_PERMISSION_REQUEST_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_PERMISSION_REQUEST_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.permission.requestOpen",
     "export function permissionRequestOpen(permission: Permission): Result<PermissionRequestHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.permission.request"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.permission.requestRead.
-pub(crate) const OS_PERMISSION_REQUEST_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_PERMISSION_REQUEST_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.permission.requestRead",
     "export function permissionRequestRead(handle: PermissionRequestHandle, timeoutNs: uint64): Result<PermissionEntry[], PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.permission.request"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.permission.requestTryRead.
-pub(crate) const OS_PERMISSION_REQUEST_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_PERMISSION_REQUEST_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.permission.requestTryRead",
     "export function permissionRequestTryRead(handle: PermissionRequestHandle): Result<PermissionEntry[], PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["os.permission.request"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.permission.state.
-pub(crate) const OS_PERMISSION_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_PERMISSION_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.permission.state",
     "export function permissionState(permission: Permission): Result<PermissionState, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["os.permission.read"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.permission.stateMany.
-pub(crate) const OS_PERMISSION_STATE_MANY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const OS_PERMISSION_STATE_MANY: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.os.permission.stateMany",
     "export function permissionStateMany(permissions: Permission[]): Result<PermissionEntry[], PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["os.permission.read"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.power.state.
 pub(crate) const OS_POWER_STATE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.power.state",
         "export function powerState(): Result<PowerState, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["os.power"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.os.power.suspend.
 pub(crate) const OS_POWER_SUSPEND: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.os.power.suspend",
         "export function suspend(): Result<void, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["os.power"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("os")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Native binding set for os.
 pub(crate) const OS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

@@ -6,22 +6,6 @@ use crate::platform::{NativeArray, resource};
 use crate::runtime::BindingCallContext;
 
 /// Cancel queued operations for one target.
-///
-/// Cancel queued completion operations associated with one runtime resource target.
-/// Cancellation count reflects host backend cancellation behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses io_uring cancel requests on Unix and CancelIoEx style APIs on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.completion`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_io_completion_cancel(
     binding: &BindingCallContext,
     out: *mut u32,
@@ -39,22 +23,6 @@ pub(crate) unsafe fn destack_io_completion_cancel(
 }
 
 /// Close a completion queue.
-///
-/// Close one completion queue and release host queue resources.
-/// Pending operations are canceled or drained by host policy.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host completion backend teardown semantics.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.completion`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_io_completion_close(
     binding: &BindingCallContext,
     handle: resource::CompletionHandle,
@@ -63,22 +31,6 @@ pub(crate) unsafe fn destack_io_completion_close(
 }
 
 /// Enter the completion backend with submit and wait hints.
-///
-/// Ask the backend to flush pending submissions and optionally wait for completions.
-/// Enter semantics and wake behavior follow host backend contracts.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses io_uring_enter on Unix and runtime-entered wait-and-drain loop on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioInterrupted, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.submit`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_io_completion_enter(
     binding: &BindingCallContext,
     out: *mut u32,
@@ -98,22 +50,6 @@ pub(crate) unsafe fn destack_io_completion_enter(
 }
 
 /// Open a completion queue.
-///
-/// Create one completion queue instance with backend-defined capacity.
-/// Queue behavior and worker-thread integration follow host completion APIs.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses io_uring or AIO style completion backends on Unix and IOCP on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.completion`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_io_completion_open(
     binding: &BindingCallContext,
     out: *mut resource::CompletionHandle,
@@ -130,22 +66,6 @@ pub(crate) unsafe fn destack_io_completion_open(
 }
 
 /// Submit one completion operation.
-///
-/// Submit one operation descriptor into the completion backend queue.
-/// Submission semantics follow host backend operation encoding rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses io_uring SQE submission on Unix and overlapped I/O submission on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.submit`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_io_completion_submit(
     binding: &BindingCallContext,
     handle: resource::CompletionHandle,
@@ -155,22 +75,6 @@ pub(crate) unsafe fn destack_io_completion_submit(
 }
 
 /// Submit a batch of completion operations.
-///
-/// Submit multiple operation descriptors in one backend transaction.
-/// Batch ordering is preserved as provided by the caller.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses io_uring SQE batch submission on Unix and runtime batched overlapped submission on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.submit`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_io_completion_submit_batch(
     binding: &BindingCallContext,
     out: *mut u32,
@@ -196,22 +100,6 @@ pub(crate) unsafe fn destack_io_completion_submit_batch(
 }
 
 /// Wait for completion events.
-///
-/// Wait for one batch of completion events and return normalized completion records.
-/// Timeout units are nanoseconds and follow host completion wait semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses io_uring CQ waits on Unix and IOCP dequeue waits on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioInterrupted, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.completion`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_io_completion_wait(
     binding: &BindingCallContext,
     out: *mut NativeArray<CompletionEvent>,

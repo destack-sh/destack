@@ -19,9 +19,9 @@ use super::{
     ResourceRoute,
 };
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::runtime::Hooks;
 use crate::runtime::bindings::{BindingAffinity, BindingEngine};
 use crate::runtime::world::WorldScope;
-use crate::runtime::{ExecutionContext, Hooks};
 
 /// Durable resource-table state captured at one checkpoint.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -230,12 +230,8 @@ impl ResourceEntry {
     }
 
     /// Attach one resource-affinity requirement derived from binding metadata.
-    pub fn with_binding_affinity(
-        mut self,
-        affinity: BindingAffinity,
-        execution_context: ExecutionContext,
-    ) -> Self {
-        self.affinity = ResourceAffinity::from_binding_affinity(affinity, execution_context);
+    pub fn with_binding_affinity(mut self, affinity: BindingAffinity) -> Self {
+        self.affinity = ResourceAffinity::from_binding_affinity(affinity);
         self
     }
 

@@ -90,22 +90,6 @@ fn peer_credentials(socket: libc::c_int) -> RuntimeResult<Option<UnixPeerCredent
 }
 
 /// Receive payload and transferred handles.
-///
-/// Receive one ancillary message payload with transferred handles and credentials.
-/// Handle ownership transfer is explicit and host-limited.
-///
-/// # Platform
-/// Unix.
-/// Uses recvmsg with SCM_RIGHTS and peer credential control messages.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `ipc.unix`, `ipc.fd.pass`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_ipc_unix_receive(
     binding: &BindingCallContext,
     out: *mut UnixReceiveAncillary,
@@ -215,22 +199,6 @@ pub(crate) unsafe fn destack_ipc_unix_receive(
 }
 
 /// Send payload and transferred handles.
-///
-/// Send one payload and optional transferred handles over a unix-domain socket.
-/// Handle transfer semantics follow host ancillary message ownership rules.
-///
-/// # Platform
-/// Unix.
-/// Uses sendmsg with SCM_RIGHTS and optional credential control messages.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `ipc.unix`, `ipc.fd.pass`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_ipc_unix_send(
     binding: &BindingCallContext,
     out: *mut u64,

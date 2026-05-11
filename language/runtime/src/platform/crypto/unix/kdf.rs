@@ -9,19 +9,6 @@ use crate::runtime::BindingCallContext;
 use crate::platform::crypto::core::write_out_bytes;
 
 /// Derive one key with HKDF.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL KDF primitives on Unix and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.kdf`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_kdf_hkdf(
     binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
@@ -32,19 +19,6 @@ pub(crate) unsafe fn destack_crypto_kdf_hkdf(
 }
 
 /// Derive one key with PBKDF2.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL KDF primitives on Unix and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.kdf`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_kdf_pbkdf2(
     binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
@@ -55,19 +29,6 @@ pub(crate) unsafe fn destack_crypto_kdf_pbkdf2(
 }
 
 /// Derive one key with scrypt.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL KDF primitives on Unix and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.kdf`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_kdf_scrypt(
     binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
@@ -78,19 +39,6 @@ pub(crate) unsafe fn destack_crypto_kdf_scrypt(
 }
 
 /// Derive one key with Argon2id.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL KDF primitives on Unix and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.kdf`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_kdf_argon2id(
     binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,

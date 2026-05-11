@@ -9,22 +9,6 @@ use crate::runtime::BindingCallContext;
 use std::ffi::CStr;
 
 /// Delete an environment variable by UTF-8 name.
-///
-/// Remove one key from the process environment block.
-/// Missing keys are handled according to host environment semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses unsetenv(3) on Unix and SetEnvironmentVariableW with null value on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `env.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_env_delete(
     _binding: &BindingCallContext,
     name: NativeStringRef,
@@ -43,22 +27,6 @@ pub(crate) unsafe fn destack_process_env_delete(
 }
 
 /// Delete an environment variable by raw byte name.
-///
-/// Remove one key from the environment block without UTF-8 normalization.
-/// This is intended for byte-level Unix-style environment access.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses unsetenv(3)-style byte keys on Unix and runtime transcoding on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `env.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_env_delete_bytes(
     _binding: &BindingCallContext,
     name: NativeSlice<u8>,
@@ -77,22 +45,6 @@ pub(crate) unsafe fn destack_process_env_delete_bytes(
 }
 
 /// Read an environment variable by UTF-8 name.
-///
-/// Resolve one key from the process environment block and decode it as a runtime string.
-/// Missing keys and invalid entries are surfaced as platform errors.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses getenv(3) on Unix and GetEnvironmentVariableW on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `env.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_env_get(
     binding: &BindingCallContext,
     out: *mut NativeStringRef,
@@ -125,22 +77,6 @@ pub(crate) unsafe fn destack_process_env_get(
 }
 
 /// Read an environment variable by raw byte name.
-///
-/// Resolve one key from the process environment block without UTF-8 normalization.
-/// This is intended for byte-level Unix-style environment access.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses getenv(3)-style byte keys on Unix and runtime transcoding on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `env.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_env_get_bytes(
     binding: &BindingCallContext,
     out: *mut NativeArray<u8>,
@@ -175,22 +111,6 @@ pub(crate) unsafe fn destack_process_env_get_bytes(
 }
 
 /// Set an environment variable by UTF-8 name and value.
-///
-/// Insert or replace one key-value pair in the process environment block.
-/// Persistence and inheritance semantics follow host process-spawn rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses setenv(3) on Unix and SetEnvironmentVariableW on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `env.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_env_set(
     _binding: &BindingCallContext,
     name: NativeStringRef,
@@ -213,22 +133,6 @@ pub(crate) unsafe fn destack_process_env_set(
 }
 
 /// Set an environment variable by raw byte name and value.
-///
-/// Insert or replace one key-value pair in the environment block without UTF-8 normalization.
-/// This is intended for byte-level Unix-style environment access.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses setenv(3)-style byte keys on Unix and runtime transcoding on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `env.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_env_set_bytes(
     _binding: &BindingCallContext,
     name: NativeSlice<u8>,

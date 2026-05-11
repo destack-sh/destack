@@ -61,7 +61,7 @@ pub(crate) unsafe fn destack_runtime_worker_create(
     });
     let name = unsafe { runtime_binding.decode_optional(options.name) }?;
     let labels = unsafe { runtime_binding.decode_optional(options.labels) }?;
-    let runtime_options = RuntimeRequestCodec::worker_create_options(name, labels);
+    let worker_options = RuntimeRequestCodec::worker_options(name, labels);
 
     // clear call-local output storage
     binding.clear_values();
@@ -72,8 +72,13 @@ pub(crate) unsafe fn destack_runtime_worker_create(
     let entry = table.runtime_entry(RuntimeHandleCodec::decode_runtime_handle(runtime_handle))?;
     let runtime_id = entry.runtime_id;
     let world = table.world_mut(entry.world_handle_id)?;
-    let worker_id =
-        world.spawn_worker_with_options(runtime_id, &runtime_options, empty_vm_engine()?)?;
+    let runtime_options = Default::default();
+    let worker_id = world.spawn_worker(
+        runtime_id,
+        &runtime_options,
+        worker_options,
+        empty_vm_engine()?,
+    )?;
     let handle = RuntimeHandleCodec::encode_worker_handle(table.register_worker(
         entry.world_handle_id,
         runtime_id,

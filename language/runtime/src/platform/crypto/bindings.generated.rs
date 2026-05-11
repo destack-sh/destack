@@ -76,8 +76,8 @@ use crate::platform::{
     abi as platform_abi,
 };
 use crate::runtime::bindings::{
-    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
-    BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+    BindingAffinity, BindingDescriptor, BindingProvider, BindingRegistry, BindingReplayKind,
+    BindingReplayPolicy, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
 use crate::runtime::trace::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
@@ -3538,932 +3538,867 @@ struct CryptoStoreProbeKindsReplayRecord {
 }
 
 /// Binding descriptor for destack.crypto.agreement.deriveKey.
-pub(crate) const CRYPTO_AGREEMENT_DERIVE_KEY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_AGREEMENT_DERIVE_KEY: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.agreement.deriveKey",
     "export function agreementDeriveKey(privateKey: CryptoKeyHandle, peerPublicKey: CryptoKeyHandle, request: CryptoAgreementDeriveKeyRequest): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.key.agree", "crypto.kdf"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.agreement.deriveSharedSecret.
-pub(crate) const CRYPTO_AGREEMENT_DERIVE_SHARED_SECRET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_AGREEMENT_DERIVE_SHARED_SECRET: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.agreement.deriveSharedSecret",
     "export function agreementDeriveSharedSecret(privateKey: CryptoKeyHandle, peerPublicKey: CryptoKeyHandle, algorithm: CryptoKeyAgreementAlgorithm): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.key.agree"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.certificate.delete.
-pub(crate) const CRYPTO_CERTIFICATE_DELETE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_CERTIFICATE_DELETE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.certificate.delete",
     "export function certificateDelete(handle: CryptoCertificateHandle): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.certificate.write"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.certificate.descriptor.
-pub(crate) const CRYPTO_CERTIFICATE_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_CERTIFICATE_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.certificate.descriptor",
     "export function certificateDescriptor(handle: CryptoCertificateHandle): Result<CryptoCertificateDescriptor, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.certificate.read"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.certificate.export.
-pub(crate) const CRYPTO_CERTIFICATE_EXPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_CERTIFICATE_EXPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.certificate.export",
     "export function certificateExport(handle: CryptoCertificateHandle, format: CryptoCertificateFormat): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.certificate.read"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.certificate.import.
-pub(crate) const CRYPTO_CERTIFICATE_IMPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_CERTIFICATE_IMPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.certificate.import",
     "export function certificateImport(store: CryptoStoreHandle, format: CryptoCertificateFormat, certificate: Slice<uint8>): Result<CryptoCertificateHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.certificate.write"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.certificate.verify.
-pub(crate) const CRYPTO_CERTIFICATE_VERIFY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_CERTIFICATE_VERIFY: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.certificate.verify",
     "export function certificateVerify(request: CryptoCertificateVerifyRequest): Result<CryptoCertificateVerifyResult, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.certificate.read"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.cipher.close.
 pub(crate) const CRYPTO_CIPHER_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.crypto.cipher.close",
         "export function cipherClose(handle: CryptoCipherHandle): Result<void, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["crypto.cipher"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.cipher.decrypt.
-pub(crate) const CRYPTO_CIPHER_DECRYPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_CIPHER_DECRYPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.cipher.decrypt",
     "export function cipherDecrypt(key: CryptoKeyHandle, parameters: CryptoCipherParameters, payload: Slice<uint8>): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.cipher"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.cipher.encrypt.
-pub(crate) const CRYPTO_CIPHER_ENCRYPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_CIPHER_ENCRYPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.cipher.encrypt",
     "export function cipherEncrypt(key: CryptoKeyHandle, parameters: CryptoCipherParameters, payload: Slice<uint8>): Result<CryptoCipherOutput, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.cipher"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.cipher.finish.
-pub(crate) const CRYPTO_CIPHER_FINISH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_CIPHER_FINISH: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.cipher.finish",
     "export function cipherFinish(handle: CryptoCipherHandle, finalPayload: Slice<uint8>): Result<CryptoCipherOutput, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.cipher"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.cipher.open.
-pub(crate) const CRYPTO_CIPHER_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_CIPHER_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.cipher.open",
     "export function cipherOpen(key: CryptoKeyHandle, direction: CryptoCipherDirection, parameters: CryptoCipherParameters): Result<CryptoCipherHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.cipher"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.cipher.reset.
-pub(crate) const CRYPTO_CIPHER_RESET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_CIPHER_RESET: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.cipher.reset",
     "export function cipherReset(handle: CryptoCipherHandle, parameters: CryptoCipherParameters): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.cipher"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.cipher.update.
-pub(crate) const CRYPTO_CIPHER_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_CIPHER_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.cipher.update",
     "export function cipherUpdate(handle: CryptoCipherHandle, payload: Slice<uint8>): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.cipher"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.cipher.updateAdditionalData.
-pub(crate) const CRYPTO_CIPHER_UPDATE_ADDITIONAL_DATA: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_CIPHER_UPDATE_ADDITIONAL_DATA: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.cipher.updateAdditionalData",
     "export function cipherUpdateAdditionalData(handle: CryptoCipherHandle, additionalData: Slice<uint8>): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.cipher"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.digest.close.
 pub(crate) const CRYPTO_DIGEST_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.crypto.digest.close",
         "export function digestClose(handle: CryptoDigestHandle): Result<void, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["crypto.digest"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.digest.compute.
-pub(crate) const CRYPTO_DIGEST_COMPUTE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_DIGEST_COMPUTE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.digest.compute",
     "export function digestCompute(algorithm: CryptoDigestAlgorithm, payload: Slice<uint8>): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.digest"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.digest.finish.
-pub(crate) const CRYPTO_DIGEST_FINISH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_DIGEST_FINISH: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.digest.finish",
     "export function digestFinish(handle: CryptoDigestHandle): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.digest"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.digest.open.
-pub(crate) const CRYPTO_DIGEST_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_DIGEST_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.digest.open",
     "export function digestOpen(algorithm: CryptoDigestAlgorithm): Result<CryptoDigestHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.digest"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.digest.reset.
 pub(crate) const CRYPTO_DIGEST_RESET: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.crypto.digest.reset",
         "export function digestReset(handle: CryptoDigestHandle): Result<void, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["crypto.digest"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.digest.update.
-pub(crate) const CRYPTO_DIGEST_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_DIGEST_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.digest.update",
     "export function digestUpdate(handle: CryptoDigestHandle, payload: Slice<uint8>): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.digest"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.kdf.argon2id.
-pub(crate) const CRYPTO_KDF_ARGON2ID: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_KDF_ARGON2ID: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.kdf.argon2id",
     "export function kdfArgon2id(request: CryptoArgon2idRequest): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.kdf"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.kdf.hkdf.
 pub(crate) const CRYPTO_KDF_HKDF: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.crypto.kdf.hkdf",
         "export function kdfHkdf(request: CryptoHkdfRequest): Result<Slice<uint8>, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["crypto.kdf"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.kdf.pbkdf2.
-pub(crate) const CRYPTO_KDF_PBKDF2: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_KDF_PBKDF2: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.kdf.pbkdf2",
     "export function kdfPbkdf2(request: CryptoPbkdf2Request): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.kdf"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.kdf.scrypt.
-pub(crate) const CRYPTO_KDF_SCRYPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_KDF_SCRYPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.kdf.scrypt",
     "export function kdfScrypt(request: CryptoScryptRequest): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.kdf"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.decrypt.
-pub(crate) const CRYPTO_KEY_DECRYPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_KEY_DECRYPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.key.decrypt",
     "export function keyDecrypt(handle: CryptoKeyHandle, parameters: CryptoAsymmetricEncryptionParameters, payload: Slice<uint8>): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.key.decrypt"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.delete.
 pub(crate) const CRYPTO_KEY_DELETE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.crypto.key.delete",
         "export function keyDelete(handle: CryptoKeyHandle): Result<void, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["crypto.store.write"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.descriptor.
-pub(crate) const CRYPTO_KEY_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_KEY_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.key.descriptor",
     "export function keyDescriptor(handle: CryptoKeyHandle): Result<CryptoKeyDescriptor, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.store.read"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.encrypt.
-pub(crate) const CRYPTO_KEY_ENCRYPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_KEY_ENCRYPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.key.encrypt",
     "export function keyEncrypt(handle: CryptoKeyHandle, parameters: CryptoAsymmetricEncryptionParameters, payload: Slice<uint8>): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.key.encrypt"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.exportPrivate.
-pub(crate) const CRYPTO_KEY_EXPORT_PRIVATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_KEY_EXPORT_PRIVATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.key.exportPrivate",
     "export function keyExportPrivate(handle: CryptoKeyHandle, request: CryptoPrivateKeyExportRequest): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.store.read"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.exportPublic.
-pub(crate) const CRYPTO_KEY_EXPORT_PUBLIC: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_KEY_EXPORT_PUBLIC: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.key.exportPublic",
     "export function keyExportPublic(handle: CryptoKeyHandle, format: CryptoKeyFormat): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.store.read"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.exportSecret.
-pub(crate) const CRYPTO_KEY_EXPORT_SECRET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_KEY_EXPORT_SECRET: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.key.exportSecret",
     "export function keyExportSecret(handle: CryptoKeyHandle, format: CryptoKeyFormat): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.store.read"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.generatePair.
-pub(crate) const CRYPTO_KEY_GENERATE_PAIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_KEY_GENERATE_PAIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.key.generatePair",
     "export function keyGeneratePair(store: CryptoStoreHandle, request: CryptoKeyGenerationRequest): Result<CryptoKeyPair, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.key.generate"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.generateSecret.
-pub(crate) const CRYPTO_KEY_GENERATE_SECRET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_KEY_GENERATE_SECRET: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.key.generateSecret",
     "export function keyGenerateSecret(store: CryptoStoreHandle, request: CryptoKeyGenerationRequest): Result<CryptoKeyHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.key.generate"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.import.
-pub(crate) const CRYPTO_KEY_IMPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_KEY_IMPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.key.import",
     "export function keyImport(store: CryptoStoreHandle, request: CryptoKeyImportRequest): Result<CryptoKeyHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.store.write"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.sign.
-pub(crate) const CRYPTO_KEY_SIGN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_KEY_SIGN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.key.sign",
     "export function keySign(handle: CryptoKeyHandle, parameters: CryptoSignatureParameters, payload: Slice<uint8>): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.key.sign"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.unwrap.
-pub(crate) const CRYPTO_KEY_UNWRAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_KEY_UNWRAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.key.unwrap",
     "export function keyUnwrap(store: CryptoStoreHandle, wrappingKey: CryptoKeyHandle, wrappedKey: Slice<uint8>, parameters: CryptoKeyWrapParameters, request: CryptoKeyImportRequest): Result<CryptoKeyHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.key.unwrap", "crypto.store.write"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.verify.
-pub(crate) const CRYPTO_KEY_VERIFY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_KEY_VERIFY: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.key.verify",
     "export function keyVerify(handle: CryptoKeyHandle, parameters: CryptoSignatureParameters, payload: Slice<uint8>, signature: Slice<uint8>): Result<boolean, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.key.verify"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.key.wrap.
-pub(crate) const CRYPTO_KEY_WRAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_KEY_WRAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.key.wrap",
     "export function keyWrap(wrappingKey: CryptoKeyHandle, keyToWrap: CryptoKeyHandle, format: CryptoKeyFormat, parameters: CryptoKeyWrapParameters): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.key.wrap"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.mac.close.
 pub(crate) const CRYPTO_MAC_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.crypto.mac.close",
         "export function macClose(handle: CryptoMacHandle): Result<void, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["crypto.mac"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.mac.compute.
-pub(crate) const CRYPTO_MAC_COMPUTE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_MAC_COMPUTE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.mac.compute",
     "export function macCompute(key: CryptoKeyHandle, parameters: CryptoMacParameters, payload: Slice<uint8>): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.mac"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.mac.finish.
 pub(crate) const CRYPTO_MAC_FINISH: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.crypto.mac.finish",
         "export function macFinish(handle: CryptoMacHandle): Result<Slice<uint8>, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["crypto.mac"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.mac.open.
-pub(crate) const CRYPTO_MAC_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_MAC_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.mac.open",
     "export function macOpen(key: CryptoKeyHandle, parameters: CryptoMacParameters): Result<CryptoMacHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.mac"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.mac.reset.
 pub(crate) const CRYPTO_MAC_RESET: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.crypto.mac.reset",
         "export function macReset(handle: CryptoMacHandle): Result<void, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["crypto.mac"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.mac.update.
-pub(crate) const CRYPTO_MAC_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_MAC_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.mac.update",
     "export function macUpdate(handle: CryptoMacHandle, payload: Slice<uint8>): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.mac"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.mac.verify.
-pub(crate) const CRYPTO_MAC_VERIFY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_MAC_VERIFY: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.mac.verify",
     "export function macVerify(key: CryptoKeyHandle, parameters: CryptoMacParameters, payload: Slice<uint8>, tag: Slice<uint8>): Result<boolean, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.mac"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.probe.agreementAlgorithms.
-pub(crate) const CRYPTO_PROBE_AGREEMENT_ALGORITHMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_PROBE_AGREEMENT_ALGORITHMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.probe.agreementAlgorithms",
     "export function probeAgreementAlgorithms(): Result<Slice<CryptoKeyAgreementAlgorithm>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["crypto.probe"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.probe.cipherAlgorithms.
-pub(crate) const CRYPTO_PROBE_CIPHER_ALGORITHMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_PROBE_CIPHER_ALGORITHMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.probe.cipherAlgorithms",
     "export function probeCipherAlgorithms(): Result<Slice<CryptoCipherAlgorithm>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["crypto.probe"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.probe.digestAlgorithms.
-pub(crate) const CRYPTO_PROBE_DIGEST_ALGORITHMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_PROBE_DIGEST_ALGORITHMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.probe.digestAlgorithms",
     "export function probeDigestAlgorithms(): Result<Slice<CryptoDigestAlgorithm>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["crypto.probe"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.probe.kdfAlgorithms.
 pub(crate) const CRYPTO_PROBE_KDF_ALGORITHMS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.crypto.probe.kdfAlgorithms",
         "export function probeKdfAlgorithms(): Result<Slice<CryptoKdfAlgorithm>, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["crypto.probe"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.probe.keyAlgorithms.
 pub(crate) const CRYPTO_PROBE_KEY_ALGORITHMS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.crypto.probe.keyAlgorithms",
         "export function probeKeyAlgorithms(): Result<Slice<CryptoKeyAlgorithm>, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["crypto.probe"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.probe.keyFormats.
 pub(crate) const CRYPTO_PROBE_KEY_FORMATS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.crypto.probe.keyFormats",
         "export function probeKeyFormats(): Result<Slice<CryptoKeyFormat>, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["crypto.probe"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.probe.keyResidencies.
 pub(crate) const CRYPTO_PROBE_KEY_RESIDENCIES: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.crypto.probe.keyResidencies",
         "export function probeKeyResidencies(): Result<Slice<CryptoKeyResidency>, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["crypto.probe"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.probe.keyWrapAlgorithms.
-pub(crate) const CRYPTO_PROBE_KEY_WRAP_ALGORITHMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_PROBE_KEY_WRAP_ALGORITHMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.probe.keyWrapAlgorithms",
     "export function probeKeyWrapAlgorithms(): Result<Slice<CryptoKeyWrapAlgorithm>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["crypto.probe"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.probe.macAlgorithms.
 pub(crate) const CRYPTO_PROBE_MAC_ALGORITHMS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.crypto.probe.macAlgorithms",
         "export function probeMacAlgorithms(): Result<Slice<CryptoMacAlgorithm>, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["crypto.probe"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.probe.namedCurves.
 pub(crate) const CRYPTO_PROBE_NAMED_CURVES: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.crypto.probe.namedCurves",
         "export function probeNamedCurves(): Result<Slice<CryptoNamedCurve>, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["crypto.probe"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.probe.signatureAlgorithms.
-pub(crate) const CRYPTO_PROBE_SIGNATURE_ALGORITHMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_PROBE_SIGNATURE_ALGORITHMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.probe.signatureAlgorithms",
     "export function probeSignatureAlgorithms(): Result<Slice<CryptoSignatureAlgorithm>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["crypto.probe"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.random.bytes.
 pub(crate) const CRYPTO_RANDOM_BYTES: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.crypto.random.bytes",
         "export function randomBytes(length: uint32): Result<Slice<uint8>, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["crypto.random"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.random.fill.
 pub(crate) const CRYPTO_RANDOM_FILL: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.crypto.random.fill",
         "export function randomFill(buffer: Slice<uint8>): Result<void, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["crypto.random"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.store.close.
 pub(crate) const CRYPTO_STORE_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.crypto.store.close",
         "export function storeClose(handle: CryptoStoreHandle): Result<void, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["crypto.store.read"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.store.listCertificates.
-pub(crate) const CRYPTO_STORE_LIST_CERTIFICATES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_STORE_LIST_CERTIFICATES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.store.listCertificates",
     "export function storeListCertificates(handle: CryptoStoreHandle, query: CryptoCertificateQuery): Result<CryptoCertificateListPage, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.store.read"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.store.listKeys.
-pub(crate) const CRYPTO_STORE_LIST_KEYS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_STORE_LIST_KEYS: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.store.listKeys",
     "export function storeListKeys(handle: CryptoStoreHandle, query: CryptoKeyQuery): Result<CryptoKeyListPage, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.store.read"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.store.open.
-pub(crate) const CRYPTO_STORE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_STORE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.store.open",
     "export function storeOpen(options: CryptoStoreOptions): Result<CryptoStoreHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["crypto.store.read"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.store.probeCapability.
-pub(crate) const CRYPTO_STORE_PROBE_CAPABILITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const CRYPTO_STORE_PROBE_CAPABILITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.crypto.store.probeCapability",
     "export function storeProbeCapability(kind: CryptoStoreKind, provider: CryptoStoreProvider): Result<CryptoStoreCapability, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["crypto.probe"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.crypto.store.probeKinds.
 pub(crate) const CRYPTO_STORE_PROBE_KINDS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.crypto.store.probeKinds",
         "export function storeProbeKinds(): Result<CryptoStoreKind[], PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["crypto.probe"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("crypto")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Native binding set for crypto.
 pub(crate) const CRYPTO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

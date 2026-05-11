@@ -9,22 +9,6 @@ use crate::platform::{core as core_platform, *};
 use crate::runtime::BindingCallContext;
 
 /// Create a UDP socket.
-///
-/// Allocate a UDP datagram socket for the requested address family.
-/// Datagram behavior and protocol defaults follow host UDP stack semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses socket(AF_INET/AF_INET6, SOCK_DGRAM) on Unix and WSASocketW on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.udp`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_udp_socket(
     binding: &BindingCallContext,
     out: *mut SocketHandle,

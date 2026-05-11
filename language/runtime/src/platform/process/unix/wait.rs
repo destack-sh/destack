@@ -43,22 +43,6 @@ fn is_terminal_wait_status(status: &ProcessWaitStatus) -> bool {
     )
 }
 /// Wait for a process identifier.
-///
-/// Wait for one state transition for the specified process identifier.
-/// Identifier matching and visibility follow host process table and job-control rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses waitpid or waitid on Unix and process-handle wait translation on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, ioInterrupted, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `process.wait`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_wait_pid(
     _binding: &BindingCallContext,
     out: *mut ProcessWaitStatus,
@@ -77,22 +61,6 @@ pub(crate) unsafe fn destack_process_wait_pid(
 }
 
 /// Poll a child process handle without blocking.
-///
-/// Poll one child for a state transition and return immediately when no transition is pending.
-/// Pending absence is reported through `ioWouldBlock` without sleeping.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses nonblocking waitpid or waitid on Unix and zero-timeout wait on Windows.
-///
-/// # Errors
-/// Returns processNotFound, processPermissionDenied, ioInterrupted, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `process.wait`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_try_wait(
     binding: &BindingCallContext,
     out: *mut ProcessWaitStatus,
@@ -120,22 +88,6 @@ pub(crate) unsafe fn destack_process_try_wait(
 }
 
 /// Wait for a child process handle.
-///
-/// Wait for one child state transition and return a normalized wait status payload.
-/// Blocking and state-filter behavior is controlled by wait flags and host wait semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses waitpid or waitid on Unix and WaitForSingleObject plus status queries on Windows.
-///
-/// # Errors
-/// Returns processNotFound, processPermissionDenied, ioInterrupted, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `process.wait`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_wait(
     binding: &BindingCallContext,
     out: *mut ProcessWaitStatus,

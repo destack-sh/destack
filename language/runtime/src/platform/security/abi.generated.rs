@@ -92,9 +92,9 @@ impl VmAbiCodec for SecurityPolicyMode {
 /// ABI struct for SecurityPolicyRule.
 #[repr(C)]
 pub struct SecurityPolicyRuleAbi<A: BindingAbi> {
-    /// Capability selector for the rule.
-    pub capability: A::String,
-    /// Decision mode for the capability.
+    /// Action selector for the rule.
+    pub action: A::String,
+    /// Decision mode for the action.
     pub mode: SecurityPolicyMode,
 }
 
@@ -145,14 +145,14 @@ impl VmAggregateCodec for SecurityPolicyRuleAbi<VmAbi> {
             ))
             .boxed());
         }
-        let field_capability = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
+        let field_action = <vm::StringHandle as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 0,
         )?;
         let field_mode = <SecurityPolicyMode as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 1,
         )?;
         Ok(Self {
-            capability: field_capability,
+            action: field_action,
             mode: field_mode,
         })
     }
@@ -165,7 +165,7 @@ impl VmAggregateCodec for SecurityPolicyRuleAbi<VmAbi> {
             .begin_named_aggregate_builder("security::SecurityPolicyRule")
             .map_err(Box::<RuntimeError>::from)?;
         let field_value =
-            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.capability, context)?;
+            <vm::StringHandle as VmAggregateCodec>::encode_with_context(self.action, context)?;
         value_builder
             .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
@@ -183,9 +183,9 @@ impl VmCollectionElement for SecurityPolicyRuleAbi<VmAbi> {}
 /// Value type for SecurityPolicyRule.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SecurityPolicyRuleValue {
-    /// Capability selector for the rule.
-    pub capability: String,
-    /// Decision mode for the capability.
+    /// Action selector for the rule.
+    pub action: String,
+    /// Decision mode for the action.
     pub mode: SecurityPolicyMode,
 }
 
@@ -194,16 +194,14 @@ impl NativeAbiCodec for SecurityPolicyRuleAbi<NativeAbi> {
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(SecurityPolicyRuleValue {
-            capability: unsafe {
-                <NativeStringRef as NativeAbiCodec>::into_value(self.capability)?
-            },
+            action: unsafe { <NativeStringRef as NativeAbiCodec>::into_value(self.action)? },
             mode: unsafe { <SecurityPolicyMode as NativeAbiCodec>::into_value(self.mode)? },
         })
     }
 
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
-            capability: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.capability),
+            action: <NativeStringRef as NativeAbiCodec>::from_value(binding, value.action),
             mode: <SecurityPolicyMode as NativeAbiCodec>::from_value(binding, value.mode),
         }
     }
@@ -217,7 +215,7 @@ impl VmAbiCodec for SecurityPolicyRuleAbi<VmAbi> {
         context: &vm::BindingRead<'_, '_>,
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(SecurityPolicyRuleValue {
-            capability: <vm::StringHandle as VmAbiCodec>::into_value(self.capability, context)?,
+            action: <vm::StringHandle as VmAbiCodec>::into_value(self.action, context)?,
             mode: <SecurityPolicyMode as VmAbiCodec>::into_value(self.mode, context)?,
         })
     }
@@ -227,7 +225,7 @@ impl VmAbiCodec for SecurityPolicyRuleAbi<VmAbi> {
         value: <Self as VmAbiCodec>::Value,
     ) -> RuntimeResult<Self> {
         Ok(Self {
-            capability: <vm::StringHandle as VmAbiCodec>::from_value(context, value.capability)?,
+            action: <vm::StringHandle as VmAbiCodec>::from_value(context, value.action)?,
             mode: <SecurityPolicyMode as VmAbiCodec>::from_value(context, value.mode)?,
         })
     }
@@ -236,9 +234,9 @@ impl VmAbiCodec for SecurityPolicyRuleAbi<VmAbi> {
 /// Replay struct for SecurityPolicyRule.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SecuritypolicyruleReplayRecord {
-    /// Capability selector for the rule.
-    pub capability: String,
-    /// Decision mode for the capability.
+    /// Action selector for the rule.
+    pub action: String,
+    /// Decision mode for the action.
     pub mode: SecurityPolicyMode,
 }
 

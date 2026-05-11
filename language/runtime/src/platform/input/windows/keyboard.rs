@@ -84,23 +84,6 @@ fn keyboard_layout(
 }
 
 /// Read one keyboard state snapshot.
-///
-/// Return one current keyboard key and modifier snapshot for one opened keyboard-capable device.
-/// Snapshot values represent one point-in-time backend state and can change immediately after read.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where keyboard snapshots are unavailable.
-/// Uses backend-specific key-state tables from evdev or terminal backends on Unix.
-/// Uses console or raw-input key-state paths on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `input.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_input_keyboard_state(
     binding: &BindingCallContext,
     out: *mut InputKeyboardState,

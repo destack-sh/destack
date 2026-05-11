@@ -80,22 +80,6 @@ pub(super) fn decode_utf16_buffer(
 }
 
 /// Read host identity.
-///
-/// Return one normalized host identity payload.
-/// Identity fields are sourced from host kernel and runtime normalization rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses uname and hostname APIs on Unix and version and hostname APIs on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.hostname`, `os.sysinfo`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_os_host_identity(
     binding: &BindingCallContext,
     out: *mut HostIdentity,

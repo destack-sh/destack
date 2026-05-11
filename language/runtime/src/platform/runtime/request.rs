@@ -12,11 +12,10 @@ use crate::runtime::control::inspect::{
     ResourceListFilter, RevisionListFilter, RuntimeListFilter, WorkerListFilter,
 };
 use crate::runtime::observe::ObservationOptions;
-use destack_workspace::{
-    EffectSource, ExecutionMode, RuntimeOptions, RuntimeWorkerOptions, RuntimeWorld,
-};
+use destack_workspace::{ExecutionMode, RandomMode, RuntimeOptions, TimeMode};
 
 use super::RuntimeHandleCodec;
+use crate::runtime::WorkerOptions;
 
 /// Request and filter normalization for low-level runtime bindings.
 pub(crate) struct RuntimeRequestCodec;
@@ -96,17 +95,9 @@ impl RuntimeRequestCodec {
         }
 
         // optional world kind
-        if let Some(world) = options.world {
-            runtime_options.effect.backend = match world {
-                RuntimeWorldKind::Host => RuntimeWorld::Host,
-                RuntimeWorldKind::Simulation => RuntimeWorld::Simulation,
-            };
-        }
-
-        // simulation worlds default to virtual time
-        if runtime_options.effect.backend == RuntimeWorld::Simulation {
-            runtime_options.effect.time = EffectSource::Simulation;
-            runtime_options.effect.random = EffectSource::Simulation;
+        if let Some(RuntimeWorldKind::Simulation) = options.world {
+            runtime_options.time.mode = TimeMode::Virtual;
+            runtime_options.random.mode = RandomMode::Deterministic;
         }
 
         let labels = Self::labels_from_value(options.labels);
@@ -117,26 +108,22 @@ impl RuntimeRequestCodec {
     /// Build one runtime-create options object from decoded runtime fields.
     pub(crate) fn runtime_create_options(
         name: Option<String>,
-        labels: Option<Vec<RuntimeLabelValue>>,
+        _labels: Option<Vec<RuntimeLabelValue>>,
     ) -> RuntimeOptions {
         RuntimeOptions {
             name,
-            labels: Self::labels_from_value(labels),
             ..RuntimeOptions::default()
         }
     }
 
-    /// Build one worker-create options object from decoded worker fields.
-    pub(crate) fn worker_create_options(
+    /// Build one worker options object from decoded worker fields.
+    pub(crate) fn worker_options(
         name: Option<String>,
         labels: Option<Vec<RuntimeLabelValue>>,
-    ) -> RuntimeOptions {
-        RuntimeOptions {
-            primary_worker: RuntimeWorkerOptions {
-                name,
-                labels: Self::labels_from_value(labels),
-            },
-            ..RuntimeOptions::default()
+    ) -> WorkerOptions {
+        WorkerOptions {
+            name,
+            labels: Self::labels_from_value(labels),
         }
     }
 

@@ -170,22 +170,6 @@ fn interface_address_from_ifaddrs(
 }
 
 /// Resolve an interface name to an index.
-///
-/// Maps a host interface name to its numeric index for route and multicast operations.
-/// The mapping follows host network namespace rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses if_nametoindex on Unix and ConvertInterfaceAliasToLuid plus ConvertInterfaceLuidToIndex on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `net.interface`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_interface_index(
     binding: &BindingCallContext,
     out: *mut u32,
@@ -231,22 +215,6 @@ pub(crate) unsafe fn destack_net_interface_index(
 }
 
 /// List network interfaces with addresses and flags.
-///
-/// Enumerates host interfaces and returns their current address records.
-/// Results are snapshots and may become stale immediately after the call.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses getifaddrs on Unix and iphlpapi adapter enumeration on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netTimedOut, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `net.interface`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_list_interfaces(
     binding: &BindingCallContext,
     out: *mut NativeArray<NetInterface>,
@@ -334,22 +302,6 @@ pub(crate) unsafe fn destack_net_list_interfaces(
 }
 
 /// Resolve an interface index to a name.
-///
-/// Maps a numeric host interface index to its canonical interface name.
-/// The mapping follows host network namespace rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses if_indextoname on Unix and ConvertInterfaceIndexToLuid plus ConvertInterfaceLuidToAlias on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `net.interface`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_interface_name(
     binding: &BindingCallContext,
     out: *mut NativeStringRef,
@@ -451,22 +403,6 @@ pub(crate) unsafe fn destack_net_peer_address_raw(
 }
 
 /// Resolve a host and service query into raw socket addresses.
-///
-/// Resolve the requested host and service to one or more socket addresses.
-/// Name-service order, search domains, and canonicalization follow host resolver policy.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses getaddrinfo(3) on Unix and GetAddrInfoW on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.dns`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_resolve(
     binding: &BindingCallContext,
     out: *mut NativeArray<SocketAddress>,
@@ -733,22 +669,6 @@ pub(crate) unsafe fn destack_net_reverse_lookup_names(
 }
 
 /// Reverse lookup a raw socket address into host and service names.
-///
-/// Resolve a socket address back to host and service names.
-/// Reverse lookup policy and name formatting follow host resolver behavior.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses getnameinfo(3) on Unix and GetNameInfoW on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.dns`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_reverse_lookup(
     binding: &BindingCallContext,
     out: *mut NativeArray<NativeStringRef>,

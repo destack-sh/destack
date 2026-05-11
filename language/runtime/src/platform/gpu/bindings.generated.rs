@@ -88,8 +88,8 @@ use crate::platform::{
     abi as platform_abi,
 };
 use crate::runtime::bindings::{
-    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
-    BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+    BindingAffinity, BindingDescriptor, BindingProvider, BindingRegistry, BindingReplayKind,
+    BindingReplayPolicy, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
 use crate::runtime::trace::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
@@ -7801,2021 +7801,1878 @@ struct GpuSyncQueueWorkDoneReplayRecord {
 
 /// Binding descriptor for destack.gpu.adapter.close.
 pub(crate) const GPU_ADAPTER_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.gpu.adapter.close",
         "export function adapterClose(handle: GpuAdapterHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["gpu.adapter"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.adapter.features.
-pub(crate) const GPU_ADAPTER_FEATURES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_ADAPTER_FEATURES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.adapter.features",
     "export function adapterFeatures(handle: GpuAdapterHandle): Result<Slice<GpuFeatureId>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.adapter"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.adapter.formatCapabilities.
-pub(crate) const GPU_ADAPTER_FORMAT_CAPABILITIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_ADAPTER_FORMAT_CAPABILITIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.adapter.formatCapabilities",
     "export function adapterFormatCapabilities(handle: GpuAdapterHandle, format: GpuTextureFormat): Result<GpuAdapterFormatCapabilities, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.adapter"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.adapter.hasFeature.
-pub(crate) const GPU_ADAPTER_HAS_FEATURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_ADAPTER_HAS_FEATURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.adapter.hasFeature",
     "export function adapterHasFeature(handle: GpuAdapterHandle, feature: GpuFeatureId): Result<boolean, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.adapter"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.adapter.info.
-pub(crate) const GPU_ADAPTER_INFO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_ADAPTER_INFO: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.adapter.info",
     "export function adapterInfo(handle: GpuAdapterHandle): Result<GpuAdapterInfo, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.adapter"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.adapter.limits.
-pub(crate) const GPU_ADAPTER_LIMITS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_ADAPTER_LIMITS: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.adapter.limits",
     "export function adapterLimits(handle: GpuAdapterHandle): Result<GpuAdapterLimits, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.adapter"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.adapter.list.
-pub(crate) const GPU_ADAPTER_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_ADAPTER_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.adapter.list",
     "export function adapterList(request: GpuAdapterRequest): Result<GpuAdapterInfo[], PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.adapter"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.adapter.open.
 pub(crate) const GPU_ADAPTER_OPEN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.gpu.adapter.open",
         "export function adapterOpen(id: string): Result<GpuAdapterHandle, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["gpu.adapter"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.bind.groupCreate.
-pub(crate) const GPU_BIND_GROUP_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_BIND_GROUP_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.bind.groupCreate",
     "export function bindGroupCreate(device: GpuDeviceHandle, layout: GpuBindGroupLayoutHandle, entries: Slice<GpuBindGroupEntry>, options: GpuBindGroupOptions): Result<GpuBindGroupHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.bind"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.bind.groupDestroy.
 pub(crate) const GPU_BIND_GROUP_DESTROY: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.gpu.bind.groupDestroy",
         "export function bindGroupDestroy(handle: GpuBindGroupHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["gpu.bind"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.bind.groupLayoutCreate.
-pub(crate) const GPU_BIND_GROUP_LAYOUT_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_BIND_GROUP_LAYOUT_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.bind.groupLayoutCreate",
     "export function bindGroupLayoutCreate(device: GpuDeviceHandle, entries: Slice<GpuBindGroupLayoutEntry>, options: GpuBindGroupLayoutOptions): Result<GpuBindGroupLayoutHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.bind"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.bind.groupLayoutDestroy.
-pub(crate) const GPU_BIND_GROUP_LAYOUT_DESTROY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_BIND_GROUP_LAYOUT_DESTROY: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.bind.groupLayoutDestroy",
     "export function bindGroupLayoutDestroy(handle: GpuBindGroupLayoutHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.bind"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.bind.pipelineLayoutCreate.
-pub(crate) const GPU_BIND_PIPELINE_LAYOUT_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_BIND_PIPELINE_LAYOUT_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.bind.pipelineLayoutCreate",
     "export function pipelineLayoutCreate(device: GpuDeviceHandle, options: GpuPipelineLayoutOptions): Result<GpuPipelineLayoutHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.bind"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.bind.pipelineLayoutDestroy.
-pub(crate) const GPU_BIND_PIPELINE_LAYOUT_DESTROY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_BIND_PIPELINE_LAYOUT_DESTROY: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.bind.pipelineLayoutDestroy",
     "export function pipelineLayoutDestroy(handle: GpuPipelineLayoutHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.bind"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.bindComputePipeline.
-pub(crate) const GPU_COMMAND_BIND_COMPUTE_PIPELINE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_BIND_COMPUTE_PIPELINE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.bindComputePipeline",
     "export function commandBindComputePipeline(handle: GpuComputePassHandle, pipeline: GpuPipelineHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.compute"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.bindRenderPipeline.
-pub(crate) const GPU_COMMAND_BIND_RENDER_PIPELINE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_BIND_RENDER_PIPELINE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.bindRenderPipeline",
     "export function commandBindRenderPipeline(handle: GpuRenderPassHandle, pipeline: GpuPipelineHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.render"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.bufferDestroy.
-pub(crate) const GPU_COMMAND_BUFFER_DESTROY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_BUFFER_DESTROY: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.bufferDestroy",
     "export function commandBufferDestroy(handle: GpuCommandBufferHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.queue"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.clearBuffer.
-pub(crate) const GPU_COMMAND_CLEAR_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_CLEAR_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.clearBuffer",
     "export function commandClearBuffer(handle: GpuCommandEncoderHandle, buffer: GpuBufferHandle, offset: uint64, size: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.memory"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.computePassBegin.
-pub(crate) const GPU_COMMAND_COMPUTE_PASS_BEGIN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_COMPUTE_PASS_BEGIN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.computePassBegin",
     "export function commandComputePassBegin(handle: GpuCommandEncoderHandle, options: GpuComputePassOptions): Result<GpuComputePassHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.compute"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.computePassEnd.
-pub(crate) const GPU_COMMAND_COMPUTE_PASS_END: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_COMPUTE_PASS_END: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.computePassEnd",
     "export function commandComputePassEnd(handle: GpuComputePassHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.compute"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.computePassInsertDebugMarker.
-pub(crate) const GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_COMPUTE_PASS_INSERT_DEBUG_MARKER: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.computePassInsertDebugMarker",
     "export function commandComputePassInsertDebugMarker(handle: GpuComputePassHandle, marker: string): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.debug"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.computePassPopDebugGroup.
-pub(crate) const GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_COMPUTE_PASS_POP_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.computePassPopDebugGroup",
     "export function commandComputePassPopDebugGroup(handle: GpuComputePassHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.debug"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.computePassPushDebugGroup.
-pub(crate) const GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_COMPUTE_PASS_PUSH_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.computePassPushDebugGroup",
     "export function commandComputePassPushDebugGroup(handle: GpuComputePassHandle, label: string): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.debug"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.copyBuffer.
-pub(crate) const GPU_COMMAND_COPY_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_COPY_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.copyBuffer",
     "export function commandCopyBuffer(handle: GpuCommandEncoderHandle, src: GpuBufferHandle, srcOffset: uint64, dst: GpuBufferHandle, dstOffset: uint64, bytes: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.memory"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.copyBufferToTexture.
-pub(crate) const GPU_COMMAND_COPY_BUFFER_TO_TEXTURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_COPY_BUFFER_TO_TEXTURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.copyBufferToTexture",
     "export function commandCopyBufferToTexture(handle: GpuCommandEncoderHandle, source: GpuBufferCopy, destination: GpuTextureCopy, size: GpuExtent3D): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.memory"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.copyTextureToBuffer.
-pub(crate) const GPU_COMMAND_COPY_TEXTURE_TO_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_COPY_TEXTURE_TO_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.copyTextureToBuffer",
     "export function commandCopyTextureToBuffer(handle: GpuCommandEncoderHandle, source: GpuTextureCopy, destination: GpuBufferCopy, size: GpuExtent3D): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.memory"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.copyTextureToTexture.
-pub(crate) const GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_COPY_TEXTURE_TO_TEXTURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.copyTextureToTexture",
     "export function commandCopyTextureToTexture(handle: GpuCommandEncoderHandle, source: GpuTextureCopy, destination: GpuTextureCopy, size: GpuExtent3D): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.memory"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.dispatch.
-pub(crate) const GPU_COMMAND_DISPATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_DISPATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.dispatch",
     "export function commandDispatch(handle: GpuComputePassHandle, groupX: uint32, groupY: uint32, groupZ: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.compute"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.dispatchIndirect.
-pub(crate) const GPU_COMMAND_DISPATCH_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_DISPATCH_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.dispatchIndirect",
     "export function commandDispatchIndirect(handle: GpuComputePassHandle, buffer: GpuBufferHandle, offset: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.compute"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.draw.
-pub(crate) const GPU_COMMAND_DRAW: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_DRAW: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.draw",
     "export function commandDraw(handle: GpuRenderPassHandle, vertexCount: uint32, instanceCount: uint32, firstVertex: uint32, firstInstance: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.render"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.drawIndexed.
-pub(crate) const GPU_COMMAND_DRAW_INDEXED: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_DRAW_INDEXED: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.drawIndexed",
     "export function commandDrawIndexed(handle: GpuRenderPassHandle, indexCount: uint32, instanceCount: uint32, firstIndex: uint32, baseVertex: int32, firstInstance: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.render"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.drawIndexedIndirect.
-pub(crate) const GPU_COMMAND_DRAW_INDEXED_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_DRAW_INDEXED_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.drawIndexedIndirect",
     "export function commandDrawIndexedIndirect(handle: GpuRenderPassHandle, buffer: GpuBufferHandle, offset: uint64, drawCount: uint32, stride: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.render"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.drawIndirect.
-pub(crate) const GPU_COMMAND_DRAW_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_DRAW_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.drawIndirect",
     "export function commandDrawIndirect(handle: GpuRenderPassHandle, buffer: GpuBufferHandle, offset: uint64, drawCount: uint32, stride: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.render"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.encoderClose.
-pub(crate) const GPU_COMMAND_ENCODER_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_ENCODER_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.encoderClose",
     "export function commandEncoderClose(handle: GpuCommandEncoderHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.queue"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.encoderFinish.
-pub(crate) const GPU_COMMAND_ENCODER_FINISH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_ENCODER_FINISH: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.encoderFinish",
     "export function commandEncoderFinish(handle: GpuCommandEncoderHandle, options: GpuCommandBufferOptions): Result<GpuCommandBufferHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.queue"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.encoderOpen.
-pub(crate) const GPU_COMMAND_ENCODER_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_ENCODER_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.encoderOpen",
     "export function commandEncoderOpen(device: GpuDeviceHandle, options: GpuCommandEncoderOptions): Result<GpuCommandEncoderHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.queue"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.executeBundles.
-pub(crate) const GPU_COMMAND_EXECUTE_BUNDLES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_EXECUTE_BUNDLES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.executeBundles",
     "export function commandExecuteBundles(handle: GpuRenderPassHandle, bundles: Slice<GpuRenderBundleHandle>): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.render"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.insertDebugMarker.
-pub(crate) const GPU_COMMAND_INSERT_DEBUG_MARKER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_INSERT_DEBUG_MARKER: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.insertDebugMarker",
     "export function commandInsertDebugMarker(handle: GpuCommandEncoderHandle, marker: string): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.debug"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.multiDrawIndexedIndirect.
-pub(crate) const GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.multiDrawIndexedIndirect",
     "export function commandMultiDrawIndexedIndirect(handle: GpuRenderPassHandle, buffer: GpuBufferHandle, offset: uint64, drawCount: uint32, stride: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.render.multi.draw"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.multiDrawIndexedIndirectCount.
-pub(crate) const GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_MULTI_DRAW_INDEXED_INDIRECT_COUNT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.multiDrawIndexedIndirectCount",
     "export function commandMultiDrawIndexedIndirectCount(handle: GpuRenderPassHandle, buffer: GpuBufferHandle, offset: uint64, countBuffer: GpuBufferHandle, countOffset: uint64, maxDrawCount: uint32, stride: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.render.multi.draw.count"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.multiDrawIndirect.
-pub(crate) const GPU_COMMAND_MULTI_DRAW_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_MULTI_DRAW_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.multiDrawIndirect",
     "export function commandMultiDrawIndirect(handle: GpuRenderPassHandle, buffer: GpuBufferHandle, offset: uint64, drawCount: uint32, stride: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.render.multi.draw"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.multiDrawIndirectCount.
-pub(crate) const GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_MULTI_DRAW_INDIRECT_COUNT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.multiDrawIndirectCount",
     "export function commandMultiDrawIndirectCount(handle: GpuRenderPassHandle, buffer: GpuBufferHandle, offset: uint64, countBuffer: GpuBufferHandle, countOffset: uint64, maxDrawCount: uint32, stride: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.render.multi.draw.count"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.popDebugGroup.
-pub(crate) const GPU_COMMAND_POP_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_POP_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.popDebugGroup",
     "export function commandPopDebugGroup(handle: GpuCommandEncoderHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.debug"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.pushDebugGroup.
-pub(crate) const GPU_COMMAND_PUSH_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_PUSH_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.pushDebugGroup",
     "export function commandPushDebugGroup(handle: GpuCommandEncoderHandle, label: string): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.debug"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.queueSubmit.
-pub(crate) const GPU_COMMAND_QUEUE_SUBMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_QUEUE_SUBMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.queueSubmit",
     "export function queueSubmit(queue: GpuQueueHandle, commandBuffers: Slice<GpuCommandBufferHandle>, options: GpuSubmitOptions): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.queue"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.queueWaitIdle.
-pub(crate) const GPU_COMMAND_QUEUE_WAIT_IDLE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_QUEUE_WAIT_IDLE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.queueWaitIdle",
     "export function queueWaitIdle(queue: GpuQueueHandle, timeoutNs: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.queue"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.queueWriteBuffer.
-pub(crate) const GPU_COMMAND_QUEUE_WRITE_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_QUEUE_WRITE_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.queueWriteBuffer",
     "export function queueWriteBuffer(queue: GpuQueueHandle, buffer: GpuBufferHandle, bufferOffset: uint64, data: Slice<uint8>, dataOffset: uint64, size: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.queue", "gpu.memory"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.queueWriteTexture.
-pub(crate) const GPU_COMMAND_QUEUE_WRITE_TEXTURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_QUEUE_WRITE_TEXTURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.queueWriteTexture",
     "export function queueWriteTexture(queue: GpuQueueHandle, destination: GpuTextureCopy, data: Slice<uint8>, layout: GpuBufferCopyLayout, size: GpuExtent3D): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.queue", "gpu.memory"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleDestroy.
-pub(crate) const GPU_COMMAND_RENDER_BUNDLE_DESTROY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_BUNDLE_DESTROY: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.renderBundleDestroy",
     "export function renderBundleDestroy(handle: GpuRenderBundleHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.render"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleDraw.
-pub(crate) const GPU_COMMAND_RENDER_BUNDLE_DRAW: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_BUNDLE_DRAW: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.renderBundleDraw",
     "export function renderBundleDraw(handle: GpuRenderBundleEncoderHandle, vertexCount: uint32, instanceCount: uint32, firstVertex: uint32, firstInstance: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.render"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleDrawIndexed.
-pub(crate) const GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.renderBundleDrawIndexed",
     "export function renderBundleDrawIndexed(handle: GpuRenderBundleEncoderHandle, indexCount: uint32, instanceCount: uint32, firstIndex: uint32, baseVertex: int32, firstInstance: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.render"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleDrawIndexedIndirect.
-pub(crate) const GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_BUNDLE_DRAW_INDEXED_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.renderBundleDrawIndexedIndirect",
     "export function renderBundleDrawIndexedIndirect(handle: GpuRenderBundleEncoderHandle, buffer: GpuBufferHandle, offset: uint64, drawCount: uint32, stride: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.render"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleDrawIndirect.
-pub(crate) const GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_BUNDLE_DRAW_INDIRECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.renderBundleDrawIndirect",
     "export function renderBundleDrawIndirect(handle: GpuRenderBundleEncoderHandle, buffer: GpuBufferHandle, offset: uint64, drawCount: uint32, stride: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.render"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleEncoderClose.
-pub(crate) const GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_BUNDLE_ENCODER_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.renderBundleEncoderClose",
     "export function renderBundleEncoderClose(handle: GpuRenderBundleEncoderHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.render"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleEncoderFinish.
-pub(crate) const GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_BUNDLE_ENCODER_FINISH: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.renderBundleEncoderFinish",
     "export function renderBundleEncoderFinish(handle: GpuRenderBundleEncoderHandle, options: GpuRenderBundleOptions): Result<GpuRenderBundleHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.render"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleEncoderOpen.
-pub(crate) const GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_BUNDLE_ENCODER_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.renderBundleEncoderOpen",
     "export function renderBundleEncoderOpen(device: GpuDeviceHandle, options: GpuRenderBundleEncoderOptions): Result<GpuRenderBundleEncoderHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.render"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleInsertDebugMarker.
-pub(crate) const GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_BUNDLE_INSERT_DEBUG_MARKER: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.renderBundleInsertDebugMarker",
     "export function renderBundleInsertDebugMarker(handle: GpuRenderBundleEncoderHandle, marker: string): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.debug"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundlePopDebugGroup.
-pub(crate) const GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_BUNDLE_POP_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.renderBundlePopDebugGroup",
     "export function renderBundlePopDebugGroup(handle: GpuRenderBundleEncoderHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.debug"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundlePushDebugGroup.
-pub(crate) const GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_BUNDLE_PUSH_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.renderBundlePushDebugGroup",
     "export function renderBundlePushDebugGroup(handle: GpuRenderBundleEncoderHandle, label: string): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.debug"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleSetBindGroup.
-pub(crate) const GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_BUNDLE_SET_BIND_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.renderBundleSetBindGroup",
     "export function renderBundleSetBindGroup(handle: GpuRenderBundleEncoderHandle, index: uint32, bindGroup: GpuBindGroupHandle, dynamicOffsets: Slice<uint32>): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.bind"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleSetIndexBuffer.
-pub(crate) const GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_BUNDLE_SET_INDEX_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.renderBundleSetIndexBuffer",
     "export function renderBundleSetIndexBuffer(handle: GpuRenderBundleEncoderHandle, buffer: GpuBufferHandle, format: GpuIndexFormat, offset: uint64, size: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.render"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleSetPipeline.
-pub(crate) const GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_BUNDLE_SET_PIPELINE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.renderBundleSetPipeline",
     "export function renderBundleSetPipeline(handle: GpuRenderBundleEncoderHandle, pipeline: GpuPipelineHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.render"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderBundleSetVertexBuffer.
-pub(crate) const GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_BUNDLE_SET_VERTEX_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.renderBundleSetVertexBuffer",
     "export function renderBundleSetVertexBuffer(handle: GpuRenderBundleEncoderHandle, slot: uint32, buffer: GpuBufferHandle, offset: uint64, size: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.render"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderPassBegin.
-pub(crate) const GPU_COMMAND_RENDER_PASS_BEGIN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_PASS_BEGIN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.renderPassBegin",
     "export function commandRenderPassBegin(handle: GpuCommandEncoderHandle, options: GpuRenderPassOptions): Result<GpuRenderPassHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.render"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderPassEnd.
-pub(crate) const GPU_COMMAND_RENDER_PASS_END: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_PASS_END: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.renderPassEnd",
     "export function commandRenderPassEnd(handle: GpuRenderPassHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.render"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderPassInsertDebugMarker.
-pub(crate) const GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_PASS_INSERT_DEBUG_MARKER: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.renderPassInsertDebugMarker",
     "export function commandRenderPassInsertDebugMarker(handle: GpuRenderPassHandle, marker: string): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.debug"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderPassPopDebugGroup.
-pub(crate) const GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_PASS_POP_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.renderPassPopDebugGroup",
     "export function commandRenderPassPopDebugGroup(handle: GpuRenderPassHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.debug"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.renderPassPushDebugGroup.
-pub(crate) const GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_RENDER_PASS_PUSH_DEBUG_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.renderPassPushDebugGroup",
     "export function commandRenderPassPushDebugGroup(handle: GpuRenderPassHandle, label: string): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.debug"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.setBlendConstant.
-pub(crate) const GPU_COMMAND_SET_BLEND_CONSTANT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_SET_BLEND_CONSTANT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.setBlendConstant",
     "export function commandSetBlendConstant(handle: GpuRenderPassHandle, r: float64, g: float64, b: float64, a: float64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.render"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.setComputeBindGroup.
-pub(crate) const GPU_COMMAND_SET_COMPUTE_BIND_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_SET_COMPUTE_BIND_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.setComputeBindGroup",
     "export function commandSetComputeBindGroup(handle: GpuComputePassHandle, index: uint32, bindGroup: GpuBindGroupHandle, dynamicOffsets: Slice<uint32>): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.bind"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.setIndexBuffer.
-pub(crate) const GPU_COMMAND_SET_INDEX_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_SET_INDEX_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.setIndexBuffer",
     "export function commandSetIndexBuffer(handle: GpuRenderPassHandle, buffer: GpuBufferHandle, format: GpuIndexFormat, offset: uint64, size: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.render"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.setRenderBindGroup.
-pub(crate) const GPU_COMMAND_SET_RENDER_BIND_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_SET_RENDER_BIND_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.setRenderBindGroup",
     "export function commandSetRenderBindGroup(handle: GpuRenderPassHandle, index: uint32, bindGroup: GpuBindGroupHandle, dynamicOffsets: Slice<uint32>): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.bind"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.setScissor.
-pub(crate) const GPU_COMMAND_SET_SCISSOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_SET_SCISSOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.setScissor",
     "export function commandSetScissor(handle: GpuRenderPassHandle, x: uint32, y: uint32, width: uint32, height: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.render"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.setStencilReference.
-pub(crate) const GPU_COMMAND_SET_STENCIL_REFERENCE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_SET_STENCIL_REFERENCE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.setStencilReference",
     "export function commandSetStencilReference(handle: GpuRenderPassHandle, reference: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.render"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.setVertexBuffer.
-pub(crate) const GPU_COMMAND_SET_VERTEX_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_SET_VERTEX_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.setVertexBuffer",
     "export function commandSetVertexBuffer(handle: GpuRenderPassHandle, slot: uint32, buffer: GpuBufferHandle, offset: uint64, size: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.render"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.setViewport.
-pub(crate) const GPU_COMMAND_SET_VIEWPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_SET_VIEWPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.setViewport",
     "export function commandSetViewport(handle: GpuRenderPassHandle, x: float64, y: float64, width: float64, height: float64, minDepth: float64, maxDepth: float64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.render"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.command.transitionResources.
-pub(crate) const GPU_COMMAND_TRANSITION_RESOURCES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_COMMAND_TRANSITION_RESOURCES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.command.transitionResources",
     "export function commandTransitionResources(handle: GpuCommandEncoderHandle, buffers: Slice<GpuBufferTransition>, textures: Slice<GpuTextureTransition>): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.queue"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.debug.setLabel.
 pub(crate) const GPU_DEBUG_SET_LABEL: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.gpu.debug.setLabel",
         "export function setLabel(handle: ResourceId, label: string): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["gpu.debug"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.device.close.
 pub(crate) const GPU_DEVICE_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.gpu.device.close",
         "export function deviceClose(handle: GpuDeviceHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["gpu.device"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.device.features.
-pub(crate) const GPU_DEVICE_FEATURES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_DEVICE_FEATURES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.device.features",
     "export function deviceFeatures(device: GpuDeviceHandle): Result<Slice<GpuFeatureId>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.device"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.device.hasFeature.
-pub(crate) const GPU_DEVICE_HAS_FEATURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_DEVICE_HAS_FEATURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.device.hasFeature",
     "export function deviceHasFeature(device: GpuDeviceHandle, feature: GpuFeatureId): Result<boolean, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.device"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.device.info.
 pub(crate) const GPU_DEVICE_INFO: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.gpu.device.info",
         "export function deviceInfo(device: GpuDeviceHandle): Result<GpuDeviceInfo, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["gpu.device"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.device.limits.
-pub(crate) const GPU_DEVICE_LIMITS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_DEVICE_LIMITS: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.device.limits",
     "export function deviceLimits(device: GpuDeviceHandle): Result<GpuAdapterLimits, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.device"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.device.open.
-pub(crate) const GPU_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.device.open",
     "export function deviceOpen(adapter: GpuAdapterHandle, options: GpuDeviceOptions): Result<GpuDeviceHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.device"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.device.poll.
-pub(crate) const GPU_DEVICE_POLL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_DEVICE_POLL: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.device.poll",
     "export function devicePoll(device: GpuDeviceHandle, wait: boolean, timeoutNs: uint64): Result<uint32, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.queue"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.device.popErrorScope.
-pub(crate) const GPU_DEVICE_POP_ERROR_SCOPE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_DEVICE_POP_ERROR_SCOPE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.device.popErrorScope",
     "export function devicePopErrorScope(device: GpuDeviceHandle, timeoutNs: uint64): Result<GpuCapturedError, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.device"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.device.pushErrorScope.
-pub(crate) const GPU_DEVICE_PUSH_ERROR_SCOPE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_DEVICE_PUSH_ERROR_SCOPE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.device.pushErrorScope",
     "export function devicePushErrorScope(device: GpuDeviceHandle, filter: GpuErrorFilter): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.device"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.device.queue.
-pub(crate) const GPU_DEVICE_QUEUE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_DEVICE_QUEUE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.device.queue",
     "export function deviceQueue(device: GpuDeviceHandle): Result<GpuQueueHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.queue"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.device.status.
-pub(crate) const GPU_DEVICE_STATUS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_DEVICE_STATUS: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.device.status",
     "export function deviceStatus(device: GpuDeviceHandle): Result<GpuDeviceStatus, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.device"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.pipeline.bindGroupLayout.
-pub(crate) const GPU_PIPELINE_BIND_GROUP_LAYOUT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_PIPELINE_BIND_GROUP_LAYOUT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.pipeline.bindGroupLayout",
     "export function pipelineBindGroupLayout(pipeline: GpuPipelineHandle, groupIndex: uint32): Result<GpuBindGroupLayoutHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.bind"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.pipeline.computeCreate.
-pub(crate) const GPU_PIPELINE_COMPUTE_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_PIPELINE_COMPUTE_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.pipeline.computeCreate",
     "export function computePipelineCreate(device: GpuDeviceHandle, options: GpuComputePipelineOptions): Result<GpuPipelineHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.compute"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.pipeline.destroy.
 pub(crate) const GPU_PIPELINE_DESTROY: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.gpu.pipeline.destroy",
         "export function pipelineDestroy(handle: GpuPipelineHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["gpu.compute", "gpu.render"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.pipeline.renderCreate.
-pub(crate) const GPU_PIPELINE_RENDER_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_PIPELINE_RENDER_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.pipeline.renderCreate",
     "export function renderPipelineCreate(device: GpuDeviceHandle, options: GpuRenderPipelineOptions): Result<GpuPipelineHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.render"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.pipeline.shaderCompilationInfo.
-pub(crate) const GPU_PIPELINE_SHADER_COMPILATION_INFO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_PIPELINE_SHADER_COMPILATION_INFO: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.pipeline.shaderCompilationInfo",
     "export function shaderCompilationInfo(handle: GpuShaderHandle, timeoutNs: uint64): Result<GpuCompilationInfo, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.shader"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.pipeline.shaderCreate.
-pub(crate) const GPU_PIPELINE_SHADER_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_PIPELINE_SHADER_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.pipeline.shaderCreate",
     "export function shaderCreate(device: GpuDeviceHandle, options: GpuShaderOptions, bytes: Slice<uint8>): Result<GpuShaderHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.shader"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.pipeline.shaderDestroy.
 pub(crate) const GPU_PIPELINE_SHADER_DESTROY: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.gpu.pipeline.shaderDestroy",
         "export function shaderDestroy(handle: GpuShaderHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["gpu.shader"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.present.surfaceAcquire.
-pub(crate) const GPU_PRESENT_SURFACE_ACQUIRE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_PRESENT_SURFACE_ACQUIRE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.present.surfaceAcquire",
     "export function surfaceAcquire(surface: GpuSurfaceHandle, timeoutNs: uint64): Result<GpuSurfaceFrame, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["gpu.present"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.present.surfaceCapabilities.
-pub(crate) const GPU_PRESENT_SURFACE_CAPABILITIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_PRESENT_SURFACE_CAPABILITIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.present.surfaceCapabilities",
     "export function surfaceCapabilities(surface: GpuSurfaceHandle, adapter: GpuAdapterHandle): Result<GpuSurfaceCapabilities, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["gpu.present"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.present.surfaceClose.
 pub(crate) const GPU_PRESENT_SURFACE_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.gpu.present.surfaceClose",
         "export function surfaceClose(surface: GpuSurfaceHandle): Result<void, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["gpu.present"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.present.surfaceConfigure.
-pub(crate) const GPU_PRESENT_SURFACE_CONFIGURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_PRESENT_SURFACE_CONFIGURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.present.surfaceConfigure",
     "export function surfaceConfigure(device: GpuDeviceHandle, surface: GpuSurfaceHandle, configuration: GpuSurfaceConfiguration): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["gpu.present"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.present.surfaceOpen.
-pub(crate) const GPU_PRESENT_SURFACE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_PRESENT_SURFACE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.present.surfaceOpen",
     "export function surfaceOpen(window: WindowHandle): Result<GpuSurfaceHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["gpu.present"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.present.surfacePresent.
-pub(crate) const GPU_PRESENT_SURFACE_PRESENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_PRESENT_SURFACE_PRESENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.present.surfacePresent",
     "export function surfacePresent(surface: GpuSurfaceHandle, options: GpuPresentationOptions): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["gpu.present"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.present.surfacePresentationClose.
-pub(crate) const GPU_PRESENT_SURFACE_PRESENTATION_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_PRESENT_SURFACE_PRESENTATION_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.present.surfacePresentationClose",
     "export function surfacePresentationClose(handle: GpuSurfacePresentationHandle): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["gpu.present"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.present.surfacePresentationOpen.
-pub(crate) const GPU_PRESENT_SURFACE_PRESENTATION_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_PRESENT_SURFACE_PRESENTATION_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.present.surfacePresentationOpen",
     "export function surfacePresentationOpen(surface: GpuSurfaceHandle, options: GpuSurfacePresentationOpenOptions): Result<GpuSurfacePresentationHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["gpu.present"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.present.surfacePresentationRead.
-pub(crate) const GPU_PRESENT_SURFACE_PRESENTATION_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_PRESENT_SURFACE_PRESENTATION_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.present.surfacePresentationRead",
     "export function surfacePresentationRead(handle: GpuSurfacePresentationHandle, timeoutNs: uint64): Result<GpuSurfacePresentationEvent, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["gpu.present"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.present.surfacePresentationReadBatch.
-pub(crate) const GPU_PRESENT_SURFACE_PRESENTATION_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_PRESENT_SURFACE_PRESENTATION_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.present.surfacePresentationReadBatch",
     "export function surfacePresentationReadBatch(handle: GpuSurfacePresentationHandle, maxEvents: uint32, timeoutNs: uint64): Result<GpuSurfacePresentationEvent[], PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["gpu.present"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.present.surfacePresentationTryRead.
-pub(crate) const GPU_PRESENT_SURFACE_PRESENTATION_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_PRESENT_SURFACE_PRESENTATION_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.present.surfacePresentationTryRead",
     "export function surfacePresentationTryRead(handle: GpuSurfacePresentationHandle): Result<GpuSurfacePresentationEvent, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["gpu.present"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.present.surfacePresentationTryReadBatch.
-pub(crate) const GPU_PRESENT_SURFACE_PRESENTATION_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_PRESENT_SURFACE_PRESENTATION_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.present.surfacePresentationTryReadBatch",
     "export function surfacePresentationTryReadBatch(handle: GpuSurfacePresentationHandle, maxEvents: uint32): Result<GpuSurfacePresentationEvent[], PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["gpu.present"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.present.surfaceStatus.
-pub(crate) const GPU_PRESENT_SURFACE_STATUS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_PRESENT_SURFACE_STATUS: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.present.surfaceStatus",
     "export function surfaceStatus(surface: GpuSurfaceHandle): Result<GpuSurfaceStatusInfo, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["gpu.present"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.present.surfaceUnconfigure.
-pub(crate) const GPU_PRESENT_SURFACE_UNCONFIGURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_PRESENT_SURFACE_UNCONFIGURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.present.surfaceUnconfigure",
     "export function surfaceUnconfigure(surface: GpuSurfaceHandle): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["gpu.present"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.bufferCreate.
-pub(crate) const GPU_RESOURCE_BUFFER_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_RESOURCE_BUFFER_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.resource.bufferCreate",
     "export function bufferCreate(device: GpuDeviceHandle, options: GpuBufferOptions): Result<GpuBufferHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.memory"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.bufferDestroy.
 pub(crate) const GPU_RESOURCE_BUFFER_DESTROY: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.gpu.resource.bufferDestroy",
         "export function bufferDestroy(handle: GpuBufferHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["gpu.memory"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.bufferInfo.
 pub(crate) const GPU_RESOURCE_BUFFER_INFO: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.gpu.resource.bufferInfo",
         "export function bufferInfo(handle: GpuBufferHandle): Result<GpuBufferInfo, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["gpu.memory"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.bufferMap.
-pub(crate) const GPU_RESOURCE_BUFFER_MAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_RESOURCE_BUFFER_MAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.resource.bufferMap",
     "export function bufferMap(handle: GpuBufferHandle, offset: uint64, length: uint64, mode: GpuMapMode): Result<GpuMappedBufferRange, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.memory"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.bufferRead.
-pub(crate) const GPU_RESOURCE_BUFFER_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_RESOURCE_BUFFER_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.resource.bufferRead",
     "export function bufferRead(handle: GpuBufferHandle, offset: uint64, length: uint64): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.memory"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.bufferUnmap.
 pub(crate) const GPU_RESOURCE_BUFFER_UNMAP: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.gpu.resource.bufferUnmap",
         "export function bufferUnmap(handle: GpuBufferHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["gpu.memory"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.bufferWrite.
-pub(crate) const GPU_RESOURCE_BUFFER_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_RESOURCE_BUFFER_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.resource.bufferWrite",
     "export function bufferWrite(handle: GpuBufferHandle, offset: uint64, bytes: Slice<uint8>): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.memory"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.externalTextureCreate.
-pub(crate) const GPU_RESOURCE_EXTERNAL_TEXTURE_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_RESOURCE_EXTERNAL_TEXTURE_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.resource.externalTextureCreate",
     "export function externalTextureCreate(device: GpuDeviceHandle, planeViews: Slice<GpuTextureViewHandle>, options: GpuExternalTextureOptions): Result<GpuExternalTextureHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.memory"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.externalTextureDestroy.
-pub(crate) const GPU_RESOURCE_EXTERNAL_TEXTURE_DESTROY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_RESOURCE_EXTERNAL_TEXTURE_DESTROY: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.resource.externalTextureDestroy",
     "export function externalTextureDestroy(handle: GpuExternalTextureHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.memory"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.samplerCreate.
-pub(crate) const GPU_RESOURCE_SAMPLER_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_RESOURCE_SAMPLER_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.resource.samplerCreate",
     "export function samplerCreate(device: GpuDeviceHandle, options: GpuSamplerOptions): Result<GpuSamplerHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.memory"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.samplerDestroy.
 pub(crate) const GPU_RESOURCE_SAMPLER_DESTROY: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.gpu.resource.samplerDestroy",
         "export function samplerDestroy(handle: GpuSamplerHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["gpu.memory"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.textureCreate.
-pub(crate) const GPU_RESOURCE_TEXTURE_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_RESOURCE_TEXTURE_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.resource.textureCreate",
     "export function textureCreate(device: GpuDeviceHandle, options: GpuTextureOptions): Result<GpuTextureHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.memory"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.textureDestroy.
 pub(crate) const GPU_RESOURCE_TEXTURE_DESTROY: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.gpu.resource.textureDestroy",
         "export function textureDestroy(handle: GpuTextureHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["gpu.memory"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.textureInfo.
-pub(crate) const GPU_RESOURCE_TEXTURE_INFO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_RESOURCE_TEXTURE_INFO: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.resource.textureInfo",
     "export function textureInfo(handle: GpuTextureHandle): Result<GpuTextureInfo, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.memory"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.textureViewCreate.
-pub(crate) const GPU_RESOURCE_TEXTURE_VIEW_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_RESOURCE_TEXTURE_VIEW_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.resource.textureViewCreate",
     "export function textureViewCreate(texture: GpuTextureHandle, options: GpuTextureViewOptions): Result<GpuTextureViewHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.memory"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.resource.textureViewDestroy.
-pub(crate) const GPU_RESOURCE_TEXTURE_VIEW_DESTROY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_RESOURCE_TEXTURE_VIEW_DESTROY: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.resource.textureViewDestroy",
     "export function textureViewDestroy(handle: GpuTextureViewHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.memory"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.commandBeginComputePipelineStatisticsQuery.
-pub(crate) const GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_SYNC_COMMAND_BEGIN_COMPUTE_PIPELINE_STATISTICS_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.sync.commandBeginComputePipelineStatisticsQuery",
     "export function commandBeginComputePipelineStatisticsQuery(computePass: GpuComputePassHandle, querySet: GpuQuerySetHandle, queryIndex: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.sync.pipeline.statistics"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.commandBeginOcclusionQuery.
-pub(crate) const GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_SYNC_COMMAND_BEGIN_OCCLUSION_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.sync.commandBeginOcclusionQuery",
     "export function commandBeginOcclusionQuery(renderPass: GpuRenderPassHandle, querySet: GpuQuerySetHandle, queryIndex: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.sync"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.commandBeginRenderPipelineStatisticsQuery.
-pub(crate) const GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_SYNC_COMMAND_BEGIN_RENDER_PIPELINE_STATISTICS_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.sync.commandBeginRenderPipelineStatisticsQuery",
     "export function commandBeginRenderPipelineStatisticsQuery(renderPass: GpuRenderPassHandle, querySet: GpuQuerySetHandle, queryIndex: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.sync.pipeline.statistics"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.commandEndComputePipelineStatisticsQuery.
-pub(crate) const GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_SYNC_COMMAND_END_COMPUTE_PIPELINE_STATISTICS_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.sync.commandEndComputePipelineStatisticsQuery",
     "export function commandEndComputePipelineStatisticsQuery(computePass: GpuComputePassHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.sync.pipeline.statistics"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.commandEndOcclusionQuery.
-pub(crate) const GPU_SYNC_COMMAND_END_OCCLUSION_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_SYNC_COMMAND_END_OCCLUSION_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.sync.commandEndOcclusionQuery",
     "export function commandEndOcclusionQuery(renderPass: GpuRenderPassHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.sync"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.commandEndRenderPipelineStatisticsQuery.
-pub(crate) const GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_SYNC_COMMAND_END_RENDER_PIPELINE_STATISTICS_QUERY: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.sync.commandEndRenderPipelineStatisticsQuery",
     "export function commandEndRenderPipelineStatisticsQuery(renderPass: GpuRenderPassHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.sync.pipeline.statistics"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.commandResolveQueries.
-pub(crate) const GPU_SYNC_COMMAND_RESOLVE_QUERIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_SYNC_COMMAND_RESOLVE_QUERIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.sync.commandResolveQueries",
     "export function commandResolveQueries(commandEncoder: GpuCommandEncoderHandle, querySet: GpuQuerySetHandle, firstQuery: uint32, queryCount: uint32, destination: GpuBufferHandle, destinationOffset: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.sync"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.commandWriteTimestamp.
-pub(crate) const GPU_SYNC_COMMAND_WRITE_TIMESTAMP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_SYNC_COMMAND_WRITE_TIMESTAMP: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.sync.commandWriteTimestamp",
     "export function commandWriteTimestamp(commandEncoder: GpuCommandEncoderHandle, querySet: GpuQuerySetHandle, queryIndex: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.sync"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.fenceCreate.
-pub(crate) const GPU_SYNC_FENCE_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_SYNC_FENCE_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.sync.fenceCreate",
     "export function fenceCreate(device: GpuDeviceHandle, options: GpuFenceOptions): Result<GpuFenceHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.sync"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.fenceDestroy.
 pub(crate) const GPU_SYNC_FENCE_DESTROY: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.gpu.sync.fenceDestroy",
         "export function fenceDestroy(handle: GpuFenceHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["gpu.sync"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.querySetCreate.
-pub(crate) const GPU_SYNC_QUERY_SET_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_SYNC_QUERY_SET_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.sync.querySetCreate",
     "export function querySetCreate(device: GpuDeviceHandle, options: GpuQuerySetOptions): Result<GpuQuerySetHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.sync"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.querySetDestroy.
 pub(crate) const GPU_SYNC_QUERY_SET_DESTROY: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.gpu.sync.querySetDestroy",
         "export function querySetDestroy(handle: GpuQuerySetHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["gpu.sync"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.querySetInfo.
-pub(crate) const GPU_SYNC_QUERY_SET_INFO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_SYNC_QUERY_SET_INFO: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.sync.querySetInfo",
     "export function querySetInfo(handle: GpuQuerySetHandle): Result<GpuQuerySetInfo, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.sync"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.queueSignal.
-pub(crate) const GPU_SYNC_QUEUE_SIGNAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_SYNC_QUEUE_SIGNAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.sync.queueSignal",
     "export function queueSignal(queue: GpuQueueHandle, fence: GpuFenceHandle, value: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.sync"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.queueTimestampPeriod.
-pub(crate) const GPU_SYNC_QUEUE_TIMESTAMP_PERIOD: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_SYNC_QUEUE_TIMESTAMP_PERIOD: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.sync.queueTimestampPeriod",
     "export function queueTimestampPeriod(queue: GpuQueueHandle): Result<float64, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.sync"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.queueWait.
-pub(crate) const GPU_SYNC_QUEUE_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_SYNC_QUEUE_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.sync.queueWait",
     "export function queueWait(queue: GpuQueueHandle, fence: GpuFenceHandle, value: uint64, timeoutNs: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.sync"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.gpu.sync.queueWorkDone.
-pub(crate) const GPU_SYNC_QUEUE_WORK_DONE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const GPU_SYNC_QUEUE_WORK_DONE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.gpu.sync.queueWorkDone",
     "export function queueWorkDone(queue: GpuQueueHandle, timeoutNs: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["gpu.sync"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("gpu")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Native binding set for gpu.
 pub(crate) const GPU_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

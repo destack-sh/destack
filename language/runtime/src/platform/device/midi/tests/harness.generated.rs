@@ -94,20 +94,6 @@ impl<'call> MidiHarnessContext<'call> {
     }
 
     /// List host MIDI backends.
-    ///
-    /// Enumerate backend selectors, support state, and backend-level feature flags.
-    ///
-    /// # Platform
-    /// Android, Unix, and Windows.
-    ///
-    /// # Errors
-    /// Returns ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `midi.port`.
-    ///
-    /// # Replay
-    /// External, recordable.
     pub(crate) fn destack_device_midi_backend_list(
         &mut self,
     ) -> RuntimeResult<
@@ -133,21 +119,6 @@ impl<'call> MidiHarnessContext<'call> {
     }
 
     /// Close one MIDI topology event subscription.
-    ///
-    /// Close one MIDI event subscription and release backend notification resources.
-    /// Pending events are discarded.
-    ///
-    /// # Platform
-    /// Android, Unix, and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `midi.observe`.
-    ///
-    /// # Replay
-    /// External, recordable.
     pub(crate) fn destack_device_midi_event_close(
         &mut self,
         handle: resource::MidiEventHandle,
@@ -163,21 +134,6 @@ impl<'call> MidiHarnessContext<'call> {
     }
 
     /// Open one MIDI topology event subscription.
-    ///
-    /// Open one backend event subscription for MIDI topology changes.
-    /// Subscription routing and queue depth follow host backend behavior.
-    ///
-    /// # Platform
-    /// Android, Unix, and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `midi.observe`.
-    ///
-    /// # Replay
-    /// External, recordable.
     pub(crate) fn destack_device_midi_event_open(
         &mut self,
         options: HarnessValue<MidiEventSubscriptionOptions, MidiEventSubscriptionOptionsVm>,
@@ -206,21 +162,6 @@ impl<'call> MidiHarnessContext<'call> {
     }
 
     /// Wait for one MIDI topology event.
-    ///
-    /// Wait for one pending event from one subscription queue.
-    /// Timeout uses nanoseconds in the runtime monotonic domain.
-    ///
-    /// # Platform
-    /// Android, Unix, and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `midi.observe`.
-    ///
-    /// # Replay
-    /// External, recordable.
     pub(crate) fn destack_device_midi_event_read(
         &mut self,
         handle: resource::MidiEventHandle,
@@ -253,21 +194,6 @@ impl<'call> MidiHarnessContext<'call> {
     }
 
     /// Wait for one batch of MIDI topology events.
-    ///
-    /// Wait for pending events from one subscription queue and return up to `maxEvents`.
-    /// Timeout uses nanoseconds in the runtime monotonic domain.
-    ///
-    /// # Platform
-    /// Android, Unix, and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `midi.observe`.
-    ///
-    /// # Replay
-    /// External, recordable.
     pub(crate) fn destack_device_midi_event_read_batch(
         &mut self,
         handle: resource::MidiEventHandle,
@@ -303,21 +229,6 @@ impl<'call> MidiHarnessContext<'call> {
     }
 
     /// Poll one MIDI topology event without blocking.
-    ///
-    /// Poll one pending event from one subscription queue.
-    /// Empty queue state is reported through ioWouldBlock.
-    ///
-    /// # Platform
-    /// Android, Unix, and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `midi.observe`.
-    ///
-    /// # Replay
-    /// External, recordable.
     pub(crate) fn destack_device_midi_event_try_read(
         &mut self,
         handle: resource::MidiEventHandle,
@@ -347,21 +258,6 @@ impl<'call> MidiHarnessContext<'call> {
     }
 
     /// Poll one batch of MIDI topology events without blocking.
-    ///
-    /// Poll pending events from one subscription queue and return up to `maxEvents`.
-    /// Empty queue state is reported through ioWouldBlock.
-    ///
-    /// # Platform
-    /// Android, Unix, and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `midi.observe`.
-    ///
-    /// # Replay
-    /// External, recordable.
     pub(crate) fn destack_device_midi_event_try_read_batch(
         &mut self,
         handle: resource::MidiEventHandle,
@@ -394,20 +290,6 @@ impl<'call> MidiHarnessContext<'call> {
     }
 
     /// Close one opened MIDI input endpoint.
-    ///
-    /// Close one opened MIDI input session and release host resources.
-    ///
-    /// # Platform
-    /// Android, Unix, and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `midi.port`.
-    ///
-    /// # Replay
-    /// External, recordable.
     pub(crate) fn destack_device_midi_input_port_close(
         &mut self,
         handle: resource::MidiInputPortHandle,
@@ -423,21 +305,6 @@ impl<'call> MidiHarnessContext<'call> {
     }
 
     /// Describe one opened MIDI input endpoint.
-    ///
-    /// Resolve the current descriptor for one opened MIDI input session.
-    /// This returns the runtime-stable identity surface for the opened endpoint even when the original list row is no longer cached locally.
-    ///
-    /// # Platform
-    /// Android, Unix, and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `midi.port`.
-    ///
-    /// # Replay
-    /// External, recordable.
     pub(crate) fn destack_device_midi_input_port_descriptor(
         &mut self,
         handle: resource::MidiInputPortHandle,
@@ -467,21 +334,6 @@ impl<'call> MidiHarnessContext<'call> {
     }
 
     /// List available MIDI input endpoints.
-    ///
-    /// Enumerate host MIDI input endpoints for one selected backend.
-    /// Endpoint visibility and ordering follow host MIDI subsystem behavior.
-    ///
-    /// # Platform
-    /// Android, Unix, and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `midi.port`.
-    ///
-    /// # Replay
-    /// External, recordable.
     pub(crate) fn destack_device_midi_input_port_list(
         &mut self,
         options: HarnessValue<MidiPortListOptions, MidiPortListOptionsVm>,
@@ -514,21 +366,6 @@ impl<'call> MidiHarnessContext<'call> {
     }
 
     /// Open one MIDI input endpoint.
-    ///
-    /// Open one host MIDI input endpoint for queued transport-record reads.
-    /// Endpoint open behavior follows host MIDI session policy and sharing semantics.
-    ///
-    /// # Platform
-    /// Android, Unix, and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `midi.port`.
-    ///
-    /// # Replay
-    /// External, recordable.
     pub(crate) fn destack_device_midi_input_port_open(
         &mut self,
         id: HarnessValue<NativeStringRef, vm::StringHandle>,
@@ -565,23 +402,6 @@ impl<'call> MidiHarnessContext<'call> {
     }
 
     /// Read one MIDI input record.
-    ///
-    /// Wait for one queued inbound MIDI transport record from one opened input endpoint.
-    /// Timeout uses nanoseconds in the runtime monotonic domain.
-    /// Record framing and payload encoding follow the selected transport data format.
-    /// Opened input sessions may later surface one loud backend failure on read if the host feed breaks after open.
-    ///
-    /// # Platform
-    /// Android, Unix, and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `midi.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
     pub(crate) fn destack_device_midi_input_read(
         &mut self,
         handle: resource::MidiInputPortHandle,
@@ -614,23 +434,6 @@ impl<'call> MidiHarnessContext<'call> {
     }
 
     /// Read one batch of MIDI input records.
-    ///
-    /// Wait for queued inbound MIDI transport records from one opened input endpoint and return up to `maxRecords`.
-    /// Timeout uses nanoseconds in the runtime monotonic domain.
-    /// Record framing and payload encoding follow the selected transport data format.
-    /// Opened input sessions may later surface one loud backend failure on read if the host feed breaks after open.
-    ///
-    /// # Platform
-    /// Android, Unix, and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-    ///
-    /// # Security
-    /// Requires `midi.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
     pub(crate) fn destack_device_midi_input_read_batch(
         &mut self,
         handle: resource::MidiInputPortHandle,
@@ -666,23 +469,6 @@ impl<'call> MidiHarnessContext<'call> {
     }
 
     /// Poll one MIDI input record without blocking.
-    ///
-    /// Poll one pending inbound MIDI transport record from one opened input endpoint.
-    /// Empty queue state is reported through ioWouldBlock.
-    /// Record framing and payload encoding follow the selected transport data format.
-    /// Opened input sessions may later surface one loud backend failure on read if the host feed breaks after open.
-    ///
-    /// # Platform
-    /// Android, Unix, and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `midi.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
     pub(crate) fn destack_device_midi_input_try_read(
         &mut self,
         handle: resource::MidiInputPortHandle,
@@ -712,23 +498,6 @@ impl<'call> MidiHarnessContext<'call> {
     }
 
     /// Poll one batch of MIDI input records without blocking.
-    ///
-    /// Poll pending inbound MIDI transport records from one opened input endpoint and return up to `maxRecords`.
-    /// Empty queue state is reported through ioWouldBlock.
-    /// Record framing and payload encoding follow the selected transport data format.
-    /// Opened input sessions may later surface one loud backend failure on read if the host feed breaks after open.
-    ///
-    /// # Platform
-    /// Android, Unix, and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `midi.read`.
-    ///
-    /// # Replay
-    /// External, recordable.
     pub(crate) fn destack_device_midi_input_try_read_batch(
         &mut self,
         handle: resource::MidiInputPortHandle,
@@ -761,20 +530,6 @@ impl<'call> MidiHarnessContext<'call> {
     }
 
     /// Create one virtual MIDI input endpoint.
-    ///
-    /// Create one host-visible virtual MIDI input endpoint and return one opened input handle for reads.
-    ///
-    /// # Platform
-    /// Android, Unix, and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `midi.virtual`.
-    ///
-    /// # Replay
-    /// External, recordable.
     pub(crate) fn destack_device_midi_input_virtual_create(
         &mut self,
         options: HarnessValue<MidiVirtualInputCreateOptions, MidiVirtualInputCreateOptionsVm>,
@@ -806,20 +561,6 @@ impl<'call> MidiHarnessContext<'call> {
     }
 
     /// Close one opened MIDI output endpoint.
-    ///
-    /// Close one opened MIDI output session and release host resources.
-    ///
-    /// # Platform
-    /// Android, Unix, and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `midi.port`.
-    ///
-    /// # Replay
-    /// External, recordable.
     pub(crate) fn destack_device_midi_output_port_close(
         &mut self,
         handle: resource::MidiOutputPortHandle,
@@ -835,21 +576,6 @@ impl<'call> MidiHarnessContext<'call> {
     }
 
     /// Describe one opened MIDI output endpoint.
-    ///
-    /// Resolve the current descriptor for one opened MIDI output session.
-    /// This returns the runtime-stable identity surface for the opened endpoint even when the original list row is no longer cached locally.
-    ///
-    /// # Platform
-    /// Android, Unix, and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `midi.port`.
-    ///
-    /// # Replay
-    /// External, recordable.
     pub(crate) fn destack_device_midi_output_port_descriptor(
         &mut self,
         handle: resource::MidiOutputPortHandle,
@@ -879,21 +605,6 @@ impl<'call> MidiHarnessContext<'call> {
     }
 
     /// List available MIDI output endpoints.
-    ///
-    /// Enumerate host MIDI output endpoints for one selected backend.
-    /// Endpoint visibility and ordering follow host MIDI subsystem behavior.
-    ///
-    /// # Platform
-    /// Android, Unix, and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `midi.port`.
-    ///
-    /// # Replay
-    /// External, recordable.
     pub(crate) fn destack_device_midi_output_port_list(
         &mut self,
         options: HarnessValue<MidiPortListOptions, MidiPortListOptionsVm>,
@@ -926,21 +637,6 @@ impl<'call> MidiHarnessContext<'call> {
     }
 
     /// Open one MIDI output endpoint.
-    ///
-    /// Open one host MIDI output endpoint for outbound transport-record writes.
-    /// Endpoint open behavior follows host MIDI session policy and sharing semantics.
-    ///
-    /// # Platform
-    /// Android, Unix, and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `midi.port`.
-    ///
-    /// # Replay
-    /// External, recordable.
     pub(crate) fn destack_device_midi_output_port_open(
         &mut self,
         id: HarnessValue<NativeStringRef, vm::StringHandle>,
@@ -977,20 +673,6 @@ impl<'call> MidiHarnessContext<'call> {
     }
 
     /// Create one virtual MIDI output endpoint.
-    ///
-    /// Create one host-visible virtual MIDI output endpoint and return one opened output handle for writes.
-    ///
-    /// # Platform
-    /// Android, Unix, and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `midi.virtual`.
-    ///
-    /// # Replay
-    /// External, recordable.
     pub(crate) fn destack_device_midi_output_virtual_create(
         &mut self,
         options: HarnessValue<MidiVirtualOutputCreateOptions, MidiVirtualOutputCreateOptionsVm>,
@@ -1022,22 +704,6 @@ impl<'call> MidiHarnessContext<'call> {
     }
 
     /// Write one batch of outbound MIDI records.
-    ///
-    /// Submit one batch of outbound MIDI transport records to one opened output endpoint.
-    /// Scheduled timestamps are advisory unless the backend advertises scheduled output support and the opened endpoint accepts them.
-    /// Record framing and payload encoding must match the selected transport data format.
-    ///
-    /// # Platform
-    /// Android, Unix, and Windows.
-    ///
-    /// # Errors
-    /// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-    ///
-    /// # Security
-    /// Requires `midi.write`.
-    ///
-    /// # Replay
-    /// External, recordable.
     pub(crate) fn destack_device_midi_output_write(
         &mut self,
         handle: resource::MidiOutputPortHandle,

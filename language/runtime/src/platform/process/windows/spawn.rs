@@ -493,22 +493,6 @@ fn spawn_process(
 }
 
 /// Spawn a child process with default stdio inheritance.
-///
-/// Spawn one child process using the provided command, argv, envp, and spawn options.
-/// Descriptor inheritance and process-group behavior follow host process-launch semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses posix_spawn or fork-plus-exec on Unix and CreateProcessW on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, processSpawnFailed, notSupported.
-///
-/// # Security
-/// Requires `process.spawn`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_spawn(
     binding: &BindingCallContext,
     out: *mut resource::ProcessHandle,
@@ -529,22 +513,6 @@ pub(crate) unsafe fn destack_process_spawn(
 }
 
 /// Spawn a child process with explicit stdio and descriptor actions.
-///
-/// Spawn one child process and apply explicit stdio wiring and descriptor action scripts.
-/// File-action ordering and inheritance behavior follow host spawn primitives.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses posix_spawn_file_actions on Unix and handle-inheritance setup on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, processSpawnFailed, notSupported.
-///
-/// # Security
-/// Requires `process.spawn`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_spawn_with_actions(
     binding: &BindingCallContext,
     out: *mut resource::ProcessHandle,

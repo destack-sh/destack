@@ -116,7 +116,7 @@ pub(crate) unsafe fn window_open(
         &resolved_options,
         title,
     )));
-    let entry = appkit::resource::window_resource_entry(context, Arc::clone(&host_state));
+    let entry = appkit::resource::window_resource_entry(Arc::clone(&host_state));
     let resource_id =
         context
             .worker()

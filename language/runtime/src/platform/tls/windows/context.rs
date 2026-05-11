@@ -7,22 +7,6 @@ use crate::platform::{PlatformError, resource};
 use crate::runtime::BindingCallContext;
 
 /// Close one tls context object.
-///
-/// Release one backend-backed tls context and associated runtime resources.
-/// Existing sessions created from this context keep their current runtime state.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime tls context teardown semantics.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `tls.context`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_tls_context_close(
     binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
@@ -31,22 +15,6 @@ pub(crate) unsafe fn destack_tls_context_close(
 }
 
 /// Open one tls context object.
-///
-/// Create one rustls-backed tls context with explicit role and version bounds.
-/// Cipher suite, group, signature, and resumption policy are runtime-owned rather than delegated to host provider state.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses the runtime tls engine over host sockets.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.context`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_tls_context_open(
     binding: &BindingCallContext,
     out: *mut resource::TlsContextHandle,
@@ -70,22 +38,6 @@ pub(crate) unsafe fn destack_tls_context_open(
 }
 
 /// Set allowed tls cipher suites for one context.
-///
-/// Apply one ordered list of cipher-suite names to one context policy.
-/// Names are matched case-insensitively after normalizing spaces and hyphens to underscores against rustls cipher-suite names.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime tls policy filtering.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.context`, `tls.policy`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_cipher_suites(
     binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
@@ -112,22 +64,6 @@ pub(crate) unsafe fn destack_tls_context_set_cipher_suites(
 }
 
 /// Set allowed tls key exchange groups for one context.
-///
-/// Apply one ordered list of key exchange groups to one context policy.
-/// Names are matched case-insensitively after normalizing spaces and hyphens to underscores against rustls key-exchange group names.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime tls policy filtering.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.context`, `tls.policy`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_groups(
     binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
@@ -154,23 +90,6 @@ pub(crate) unsafe fn destack_tls_context_set_groups(
 }
 
 /// Set hostname verification mode for one context.
-///
-/// Configure hostname verification behavior for sessions created by this context.
-/// Verification defaults match strict hostname checks unless explicitly overridden.
-/// This setting applies to client contexts, and server contexts ignore it.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime tls verification policy.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.context`, `tls.hostname.verify`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_hostname_verification_mode(
     binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
@@ -186,22 +105,6 @@ pub(crate) unsafe fn destack_tls_context_set_hostname_verification_mode(
 }
 
 /// Set one local certificate chain and private key on a tls context.
-///
-/// Install one PEM-encoded certificate chain and one PEM-encoded private key for local endpoint authentication.
-/// PEM parsing is strict and malformed inputs fail immediately.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime tls identity parsing and storage.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.identity.use`, `tls.identity.write`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_identity_pem(
     binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
@@ -238,22 +141,6 @@ pub(crate) unsafe fn destack_tls_context_set_identity_pem(
 }
 
 /// Set session resumption policy for one context.
-///
-/// Configure whether sessions use stateful cache, stateless tickets, or both.
-/// Cache size, lifetime, and ticket semantics follow bounded runtime policy.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime tls resumption controls.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.context`, `tls.resumption`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_session_resumption(
     binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
@@ -269,22 +156,6 @@ pub(crate) unsafe fn destack_tls_context_set_session_resumption(
 }
 
 /// Set allowed tls signature algorithms for one context.
-///
-/// Apply one ordered list of signature algorithms to one context policy.
-/// Names are matched case-insensitively after normalizing spaces and hyphens to underscores against rustls signature-scheme names.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime tls policy filtering.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.context`, `tls.policy`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_signature_algorithms(
     binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
@@ -312,22 +183,6 @@ pub(crate) unsafe fn destack_tls_context_set_signature_algorithms(
 }
 
 /// Set trust anchors on a tls context from one PEM bundle.
-///
-/// Install one PEM-encoded trust-anchor bundle used for peer certificate validation.
-/// Bundle parsing is strict and malformed trust anchors fail immediately.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime trust bundle loading.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.trust.write`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_trust_anchors_pem(
     binding: &BindingCallContext,
     handle: resource::TlsContextHandle,

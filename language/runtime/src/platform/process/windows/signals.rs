@@ -10,22 +10,6 @@ use crate::platform::process::{ProcessId, Signal, SignalEvent, SignalMaskHow};
 use crate::platform::resource;
 
 /// Send a signal to a target process.
-///
-/// Deliver one signal value to the target process according to host signal semantics.
-/// Delivery guarantees and supported signal numbers are host-defined.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses kill(2) on Unix and terminate or control-event APIs on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.signal.send`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_kill(
     _binding: &BindingCallContext,
     pid: ProcessId,
@@ -35,22 +19,6 @@ pub(crate) unsafe fn destack_process_kill(
 }
 
 /// Read the current thread signal mask.
-///
-/// Return the active signal mask as an explicit signal set.
-/// Mask semantics follow host thread-signal rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses sigprocmask or pthread_sigmask on Unix and host-equivalent APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.signal.receive`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_signal_mask_read(
     binding: &BindingCallContext,
     out: *mut NativeArray<Signal>,
@@ -66,22 +34,6 @@ pub(crate) unsafe fn destack_process_signal_mask_read(
 }
 
 /// Update the current thread signal mask.
-///
-/// Apply one set, block, or unblock operation to the active signal mask.
-/// Mask transitions are atomic under host signal APIs.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses sigprocmask or pthread_sigmask on Unix and host-equivalent APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.signal.receive`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_signal_mask_update(
     binding: &BindingCallContext,
     how: SignalMaskHow,
@@ -95,22 +47,6 @@ pub(crate) unsafe fn destack_process_signal_mask_update(
 }
 
 /// Receive the next signal event from a subscription.
-///
-/// Wait for the next queued signal event for the subscription.
-/// Delivery ordering and batching follow runtime and host signal queue semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host signal delivery queues and wait primitives.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.signal.receive`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_signal_receive(
     _binding: &BindingCallContext,
     out: *mut SignalEvent,
@@ -127,22 +63,6 @@ pub(crate) unsafe fn destack_process_signal_receive(
 }
 
 /// Subscribe to one signal value.
-///
-/// Register one runtime subscription handle for signal delivery.
-/// Subscription mode and coalescing behavior follow runtime and host integration rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host signal subscription state and queue integration.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.signal.receive`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_signal_subscribe(
     _binding: &BindingCallContext,
     out: *mut resource::SignalHandle,
@@ -166,22 +86,6 @@ pub(crate) unsafe fn destack_process_signal_subscribe(
 }
 
 /// Poll one signal event without blocking.
-///
-/// Read a queued signal event when available and return immediately otherwise.
-/// Empty queue behavior is reported through host-specific not-ready errors.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host signal queue polling with nonblocking probes.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `process.signal.receive`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_signal_try_receive(
     _binding: &BindingCallContext,
     out: *mut SignalEvent,
@@ -198,22 +102,6 @@ pub(crate) unsafe fn destack_process_signal_try_receive(
 }
 
 /// Poll one signal from a requested set without blocking.
-///
-/// Check whether one requested signal is pending and return immediately.
-/// Empty readiness is reported through host-specific not-ready errors.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses nonblocking signal wait primitives and host-equivalent polling APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `process.signal.receive`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_signal_try_wait(
     _binding: &BindingCallContext,
     out: *mut SignalEvent,
@@ -232,22 +120,6 @@ pub(crate) unsafe fn destack_process_signal_try_wait(
 }
 
 /// Remove a signal subscription handle.
-///
-/// Unregister one signal subscription from runtime delivery.
-/// Pending events may still be readable depending on host queueing behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host signal subscription teardown semantics.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.signal.receive`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_signal_unsubscribe(
     binding: &BindingCallContext,
     handle: resource::SignalHandle,
@@ -260,22 +132,6 @@ pub(crate) unsafe fn destack_process_signal_unsubscribe(
 }
 
 /// Wait for one signal from a requested set.
-///
-/// Block until one of the requested signals is observed and returned.
-/// Selection and wakeup semantics follow host signal wait behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses sigwait-style primitives on Unix and host-equivalent wait APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.signal.receive`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_signal_wait(
     _binding: &BindingCallContext,
     out: *mut SignalEvent,

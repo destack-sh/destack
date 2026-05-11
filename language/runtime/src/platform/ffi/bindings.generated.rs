@@ -16,8 +16,8 @@ use crate::platform::{
     PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice, abi as platform_abi,
 };
 use crate::runtime::bindings::{
-    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
-    BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+    BindingAffinity, BindingDescriptor, BindingProvider, BindingRegistry, BindingReplayKind,
+    BindingReplayPolicy, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
 use crate::runtime::with_binding_call_context;
 use crate::{binding, vm_binding_set};
@@ -297,103 +297,96 @@ fn encode_destack_ffi_symbol_lookup_result(
 }
 
 /// Binding descriptor for destack.ffi.call.invoke.
-pub(crate) const FFI_CALL_INVOKE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FFI_CALL_INVOKE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.ffi.call.invoke",
     "export function call(symbol: SymbolHandle, abi: uint32, flags: uint32, arguments: Slice<uint8>, resultSize: uint32): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["ffi.call"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("ffi")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.ffi.library.close.
 pub(crate) const FFI_LIBRARY_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.ffi.library.close",
         "export function close(handle: LibraryHandle): Result<void, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["ffi.load"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("ffi")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.ffi.library.open.
 pub(crate) const FFI_LIBRARY_OPEN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.ffi.library.open",
         "export function open(path: OsPath, flags: uint32): Result<LibraryHandle, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["ffi.load"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("ffi")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.ffi.pointer.address.
 pub(crate) const FFI_POINTER_ADDRESS: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_behavior(
+    BindingDescriptor::deterministic_with_requires_and_dispatch(
         "destack.ffi.pointer.address",
         "export function address(pointer: FfiPointer): Result<uint64, PlatformError>",
         &["ffi.pointer"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("ffi")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.ffi.pointer.fromAddress.
 pub(crate) const FFI_POINTER_FROM_ADDRESS: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_behavior(
+    BindingDescriptor::deterministic_with_requires_and_dispatch(
         "destack.ffi.pointer.fromAddress",
         "export function fromAddress(address: uint64): Result<FfiPointer, PlatformError>",
         &["ffi.pointer"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("ffi")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.ffi.symbol.address.
 pub(crate) const FFI_SYMBOL_ADDRESS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.ffi.symbol.address",
         "export function symbolAddress(symbol: SymbolHandle): Result<uint64, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["ffi.symbol"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("ffi")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.ffi.symbol.lookup.
-pub(crate) const FFI_SYMBOL_LOOKUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const FFI_SYMBOL_LOOKUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.ffi.symbol.lookup",
     "export function symbolLookup(library: LibraryHandle, name: string): Result<SymbolHandle, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["ffi.symbol"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("ffi")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Native binding set for ffi.
 pub(crate) const FFI_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

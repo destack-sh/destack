@@ -35,21 +35,6 @@ fn resolve_haptics_binding(
 }
 
 /// List supported haptic effects.
-///
-/// Return supported haptic effect kinds for one opened haptics-capable device.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where haptics is unavailable.
-/// Uses backend-specific haptic capability queries for controller and endpoint actuators.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `input.haptics`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_input_haptics_effects(
     binding: &BindingCallContext,
     out: *mut NativeArray<InputHapticEffectType>,
@@ -99,22 +84,6 @@ pub(crate) unsafe fn destack_input_haptics_effects(
 }
 
 /// Play one haptic effect.
-///
-/// Schedule one haptic effect on one opened haptics-capable device.
-/// Effect playback timing and motor resolution follow backend capabilities.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where one effect type is unavailable.
-/// Uses backend-specific rumble and haptics APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `input.haptics`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_input_haptics_play(
     binding: &BindingCallContext,
     out: *mut InputHapticsResult,
@@ -198,21 +167,6 @@ pub(crate) unsafe fn destack_input_haptics_play(
 }
 
 /// Stop active haptic effects.
-///
-/// Stop active haptic playback on one opened haptics-capable device.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific haptic stop operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `input.haptics`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_input_haptics_stop(
     binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,

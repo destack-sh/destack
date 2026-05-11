@@ -23,23 +23,6 @@ fn resolve_touch_device(
 }
 
 /// Read one touch state snapshot.
-///
-/// Return one current touch-contact snapshot for one opened touch-capable device.
-/// Contact ordering follows backend delivery order.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where touch snapshots are unavailable.
-/// Uses backend-specific contact tables from evdev or libinput-style paths on Unix.
-/// Uses pointer-contact APIs on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `input.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_input_touch_state(
     binding: &BindingCallContext,
     out: *mut InputTouchState,

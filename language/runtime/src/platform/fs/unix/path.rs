@@ -28,22 +28,6 @@ fn validate_linkat_flags(flags: AtFlags) -> RuntimeResult<libc::c_int> {
 }
 
 /// Create a hard link.
-///
-/// Create a hard-link entry that points to an existing inode without copying file contents.
-/// Source and destination remain independent path entries with shared storage identity.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses link(2) on Unix and CreateHardLinkW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.link`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_link_bytes(
     _binding: &BindingCallContext,
     existingpath: PathBytes,
@@ -61,22 +45,6 @@ pub(crate) unsafe fn destack_fs_link_bytes(
 }
 
 /// Create a hard link.
-///
-/// Create a hard-link entry that points to an existing inode without copying file contents.
-/// Source and destination remain independent path entries with shared storage identity.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses link(2) on Unix and CreateHardLinkW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.link`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_link_utf16(
     binding: &BindingCallContext,
     existingpath: PathUtf16,
@@ -92,22 +60,6 @@ pub(crate) unsafe fn destack_fs_link_utf16(
 }
 
 /// Read a symbolic link.
-///
-/// Read the link payload stored at the target path and return it as an `OsPath`.
-/// The returned path is link data and is not canonicalized or dereferenced.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses readlink(2) on Unix and reparse-point target query on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_readlink_bytes(
     binding: &BindingCallContext,
     out: *mut PathBytes,
@@ -129,22 +81,6 @@ pub(crate) unsafe fn destack_fs_readlink_bytes(
 
 #[allow(dead_code)]
 /// Read a symbolic link.
-///
-/// Read the link payload stored at the target path and return it as an `OsPath`.
-/// The returned path is link data and is not canonicalized or dereferenced.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses readlink(2) on Unix and reparse-point target query on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_readlink_utf16(
     binding: &BindingCallContext,
     out: *mut PathUtf16,
@@ -168,22 +104,6 @@ pub(crate) unsafe fn destack_fs_readlink_utf16(
 }
 
 /// Resolve a path to its canonical form.
-///
-/// Resolve the input path to a canonical absolute form using host path-resolution rules.
-/// Canonicalization follows host symlink, mount, and case-normalization behavior.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses realpath(3) on Unix and GetFinalPathNameByHandleW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.metadata`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_realpath_bytes(
     binding: &BindingCallContext,
     out: *mut PathBytes,
@@ -213,22 +133,6 @@ pub(crate) unsafe fn destack_fs_realpath_bytes(
 
 #[allow(dead_code)]
 /// Resolve a path to its canonical form.
-///
-/// Resolve the input path to a canonical absolute form using host path-resolution rules.
-/// Canonicalization follows host symlink, mount, and case-normalization behavior.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses realpath(3) on Unix and GetFinalPathNameByHandleW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.metadata`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_realpath_utf16(
     binding: &BindingCallContext,
     out: *mut PathUtf16,
@@ -252,22 +156,6 @@ pub(crate) unsafe fn destack_fs_realpath_utf16(
 }
 
 /// Rename or move a file.
-///
-/// Rename one path entry to a new absolute or relative path in the current process namespace.
-/// The operation targets plain path names and does not expose directory-handle scoping.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses rename(2) on Unix and MoveFileExW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_rename_bytes(
     _binding: &BindingCallContext,
     from: PathBytes,
@@ -285,22 +173,6 @@ pub(crate) unsafe fn destack_fs_rename_bytes(
 }
 
 /// Rename or move a file.
-///
-/// Rename one path entry to a new absolute or relative path in the current process namespace.
-/// The operation targets plain path names and does not expose directory-handle scoping.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses rename(2) on Unix and MoveFileExW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_rename_utf16(
     binding: &BindingCallContext,
     from: PathUtf16,
@@ -313,22 +185,6 @@ pub(crate) unsafe fn destack_fs_rename_utf16(
 }
 
 /// Create a symbolic link.
-///
-/// Create a symbolic-link entry that stores the provided target path payload.
-/// Target bytes are persisted as link data and are not resolved during creation.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses symlink(2) on Unix and CreateSymbolicLinkW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.link`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_symlink_bytes(
     _binding: &BindingCallContext,
     target: PathBytes,
@@ -347,22 +203,6 @@ pub(crate) unsafe fn destack_fs_symlink_bytes(
 }
 
 /// Create a symbolic link.
-///
-/// Create a symbolic-link entry that stores the provided target path payload.
-/// Target bytes are persisted as link data and are not resolved during creation.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses symlink(2) on Unix and CreateSymbolicLinkW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.link`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_symlink_utf16(
     binding: &BindingCallContext,
     target: PathUtf16,
@@ -376,22 +216,6 @@ pub(crate) unsafe fn destack_fs_symlink_utf16(
 }
 
 /// Unlink a file.
-///
-/// Remove one directory entry that names a non-directory filesystem object.
-/// Data blocks are reclaimed by the host once link count and open-handle rules allow.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses unlink(2) on Unix and DeleteFileW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_unlink_bytes(
     _binding: &BindingCallContext,
     path: PathBytes,
@@ -407,22 +231,6 @@ pub(crate) unsafe fn destack_fs_unlink_bytes(
 }
 
 /// Unlink a file.
-///
-/// Remove one directory entry that names a non-directory filesystem object.
-/// Data blocks are reclaimed by the host once link count and open-handle rules allow.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses unlink(2) on Unix and DeleteFileW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_unlink_utf16(
     binding: &BindingCallContext,
     path: PathUtf16,
@@ -434,22 +242,6 @@ pub(crate) unsafe fn destack_fs_unlink_utf16(
 }
 
 /// Rename or move a file relative to directory handles.
-///
-/// Rename one path entry where both source and destination are resolved relative to explicit directory handles.
-/// This avoids ambient current-working-directory resolution for both sides of the rename.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses renameat(2) on Unix and handle-relative rename on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_renameat_bytes(
     binding: &BindingCallContext,
     from_dir: DirectoryHandle,
@@ -471,22 +263,6 @@ pub(crate) unsafe fn destack_fs_renameat_bytes(
 }
 
 /// Rename or move a file relative to directory handles.
-///
-/// Rename one path entry where both source and destination are resolved relative to explicit directory handles.
-/// This avoids ambient current-working-directory resolution for both sides of the rename.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses renameat(2) on Unix and handle-relative rename on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_renameat_utf16(
     binding: &BindingCallContext,
     from_dir: DirectoryHandle,
@@ -501,22 +277,6 @@ pub(crate) unsafe fn destack_fs_renameat_utf16(
 }
 
 /// Rename or move a file relative to directory handles with renameat2 semantics.
-///
-/// Rename one path entry with explicit rename flags controlling replace and exchange behavior.
-/// Flag handling follows host support levels and returns notSupported when the requested mode is unavailable.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses renameat2(2) on linux and runtime emulation/fallback on other targets.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_renameat2_bytes(
     binding: &BindingCallContext,
     from_dir: DirectoryHandle,
@@ -562,22 +322,6 @@ pub(crate) unsafe fn destack_fs_renameat2_bytes(
 }
 
 /// Rename or move a file relative to directory handles with renameat2 semantics.
-///
-/// Rename one path entry with explicit rename flags controlling replace and exchange behavior.
-/// Flag handling follows host support levels and returns notSupported when the requested mode is unavailable.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses renameat2(2) on linux and runtime emulation/fallback on other targets.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_renameat2_utf16(
     binding: &BindingCallContext,
     from_dir: DirectoryHandle,
@@ -593,22 +337,6 @@ pub(crate) unsafe fn destack_fs_renameat2_utf16(
 }
 
 /// Unlink a file relative to a directory handle.
-///
-/// Remove one directory entry resolved from `dir` for a non-directory filesystem object.
-/// Relative unlink avoids ambient cwd traversal and keeps deletion scope explicit.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses unlinkat(2) on Unix and handle-relative delete on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_unlinkat_bytes(
     binding: &BindingCallContext,
     dir: DirectoryHandle,
@@ -626,22 +354,6 @@ pub(crate) unsafe fn destack_fs_unlinkat_bytes(
 }
 
 /// Unlink a file relative to a directory handle.
-///
-/// Remove one directory entry resolved from `dir` for a non-directory filesystem object.
-/// Relative unlink avoids ambient cwd traversal and keeps deletion scope explicit.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses unlinkat(2) on Unix and handle-relative delete on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_unlinkat_utf16(
     binding: &BindingCallContext,
     dir: DirectoryHandle,
@@ -655,22 +367,6 @@ pub(crate) unsafe fn destack_fs_unlinkat_utf16(
 }
 
 /// Create a hard link relative to directory handles.
-///
-/// Create a hard-link entry using directory-relative paths for both source and destination.
-/// Relative resolution keeps both lookup roots explicit and avoids ambient cwd lookup.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses linkat(2) on Unix and handle-relative hard-link creation on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.link`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_linkat_bytes(
     binding: &BindingCallContext,
     existing_dir: DirectoryHandle,
@@ -701,22 +397,6 @@ pub(crate) unsafe fn destack_fs_linkat_bytes(
 }
 
 /// Create a hard link relative to directory handles.
-///
-/// Create a hard-link entry using directory-relative paths for both source and destination.
-/// Relative resolution keeps both lookup roots explicit and avoids ambient cwd lookup.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses linkat(2) on Unix and handle-relative hard-link creation on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.link`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_linkat_utf16(
     binding: &BindingCallContext,
     existing_dir: DirectoryHandle,
@@ -744,22 +424,6 @@ pub(crate) unsafe fn destack_fs_linkat_utf16(
 }
 
 /// Create a symbolic link relative to a directory handle.
-///
-/// Create a symbolic-link entry using a directory-relative destination path.
-/// Destination lookup uses `dir` while `target` bytes are stored verbatim by the host.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses symlinkat(2) on Unix and handle-relative symlink creation on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.link`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_symlinkat_bytes(
     binding: &BindingCallContext,
     target: PathBytes,
@@ -779,22 +443,6 @@ pub(crate) unsafe fn destack_fs_symlinkat_bytes(
 }
 
 /// Create a symbolic link relative to a directory handle.
-///
-/// Create a symbolic-link entry using a directory-relative destination path.
-/// Destination lookup uses `dir` while `target` bytes are stored verbatim by the host.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses symlinkat(2) on Unix and handle-relative symlink creation on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.link`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_symlinkat_utf16(
     binding: &BindingCallContext,
     target: PathUtf16,
@@ -809,22 +457,6 @@ pub(crate) unsafe fn destack_fs_symlinkat_utf16(
 }
 
 /// Read a symbolic link relative to a directory handle.
-///
-/// Read the link payload stored at a directory-relative target path.
-/// The returned path is raw link data and is not dereferenced during the read.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses readlinkat(2) on Unix and handle-relative target query on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_readlinkat_bytes(
     binding: &BindingCallContext,
     out: *mut PathBytes,
@@ -848,22 +480,6 @@ pub(crate) unsafe fn destack_fs_readlinkat_bytes(
 
 #[allow(dead_code)]
 /// Read a symbolic link relative to a directory handle.
-///
-/// Read the link payload stored at a directory-relative target path.
-/// The returned path is raw link data and is not dereferenced during the read.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses readlinkat(2) on Unix and handle-relative target query on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_readlinkat_utf16(
     binding: &BindingCallContext,
     out: *mut PathUtf16,
@@ -888,22 +504,6 @@ pub(crate) unsafe fn destack_fs_readlinkat_utf16(
 }
 
 /// Rename or move a file.
-///
-/// Rename one path entry to a new absolute or relative path in the current process namespace.
-/// The operation targets plain path names and does not expose directory-handle scoping.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses rename(2) on Unix and MoveFileExW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_rename(
     binding: &BindingCallContext,
     from: OsPath,
@@ -919,22 +519,6 @@ pub(crate) unsafe fn destack_fs_rename(
 }
 
 /// Rename or move a file relative to directory handles.
-///
-/// Rename one path entry where both source and destination are resolved relative to explicit directory handles.
-/// This avoids ambient current-working-directory resolution for both sides of the rename.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses renameat(2) on Unix and handle-relative rename on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_renameat(
     binding: &BindingCallContext,
     from_dir: DirectoryHandle,
@@ -952,22 +536,6 @@ pub(crate) unsafe fn destack_fs_renameat(
 }
 
 /// Rename or move a file relative to directory handles with renameat2 semantics.
-///
-/// Rename one path entry with explicit rename flags controlling replace and exchange behavior.
-/// Flag handling follows host support levels and returns notSupported when the requested mode is unavailable.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses renameat2(2) on linux and runtime emulation/fallback on other targets.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_renameat2(
     binding: &BindingCallContext,
     from_dir: DirectoryHandle,
@@ -990,22 +558,6 @@ pub(crate) unsafe fn destack_fs_renameat2(
 }
 
 /// Unlink a file.
-///
-/// Remove one directory entry that names a non-directory filesystem object.
-/// Data blocks are reclaimed by the host once link count and open-handle rules allow.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses unlink(2) on Unix and DeleteFileW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_unlink(
     binding: &BindingCallContext,
     path: OsPath,
@@ -1019,22 +571,6 @@ pub(crate) unsafe fn destack_fs_unlink(
 }
 
 /// Unlink a file relative to a directory handle.
-///
-/// Remove one directory entry resolved from `dir` for a non-directory filesystem object.
-/// Relative unlink avoids ambient cwd traversal and keeps deletion scope explicit.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses unlinkat(2) on Unix and handle-relative delete on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_unlinkat(
     binding: &BindingCallContext,
     dir: DirectoryHandle,
@@ -1050,22 +586,6 @@ pub(crate) unsafe fn destack_fs_unlinkat(
 }
 
 /// Create a hard link.
-///
-/// Create a hard-link entry that points to an existing inode without copying file contents.
-/// Source and destination remain independent path entries with shared storage identity.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses link(2) on Unix and CreateHardLinkW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.link`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_link(
     binding: &BindingCallContext,
     existing_path: OsPath,
@@ -1085,22 +605,6 @@ pub(crate) unsafe fn destack_fs_link(
 }
 
 /// Create a hard link relative to directory handles.
-///
-/// Create a hard-link entry using directory-relative paths for both source and destination.
-/// Relative resolution keeps both lookup roots explicit and avoids ambient cwd lookup.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses linkat(2) on Unix and handle-relative hard-link creation on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.link`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_linkat(
     binding: &BindingCallContext,
     existing_dir: DirectoryHandle,
@@ -1137,22 +641,6 @@ pub(crate) unsafe fn destack_fs_linkat(
 }
 
 /// Create a symbolic link.
-///
-/// Create a symbolic-link entry that stores the provided target path payload.
-/// Target bytes are persisted as link data and are not resolved during creation.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses symlink(2) on Unix and CreateSymbolicLinkW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.link`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_symlink(
     binding: &BindingCallContext,
     target: OsPath,
@@ -1169,22 +657,6 @@ pub(crate) unsafe fn destack_fs_symlink(
 }
 
 /// Create a symbolic link relative to a directory handle.
-///
-/// Create a symbolic-link entry using a directory-relative destination path.
-/// Destination lookup uses `dir` while `target` bytes are stored verbatim by the host.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses symlinkat(2) on Unix and handle-relative symlink creation on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.link`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_symlinkat(
     binding: &BindingCallContext,
     target: OsPath,
@@ -1202,22 +674,6 @@ pub(crate) unsafe fn destack_fs_symlinkat(
 }
 
 /// Read a symbolic link.
-///
-/// Read the link payload stored at the target path and return it as an `OsPath`.
-/// The returned path is link data and is not canonicalized or dereferenced.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses readlink(2) on Unix and reparse-point target query on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_readlink(
     binding: &BindingCallContext,
     out: *mut OsPath,
@@ -1251,22 +707,6 @@ pub(crate) unsafe fn destack_fs_readlink(
 }
 
 /// Read a symbolic link relative to a directory handle.
-///
-/// Read the link payload stored at a directory-relative target path.
-/// The returned path is raw link data and is not dereferenced during the read.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses readlinkat(2) on Unix and handle-relative target query on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_readlinkat(
     binding: &BindingCallContext,
     out: *mut OsPath,
@@ -1301,22 +741,6 @@ pub(crate) unsafe fn destack_fs_readlinkat(
 }
 
 /// Resolve a path to its canonical form.
-///
-/// Resolve the input path to a canonical absolute form using host path-resolution rules.
-/// Canonicalization follows host symlink, mount, and case-normalization behavior.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses realpath(3) on Unix and GetFinalPathNameByHandleW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.metadata`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_realpath(
     binding: &BindingCallContext,
     out: *mut OsPath,
@@ -1350,22 +774,6 @@ pub(crate) unsafe fn destack_fs_realpath(
 }
 
 /// Create a FIFO special file.
-///
-/// Create a FIFO special file node at the target path.
-/// The created node participates in host pipe semantics when opened for I/O.
-///
-/// # Platform
-/// Unix only. This operation returns `notSupported` on Windows.
-/// Uses mkfifo(2) on Unix and notSupported on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.special`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_mkfifo(
     _binding: &BindingCallContext,
     path: OsPath,
@@ -1391,22 +799,6 @@ pub(crate) unsafe fn destack_fs_mkfifo(
 }
 
 /// Create a FIFO special file relative to a directory handle.
-///
-/// Create a FIFO special file node at a directory-relative path.
-/// Relative node creation keeps lookup scope anchored to `dir`.
-///
-/// # Platform
-/// Unix only. This operation returns `notSupported` on Windows.
-/// Uses mkfifoat(2) on Unix and notSupported on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.special`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_mkfifoat(
     binding: &BindingCallContext,
     dir: DirectoryHandle,
@@ -1446,22 +838,6 @@ pub(crate) unsafe fn destack_fs_mkfifoat(
 }
 
 /// Create a filesystem node.
-///
-/// Create a filesystem node with the requested mode and device number.
-/// Node interpretation follows host mknod rules for file type and device payload.
-///
-/// # Platform
-/// Unix only. This operation returns `notSupported` on Windows.
-/// Uses mknod(2) on Unix and notSupported on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.special`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_mknod(
     _binding: &BindingCallContext,
     path: OsPath,
@@ -1494,22 +870,6 @@ pub(crate) unsafe fn destack_fs_mknod(
 }
 
 /// Create a filesystem node relative to a directory handle.
-///
-/// Create a filesystem node at a directory-relative path with the requested mode and device number.
-/// Relative creation keeps lookup scope anchored to `dir`.
-///
-/// # Platform
-/// Unix only. This operation returns `notSupported` on Windows.
-/// Uses mknodat(2) on Unix and notSupported on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.special`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_mknodat(
     binding: &BindingCallContext,
     dir: DirectoryHandle,

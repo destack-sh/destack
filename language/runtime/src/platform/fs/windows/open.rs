@@ -69,22 +69,6 @@ fn validate_openat2_resolve_flags(resolve: u64) -> RuntimeResult<()> {
 }
 
 /// Open a file and return a handle.
-///
-/// Open one filesystem entry by path and return a host-backed file handle.
-/// Flag interpretation, creation behavior, and inheritance defaults follow host open semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses open(2) on Unix and CreateFileW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`, `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_open_bytes(
     binding: &BindingCallContext,
     out: *mut FileHandle,
@@ -163,22 +147,6 @@ pub(crate) unsafe fn destack_fs_open_bytes(
 }
 
 /// Open a file and return a handle.
-///
-/// Open one filesystem entry by path and return a host-backed file handle.
-/// Flag interpretation, creation behavior, and inheritance defaults follow host open semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses open(2) on Unix and CreateFileW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`, `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_open_utf16(
     binding: &BindingCallContext,
     out: *mut FileHandle,
@@ -257,22 +225,6 @@ pub(crate) unsafe fn destack_fs_open_utf16(
 }
 
 /// Open a file relative to a directory handle.
-///
-/// Open one filesystem entry resolved relative to an explicit directory handle.
-/// This avoids ambient current-working-directory resolution and keeps caller-controlled base directory scope.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses openat(2) on Unix and NtCreateFile relative opens on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`, `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_openat_bytes(
     binding: &BindingCallContext,
     out: *mut FileHandle,
@@ -347,22 +299,6 @@ pub(crate) unsafe fn destack_fs_openat_bytes(
 }
 
 /// Open a file relative to a directory handle.
-///
-/// Open one filesystem entry resolved relative to an explicit directory handle.
-/// This avoids ambient current-working-directory resolution and keeps caller-controlled base directory scope.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses openat(2) on Unix and NtCreateFile relative opens on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`, `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_openat_utf16(
     binding: &BindingCallContext,
     out: *mut FileHandle,
@@ -437,22 +373,6 @@ pub(crate) unsafe fn destack_fs_openat_utf16(
 }
 
 /// Open a file relative to a directory handle with openat2 semantics.
-///
-/// Open one filesystem entry relative to an explicit directory handle with resolve policy flags.
-/// Resolve behavior is passed through to supported hosts and rejected when the host backend cannot honor requested guarantees.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses openat2(2) on Linux and Android, falls back to openat semantics on other Unix targets when resolve flags are empty, and maps to openat semantics on Windows with resolve flags rejected.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`, `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_openat2_bytes(
     binding: &BindingCallContext,
     out: *mut FileHandle,
@@ -468,22 +388,6 @@ pub(crate) unsafe fn destack_fs_openat2_bytes(
 }
 
 /// Open a file relative to a directory handle with openat2 semantics.
-///
-/// Open one filesystem entry relative to an explicit directory handle with resolve policy flags.
-/// Resolve behavior is passed through to supported hosts and rejected when the host backend cannot honor requested guarantees.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses openat2(2) on Linux and Android, falls back to openat semantics on other Unix targets when resolve flags are empty, and maps to openat semantics on Windows with resolve flags rejected.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`, `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_openat2_utf16(
     binding: &BindingCallContext,
     out: *mut FileHandle,
@@ -499,22 +403,6 @@ pub(crate) unsafe fn destack_fs_openat2_utf16(
 }
 
 /// Open a file and return a handle.
-///
-/// Open one filesystem entry by path and return a host-backed file handle.
-/// Flag interpretation, creation behavior, and inheritance defaults follow host open semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses open(2) on Unix and CreateFileW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`, `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_open(
     binding: &BindingCallContext,
     out: *mut FileHandle,
@@ -531,22 +419,6 @@ pub(crate) unsafe fn destack_fs_open(
 }
 
 /// Open a file relative to a directory handle.
-///
-/// Open one filesystem entry resolved relative to an explicit directory handle.
-/// This avoids ambient current-working-directory resolution and keeps caller-controlled base directory scope.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses openat(2) on Unix and NtCreateFile relative opens on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`, `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_openat(
     binding: &BindingCallContext,
     out: *mut FileHandle,
@@ -564,22 +436,6 @@ pub(crate) unsafe fn destack_fs_openat(
 }
 
 /// Open a file relative to a directory handle with openat2 semantics.
-///
-/// Open one filesystem entry relative to an explicit directory handle with resolve policy flags.
-/// Resolve behavior is passed through to supported hosts and rejected when the host backend cannot honor requested guarantees.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses openat2(2) on Linux and Android, falls back to openat semantics on other Unix targets when resolve flags are empty, and maps to openat semantics on Windows with resolve flags rejected.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`, `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_openat2(
     binding: &BindingCallContext,
     out: *mut FileHandle,

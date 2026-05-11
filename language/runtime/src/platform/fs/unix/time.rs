@@ -7,22 +7,6 @@ use crate::platform::resource::*;
 use crate::runtime::BindingCallContext;
 
 /// Update access and modification times without following symlinks.
-///
-/// Update access and modification times without following symlinks via host kernel APIs.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses lutimes/utimensat with nofollow on Unix and reparse-point time updates on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.metadata`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_lutimes_bytes(
     _binding: &BindingCallContext,
     path: PathBytes,
@@ -48,22 +32,6 @@ pub(crate) unsafe fn destack_fs_lutimes_bytes(
 }
 
 /// Update access and modification times without following symlinks.
-///
-/// Update access and modification times without following symlinks via host kernel APIs.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses lutimes/utimensat with nofollow on Unix and reparse-point time updates on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.metadata`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_lutimes_utf16(
     binding: &BindingCallContext,
     path: PathUtf16,
@@ -77,22 +45,6 @@ pub(crate) unsafe fn destack_fs_lutimes_utf16(
 }
 
 /// Update access and modification times relative to a directory handle.
-///
-/// Update access and modification times relative to a directory handle via host kernel APIs.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses utimensat(2) on Unix and handle-relative SetFileTime on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.metadata`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_utimensat_bytes(
     binding: &BindingCallContext,
     dir: DirectoryHandle,
@@ -121,22 +73,6 @@ pub(crate) unsafe fn destack_fs_utimensat_bytes(
 }
 
 /// Update access and modification times relative to a directory handle.
-///
-/// Update access and modification times relative to a directory handle via host kernel APIs.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses utimensat(2) on Unix and handle-relative SetFileTime on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.metadata`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_utimensat_utf16(
     binding: &BindingCallContext,
     dir: DirectoryHandle,
@@ -152,22 +88,6 @@ pub(crate) unsafe fn destack_fs_utimensat_utf16(
 }
 
 /// Update access and modification times.
-///
-/// Update access and modification times via host kernel APIs.
-/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses utimensat/utimes on Unix and SetFileTime on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.metadata`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_utimes_bytes(
     _binding: &BindingCallContext,
     path: PathBytes,
@@ -186,22 +106,6 @@ pub(crate) unsafe fn destack_fs_utimes_bytes(
 }
 
 /// Update access and modification times.
-///
-/// Update access and modification times via host kernel APIs.
-/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses utimensat/utimes on Unix and SetFileTime on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.metadata`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_utimes_utf16(
     binding: &BindingCallContext,
     path: PathUtf16,
@@ -215,22 +119,6 @@ pub(crate) unsafe fn destack_fs_utimes_utf16(
 }
 
 /// Update access and modification times.
-///
-/// Update access and modification times via host kernel APIs.
-/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses utimensat/utimes on Unix and SetFileTime on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.metadata`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_utimes(
     binding: &BindingCallContext,
     path: OsPath,
@@ -246,22 +134,6 @@ pub(crate) unsafe fn destack_fs_utimes(
 }
 
 /// Update access and modification times without following symlinks.
-///
-/// Update access and modification times without following symlinks via host kernel APIs.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses lutimes/utimensat with nofollow on Unix and reparse-point time updates on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.metadata`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_lutimes(
     binding: &BindingCallContext,
     path: OsPath,
@@ -277,22 +149,6 @@ pub(crate) unsafe fn destack_fs_lutimes(
 }
 
 /// Update access and modification times relative to a directory handle.
-///
-/// Update access and modification times relative to a directory handle via host kernel APIs.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses utimensat(2) on Unix and handle-relative SetFileTime on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.metadata`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_utimensat(
     binding: &BindingCallContext,
     dir: DirectoryHandle,

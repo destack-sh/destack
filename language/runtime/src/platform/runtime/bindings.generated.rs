@@ -38,8 +38,8 @@ use crate::platform::{
     NativeArray, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, abi as platform_abi,
 };
 use crate::runtime::bindings::{
-    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingScope,
-    NativeBinding, NativeBindingSet, native_call,
+    BindingAffinity, BindingDescriptor, BindingProvider, BindingRegistry, NativeBinding,
+    NativeBindingSet, native_call,
 };
 use crate::runtime::with_binding_call_context;
 use crate::{binding, vm_binding_set};
@@ -2935,775 +2935,775 @@ fn encode_destack_runtime_trace_tell_result(
 
 /// Binding descriptor for destack.runtime.core.workerClose.
 pub(crate) const RUNTIME_CORE_AGENT_CLOSE: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_behavior(
+    BindingDescriptor::deterministic_with_requires_and_dispatch(
         "destack.runtime.core.workerClose",
         "export function workerClose(worker: WorkerHandle): Result<void, PlatformError>",
         &["runtime.worker.control"],
-        BindingScope::Runtime,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Owner,
+        BindingProvider::Runtime,
+        BindingAffinity::Worker,
     )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.core.workerCreate.
-pub(crate) const RUNTIME_CORE_AGENT_CREATE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_CORE_AGENT_CREATE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.core.workerCreate",
     "export function workerCreate(runtimeHandle: RuntimeHandle, options: WorkerCreateOptions): Result<WorkerHandle, PlatformError>",
     &["runtime.worker.create"],
-    BindingScope::Runtime,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.core.workerDescribe.
 pub(crate) const RUNTIME_CORE_AGENT_DESCRIBE: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_behavior(
+    BindingDescriptor::deterministic_with_requires_and_dispatch(
         "destack.runtime.core.workerDescribe",
         "export function workerDescribe(worker: WorkerHandle): Result<WorkerDescriptor, PlatformError>",
         &["runtime.worker.read"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-        BindingAffinity::Owner,
+        BindingProvider::Runtime,
+        BindingAffinity::Worker,
     )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.core.runtimeClose.
 pub(crate) const RUNTIME_CORE_RUNTIME_CLOSE: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_behavior(
+    BindingDescriptor::deterministic_with_requires_and_dispatch(
         "destack.runtime.core.runtimeClose",
         "export function runtimeClose(runtimeHandle: RuntimeHandle): Result<void, PlatformError>",
         &["runtime.runtime.control"],
-        BindingScope::Runtime,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Owner,
+        BindingProvider::Runtime,
+        BindingAffinity::Worker,
     )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.core.runtimeCreate.
-pub(crate) const RUNTIME_CORE_RUNTIME_CREATE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_CORE_RUNTIME_CREATE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.core.runtimeCreate",
     "export function runtimeCreate(world: WorldHandle, options: RuntimeCreateOptions): Result<RuntimeHandle, PlatformError>",
     &["runtime.runtime.create"],
-    BindingScope::Runtime,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.core.runtimeDescribe.
-pub(crate) const RUNTIME_CORE_RUNTIME_DESCRIBE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_CORE_RUNTIME_DESCRIBE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.core.runtimeDescribe",
     "export function runtimeDescribe(runtimeHandle: RuntimeHandle): Result<RuntimeDescriptor, PlatformError>",
     &["runtime.runtime.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.core.worldClose.
 pub(crate) const RUNTIME_CORE_WORLD_CLOSE: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_behavior(
+    BindingDescriptor::deterministic_with_requires_and_dispatch(
         "destack.runtime.core.worldClose",
         "export function worldClose(world: WorldHandle): Result<void, PlatformError>",
         &["runtime.world.control"],
-        BindingScope::Runtime,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Owner,
+        BindingProvider::Runtime,
+        BindingAffinity::Worker,
     )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.core.worldCreate.
-pub(crate) const RUNTIME_CORE_WORLD_CREATE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_CORE_WORLD_CREATE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.core.worldCreate",
     "export function worldCreate(options: WorldCreateOptions): Result<WorldHandle, PlatformError>",
     &["runtime.world.create"],
-    BindingScope::Runtime,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.core.worldDescribe.
 pub(crate) const RUNTIME_CORE_WORLD_DESCRIBE: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_behavior(
+    BindingDescriptor::deterministic_with_requires_and_dispatch(
         "destack.runtime.core.worldDescribe",
         "export function worldDescribe(world: WorldHandle): Result<WorldDescriptor, PlatformError>",
         &["runtime.world.read"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-        BindingAffinity::Owner,
+        BindingProvider::Runtime,
+        BindingAffinity::Worker,
     )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.core.worldTick.
 pub(crate) const RUNTIME_CORE_WORLD_TICK: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_behavior(
+    BindingDescriptor::deterministic_with_requires_and_dispatch(
         "destack.runtime.core.worldTick",
         "export function worldTick(world: WorldHandle): Result<RuntimeTickOutcome, PlatformError>",
         &["runtime.world.control"],
-        BindingScope::Runtime,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Owner,
+        BindingProvider::Runtime,
+        BindingAffinity::Worker,
     )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.inspect.workerList.
-pub(crate) const RUNTIME_INSPECT_AGENT_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_INSPECT_AGENT_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.inspect.workerList",
     "export function workerList(view: WorldViewHandle, filter: WorkerFilter, after: WorkerId, limit: uint32): Result<WorkerDescriptor[], PlatformError>",
     &["runtime.inspect.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.inspect.workerView.
-pub(crate) const RUNTIME_INSPECT_AGENT_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_INSPECT_AGENT_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.inspect.workerView",
     "export function workerView(view: WorldViewHandle, workerId: WorkerId): Result<WorkerDescriptor, PlatformError>",
     &["runtime.inspect.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.inspect.edgeList.
-pub(crate) const RUNTIME_INSPECT_EDGE_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_INSPECT_EDGE_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.inspect.edgeList",
     "export function edgeList(view: WorldViewHandle, filter: TopologyEdgeFilter, after: TopologyEdgeId, limit: uint32): Result<TopologyEdge[], PlatformError>",
     &["runtime.inspect.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.inspect.edgeView.
-pub(crate) const RUNTIME_INSPECT_EDGE_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_INSPECT_EDGE_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.inspect.edgeView",
     "export function edgeView(view: WorldViewHandle, edgeId: TopologyEdgeId): Result<TopologyEdge, PlatformError>",
     &["runtime.inspect.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.inspect.engineView.
-pub(crate) const RUNTIME_INSPECT_ENGINE_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_INSPECT_ENGINE_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.inspect.engineView",
     "export function engineView(view: WorldViewHandle, workerId: WorkerId): Result<EngineDescriptor, PlatformError>",
     &["runtime.inspect.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.inspect.entityList.
-pub(crate) const RUNTIME_INSPECT_ENTITY_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_INSPECT_ENTITY_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.inspect.entityList",
     "export function entityList(view: WorldViewHandle, filter: TopologyEntityFilter, after: TopologyEntityId, limit: uint32): Result<TopologyEntity[], PlatformError>",
     &["runtime.inspect.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.inspect.entityView.
-pub(crate) const RUNTIME_INSPECT_ENTITY_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_INSPECT_ENTITY_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.inspect.entityView",
     "export function entityView(view: WorldViewHandle, entityId: TopologyEntityId): Result<TopologyEntity, PlatformError>",
     &["runtime.inspect.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.inspect.eventLoopView.
-pub(crate) const RUNTIME_INSPECT_EVENT_LOOP_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_INSPECT_EVENT_LOOP_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.inspect.eventLoopView",
     "export function eventLoopView(view: WorldViewHandle, workerId: WorkerId): Result<EventLoopDescriptor, PlatformError>",
     &["runtime.inspect.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.inspect.heapView.
-pub(crate) const RUNTIME_INSPECT_HEAP_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_INSPECT_HEAP_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.inspect.heapView",
     "export function heapView(view: WorldViewHandle, workerId: WorkerId): Result<HeapDescriptor, PlatformError>",
     &["runtime.inspect.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.inspect.imageView.
 pub(crate) const RUNTIME_INSPECT_IMAGE_VIEW: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_behavior(
+    BindingDescriptor::deterministic_with_requires_and_dispatch(
         "destack.runtime.inspect.imageView",
         "export function imageView(view: WorldViewHandle): Result<ImageDescriptor, PlatformError>",
         &["runtime.inspect.read"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-        BindingAffinity::Owner,
+        BindingProvider::Runtime,
+        BindingAffinity::Worker,
     )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.inspect.resourceList.
-pub(crate) const RUNTIME_INSPECT_RESOURCE_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_INSPECT_RESOURCE_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.inspect.resourceList",
     "export function resourceList(view: WorldViewHandle, filter: ResourceFilter, after: WorldResourceId, limit: uint32): Result<ResourceDescriptor[], PlatformError>",
     &["runtime.inspect.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.inspect.resourceView.
-pub(crate) const RUNTIME_INSPECT_RESOURCE_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_INSPECT_RESOURCE_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.inspect.resourceView",
     "export function resourceView(view: WorldViewHandle, resourceId: WorldResourceId): Result<ResourceDescriptor, PlatformError>",
     &["runtime.inspect.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.inspect.revisionView.
-pub(crate) const RUNTIME_INSPECT_REVISION_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_INSPECT_REVISION_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.inspect.revisionView",
     "export function revisionView(view: WorldViewHandle): Result<RevisionDescriptor, PlatformError>",
     &["runtime.inspect.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.inspect.runtimeList.
-pub(crate) const RUNTIME_INSPECT_RUNTIME_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_INSPECT_RUNTIME_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.inspect.runtimeList",
     "export function runtimeList(view: WorldViewHandle, filter: RuntimeFilter, after: RuntimeId, limit: uint32): Result<RuntimeDescriptor[], PlatformError>",
     &["runtime.inspect.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.inspect.runtimeView.
-pub(crate) const RUNTIME_INSPECT_RUNTIME_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_INSPECT_RUNTIME_VIEW: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.inspect.runtimeView",
     "export function runtimeView(view: WorldViewHandle, runtimeId: RuntimeId): Result<RuntimeDescriptor, PlatformError>",
     &["runtime.inspect.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.inspect.traceView.
 pub(crate) const RUNTIME_INSPECT_TRACE_VIEW: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_behavior(
+    BindingDescriptor::deterministic_with_requires_and_dispatch(
         "destack.runtime.inspect.traceView",
         "export function traceView(view: WorldViewHandle): Result<TraceDescriptor, PlatformError>",
         &["runtime.inspect.read"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-        BindingAffinity::Owner,
+        BindingProvider::Runtime,
+        BindingAffinity::Worker,
     )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.inspect.worldView.
 pub(crate) const RUNTIME_INSPECT_WORLD_VIEW: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_behavior(
+    BindingDescriptor::deterministic_with_requires_and_dispatch(
         "destack.runtime.inspect.worldView",
         "export function worldView(view: WorldViewHandle): Result<WorldDescriptor, PlatformError>",
         &["runtime.inspect.read"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-        BindingAffinity::Owner,
+        BindingProvider::Runtime,
+        BindingAffinity::Worker,
     )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.inspect.worldViewClose.
 pub(crate) const RUNTIME_INSPECT_WORLD_VIEW_CLOSE: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_behavior(
+    BindingDescriptor::deterministic_with_requires_and_dispatch(
         "destack.runtime.inspect.worldViewClose",
         "export function worldViewClose(view: WorldViewHandle): Result<void, PlatformError>",
         &["runtime.inspect.read"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-        BindingAffinity::Owner,
+        BindingProvider::Runtime,
+        BindingAffinity::Worker,
     )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.inspect.worldViewOpen.
-pub(crate) const RUNTIME_INSPECT_WORLD_VIEW_OPEN: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_INSPECT_WORLD_VIEW_OPEN: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.inspect.worldViewOpen",
     "export function worldViewOpen(world: WorldHandle, options: WorldViewOptions): Result<WorldViewHandle, PlatformError>",
     &["runtime.inspect.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.lineage.branchDescribe.
-pub(crate) const RUNTIME_LINEAGE_BRANCH_DESCRIBE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_LINEAGE_BRANCH_DESCRIBE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.lineage.branchDescribe",
     "export function branchDescribe(world: WorldHandle, branchId: BranchId): Result<BranchDescriptor, PlatformError>",
     &["runtime.lineage.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.lineage.branchList.
-pub(crate) const RUNTIME_LINEAGE_BRANCH_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_LINEAGE_BRANCH_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.lineage.branchList",
     "export function branchList(world: WorldHandle, filter: BranchFilter, after: BranchId, limit: uint32): Result<BranchDescriptor[], PlatformError>",
     &["runtime.lineage.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.lineage.checkpointCreate.
-pub(crate) const RUNTIME_LINEAGE_CHECKPOINT_CREATE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_LINEAGE_CHECKPOINT_CREATE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.lineage.checkpointCreate",
     "export function checkpointCreate(world: WorldHandle, name: string, labels: RuntimeLabel[]): Result<CheckpointId, PlatformError>",
     &["runtime.lineage.control"],
-    BindingScope::Runtime,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.lineage.checkpointDescribe.
-pub(crate) const RUNTIME_LINEAGE_CHECKPOINT_DESCRIBE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_LINEAGE_CHECKPOINT_DESCRIBE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.lineage.checkpointDescribe",
     "export function checkpointDescribe(world: WorldHandle, checkpointId: CheckpointId): Result<CheckpointDescriptor, PlatformError>",
     &["runtime.lineage.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.lineage.checkpointList.
-pub(crate) const RUNTIME_LINEAGE_CHECKPOINT_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_LINEAGE_CHECKPOINT_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.lineage.checkpointList",
     "export function checkpointList(world: WorldHandle, filter: CheckpointFilter, after: CheckpointId, limit: uint32): Result<CheckpointDescriptor[], PlatformError>",
     &["runtime.lineage.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.lineage.imageCapture.
 pub(crate) const RUNTIME_LINEAGE_IMAGE_CAPTURE: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_behavior(
+    BindingDescriptor::deterministic_with_requires_and_dispatch(
         "destack.runtime.lineage.imageCapture",
         "export function imageCapture(world: WorldHandle): Result<ImageId, PlatformError>",
         &["runtime.snapshot.create"],
-        BindingScope::Runtime,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Owner,
+        BindingProvider::Runtime,
+        BindingAffinity::Worker,
     )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.lineage.imageDescribe.
-pub(crate) const RUNTIME_LINEAGE_IMAGE_DESCRIBE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_LINEAGE_IMAGE_DESCRIBE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.lineage.imageDescribe",
     "export function imageDescribe(world: WorldHandle, imageId: ImageId): Result<ImageDescriptor, PlatformError>",
     &["runtime.snapshot.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.lineage.imageList.
-pub(crate) const RUNTIME_LINEAGE_IMAGE_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_LINEAGE_IMAGE_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.lineage.imageList",
     "export function imageList(world: WorldHandle, filter: ImageFilter, after: ImageId, limit: uint32): Result<ImageDescriptor[], PlatformError>",
     &["runtime.snapshot.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.lineage.revisionDescribe.
-pub(crate) const RUNTIME_LINEAGE_REVISION_DESCRIBE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_LINEAGE_REVISION_DESCRIBE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.lineage.revisionDescribe",
     "export function revisionDescribe(world: WorldHandle, revisionId: RevisionId): Result<RevisionDescriptor, PlatformError>",
     &["runtime.lineage.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.lineage.revisionList.
-pub(crate) const RUNTIME_LINEAGE_REVISION_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_LINEAGE_REVISION_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.lineage.revisionList",
     "export function revisionList(world: WorldHandle, filter: RevisionFilter, after: RevisionId, limit: uint32): Result<RevisionDescriptor[], PlatformError>",
     &["runtime.lineage.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.lineage.worldBranch.
 pub(crate) const RUNTIME_LINEAGE_WORLD_BRANCH: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_behavior(
+    BindingDescriptor::deterministic_with_requires_and_dispatch(
         "destack.runtime.lineage.worldBranch",
         "export function worldBranch(world: WorldHandle): Result<BranchId, PlatformError>",
         &["runtime.lineage.read"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-        BindingAffinity::Owner,
+        BindingProvider::Runtime,
+        BindingAffinity::Worker,
     )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.lineage.worldFork.
-pub(crate) const RUNTIME_LINEAGE_WORLD_FORK: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_LINEAGE_WORLD_FORK: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.lineage.worldFork",
     "export function worldFork(world: WorldHandle, revisionId: RevisionId, name: string, labels: RuntimeLabel[]): Result<WorldHandle, PlatformError>",
     &["runtime.world.create"],
-    BindingScope::Runtime,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.lineage.worldRevision.
 pub(crate) const RUNTIME_LINEAGE_WORLD_REVISION: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_behavior(
+    BindingDescriptor::deterministic_with_requires_and_dispatch(
         "destack.runtime.lineage.worldRevision",
         "export function worldRevision(world: WorldHandle): Result<RevisionId, PlatformError>",
         &["runtime.lineage.read"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-        BindingAffinity::Owner,
+        BindingProvider::Runtime,
+        BindingAffinity::Worker,
     )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.lineage.worldRewindCheckpoint.
-pub(crate) const RUNTIME_LINEAGE_WORLD_REWIND_CHECKPOINT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_LINEAGE_WORLD_REWIND_CHECKPOINT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.lineage.worldRewindCheckpoint",
     "export function worldRewindCheckpoint(world: WorldHandle, checkpointId: CheckpointId): Result<void, PlatformError>",
     &["runtime.lineage.control"],
-    BindingScope::Runtime,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.lineage.worldRewindRevision.
-pub(crate) const RUNTIME_LINEAGE_WORLD_REWIND_REVISION: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_LINEAGE_WORLD_REWIND_REVISION: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.lineage.worldRewindRevision",
     "export function worldRewindRevision(world: WorldHandle, revisionId: RevisionId): Result<void, PlatformError>",
     &["runtime.lineage.control"],
-    BindingScope::Runtime,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.observation.close.
 pub(crate) const RUNTIME_OBSERVATION_CLOSE: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_behavior(
+    BindingDescriptor::deterministic_with_requires_and_dispatch(
         "destack.runtime.observation.close",
         "export function observationClose(handle: ObservationHandle): Result<void, PlatformError>",
         &["runtime.observation.read"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-        BindingAffinity::Owner,
+        BindingProvider::Runtime,
+        BindingAffinity::Worker,
     )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.observation.next.
-pub(crate) const RUNTIME_OBSERVATION_NEXT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_OBSERVATION_NEXT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.observation.next",
     "export function observationNext(handle: ObservationHandle, limit: uint32): Result<ObservationRecord[], PlatformError>",
     &["runtime.observation.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.observation.open.
-pub(crate) const RUNTIME_OBSERVATION_OPEN: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_OBSERVATION_OPEN: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.observation.open",
     "export function observationOpen(world: WorldHandle, options: ObservationOptions): Result<ObservationHandle, PlatformError>",
     &["runtime.observation.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.snapshot.create.
-pub(crate) const RUNTIME_SNAPSHOT_CREATE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_SNAPSHOT_CREATE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.snapshot.create",
     "export function snapshotCreate(world: WorldHandle, imageId: ImageId, format: SnapshotFormat): Result<SnapshotId, PlatformError>",
     &["runtime.snapshot.create"],
-    BindingScope::Runtime,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.snapshot.describe.
-pub(crate) const RUNTIME_SNAPSHOT_DESCRIBE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_SNAPSHOT_DESCRIBE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.snapshot.describe",
     "export function snapshotDescribe(world: WorldHandle, snapshotId: SnapshotId): Result<SnapshotDescriptor, PlatformError>",
     &["runtime.snapshot.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.snapshot.import.
-pub(crate) const RUNTIME_SNAPSHOT_IMPORT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_SNAPSHOT_IMPORT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.snapshot.import",
     "export function snapshotImport(world: WorldHandle, payload: uint8[]): Result<SnapshotId, PlatformError>",
     &["runtime.snapshot.create"],
-    BindingScope::Runtime,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.snapshot.list.
-pub(crate) const RUNTIME_SNAPSHOT_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_SNAPSHOT_LIST: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.snapshot.list",
     "export function snapshotList(world: WorldHandle, after: SnapshotId, limit: uint32): Result<SnapshotDescriptor[], PlatformError>",
     &["runtime.snapshot.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.snapshot.read.
-pub(crate) const RUNTIME_SNAPSHOT_READ: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_SNAPSHOT_READ: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.snapshot.read",
     "export function snapshotRead(world: WorldHandle, snapshotId: SnapshotId): Result<uint8[], PlatformError>",
     &["runtime.snapshot.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.snapshot.restoreImage.
-pub(crate) const RUNTIME_SNAPSHOT_RESTORE_IMAGE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_SNAPSHOT_RESTORE_IMAGE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.snapshot.restoreImage",
     "export function restoreImage(world: WorldHandle, imageId: ImageId): Result<void, PlatformError>",
     &["runtime.snapshot.restore"],
-    BindingScope::Runtime,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.snapshot.restoreSnapshot.
-pub(crate) const RUNTIME_SNAPSHOT_RESTORE_SNAPSHOT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_SNAPSHOT_RESTORE_SNAPSHOT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.snapshot.restoreSnapshot",
     "export function restoreSnapshot(world: WorldHandle, snapshotId: SnapshotId): Result<void, PlatformError>",
     &["runtime.snapshot.restore"],
-    BindingScope::Runtime,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.trace.close.
 pub(crate) const RUNTIME_TRACE_CLOSE: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_behavior(
+    BindingDescriptor::deterministic_with_requires_and_dispatch(
         "destack.runtime.trace.close",
         "export function traceClose(cursor: TraceCursorHandle): Result<void, PlatformError>",
         &["runtime.trace.read"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-        BindingAffinity::Owner,
+        BindingProvider::Runtime,
+        BindingAffinity::Worker,
     )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.trace.describe.
 pub(crate) const RUNTIME_TRACE_DESCRIBE: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_behavior(
+    BindingDescriptor::deterministic_with_requires_and_dispatch(
         "destack.runtime.trace.describe",
         "export function traceDescribe(world: WorldHandle): Result<TraceDescriptor, PlatformError>",
         &["runtime.trace.read"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-        BindingAffinity::Owner,
+        BindingProvider::Runtime,
+        BindingAffinity::Worker,
     )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.trace.mark.
-pub(crate) const RUNTIME_TRACE_MARK: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_TRACE_MARK: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.trace.mark",
     "export function traceMark(world: WorldHandle, label: string): Result<TraceSequence, PlatformError>",
     &["runtime.trace.control"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.trace.next.
-pub(crate) const RUNTIME_TRACE_NEXT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_TRACE_NEXT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.trace.next",
     "export function traceNext(cursor: TraceCursorHandle, limit: uint32): Result<TraceRecord[], PlatformError>",
     &["runtime.trace.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.trace.open.
-pub(crate) const RUNTIME_TRACE_OPEN: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_TRACE_OPEN: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.trace.open",
     "export function traceOpen(world: WorldHandle, options: TraceCursorOptions): Result<TraceCursorHandle, PlatformError>",
     &["runtime.trace.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.trace.seekCheckpoint.
-pub(crate) const RUNTIME_TRACE_SEEK_CHECKPOINT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_TRACE_SEEK_CHECKPOINT: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.trace.seekCheckpoint",
     "export function traceSeekCheckpoint(cursor: TraceCursorHandle, checkpointId: CheckpointId): Result<void, PlatformError>",
     &["runtime.trace.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.trace.seekRevision.
-pub(crate) const RUNTIME_TRACE_SEEK_REVISION: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_TRACE_SEEK_REVISION: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.trace.seekRevision",
     "export function traceSeekRevision(cursor: TraceCursorHandle, revisionId: RevisionId): Result<void, PlatformError>",
     &["runtime.trace.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.trace.seekSequence.
-pub(crate) const RUNTIME_TRACE_SEEK_SEQUENCE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_TRACE_SEEK_SEQUENCE: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.trace.seekSequence",
     "export function traceSeekSequence(cursor: TraceCursorHandle, sequence: TraceSequence): Result<void, PlatformError>",
     &["runtime.trace.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.runtime.trace.tell.
-pub(crate) const RUNTIME_TRACE_TELL: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RUNTIME_TRACE_TELL: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.runtime.trace.tell",
     "export function traceTell(cursor: TraceCursorHandle): Result<TraceSequence, PlatformError>",
     &["runtime.trace.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Owner,
+    BindingProvider::Runtime,
+    BindingAffinity::Worker,
 )
     .with_namespace("runtime")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Native binding set for runtime.
 pub(crate) const RUNTIME_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

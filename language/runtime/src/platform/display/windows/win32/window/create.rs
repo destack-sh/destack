@@ -301,7 +301,7 @@ pub(crate) unsafe fn window_open(
 
     // register runtime resource and hwnd entry
     let host_state = Arc::new(Mutex::new(provisional_host_state));
-    let entry = display_resource::window_resource_entry(context, hwnd, Arc::clone(&host_state));
+    let entry = display_resource::window_resource_entry(hwnd, Arc::clone(&host_state));
     let resource_id =
         context
             .worker()

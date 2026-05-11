@@ -141,21 +141,6 @@ where
 pub(crate) use super::midi::vm::*;
 
 /// List Bluetooth adapters.
-///
-/// Enumerate host Bluetooth adapters and return stable identifiers.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host Bluetooth adapter enumeration APIs.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.bluetooth.scan`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_bluetooth_adapter_list(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -169,21 +154,6 @@ pub(crate) fn destack_device_bluetooth_adapter_list(
 }
 
 /// Close a Bluetooth adapter watch stream.
-///
-/// Close one opened Bluetooth adapter watch stream and release host subscription state.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host Bluetooth adapter topology-watch teardown.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.bluetooth.scan`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_bluetooth_adapter_watch_close(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -193,21 +163,6 @@ pub(crate) fn destack_device_bluetooth_adapter_watch_close(
 }
 
 /// Open a Bluetooth adapter watch stream.
-///
-/// Open one Bluetooth adapter watch stream for attach, detach, and adapter-state events.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host Bluetooth adapter topology-watch subscriptions.
-///
-/// # Errors
-/// Returns ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.bluetooth.scan`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_bluetooth_adapter_watch_open(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -218,21 +173,6 @@ pub(crate) fn destack_device_bluetooth_adapter_watch_open(
 }
 
 /// Read one Bluetooth adapter event.
-///
-/// Wait for the next queued Bluetooth adapter event from one opened watch stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host Bluetooth adapter topology-watch event queues.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `device.bluetooth.scan`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_bluetooth_adapter_watch_read(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -245,21 +185,6 @@ pub(crate) fn destack_device_bluetooth_adapter_watch_read(
 }
 
 /// Poll one Bluetooth adapter event without blocking.
-///
-/// Poll one queued Bluetooth adapter event from one opened watch stream without waiting.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host nonblocking Bluetooth adapter topology-watch queue reads.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.bluetooth.scan`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_bluetooth_adapter_watch_try_read(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -271,21 +196,6 @@ pub(crate) fn destack_device_bluetooth_adapter_watch_try_read(
 }
 
 /// List discovered GATT characteristics for one service.
-///
-/// Enumerate GATT characteristics in one selected service.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host Bluetooth GATT characteristic-discovery APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.bluetooth.gatt`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_characteristic_list(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -305,21 +215,6 @@ pub(crate) fn destack_device_bluetooth_gatt_characteristic_list(
 }
 
 /// List discovered GATT descriptors for one characteristic.
-///
-/// Enumerate GATT descriptors in one selected service and characteristic.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host Bluetooth GATT descriptor-discovery APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.bluetooth.gatt`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_descriptor_list(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -342,21 +237,6 @@ pub(crate) fn destack_device_bluetooth_gatt_descriptor_list(
 }
 
 /// Read current ATT MTU.
-///
-/// Read current negotiated ATT MTU for one connected device session.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host GATT session metadata APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.bluetooth.gatt`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_mtu(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -366,21 +246,6 @@ pub(crate) fn destack_device_bluetooth_gatt_mtu(
 }
 
 /// Read one GATT characteristic value.
-///
-/// Read one characteristic value from one connected Bluetooth device session.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host GATT read APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.bluetooth.gatt`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_read(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -402,21 +267,6 @@ pub(crate) fn destack_device_bluetooth_gatt_read(
 }
 
 /// Read one GATT descriptor value.
-///
-/// Read one descriptor value from one connected Bluetooth device session.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host GATT descriptor read APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.bluetooth.gatt`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_read_descriptor(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -438,21 +288,6 @@ pub(crate) fn destack_device_bluetooth_gatt_read_descriptor(
 }
 
 /// Wait for one GATT value event.
-///
-/// Wait for one characteristic value-notification event from one subscription.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host GATT notification queues.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `device.bluetooth.gatt`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_read_event(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -465,21 +300,6 @@ pub(crate) fn destack_device_bluetooth_gatt_read_event(
 }
 
 /// List discovered GATT services.
-///
-/// Enumerate GATT services available on one connected device.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses CoreBluetooth, BluetoothGatt, and host Bluetooth stack service-discovery APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.bluetooth.gatt`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_service_list(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -494,21 +314,6 @@ pub(crate) fn destack_device_bluetooth_gatt_service_list(
 }
 
 /// Subscribe one GATT characteristic.
-///
-/// Open one subscription for characteristic value notifications.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host GATT notification subscribe APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.bluetooth.gatt`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_subscribe(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -528,21 +333,6 @@ pub(crate) fn destack_device_bluetooth_gatt_subscribe(
 }
 
 /// Poll one GATT value event without blocking.
-///
-/// Poll one characteristic value-notification event from one subscription without waiting.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host nonblocking GATT notification reads.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.bluetooth.gatt`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_try_read_event(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -554,21 +344,6 @@ pub(crate) fn destack_device_bluetooth_gatt_try_read_event(
 }
 
 /// Unsubscribe one GATT characteristic.
-///
-/// Close one characteristic value notification subscription.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host GATT notification unsubscribe APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.bluetooth.gatt`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_unsubscribe(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -578,21 +353,6 @@ pub(crate) fn destack_device_bluetooth_gatt_unsubscribe(
 }
 
 /// Write one GATT characteristic value.
-///
-/// Write one characteristic value on one connected Bluetooth device session with one explicit ATT write mode.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host GATT write APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.bluetooth.gatt`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_write(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -618,21 +378,6 @@ pub(crate) fn destack_device_bluetooth_gatt_write(
 }
 
 /// Write one GATT descriptor value.
-///
-/// Write one descriptor value on one connected Bluetooth device session.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host GATT descriptor write APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.bluetooth.gatt`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_bluetooth_gatt_write_descriptor(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -656,21 +401,6 @@ pub(crate) fn destack_device_bluetooth_gatt_write_descriptor(
 }
 
 /// Close Bluetooth scan session.
-///
-/// Close one scan session and stop host discovery operations.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host Bluetooth scan-stop APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.bluetooth.scan`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_bluetooth_scan_close(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -680,21 +410,6 @@ pub(crate) fn destack_device_bluetooth_scan_close(
 }
 
 /// Open Bluetooth scan session.
-///
-/// Open one Bluetooth scan session on one adapter with one optional filter.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host Bluetooth scan APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.bluetooth.scan`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_bluetooth_scan_open(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -712,21 +427,6 @@ pub(crate) fn destack_device_bluetooth_scan_open(
 }
 
 /// Wait for one Bluetooth scan event.
-///
-/// Wait for one typed scan event from one opened scan session.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host Bluetooth scan event queues.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `device.bluetooth.scan`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_bluetooth_scan_read_event(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -739,21 +439,6 @@ pub(crate) fn destack_device_bluetooth_scan_read_event(
 }
 
 /// Poll one Bluetooth scan event without blocking.
-///
-/// Poll one typed scan event from one opened scan session without waiting.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host nonblocking Bluetooth scan event reads.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.bluetooth.scan`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_bluetooth_scan_try_read_event(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -765,21 +450,6 @@ pub(crate) fn destack_device_bluetooth_scan_try_read_event(
 }
 
 /// Close Bluetooth device session.
-///
-/// Close one opened Bluetooth device session and release host resources.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host Bluetooth disconnect APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.bluetooth.connect`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_bluetooth_close(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -789,21 +459,6 @@ pub(crate) fn destack_device_bluetooth_close(
 }
 
 /// Read Bluetooth device descriptor.
-///
-/// Read the current descriptor snapshot for one opened Bluetooth device session.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host Bluetooth session-descriptor APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.bluetooth.scan`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_bluetooth_descriptor(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -815,21 +470,6 @@ pub(crate) fn destack_device_bluetooth_descriptor(
 }
 
 /// Open Bluetooth device session.
-///
-/// Open one device session for link and GATT operations.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host Bluetooth connect APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.bluetooth.connect`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_bluetooth_open(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -845,21 +485,6 @@ pub(crate) fn destack_device_bluetooth_open(
 }
 
 /// Pair one Bluetooth device.
-///
-/// Pair one opened Bluetooth device session with host bonding APIs.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host pairing and bonding APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `device.bluetooth.connect`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) fn destack_device_bluetooth_pair(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -870,21 +495,6 @@ pub(crate) fn destack_device_bluetooth_pair(
 }
 
 /// Wait for one Bluetooth session event.
-///
-/// Wait for one typed session event from one opened Bluetooth device session.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host Bluetooth link-state and pairing event queues where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `device.bluetooth.connect`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_bluetooth_session_read_event(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -897,21 +507,6 @@ pub(crate) fn destack_device_bluetooth_session_read_event(
 }
 
 /// Read link RSSI for one Bluetooth device session.
-///
-/// Read current received signal strength indicator for one connected device session.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host Bluetooth RSSI query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.bluetooth.connect`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_bluetooth_read_rssi(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -924,21 +519,6 @@ pub(crate) fn destack_device_bluetooth_read_rssi(
 }
 
 /// Poll one Bluetooth session event without blocking.
-///
-/// Poll one typed session event from one opened Bluetooth device session without waiting.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host nonblocking Bluetooth session event reads where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.bluetooth.connect`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_bluetooth_session_try_read_event(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -950,21 +530,6 @@ pub(crate) fn destack_device_bluetooth_session_try_read_event(
 }
 
 /// Remove one Bluetooth device bond.
-///
-/// Remove host bond state for one Bluetooth device on one adapter.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host unpair or remove-device APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.bluetooth.connect`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) fn destack_device_bluetooth_unpair(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -978,21 +543,6 @@ pub(crate) fn destack_device_bluetooth_unpair(
 }
 
 /// Close camera endpoint.
-///
-/// Close one opened camera endpoint and release host resources.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend camera endpoint close operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.device`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_device_close(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -1002,21 +552,6 @@ pub(crate) fn destack_device_camera_device_close(
 }
 
 /// List camera endpoints.
-///
-/// Enumerate host camera endpoints and return stable identifiers.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend camera device enumeration APIs such as AVFoundation, Media Foundation, or V4L2.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.device`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_device_list(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -1030,21 +565,6 @@ pub(crate) fn destack_device_camera_device_list(
 }
 
 /// Open camera endpoint.
-///
-/// Open one host camera endpoint for stream operations.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend camera endpoint open operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.device`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_device_open(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -1056,21 +576,6 @@ pub(crate) fn destack_device_camera_device_open(
 }
 
 /// Close a camera watch stream.
-///
-/// Close one opened camera topology watch stream and release its host subscription state.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses backend camera device-notification teardown paths.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.device`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_device_watch_close(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -1080,21 +585,6 @@ pub(crate) fn destack_device_camera_device_watch_close(
 }
 
 /// Open a camera watch stream.
-///
-/// Open one camera topology watch stream for attach and detach events.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses backend camera device-notification registration paths.
-///
-/// # Errors
-/// Returns ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.device`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_device_watch_open(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -1103,21 +593,6 @@ pub(crate) fn destack_device_camera_device_watch_open(
 }
 
 /// Read one camera watch event.
-///
-/// Wait for the next camera topology event from one opened watch stream.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses backend camera topology event queues.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `device.camera.device`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_device_watch_read(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -1130,21 +605,6 @@ pub(crate) fn destack_device_camera_device_watch_read(
 }
 
 /// Poll one camera watch event without blocking.
-///
-/// Read the next camera topology event from one opened watch stream without waiting.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses backend camera topology event queues.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.device`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_device_watch_try_read(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -1156,21 +616,6 @@ pub(crate) fn destack_device_camera_device_watch_try_read(
 }
 
 /// List supported stream capabilities for one opened camera endpoint.
-///
-/// Enumerate host camera stream capability descriptors for one opened endpoint.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend camera capability enumeration APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.device`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_device_stream_capability_list(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -1185,25 +630,6 @@ pub(crate) fn destack_device_camera_device_stream_capability_list(
 }
 
 /// List supported stream configurations for one opened camera endpoint.
-///
-/// Enumerate host camera stream configurations for one opened endpoint.
-///
-/// Close camera stream.
-///
-/// Close one opened camera stream and release host resources.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend stream close operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.capture`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_close(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -1213,21 +639,6 @@ pub(crate) fn destack_device_camera_stream_close(
 }
 
 /// Read current camera stream configuration.
-///
-/// Read one active stream-configuration snapshot for one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend stream settings and active-format query APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.capture`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_config(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -1239,21 +650,6 @@ pub(crate) fn destack_device_camera_stream_config(
 }
 
 /// Read camera recording capabilities.
-///
-/// Read one recording capability snapshot for one opened camera stream.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses backend recorder capability queries backed by the opened stream session.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.capture`, `audio.capture`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_recording_capabilities(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -1265,21 +661,6 @@ pub(crate) fn destack_device_camera_stream_recording_capabilities(
 }
 
 /// Read camera recording state.
-///
-/// Read one recording state snapshot for one opened camera stream.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses backend recorder state queries backed by the opened stream session.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.capture`, `audio.capture`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_recording_state(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -1291,21 +672,6 @@ pub(crate) fn destack_device_camera_stream_recording_state(
 }
 
 /// Start camera recording.
-///
-/// Start one recording session from one opened camera stream.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses backend movie recording APIs on the opened stream session.
-///
-/// # Errors
-/// Returns invalidArgument, invalidState, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.capture`, `audio.capture`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) fn destack_device_camera_stream_start_recording(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -1318,21 +684,6 @@ pub(crate) fn destack_device_camera_stream_start_recording(
 }
 
 /// Pause camera recording.
-///
-/// Pause one active recording on one opened camera stream.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses backend recorder pause APIs where supported.
-///
-/// # Errors
-/// Returns invalidArgument, invalidState, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.capture`, `audio.capture`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) fn destack_device_camera_stream_pause_recording(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -1342,21 +693,6 @@ pub(crate) fn destack_device_camera_stream_pause_recording(
 }
 
 /// Resume camera recording.
-///
-/// Resume one paused recording on one opened camera stream.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses backend recorder resume APIs where supported.
-///
-/// # Errors
-/// Returns invalidArgument, invalidState, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.capture`, `audio.capture`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) fn destack_device_camera_stream_resume_recording(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -1366,21 +702,6 @@ pub(crate) fn destack_device_camera_stream_resume_recording(
 }
 
 /// Stop camera recording.
-///
-/// Stop one active recording on one opened camera stream and return its descriptor.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses backend recorder stop and file-finalization APIs.
-///
-/// # Errors
-/// Returns invalidArgument, invalidState, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `device.camera.capture`, `audio.capture`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) fn destack_device_camera_stream_stop_recording(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -1393,21 +714,6 @@ pub(crate) fn destack_device_camera_stream_stop_recording(
 }
 
 /// Read camera photo capabilities.
-///
-/// Read one still-photo capability snapshot for one opened camera stream.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses backend still-photo capability queries backed by the active stream configuration.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.capture`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_photo_capabilities(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -1419,21 +725,6 @@ pub(crate) fn destack_device_camera_stream_photo_capabilities(
 }
 
 /// Read camera photo state.
-///
-/// Read one still-photo state snapshot for one opened camera stream.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses backend still-photo state queries backed by the active stream configuration.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.capture`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_photo_state(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -1445,21 +736,6 @@ pub(crate) fn destack_device_camera_stream_photo_state(
 }
 
 /// Capture one still photo.
-///
-/// Capture one still photo from one running camera stream.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses backend frame-snapshot or still-photo capture APIs on the opened stream session.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.capture`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_take_photo(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -1477,21 +753,6 @@ pub(crate) fn destack_device_camera_stream_take_photo(
 }
 
 /// Apply camera control updates.
-///
-/// Apply one partial control patch to one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend grouped camera control update APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_configure_controls(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -1575,21 +836,6 @@ pub(crate) fn destack_device_camera_stream_configure_controls(
 }
 
 /// Read camera control capabilities.
-///
-/// Read one grouped control-capability snapshot for one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend grouped camera capability query APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_control_capabilities(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -1665,21 +911,6 @@ pub(crate) fn destack_device_camera_stream_control_capabilities(
 }
 
 /// Read camera control state.
-///
-/// Read one grouped control-state snapshot for one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend grouped camera control read APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_control_state(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -1746,21 +977,6 @@ pub(crate) fn destack_device_camera_stream_control_state(
 }
 
 /// Read camera exposure compensation.
-///
-/// Read one exposure-compensation value in EV units from one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend exposure-compensation query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_exposure_compensation(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -1772,21 +988,6 @@ pub(crate) fn destack_device_camera_stream_exposure_compensation(
 }
 
 /// Read exposure-compensation range.
-///
-/// Read one exposure-compensation range descriptor for one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend exposure-compensation capability query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_exposure_compensation_range(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -1803,21 +1004,6 @@ pub(crate) fn destack_device_camera_stream_exposure_compensation_range(
 }
 
 /// Read camera exposure mode.
-///
-/// Read one exposure mode from one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend camera exposure mode query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_exposure_mode(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -1829,21 +1015,6 @@ pub(crate) fn destack_device_camera_stream_exposure_mode(
 }
 
 /// Read camera exposure time.
-///
-/// Read one exposure time in nanoseconds from one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend exposure-duration query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_exposure_time_ns(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -1855,21 +1026,6 @@ pub(crate) fn destack_device_camera_stream_exposure_time_ns(
 }
 
 /// Read exposure-time range.
-///
-/// Read one exposure-time range descriptor for one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend exposure-duration capability query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_exposure_time_range(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -1881,21 +1037,6 @@ pub(crate) fn destack_device_camera_stream_exposure_time_range(
 }
 
 /// Read camera focus distance.
-///
-/// Read one focus-distance value in diopters from one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend focus-distance query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_focus_distance_diopters(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -1907,21 +1048,6 @@ pub(crate) fn destack_device_camera_stream_focus_distance_diopters(
 }
 
 /// Read focus-distance range.
-///
-/// Read one focus-distance range descriptor for one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend focus-distance capability query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_focus_distance_range(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -1933,21 +1059,6 @@ pub(crate) fn destack_device_camera_stream_focus_distance_range(
 }
 
 /// Read camera focus mode.
-///
-/// Read one focus mode from one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend focus mode query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_focus_mode(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -1959,21 +1070,6 @@ pub(crate) fn destack_device_camera_stream_focus_mode(
 }
 
 /// Read camera brightness.
-///
-/// Read one brightness adjustment from one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend brightness query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_brightness(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -1985,21 +1081,6 @@ pub(crate) fn destack_device_camera_stream_brightness(
 }
 
 /// Read brightness range.
-///
-/// Read one brightness range descriptor for one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend brightness capability query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_brightness_range(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -2011,21 +1092,6 @@ pub(crate) fn destack_device_camera_stream_brightness_range(
 }
 
 /// Read camera contrast.
-///
-/// Read one contrast adjustment from one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend contrast query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_contrast(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -2037,21 +1103,6 @@ pub(crate) fn destack_device_camera_stream_contrast(
 }
 
 /// Read contrast range.
-///
-/// Read one contrast range descriptor for one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend contrast capability query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_contrast_range(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -2063,21 +1114,6 @@ pub(crate) fn destack_device_camera_stream_contrast_range(
 }
 
 /// Read camera pan angle.
-///
-/// Read one pan angle in degrees from one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend pan query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_pan_degrees(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -2089,21 +1125,6 @@ pub(crate) fn destack_device_camera_stream_pan_degrees(
 }
 
 /// Read pan-angle range.
-///
-/// Read one pan-angle range descriptor for one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend pan capability query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_pan_range(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -2115,21 +1136,6 @@ pub(crate) fn destack_device_camera_stream_pan_range(
 }
 
 /// Open camera stream.
-///
-/// Open one camera stream with explicit stream configuration.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend stream configuration and negotiation APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.capture`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_open(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -2144,21 +1150,6 @@ pub(crate) fn destack_device_camera_stream_open(
 }
 
 /// Read camera frame.
-///
-/// Wait for one camera frame from one running stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend camera frame queue operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `device.camera.capture`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_read(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -2171,21 +1162,6 @@ pub(crate) fn destack_device_camera_stream_read(
 }
 
 /// Set camera exposure compensation.
-///
-/// Apply one exposure-compensation value in EV units on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend exposure-compensation control APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_exposure_compensation(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -2200,21 +1176,6 @@ pub(crate) fn destack_device_camera_stream_set_exposure_compensation(
 }
 
 /// Set camera exposure mode.
-///
-/// Apply one exposure mode on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend camera exposure mode APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_exposure_mode(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -2225,21 +1186,6 @@ pub(crate) fn destack_device_camera_stream_set_exposure_mode(
 }
 
 /// Set camera exposure time.
-///
-/// Apply one exposure time in nanoseconds on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend exposure-duration control APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_exposure_time_ns(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -2252,21 +1198,6 @@ pub(crate) fn destack_device_camera_stream_set_exposure_time_ns(
 }
 
 /// Set camera focus distance.
-///
-/// Apply one focus-distance value in diopters on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend focus-distance control APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_focus_distance_diopters(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -2281,21 +1212,6 @@ pub(crate) fn destack_device_camera_stream_set_focus_distance_diopters(
 }
 
 /// Set camera focus mode.
-///
-/// Apply one focus mode on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend focus mode APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_focus_mode(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -2306,21 +1222,6 @@ pub(crate) fn destack_device_camera_stream_set_focus_mode(
 }
 
 /// Set camera brightness.
-///
-/// Apply one brightness adjustment on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend brightness control APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_brightness(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -2333,21 +1234,6 @@ pub(crate) fn destack_device_camera_stream_set_brightness(
 }
 
 /// Set camera contrast.
-///
-/// Apply one contrast adjustment on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend contrast control APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_contrast(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -2360,21 +1246,6 @@ pub(crate) fn destack_device_camera_stream_set_contrast(
 }
 
 /// Set camera pan angle.
-///
-/// Apply one pan angle in degrees on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend pan control APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_pan_degrees(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -2385,21 +1256,6 @@ pub(crate) fn destack_device_camera_stream_set_pan_degrees(
 }
 
 /// Set camera saturation.
-///
-/// Apply one saturation adjustment on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend saturation control APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_saturation(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -2412,21 +1268,6 @@ pub(crate) fn destack_device_camera_stream_set_saturation(
 }
 
 /// Set camera sensor ISO.
-///
-/// Apply one sensor ISO value on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend ISO control APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_sensor_iso(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -2437,21 +1278,6 @@ pub(crate) fn destack_device_camera_stream_set_sensor_iso(
 }
 
 /// Set camera sharpness.
-///
-/// Apply one sharpness adjustment on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend sharpness control APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_sharpness(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -2464,21 +1290,6 @@ pub(crate) fn destack_device_camera_stream_set_sharpness(
 }
 
 /// Set camera tilt angle.
-///
-/// Apply one tilt angle in degrees on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend tilt control APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_tilt_degrees(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -2489,21 +1300,6 @@ pub(crate) fn destack_device_camera_stream_set_tilt_degrees(
 }
 
 /// Set camera stabilization mode.
-///
-/// Apply one stabilization mode on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend stabilization APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_stabilization_mode(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -2516,21 +1312,6 @@ pub(crate) fn destack_device_camera_stream_set_stabilization_mode(
 }
 
 /// Set camera torch mode.
-///
-/// Apply one torch mode on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend torch APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_torch_mode(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -2541,21 +1322,6 @@ pub(crate) fn destack_device_camera_stream_set_torch_mode(
 }
 
 /// Set camera white balance.
-///
-/// Apply one white-balance value in kelvin on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend white-balance control APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_white_balance_kelvin(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -2568,21 +1334,6 @@ pub(crate) fn destack_device_camera_stream_set_white_balance_kelvin(
 }
 
 /// Set camera white-balance mode.
-///
-/// Apply one white-balance mode on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend white-balance mode APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_white_balance_mode(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -2595,21 +1346,6 @@ pub(crate) fn destack_device_camera_stream_set_white_balance_mode(
 }
 
 /// Set camera zoom ratio.
-///
-/// Apply one digital zoom ratio on one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend zoom control APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_set_zoom_ratio(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -2620,21 +1356,6 @@ pub(crate) fn destack_device_camera_stream_set_zoom_ratio(
 }
 
 /// Read camera stabilization mode.
-///
-/// Read one stabilization mode from one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend stabilization mode query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_stabilization_mode(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -2646,21 +1367,6 @@ pub(crate) fn destack_device_camera_stream_stabilization_mode(
 }
 
 /// Start camera stream.
-///
-/// Start one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend stream start operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.capture`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_start(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -2670,21 +1376,6 @@ pub(crate) fn destack_device_camera_stream_start(
 }
 
 /// Stop camera stream.
-///
-/// Stop one running camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend stream stop operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.capture`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_stop(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -2694,21 +1385,6 @@ pub(crate) fn destack_device_camera_stream_stop(
 }
 
 /// Read camera torch mode.
-///
-/// Read one torch mode from one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend torch mode query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_torch_mode(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -2720,21 +1396,6 @@ pub(crate) fn destack_device_camera_stream_torch_mode(
 }
 
 /// Poll camera frame without blocking.
-///
-/// Poll one camera frame from one running stream without waiting.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend nonblocking camera frame queue operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.capture`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_try_read(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -2746,21 +1407,6 @@ pub(crate) fn destack_device_camera_stream_try_read(
 }
 
 /// Read camera saturation.
-///
-/// Read one saturation adjustment from one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend saturation query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_saturation(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -2772,21 +1418,6 @@ pub(crate) fn destack_device_camera_stream_saturation(
 }
 
 /// Read saturation range.
-///
-/// Read one saturation range descriptor for one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend saturation capability query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_saturation_range(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -2798,21 +1429,6 @@ pub(crate) fn destack_device_camera_stream_saturation_range(
 }
 
 /// Read camera sensor ISO.
-///
-/// Read one sensor ISO value from one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend ISO query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_sensor_iso(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -2824,21 +1440,6 @@ pub(crate) fn destack_device_camera_stream_sensor_iso(
 }
 
 /// Read sensor-ISO range.
-///
-/// Read one sensor-ISO range descriptor for one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend ISO capability query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_sensor_iso_range(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -2850,21 +1451,6 @@ pub(crate) fn destack_device_camera_stream_sensor_iso_range(
 }
 
 /// Read camera sharpness.
-///
-/// Read one sharpness adjustment from one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend sharpness query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_sharpness(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -2876,21 +1462,6 @@ pub(crate) fn destack_device_camera_stream_sharpness(
 }
 
 /// Read sharpness range.
-///
-/// Read one sharpness range descriptor for one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend sharpness capability query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_sharpness_range(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -2902,21 +1473,6 @@ pub(crate) fn destack_device_camera_stream_sharpness_range(
 }
 
 /// Read camera tilt angle.
-///
-/// Read one tilt angle in degrees from one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend tilt query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_tilt_degrees(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -2928,21 +1484,6 @@ pub(crate) fn destack_device_camera_stream_tilt_degrees(
 }
 
 /// Read tilt-angle range.
-///
-/// Read one tilt-angle range descriptor for one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend tilt capability query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_tilt_range(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -2954,21 +1495,6 @@ pub(crate) fn destack_device_camera_stream_tilt_range(
 }
 
 /// Read camera white balance.
-///
-/// Read one white-balance value in kelvin from one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend white-balance query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_white_balance_kelvin(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -2980,21 +1506,6 @@ pub(crate) fn destack_device_camera_stream_white_balance_kelvin(
 }
 
 /// Read white-balance range.
-///
-/// Read one white-balance range descriptor for one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend white-balance capability query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_white_balance_range(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -3006,21 +1517,6 @@ pub(crate) fn destack_device_camera_stream_white_balance_range(
 }
 
 /// Read camera white-balance mode.
-///
-/// Read one white-balance mode from one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend white-balance mode query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_white_balance_mode(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -3032,21 +1528,6 @@ pub(crate) fn destack_device_camera_stream_white_balance_mode(
 }
 
 /// Read camera zoom ratio.
-///
-/// Read one digital zoom ratio from one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend zoom query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_zoom_ratio(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -3058,21 +1539,6 @@ pub(crate) fn destack_device_camera_stream_zoom_ratio(
 }
 
 /// Read zoom-ratio range.
-///
-/// Read one zoom-ratio range descriptor for one opened camera stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend zoom capability query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_camera_stream_zoom_ratio_range(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -3084,21 +1550,6 @@ pub(crate) fn destack_device_camera_stream_zoom_ratio_range(
 }
 
 /// Close serial endpoint.
-///
-/// Close one opened serial endpoint and release host resources.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific serial close operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.serial.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_serial_close(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -3108,21 +1559,6 @@ pub(crate) fn destack_device_serial_close(
 }
 
 /// Read serial endpoint configuration.
-///
-/// Read one line-configuration snapshot for one opened serial endpoint.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend serial line-configuration queries.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.serial.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_serial_config(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -3134,21 +1570,6 @@ pub(crate) fn destack_device_serial_config(
 }
 
 /// Reconfigure serial endpoint.
-///
-/// Apply one serial line configuration on one opened endpoint.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses termios reconfiguration on Unix-like hosts and DCB reconfiguration on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.serial.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_serial_configure(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -3161,21 +1582,6 @@ pub(crate) fn destack_device_serial_configure(
 }
 
 /// Read serial endpoint descriptor.
-///
-/// Read one stable descriptor snapshot for one opened serial endpoint.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend descriptor and device-metadata queries.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.serial.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_serial_descriptor(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -3187,21 +1593,6 @@ pub(crate) fn destack_device_serial_descriptor(
 }
 
 /// Discard queued inbound serial bytes.
-///
-/// Drop queued unread inbound bytes for one opened serial endpoint.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses termios and Win32 purge APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.serial.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_serial_discard_input(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -3211,21 +1602,6 @@ pub(crate) fn destack_device_serial_discard_input(
 }
 
 /// Discard queued outbound serial bytes.
-///
-/// Drop queued unwritten outbound bytes for one opened serial endpoint.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses termios and Win32 purge APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.serial.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_serial_discard_output(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -3235,21 +1611,6 @@ pub(crate) fn destack_device_serial_discard_output(
 }
 
 /// Drain serial output.
-///
-/// Wait until queued outbound bytes drain on one opened serial endpoint.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend serial drain operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.serial.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_serial_drain(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -3259,21 +1620,6 @@ pub(crate) fn destack_device_serial_drain(
 }
 
 /// Read serial input signal state.
-///
-/// Return current serial input signal state for one opened endpoint.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend modem-status APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.serial.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_serial_get_signals(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -3285,22 +1631,6 @@ pub(crate) fn destack_device_serial_get_signals(
 }
 
 /// List serial endpoints.
-///
-/// Enumerate available host serial endpoints and return stable identifiers.
-/// Enumeration ordering follows host backend behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses `/dev/tty*` style enumeration on Unix-like hosts and SetupAPI COM-port enumeration on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.serial.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_serial_list(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -3314,21 +1644,6 @@ pub(crate) fn destack_device_serial_list(
 }
 
 /// Close a serial topology watch stream.
-///
-/// Close one opened serial topology watch stream and release host subscription state.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host serial topology-watch teardown.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.serial.list`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_serial_watch_close(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -3338,21 +1653,6 @@ pub(crate) fn destack_device_serial_watch_close(
 }
 
 /// Open a serial topology watch stream.
-///
-/// Open one serial topology watch stream for attach and detach events.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host serial topology-watch subscriptions.
-///
-/// # Errors
-/// Returns ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.serial.list`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_serial_watch_open(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -3361,21 +1661,6 @@ pub(crate) fn destack_device_serial_watch_open(
 }
 
 /// Read one serial topology event.
-///
-/// Wait for the next queued serial topology event from one opened watch stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host serial topology-watch event queues.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `device.serial.list`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_serial_watch_read(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -3388,21 +1673,6 @@ pub(crate) fn destack_device_serial_watch_read(
 }
 
 /// Poll one serial topology event without blocking.
-///
-/// Poll one pending serial topology event for one opened watch stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host nonblocking serial topology-watch event polling.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.serial.list`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_serial_watch_try_read(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -3414,21 +1684,6 @@ pub(crate) fn destack_device_serial_watch_try_read(
 }
 
 /// Open serial endpoint.
-///
-/// Open one serial endpoint with explicit line configuration and host open policy.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses termios-family open operations on Unix-like hosts and CreateFile serial APIs on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.serial.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_serial_open(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -3442,21 +1697,6 @@ pub(crate) fn destack_device_serial_open(
 }
 
 /// Wait for one serial event.
-///
-/// Wait for one pending serial event for one opened endpoint.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend serial event queues where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `device.serial.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_serial_read_event(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -3469,22 +1709,6 @@ pub(crate) fn destack_device_serial_read_event(
 }
 
 /// Read serial bytes.
-///
-/// Read bytes into caller memory from one opened serial endpoint.
-/// Partial reads are preserved exactly as reported by the host backend.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend read operations with timeout handling.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `device.serial.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_serial_read_into(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -3508,21 +1732,6 @@ pub(crate) fn destack_device_serial_read_into(
 }
 
 /// Update serial output signal state.
-///
-/// Apply one partial output signal update for one opened endpoint.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend serial line-control APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.serial.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_serial_set_signals(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -3535,21 +1744,6 @@ pub(crate) fn destack_device_serial_set_signals(
 }
 
 /// Poll one serial event without blocking.
-///
-/// Poll one pending serial event for one opened endpoint.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend nonblocking serial event polling where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.serial.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_serial_try_read_event(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -3561,22 +1755,6 @@ pub(crate) fn destack_device_serial_try_read_event(
 }
 
 /// Poll serial bytes without blocking.
-///
-/// Read bytes into caller memory from one opened serial endpoint without waiting.
-/// Empty queue state is reported through ioWouldBlock.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend nonblocking serial read operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.serial.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_serial_try_read_into(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -3597,21 +1775,6 @@ pub(crate) fn destack_device_serial_try_read_into(
 }
 
 /// Write serial bytes.
-///
-/// Write one byte sequence to one opened serial endpoint.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend serial write operations with timeout handling.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.serial.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_serial_write(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -3627,21 +1790,6 @@ pub(crate) fn destack_device_serial_write(
 }
 
 /// List USB BOS capabilities.
-///
-/// Enumerate BOS capability descriptors for one opened USB device.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host BOS or device-capability descriptor query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.usb.enumerate`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_usb_bos_capability_list(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -3656,21 +1804,6 @@ pub(crate) fn destack_device_usb_bos_capability_list(
 }
 
 /// Read bulk endpoint bytes.
-///
-/// Read up to `maxBytes` from one bulk IN endpoint and return transfer status.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host USB bulk-transfer APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `device.usb.transfer`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_usb_bulk_read(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -3689,21 +1822,6 @@ pub(crate) fn destack_device_usb_bulk_read(
 }
 
 /// Write bulk endpoint bytes.
-///
-/// Write bytes to one bulk OUT endpoint and return transfer status with transferred byte count.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host USB bulk-transfer APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.usb.transfer`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_usb_bulk_write(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -3728,21 +1846,6 @@ pub(crate) fn destack_device_usb_bulk_write(
 }
 
 /// Claim USB interface.
-///
-/// Claim one interface on one opened USB device.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host USB interface-claim APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.usb.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_usb_claim_interface(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -3753,21 +1856,6 @@ pub(crate) fn destack_device_usb_claim_interface(
 }
 
 /// Clear halt condition on one endpoint.
-///
-/// Clear one endpoint STALL condition for one opened USB device.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host USB clear-halt endpoint APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.usb.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_usb_clear_halt(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -3780,21 +1868,6 @@ pub(crate) fn destack_device_usb_clear_halt(
 }
 
 /// Close USB device.
-///
-/// Close one opened USB device and release host resources.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host USB close APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.usb.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_usb_close(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -3804,21 +1877,6 @@ pub(crate) fn destack_device_usb_close(
 }
 
 /// Read active USB configuration value.
-///
-/// Read active configuration value for one opened USB device.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host USB configuration-state APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.usb.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_usb_configuration_get(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -3830,21 +1888,6 @@ pub(crate) fn destack_device_usb_configuration_get(
 }
 
 /// List USB configurations.
-///
-/// Enumerate USB configurations and nested interface descriptors for one opened device.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host USB configuration-descriptor query APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.usb.enumerate`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_usb_configuration_list(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -3859,21 +1902,6 @@ pub(crate) fn destack_device_usb_configuration_list(
 }
 
 /// Set active USB configuration value.
-///
-/// Apply active configuration value for one opened USB device.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host USB set-configuration APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.usb.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_usb_configuration_set(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -3886,21 +1914,6 @@ pub(crate) fn destack_device_usb_configuration_set(
 }
 
 /// Read control-transfer response bytes.
-///
-/// Execute one control-transfer read and return transfer status with response bytes.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host USB control-transfer APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.usb.transfer`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_usb_control_read(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -3916,21 +1929,6 @@ pub(crate) fn destack_device_usb_control_read(
 }
 
 /// Write control-transfer request bytes.
-///
-/// Execute one control-transfer write and return transfer status with transferred byte count.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host USB control-transfer APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.usb.transfer`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_usb_control_write(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -3955,21 +1953,6 @@ pub(crate) fn destack_device_usb_control_write(
 }
 
 /// Read active USB device descriptor.
-///
-/// Read descriptor metadata for one opened USB device.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host USB descriptor-query APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.usb.enumerate`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_usb_descriptor(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -3981,21 +1964,6 @@ pub(crate) fn destack_device_usb_descriptor(
 }
 
 /// Read interrupt endpoint bytes.
-///
-/// Read up to `maxBytes` from one interrupt IN endpoint and return transfer status.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host USB interrupt-transfer APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `device.usb.transfer`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_usb_interrupt_read(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -4014,21 +1982,6 @@ pub(crate) fn destack_device_usb_interrupt_read(
 }
 
 /// Write interrupt endpoint bytes.
-///
-/// Write bytes to one interrupt OUT endpoint and return transfer status with transferred byte count.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host USB interrupt-transfer APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.usb.transfer`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_usb_interrupt_write(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -4053,21 +2006,6 @@ pub(crate) fn destack_device_usb_interrupt_write(
 }
 
 /// Read one isochronous transfer.
-///
-/// Read one isochronous transfer and return flattened bytes with per-packet transfer results.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host USB isochronous transfer APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `device.usb.transfer`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_usb_isochronous_read(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -4092,21 +2030,6 @@ pub(crate) fn destack_device_usb_isochronous_read(
 }
 
 /// Write one isochronous transfer.
-///
-/// Write one flattened isochronous transfer and return per-packet transfer results.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host USB isochronous transfer APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.usb.transfer`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_usb_isochronous_write(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -4134,21 +2057,6 @@ pub(crate) fn destack_device_usb_isochronous_write(
 }
 
 /// List USB devices.
-///
-/// Enumerate attached USB devices and return stable descriptors.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses libusb-family enumeration or host USB APIs.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.usb.enumerate`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_usb_list(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -4162,21 +2070,6 @@ pub(crate) fn destack_device_usb_list(
 }
 
 /// Open USB device.
-///
-/// Open one USB device for control and data transfers.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host USB open APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.usb.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_usb_open(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -4188,21 +2081,6 @@ pub(crate) fn destack_device_usb_open(
 }
 
 /// Release USB interface.
-///
-/// Release one interface previously claimed on one opened USB device.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host USB interface-release APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.usb.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_usb_release_interface(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -4213,21 +2091,6 @@ pub(crate) fn destack_device_usb_release_interface(
 }
 
 /// Reset one USB device.
-///
-/// Request one bus-level reset for one opened USB device.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host USB reset-device APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.usb.control`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) fn destack_device_usb_reset(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -4237,21 +2100,6 @@ pub(crate) fn destack_device_usb_reset(
 }
 
 /// Set USB interface alternate setting.
-///
-/// Select one alternate setting for one claimed interface.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host USB alternate-setting APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.usb.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_usb_set_interface_alternate_setting(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -4270,21 +2118,6 @@ pub(crate) fn destack_device_usb_set_interface_alternate_setting(
 }
 
 /// Read USB string descriptors.
-///
-/// Read manufacturer, product, and serial-number string descriptors for one language identifier.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host USB string-descriptor read APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.usb.enumerate`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_usb_string_descriptor(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -4297,21 +2130,6 @@ pub(crate) fn destack_device_usb_string_descriptor(
 }
 
 /// List USB string-descriptor language identifiers.
-///
-/// Enumerate string-descriptor language identifiers for one opened USB device.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host USB string-descriptor language query APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.usb.enumerate`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_usb_string_language_list(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -4323,21 +2141,6 @@ pub(crate) fn destack_device_usb_string_language_list(
 }
 
 /// Cancel pending transfers on one endpoint.
-///
-/// Cancel pending USB transfers for one endpoint on one opened USB device.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host USB transfer-cancellation APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `device.usb.transfer`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) fn destack_device_usb_transfer_cancel(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -4350,21 +2153,6 @@ pub(crate) fn destack_device_usb_transfer_cancel(
 }
 
 /// Cancel all pending transfers on one opened USB device.
-///
-/// Cancel pending USB transfers on all endpoints for one opened USB device.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host USB transfer-cancellation APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `device.usb.transfer`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) fn destack_device_usb_transfer_cancel_all(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -4374,21 +2162,6 @@ pub(crate) fn destack_device_usb_transfer_cancel_all(
 }
 
 /// Close USB hotplug watch stream.
-///
-/// Close one USB hotplug watch stream and release host subscription resources.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host USB hotplug unsubscription APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.usb.enumerate`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_usb_watch_close(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -4398,21 +2171,6 @@ pub(crate) fn destack_device_usb_watch_close(
 }
 
 /// Open USB hotplug watch stream.
-///
-/// Open one USB hotplug watch stream for attach and detach events.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host USB hotplug subscription APIs.
-///
-/// # Errors
-/// Returns ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.usb.enumerate`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_usb_watch_open(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -4421,21 +2179,6 @@ pub(crate) fn destack_device_usb_watch_open(
 }
 
 /// Wait for one USB hotplug event.
-///
-/// Wait for one queued USB hotplug event from one opened watch stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host USB hotplug event queues.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `device.usb.enumerate`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_usb_watch_read(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -4448,21 +2191,6 @@ pub(crate) fn destack_device_usb_watch_read(
 }
 
 /// Poll one USB hotplug event without blocking.
-///
-/// Poll one queued USB hotplug event from one opened watch stream without waiting.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host nonblocking USB hotplug event queue reads.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.usb.enumerate`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_device_usb_watch_try_read(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,

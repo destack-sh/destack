@@ -1349,24 +1349,6 @@ fn mutate_ipv6_route(
 }
 
 /// Add a route table entry.
-///
-/// Requests host route table insertion for the supplied entry.
-/// Host privilege and policy checks are enforced by the kernel.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses netlink route mutation on Linux and route sockets on macOS.
-/// Returns `notSupported` on Unix targets without a route backend.
-/// Uses iphlpapi route mutation APIs on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `net.route.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_route_add(
     _binding: &BindingCallContext,
     route: RouteEntry,
@@ -1398,24 +1380,6 @@ pub(crate) unsafe fn destack_net_route_add(
 }
 
 /// Remove a route table entry.
-///
-/// Requests host route table deletion for the supplied entry.
-/// Host privilege and policy checks are enforced by the kernel.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses netlink route mutation on Linux and route sockets on macOS.
-/// Returns `notSupported` on Unix targets without a route backend.
-/// Uses iphlpapi route mutation APIs on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `net.route.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_route_delete(
     _binding: &BindingCallContext,
     route: RouteEntry,
@@ -1452,24 +1416,6 @@ pub(crate) unsafe fn destack_net_route_delete(
 }
 
 /// List route table entries.
-///
-/// Reads the host route table and returns route entries for the selected family.
-/// Results are snapshots and may become stale immediately after the call.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses netlink route tables on Linux and route sockets on macOS.
-/// Returns `notSupported` on Unix targets without a route backend.
-/// Uses iphlpapi route tables on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netTimedOut, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `net.route.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_route_list(
     binding: &BindingCallContext,
     out: *mut NativeArray<RouteEntry>,

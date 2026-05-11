@@ -9,22 +9,6 @@ use crate::runtime::BindingCallContext;
 use crate::platform::process::{GroupId, ProcessGroupIds, ProcessId, ProcessUserIds, UserId};
 
 /// Return the effective group identifier.
-///
-/// Read the effective primary group for the calling process.
-/// Effective group can differ from the real group under setgid-style execution.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses getegid(2) on Unix and token group translation on Windows.
-///
-/// # Errors
-/// Returns ioInvalidData, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.identity.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_egid(
     _binding: &BindingCallContext,
     out: *mut GroupId,
@@ -41,22 +25,6 @@ pub(crate) unsafe fn destack_process_egid(
 }
 
 /// Return the effective user identifier.
-///
-/// Read the effective user identity for the calling process.
-/// Effective identity can differ from the real identity under setuid-style execution.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses geteuid(2) on Unix and token SID translation on Windows.
-///
-/// # Errors
-/// Returns ioInvalidData, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.identity.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_euid(
     _binding: &BindingCallContext,
     out: *mut UserId,
@@ -73,22 +41,6 @@ pub(crate) unsafe fn destack_process_euid(
 }
 
 /// Return the current group identifier.
-///
-/// Read the real primary group for the calling process.
-/// Group mapping on Windows is best-effort and may require token translation.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses getgid(2) on Unix and token group translation on Windows.
-///
-/// # Errors
-/// Returns ioInvalidData, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.identity.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_gid(
     _binding: &BindingCallContext,
     out: *mut GroupId,
@@ -105,22 +57,6 @@ pub(crate) unsafe fn destack_process_gid(
 }
 
 /// Return real, effective, and saved-set group identifiers.
-///
-/// Read all group-id classes for the calling process in one operation.
-/// Saved-id availability follows host kernel semantics and can be unsupported on some targets.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses getresgid(2) on Unix and token mapping or `notSupported` on Windows.
-///
-/// # Errors
-/// Returns ioInvalidData, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.identity.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_group_ids(
     _binding: &BindingCallContext,
     out: *mut ProcessGroupIds,
@@ -174,22 +110,6 @@ pub(crate) unsafe fn destack_process_group_ids(
 }
 
 /// Return supplementary group identifiers.
-///
-/// Read the supplementary group list attached to the calling process.
-/// Group ordering follows host kernel reporting order.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses getgroups(2) on Unix and token group enumeration on Windows.
-///
-/// # Errors
-/// Returns ioInvalidData, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.identity.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_groups(
     binding: &BindingCallContext,
     out: *mut NativeSlice<GroupId>,
@@ -226,22 +146,6 @@ pub(crate) unsafe fn destack_process_groups(
 }
 
 /// Return the current process identifier.
-///
-/// Read the caller process id from the host process table.
-/// The value is stable for the lifetime of the process.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses getpid(2) on Unix and GetCurrentProcessId on Windows.
-///
-/// # Errors
-/// Returns ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `process.identity.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_pid(
     _binding: &BindingCallContext,
     out: *mut ProcessId,
@@ -258,22 +162,6 @@ pub(crate) unsafe fn destack_process_pid(
 }
 
 /// Return the parent process identifier.
-///
-/// Read the parent id relation as reported by the host kernel.
-/// Parent visibility on Windows can be restricted by host policy.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses getppid(2) on Unix and process snapshot APIs on Windows.
-///
-/// # Errors
-/// Returns ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `process.identity.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_ppid(
     _binding: &BindingCallContext,
     out: *mut ProcessId,
@@ -290,22 +178,6 @@ pub(crate) unsafe fn destack_process_ppid(
 }
 
 /// Set the effective group identifier only.
-///
-/// Change only the effective primary group while preserving the real group.
-/// Privilege checks and saved-ID rules are enforced by the host kernel.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses setegid(2) on Unix and token adjustment on Windows where supported.
-///
-/// # Errors
-/// Returns invalidArgument, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.identity.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_set_egid(
     _binding: &BindingCallContext,
     groupid: GroupId,
@@ -322,22 +194,6 @@ pub(crate) unsafe fn destack_process_set_egid(
 }
 
 /// Set the effective user identifier only.
-///
-/// Change only the effective user identity while preserving the real identity.
-/// Privilege checks and saved-ID rules are enforced by the host kernel.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses seteuid(2) on Unix and token adjustment on Windows where supported.
-///
-/// # Errors
-/// Returns invalidArgument, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.identity.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_set_euid(
     _binding: &BindingCallContext,
     userid: UserId,
@@ -354,22 +210,6 @@ pub(crate) unsafe fn destack_process_set_euid(
 }
 
 /// Set the effective group identifier.
-///
-/// Set the process primary group identity.
-/// Real and effective group update behavior follows host setgid semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses setgid(2) on Unix and token adjustment on Windows where supported.
-///
-/// # Errors
-/// Returns invalidArgument, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.identity.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_set_gid(
     _binding: &BindingCallContext,
     groupid: GroupId,
@@ -386,22 +226,6 @@ pub(crate) unsafe fn destack_process_set_gid(
 }
 
 /// Set real, effective, and saved-set group identifiers together.
-///
-/// Update all group-id classes in one host operation.
-/// Privilege checks and immutable-id restrictions follow host kernel rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses setresgid(2) on Unix and token adjustment or `notSupported` on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.identity.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_set_group_ids(
     _binding: &BindingCallContext,
     ids: ProcessGroupIds,
@@ -456,22 +280,6 @@ pub(crate) unsafe fn destack_process_set_group_ids(
 }
 
 /// Set supplementary group identifiers.
-///
-/// Replace the calling process supplementary group list.
-/// This operation is typically restricted to privileged processes.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses setgroups(2) on Unix and token group adjustment on Windows where supported.
-///
-/// # Errors
-/// Returns invalidArgument, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.identity.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_set_groups(
     _binding: &BindingCallContext,
     groups: NativeSlice<GroupId>,
@@ -501,22 +309,6 @@ pub(crate) unsafe fn destack_process_set_groups(
 }
 
 /// Set the effective user identifier.
-///
-/// Set the process user identity.
-/// Real and effective identity update behavior follows host setuid semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses setuid(2) on Unix and token adjustment on Windows where supported.
-///
-/// # Errors
-/// Returns invalidArgument, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.identity.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_set_uid(
     _binding: &BindingCallContext,
     userid: UserId,
@@ -533,22 +325,6 @@ pub(crate) unsafe fn destack_process_set_uid(
 }
 
 /// Set real, effective, and saved-set user identifiers together.
-///
-/// Update all user-id classes in one host operation.
-/// Privilege checks and immutable-id restrictions follow host kernel rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses setresuid(2) on Unix and token adjustment or `notSupported` on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.identity.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_set_user_ids(
     _binding: &BindingCallContext,
     ids: ProcessUserIds,
@@ -603,22 +379,6 @@ pub(crate) unsafe fn destack_process_set_user_ids(
 }
 
 /// Return the current user identifier.
-///
-/// Read the real user identity for the calling process.
-/// Identity mapping on Windows is best-effort and may require token translation.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses getuid(2) on Unix and token SID translation on Windows.
-///
-/// # Errors
-/// Returns ioInvalidData, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.identity.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_uid(
     _binding: &BindingCallContext,
     out: *mut UserId,
@@ -635,22 +395,6 @@ pub(crate) unsafe fn destack_process_uid(
 }
 
 /// Return real, effective, and saved-set user identifiers.
-///
-/// Read all user-id classes for the calling process in one operation.
-/// Saved-id availability follows host kernel semantics and can be unsupported on some targets.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses getresuid(2) on Unix and token mapping or `notSupported` on Windows.
-///
-/// # Errors
-/// Returns ioInvalidData, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.identity.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_user_ids(
     _binding: &BindingCallContext,
     out: *mut ProcessUserIds,

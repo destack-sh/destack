@@ -24,8 +24,8 @@ use crate::platform::{
     abi as platform_abi,
 };
 use crate::runtime::bindings::{
-    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
-    BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+    BindingAffinity, BindingDescriptor, BindingProvider, BindingRegistry, BindingReplayKind,
+    BindingReplayPolicy, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
 use crate::runtime::trace::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
@@ -1442,522 +1442,486 @@ struct IoUringUnregisterFilesReplayRecord {
 }
 
 /// Binding descriptor for destack.io.completion.cancel.
-pub(crate) const IO_COMPLETION_CANCEL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_COMPLETION_CANCEL: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.io.completion.cancel",
     "export function completionCancel(handle: CompletionHandle, target: ResourceId): Result<uint32, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["io.completion"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("io")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.io.completion.close.
 pub(crate) const IO_COMPLETION_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.io.completion.close",
         "export function completionClose(handle: CompletionHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["io.completion"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("io")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.io.completion.enter.
-pub(crate) const IO_COMPLETION_ENTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_COMPLETION_ENTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.io.completion.enter",
     "export function completionEnter(handle: CompletionHandle, minComplete: uint32, timeoutNs: uint64, flags: uint32): Result<uint32, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["io.submit"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("io")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.io.completion.open.
 pub(crate) const IO_COMPLETION_OPEN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.io.completion.open",
         "export function completionOpen(entries: uint32): Result<CompletionHandle, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["io.completion"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("io")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.io.completion.submit.
-pub(crate) const IO_COMPLETION_SUBMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_COMPLETION_SUBMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.io.completion.submit",
     "export function completionSubmit(handle: CompletionHandle, operation: CompletionOperation): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["io.submit"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("io")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.io.completion.submitBatch.
-pub(crate) const IO_COMPLETION_SUBMIT_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_COMPLETION_SUBMIT_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.io.completion.submitBatch",
     "export function completionSubmitBatch(handle: CompletionHandle, operationWords: Slice<uint64>, operationCount: uint32, operationWordStride: uint32): Result<uint32, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["io.submit"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("io")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.io.completion.wait.
-pub(crate) const IO_COMPLETION_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_COMPLETION_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.io.completion.wait",
     "export function completionWait(handle: CompletionHandle, timeoutNs: uint64, maxEvents: uint32): Result<CompletionEvent[], PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["io.completion"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("io")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.io.control.fcntl.
-pub(crate) const IO_CONTROL_FCNTL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_CONTROL_FCNTL: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.io.control.fcntl",
     "export function controlFcntl(handle: ResourceId, command: DescriptorControlCommand, argument: uint64, flags: DescriptorControlFlags): Result<int64, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["io.control"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("io")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.io.control.ioctl.
-pub(crate) const IO_CONTROL_IOCTL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_CONTROL_IOCTL: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.io.control.ioctl",
     "export function controlIoctl(handle: ResourceId, request: DescriptorRequest): Result<DescriptorResult, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["io.control"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("io")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.io.device.close.
 pub(crate) const IO_DEVICE_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.io.device.close",
         "export function deviceClose(handle: DeviceHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["io.device.read", "io.device.write"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("io")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.io.device.control.
-pub(crate) const IO_DEVICE_CONTROL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_DEVICE_CONTROL: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.io.device.control",
     "export function deviceControl(handle: DeviceHandle, request: DescriptorRequest): Result<DescriptorResult, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["io.device.control"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("io")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.io.device.open.
-pub(crate) const IO_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.io.device.open",
     "export function deviceOpen(path: OsPath, flags: uint32, mode: uint32): Result<DeviceHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["io.device.read", "io.device.write"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("io")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.io.device.read.
-pub(crate) const IO_DEVICE_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_DEVICE_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.io.device.read",
     "export function deviceRead(handle: DeviceHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["io.device.read"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("io")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.io.device.write.
-pub(crate) const IO_DEVICE_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_DEVICE_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.io.device.write",
     "export function deviceWrite(handle: DeviceHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["io.device.write"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("io")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.io.event.attach.
-pub(crate) const IO_EVENT_ATTACH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_EVENT_ATTACH: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.io.event.attach",
     "export function eventAttach(token: EventToken, target: ResourceId, key: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["io.event"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("io")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.io.event.close.
 pub(crate) const IO_EVENT_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.io.event.close",
         "export function eventClose(token: EventToken): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["io.event"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("io")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.io.event.open.
 pub(crate) const IO_EVENT_OPEN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.io.event.open",
         "export function eventOpen(initial: uint64): Result<EventToken, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["io.event"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("io")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.io.event.signal.
-pub(crate) const IO_EVENT_SIGNAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_EVENT_SIGNAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.io.event.signal",
     "export function eventSignal(token: EventToken, value: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["io.event"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("io")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.io.poll.close.
 pub(crate) const IO_POLL_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.io.poll.close",
         "export function pollClose(handle: PollHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["io.poll"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("io")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.io.poll.deregister.
-pub(crate) const IO_POLL_DEREGISTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_POLL_DEREGISTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.io.poll.deregister",
     "export function pollDeregister(handle: PollHandle, target: ResourceId): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["io.poll"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("io")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.io.poll.open.
 pub(crate) const IO_POLL_OPEN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.io.poll.open",
         "export function pollOpen(backend: PollBackend): Result<PollHandle, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["io.poll"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("io")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.io.poll.register.
-pub(crate) const IO_POLL_REGISTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_POLL_REGISTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.io.poll.register",
     "export function pollRegister(handle: PollHandle, target: ResourceId, key: uint64, interest: PollInterest): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["io.poll"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("io")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.io.poll.update.
-pub(crate) const IO_POLL_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_POLL_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.io.poll.update",
     "export function pollUpdate(handle: PollHandle, target: ResourceId, key: uint64, interest: PollInterest): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["io.poll"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("io")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.io.poll.wait.
-pub(crate) const IO_POLL_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_POLL_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.io.poll.wait",
     "export function pollWait(handle: PollHandle, timeoutNs: uint64, maxEvents: uint32): Result<PollEvent[], PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["io.poll"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("io")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.io.timerfd.close.
 pub(crate) const IO_TIMERFD_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.io.timerfd.close",
         "export function timerFdClose(handle: TimerFdHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["io.timerfd"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("io")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.io.timerfd.get.
 pub(crate) const IO_TIMERFD_GET: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.io.timerfd.get",
         "export function timerFdGet(handle: TimerFdHandle): Result<TimerFdSpec, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["io.timerfd"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("io")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.io.timerfd.open.
-pub(crate) const IO_TIMERFD_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_TIMERFD_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.io.timerfd.open",
     "export function timerFdOpen(clock: TimerFdClock, flags: TimerFdFlags): Result<TimerFdHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["io.timerfd"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("io")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.io.timerfd.read.
 pub(crate) const IO_TIMERFD_READ: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.io.timerfd.read",
         "export function timerFdRead(handle: TimerFdHandle): Result<uint64, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["io.timerfd"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("io")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.io.timerfd.set.
-pub(crate) const IO_TIMERFD_SET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_TIMERFD_SET: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.io.timerfd.set",
     "export function timerFdSet(handle: TimerFdHandle, spec: TimerFdSpec, flags: TimerFdSetFlags): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["io.timerfd"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("io")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.io.uring.close.
 pub(crate) const IO_URING_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.io.uring.close",
         "export function uringClose(handle: UringHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["io.uring"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("io")
-    .with_host_platforms(&["linux"]);
+    .with_platforms(&["linux"]);
 
 /// Binding descriptor for destack.io.uring.features.
 pub(crate) const IO_URING_FEATURES: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.io.uring.features",
         "export function uringFeatures(handle: UringHandle): Result<UringFeatures, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["io.uring"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("io")
-    .with_host_platforms(&["linux"]);
+    .with_platforms(&["linux"]);
 
 /// Binding descriptor for destack.io.uring.open.
-pub(crate) const IO_URING_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_URING_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.io.uring.open",
     "export function uringOpen(parameters: UringParameters): Result<UringHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["io.uring"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("io")
-    .with_host_platforms(&["linux"]);
+    .with_platforms(&["linux"]);
 
 /// Binding descriptor for destack.io.uring.registerBuffers.
-pub(crate) const IO_URING_REGISTER_BUFFERS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_URING_REGISTER_BUFFERS: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.io.uring.registerBuffers",
     "export function uringRegisterBuffers(handle: UringHandle, addresses: Slice<uint64>, lengths: Slice<uint32>): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["io.register"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("io")
-    .with_host_platforms(&["linux"]);
+    .with_platforms(&["linux"]);
 
 /// Binding descriptor for destack.io.uring.registerFiles.
-pub(crate) const IO_URING_REGISTER_FILES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const IO_URING_REGISTER_FILES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.io.uring.registerFiles",
     "export function uringRegisterFiles(handle: UringHandle, files: Slice<ResourceId>): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["io.register"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("io")
-    .with_host_platforms(&["linux"]);
+    .with_platforms(&["linux"]);
 
 /// Binding descriptor for destack.io.uring.unregisterBuffers.
 pub(crate) const IO_URING_UNREGISTER_BUFFERS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.io.uring.unregisterBuffers",
         "export function uringUnregisterBuffers(handle: UringHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["io.register"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("io")
-    .with_host_platforms(&["linux"]);
+    .with_platforms(&["linux"]);
 
 /// Binding descriptor for destack.io.uring.unregisterFiles.
 pub(crate) const IO_URING_UNREGISTER_FILES: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.io.uring.unregisterFiles",
         "export function uringUnregisterFiles(handle: UringHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["io.register"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("io")
-    .with_host_platforms(&["linux"]);
+    .with_platforms(&["linux"]);
 
 /// Native binding set for io.
 pub(crate) const IO_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

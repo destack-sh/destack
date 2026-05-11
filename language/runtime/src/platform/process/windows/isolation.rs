@@ -11,22 +11,6 @@ use crate::platform::process::{
     ProcessId, ProcessNamespaceKind, ProcessUnshareFlags, SyscallFilterFlags,
 };
 /// Change the root directory for path resolution.
-///
-/// Replace process root path resolution context with the provided directory.
-/// Root-change semantics are host-defined and privilege-gated.
-///
-/// # Platform
-/// Unix.
-/// Uses chroot(2) or equivalent jail primitives.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, processPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `security.restrict`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_process_chroot(
     _binding: &BindingCallContext,
     path: fs::OsPath,
@@ -39,22 +23,6 @@ pub(crate) unsafe fn destack_process_chroot(
 }
 
 /// Install one syscall filter program.
-///
-/// Install one host syscall filter for the current process.
-/// Program bytecode and verifier rules are host-specific.
-///
-/// # Platform
-/// Linux.
-/// Uses seccomp filter install primitives.
-///
-/// # Errors
-/// Returns invalidArgument, processPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `security.filter`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_process_install_syscall_filter(
     _binding: &BindingCallContext,
     program: NativeArray<u8>,
@@ -69,22 +37,6 @@ pub(crate) unsafe fn destack_process_install_syscall_filter(
 }
 
 /// Set process host name inside the active UTS namespace.
-///
-/// Update host name for the current UTS namespace or host context.
-/// Name-length and privilege rules are enforced by the host kernel.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses sethostname(2) on Unix and host name APIs on Windows where permitted.
-///
-/// # Errors
-/// Returns invalidArgument, processPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `process.namespace`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_process_set_host_name(
     _binding: &BindingCallContext,
     name: NativeStringRef,
@@ -97,22 +49,6 @@ pub(crate) unsafe fn destack_process_set_host_name(
 }
 
 /// Set network namespace context for subsequent network operations.
-///
-/// Switch network operation context to the specified network namespace path.
-/// Namespace transition rules and privileges are host-defined.
-///
-/// # Platform
-/// Linux.
-/// Uses setns-style namespace switching with network namespace descriptors.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `process.namespace`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_process_set_network_namespace(
     _binding: &BindingCallContext,
     path: fs::OsPath,
@@ -125,22 +61,6 @@ pub(crate) unsafe fn destack_process_set_network_namespace(
 }
 
 /// Enter one namespace owned by another process.
-///
-/// Join one specific namespace type from the target process.
-/// Namespace join rules and privilege checks are enforced by the host kernel.
-///
-/// # Platform
-/// Linux.
-/// Uses setns(2) with namespace file descriptors.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `process.namespace`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_process_setns(
     _binding: &BindingCallContext,
     pid: ProcessId,
@@ -154,22 +74,6 @@ pub(crate) unsafe fn destack_process_setns(
 }
 
 /// Unshare one or more namespaces.
-///
-/// Create isolated namespaces for the current process according to flag bits.
-/// Namespace semantics and inheritance follow host kernel rules.
-///
-/// # Platform
-/// Linux.
-/// Uses unshare(2).
-///
-/// # Errors
-/// Returns invalidArgument, processPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `process.namespace`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_process_unshare(
     _binding: &BindingCallContext,
     _flags: ProcessUnshareFlags,

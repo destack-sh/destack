@@ -16,8 +16,8 @@ use crate::platform::{
     PlatformError, RuntimeStatus, VmAggregateCodec, VmSlice, abi as platform_abi,
 };
 use crate::runtime::bindings::{
-    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
-    BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, native_call,
+    BindingAffinity, BindingDescriptor, BindingProvider, BindingRegistry, BindingReplayKind,
+    BindingReplayPolicy, NativeBinding, NativeBindingSet, native_call,
 };
 use crate::runtime::trace::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
@@ -99,26 +99,21 @@ fn decode_slice<T>(
     VmSlice::<T>::from_value(context, value, name, expected)
 }
 
-/// Decode arguments for destack.security.capability.has.
+/// Decode arguments for destack.security.action.has.
 #[inline]
-fn decode_destack_security_capability_has_args(
+fn decode_destack_security_action_has_args(
     context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(vm::StringHandle,)> {
     let context = &context.read();
-    let capability_value = arg_value(args, 0, "capability", "PlatformCapability")?;
-    let capability = decode_string(
-        context,
-        capability_value,
-        "capability",
-        "PlatformCapability",
-    )?;
-    Ok((capability,))
+    let action_value = arg_value(args, 0, "action", "HostAction")?;
+    let action = decode_string(context, action_value, "action", "HostAction")?;
+    Ok((action,))
 }
 
-/// Encode the result for destack.security.capability.has.
+/// Encode the result for destack.security.action.has.
 #[inline]
-fn encode_destack_security_capability_has_result(
+fn encode_destack_security_action_has_result(
     _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<bool>,
 ) -> RuntimeResult<vm::Word> {
@@ -127,9 +122,9 @@ fn encode_destack_security_capability_has_result(
         .and_then(|value| value)
 }
 
-/// Encode the result for destack.security.capability.list.
+/// Encode the result for destack.security.action.list.
 #[inline]
-fn encode_destack_security_capability_list_result(
+fn encode_destack_security_action_list_result(
     context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<VmSlice<vm::StringHandle>>,
 ) -> RuntimeResult<vm::Word> {
@@ -161,9 +156,9 @@ fn encode_destack_security_enforce_sandbox_seal_result(
     result.map(|_| vm::Word::VOID)
 }
 
-/// Decode arguments for destack.security.enforce.sandboxSetCapabilities.
+/// Decode arguments for destack.security.enforce.sandboxSetActions.
 #[inline]
-fn decode_destack_security_enforce_sandbox_set_capabilities_args(
+fn decode_destack_security_enforce_sandbox_set_actions_args(
     context: &mut vm::BindingContext<'_>,
     args: &[vm::Word],
 ) -> RuntimeResult<(resource::SandboxHandle, VmSlice<vm::StringHandle>)> {
@@ -172,19 +167,15 @@ fn decode_destack_security_enforce_sandbox_set_capabilities_args(
     let handle_inner_inner = decode_uint64(handle_value, "handle_inner_inner", "SandboxHandle")?;
     let handle_inner = resource::ResourceId(handle_inner_inner);
     let handle = resource::SandboxHandle(handle_inner);
-    let capabilities_value = arg_value(args, 1, "capabilities", "Slice<PlatformCapability>")?;
-    let capabilities = decode_slice::<vm::StringHandle>(
-        context,
-        capabilities_value,
-        "capabilities",
-        "Slice<PlatformCapability>",
-    )?;
-    Ok((handle, capabilities))
+    let actions_value = arg_value(args, 1, "actions", "Slice<HostAction>")?;
+    let actions =
+        decode_slice::<vm::StringHandle>(context, actions_value, "actions", "Slice<HostAction>")?;
+    Ok((handle, actions))
 }
 
-/// Encode the result for destack.security.enforce.sandboxSetCapabilities.
+/// Encode the result for destack.security.enforce.sandboxSetActions.
 #[inline]
-fn encode_destack_security_enforce_sandbox_set_capabilities_result(
+fn encode_destack_security_enforce_sandbox_set_actions_result(
     _context: &mut vm::BindingContext<'_>,
     result: RuntimeResult<()>,
 ) -> RuntimeResult<vm::Word> {
@@ -219,8 +210,8 @@ fn decode_destack_security_policy_get_args(
 ) -> RuntimeResult<(vm::StringHandle,)> {
     let context = &context.read();
     let scope_value = arg_value(args, 0, "scope", "string")?;
-    let scope = decode_string(context, scope_value, "scope", "string")?;
-    Ok((scope,))
+    let provider = decode_string(context, scope_value, "scope", "string")?;
+    Ok((provider,))
 }
 
 /// Encode the result for destack.security.policy.get.
@@ -243,8 +234,8 @@ fn decode_destack_security_policy_get_rules_args(
 ) -> RuntimeResult<(vm::StringHandle,)> {
     let context = &context.read();
     let scope_value = arg_value(args, 0, "scope", "string")?;
-    let scope = decode_string(context, scope_value, "scope", "string")?;
-    Ok((scope,))
+    let provider = decode_string(context, scope_value, "scope", "string")?;
+    Ok((provider,))
 }
 
 /// Encode the result for destack.security.policy.getRules.
@@ -267,15 +258,11 @@ fn decode_destack_security_policy_set_args(
 ) -> RuntimeResult<(vm::StringHandle, VmSlice<vm::StringHandle>)> {
     let context = &context.read();
     let scope_value = arg_value(args, 0, "scope", "string")?;
-    let scope = decode_string(context, scope_value, "scope", "string")?;
-    let capabilities_value = arg_value(args, 1, "capabilities", "Slice<PlatformCapability>")?;
-    let capabilities = decode_slice::<vm::StringHandle>(
-        context,
-        capabilities_value,
-        "capabilities",
-        "Slice<PlatformCapability>",
-    )?;
-    Ok((scope, capabilities))
+    let provider = decode_string(context, scope_value, "scope", "string")?;
+    let actions_value = arg_value(args, 1, "actions", "Slice<HostAction>")?;
+    let actions =
+        decode_slice::<vm::StringHandle>(context, actions_value, "actions", "Slice<HostAction>")?;
+    Ok((provider, actions))
 }
 
 /// Encode the result for destack.security.policy.set.
@@ -295,7 +282,7 @@ fn decode_destack_security_policy_set_rules_args(
 ) -> RuntimeResult<(vm::StringHandle, VmSlice<SecurityPolicyRuleVm>)> {
     let context = &context.read();
     let scope_value = arg_value(args, 0, "scope", "string")?;
-    let scope = decode_string(context, scope_value, "scope", "string")?;
+    let provider = decode_string(context, scope_value, "scope", "string")?;
     let rules_value = arg_value(args, 1, "rules", "Slice<SecurityPolicyRule>")?;
     let rules = decode_slice::<SecurityPolicyRuleVm>(
         context,
@@ -303,7 +290,7 @@ fn decode_destack_security_policy_set_rules_args(
         "rules",
         "Slice<SecurityPolicyRule>",
     )?;
-    Ok((scope, rules))
+    Ok((provider, rules))
 }
 
 /// Encode the result for destack.security.policy.setRules.
@@ -374,146 +361,137 @@ struct SecuritySandboxExitReplayRecord {
     pub result: Result<(), TraceError>,
 }
 
-/// Binding descriptor for destack.security.capability.has.
-pub(crate) const SECURITY_CAPABILITY_HAS: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
-    "destack.security.capability.has",
-    "export function capabilityHas(capability: PlatformCapability): Result<boolean, PlatformError>",
-    &["security.policy.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
-)
-    .with_namespace("security")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
-
-/// Binding descriptor for destack.security.capability.list.
-pub(crate) const SECURITY_CAPABILITY_LIST: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_behavior(
-        "destack.security.capability.list",
-        "export function capabilityList(): Result<Slice<PlatformCapability>, PlatformError>",
+/// Binding descriptor for destack.security.action.has.
+pub(crate) const SECURITY_CAPABILITY_HAS: BindingDescriptor =
+    BindingDescriptor::deterministic_with_requires_and_dispatch(
+        "destack.security.action.has",
+        "export function actionHas(action: HostAction): Result<boolean, PlatformError>",
         &["security.policy.read"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Runtime,
+        BindingAffinity::None,
     )
     .with_namespace("security")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+
+/// Binding descriptor for destack.security.action.list.
+pub(crate) const SECURITY_CAPABILITY_LIST: BindingDescriptor =
+    BindingDescriptor::deterministic_with_requires_and_dispatch(
+        "destack.security.action.list",
+        "export function actionList(): Result<Slice<HostAction>, PlatformError>",
+        &["security.policy.read"],
+        BindingProvider::Runtime,
+        BindingAffinity::None,
+    )
+    .with_namespace("security")
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.security.enforce.sandboxSeal.
 pub(crate) const SECURITY_ENFORCE_SANDBOX_SEAL: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_behavior(
+    BindingDescriptor::deterministic_with_requires_and_dispatch(
         "destack.security.enforce.sandboxSeal",
         "export function sandboxSeal(handle: SandboxHandle): Result<void, PlatformError>",
         &["security.restrict"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Runtime,
+        BindingAffinity::None,
     )
     .with_namespace("security")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
-/// Binding descriptor for destack.security.enforce.sandboxSetCapabilities.
-pub(crate) const SECURITY_ENFORCE_SANDBOX_SET_CAPABILITIES: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
-    "destack.security.enforce.sandboxSetCapabilities",
-    "export function sandboxSetCapabilities(handle: SandboxHandle, capabilities: Slice<PlatformCapability>): Result<void, PlatformError>",
+/// Binding descriptor for destack.security.enforce.sandboxSetActions.
+pub(crate) const SECURITY_ENFORCE_SANDBOX_SET_CAPABILITIES: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
+    "destack.security.enforce.sandboxSetActions",
+    "export function sandboxSetActions(handle: SandboxHandle, actions: Slice<HostAction>): Result<void, PlatformError>",
     &["security.restrict"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Runtime,
+    BindingAffinity::None,
 )
     .with_namespace("security")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.security.enforce.setWriteXorExecute.
 pub(crate) const SECURITY_ENFORCE_SET_WRITE_XOR_EXECUTE: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_behavior(
+    BindingDescriptor::deterministic_with_requires_and_dispatch(
         "destack.security.enforce.setWriteXorExecute",
         "export function setWriteXorExecute(enabled: boolean): Result<void, PlatformError>",
         &["security.restrict"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Runtime,
+        BindingAffinity::None,
     )
     .with_namespace("security")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.security.policy.get.
-pub(crate) const SECURITY_POLICY_GET: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
-    "destack.security.policy.get",
-    "export function policyGet(scope: string): Result<Slice<PlatformCapability>, PlatformError>",
-    &["security.policy.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
-)
+pub(crate) const SECURITY_POLICY_GET: BindingDescriptor =
+    BindingDescriptor::deterministic_with_requires_and_dispatch(
+        "destack.security.policy.get",
+        "export function policyGet(provider: string): Result<Slice<HostAction>, PlatformError>",
+        &["security.policy.read"],
+        BindingProvider::Runtime,
+        BindingAffinity::None,
+    )
     .with_namespace("security")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.security.policy.getRules.
-pub(crate) const SECURITY_POLICY_GET_RULES: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const SECURITY_POLICY_GET_RULES: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.security.policy.getRules",
-    "export function policyGetRules(scope: string): Result<Slice<SecurityPolicyRule>, PlatformError>",
+    "export function policyGetRules(provider: string): Result<Slice<SecurityPolicyRule>, PlatformError>",
     &["security.policy.read"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Runtime,
+    BindingAffinity::None,
 )
     .with_namespace("security")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.security.policy.set.
-pub(crate) const SECURITY_POLICY_SET: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const SECURITY_POLICY_SET: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.security.policy.set",
-    "export function policySet(scope: string, capabilities: Slice<PlatformCapability>): Result<void, PlatformError>",
+    "export function policySet(provider: string, actions: Slice<HostAction>): Result<void, PlatformError>",
     &["security.policy.write"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Runtime,
+    BindingAffinity::None,
 )
     .with_namespace("security")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.security.policy.setRules.
-pub(crate) const SECURITY_POLICY_SET_RULES: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const SECURITY_POLICY_SET_RULES: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.security.policy.setRules",
-    "export function policySetRules(scope: string, rules: Slice<SecurityPolicyRule>): Result<void, PlatformError>",
+    "export function policySetRules(provider: string, rules: Slice<SecurityPolicyRule>): Result<void, PlatformError>",
     &["security.policy.write"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Runtime,
+    BindingAffinity::None,
 )
     .with_namespace("security")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.security.sandbox.enter.
 pub(crate) const SECURITY_SANDBOX_ENTER: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.security.sandbox.enter",
         "export function sandboxEnter(name: string): Result<SandboxHandle, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["security.sandbox"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Runtime,
+        BindingAffinity::None,
     )
     .with_namespace("security")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.security.sandbox.exit.
 pub(crate) const SECURITY_SANDBOX_EXIT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.security.sandbox.exit",
         "export function sandboxExit(handle: SandboxHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["security.sandbox"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Runtime,
+        BindingAffinity::None,
     )
     .with_namespace("security")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Native binding set for security.
 pub(crate) const SECURITY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
@@ -521,13 +499,13 @@ pub(crate) const SECURITY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
     bindings: &[
         NativeBinding::new(
             SECURITY_CAPABILITY_HAS,
-            "destack.security.capability.has",
-            destack_security_capability_has as *const (),
+            "destack.security.action.has",
+            destack_security_action_has as *const (),
         ),
         NativeBinding::new(
             SECURITY_CAPABILITY_LIST,
-            "destack.security.capability.list",
-            destack_security_capability_list as *const (),
+            "destack.security.action.list",
+            destack_security_action_list as *const (),
         ),
         NativeBinding::new(
             SECURITY_ENFORCE_SANDBOX_SEAL,
@@ -536,8 +514,8 @@ pub(crate) const SECURITY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {
         ),
         NativeBinding::new(
             SECURITY_ENFORCE_SANDBOX_SET_CAPABILITIES,
-            "destack.security.enforce.sandboxSetCapabilities",
-            destack_security_enforce_sandbox_set_capabilities as *const (),
+            "destack.security.enforce.sandboxSetActions",
+            destack_security_enforce_sandbox_set_actions as *const (),
         ),
         NativeBinding::new(
             SECURITY_ENFORCE_SET_WRITE_XOR_EXECUTE,
@@ -664,28 +642,26 @@ fn destack_security_sandbox_exit_replay(
 }
 
 /// Native export wrappers for security bindings.
-#[unsafe(export_name = "destack.security.capability.has")]
-pub(crate) unsafe extern "C" fn destack_security_capability_has(
+#[unsafe(export_name = "destack.security.action.has")]
+pub(crate) unsafe extern "C" fn destack_security_action_has(
     out: *mut bool,
-    capability: NativeStringRef,
+    action: NativeStringRef,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &capability);
+        let _ = (&out, &action);
 
         {
             let _binding_hook_guard = context.on_before_binding(SECURITY_CAPABILITY_HAS)?;
-            unsafe {
-                platform_runtime_native::destack_security_capability_has(context, out, capability)
-            }
+            unsafe { platform_runtime_native::destack_security_action_has(context, out, action) }
         }
     })
 }
 
-#[unsafe(export_name = "destack.security.capability.list")]
-pub(crate) unsafe extern "C" fn destack_security_capability_list(
+#[unsafe(export_name = "destack.security.action.list")]
+pub(crate) unsafe extern "C" fn destack_security_action_list(
     out: *mut NativeStringSlice,
 ) -> RuntimeStatus {
     native_call(|context| {
@@ -696,7 +672,7 @@ pub(crate) unsafe extern "C" fn destack_security_capability_list(
 
         {
             let _binding_hook_guard = context.on_before_binding(SECURITY_CAPABILITY_LIST)?;
-            unsafe { platform_runtime_native::destack_security_capability_list(context, out) }
+            unsafe { platform_runtime_native::destack_security_action_list(context, out) }
         }
     })
 }
@@ -715,22 +691,20 @@ pub(crate) unsafe extern "C" fn destack_security_enforce_sandbox_seal(
     })
 }
 
-#[unsafe(export_name = "destack.security.enforce.sandboxSetCapabilities")]
-pub(crate) unsafe extern "C" fn destack_security_enforce_sandbox_set_capabilities(
+#[unsafe(export_name = "destack.security.enforce.sandboxSetActions")]
+pub(crate) unsafe extern "C" fn destack_security_enforce_sandbox_set_actions(
     handle: resource::SandboxHandle,
-    capabilities: NativeStringSlice,
+    actions: NativeStringSlice,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = (&handle, &capabilities);
+        let _ = (&handle, &actions);
 
         {
             let _binding_hook_guard =
                 context.on_before_binding(SECURITY_ENFORCE_SANDBOX_SET_CAPABILITIES)?;
             unsafe {
-                platform_runtime_native::destack_security_sandbox_set_capabilities(
-                    context,
-                    handle,
-                    capabilities,
+                platform_runtime_native::destack_security_sandbox_set_actions(
+                    context, handle, actions,
                 )
             }
         }
@@ -757,17 +731,17 @@ pub(crate) unsafe extern "C" fn destack_security_enforce_set_write_xor_execute(
 #[unsafe(export_name = "destack.security.policy.get")]
 pub(crate) unsafe extern "C" fn destack_security_policy_get(
     out: *mut NativeStringSlice,
-    scope: NativeStringRef,
+    provider: NativeStringRef,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &scope);
+        let _ = (&out, &provider);
 
         {
             let _binding_hook_guard = context.on_before_binding(SECURITY_POLICY_GET)?;
-            unsafe { platform_runtime_native::destack_security_policy_get(context, out, scope) }
+            unsafe { platform_runtime_native::destack_security_policy_get(context, out, provider) }
         }
     })
 }
@@ -775,18 +749,18 @@ pub(crate) unsafe extern "C" fn destack_security_policy_get(
 #[unsafe(export_name = "destack.security.policy.getRules")]
 pub(crate) unsafe extern "C" fn destack_security_policy_get_rules(
     out: *mut NativeSlice<SecurityPolicyRule>,
-    scope: NativeStringRef,
+    provider: NativeStringRef,
 ) -> RuntimeStatus {
     native_call(|context| {
         if out.is_null() {
             return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
         }
-        let _ = (&out, &scope);
+        let _ = (&out, &provider);
 
         {
             let _binding_hook_guard = context.on_before_binding(SECURITY_POLICY_GET_RULES)?;
             unsafe {
-                platform_runtime_native::destack_security_policy_get_rules(context, out, scope)
+                platform_runtime_native::destack_security_policy_get_rules(context, out, provider)
             }
         }
     })
@@ -794,16 +768,16 @@ pub(crate) unsafe extern "C" fn destack_security_policy_get_rules(
 
 #[unsafe(export_name = "destack.security.policy.set")]
 pub(crate) unsafe extern "C" fn destack_security_policy_set(
-    scope: NativeStringRef,
-    capabilities: NativeStringSlice,
+    provider: NativeStringRef,
+    actions: NativeStringSlice,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = (&scope, &capabilities);
+        let _ = (&provider, &actions);
 
         {
             let _binding_hook_guard = context.on_before_binding(SECURITY_POLICY_SET)?;
             unsafe {
-                platform_runtime_native::destack_security_policy_set(context, scope, capabilities)
+                platform_runtime_native::destack_security_policy_set(context, provider, actions)
             }
         }
     })
@@ -811,16 +785,16 @@ pub(crate) unsafe extern "C" fn destack_security_policy_set(
 
 #[unsafe(export_name = "destack.security.policy.setRules")]
 pub(crate) unsafe extern "C" fn destack_security_policy_set_rules(
-    scope: NativeStringRef,
+    provider: NativeStringRef,
     rules: NativeSlice<SecurityPolicyRule>,
 ) -> RuntimeStatus {
     native_call(|context| {
-        let _ = (&scope, &rules);
+        let _ = (&provider, &rules);
 
         {
             let _binding_hook_guard = context.on_before_binding(SECURITY_POLICY_SET_RULES)?;
             unsafe {
-                platform_runtime_native::destack_security_policy_set_rules(context, scope, rules)
+                platform_runtime_native::destack_security_policy_set_rules(context, provider, rules)
             }
         }
     })
@@ -953,17 +927,15 @@ pub(crate) fn register_security_vm_bindings(registry: &mut BindingRegistry, isol
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (capability,) = decode_destack_security_capability_has_args(context, args)?;
+                    let (action,) = decode_destack_security_action_has_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let _binding_hook_guard =
                             binding.on_before_binding(SECURITY_CAPABILITY_HAS)?;
-                        platform_runtime_vm::destack_security_capability_has(
-                            binding, context, capability,
-                        )
+                        platform_runtime_vm::destack_security_action_has(binding, context, action)
                     };
-                    encode_destack_security_capability_has_result(context, result)
+                    encode_destack_security_action_has_result(context, result)
                 })
                 .map_err(Into::into)
             }
@@ -980,9 +952,9 @@ pub(crate) fn register_security_vm_bindings(registry: &mut BindingRegistry, isol
                     let result = {
                         let _binding_hook_guard =
                             binding.on_before_binding(SECURITY_CAPABILITY_LIST)?;
-                        platform_runtime_vm::destack_security_capability_list(binding, context)
+                        platform_runtime_vm::destack_security_action_list(binding, context)
                     };
-                    encode_destack_security_capability_list_result(context, result)
+                    encode_destack_security_action_list_result(context, result)
                 })
                 .map_err(Into::into)
             }
@@ -1019,23 +991,18 @@ pub(crate) fn register_security_vm_bindings(registry: &mut BindingRegistry, isol
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (handle, capabilities) =
-                        decode_destack_security_enforce_sandbox_set_capabilities_args(
-                            context, args,
-                        )?;
+                    let (handle, actions) =
+                        decode_destack_security_enforce_sandbox_set_actions_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let _binding_hook_guard =
                             binding.on_before_binding(SECURITY_ENFORCE_SANDBOX_SET_CAPABILITIES)?;
-                        platform_runtime_vm::destack_security_sandbox_set_capabilities(
-                            binding,
-                            context,
-                            handle,
-                            capabilities,
+                        platform_runtime_vm::destack_security_sandbox_set_actions(
+                            binding, context, handle, actions,
                         )
                     };
-                    encode_destack_security_enforce_sandbox_set_capabilities_result(context, result)
+                    encode_destack_security_enforce_sandbox_set_actions_result(context, result)
                 })
                 .map_err(Into::into)
             }
@@ -1074,12 +1041,12 @@ pub(crate) fn register_security_vm_bindings(registry: &mut BindingRegistry, isol
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (scope,) = decode_destack_security_policy_get_args(context, args)?;
+                    let (provider,) = decode_destack_security_policy_get_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let _binding_hook_guard = binding.on_before_binding(SECURITY_POLICY_GET)?;
-                        platform_runtime_vm::destack_security_policy_get(binding, context, scope)
+                        platform_runtime_vm::destack_security_policy_get(binding, context, provider)
                     };
                     encode_destack_security_policy_get_result(context, result)
                 })
@@ -1095,14 +1062,14 @@ pub(crate) fn register_security_vm_bindings(registry: &mut BindingRegistry, isol
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (scope,) = decode_destack_security_policy_get_rules_args(context, args)?;
+                    let (provider,) = decode_destack_security_policy_get_rules_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let _binding_hook_guard =
                             binding.on_before_binding(SECURITY_POLICY_GET_RULES)?;
                         platform_runtime_vm::destack_security_policy_get_rules(
-                            binding, context, scope,
+                            binding, context, provider,
                         )
                     };
                     encode_destack_security_policy_get_rules_result(context, result)
@@ -1119,17 +1086,14 @@ pub(crate) fn register_security_vm_bindings(registry: &mut BindingRegistry, isol
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (scope, capabilities) =
+                    let (provider, actions) =
                         decode_destack_security_policy_set_args(context, args)?;
 
                     // execute binding
                     let result = {
                         let _binding_hook_guard = binding.on_before_binding(SECURITY_POLICY_SET)?;
                         platform_runtime_vm::destack_security_policy_set(
-                            binding,
-                            context,
-                            scope,
-                            capabilities,
+                            binding, context, provider, actions,
                         )
                     };
                     encode_destack_security_policy_set_result(context, result)
@@ -1146,7 +1110,7 @@ pub(crate) fn register_security_vm_bindings(registry: &mut BindingRegistry, isol
             move |context, args| {
                 with_binding_call_context(|binding| {
                     // decode args
-                    let (scope, rules) =
+                    let (provider, rules) =
                         decode_destack_security_policy_set_rules_args(context, args)?;
 
                     // execute binding
@@ -1154,7 +1118,7 @@ pub(crate) fn register_security_vm_bindings(registry: &mut BindingRegistry, isol
                         let _binding_hook_guard =
                             binding.on_before_binding(SECURITY_POLICY_SET_RULES)?;
                         platform_runtime_vm::destack_security_policy_set_rules(
-                            binding, context, scope, rules,
+                            binding, context, provider, rules,
                         )
                     };
                     encode_destack_security_policy_set_rules_result(context, result)

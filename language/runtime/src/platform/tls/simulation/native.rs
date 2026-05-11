@@ -14,22 +14,6 @@ use crate::platform::tls::{
 };
 
 /// Close one tls context object.
-///
-/// Release one backend-backed tls context and associated host resources.
-/// Existing sessions created from this context remain backend-defined.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses provider-specific context teardown semantics.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `tls.context`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_tls_context_close(
     binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
@@ -41,22 +25,6 @@ pub(crate) unsafe fn destack_tls_context_close(
 }
 
 /// Open one tls context object.
-///
-/// Create one backend-backed tls context with explicit role and version bounds.
-/// Cipher suite policy and backend defaults follow host tls backend semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host tls provider context APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.context`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_tls_context_open(
     binding: &BindingCallContext,
     out: *mut resource::TlsContextHandle,
@@ -69,22 +37,6 @@ pub(crate) unsafe fn destack_tls_context_open(
 }
 
 /// Set allowed tls cipher suites for one context.
-///
-/// Apply one ordered list of cipher-suite names to one context policy.
-/// Name parsing and provider-specific filtering follow backend rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses SSL_CTX_set_ciphersuites style APIs in OpenSSL or BoringSSL and equivalent provider policy APIs in Schannel or SecureTransport.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.context`, `tls.policy`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_cipher_suites(
     binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
@@ -100,22 +52,6 @@ pub(crate) unsafe fn destack_tls_context_set_cipher_suites(
 }
 
 /// Set allowed tls key exchange groups for one context.
-///
-/// Apply one ordered list of key exchange groups to one context policy.
-/// Group parsing and provider-specific filtering follow backend rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses SSL_CTX_set1_groups_list style APIs in OpenSSL or BoringSSL and equivalent provider policy APIs in Schannel or SecureTransport.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.context`, `tls.policy`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_groups(
     binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
@@ -131,22 +67,6 @@ pub(crate) unsafe fn destack_tls_context_set_groups(
 }
 
 /// Set hostname verification mode for one context.
-///
-/// Configure hostname verification behavior for sessions created by this context.
-/// Verification defaults match strict hostname checks unless explicitly overridden.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses X509_VERIFY_PARAM_set_hostflags style APIs in OpenSSL or BoringSSL and equivalent provider verification controls in Schannel or SecureTransport.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.context`, `tls.hostname.verify`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_hostname_verification_mode(
     binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
@@ -162,22 +82,6 @@ pub(crate) unsafe fn destack_tls_context_set_hostname_verification_mode(
 }
 
 /// Set one local certificate chain and private key on a tls context.
-///
-/// Install one PEM-encoded certificate chain and one PEM-encoded private key for local endpoint authentication.
-/// Key parsing and supported key formats follow host provider behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses provider identity import APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.identity.use`, `tls.identity.write`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_identity_pem(
     binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
@@ -194,22 +98,6 @@ pub(crate) unsafe fn destack_tls_context_set_identity_pem(
 }
 
 /// Set session resumption policy for one context.
-///
-/// Configure whether sessions use stateful cache, stateless tickets, or both.
-/// Cache size, lifetime, and ticket semantics follow backend policy.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses SSL_CTX_set_session_cache_mode and SSL_CTX_set_options style APIs in OpenSSL or BoringSSL and equivalent provider controls in Schannel or SecureTransport.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.context`, `tls.resumption`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_session_resumption(
     binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
@@ -225,22 +113,6 @@ pub(crate) unsafe fn destack_tls_context_set_session_resumption(
 }
 
 /// Set allowed tls signature algorithms for one context.
-///
-/// Apply one ordered list of signature algorithms to one context policy.
-/// Algorithm parsing and provider-specific filtering follow backend rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses SSL_CTX_set1_sigalgs_list style APIs in OpenSSL or BoringSSL and equivalent provider policy APIs in Schannel or SecureTransport.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.context`, `tls.policy`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_signature_algorithms(
     binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
@@ -256,22 +128,6 @@ pub(crate) unsafe fn destack_tls_context_set_signature_algorithms(
 }
 
 /// Set trust anchors on a tls context from one PEM bundle.
-///
-/// Install one PEM-encoded trust-anchor bundle used for peer certificate validation.
-/// Bundle parse rules and chain-building behavior follow host provider semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses provider trust-store APIs or runtime trust bundle loading.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.trust.write`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_context_set_trust_anchors_pem(
     binding: &BindingCallContext,
     handle: resource::TlsContextHandle,
@@ -287,22 +143,6 @@ pub(crate) unsafe fn destack_tls_context_set_trust_anchors_pem(
 }
 
 /// Close one tls session object.
-///
-/// Release one session object and provider-specific state.
-/// Socket ownership remains with the caller and is not implicitly closed by this operation.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host tls provider session teardown APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `tls.session`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_tls_session_close(
     binding: &BindingCallContext,
     handle: resource::TlsSessionHandle,
@@ -314,22 +154,6 @@ pub(crate) unsafe fn destack_tls_session_close(
 }
 
 /// Export keying material bytes for one tls session.
-///
-/// Derive exporter keying material for one label and optional context value.
-/// Exporter derivation follows RFC 5705 and RFC 8446 provider rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host tls provider exporter APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.session`, `tls.exporter`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_session_export_keying_material(
     binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
@@ -348,22 +172,6 @@ pub(crate) unsafe fn destack_tls_session_export_keying_material(
 }
 
 /// Advance one tls handshake state machine.
-///
-/// Drive one handshake step for one session and return readiness requirements for continuation.
-/// Handshake transitions follow host provider semantics and selected protocol version.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host tls handshake step APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.handshake`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_tls_session_handshake(
     binding: &BindingCallContext,
     out: *mut TlsHandshakeStatus,
@@ -379,22 +187,6 @@ pub(crate) unsafe fn destack_tls_session_handshake(
 }
 
 /// Return negotiated alpn protocol bytes.
-///
-/// Read one negotiated application protocol value selected during handshake.
-/// Empty bytes indicate no protocol was negotiated by the peer and provider.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host tls provider negotiated-protocol query APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.session`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_tls_session_negotiated_alpn(
     binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
@@ -410,22 +202,6 @@ pub(crate) unsafe fn destack_tls_session_negotiated_alpn(
 }
 
 /// Open one tls session over one connected socket.
-///
-/// Bind one tls session object to one connected socket using one tls context.
-/// Transport ownership remains with the caller, and tls uses the socket for encrypted record I/O.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host tls provider session APIs over socket transports.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.session`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_tls_session_open(
     binding: &BindingCallContext,
     out: *mut resource::TlsSessionHandle,
@@ -440,22 +216,6 @@ pub(crate) unsafe fn destack_tls_session_open(
 }
 
 /// Return the peer certificate chain bytes in pem encoding.
-///
-/// Read one peer certificate chain as normalized PEM bytes for verification and inspection.
-/// Chain ordering and included intermediates follow host provider behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host tls provider peer-certificate query APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.certificate.read`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_session_peer_certificates_pem(
     binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
@@ -471,22 +231,6 @@ pub(crate) unsafe fn destack_tls_session_peer_certificates_pem(
 }
 
 /// Read decrypted application bytes from one tls session.
-///
-/// Read plaintext bytes into one caller-provided buffer after record decryption.
-/// Decrypt and read semantics follow provider buffering behavior and transport readiness.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host tls provider read APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.session`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_session_read(
     binding: &BindingCallContext,
     out: *mut u64,
@@ -500,22 +244,6 @@ pub(crate) unsafe fn destack_tls_session_read(
 }
 
 /// Return whether one session resumed from cached state or ticket.
-///
-/// Report resumption state as observed by the backend after handshake completion.
-/// State semantics follow backend cache and ticket policy behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host tls provider session-state query APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.session`, `tls.resumption`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_tls_session_resumption_state(
     binding: &BindingCallContext,
     out: *mut TlsSessionResumptionState,
@@ -531,22 +259,6 @@ pub(crate) unsafe fn destack_tls_session_resumption_state(
 }
 
 /// Shutdown one tls session.
-///
-/// Emit closure alerts and transition one session to closed state.
-/// Half-close behavior and alert sequencing follow host provider semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host tls provider shutdown APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.session`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_tls_session_shutdown(
     binding: &BindingCallContext,
     handle: resource::TlsSessionHandle,
@@ -558,22 +270,6 @@ pub(crate) unsafe fn destack_tls_session_shutdown(
 }
 
 /// Write plaintext application bytes to one tls session.
-///
-/// Encrypt and write plaintext bytes from one caller-provided buffer into tls records.
-/// Record emission and flush behavior follow provider buffering and transport readiness.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host tls provider write APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.session`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_session_write(
     binding: &BindingCallContext,
     out: *mut u64,

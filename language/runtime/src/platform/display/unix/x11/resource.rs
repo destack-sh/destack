@@ -39,7 +39,7 @@ pub(crate) fn open_display_handle(
 ) -> resource::DisplayHandle {
     let entry = ResourceEntry::new(ResourceKind::Display)
         .with_label(core::DISPLAY_RESOURCE_LABEL)
-        .with_binding_affinity(BindingAffinity::EventLoop, binding.execution_context())
+        .with_binding_affinity(BindingAffinity::Worker)
         .with_payload(X11DisplayHostState { id });
     let resource_id =
         binding
@@ -172,7 +172,6 @@ pub(crate) fn ensure_window_event_handle_exists(
 
 /// Build one resource entry for one opened x11 window host state.
 pub(crate) fn window_resource_entry(
-    context: &BindingCallContext,
     connection: Arc<core::X11ConnectionState>,
     window_host_state: Arc<Mutex<X11WindowHostState>>,
 ) -> ResourceEntry {
@@ -185,7 +184,7 @@ pub(crate) fn window_resource_entry(
 
     ResourceEntry::new(ResourceKind::Window)
         .with_label(core::WINDOW_RESOURCE_LABEL)
-        .with_binding_affinity(BindingAffinity::EventLoop, context.execution_context())
+        .with_binding_affinity(BindingAffinity::Worker)
         .with_payload(window_host_state)
         .with_finalizer(X11WindowFinalizer {
             connection,

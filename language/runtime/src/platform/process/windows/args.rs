@@ -6,22 +6,6 @@ use crate::platform::abi::NativeStringSlice;
 use crate::runtime::BindingCallContext;
 
 /// Return the process argument vector.
-///
-/// Read the immutable argument list captured by the runtime at process startup.
-/// Argument decoding and quoting semantics follow the host process loader.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses startup argument capture from the host process loader.
-///
-/// # Errors
-/// Returns ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `process.run`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_args(
     binding: &BindingCallContext,
     out: *mut NativeStringSlice,

@@ -16,8 +16,8 @@ use crate::platform::memory::{
 };
 use crate::platform::{PlatformError, RuntimeStatus, VmAggregateCodec, abi as platform_abi};
 use crate::runtime::bindings::{
-    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
-    BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+    BindingAffinity, BindingDescriptor, BindingProvider, BindingRegistry, BindingReplayKind,
+    BindingReplayPolicy, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
 use crate::runtime::trace::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
@@ -586,222 +586,207 @@ struct MemoryQueryPageSizeReplayRecord {
 }
 
 /// Binding descriptor for destack.memory.advise.adviseRange.
-pub(crate) const MEMORY_ADVISE_ADVISE_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MEMORY_ADVISE_ADVISE_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.memory.advise.adviseRange",
     "export function advise(address: uint64, length: uint64, advice: MemoryAdvice): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["memory.advise"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("memory")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.memory.advise.discard.
 pub(crate) const MEMORY_ADVISE_DISCARD: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.memory.advise.discard",
         "export function discard(address: uint64, length: uint64): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["memory.advise"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("memory")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.memory.lock.lockRange.
 pub(crate) const MEMORY_LOCK_LOCK_RANGE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.memory.lock.lockRange",
         "export function lock(address: uint64, length: uint64): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["memory.lock"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("memory")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.memory.lock.unlock.
 pub(crate) const MEMORY_LOCK_UNLOCK: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.memory.lock.unlock",
         "export function unlock(address: uint64, length: uint64): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["memory.lock"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("memory")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.memory.map.allocate.
-pub(crate) const MEMORY_MAP_ALLOCATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MEMORY_MAP_ALLOCATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.memory.map.allocate",
     "export function allocate(length: uint64, addressHint: uint64, protection: MemoryProtection, flags: MemoryReserveFlags): Result<ProtectedMemoryRange, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["memory.map"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("memory")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.memory.map.commit.
-pub(crate) const MEMORY_MAP_COMMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MEMORY_MAP_COMMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.memory.map.commit",
     "export function commit(address: uint64, length: uint64, protection: MemoryProtection): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["memory.map"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("memory")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.memory.map.decommit.
 pub(crate) const MEMORY_MAP_DECOMMIT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.memory.map.decommit",
         "export function decommit(address: uint64, length: uint64): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["memory.map"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("memory")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.memory.map.release.
 pub(crate) const MEMORY_MAP_RELEASE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.memory.map.release",
         "export function release(address: uint64, length: uint64): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["memory.map"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("memory")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.memory.map.reserve.
-pub(crate) const MEMORY_MAP_RESERVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MEMORY_MAP_RESERVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.memory.map.reserve",
     "export function reserve(length: uint64, addressHint: uint64, flags: MemoryReserveFlags): Result<MemoryRange, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["memory.map"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("memory")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.memory.protect.flushInstructionCache.
-pub(crate) const MEMORY_PROTECT_FLUSH_INSTRUCTION_CACHE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MEMORY_PROTECT_FLUSH_INSTRUCTION_CACHE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.memory.protect.flushInstructionCache",
     "export function flushInstructionCache(address: uint64, length: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["memory.execute"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("memory")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.memory.protect.protectRange.
-pub(crate) const MEMORY_PROTECT_PROTECT_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MEMORY_PROTECT_PROTECT_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.memory.protect.protectRange",
     "export function protect(address: uint64, length: uint64, protection: MemoryProtection): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["memory.protect"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("memory")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.memory.protect.remap.
-pub(crate) const MEMORY_PROTECT_REMAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const MEMORY_PROTECT_REMAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.memory.protect.remap",
     "export function remap(address: uint64, oldLength: uint64, newLength: uint64, flags: MemoryRemapFlags): Result<ProtectedMemoryRange, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["memory.protect"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("memory")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.memory.query.allocationGranularity.
 pub(crate) const MEMORY_QUERY_ALLOCATION_GRANULARITY: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.memory.query.allocationGranularity",
         "export function allocationGranularity(): Result<uint64, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["memory.query"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("memory")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.memory.query.hugePageSize.
 pub(crate) const MEMORY_QUERY_HUGE_PAGE_SIZE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.memory.query.hugePageSize",
         "export function hugePageSize(): Result<uint64 | void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["memory.query"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("memory")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.memory.query.pageSize.
 pub(crate) const MEMORY_QUERY_PAGE_SIZE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.memory.query.pageSize",
         "export function pageSize(): Result<uint64, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["memory.query"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("memory")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Native binding set for memory.
 pub(crate) const MEMORY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

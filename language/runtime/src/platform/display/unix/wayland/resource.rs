@@ -18,7 +18,7 @@ pub(crate) fn open_display_handle(
 ) -> resource::DisplayHandle {
     let entry = ResourceEntry::new(ResourceKind::Display)
         .with_label(core::DISPLAY_RESOURCE_LABEL)
-        .with_binding_affinity(BindingAffinity::EventLoop, context.execution_context())
+        .with_binding_affinity(BindingAffinity::Worker)
         .with_payload(WaylandDisplayHostState { id });
     let resource_id =
         context
@@ -64,13 +64,10 @@ pub(crate) fn ensure_display_handle_exists(
 }
 
 /// Build one resource entry for one opened wayland window host state.
-pub(crate) fn window_resource_entry(
-    context: &BindingCallContext,
-    binding: Arc<Mutex<WaylandWindowHostState>>,
-) -> ResourceEntry {
+pub(crate) fn window_resource_entry(binding: Arc<Mutex<WaylandWindowHostState>>) -> ResourceEntry {
     ResourceEntry::new(ResourceKind::Window)
         .with_label(core::WINDOW_RESOURCE_LABEL)
-        .with_binding_affinity(BindingAffinity::EventLoop, context.execution_context())
+        .with_binding_affinity(BindingAffinity::Worker)
         .with_payload(binding)
 }
 

@@ -99,22 +99,6 @@ fn open_pty_pair(_rows: u16, _columns: u16) -> RuntimeResult<(RawFd, RawFd)> {
 }
 
 /// Close one pseudo-terminal controller.
-///
-/// Close one pseudo-terminal controller endpoint.
-/// Worker endpoint behavior after close follows host pseudo-terminal semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host pseudo-terminal handle close APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.pty`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_tty_pty_close(
     binding: &BindingCallContext,
     handle: resource::PtyHandle,
@@ -123,22 +107,6 @@ pub(crate) unsafe fn destack_tty_pty_close(
 }
 
 /// Open one pseudo-terminal pair.
-///
-/// Create one controller and worker terminal endpoint pair.
-/// Endpoint ownership and inheritance follow host pseudo-terminal semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses posix_openpt and openpty on Unix and ConPTY on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.pty`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_tty_pty_open(
     binding: &BindingCallContext,
     out: *mut PtyPair,

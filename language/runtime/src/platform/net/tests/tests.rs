@@ -310,22 +310,6 @@ pub(crate) fn with_harness_context_with_runtime_options<F>(
 
 impl<'call> NetHarnessContext<'call> {
     /// Create a connected socket pair.
-    ///
-    /// Allocate two already-connected peer sockets for local full-duplex communication.
-    /// Pair creation semantics and descriptor inheritance follow host kernel behavior.
-    ///
-    /// # Platform
-    /// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-    /// Uses socketpair(2) on Unix and loopback-pair emulation on Windows.
-    ///
-    /// # Errors
-    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `net.connect`.
-    ///
-    /// # Replay
-    /// External, recordable.
     pub(crate) fn socket_pair(
         &mut self,
         family: SocketFamily,
@@ -339,22 +323,6 @@ impl<'call> NetHarnessContext<'call> {
     }
 
     /// Create a connected UDS socket pair.
-    ///
-    /// Allocate a connected AF_UNIX socket pair for local full-duplex messaging.
-    /// Pair semantics and descriptor inheritance follow host kernel behavior.
-    ///
-    /// # Platform
-    /// Unix and Windows only when AF_UNIX support is available at runtime.
-    /// Uses socketpair(AF_UNIX) on Unix and runtime emulation on Windows.
-    ///
-    /// # Errors
-    /// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-    ///
-    /// # Security
-    /// Requires `net.connect`.
-    ///
-    /// # Replay
-    /// External, recordable.
     pub(crate) fn uds_socket_pair(
         &mut self,
         socket_type: SocketType,

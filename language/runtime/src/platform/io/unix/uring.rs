@@ -171,22 +171,6 @@ fn resolve_uring_resource(
 }
 
 /// Close one io_uring ring.
-///
-/// Tear down one io_uring instance and unmap ring memory.
-/// Pending entries are canceled or drained by kernel behavior.
-///
-/// # Platform
-/// Linux.
-/// Uses io_uring ring teardown and unmap operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.uring`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_io_uring_close(
     binding: &BindingCallContext,
     handle: resource::UringHandle,
@@ -215,22 +199,6 @@ pub(crate) unsafe fn destack_io_uring_close(
 }
 
 /// Query io_uring feature support.
-///
-/// Probe one ring instance for normalized feature support metadata.
-/// Feature flags are derived from host kernel capability bits.
-///
-/// # Platform
-/// Linux.
-/// Uses io_uring register and probe primitives.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.uring`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_io_uring_features(
     binding: &BindingCallContext,
     out: *mut UringFeatures,
@@ -266,22 +234,6 @@ pub(crate) unsafe fn destack_io_uring_features(
 }
 
 /// Open one io_uring ring.
-///
-/// Create one io_uring instance with explicit setup parameters.
-/// Kernel feature availability is validated during setup.
-///
-/// # Platform
-/// Linux.
-/// Uses io_uring_setup and associated ring mappings.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.uring`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_io_uring_open(
     binding: &BindingCallContext,
     out: *mut resource::UringHandle,
@@ -374,22 +326,6 @@ pub(crate) unsafe fn destack_io_uring_open(
 }
 
 /// Register fixed buffers with a ring.
-///
-/// Register one fixed-buffer table from address and length lanes.
-/// Buffer registration semantics follow io_uring fixed-buffer contracts.
-///
-/// # Platform
-/// Linux.
-/// Uses io_uring register buffers operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.register`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_io_uring_register_buffers(
     binding: &BindingCallContext,
     handle: resource::UringHandle,
@@ -445,22 +381,6 @@ pub(crate) unsafe fn destack_io_uring_register_buffers(
 }
 
 /// Register fixed files with a ring.
-///
-/// Register one fixed-file table from runtime resource identifiers.
-/// File registration semantics follow io_uring fixed-file contracts.
-///
-/// # Platform
-/// Linux.
-/// Uses io_uring register files operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.register`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_io_uring_register_files(
     binding: &BindingCallContext,
     handle: resource::UringHandle,
@@ -503,22 +423,6 @@ pub(crate) unsafe fn destack_io_uring_register_files(
 }
 
 /// Unregister fixed buffers for a ring.
-///
-/// Remove the fixed-buffer table for one ring.
-/// Pending operations that reference fixed buffers follow kernel cancellation semantics.
-///
-/// # Platform
-/// Linux.
-/// Uses io_uring unregister buffers operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.register`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_io_uring_unregister_buffers(
     binding: &BindingCallContext,
     handle: resource::UringHandle,
@@ -552,22 +456,6 @@ pub(crate) unsafe fn destack_io_uring_unregister_buffers(
 }
 
 /// Unregister fixed files for a ring.
-///
-/// Remove the fixed-file table for one ring.
-/// Pending operations that reference fixed files follow kernel cancellation semantics.
-///
-/// # Platform
-/// Linux.
-/// Uses io_uring unregister files operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.register`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_io_uring_unregister_files(
     binding: &BindingCallContext,
     handle: resource::UringHandle,

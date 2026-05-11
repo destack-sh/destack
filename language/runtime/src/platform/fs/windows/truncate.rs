@@ -11,22 +11,6 @@ use crate::runtime::BindingCallContext;
 const O_WRONLY: u32 = 0x1;
 
 /// Truncate a file.
-///
-/// Truncate the target file to the requested size using host file-size control APIs.
-/// Growth behavior for sparse expansion and zero-fill follows host filesystem policy.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses truncate(2) on Unix and SetEndOfFile via path handle on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_truncate_bytes(
     binding: &BindingCallContext,
     path: PathBytes,
@@ -48,22 +32,6 @@ pub(crate) unsafe fn destack_fs_truncate_bytes(
 }
 
 /// Truncate a file.
-///
-/// Truncate the target file to the requested size using host file-size control APIs.
-/// Growth behavior for sparse expansion and zero-fill follows host filesystem policy.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses truncate(2) on Unix and SetEndOfFile via path handle on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_truncate_utf16(
     binding: &BindingCallContext,
     path: PathUtf16,
@@ -85,22 +53,6 @@ pub(crate) unsafe fn destack_fs_truncate_utf16(
 }
 
 /// Truncate a file.
-///
-/// Truncate the target file to the requested size using host file-size control APIs.
-/// Growth behavior for sparse expansion and zero-fill follows host filesystem policy.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses truncate(2) on Unix and SetEndOfFile via path handle on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_truncate(
     binding: &BindingCallContext,
     path: OsPath,

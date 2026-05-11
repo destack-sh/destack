@@ -8,22 +8,6 @@ use crate::platform::resource;
 use crate::runtime::BindingCallContext;
 
 /// Execute one fcntl-style descriptor command.
-///
-/// Forward one descriptor control command to the host kernel for the target resource.
-/// Command semantics and valid arguments follow the active host ABI.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` when host mapping is unavailable.
-/// Uses fcntl(2) style controls on Unix and host descriptor control adapters on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `io.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_io_control_fcntl(
     binding: &BindingCallContext,
     out: *mut i64,
@@ -43,22 +27,6 @@ pub(crate) unsafe fn destack_io_control_fcntl(
 }
 
 /// Execute one ioctl-style descriptor request.
-///
-/// Forward one ioctl request with opaque payload bytes to the host kernel for the target resource.
-/// Request code semantics and payload layout follow the active host ABI.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` when host mapping is unavailable.
-/// Uses ioctl(2) style controls on Unix and DeviceIoControl or ioctlsocket adapters on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_io_control_ioctl(
     binding: &BindingCallContext,
     out: *mut DescriptorResult,

@@ -109,22 +109,6 @@ pub(super) fn system_time_unix_ns(operation: &'static str) -> RuntimeResult<u64>
 }
 
 /// Read host system information.
-///
-/// Return one normalized system-information payload.
-/// Topology and capacity fields are sampled from host APIs at call time.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses sysconf/sysinfo-style APIs on Unix and GlobalMemoryStatusEx plus processor APIs on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.sysinfo`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_os_system_snapshot(
     binding: &BindingCallContext,
     out: *mut SystemSnapshot,
@@ -147,22 +131,6 @@ pub(crate) fn read_system_snapshot(binding: &BindingCallContext) -> RuntimeResul
 }
 
 /// Read host uptime.
-///
-/// Return host uptime in nanoseconds from system boot.
-/// Uptime source follows host monotonic uptime facilities.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses clock_gettime style uptime on Unix and GetTickCount64 style uptime on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.sysinfo`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_os_uptime_ns(
     binding: &BindingCallContext,
     out: *mut u64,
@@ -185,22 +153,6 @@ pub(crate) fn read_uptime_ns(binding: &BindingCallContext) -> RuntimeResult<u64>
 }
 
 /// Read host boot time.
-///
-/// Return the Unix timestamp for host boot time in nanoseconds.
-/// Timestamp origin and precision follow host timekeeping interfaces.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses boot-time sysctl or procfs style sources on Unix and boot-time system info on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.sysinfo`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_os_boot_time_unix_ns(
     binding: &BindingCallContext,
     out: *mut u64,
@@ -223,22 +175,6 @@ pub(crate) fn read_boot_time_unix_ns(binding: &BindingCallContext) -> RuntimeRes
 }
 
 /// Read host load averages.
-///
-/// Return host load averages over one, five, and fifteen minute windows.
-/// Values reflect host scheduler accounting and may be unavailable on some kernels.
-///
-/// # Platform
-/// Unix only.
-/// Uses getloadavg style interfaces or kernel load-average exports.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.sysinfo`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_os_load_average(
     binding: &BindingCallContext,
     out: *mut LoadAverage,

@@ -49,24 +49,6 @@ fn resolve_sensor_kind(
 }
 
 /// Configure one sensor stream.
-///
-/// Apply one enable and sample-rate configuration for one sensor stream on one opened input device.
-/// Backends can negotiate one effective sample rate and one effective batching latency.
-/// When host sensor stacks expose only fixed-rate delivery, this lane tracks the effective runtime stream configuration.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where sensor stream configuration is unavailable.
-/// Uses backend-specific sensor configuration APIs where available.
-/// Falls back to runtime-managed effective stream configuration when the host stream is fixed-rate.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `input.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_input_sensor_configure(
     binding: &BindingCallContext,
     out: *mut InputSensorEffectiveConfig,
@@ -120,22 +102,6 @@ pub(crate) unsafe fn destack_input_sensor_configure(
 }
 
 /// List supported sensors for one opened input device.
-///
-/// Return sensor capability metadata for one opened sensor-capable device.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where sensor streams are unavailable.
-/// Uses backend-specific sensor capability tables from evdev and hidraw class stacks on Unix.
-/// Uses HID sensor or controller APIs on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `input.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_input_sensor_list(
     binding: &BindingCallContext,
     out: *mut NativeArray<InputSensorDescriptor>,
@@ -165,22 +131,6 @@ pub(crate) unsafe fn destack_input_sensor_list(
 }
 
 /// Read one sensor sample.
-///
-/// Read one pending sample from one configured sensor stream.
-/// Timeout and blocking behavior follow backend stream semantics.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where sensor streams are unavailable.
-/// Uses backend-specific blocking sensor queue reads on Unix and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `input.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_input_sensor_read(
     binding: &BindingCallContext,
     out: *mut InputSensorSample,
@@ -231,21 +181,6 @@ pub(crate) unsafe fn destack_input_sensor_read(
 }
 
 /// Poll one sensor sample without blocking.
-///
-/// Poll one pending sample from one configured sensor stream and return immediately when none is available.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where sensor streams are unavailable.
-/// Uses backend-specific nonblocking sensor queue reads on Unix and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `input.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_input_sensor_try_read(
     binding: &BindingCallContext,
     out: *mut InputSensorSample,

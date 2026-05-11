@@ -112,22 +112,6 @@ fn register_stdio_tty(
 }
 
 /// Close one terminal handle.
-///
-/// Close one terminal endpoint and release runtime ownership.
-/// Follow-up operations on the closed handle fail with invalid-handle errors.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses close(2) on Unix and CloseHandle-style finalization on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.handle`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_tty_close(
     binding: &BindingCallContext,
     handle: resource::TtyHandle,
@@ -136,22 +120,6 @@ pub(crate) unsafe fn destack_tty_close(
 }
 
 /// Return whether one file handle is attached to a terminal.
-///
-/// Query one file handle and return true when it targets a terminal endpoint.
-/// This can be used before converting process stdio streams into tty workflows.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses isatty(3) on Unix and GetConsoleMode on Windows console handles.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.handle`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_tty_is_terminal_file(
     binding: &BindingCallContext,
     out: *mut bool,
@@ -172,23 +140,6 @@ pub(crate) unsafe fn destack_tty_is_terminal_file(
 }
 
 /// Open one standard input terminal handle.
-///
-/// Open one terminal handle for the current process standard input stream.
-/// The returned handle can be used with tty read, mode, and size operations.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses dup(2) from descriptor 0 on Unix and DuplicateHandle from GetStdHandle(STD_INPUT_HANDLE) on Windows.
-/// Fails when the standard stream is not attached to a terminal.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.handle`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_tty_stdio_stdin(
     binding: &BindingCallContext,
     out: *mut resource::TtyHandle,
@@ -203,23 +154,6 @@ pub(crate) unsafe fn destack_tty_stdio_stdin(
 }
 
 /// Open one standard output terminal handle.
-///
-/// Open one terminal handle for the current process standard output stream.
-/// The returned handle can be used with tty write, mode, and size operations.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses dup(2) from descriptor 1 on Unix and DuplicateHandle from GetStdHandle(STD_OUTPUT_HANDLE) on Windows.
-/// Fails when the standard stream is not attached to a terminal.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.handle`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_tty_stdio_stdout(
     binding: &BindingCallContext,
     out: *mut resource::TtyHandle,
@@ -234,23 +168,6 @@ pub(crate) unsafe fn destack_tty_stdio_stdout(
 }
 
 /// Open one standard error terminal handle.
-///
-/// Open one terminal handle for the current process standard error stream.
-/// The returned handle can be used with tty write, mode, and size operations.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses dup(2) from descriptor 2 on Unix and DuplicateHandle from GetStdHandle(STD_ERROR_HANDLE) on Windows.
-/// Fails when the standard stream is not attached to a terminal.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.handle`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_tty_stdio_stderr(
     binding: &BindingCallContext,
     out: *mut resource::TtyHandle,

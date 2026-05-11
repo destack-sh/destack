@@ -15,22 +15,6 @@ use crate::runtime::BindingCallContext;
 pub(crate) use crate::platform::net::simulation::native::*;
 
 /// Accept a new connection from a listener.
-///
-/// Accept the next pending connection from the listener queue.
-/// Accept flags and queued-connection ordering follow host kernel semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses accept4/accept on Unix and accept/AcceptEx on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.accept`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_accept(
     binding: &BindingCallContext,
     out: *mut SocketHandle,
@@ -42,22 +26,6 @@ pub(crate) unsafe fn destack_net_accept(
 }
 
 /// Close a socket handle.
-///
-/// Close the target socket descriptor.
-/// Close-on-pending-I/O behavior follows host kernel socket semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses close(2) on Unix and closesocket on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.close`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_close(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -67,22 +35,6 @@ pub(crate) unsafe fn destack_net_close(
 }
 
 /// Connect to a remote socket address.
-///
-/// Connect the socket to a specific remote endpoint.
-/// Handshake progress and connection failure conditions follow host kernel connect semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses connect(2) on Unix and connect/WSAConnect on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.connect`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_connect(
     binding: &BindingCallContext,
     out: *mut SocketHandle,
@@ -94,22 +46,6 @@ pub(crate) unsafe fn destack_net_connect(
 }
 
 /// Start listening on a raw socket address.
-///
-/// Create, bind, and place a listener socket into passive accept mode.
-/// Backlog limits and bind conflicts are enforced by the host kernel.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses bind(2)+listen(2) on Unix and bind+listen on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.listen`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_listen(
     binding: &BindingCallContext,
     out: *mut ListenerHandle,
@@ -122,22 +58,6 @@ pub(crate) unsafe fn destack_net_listen(
 }
 
 /// Read from a socket into the provided slice.
-///
-/// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
-/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses read(2)/recv(2) on Unix and recv on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.connect`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_read(
     binding: &BindingCallContext,
     out: *mut u64,
@@ -149,22 +69,6 @@ pub(crate) unsafe fn destack_net_read(
 }
 
 /// Write to a socket from the provided slice.
-///
-/// Write data directly from caller provided buffers to the target descriptor using native transfer semantics.
-/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses write(2)/send(2) on Unix and send on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.connect`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_write(
     binding: &BindingCallContext,
     out: *mut u64,
@@ -176,22 +80,6 @@ pub(crate) unsafe fn destack_net_write(
 }
 
 /// Receive a message with ancillary data.
-///
-/// Receive a message with ancillary data via host kernel APIs.
-/// Caller controls descriptor and control payload extraction limits through `maxFds` and `maxControlBytes`.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses recvmsg(2) on Unix and WSARecvMsg on Windows where available.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_recv_msg(
     binding: &BindingCallContext,
     out: *mut SocketRecvMessage,
@@ -216,22 +104,6 @@ pub(crate) unsafe fn destack_net_recv_msg(
 }
 
 /// Receive multiple datagrams.
-///
-/// Receive multiple datagrams via host kernel APIs with per-message metadata and ancillary extraction.
-/// Caller controls descriptor and control payload extraction limits through `maxFds` and `maxControlBytes`.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses recvmmsg(2) on linux and runtime loop fallback on other targets.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.udp`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_recv_mmsg(
     binding: &BindingCallContext,
     out: *mut NativeArray<u64>,
@@ -244,22 +116,6 @@ pub(crate) unsafe fn destack_net_recv_mmsg(
 }
 
 /// Send a message with ancillary data.
-///
-/// Send a message with ancillary data via host kernel APIs.
-/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses sendmsg(2) on Unix and WSASendMsg on Windows where available.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_send_msg(
     binding: &BindingCallContext,
     out: *mut u64,
@@ -272,22 +128,6 @@ pub(crate) unsafe fn destack_net_send_msg(
 }
 
 /// Send multiple datagrams.
-///
-/// Send multiple datagrams via host kernel APIs with per-message metadata and address control.
-/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses sendmmsg(2) on linux and runtime loop fallback on other targets.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.udp`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_send_mmsg(
     binding: &BindingCallContext,
     out: *mut u64,
@@ -300,22 +140,6 @@ pub(crate) unsafe fn destack_net_send_mmsg(
 }
 
 /// Shut down a socket for reads, writes, or both.
-///
-/// Shut down read, write, or both directions on a connected socket.
-/// Half-close and peer-observed behavior follow host kernel shutdown semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses shutdown(2) on Unix and shutdown on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.close`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_shutdown(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -326,22 +150,6 @@ pub(crate) unsafe fn destack_net_shutdown(
 }
 
 /// Enable or disable nonblocking mode on a socket.
-///
-/// Enable or disable nonblocking mode on a socket descriptor.
-/// Subsequent I/O blocking behavior follows host kernel descriptor state.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses fcntl/ioctl on Unix and ioctlsocket on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_set_nonblocking(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -352,22 +160,6 @@ pub(crate) unsafe fn destack_net_set_nonblocking(
 }
 
 /// Read the local socket address as raw bytes.
-///
-/// Query the local socket endpoint currently bound to this handle.
-/// The returned `length` and `bytes` preserve the host sockaddr layout for the active family.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses getsockname(2) on Unix and getsockname on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_local_address(
     binding: &BindingCallContext,
     out: *mut SocketAddress,
@@ -388,22 +180,6 @@ pub(crate) unsafe fn destack_net_local_address_raw(
 }
 
 /// Read the remote socket address as raw bytes.
-///
-/// Query the remote peer endpoint currently associated with this handle.
-/// The returned `length` and `bytes` preserve the host sockaddr layout for the active family.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses getpeername(2) on Unix and getpeername on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_peer_address(
     binding: &BindingCallContext,
     out: *mut SocketAddress,
@@ -424,22 +200,6 @@ pub(crate) unsafe fn destack_net_peer_address_raw(
 }
 
 /// Enable or disable TCP_NODELAY.
-///
-/// Set TCP_NODELAY on the target TCP socket.
-/// Nagle aggregation behavior changes immediately according to host TCP stack semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses setsockopt(TCP_NODELAY) on Unix and setsockopt on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_set_no_delay(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -450,22 +210,6 @@ pub(crate) unsafe fn destack_net_set_no_delay(
 }
 
 /// Write full TCP keepalive parameters.
-///
-/// Set host keepalive configuration fields for this TCP socket.
-/// Unsupported subfields are returned as `notSupported` rather than silently ignored.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses setsockopt(SO_KEEPALIVE and TCP_KEEP*) on Unix and WSAIoctl on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_set_keep_alive(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -486,22 +230,6 @@ pub(crate) unsafe fn destack_net_set_keep_alive(
 }
 
 /// Enable or disable SO_REUSEADDR.
-///
-/// Enable or disable SO_REUSEADDR via host kernel APIs.
-/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses setsockopt(SO_REUSEADDR) on Unix and setsockopt on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_set_reuse_addr(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -512,22 +240,6 @@ pub(crate) unsafe fn destack_net_set_reuse_addr(
 }
 
 /// Enable or disable SO_REUSEPORT.
-///
-/// Enable or disable SO_REUSEPORT via host kernel APIs.
-/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
-///
-/// # Platform
-/// Unix only. This operation returns `notSupported` on Windows.
-/// Uses setsockopt(SO_REUSEPORT) on Unix and notSupported on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_set_reuse_port(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -538,22 +250,6 @@ pub(crate) unsafe fn destack_net_set_reuse_port(
 }
 
 /// Close a listener handle.
-///
-/// Close a listener socket descriptor.
-/// Pending accepts are interrupted according to host kernel semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses close(2) on Unix and closesocket on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.close`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_close_listener(
     binding: &BindingCallContext,
     handle: ListenerHandle,
@@ -574,22 +270,6 @@ pub(crate) unsafe fn destack_net_join_multicast(
 }
 
 /// Join an IPv4 multicast group.
-///
-/// Join an IPv4 multicast membership on the selected interface.
-/// Group membership tracking and validation follow host IGMP implementation rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses setsockopt(IP_ADD_MEMBERSHIP) on Unix and setsockopt on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.multicast`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_join_multicast_v4(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -600,22 +280,6 @@ pub(crate) unsafe fn destack_net_join_multicast_v4(
 }
 
 /// Join an IPv6 multicast group.
-///
-/// Join an IPv6 multicast membership on the selected interface index.
-/// Group membership tracking and validation follow host MLD implementation rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses setsockopt(IPV6_JOIN_GROUP) on Unix and setsockopt on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.multicast`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_join_multicast_v6(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -638,22 +302,6 @@ pub(crate) unsafe fn destack_net_leave_multicast(
 }
 
 /// Leave an IPv4 multicast group.
-///
-/// Leave an IPv4 multicast membership on the selected interface.
-/// Group membership tracking and validation follow host IGMP implementation rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses setsockopt(IP_DROP_MEMBERSHIP) on Unix and setsockopt on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.multicast`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_leave_multicast_v4(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -664,22 +312,6 @@ pub(crate) unsafe fn destack_net_leave_multicast_v4(
 }
 
 /// Leave an IPv6 multicast group.
-///
-/// Leave an IPv6 multicast membership on the selected interface index.
-/// Group membership tracking and validation follow host MLD implementation rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses setsockopt(IPV6_LEAVE_GROUP) on Unix and setsockopt on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.multicast`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_leave_multicast_v6(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -691,22 +323,6 @@ pub(crate) unsafe fn destack_net_leave_multicast_v6(
 }
 
 /// Read into multiple buffers.
-///
-/// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
-/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses readv(2)/recvmsg(2) on Unix and WSARecv on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.connect`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_readv(
     binding: &BindingCallContext,
     out: *mut u64,
@@ -718,22 +334,6 @@ pub(crate) unsafe fn destack_net_readv(
 }
 
 /// Resolve a host and service query into raw socket addresses.
-///
-/// Resolve the requested host and service to one or more socket addresses.
-/// Name-service order, search domains, and canonicalization follow host resolver policy.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses getaddrinfo(3) on Unix and GetAddrInfoW on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.dns`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_resolve(
     binding: &BindingCallContext,
     out: *mut NativeArray<SocketAddress>,
@@ -747,22 +347,6 @@ pub(crate) unsafe fn destack_net_resolve(
 }
 
 /// Reverse lookup a raw socket address into host and service names.
-///
-/// Resolve a socket address back to host and service names.
-/// Reverse lookup policy and name formatting follow host resolver behavior.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses getnameinfo(3) on Unix and GetNameInfoW on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.dns`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_reverse_lookup(
     binding: &BindingCallContext,
     out: *mut NativeArray<NativeStringRef>,
@@ -773,22 +357,6 @@ pub(crate) unsafe fn destack_net_reverse_lookup(
 }
 
 /// Enable or disable broadcast.
-///
-/// Enable or disable broadcast via host kernel APIs.
-/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses setsockopt(SO_BROADCAST) on Unix and setsockopt on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_set_broadcast(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -799,22 +367,6 @@ pub(crate) unsafe fn destack_net_set_broadcast(
 }
 
 /// Set socket linger settings.
-///
-/// Set SO_LINGER parameters on the target socket.
-/// The host kernel validates and applies linger policy exactly once for this call.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses setsockopt(SO_LINGER) on Unix and setsockopt on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_set_linger(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -825,22 +377,6 @@ pub(crate) unsafe fn destack_net_set_linger(
 }
 
 /// Enable or disable multicast loopback.
-///
-/// Enable or disable local loopback delivery for outgoing multicast packets.
-/// Loopback behavior follows host multicast socket-option semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses setsockopt(IP_MULTICAST_LOOP/IPV6_MULTICAST_LOOP) on Unix and setsockopt on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.multicast`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_set_multicast_loop(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -851,22 +387,6 @@ pub(crate) unsafe fn destack_net_set_multicast_loop(
 }
 
 /// Set multicast TTL.
-///
-/// Set multicast TTL or hop-limit for outgoing datagrams.
-/// Hop-limit interpretation follows host IP stack option semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses setsockopt(IP_MULTICAST_TTL/IPV6_MULTICAST_HOPS) on Unix and setsockopt on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.multicast`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_set_multicast_ttl(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -877,22 +397,6 @@ pub(crate) unsafe fn destack_net_set_multicast_ttl(
 }
 
 /// Set the read timeout in milliseconds.
-///
-/// Set SO_RCVTIMEO on the target socket.
-/// Timeout interpretation and rounding follow host kernel socket-timeout semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses setsockopt(SO_RCVTIMEO) on Unix and setsockopt on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_set_read_timeout(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -903,22 +407,6 @@ pub(crate) unsafe fn destack_net_set_read_timeout(
 }
 
 /// Set the receive buffer size.
-///
-/// Set SO_RCVBUF on the target socket.
-/// The host kernel clamps requested values according to platform limits.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses setsockopt(SO_RCVBUF) on Unix and setsockopt on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_set_recv_buffer(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -929,22 +417,6 @@ pub(crate) unsafe fn destack_net_set_recv_buffer(
 }
 
 /// Set the send buffer size.
-///
-/// Set SO_SNDBUF on the target socket.
-/// The host kernel clamps requested values according to platform limits.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses setsockopt(SO_SNDBUF) on Unix and setsockopt on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_set_send_buffer(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -955,22 +427,6 @@ pub(crate) unsafe fn destack_net_set_send_buffer(
 }
 
 /// Set the IP type-of-service field.
-///
-/// Set the requested control value on the descriptor through the native option interface.
-/// The binding performs one control transaction and returns the exact host outcome without policy retries.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses setsockopt(IP_TOS/IPV6_TCLASS) on Unix and setsockopt on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_set_tos(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -981,22 +437,6 @@ pub(crate) unsafe fn destack_net_set_tos(
 }
 
 /// Set the IP time-to-live.
-///
-/// Set the requested control value on the descriptor through the native option interface.
-/// The binding performs one control transaction and returns the exact host outcome without policy retries.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses setsockopt(IP_TTL/IPV6_UNICAST_HOPS) on Unix and setsockopt on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_set_ttl(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -1007,22 +447,6 @@ pub(crate) unsafe fn destack_net_set_ttl(
 }
 
 /// Set the write timeout in milliseconds.
-///
-/// Set SO_SNDTIMEO on the target socket.
-/// Timeout interpretation and rounding follow host kernel socket-timeout semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses setsockopt(SO_SNDTIMEO) on Unix and setsockopt on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_set_write_timeout(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -1033,22 +457,6 @@ pub(crate) unsafe fn destack_net_set_write_timeout(
 }
 
 /// Create a UDP socket.
-///
-/// Allocate a UDP datagram socket for the requested address family.
-/// Datagram behavior and protocol defaults follow host UDP stack semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses socket(AF_INET/AF_INET6, SOCK_DGRAM) on Unix and WSASocketW on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.udp`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_udp_socket(
     binding: &BindingCallContext,
     out: *mut SocketHandle,
@@ -1059,22 +467,6 @@ pub(crate) unsafe fn destack_net_udp_socket(
 }
 
 /// Bind a UDP socket to a raw local address.
-///
-/// Bind the socket to a local address and port.
-/// Address ownership and port conflict checks are enforced by the host kernel.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses bind(2) on Unix and bind on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.udp`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_udp_bind(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -1086,22 +478,6 @@ pub(crate) unsafe fn destack_net_udp_bind(
 }
 
 /// Connect a UDP socket to a raw remote address.
-///
-/// Set a default peer for datagrams sent on this socket.
-/// Peer filtering and async error delivery follow host connected-UDP semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses connect(2) on Unix and connect on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.udp`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_udp_connect(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -1113,22 +489,6 @@ pub(crate) unsafe fn destack_net_udp_connect(
 }
 
 /// Send a datagram to a raw remote address.
-///
-/// Send one UDP datagram to the supplied destination address.
-/// Packet truncation, MTU checks, and route lookup follow host kernel UDP semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses sendto(2) on Unix and sendto on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.udp`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_udp_send_to(
     binding: &BindingCallContext,
     out: *mut u64,
@@ -1142,22 +502,6 @@ pub(crate) unsafe fn destack_net_udp_send_to(
 }
 
 /// Receive a datagram from a remote address with raw address output.
-///
-/// Receive one UDP datagram and return source address plus recv flags.
-/// Datagrams larger than the destination buffer follow host truncation semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses recvfrom(2) on Unix and recvfrom on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.udp`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_udp_recv_from(
     binding: &BindingCallContext,
     out: *mut UdpReceive,
@@ -1169,22 +513,6 @@ pub(crate) unsafe fn destack_net_udp_recv_from(
 }
 
 /// Connect to a UDS endpoint.
-///
-/// Connect to an existing AF_UNIX endpoint address.
-/// Address kind and endpoint type validation follow host AF_UNIX semantics.
-///
-/// # Platform
-/// Unix and Windows only when AF_UNIX support is available at runtime.
-/// Uses connect(2) on AF_UNIX sockets on Unix and AF_UNIX connect on Windows where available.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.connect`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_uds_connect(
     binding: &BindingCallContext,
     out: *mut SocketHandle,
@@ -1195,22 +523,6 @@ pub(crate) unsafe fn destack_net_uds_connect(
 }
 
 /// Listen on a UDS address.
-///
-/// Place the bound socket into passive listen mode with the requested backlog semantics.
-/// Path addresses are forwarded from `OsPath` without runtime normalization, while abstract and unnamed addresses follow host AF_UNIX rules.
-///
-/// # Platform
-/// Unix and Windows only when AF_UNIX support is available at runtime.
-/// Uses bind(2)+listen(2) on AF_UNIX sockets on Unix and AF_UNIX listen on Windows where available.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.listen`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_uds_listen(
     binding: &BindingCallContext,
     out: *mut ListenerHandle,
@@ -1322,22 +634,6 @@ pub(crate) unsafe fn destack_net_udp_send_to_raw(
 }
 
 /// Accept a connection from a UDS listener.
-///
-/// Accept the next pending AF_UNIX stream connection.
-/// Accept ordering and descriptor flags follow host kernel semantics.
-///
-/// # Platform
-/// Unix and Windows only when AF_UNIX support is available at runtime.
-/// Uses accept(2) on AF_UNIX sockets on Unix and accept on Windows where available.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.accept`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_uds_accept(
     binding: &BindingCallContext,
     out: *mut SocketHandle,
@@ -1348,22 +644,6 @@ pub(crate) unsafe fn destack_net_uds_accept(
 }
 
 /// Close a UDS listener handle.
-///
-/// Close an AF_UNIX listener socket descriptor.
-/// Pending accepts are interrupted according to host kernel semantics.
-///
-/// # Platform
-/// Unix and Windows only when AF_UNIX support is available at runtime.
-/// Uses close(2) on Unix and closesocket on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.close`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_uds_close_listener(
     binding: &BindingCallContext,
     handle: ListenerHandle,
@@ -1373,22 +653,6 @@ pub(crate) unsafe fn destack_net_uds_close_listener(
 }
 
 /// Write from multiple buffers.
-///
-/// Write data directly from caller provided buffers to the target descriptor using native transfer semantics.
-/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses writev(2)/sendmsg(2) on Unix and WSASend on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.connect`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_writev(
     binding: &BindingCallContext,
     out: *mut u64,

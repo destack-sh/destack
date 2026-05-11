@@ -6,22 +6,6 @@ use crate::runtime::BindingCallContext;
 
 use crate::platform::process::{ProcessLimit, ProcessLimitResource};
 /// Read a process resource limit.
-///
-/// Read soft and hard limits for one host resource selector.
-/// Resource selector interpretation follows host kernel limit tables.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses getrlimit or prlimit on Unix and job-object limit queries on Windows where available.
-///
-/// # Errors
-/// Returns invalidArgument, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.run`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_get_limit(
     binding: &BindingCallContext,
     out: *mut ProcessLimit,
@@ -38,22 +22,6 @@ pub(crate) unsafe fn destack_process_get_limit(
 }
 
 /// Set a process resource limit.
-///
-/// Update soft and hard limits for one host resource selector.
-/// Privilege checks and hard-limit rules are enforced by the host kernel.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses setrlimit or prlimit on Unix and job-object limit updates on Windows where available.
-///
-/// # Errors
-/// Returns invalidArgument, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.run`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_set_limit(
     binding: &BindingCallContext,
     resource: ProcessLimitResource,
