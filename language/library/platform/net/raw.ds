@@ -1,4 +1,4 @@
-import { Array, Slice } from "core";
+import { Array } from "core";
 import type { PlatformError } from "../error/index.ds";
 import { PacketHandle, SocketHandle } from "../resource/index.ds";
 import { SocketFamily } from "./address.ds";
@@ -147,7 +147,7 @@ export struct PacketRingOptions {
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function listPacketBackends(): Result<Array<PacketBackendStatus>, PlatformError>;
+export declare function listPacketBackends(): Result<^Array<PacketBackendStatus>, PlatformError>;
 
 /// Open a raw IP socket.
 @binding("destack.net.raw.socket", {
@@ -193,7 +193,7 @@ export declare function openPacketEndpoint(
 })
 export declare function receivePacket(
     packet: PacketHandle,
-    payload: Slice<uint8>,
+    payload: &[uint8],
 ): Result<PacketRecord, PlatformError>;
 
 /// Send one packet through a packet endpoint.
@@ -205,7 +205,7 @@ export declare function receivePacket(
 })
 export declare function sendPacket(
     packet: PacketHandle,
-    payload: Slice<uint8>,
+    payload: &readonly [uint8],
 ): Result<uint64, PlatformError>;
 
 /// Attach one packet filter program to an endpoint.
@@ -217,7 +217,7 @@ export declare function sendPacket(
 })
 export declare function setPacketFilter(
     packet: PacketHandle,
-    program: Slice<uint8>,
+    program: &readonly [uint8],
 ): Result<void, PlatformError>;
 
 /// Clear the active packet filter program.

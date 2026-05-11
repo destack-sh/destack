@@ -84,7 +84,7 @@ export const DNS_CAA: DnsRecordType = DnsRecordType(257);
 /// DNS resolver options.
 export struct DnsOptions {
     /// Explicit DNS servers.
-    servers: Array<IpEndpoint>;
+    servers: [IpEndpoint];
     /// Query timeout in milliseconds.
     timeoutMilliseconds: uint32;
     /// Maximum attempts before failure.
@@ -210,8 +210,8 @@ export struct ReverseLookupName {
     simulation: true,
 })
 export declare function lookupAddress(
-    query: LookupQuery,
-): Result<Array<LookupAddress>, PlatformError>;
+    query: &readonly LookupQuery,
+): Result<^Array<LookupAddress>, PlatformError>;
 
 /// Resolve DNS records.
 @binding("destack.net.resolve.record", {
@@ -220,7 +220,9 @@ export declare function lookupAddress(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function resolveRecord(query: DnsQuery): Result<Array<DnsRecord>, PlatformError>;
+export declare function resolveRecord(
+    query: &readonly DnsQuery,
+): Result<^Array<DnsRecord>, PlatformError>;
 
 /// Reverse lookup a socket address into host and service names.
 @binding("destack.net.resolve.reverseLookup", {
@@ -230,6 +232,6 @@ export declare function resolveRecord(query: DnsQuery): Result<Array<DnsRecord>,
     simulation: true,
 })
 export declare function reverseLookup(
-    address: SocketAddress,
+    address: &readonly SocketAddress,
     flags: ReverseLookupFlags,
-): Result<Array<ReverseLookupName>, PlatformError>;
+): Result<^Array<ReverseLookupName>, PlatformError>;
