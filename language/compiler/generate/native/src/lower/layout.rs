@@ -69,6 +69,8 @@ pub(crate) fn compute_type_layout(
         mir_type,
         mir::Type::Struct { .. }
             | mir::Type::Tuple { .. }
+            | mir::Type::Union { .. }
+            | mir::Type::Any { .. }
             | mir::Type::Array { .. }
             | mir::Type::Callable { .. }
     ) {
@@ -142,10 +144,11 @@ pub(crate) fn compute_type_layout(
             kind,
             element,
             address_space,
-            mutability,
+            access,
+            ..
         } => {
             let (data, _length) =
-                mir::slice_header_types(*kind, *element, *mutability, address_space.clone());
+                mir::slice_header_types(*kind, *element, *access, address_space.clone());
             let data = tree
                 .iter_nodes::<mir::Type>()
                 .find_map(|(type_id, ty)| (ty == &data).then_some(type_id))
@@ -186,6 +189,28 @@ pub(crate) fn compute_type_layout(
 
         // structs: read canonical layout metadata
         mir::Type::Struct { fields: _, copy: _ } => {
+            let Some(layout) = tree.metadata.layout.type_layout(type_id) else {
+                return Err(CodegenCraneliftError::unsupported_type(
+                    "missing layout metadata",
+                    type_id.into(),
+                ));
+            };
+            Ok(TypeLayout::new(layout.size, layout.alignment))
+        }
+
+        // unions: read canonical layout metadata
+        mir::Type::Union { .. } => {
+            let Some(layout) = tree.metadata.layout.type_layout(type_id) else {
+                return Err(CodegenCraneliftError::unsupported_type(
+                    "missing layout metadata",
+                    type_id.into(),
+                ));
+            };
+            Ok(TypeLayout::new(layout.size, layout.alignment))
+        }
+
+        // erased Any values: read canonical layout metadata
+        mir::Type::Any { .. } => {
             let Some(layout) = tree.metadata.layout.type_layout(type_id) else {
                 return Err(CodegenCraneliftError::unsupported_type(
                     "missing layout metadata",

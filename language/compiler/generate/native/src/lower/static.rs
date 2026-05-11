@@ -202,7 +202,7 @@ fn array_static_stride(
 ) -> CodegenCraneliftResult<usize> {
     // layout metadata is authoritative when present
     if let Some(layout) = tree.metadata.layout.type_layout(array)
-        && let mir::LayoutKind::Array { element_stride, .. } = layout.kind
+        && let mir::LayoutShape::Array { element_stride, .. } = layout.shape
     {
         return Ok(element_stride as usize);
     }
@@ -370,7 +370,7 @@ global table: ref?<void, raw, readonly, space(static)>[2], readonly, space(stati
     fn parse_global(source: &str, name: &str) -> (mir::Tree, mir::Global) {
         let (tree, strings) =
             mir::parse::Parser::parse(FileId::new(0), source, ParseOptions::default())
-                .validate()
+                .finish()
                 .expect("failed to parse MIR");
 
         let global = tree

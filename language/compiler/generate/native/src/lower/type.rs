@@ -105,6 +105,16 @@ pub(crate) fn lower_type(
             type_id.into_any(),
         )),
 
+        mir::Type::Union { .. } => Err(CodegenCraneliftError::unsupported_type(
+            "union types must be lowered to memory operations",
+            type_id.into_any(),
+        )),
+
+        mir::Type::Any { .. } => Err(CodegenCraneliftError::unsupported_type(
+            "any types must be lowered to aggregate operations",
+            type_id.into_any(),
+        )),
+
         mir::Type::Callable { .. } => Err(CodegenCraneliftError::unsupported_type(
             "callables must be lowered to aggregate operations",
             type_id.into_any(),
