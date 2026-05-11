@@ -3,7 +3,7 @@ import {
     type ExpansionContext,
     type Macro,
     type MaterializationContext,
-} from "../module/macro.ds";
+} from "destack:macro";
 
 /// Constructor naming policy for tagged newtype unions.
 export type TaggedCase =

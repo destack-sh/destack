@@ -1,0 +1,17 @@
+/// Marks a declaration as deprecated.
+///
+/// Emits a compile-time warning when the declaration is used.
+///
+/// ```ds
+/// @deprecated("use read instead")
+/// function readOld(): string;
+/// ```
+export newtype deprecated = (string,) | ();
+
+/// Marks a declaration as experimental.
+///
+/// ```ds
+/// @experimental
+/// function preview(): void;
+/// ```
+export newtype experimental = (string,) | ();

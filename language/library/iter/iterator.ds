@@ -1,5 +1,3 @@
-import { Symbol } from "./symbol.ds";
-
 /// A yielded iterator value.
 export type IteratorYield<TYield> = {
     /// The iterator is not complete.
@@ -34,7 +32,7 @@ export interface Iterator<T, TReturn = unknown, TNext = unknown> {
 /// A value that can produce an iterator.
 export interface Iterable<T, TReturn = unknown, TNext = unknown> {
     /// Return a new iterator for this value.
-    [Symbol.iterator](): Iterator<T, TReturn, TNext>;
+    iterator(): Iterator<T, TReturn, TNext>;
 }
 
 /// A value that is both iterable and its own iterator.
@@ -44,5 +42,5 @@ export interface IterableIterator<
     TNext = unknown,
 > extends Iterator<T, TReturn, TNext> {
     /// Return an iterator for this value.
-    [Symbol.iterator](): IterableIterator<T, TReturn, TNext>;
+    iterator(): IterableIterator<T, TReturn, TNext>;
 }

@@ -1,5 +1,3 @@
-import { intrinsic } from "../decorator/intrinsic.ds";
-
 /// Stop execution with a panic diagnostic.
 @intrinsic("panic")
 export declare function panic(message: string): never;
@@ -7,6 +5,10 @@ export declare function panic(message: string): never;
 /// Stop execution immediately without cleanup.
 @intrinsic("abort")
 export declare function abort(): never;
+
+/// Stop execution because code is intentionally unfinished.
+@intrinsic("todo")
+export declare function todo(message?: string): never;
 
 /// Mark code as unreachable.
 @intrinsic("unreachable")

@@ -1,0 +1,112 @@
+import { todo } from "destack:error";
+import {
+    type IterableIterator,
+    type IteratorResult,
+} from "destack:iter";
+import { type Drop } from "destack:memory";
+import { type ContinuationHandle } from "./continuation.ds";
+import { type Promise } from "./promise.ds";
+
+/// State of a generator object.
+export type GeneratorState = "suspended" | "running" | "completed";
+
+/// Worker-local generator object.
+export class Generator<
+    TYield = unknown,
+    TReturn = unknown,
+    TNext = unknown,
+> implements IterableIterator<TYield, TReturn, TNext>, Drop {
+    /// The generator state.
+    private state: GeneratorState;
+
+    /// The suspended continuation.
+    private continuation: ContinuationHandle;
+
+    /// Advance the generator and return the next result.
+    next(...value: [] | [TNext]): IteratorResult<TYield, TReturn> {
+        todo("Generator.next")
+    }
+
+    /// Finalize the generator and return the completion value.
+    return(value?: TReturn): IteratorResult<TYield, TReturn> {
+        todo("Generator.return")
+    }
+
+    /// Signal an error to the generator protocol.
+    throw(error?: unknown): IteratorResult<TYield, TReturn> {
+        todo("Generator.throw")
+    }
+
+    /// Return this generator.
+    iterator(): Generator<TYield, TReturn, TNext> {
+        todo("Generator.iterator")
+    }
+
+    /// Drop the suspended generator frame.
+    drop(): void {
+        todo("Generator.drop")
+    }
+}
+
+/// Protocol for asynchronously producing values.
+export interface AsyncIterator<T, TReturn = unknown, TNext = unknown> {
+    /// Advance the iterator and return the next result.
+    next(...value: [] | [TNext]): Promise<IteratorResult<T, TReturn>>;
+
+    /// Finalize the iterator and return the completion value.
+    return?(value?: TReturn): Promise<IteratorResult<T, TReturn>>;
+
+    /// Signal an error to the iterator protocol.
+    throw?(error?: unknown): Promise<IteratorResult<T, TReturn>>;
+}
+
+/// Value that can produce an async iterator.
+export interface AsyncIterable<T, TReturn = unknown, TNext = unknown> {
+    /// Return an async iterator for this value.
+    asyncIterator(): AsyncIterator<T, TReturn, TNext>;
+}
+
+/// Value that is both an async iterable and its own async iterator.
+export interface AsyncIterableIterator<
+    T,
+    TReturn = unknown,
+    TNext = unknown,
+> extends AsyncIterator<T, TReturn, TNext> {
+    /// Return this async iterator.
+    asyncIterator(): AsyncIterableIterator<T, TReturn, TNext>;
+}
+
+/// Worker-local async generator object.
+export class AsyncGenerator<
+    TYield = unknown,
+    TReturn = unknown,
+    TNext = unknown,
+> implements AsyncIterableIterator<TYield, TReturn, TNext>, Drop {
+    /// The underlying generator.
+    private generator: Generator<TYield, TReturn, TNext>;
+
+    /// Advance the generator and return the next result.
+    next(...value: [] | [TNext]): Promise<IteratorResult<TYield, TReturn>> {
+        todo("AsyncGenerator.next")
+    }
+
+    /// Finalize the generator and return the completion value.
+    return(value?: TReturn): Promise<IteratorResult<TYield, TReturn>> {
+        todo("AsyncGenerator.return")
+    }
+
+    /// Signal an error to the generator protocol.
+    throw(error?: unknown): Promise<IteratorResult<TYield, TReturn>> {
+        todo("AsyncGenerator.throw")
+    }
+
+    /// Return this async generator.
+    asyncIterator(): AsyncGenerator<TYield, TReturn, TNext> {
+        todo("AsyncGenerator.iterator")
+    }
+
+    /// Drop the suspended async generator frame.
+    drop(): void {
+        todo("AsyncGenerator.drop")
+    }
+}

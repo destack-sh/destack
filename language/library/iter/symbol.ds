@@ -1,0 +1,23 @@
+/// Global symbol function and well-known symbol table.
+export declare const Symbol: {
+    /// Create a new unique symbol.
+    (description?: string): symbol;
+
+    /// Return a symbol from the shared registry.
+    for(key: string): symbol;
+
+    /// Return the registry key for `symbol`.
+    keyFor(symbol: symbol): string | undefined;
+
+    /// The default iterator symbol.
+    readonly iterator: unique symbol;
+
+    /// The default async iterator symbol.
+    readonly asyncIterator: unique symbol;
+
+    /// The default dispose symbol.
+    readonly dispose: unique symbol;
+
+    /// The default async dispose symbol.
+    readonly asyncDispose: unique symbol;
+};

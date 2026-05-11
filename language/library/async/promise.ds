@@ -1,0 +1,125 @@
+import { todo } from "destack:error";
+import { type Iterable } from "destack:iter";
+
+/// Function that resolves a promise.
+export type PromiseResolve<T> = (value: T | Promise<T>) => void;
+
+/// Function that rejects a promise.
+export type PromiseReject = (reason?: unknown) => void;
+
+/// Function that starts a promise.
+export type PromiseExecutor<T> = (resolve: PromiseResolve<T>, reject: PromiseReject) => void;
+
+/// Pending promise state.
+export interface PromisePending<T> {
+    /// The state tag.
+    kind: "pending";
+
+    /// Continuations waiting for settlement.
+    reactions: PromiseReaction<T>[];
+}
+
+/// Fulfilled promise state.
+export interface PromiseFulfilled<T> {
+    /// The state tag.
+    kind: "fulfilled";
+
+    /// The fulfilled value.
+    value: T;
+}
+
+/// Rejected promise state.
+export interface PromiseRejected {
+    /// The state tag.
+    kind: "rejected";
+
+    /// The rejection reason.
+    reason: unknown;
+}
+
+/// Current promise state.
+export type PromiseState<T> = PromisePending<T> | PromiseFulfilled<T> | PromiseRejected;
+
+/// Promise continuation callbacks.
+export interface PromiseReaction<T> {
+    /// Fulfillment callback.
+    onFulfilled: (value: T) => void;
+
+    /// Rejection callback.
+    onRejected: (error: unknown) => void;
+}
+
+/// Fulfilled `Promise.allSettled` result.
+export interface PromiseFulfilledResult<T> {
+    /// The result status.
+    status: "fulfilled";
+
+    /// The fulfilled value.
+    value: T;
+}
+
+/// Rejected `Promise.allSettled` result.
+export interface PromiseRejectedResult {
+    /// The result status.
+    status: "rejected";
+
+    /// The rejection reason.
+    reason: unknown;
+}
+
+/// Settled promise result.
+export type PromiseSettledResult<T> = PromiseFulfilledResult<T> | PromiseRejectedResult;
+
+/// Worker-local async result object.
+export class Promise<T> {
+    /// The current settlement state.
+    private state: PromiseState<T>;
+
+    /// Create a promise from an executor.
+    constructor(executor: PromiseExecutor<T>) {
+        todo("Promise.constructor")
+    }
+
+    /// Continue when the promise fulfills.
+    then<U, F = never>(
+        onFulfilled: (value: T) => U | Promise<U>,
+        onRejected?: (error: unknown) => F | Promise<F>,
+    ): Promise<U | F> {
+        todo("Promise.then")
+    }
+
+    /// Continue when the promise rejects.
+    catch<U>(onRejected: (error: unknown) => U | Promise<U>): Promise<T | U> {
+        todo("Promise.catch")
+    }
+
+    /// Continue when the promise settles.
+    finally(onFinally: () => void | Promise<void>): Promise<T> {
+        todo("Promise.finally")
+    }
+
+    /// Create a fulfilled promise.
+    static resolve<T>(value: T | Promise<T>): Promise<T> {
+        todo("Promise.resolve")
+    }
+
+    /// Create a rejected promise.
+    static reject<T = never>(reason?: unknown): Promise<T> {
+        todo("Promise.reject")
+    }
+
+    /// Wait for all promises.
+    static all<T>(values: Iterable<T | Promise<T>>): Promise<T[]> {
+        todo("Promise.all")
+    }
+
+    /// Wait for the first settled promise.
+    static race<T>(values: Iterable<T | Promise<T>>): Promise<T> {
+        todo("Promise.race")
+    }
+
+    /// Wait for all promises and keep fulfillment or rejection.
+    static allSettled<T>(values: Iterable<T | Promise<T>>): Promise<PromiseSettledResult<T>[]> {
+        todo("Promise.allSettled")
+    }
+}

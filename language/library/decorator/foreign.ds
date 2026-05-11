@@ -1,0 +1,7 @@
+/// Marks a declaration as externally linked.
+///
+/// ```ds
+/// @extern("C")
+/// function open(path: *uint8): int32;
+/// ```
+export newtype extern = (string,) | ();

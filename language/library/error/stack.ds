@@ -1,5 +1,3 @@
-import { intrinsic } from "../decorator/intrinsic.ds";
-
 /// Opaque identity for a runtime stack frame.
 export newtype StackFrameId = uint64;
 

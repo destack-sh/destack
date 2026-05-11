@@ -1,5 +1,6 @@
 export * from "./debug.ds";
 export * from "./error.ds";
+export * from "./io.ds";
 export * from "./panic.ds";
 export * from "./result.ds";
 export * from "./stack.ds";

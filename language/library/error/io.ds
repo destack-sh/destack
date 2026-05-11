@@ -1,0 +1,24 @@
+/// Input-output error kind.
+export type IoErrorKind =
+    | "aborted"
+    | "again"
+    | "closed"
+    | "interrupted"
+    | "invalid"
+    | "notFound"
+    | "permission"
+    | "timedOut"
+    | "unexpectedEof"
+    | "unknown";
+
+/// Input-output failure.
+export struct IoError {
+    /// The failure kind.
+    kind: IoErrorKind;
+
+    /// Platform-specific error code.
+    code?: int32;
+
+    /// Diagnostic message.
+    message?: string;
+}
