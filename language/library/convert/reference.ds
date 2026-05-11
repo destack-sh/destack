@@ -1,0 +1,9 @@
+import { type Access, type WithAccess } from "destack:memory";
+
+/// Interface for reference conversion.
+///
+/// `A` selects the access form required by the conversion.
+export newtype interface As<T, A: Access = "readonly"> {
+    /// Borrow this value as `T`.
+    as(): WithAccess<&T, A>;
+}

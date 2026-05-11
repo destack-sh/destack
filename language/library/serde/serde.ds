@@ -1,0 +1,25 @@
+import { type Result } from "destack:error";
+
+/// Structured value encoder.
+export newtype interface Encoder {
+    /// The encoding error type.
+    type Error;
+}
+
+/// Structured value decoder.
+export newtype interface Decoder {
+    /// The decoding error type.
+    type Error;
+}
+
+/// Value that can encode itself through `E`.
+export newtype interface Serialize<E: Encoder> {
+    /// Encode this value.
+    serialize(encoder: &exclusive E): Result<void, E.Error>;
+}
+
+/// Value that can be decoded through `D`.
+export newtype interface Deserialize<D: Decoder> {
+    /// Decode one value.
+    static deserialize(decoder: &exclusive D): Result<this, D.Error>;
+}

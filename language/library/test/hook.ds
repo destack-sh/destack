@@ -1,0 +1,22 @@
+import { todo } from "destack:error";
+import { type TestBody } from "./result.ds";
+
+/// Register setup before all tests in the current suite.
+export function beforeAll(body: TestBody, timeout?: number): void {
+    todo("beforeAll")
+}
+
+/// Register cleanup after all tests in the current suite.
+export function afterAll(body: TestBody, timeout?: number): void {
+    todo("afterAll")
+}
+
+/// Register setup before each test in the current suite.
+export function beforeEach(body: TestBody, timeout?: number): void {
+    todo("beforeEach")
+}
+
+/// Register cleanup after each test in the current suite.
+export function afterEach(body: TestBody, timeout?: number): void {
+    todo("afterEach")
+}

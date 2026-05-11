@@ -1,0 +1,45 @@
+import { todo } from "destack:error";
+
+/// A value assertion chain.
+export interface Expect<T> {
+    /// Negated assertions.
+    not: Expect<T>;
+
+    /// Assert that the value equals `expected`.
+    toEqual(expected: T): void;
+
+    /// Assert that the value strictly equals `expected`.
+    toBe(expected: T): void;
+
+    /// Assert that the value deeply equals `expected`.
+    toStrictEqual(expected: T): void;
+
+    /// Assert that the value contains `expected`.
+    toContain(expected: unknown): void;
+
+    /// Assert that the value is true.
+    toBeTruthy(): void;
+
+    /// Assert that the value is false.
+    toBeFalsy(): void;
+
+    /// Assert that the value is null.
+    toBeNull(): void;
+
+    /// Assert that the value is undefined.
+    toBeUndefined(): void;
+
+    /// Assert that the value is defined.
+    toBeDefined(): void;
+
+    /// Assert that the value is greater than `expected`.
+    toBeGreaterThan(expected: number): void;
+
+    /// Assert that the value is less than `expected`.
+    toBeLessThan(expected: number): void;
+}
+
+/// Create an assertion chain for `value`.
+export function expect<T>(value: T): Expect<T> {
+    todo("expect")
+}
