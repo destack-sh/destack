@@ -1,7 +1,6 @@
 # Testing
 
-Destack is a universal software engine for building correct, optimal, integrated software, so of course testing Destack's own correctness and performance itself is critical.
-Because of the breadth and depth of the project, testing is non-trivial, and some bigger platform tests cannot be run locally because they require specific hardware targets.
+Destack is a universal software engine for building correct, optimal, integrated software, so of course testing Destack's own correctness and performance is quite important.
 
 ## Gates
 
@@ -35,14 +34,12 @@ Set `DESTACK_TEST_JOBS` only when a custom harness should use a different worker
 | [**Smoke**](language/test/fixtures/smoke/) | Correctness | Quick | Broad no-crash and basic no-regression coverage for parser and compiler flows |
 | [**Emit**](language/test/fixtures/emit/) | Correctness | Standalone | Emitted output matches curated checked-in snapshots |
 | [**Specification**](language/test/fixtures/specification/) | Correctness | Quick | First-party language semantics and diagnostics |
-| [**Regression**](language/test/fixtures/regression/) | Correctness | Quick | Targeted bug reproductions that do not fit cleanly elsewhere |
 | [**Conformance**](language/test/fixtures/conformance/) | Conformance | Mixed | External parser and formatter corpora used as regression inputs, not product compatibility targets |
 | [**Query**](language/test/fixtures/query/) | Correctness | Quick | Query-layer IDE behavior such as navigation, completion, rename, and diagnostics |
 | [**LSP**](language/test/fixtures/lsp/) | Correctness | Quick | Applied LSP editor scenarios over the real in-process language server |
-| [**Resolver**](language/test/fixtures/resolver/) | Correctness | Quick | Node and TypeScript style module and package resolution |
+| **Resolver** | Correctness | Quick | Crate-local module path resolution tests |
 | [**Formatter**](language/test/fixtures/formatter/) | Correctness | Quick | Formatting behavior on first-party fixtures |
 | [**Grammar**](language/grammar/README.md) | Correctness | Quick | Tree-sitter grammar routing, corpus coverage, and specification sweeps |
-| [**Ecosystem**](language/test/fixtures/ecosystem/) | Conformance | Full | Curated TS-first Node, backend, and tooling packages |
 | [**Stress**](language/test/fixtures/stress/) | Correctness | Full | Very large or pathological inputs that should still complete correctly |
 
 The shared conformance catalog is generated from `suite.json` and `status.json`.
@@ -61,38 +58,6 @@ The shared conformance catalog is generated from `suite.json` and `status.json`.
 | ecma | v8 | ECMA V8 | none | main |
 | formatter | oxfmt | Formatter Oxfmt | known-fail-idempotence 4, ignore 12 | 8c3607060b7432d51bcd0b049cb77bed473d35e3 |
 <!-- end:conformance-catalog -->
-
-## Targets
-
-This table is the operational testing view: which workflows run, which commands back them, and how CI executes the lane.
-Native Linux, macOS, and Windows lanes run on matching GitHub Actions runners.
-iOS and Android lanes use SDK-backed cross compilation.
-See [`TARGETS.md`](TARGETS.md) for the canonical support policy.
-
-| Target triple | Tier | Primary workflow | Command | Backing implementation |
-|---------------|------|------------------|---------|------------------------|
-| `x86_64-unknown-linux-gnu` | Tier 1 | `runtime-linux-check.yml` | `just language/check-runtime-linux` | inline `cargo check`, `clippy`, and host tests in [language/justfile](/Users/florian/symbol/destack/language/justfile) |
-| `aarch64-unknown-linux-gnu` | Tier 1 | `runtime-linux-check.yml` | `just language/check-runtime-linux` | same host lane on `ubuntu-24.04-arm` |
-| `aarch64-apple-darwin` | Tier 1 | `runtime-macos-check.yml` | `just language/check-runtime-macos` | inline `cargo check`, `clippy`, and host tests in [language/justfile](/Users/florian/symbol/destack/language/justfile) |
-| `x86_64-pc-windows-msvc` | Tier 1 | `runtime-windows-check.yml` | `just language/check-runtime-windows-msvc` | [check-runtime-windows-msvc.sh](/Users/florian/symbol/destack/dev/toolchain/check-runtime-windows-msvc.sh) |
-| `aarch64-apple-ios` | Tier 2 | `runtime-ios-check.yml` | `just language/check-runtime-ios` | [check-runtime-ios.sh](/Users/florian/symbol/destack/dev/toolchain/check-runtime-ios.sh) |
-| `aarch64-linux-android` | Tier 2 | `runtime-android-check.yml` | `just language/check-runtime-android` | [check-runtime-android.sh](/Users/florian/symbol/destack/dev/toolchain/check-runtime-android.sh) |
-
-## Toolchains
-
-Use the `just` commands as the public interface.
-The scripts below are the backing implementation for target-specific lanes.
-GitHub Actions Rust lanes use the shared setup actions, which also enable `sccache` through `setup-rust-just` and `setup-rust-bun-just`.
-
-| Purpose | Public command | Backing script |
-|---------|----------------|----------------|
-| CI workflow policy checks | `just check-workflow-policy` | [check-workflow-policy.sh](/Users/florian/symbol/destack/dev/ci/check-workflow-policy.sh) |
-| CI hygiene tools | `just install-hygiene-toolchain`, `just doctor-hygiene-toolchain`, `just ensure-hygiene-toolchain` | [hygiene-toolchain.sh](/Users/florian/symbol/destack/dev/ci/hygiene-toolchain.sh) |
-| Runtime toolchain management | `just language/install-toolchain`, `just language/doctor-toolchain`, `just language/ensure-toolchain`, `just language/lint-toolchain` | [runtime-toolchain.sh](/Users/florian/symbol/destack/dev/toolchain/runtime-toolchain.sh) |
-| Bridge toolchain management | `just bridge/install-toolchain`, `just bridge/doctor-toolchain`, `just bridge/ensure-toolchain` | [language-bridge-toolchain.sh](/Users/florian/symbol/destack/bridge/scripts/language-bridge-toolchain.sh) |
-| Android host prerequisites | `just language/install-runtime-android-host-deps` | [install-runtime-android-host-deps.sh](/Users/florian/symbol/destack/dev/toolchain/install-runtime-android-host-deps.sh) |
-| Android SDK and NDK install | `just language/install-runtime-android-ndk` | [install-android-ndk.sh](/Users/florian/symbol/destack/.github/scripts/install-android-ndk.sh) |
-| Linux Wayland runtime lane | `just language/check-runtime-linux-wayland` | [check-runtime-linux-wayland.sh](/Users/florian/symbol/destack/dev/toolchain/check-runtime-linux-wayland.sh) |
 
 ## Commands
 
@@ -113,7 +78,6 @@ just language/test-unit
 just language/test-smoke
 just language/test-emit
 just language/test-specification
-just language/test-regression
 just language/test-query
 just language/test-lsp
 just language/test-resolver
@@ -123,8 +87,6 @@ just language/test-conformance
 just language/test-conformance-ecma
 just language/test-conformance-formatter
 just language/update-conformance-catalog
-just language/fetch-ecosystem
-just language/test-ecosystem
 just language/generate-stress
 just language/test-stress
 
@@ -145,8 +107,11 @@ just language/bench
 just language/bench-parser
 just language/bench-lexer
 just language/bench-compiler
+just language/bench-compiler-stats
+just language/bench-linter-stats
 just language/fuzz
 just language/fuzz-lexer
 just language/fuzz-parser
 just language/fuzz-formatter
+just language/list-fuzz-targets
 ```
