@@ -17,7 +17,6 @@ Run these from the repository root.
 ```sh
 just check-hygiene
 just check-workflow-policy
-just check-release-drift
 just install-hygiene-toolchain
 just language/install-toolchain
 just bridge/install-toolchain

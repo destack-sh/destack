@@ -9,7 +9,6 @@ Run these from the repository root.
 ```sh
 # focused local loop
 just check-workflow-policy
-just check-release-drift
 
 # clean gate
 just check-hygiene

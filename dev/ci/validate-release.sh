@@ -10,4 +10,3 @@ fi
 
 bash dev/ci/validate-release-tag-version.sh "${release_tag}"
 cargo run --release -p destack_cli -- dev version check
-bash dev/ci/validate-release-changelog.sh "${version}"

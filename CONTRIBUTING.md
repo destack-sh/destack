@@ -33,13 +33,11 @@ See [TESTING.md](TESTING.md) for the full test matrix and suite details.
 ## Versioning And Status
 
 Destack uses one canonical monorepo release version from [VERSION.txt](VERSION.txt).
-The canonical release history lives in [CHANGELOG.md](CHANGELOG.md).
+The canonical release history lives in GitHub releases.
 Do not bump versions during normal development.
 Only bump versions through `just bump` or `just release`.
 
 Public project inventories and maturity live in the area README tables.
-Keep `VERSION.txt` and `CHANGELOG.md` in sync.
-Run `just check-release-drift` when you touch release metadata directly.
 
 ## Commit Style
 
@@ -77,7 +75,6 @@ We use `justfile`s as the source of truth for all commands:
 ```sh
 just install        # setup everything
 just check          # run repository static checks
-just check-release-drift   # validate VERSION.txt and CHANGELOG.md drift
 just test           # run area test aggregates
 just fmt            # format all code
 just quick          # run the repository quick gate

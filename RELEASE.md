@@ -16,9 +16,7 @@ Public project maturity is tracked separately through the single `Status` label 
 |---------|---------|
 | `just bump`, `just bump minor`, `just bump major` | Update `VERSION.txt` and all tracked version files |
 | `just release` | Prepare the default patch release commit and tag locally |
-| `just generate-release-changelog` | Refresh the root changelog entry for the current version |
-| `just validate-release` | Validate tag, tracked versions, and changelog state |
-| `just check-release-drift` | Validate `VERSION.txt` and `CHANGELOG.md` drift together |
+| `just validate-release` | Validate tag and tracked versions |
 | `just release minor`, `just release major` | Prepare a non-patch release commit and tag locally |
 | `just release-push` | Push the current release commit and local release tag |
 | `just publish --dry-run` | Dry run the full multi-registry publish fanout |
@@ -55,7 +53,7 @@ This is the normal operator path.
 1. Run `just quick`.
 2. Run `just full` if you want local deep validation before tagging.
 3. Run `just release`, `just release minor`, or `just release major`.
-4. Review the resulting commit, tag, and changelog.
+4. Review the resulting commit and tag.
 5. Run `just release-push`.
 
 Pushing the `vX.Y.Z` tag triggers [.github/workflows/release.yml](/Users/florian/symbol/destack/.github/workflows/release.yml).
@@ -67,7 +65,6 @@ Run these commands from the repository root when preparing a release manually.
 ```sh
 just quick
 just full
-just generate-release-changelog
 just validate-release
 just publish --dry-run
 ```
@@ -122,21 +119,17 @@ Important workflow pieces:
 
 - [release.yml](/Users/florian/symbol/destack/.github/workflows/release.yml)
 
-## Changelog
+## Release Notes
 
-Destack is alpha software, so release entries do not need migration notes yet.
-Keep the root changelog concise and user facing.
-Only include items with clear external impact for users, operators, or package consumers.
-Treat [CHANGELOG.md](/Users/florian/symbol/destack/CHANGELOG.md) as the canonical monorepo release history.
-Treat package local changelogs as thin package metadata that can point back to the root changelog.
+GitHub releases are the release history for the monorepo.
+The release workflow uses GitHub generated release notes for the tag.
+Edit the GitHub release manually only when the generated notes miss a user-visible change, migration note, or operator warning.
 
 Version bumps and maturity labels are intentionally separate.
 The monorepo version tracks coordinated releases.
 Project `Status` tracks local maturity such as `Experimental`, `Alpha`, or `Beta`.
-Do not use package local versions or changelogs as a second release source of truth.
-
-`just generate-release-changelog` is the single source of truth for release changelog generation.
-That command also refreshes `bridge/dart/CHANGELOG.md` and syncs `bridge/dart/LICENSE` from `LICENSE.txt`.
+Do not use package local changelogs as a second monorepo release source of truth.
+Keep package local changelogs only where a registry requires one.
 
 ## Release Integrity
 

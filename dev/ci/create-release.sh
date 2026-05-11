@@ -4,7 +4,6 @@ set -euo pipefail
 kind="${1:?missing version bump kind}"
 
 just bump "${kind}"
-just generate-release-changelog
 
 version="$(cat VERSION.txt)"
 just validate-release "v${version}"

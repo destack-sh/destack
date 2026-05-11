@@ -61,7 +61,6 @@ tokei *args:
 # run repository static checks
 check:
     just check-hygiene
-    just check-release-drift
     just language/check
     just library/check
     just service/check
@@ -79,7 +78,6 @@ test:
 # run the repository quick gate
 quick:
     just check-hygiene
-    just check-release-drift
     just language/quick
     just library/quick
     just service/quick
@@ -106,10 +104,6 @@ check-hygiene:
 # validate ci workflow and target policy architecture
 check-workflow-policy:
     bash dev/ci/check-workflow-policy.sh
-
-# validate local release metadata drift between VERSION.txt and CHANGELOG.md
-check-release-drift:
-    bash dev/ci/validate-release-drift.sh
 
 # install ci hygiene toolchains on this host
 install-hygiene-toolchain:
@@ -163,11 +157,7 @@ version:
 bump kind="patch":
     cargo run --release -p destack_cli -- dev version {{ kind }}
 
-# generate or refresh the changelog entry for VERSION.txt
-generate-release-changelog:
-    bash dev/ci/update-changelog.sh "$(cat VERSION.txt)"
-
-# validate release version, tracked file versions, and changelog entry
+# validate release version and tracked file versions
 validate-release tag="":
     bash dev/ci/validate-release.sh "{{tag}}"
 
@@ -192,7 +182,7 @@ publish-release:
 publish-release-local:
     bash dev/ci/publish-release-local.sh
 
-# create a new release (bump, validate, changelog, commit, tag)
+# create a new release (bump, validate, commit, tag)
 release kind="patch":
     bash dev/ci/create-release.sh "{{kind}}"
 
