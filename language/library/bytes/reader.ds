@@ -1,0 +1,31 @@
+import { todo } from "destack:error";
+import { type Bytes } from "./bytes.ds";
+
+/// Sequential byte reader over in-memory bytes.
+export class ByteReader {
+    /// The source bytes.
+    bytes: Bytes;
+
+    /// The current byte offset.
+    offset: usize = 0;
+
+    /// Create a reader for `bytes`.
+    static from(bytes: Bytes): ByteReader {
+        todo("ByteReader.from")
+    }
+
+    /// Return the unread byte count.
+    remaining(): usize {
+        todo("ByteReader.remaining")
+    }
+
+    /// Read one byte.
+    readByte(): uint8 | undefined {
+        todo("ByteReader.readByte")
+    }
+
+    /// Read at most `length` bytes.
+    read(length: usize): Bytes {
+        todo("ByteReader.read")
+    }
+}

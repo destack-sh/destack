@@ -1,0 +1,78 @@
+import { todo } from "destack:error";
+import { type Add } from "destack:ops";
+import { type Subtract } from "destack:ops";
+import { type Multiply } from "destack:ops";
+import { type Divide } from "destack:ops";
+import { type Remainder } from "destack:ops";
+import { type MaybeUninit, type Unique } from "destack:memory";
+
+/// Arbitrary-precision integer.
+export class BigInt {
+    /// The sign of this integer.
+    private sign: int8 = 0;
+
+    /// The little-endian limb storage.
+    private limbs: Unique<[MaybeUninit<uint64>]>;
+
+    /// The initialized limb count.
+    private initializedLength: usize = 0;
+
+    /// The allocated limb count.
+    private capacity: usize = 0;
+}
+
+extension of BigInt implements
+    Add<BigInt>,
+    Subtract<BigInt>,
+    Multiply<BigInt>,
+    Divide<BigInt>,
+    Remainder<BigInt>
+{
+    /// The arithmetic result type.
+    type Output = BigInt;
+
+    /// Parse a bigint from `value`.
+    static parse(value: string | number | BigInt): BigInt {
+        todo("BigInt.parse")
+    }
+
+    /// Return the signed low bits of `value`.
+    static asIntN(bits: int32, value: BigInt): BigInt {
+        todo("BigInt.asIntN")
+    }
+
+    /// Return the unsigned low bits of `value`.
+    static asUintN(bits: int32, value: BigInt): BigInt {
+        todo("BigInt.asUintN")
+    }
+
+    /// Return a decimal string.
+    toString(radix?: int32): string {
+        todo("BigInt.toString")
+    }
+
+    /// Add `other`.
+    add(other: BigInt): this.Output {
+        todo("BigInt.add")
+    }
+
+    /// Subtract `other`.
+    subtract(other: BigInt): this.Output {
+        todo("BigInt.subtract")
+    }
+
+    /// Multiply by `other`.
+    multiply(other: BigInt): this.Output {
+        todo("BigInt.multiply")
+    }
+
+    /// Divide by `other`.
+    divide(other: BigInt): this.Output {
+        todo("BigInt.divide")
+    }
+
+    /// Return the remainder after division by `other`.
+    remainder(other: BigInt): this.Output {
+        todo("BigInt.remainder")
+    }
+}

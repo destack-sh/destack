@@ -1,5 +1,3 @@
-import { intrinsic } from "../core/decorator/intrinsic.ds";
-
 /// Add with overflow detection.
 ///
 /// Returns a tuple of the result and a boolean indicating overflow.

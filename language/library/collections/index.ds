@@ -1,6 +1,5 @@
-// core collections (ambient)
 export { Array, arrayOf, arrayFill } from "./array.ds";
 export { type ReadonlyArray, type FixedArray } from "./array.ds";
 export { Slice } from "./slice.ds";
-export { Map, type Record } from "./map.ds";
+export { Map, HashTable, HashEntry, type Record } from "./map.ds";
 export { Set } from "./set.ds";

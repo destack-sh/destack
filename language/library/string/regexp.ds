@@ -1,0 +1,29 @@
+/// Regular expression pattern.
+export class RegExp {
+    /// The source pattern.
+    readonly source: string;
+
+    /// The flags used to compile the pattern.
+    readonly flags: string;
+
+    /// Create a regular expression.
+    constructor(pattern: string, flags?: string);
+
+    /// Return whether the pattern matches `value`.
+    test(value: string): boolean;
+
+    /// Execute the pattern against `value`.
+    exec(value: string): RegExpMatch | null;
+}
+
+/// One regular expression match.
+export interface RegExpMatch {
+    /// The full matched text.
+    readonly text: string;
+
+    /// The matched captures.
+    readonly captures: readonly (string | undefined)[];
+
+    /// The start index in UTF-16 code units.
+    readonly index: uint32;
+}

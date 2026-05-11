@@ -1,145 +1,138 @@
-/// Immutable UTF-8 string with cached UTF-16 length for TS compatibility.
+import { todo } from "destack:error";
+import { type MaybeUninit, type Unique } from "destack:memory";
+
+/// Immutable UTF-8 string.
 export class String {
-    /// UTF-16 code unit count (for .length compatibility with JS/TS).
-    lengthUtf16: uint32 = 0;
-    /// Byte length of UTF-8 data.
-    lengthBytes: uint32 = 0;
-    /// Raw UTF-8 byte storage owned by this string.
-    data: *uint8 = null as *uint8;
+    /// The owned UTF-8 bytes.
+    bytes: Unique<[uint8]>;
 }
 
 /// Mutable UTF-8 string builder with growable backing storage.
-/// growing, clearing, and freeing it.
 export class StringBuilder {
-    /// UTF-16 code unit count for the current contents.
-    lengthUtf16: uint32 = 0;
-    /// Byte length of the current UTF-8 contents.
-    lengthBytes: uint32 = 0;
-    /// Allocated byte capacity.
-    capacityBytes: uint32 = 0;
-    /// Raw UTF-8 byte storage owned by this builder.
-    data: *uint8 = null as *uint8;
+    /// The owned UTF-8 bytes.
+    bytes: Unique<[MaybeUninit<uint8>]>;
+
+    /// The initialized byte count.
+    initializedLength: usize = 0;
+
+    /// The allocated byte capacity.
+    capacity: usize = 0;
 }
 
 extension of String {
-    /// The length in UTF-16 code units (TypeScript-compatible).
+    /// The length in UTF-16 code units.
     get length(): number {
-        throw "not implemented";
+        todo("String.length")
     }
 
     /// Get the byte length of the UTF-8 representation.
     get byteLength(): uint32 {
-        throw "not implemented";
+        todo("String.byteLength")
     }
 
     /// Check if the string is empty.
     get isEmpty(): boolean {
-        throw "not implemented";
+        todo("String.isEmpty")
     }
 
     /// Get a character at the given UTF-16 index.
     /// Returns undefined if index is out of bounds.
     charAt(index: number): String | undefined {
-        throw "not implemented";
+        todo("String.charAt")
     }
 
     /// Get the UTF-16 code unit at the given index.
     charCodeAt(index: number): number | undefined {
-        throw "not implemented";
+        todo("String.charCodeAt")
     }
 
     /// Concatenate two strings.
     concat(other: String): String {
-        throw "not implemented";
+        todo("String.concat")
     }
 
     /// Check if string includes a substring.
     includes(search: String, position?: number): boolean {
-        throw "not implemented";
+        todo("String.includes")
     }
 
     /// Find the first index of a substring.
     indexOf(search: String, position?: number): number {
-        throw "not implemented";
+        todo("String.indexOf")
     }
 
     /// Find the last index of a substring.
     lastIndexOf(search: String, position?: number): number {
-        throw "not implemented";
+        todo("String.lastIndexOf")
     }
 
     /// Check if string starts with a prefix.
     startsWith(search: String, position?: number): boolean {
-        throw "not implemented";
+        todo("String.startsWith")
     }
 
     /// Check if string ends with a suffix.
     endsWith(search: String, position?: number): boolean {
-        throw "not implemented";
+        todo("String.endsWith")
     }
 
     /// Extract a substring.
     substring(start: number, end?: number): String {
-        throw "not implemented";
+        todo("String.substring")
     }
 
     /// Extract a slice of the string.
     slice(start?: number, end?: number): String {
-        throw "not implemented";
+        todo("String.slice")
     }
 
     /// Convert to lowercase.
     toLowerCase(): String {
-        throw "not implemented";
+        todo("String.toLowerCase")
     }
 
     /// Convert to uppercase.
     toUpperCase(): String {
-        throw "not implemented";
+        todo("String.toUpperCase")
     }
 
     /// Remove leading and trailing whitespace.
     trim(): String {
-        throw "not implemented";
+        todo("String.trim")
     }
 
     /// Remove leading whitespace.
     trimStart(): String {
-        throw "not implemented";
+        todo("String.trimStart")
     }
 
     /// Remove trailing whitespace.
     trimEnd(): String {
-        throw "not implemented";
+        todo("String.trimEnd")
     }
 
     /// Repeat the string n times.
     repeat(count: number): String {
-        throw "not implemented";
+        todo("String.repeat")
     }
 
     /// Pad the start of the string.
     padStart(targetLength: number, padString?: String): String {
-        throw "not implemented";
+        todo("String.padStart")
     }
 
     /// Pad the end of the string.
     padEnd(targetLength: number, padString?: String): String {
-        throw "not implemented";
+        todo("String.padEnd")
     }
-
-    /// Split the string by a separator.
-    // split(separator: String, limit?: number): Array<String> {
-        // throw "not implemented";
-    // }
 
     /// Equality comparison.
     equal(other: String): boolean {
-        throw "not implemented";
+        todo("String.equal")
     }
 
     /// String concatenation via + operator.
     add(other: String): String {
-        throw "not implemented";
+        todo("String.add")
     }
 }

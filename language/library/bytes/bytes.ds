@@ -1,0 +1,50 @@
+import { todo } from "destack:error";
+import { type Iterator } from "destack:iter";
+
+/// Immutable byte sequence.
+export type Bytes = readonly [uint8];
+
+/// Compare two byte sequences lexicographically.
+export function compare(left: &readonly [uint8], right: &readonly [uint8]): int32 {
+    todo("bytes.compare")
+}
+
+/// Return whether two byte sequences are equal.
+export function equal(left: &readonly [uint8], right: &readonly [uint8]): boolean {
+    todo("bytes.equal")
+}
+
+/// Return whether `bytes` contains `needle`.
+export function contains(bytes: &readonly [uint8], needle: &readonly [uint8]): boolean {
+    todo("bytes.contains")
+}
+
+/// Return whether `bytes` starts with `prefix`.
+export function startsWith(bytes: &readonly [uint8], prefix: &readonly [uint8]): boolean {
+    todo("bytes.startsWith")
+}
+
+/// Return whether `bytes` ends with `suffix`.
+export function endsWith(bytes: &readonly [uint8], suffix: &readonly [uint8]): boolean {
+    todo("bytes.endsWith")
+}
+
+/// Return the first index of `needle`.
+export function indexOf(bytes: &readonly [uint8], needle: &readonly [uint8]): usize | undefined {
+    todo("bytes.indexOf")
+}
+
+/// Split bytes around `separator`.
+export function split(bytes: &readonly [uint8], separator: &readonly [uint8]): Iterator<Bytes> {
+    todo("bytes.split")
+}
+
+/// Join byte sequences with `separator`.
+export function join(values: Iterator<Bytes>, separator: &readonly [uint8]): Bytes {
+    todo("bytes.join")
+}
+
+/// Clone bytes into immutable storage.
+export function clone(bytes: &readonly [uint8]): Bytes {
+    todo("bytes.clone")
+}
