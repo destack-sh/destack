@@ -51,7 +51,7 @@ export struct NetworkInterface {
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function listInterfaces(): Result<Array<NetworkInterface>, PlatformError>;
+export declare function listInterfaces(): Result<^Array<NetworkInterface>, PlatformError>;
 
 /// Resolve an interface name to an index.
 @binding("destack.net.interface.index", {
@@ -60,7 +60,7 @@ export declare function listInterfaces(): Result<Array<NetworkInterface>, Platfo
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function interfaceIndex(name: string): Result<uint32, PlatformError>;
+export declare function interfaceIndex(name: &readonly string): Result<uint32, PlatformError>;
 
 /// Resolve an interface index to a name.
 @binding("destack.net.interface.name", {
@@ -69,4 +69,4 @@ export declare function interfaceIndex(name: string): Result<uint32, PlatformErr
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function interfaceName(index: uint32): Result<string, PlatformError>;
+export declare function interfaceName(index: uint32): Result<^string, PlatformError>;

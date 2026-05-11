@@ -47,7 +47,7 @@ export struct RouteEntry {
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function listRoutes(family: SocketFamily): Result<Array<RouteEntry>, PlatformError>;
+export declare function listRoutes(family: SocketFamily): Result<^Array<RouteEntry>, PlatformError>;
 
 /// Add a route table entry.
 @binding("destack.net.route.add", {

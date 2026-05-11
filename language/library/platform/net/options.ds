@@ -1,4 +1,3 @@
-import { Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
 import { SocketHandle } from "../resource/index.ds";
 
@@ -110,7 +109,7 @@ export declare function getSocketOption(
 export declare function setRawSocketOption(
     socket: SocketHandle,
     option: RawSocketOption,
-    value: Slice<uint8>,
+    value: &readonly [uint8],
 ): Result<void, PlatformError>;
 
 /// Read one raw socket option into a caller-owned buffer.
@@ -123,5 +122,5 @@ export declare function setRawSocketOption(
 export declare function getRawSocketOption(
     socket: SocketHandle,
     option: RawSocketOption,
-    value: Slice<uint8>,
+    value: &[uint8],
 ): Result<uint64, PlatformError>;

@@ -1,4 +1,3 @@
-import { Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
 import { SocketHandle, TransferredHandle } from "../resource/index.ds";
 import { SocketAddress, SocketFamily } from "./address.ds";
@@ -104,9 +103,9 @@ export struct SendMessage {
     /// Destination address for unconnected sockets.
     address?: SocketAddress;
     /// Ancillary control bytes.
-    control: Slice<uint8>;
+    control: [uint8];
     /// Resource handles to pass.
-    handles: Slice<TransferredHandle>;
+    handles: [TransferredHandle];
     /// Credentials to send when enabled.
     credentials?: SocketCredentials;
     /// Per-message flags.
@@ -156,11 +155,11 @@ export struct ReceiveFromResult {
 /// Receive request for one batch slot.
 export struct ReceiveBatchEntry {
     /// Payload output buffer.
-    payload: Slice<uint8>;
+    payload: [uint8];
     /// Ancillary control output buffer.
-    control: Slice<uint8>;
+    control: [uint8];
     /// Resource handle output buffer.
-    handles: Slice<TransferredHandle>;
+    handles: [TransferredHandle];
     /// Per-message options.
     options: ReceiveMessageOptions;
 }
@@ -168,7 +167,7 @@ export struct ReceiveBatchEntry {
 /// Send request for one batch slot.
 export struct SendBatchEntry {
     /// Payload input buffer.
-    payload: Slice<uint8>;
+    payload: [uint8];
     /// Per-message metadata.
     message: SendMessage;
 }
@@ -180,7 +179,9 @@ export struct SendBatchEntry {
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function openSocket(options: SocketOpenOptions): Result<SocketHandle, PlatformError>;
+export declare function openSocket(
+    options: SocketOpenOptions,
+): Result<SocketHandle, PlatformError>;
 
 /// Create a connected socket pair.
 @binding("destack.net.socket.pair", {
@@ -202,7 +203,7 @@ export declare function openSocketPair(
 })
 export declare function bindSocket(
     socket: SocketHandle,
-    address: SocketAddress,
+    address: &readonly SocketAddress,
 ): Result<void, PlatformError>;
 
 /// Mark a bound stream socket as a listener.
@@ -238,7 +239,7 @@ export declare function acceptSocket(
 })
 export declare function connectSocket(
     socket: SocketHandle,
-    address: SocketAddress,
+    address: &readonly SocketAddress,
 ): Result<void, PlatformError>;
 
 /// Close a socket handle.
@@ -301,7 +302,7 @@ export declare function peerAddress(socket: SocketHandle): Result<SocketAddress,
 })
 export declare function receive(
     socket: SocketHandle,
-    buffer: Slice<uint8>,
+    buffer: &[uint8],
     flags: MessageFlags,
 ): Result<uint64, PlatformError>;
 
@@ -314,7 +315,7 @@ export declare function receive(
 })
 export declare function send(
     socket: SocketHandle,
-    buffer: Slice<uint8>,
+    buffer: &readonly [uint8],
     flags: MessageFlags,
 ): Result<uint64, PlatformError>;
 
@@ -327,7 +328,7 @@ export declare function send(
 })
 export declare function receiveFrom(
     socket: SocketHandle,
-    buffer: Slice<uint8>,
+    buffer: &[uint8],
     flags: MessageFlags,
 ): Result<ReceiveFromResult, PlatformError>;
 
@@ -340,8 +341,8 @@ export declare function receiveFrom(
 })
 export declare function sendTo(
     socket: SocketHandle,
-    buffer: Slice<uint8>,
-    address: SocketAddress,
+    buffer: &readonly [uint8],
+    address: &readonly SocketAddress,
     flags: MessageFlags,
 ): Result<uint64, PlatformError>;
 
@@ -354,9 +355,9 @@ export declare function sendTo(
 })
 export declare function receiveMessage(
     socket: SocketHandle,
-    payload: Slice<uint8>,
-    control: Slice<uint8>,
-    handles: Slice<TransferredHandle>,
+    payload: &[uint8],
+    control: &[uint8],
+    handles: &[TransferredHandle],
     options: ReceiveMessageOptions,
 ): Result<ReceiveMessageResult, PlatformError>;
 
@@ -369,8 +370,8 @@ export declare function receiveMessage(
 })
 export declare function sendMessage(
     socket: SocketHandle,
-    payload: Slice<uint8>,
-    message: SendMessage,
+    payload: &readonly [uint8],
+    message: &readonly SendMessage,
 ): Result<uint64, PlatformError>;
 
 /// Receive multiple messages into caller-owned buffers.
@@ -382,8 +383,8 @@ export declare function sendMessage(
 })
 export declare function receiveBatch(
     socket: SocketHandle,
-    requests: Slice<ReceiveBatchEntry>,
-    results: Slice<ReceiveMessageResult>,
+    requests: &[ReceiveBatchEntry],
+    results: &[ReceiveMessageResult],
 ): Result<uint64, PlatformError>;
 
 /// Send multiple messages from caller-owned buffers.
@@ -395,5 +396,5 @@ export declare function receiveBatch(
 })
 export declare function sendBatch(
     socket: SocketHandle,
-    messages: Slice<SendBatchEntry>,
+    messages: &readonly [SendBatchEntry],
 ): Result<uint64, PlatformError>;
