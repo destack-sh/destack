@@ -1,0 +1,63 @@
+import { todo } from "destack:error";
+import { type Result } from "destack:error";
+import { type Dereference } from "destack:ops";
+import { type MaybeUninit } from "../init.ds";
+import { type Weak } from "./weak.ds";
+
+/// Reference-counted control block for one worker.
+export struct RcBox<T> {
+    /// The strong reference count.
+    strong: usize;
+
+    /// The weak reference count.
+    weak: usize;
+
+    /// The stored value.
+    value: MaybeUninit<T>;
+}
+
+/// Local reference-counted ownership.
+export struct Rc<T> {
+    /// The control block.
+    control: *RcBox<T>;
+}
+
+extension<T> of Rc<T> implements Dereference {
+    /// The projected result form.
+    type Output = &readonly T;
+
+    /// Allocate a new reference-counted value.
+    static new(value: ^T): Rc<T> {
+        todo("Rc.new")
+    }
+
+    /// Clone this strong handle.
+    clone(): Rc<T> {
+        todo("Rc.clone")
+    }
+
+    /// Create a weak handle to the same allocation.
+    downgrade(): Weak<T> {
+        todo("Rc.downgrade")
+    }
+
+    /// Return the strong reference count.
+    strongCount(): usize {
+        todo("Rc.strongCount")
+    }
+
+    /// Return the weak reference count.
+    weakCount(): usize {
+        todo("Rc.weakCount")
+    }
+
+    /// Move the value out when this is the only strong handle.
+    tryUnwrap(this: ^Rc<T>): Result<^T, Rc<T>> {
+        todo("Rc.tryUnwrap")
+    }
+
+    /// Borrow the referenced value.
+    dereference(): this.Output {
+        todo("Rc.dereference")
+    }
+}

@@ -1,5 +1,4 @@
-import { type Result } from "../core/error/result.ds";
-import { intrinsic } from "../core/decorator/intrinsic.ds";
+import { type Result } from "destack:error";
 import { type Space, type WithSpace } from "./form.ds";
 
 /// Layout requested from an allocator.

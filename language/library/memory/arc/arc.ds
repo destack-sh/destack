@@ -1,0 +1,64 @@
+import { todo } from "destack:error";
+import { type Result } from "destack:error";
+import { type Dereference } from "destack:ops";
+import { type Atomic } from "destack:sync";
+import { type MaybeUninit } from "../init.ds";
+import { type Weak } from "./weak.ds";
+
+/// Reference-counted control block for shared storage.
+export struct ArcBox<T> {
+    /// The strong reference count.
+    strong: Atomic<usize>;
+
+    /// The weak reference count.
+    weak: Atomic<usize>;
+
+    /// The stored value.
+    value: MaybeUninit<T>;
+}
+
+/// Shared reference-counted ownership.
+export struct Arc<T> {
+    /// The control block.
+    control: *ArcBox<T>;
+}
+
+extension<T> of Arc<T> implements Dereference {
+    /// The projected result form.
+    type Output = &readonly T;
+
+    /// Allocate a new shared reference-counted value.
+    static new(value: ^T): Arc<T> {
+        todo("Arc.new")
+    }
+
+    /// Clone this strong handle.
+    clone(): Arc<T> {
+        todo("Arc.clone")
+    }
+
+    /// Create a weak handle to the same allocation.
+    downgrade(): Weak<T> {
+        todo("Arc.downgrade")
+    }
+
+    /// Return the strong reference count.
+    strongCount(): usize {
+        todo("Arc.strongCount")
+    }
+
+    /// Return the weak reference count.
+    weakCount(): usize {
+        todo("Arc.weakCount")
+    }
+
+    /// Move the value out when this is the only strong handle.
+    tryUnwrap(this: ^Arc<T>): Result<^T, Arc<T>> {
+        todo("Arc.tryUnwrap")
+    }
+
+    /// Borrow the referenced value.
+    dereference(): this.Output {
+        todo("Arc.dereference")
+    }
+}

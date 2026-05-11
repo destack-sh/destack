@@ -1,8 +1,20 @@
-import { intrinsic } from "../core/decorator/intrinsic.ds";
-
 /// Deterministic ownership finalization capability.
 export newtype interface Drop {
+    /// Drop this value.
     drop(): void;
+}
+
+/// Owned storage whose `Drop` does not run automatically.
+export newtype ManuallyDrop<T> = intrinsic;
+
+export extension<T> of ManuallyDrop<T> {
+    /// Wrap `value` without scheduling its destructor.
+    @intrinsic("memory.manuallyDrop.new")
+    static new(value: ^T): ManuallyDrop<T>;
+
+    /// Move the wrapped value out.
+    @intrinsic("memory.manuallyDrop.intoInner")
+    intoInner(this: ^ManuallyDrop<T>): ^T;
 }
 
 /// End ownership of `value` at this point.
