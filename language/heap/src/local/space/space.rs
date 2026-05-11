@@ -277,15 +277,23 @@ impl HeapSpace {
         // first ensure the reference already points at stable mature place
         let reference = self.stabilize(reference)?;
 
+        let Some(location) = self.resolve_location(reference) else {
+            return Err(HeapError::InvalidHeapReference { reference });
+        };
+
         // then record the active pin count
-        self.pins.pin(reference)?;
+        self.pins.pin(location.base)?;
 
         Ok(reference)
     }
 
     /// Release one heap pin.
     pub fn unpin(&mut self, reference: HeapReference) -> HeapResult<()> {
-        self.pins.unpin(reference)
+        let Some(location) = self.resolve_location(reference) else {
+            return Err(HeapError::InvalidHeapReference { reference });
+        };
+
+        self.pins.unpin(location.base)
     }
 
     /// Return the number of live heap allocations.

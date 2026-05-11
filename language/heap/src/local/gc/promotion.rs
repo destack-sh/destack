@@ -87,7 +87,7 @@ impl HeapSpace {
         self.young.clear_forwarding();
         result?;
 
-        Ok(promoted_reference)
+        Ok(promoted_reference.add_bytes(location.byte_offset))
     }
 
     /// Rewrite roots and traced mature payloads through one completed promotion set.
@@ -415,7 +415,7 @@ impl HeapSpace {
             _ => None,
         };
 
-        Ok(reference)
+        Ok(reference.map(|base| base.add_bytes(location.byte_offset)))
     }
 
     /// Rewrite every live mature payload through completed forwarding metadata.
