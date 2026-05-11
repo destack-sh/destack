@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
-    expression_is_symbol_or_global_qualified_member, expression_static_property_access,
+    expression_is_symbol, expression_static_property_access,
     span_has_comment,
 };
 use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
@@ -55,8 +55,6 @@ struct ExponentiationVisitor<'a, 'b> {
     math_name: StringId,
     /// The pow member name.
     pow_name: StringId,
-    /// The global qualifier symbols.
-    global_qualifiers: Vec<dir::GlobalSymbolId>,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -67,7 +65,6 @@ impl<'a, 'b> ExponentiationVisitor<'a, 'b> {
         let math_name = ctx.string_id("Math");
         let pow_name = ctx.string_id("pow");
         let math_symbol = ctx.declared_library_symbol(math_name);
-        let global_qualifiers = ctx.global_qualifier_symbols();
 
         Self {
             ctx,
@@ -75,7 +72,6 @@ impl<'a, 'b> ExponentiationVisitor<'a, 'b> {
             math_symbol,
             math_name,
             pow_name,
-            global_qualifiers,
             options: NodeVisitorOptions::default(),
         }
     }
@@ -195,12 +191,10 @@ impl<'a, 'b> ExponentiationVisitor<'a, 'b> {
 
     /// Return true when the expression is a Math object reference.
     fn is_math_object(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        expression_is_symbol_or_global_qualified_member(
+        expression_is_symbol(
             self.ctx,
             expression_id,
             self.math_symbol,
-            &self.global_qualifiers,
-            self.math_name,
         )
     }
 }

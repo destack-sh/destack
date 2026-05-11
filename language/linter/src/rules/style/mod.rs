@@ -46,8 +46,6 @@ mod prefer_match;
 mod prefer_named_extension;
 mod prefer_nullish_coalescing;
 mod prefer_numeric_literals;
-mod prefer_object_has_own;
-mod prefer_object_spread;
 mod prefer_pattern_over_guard;
 mod prefer_precise_numeric;
 mod prefer_promise_reject_errors;
@@ -120,8 +118,6 @@ pub use prefer_match::*;
 pub use prefer_named_extension::*;
 pub use prefer_nullish_coalescing::*;
 pub use prefer_numeric_literals::*;
-pub use prefer_object_has_own::*;
-pub use prefer_object_spread::*;
 pub use prefer_pattern_over_guard::*;
 pub use prefer_precise_numeric::*;
 pub use prefer_promise_reject_errors::*;
@@ -196,7 +192,6 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(PreferPromiseRejectErrors),
         boxed(PreferReadonly),
         boxed(PreferSelfClosingTree),
-        boxed(PreferObjectSpread),
         boxed(PreferStruct),
         boxed(PreferStructLiteral),
         boxed(PreferSetOverEmptyMap),
@@ -207,7 +202,6 @@ pub fn rules() -> Vec<BoxedLintRule> {
         boxed(PreferNamedExtension),
         boxed(PreferNullishCoalescing),
         boxed(PreferNumericLiterals),
-        boxed(PreferObjectHasOwn),
         boxed(PreferPreciseNumeric),
         boxed(PreferTemplate),
         boxed(PreferUnaryNegation),

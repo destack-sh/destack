@@ -598,25 +598,6 @@ impl<'a> LintModuleDirContext<'a> {
         self.const_value(id).map(ConstValue::to_bool)
     }
 
-    /// Return cached global qualifier symbols.
-    /// #Performance: avoid cloning the global qualifiers vector
-    pub fn global_qualifier_symbols(&mut self) -> Vec<dir::GlobalSymbolId> {
-        if let Some(symbols) = &self.analysis.global_qualifier_symbols {
-            return symbols.clone();
-        }
-
-        // resolve configured globals
-        let mut qualifiers = Vec::new();
-        for name in GLOBAL_QUALIFIER_SYMBOLS {
-            let name_id = self.string_id(name);
-            if let Some(symbol) = self.get_declared_library_symbol(name_id) {
-                qualifiers.push(symbol);
-            }
-        }
-        self.analysis.global_qualifier_symbols = Some(qualifiers.clone());
-
-        qualifiers
-    }
 }
 
 #[cfg(test)]

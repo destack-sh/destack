@@ -4,8 +4,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
-    TaintAnalysis, TaintCache, assign_pattern_target_expression,
-    expression_is_global_qualified_member, expression_is_symbol_or_global_qualified_member,
+    TaintAnalysis, TaintCache, assign_pattern_target_expression, expression_is_symbol,
     expression_static_property_access,
 };
 use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
@@ -52,16 +51,12 @@ struct NoOpenRedirectVisitor<'a, 'b> {
     location_symbol: dir::GlobalSymbolId,
     /// The `location` name.
     location_name: StringId,
-    /// The `window` name.
-    window_name: StringId,
     /// The `href` property name.
     href_name: StringId,
     /// The `assign` method name.
     assign_name: StringId,
     /// The `replace` method name.
     replace_name: StringId,
-    /// Global qualifier symbols for matching `globalThis.location`.
-    global_qualifiers: Vec<dir::GlobalSymbolId>,
     /// Cached taint analysis state.
     taint_cache: TaintCache,
     /// The visitor options.
@@ -73,25 +68,21 @@ impl<'a, 'b> NoOpenRedirectVisitor<'a, 'b> {
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         // intern names
         let location_name = ctx.string_id("location");
-        let window_name = ctx.string_id("window");
         let href_name = ctx.string_id("href");
         let assign_name = ctx.string_id("assign");
         let replace_name = ctx.string_id("replace");
 
         // resolve symbols
         let location_symbol = ctx.declared_library_symbol(location_name);
-        let global_qualifiers = ctx.global_qualifier_symbols();
 
         Self {
             ctx,
             meta,
             location_symbol,
             location_name,
-            window_name,
             href_name,
             assign_name,
             replace_name,
-            global_qualifiers,
             taint_cache: TaintCache::default(),
             options: NodeVisitorOptions::default(),
         }
@@ -181,12 +172,10 @@ impl<'a, 'b> NoOpenRedirectVisitor<'a, 'b> {
     /// Return true when the expression is a location target.
     fn is_location_target(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         // match location directly
-        if expression_is_symbol_or_global_qualified_member(
+        if expression_is_symbol(
             self.ctx,
             expression_id,
             self.location_symbol,
-            &self.global_qualifiers,
-            self.location_name,
         ) {
             return true;
         }
@@ -199,10 +188,6 @@ impl<'a, 'b> NoOpenRedirectVisitor<'a, 'b> {
                 return true;
             }
 
-            // enforce this lint guard
-            if property_name == self.location_name && self.is_window_ref(receiver_id) {
-                return true;
-            }
         }
 
         false
@@ -221,32 +206,7 @@ impl<'a, 'b> NoOpenRedirectVisitor<'a, 'b> {
 
     /// Return true when the expression references location.
     fn is_location_ref(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        // match window.location
-        if let Some((receiver_id, property_name)) =
-            expression_static_property_access(self.ctx.tree, expression_id)
-            && property_name == self.location_name
-            && self.is_window_ref(receiver_id)
-        {
-            return true;
-        }
-
-        expression_is_symbol_or_global_qualified_member(
-            self.ctx,
-            expression_id,
-            self.location_symbol,
-            &self.global_qualifiers,
-            self.location_name,
-        )
-    }
-
-    /// Return true when the expression references window.
-    fn is_window_ref(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        expression_is_global_qualified_member(
-            self.ctx,
-            expression_id,
-            &self.global_qualifiers,
-            self.window_name,
-        )
+        expression_is_symbol(self.ctx, expression_id, self.location_symbol)
     }
 
     /// Return true when an expression is tainted.

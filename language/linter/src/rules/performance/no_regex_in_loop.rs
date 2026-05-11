@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
-    expression_enters_nested_declaration_scope, expression_is_symbol_or_global_qualified_member,
+    expression_enters_nested_declaration_scope, expression_is_symbol,
 };
 use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
@@ -50,8 +50,6 @@ struct NoRegexInLoopVisitor<'a, 'b> {
     regexp_symbol: dir::GlobalSymbolId,
     /// The RegExp member name.
     regexp_name: StringId,
-    /// The global qualifier symbols.
-    global_qualifiers: Vec<dir::GlobalSymbolId>,
     /// Whether the current traversal is inside a loop.
     is_in_loop: bool,
     /// The visitor options.
@@ -63,14 +61,12 @@ impl<'a, 'b> NoRegexInLoopVisitor<'a, 'b> {
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let regexp_name = ctx.string_id("RegExp");
         let regexp_symbol = ctx.declared_library_symbol(regexp_name);
-        let global_qualifiers = ctx.global_qualifier_symbols();
 
         Self {
             ctx,
             meta,
             regexp_symbol,
             regexp_name,
-            global_qualifiers,
             is_in_loop: false,
             options: NodeVisitorOptions::default(),
         }
@@ -99,12 +95,10 @@ impl<'a, 'b> NoRegexInLoopVisitor<'a, 'b> {
         }
 
         // check if this is RegExp construction
-        if !expression_is_symbol_or_global_qualified_member(
+        if !expression_is_symbol(
             self.ctx,
             callee_id,
             self.regexp_symbol,
-            &self.global_qualifiers,
-            self.regexp_name,
         ) {
             return;
         }

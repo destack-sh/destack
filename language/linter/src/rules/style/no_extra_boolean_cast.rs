@@ -1,13 +1,10 @@
 use destack_core::StringId;
-use destack_dir::{
-    self as dir, NodeVisitor, NodeVisitorOptions, UnaryOperator, WellKnownSymbol, walk_expression,
-};
+use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, UnaryOperator, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
-    expression_is_symbol_or_global_qualified_member, expression_parent_id,
-    expression_unwrap_parenthesized, source_text_contains_comment_token,
+    expression_parent_id, expression_target_symbol, expression_unwrap_parenthesized,
+    expression_unwrap_transparent, source_text_contains_comment_token,
 };
 use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
@@ -21,7 +18,7 @@ declare_lint! {
         code = "LY067",
         category = Style,
         level = Dir,
-        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Boolean)],
+        requires_all = [],
         requires_any = [],
         fixable = Sometimes,
         recommended = Strict,
@@ -51,12 +48,8 @@ struct NoExtraBooleanCastVisitor<'a, 'b> {
     ctx: &'a mut LintModuleDirContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
-    /// The well known Boolean symbol for this module.
-    boolean_symbol: dir::GlobalSymbolId,
     /// The Boolean member name.
     boolean_name: StringId,
-    /// The global qualifier symbols.
-    global_qualifiers: Vec<dir::GlobalSymbolId>,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -64,16 +57,12 @@ struct NoExtraBooleanCastVisitor<'a, 'b> {
 impl<'a, 'b> NoExtraBooleanCastVisitor<'a, 'b> {
     /// Build a visitor for no-extra-boolean-cast checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let boolean_symbol = ctx.well_known_symbol(WellKnownSymbol::Boolean);
         let boolean_name = ctx.string_id("Boolean");
-        let global_qualifiers = ctx.global_qualifier_symbols();
 
         Self {
             ctx,
             meta,
-            boolean_symbol,
             boolean_name,
-            global_qualifiers,
             options: NodeVisitorOptions::default(),
         }
     }
@@ -123,13 +112,17 @@ impl<'a, 'b> NoExtraBooleanCastVisitor<'a, 'b> {
 
     /// Return true when the expression resolves to the built in Boolean constructor.
     fn is_boolean_reference(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        expression_is_symbol_or_global_qualified_member(
-            self.ctx,
-            expression_id,
-            self.boolean_symbol,
-            &self.global_qualifiers,
-            self.boolean_name,
-        )
+        if expression_target_symbol(self.ctx, expression_id).is_some() {
+            return false;
+        }
+
+        let expression_id = expression_unwrap_transparent(self.ctx.tree, expression_id);
+        let expression = self.ctx.tree.get(expression_id);
+        if let dir::Expression::Path { path, .. } = expression {
+            return path.segments.len() == 1 && path.segments[0] == self.boolean_name;
+        }
+
+        false
     }
 
     /// Check `Boolean(value)` and `new Boolean(value)` calls.

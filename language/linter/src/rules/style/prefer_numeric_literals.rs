@@ -1,11 +1,10 @@
 use destack_core::StringId;
-use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
+use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::rules::common::{
-    const_i64, expression_is_symbol_or_global_qualified_member, expression_static_property_access,
-    expression_static_string_literal, expression_unwrap_transparent, span_has_comment,
+    const_i64, expression_static_property_access, expression_static_string_literal,
+    expression_target_symbol, expression_unwrap_transparent, span_has_comment,
 };
 use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
@@ -19,7 +18,7 @@ declare_lint! {
         code = "LY047",
         category = Style,
         level = Dir,
-        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Number)],
+        requires_all = [],
         requires_any = [],
         fixable = Sometimes,
         recommended = Strict,
@@ -47,14 +46,10 @@ struct PreferNumericLiteralsVisitor<'a, 'b> {
     ctx: &'a mut LintModuleDirContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
-    /// The well known Number symbol for this module.
-    number_symbol: dir::GlobalSymbolId,
     /// The string id for the parseInt method name.
     parse_int_name: StringId,
     /// The string id for the Number global name.
     number_name: StringId,
-    /// The global qualifier symbols.
-    global_qualifiers: Vec<dir::GlobalSymbolId>,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -62,17 +57,13 @@ struct PreferNumericLiteralsVisitor<'a, 'b> {
 impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
     /// Build a visitor for prefer-numeric-literals checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let number_symbol = ctx.well_known_symbol(WellKnownSymbol::Number);
         let parse_int_name = ctx.string_id("parseInt");
         let number_name = ctx.string_id("Number");
-        let global_qualifiers = ctx.global_qualifier_symbols();
         Self {
             ctx,
             meta,
-            number_symbol,
             parse_int_name,
             number_name,
-            global_qualifiers,
             options: NodeVisitorOptions::default(),
         }
     }
@@ -220,13 +211,7 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
         if let Some((base_id, property_name)) =
             expression_static_property_access(self.ctx.tree, expression_id)
             && property_name == self.parse_int_name
-            && expression_is_symbol_or_global_qualified_member(
-                self.ctx,
-                base_id,
-                self.number_symbol,
-                &self.global_qualifiers,
-                self.number_name,
-            )
+            && self.is_global_number(base_id)
         {
             return true;
         }
@@ -240,6 +225,21 @@ impl<'a, 'b> PreferNumericLiteralsVisitor<'a, 'b> {
             }
             _ => false,
         }
+    }
+
+    /// Return true when an expression is the ambient Number namespace.
+    fn is_global_number(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
+        if expression_target_symbol(self.ctx, expression_id).is_some() {
+            return false;
+        }
+
+        let expression_id = expression_unwrap_transparent(self.ctx.tree, expression_id);
+        let expression = self.ctx.tree.get(expression_id);
+        if let dir::Expression::Path { path, .. } = expression {
+            return path.segments.len() == 1 && path.segments[0] == self.number_name;
+        }
+
+        false
     }
 }
 

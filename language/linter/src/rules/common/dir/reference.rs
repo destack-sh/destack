@@ -148,84 +148,22 @@ fn normalize_expression_source_text(source: &str) -> String {
         .collect()
 }
 
-/// Return true when the expression is a global qualified member access.
-pub fn expression_is_global_qualified_member(
-    ctx: &LintModuleDirContext<'_>,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-    qualifiers: &[dir::GlobalSymbolId],
-    member_name: StringId,
-) -> bool {
-    // normalize transparent wrappers first
-    let expression_id = expression_unwrap_transparent(ctx.tree, expression_id);
-
-    // resolve the member path
-    if let Some(path) = expression_reference_path(ctx, expression_id) {
-        // ensure the requested member is present
-        if path.members.as_slice() != [member_name] {
-            return false;
-        }
-
-        // ensure the base is a known global qualifier
-        return match path.base {
-            ReferenceBase::Symbol(symbol) => qualifiers.contains(&symbol),
-            ReferenceBase::This => false,
-            ReferenceBase::Super => false,
-        };
-    }
-
-    // support computed static string access like `window["alert"]`
-    let Some((base_id, property_name)) = expression_static_property_access(ctx.tree, expression_id)
-    else {
-        return false;
-    };
-    if property_name != member_name {
-        return false;
-    }
-
-    let Some(base_symbol) = expression_target_symbol(ctx, base_id) else {
-        return false;
-    };
-
-    qualifiers.contains(&base_symbol)
-}
-
-/// Return true when one expression resolves to a symbol or its global-qualified member form.
-pub fn expression_is_symbol_or_global_qualified_member(
+/// Return true when one expression resolves to a symbol.
+pub fn expression_is_symbol(
     ctx: &LintModuleDirContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     symbol_id: dir::GlobalSymbolId,
-    qualifiers: &[dir::GlobalSymbolId],
-    member_name: StringId,
 ) -> bool {
-    // match direct symbol references
-    let target_symbol = expression_target_symbol(ctx, expression_id);
-    if target_symbol == Some(symbol_id) {
-        return true;
-    }
-
-    // match global qualified references
-    expression_is_global_qualified_member(ctx, expression_id, qualifiers, member_name)
+    expression_target_symbol(ctx, expression_id) == Some(symbol_id)
 }
 
-/// Return true when one expression matches any direct symbol or global-qualified member.
-pub fn expression_is_any_symbol_or_global_qualified_member(
+/// Return true when one expression resolves to any symbol in `symbols`.
+pub fn expression_is_any_symbol(
     ctx: &LintModuleDirContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     symbols: &[dir::GlobalSymbolId],
-    qualifiers: &[dir::GlobalSymbolId],
-    member_names: &[StringId],
 ) -> bool {
-    // match direct symbol references first
-    if expression_target_symbol(ctx, expression_id)
-        .is_some_and(|symbol_id| symbols.contains(&symbol_id))
-    {
-        return true;
-    }
-
-    // then match any global qualified reference
-    member_names.iter().copied().any(|member_name| {
-        expression_is_global_qualified_member(ctx, expression_id, qualifiers, member_name)
-    })
+    expression_target_symbol(ctx, expression_id).is_some_and(|symbol_id| symbols.contains(&symbol_id))
 }
 
 /// Return one static string literal value from an expression.
