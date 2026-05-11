@@ -54,7 +54,6 @@ install-conformance-ecma:
 # install formatter conformance sources
 install-conformance-formatter:
     python3 ./test/fixtures/conformance/fetch-suite.py \
-        ./test/fixtures/conformance/formatter/prettier \
         ./test/fixtures/conformance/formatter/oxfmt
 
 # --- build ---

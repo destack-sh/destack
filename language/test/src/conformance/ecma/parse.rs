@@ -151,7 +151,7 @@ impl SharedConformanceEnvironment {
     /// Create a new shared environment for conformance tests.
     fn new() -> Self {
         let fs = Arc::new(MemoryFileSystem::new());
-        let cwd = PathBuf::from("/test/parser/conformance");
+        let cwd = PathBuf::from("/test/conformance/ecma");
         fs.create_dir_all(&cwd)
             .expect("failed to create conformance workspace root");
         let repository = Arc::new(Repository::new(
@@ -174,7 +174,7 @@ impl SharedConformanceEnvironment {
             .file_stem()
             .and_then(|name| name.to_str())
             .unwrap_or("case");
-        PathBuf::from("/test/parser/conformance").join(format!("{stem}-{id}"))
+        PathBuf::from("/test/conformance/ecma").join(format!("{stem}-{id}"))
     }
 
     /// Build a synthetic file path for a test case.
