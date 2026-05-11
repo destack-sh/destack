@@ -1,7 +1,6 @@
 import { type Result } from "../core/error/result.ds";
 import { intrinsic } from "../core/decorator/intrinsic.ds";
-import { type WithSpace } from "./algebra.ds";
-import { type Space } from "./form.ds";
+import { type Space, type WithSpace } from "./form.ds";
 
 /// Layout requested from an allocator.
 export struct AllocationLayout {

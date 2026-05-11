@@ -1,13 +1,13 @@
 export {
     type StaticLifetime,
+    type ManagedLifetime,
     type Lifetime,
     type Space,
     type Place,
     type Ownership,
     type Access,
     type Form,
-} from "./form.ds";
-export {
+    type Unique,
     type Managed,
     type Borrowed,
     type ReadonlyBorrowed,
@@ -45,7 +45,7 @@ export {
     type AsReadonlyBorrowed,
     type AsExclusiveBorrowed,
     type AsRaw,
-} from "./algebra.ds";
+} from "./form.ds";
 export {
     type AllocationLayout,
     type AllocationErrorKind,
