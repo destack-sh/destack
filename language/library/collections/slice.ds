@@ -47,6 +47,21 @@ extension<T> of Slice<T> implements Index<number>, IndexSet<number, T>, Iterable
         this.unsafeGet(i as usize)
     }
 
+    /// Borrow the element at the index with bounds checks.
+    index(this: &Slice<T>, i: number): &T {
+        todo("Slice.index")
+    }
+
+    /// Borrow the element at the index with readonly access.
+    index(this: &readonly Slice<T>, i: number): &readonly T {
+        todo("Slice.index")
+    }
+
+    /// Borrow the element at the index with exclusive access.
+    index(this: &exclusive Slice<T>, i: number): &exclusive T {
+        todo("Slice.index")
+    }
+
     /// Get element at index (unchecked).
     unsafeGet(i: usize): T {
         sliceUnsafeGet(this, i)

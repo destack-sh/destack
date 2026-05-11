@@ -40,6 +40,21 @@ extension<T> of Array<T> implements Index<number>, IndexSet<number, T>, Iterable
         todo("Array.index")
     }
 
+    /// Borrow the element at the index with bounds checks.
+    index(this: &Array<T>, i: number): &T {
+        todo("Array.index")
+    }
+
+    /// Borrow the element at the index with readonly access.
+    index(this: &readonly Array<T>, i: number): &readonly T {
+        todo("Array.index")
+    }
+
+    /// Borrow the element at the index with exclusive access.
+    index(this: &exclusive Array<T>, i: number): &exclusive T {
+        todo("Array.index")
+    }
+
     /// Set the element at the index with bounds checks.
     indexSet(i: number, value: T): void {
         todo("Array.indexSet")
@@ -56,22 +71,22 @@ extension<T> of Array<T> implements Index<number>, IndexSet<number, T>, Iterable
     }
 
     /// Return the initialized mutable slice.
-    asSlice(): &[T] {
+    asSlice(this: &Array<T>): &[T] {
         todo("Array.asSlice")
     }
 
     /// Return the initialized readonly slice.
-    asReadonlySlice(): &readonly [T] {
+    asReadonlySlice(this: &readonly Array<T>): &readonly [T] {
         todo("Array.asReadonlySlice")
     }
 
     /// Push an element to the end.
-    push(value: T): void {
+    push(this: &exclusive Array<T>, value: T): void {
         todo("Array.push")
     }
 
     /// Pop an element from the end.
-    pop(): T | undefined {
+    pop(this: &exclusive Array<T>): T | undefined {
         todo("Array.pop")
     }
 
@@ -86,17 +101,17 @@ extension<T> of Array<T> implements Index<number>, IndexSet<number, T>, Iterable
     }
 
     /// Clear all elements.
-    clear(): void {
+    clear(this: &exclusive Array<T>): void {
         todo("Array.clear")
     }
 
     /// Reserve capacity for at least `additional` more elements.
-    reserve(additional: usize): void {
+    reserve(this: &exclusive Array<T>, additional: usize): void {
         todo("Array.reserve")
     }
 
     /// Shrink capacity to fit current length.
-    shrinkToFit(): void {
+    shrinkToFit(this: &exclusive Array<T>): void {
         todo("Array.shrinkToFit")
     }
 
@@ -161,12 +176,12 @@ extension<T> of Array<T> implements Index<number>, IndexSet<number, T>, Iterable
     }
 
     /// Reverse the array in place.
-    reverse(): this {
+    reverse(this: &exclusive Array<T>): this {
         todo("Array.reverse")
     }
 
     /// Sort the array in place.
-    sort(compareFn?: (a: T, b: T) => number): this {
+    sort(this: &exclusive Array<T>, compareFn?: (a: T, b: T) => number): this {
         todo("Array.sort")
     }
 
@@ -176,7 +191,12 @@ extension<T> of Array<T> implements Index<number>, IndexSet<number, T>, Iterable
     }
 
     /// Splice elements.
-    splice(start: number, deleteCount?: number, ...items: T[]): Array<T> {
+    splice(
+        this: &exclusive Array<T>,
+        start: number,
+        deleteCount?: number,
+        ...items: T[]
+    ): Array<T> {
         todo("Array.splice")
     }
 

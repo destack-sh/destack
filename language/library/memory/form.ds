@@ -1,7 +1,7 @@
 /// Builtin lifetime root for static storage.
 export type StaticLifetime = "static";
 
-/// Builtin lifetime root for managed heap storage.
+/// Builtin lifetime root for traced managed storage.
 export type ManagedLifetime = "managed";
 
 /// Lifetime marker for borrowed validity.
