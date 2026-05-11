@@ -1,2 +1,2 @@
-// NOTE #Incomplete: stub for node module path/win32
+// FUGU #Incomplete: path/win32
 export {};

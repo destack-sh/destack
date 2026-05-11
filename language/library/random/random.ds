@@ -1,6 +1,6 @@
-import { Slice } from "core";
-import type { PlatformError } from "../platform/error/index.ds";
-import * as platform from "library/platform/index.ds";
+import { Slice } from "destack:collections";
+import type { PlatformError } from "destack:platform/error";
+import * as platform from "destack:platform";
 
 /// Opaque identifier for a deterministic random stream.
 export type RandomStream = platform.random.RandomStream;

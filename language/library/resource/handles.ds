@@ -5,4 +5,4 @@ export type {
     ProcessHandle,
     SocketHandle,
     TimerHandle,
-} from "library/platform/resource/handles.ds";
+} from "destack:platform/resource";

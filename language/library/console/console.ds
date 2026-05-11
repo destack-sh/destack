@@ -1,28 +1,167 @@
-import type { PlatformError } from "../platform/error/index.ds";
+import { type Result } from "destack:error";
+import { todo } from "destack:error";
+import { type Writer } from "destack:sync";
+import type { PlatformError } from "destack:platform/error";
 
-/// Fail because platform console bindings are unavailable.
-function unavailable(): never {
-    throw new Error(
-        "destack.console is currently unavailable: use process stdio handles directly",
-    );
+/// Console output options.
+export interface ConsoleOptions {
+    /// Stream used for regular output.
+    stdout?: Writer;
+
+    /// Stream used for diagnostic output.
+    stderr?: Writer;
+
+    /// Whether values should be formatted with color when supported.
+    color?: boolean | "auto";
+}
+
+/// Debugging console.
+export class Console {
+    /// Create a console from output streams.
+    constructor(options?: ConsoleOptions);
+
+    /// Write a line to stdout.
+    log(...values: unknown[]): Result<void, PlatformError> {
+        todo("Console.log")
+    }
+
+    /// Write an info line to stdout.
+    info(...values: unknown[]): Result<void, PlatformError> {
+        todo("Console.info")
+    }
+
+    /// Write a debug line to stdout.
+    debug(...values: unknown[]): Result<void, PlatformError> {
+        todo("Console.debug")
+    }
+
+    /// Write a warning line to stderr.
+    warn(...values: unknown[]): Result<void, PlatformError> {
+        todo("Console.warn")
+    }
+
+    /// Write an error line to stderr.
+    error(...values: unknown[]): Result<void, PlatformError> {
+        todo("Console.error")
+    }
+
+    /// Write the current stack trace to stderr.
+    trace(...values: unknown[]): Result<void, PlatformError> {
+        todo("Console.trace")
+    }
+
+    /// Write an assertion failure when `condition` is false.
+    assert(condition: boolean, ...values: unknown[]): Result<void, PlatformError> {
+        todo("Console.assert")
+    }
+
+    /// Start a named timer.
+    time(label?: string): Result<void, PlatformError> {
+        todo("Console.time")
+    }
+
+    /// Write and stop a named timer.
+    timeEnd(label?: string): Result<void, PlatformError> {
+        todo("Console.timeEnd")
+    }
+
+    /// Write a named timer without stopping it.
+    timeLog(label?: string, ...values: unknown[]): Result<void, PlatformError> {
+        todo("Console.timeLog")
+    }
+
+    /// Increase output indentation.
+    group(...values: unknown[]): Result<void, PlatformError> {
+        todo("Console.group")
+    }
+
+    /// Increase output indentation for a collapsed group.
+    groupCollapsed(...values: unknown[]): Result<void, PlatformError> {
+        todo("Console.groupCollapsed")
+    }
+
+    /// Decrease output indentation.
+    groupEnd(): Result<void, PlatformError> {
+        todo("Console.groupEnd")
+    }
+
+    /// Write tabular data.
+    table(value: unknown): Result<void, PlatformError> {
+        todo("Console.table")
+    }
+}
+
+/// Return the default process console.
+export function defaultConsole(): Console {
+    todo("console.default")
 }
 
 /// Write a line to stdout.
-export function log(..._values: unknown[]): Result<void, PlatformError> {
-    unavailable();
+export function log(...values: unknown[]): Result<void, PlatformError> {
+    defaultConsole().log(...values)
 }
 
 /// Write an info line to stdout.
-export function info(..._values: unknown[]): Result<void, PlatformError> {
-    unavailable();
+export function info(...values: unknown[]): Result<void, PlatformError> {
+    defaultConsole().info(...values)
+}
+
+/// Write a debug line to stdout.
+export function debug(...values: unknown[]): Result<void, PlatformError> {
+    defaultConsole().debug(...values)
 }
 
 /// Write a warning line to stderr.
-export function warn(..._values: unknown[]): Result<void, PlatformError> {
-    unavailable();
+export function warn(...values: unknown[]): Result<void, PlatformError> {
+    defaultConsole().warn(...values)
 }
 
 /// Write an error line to stderr.
-export function error(..._values: unknown[]): Result<void, PlatformError> {
-    unavailable();
+export function error(...values: unknown[]): Result<void, PlatformError> {
+    defaultConsole().error(...values)
+}
+
+/// Write the current stack trace to stderr.
+export function trace(...values: unknown[]): Result<void, PlatformError> {
+    defaultConsole().trace(...values)
+}
+
+/// Write an assertion failure when `condition` is false.
+export function assert(condition: boolean, ...values: unknown[]): Result<void, PlatformError> {
+    defaultConsole().assert(condition, ...values)
+}
+
+/// Start a named timer.
+export function time(label?: string): Result<void, PlatformError> {
+    defaultConsole().time(label)
+}
+
+/// Write and stop a named timer.
+export function timeEnd(label?: string): Result<void, PlatformError> {
+    defaultConsole().timeEnd(label)
+}
+
+/// Write a named timer without stopping it.
+export function timeLog(label?: string, ...values: unknown[]): Result<void, PlatformError> {
+    defaultConsole().timeLog(label, ...values)
+}
+
+/// Increase output indentation.
+export function group(...values: unknown[]): Result<void, PlatformError> {
+    defaultConsole().group(...values)
+}
+
+/// Increase output indentation for a collapsed group.
+export function groupCollapsed(...values: unknown[]): Result<void, PlatformError> {
+    defaultConsole().groupCollapsed(...values)
+}
+
+/// Decrease output indentation.
+export function groupEnd(): Result<void, PlatformError> {
+    defaultConsole().groupEnd()
+}
+
+/// Write tabular data.
+export function table(value: unknown): Result<void, PlatformError> {
+    defaultConsole().table(value)
 }

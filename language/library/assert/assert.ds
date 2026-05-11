@@ -1,2 +1,13 @@
-// NOTE #Incomplete: stub for node module assert
-export {};
+import { panic } from "destack:error";
+
+/// Assert that `condition` is true.
+export function assert(condition: boolean, message?: string): void {
+    if (!condition) {
+        panic(message ?? "assertion failed")
+    }
+}
+
+/// Fail unconditionally.
+export function fail(message?: string): never {
+    panic(message ?? "assertion failed")
+}

@@ -1,0 +1,32 @@
+import { type Layout, type Type } from "./type.ds";
+
+/// Static reflection namespace.
+export class Reflect {
+    /// Return the reflected type for a value.
+    @intrinsic("reflect.typeOf")
+    static typeOf<T>(value: T): Type<T>;
+
+    /// Return the reflected type for `T`.
+    @intrinsic("reflect.type")
+    static type<T>(): Type<T>;
+
+    /// Return true when two reflected types name the same normalized type.
+    @intrinsic("reflect.type.equals")
+    static equalTypes<A, B>(left: Type<A>, right: Type<B>): boolean;
+
+    /// Return the target-specific size of `T`.
+    @intrinsic("reflect.sizeOf")
+    static sizeOf<T>(): usize;
+
+    /// Return the target-specific alignment of `T`.
+    @intrinsic("reflect.alignOf")
+    static alignOf<T>(): usize;
+
+    /// Return the target-specific stride of `T`.
+    @intrinsic("reflect.strideOf")
+    static strideOf<T>(): usize;
+
+    /// Return the target-specific layout of `T`.
+    @intrinsic("reflect.layoutOf")
+    static layoutOf<T>(): Layout;
+}
