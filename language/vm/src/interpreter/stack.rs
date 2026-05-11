@@ -112,27 +112,6 @@ impl Stack {
             .map_err(RuntimeError::new)
     }
 
-    /// Return whether one native address range belongs to this stack.
-    #[inline]
-    pub(crate) fn contains_address(&self, address: usize, byte_len: usize) -> bool {
-        // compare against the live stack range
-        let start = self.space.base_address();
-        let end = address + byte_len;
-        let stack_end = start + self.len;
-
-        start <= address && end <= stack_end
-    }
-
-    /// Return the stack offset for one live native address range.
-    #[inline]
-    pub(crate) fn offset_for_address(&self, address: usize, byte_len: usize) -> Option<usize> {
-        if !self.contains_address(address, byte_len) {
-            return None;
-        }
-
-        Some(address - self.space.base_address())
-    }
-
     /// Copy bytes into one live byte range.
     #[inline]
     pub(crate) fn copy_bytes(&self, offset: usize, bytes: &[u8]) -> RuntimeResult<()> {

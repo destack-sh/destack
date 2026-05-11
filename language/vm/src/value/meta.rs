@@ -122,7 +122,7 @@ impl ReferenceMeta {
     ) -> Self {
         let kind_bits = match kind {
             mir::ReferenceKind::Managed => 1,
-            mir::ReferenceKind::Owned => 2,
+            mir::ReferenceKind::Unique => 2,
             mir::ReferenceKind::Borrowed => 3,
             mir::ReferenceKind::Raw => 4,
         };
@@ -148,7 +148,7 @@ impl ReferenceMeta {
         match self.bits & REF_KIND_MASK {
             0 => None,
             1 => Some(mir::ReferenceKind::Managed),
-            2 => Some(mir::ReferenceKind::Owned),
+            2 => Some(mir::ReferenceKind::Unique),
             3 => Some(mir::ReferenceKind::Borrowed),
             4 => Some(mir::ReferenceKind::Raw),
             _ => None,

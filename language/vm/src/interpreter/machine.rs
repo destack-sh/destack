@@ -14,7 +14,7 @@ use crate::program::{
     ArgumentRange, Function, Instruction, Layout, Program, Projection, ProjectionId, SideRecord,
     SideTable, SliceProjection, SliceProjectionId,
 };
-use crate::{FramePointer, SharedHeap, StackPointer, StaticPointer, Word};
+use crate::{FramePointer, SharedHeap, StaticPointer, Word};
 
 /// Execution context for one active interpreter frame.
 ///
@@ -409,46 +409,6 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             .map_err(|_| Error::StackOverflow)? as usize;
 
         Ok(address)
-    }
-
-    /// Retire the most recent stack allocation owned by the current frame.
-    pub(crate) fn retire_stack(
-        &mut self,
-        pointer: StackPointer,
-        byte_len: usize,
-    ) -> Result<(), Error> {
-        let offset = self
-            .interpreter
-            .stack
-            .offset_for_address(pointer.address(), byte_len)
-            .ok_or(Error::InvalidAddressSpace {
-                expected: "stack".to_string(),
-                actual: format!("0x{:x}", pointer.address()),
-            })?;
-
-        // stack allocations are bump allocated and must retire in reverse order
-        let end = offset + byte_len;
-        if end != self.interpreter.stack.len() {
-            return Err(Error::InvalidAddressSpace {
-                expected: "top of stack".to_string(),
-                actual: format!("0x{:x}", pointer.address()),
-            });
-        }
-
-        // the current frame owns all stack allocations made while it runs
-        let frame = self.active_frame_mut();
-        if offset < frame.stack_offset {
-            return Err(Error::InvalidAddressSpace {
-                expected: "current frame stack".to_string(),
-                actual: format!("0x{:x}", pointer.address()),
-            });
-        }
-
-        self.interpreter.truncate_stack(offset);
-        let frame = self.active_frame_mut();
-        frame.truncate_bytes_to(offset);
-
-        Ok(())
     }
 
     /// Return the static pointer for one global.

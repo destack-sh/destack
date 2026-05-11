@@ -104,12 +104,6 @@ impl Frame {
         }
     }
 
-    /// Truncate this frame's stack-owned byte range.
-    pub(crate) fn truncate_bytes_to(&mut self, stack_end: usize) {
-        debug_assert!(stack_end >= self.stack_offset);
-        self.byte_len = stack_end - self.stack_offset;
-    }
-
     /// Return the native address of this frame's byte range.
     #[inline]
     pub(crate) fn base_address(&self) -> usize {

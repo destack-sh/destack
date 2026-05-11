@@ -328,16 +328,6 @@ pub(crate) enum Op {
     UnpinHeap,
     /// Unpin one shared heap reference.
     UnpinSharedHeap,
-    /// Drop one owned local heap reference.
-    DropHeap,
-    /// Drop one owned shared heap reference.
-    DropSharedHeap,
-    /// Drop one owned stack allocation.
-    DropStack,
-    /// Drop one owned local slice backing allocation.
-    DropSlice,
-    /// Drop one owned shared slice backing allocation.
-    DropSharedSlice,
 
     // ============================================================================
     // arithmetic and casts

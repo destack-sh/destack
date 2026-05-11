@@ -63,12 +63,12 @@ impl<'a> BlockLowerer<'a> {
         let reference = reference_meta_for_type(self.tree, value_type);
 
         match reference.kind() {
-            Some(mir::ReferenceKind::Managed | mir::ReferenceKind::Owned)
+            Some(mir::ReferenceKind::Managed | mir::ReferenceKind::Unique)
                 if matches!(reference.address_space(), ReferenceAddressSpace::Shared) =>
             {
                 Word::shared_heap_reference(SharedHeapReference::NULL)
             }
-            Some(mir::ReferenceKind::Managed | mir::ReferenceKind::Owned) => {
+            Some(mir::ReferenceKind::Managed | mir::ReferenceKind::Unique) => {
                 Word::heap_reference(HeapReference::NULL)
             }
             _ if matches!(reference.address_space(), ReferenceAddressSpace::Shared) => {

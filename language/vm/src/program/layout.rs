@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use destack_core::StringId;
 use destack_mir::{LayoutId, LayoutKind, LayoutTable, ReferenceMap};
 use {destack_engine as engine, destack_heap as heap, destack_mir as mir};
 
@@ -379,6 +380,14 @@ fn build_layout(
                 .collect::<Result<Vec<_>>>()?;
             build_record_layout(tree, layouts, ty, field_types)?
         }
+        mir::Type::Union { .. } => {
+            let layout = tree
+                .type_layout(ty)
+                .ok_or_else(|| Error::MissingRepresentation {
+                    context: "union layout".to_string(),
+                })?;
+            build_mir_layout(tree, layouts, layout)?
+        }
         mir::Type::Tuple { elements, .. } => {
             let element_types = elements
                 .iter()
@@ -489,6 +498,31 @@ fn raw_scalar_layout(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Layou
     scalar_layout(raw_byte_len, raw_alignment)
 }
 
+/// Build one VM layout from explicit MIR layout metadata.
+fn build_mir_layout(
+    tree: &mir::Tree,
+    layouts: &mut HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+    layout: &mir::Layout,
+) -> Result<Layout> {
+    let mut fields = Vec::with_capacity(layout.fields.len());
+
+    for field in &layout.fields {
+        build_layout(tree, layouts, field.ty)?;
+        fields.push(FieldLayout {
+            ty: field.ty,
+            offset: field.offset as usize,
+            byte_len: field.size as usize,
+        });
+    }
+
+    Ok(Layout {
+        byte_len: layout.size as usize,
+        shape: LayoutShape::Fields(fields),
+        reference_map: ReferenceMap::empty(),
+        alignment: layout.alignment as usize,
+    })
+}
+
 /// Return the raw scalar size and alignment for one MIR type.
 fn raw_scalar_size_alignment(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> (usize, usize) {
     match tree.get(ty) {
@@ -556,15 +590,17 @@ fn build_record_layout(
         build_layout(tree, layouts, field_type)?;
     }
 
-    // callable fields store heap handles in VM frames
+    // callable fields need the VM field representation
     for field_type in field_types.clone() {
         if contains_callable(tree, field_type)? {
-            return build_runtime_fields_layout(tree, layouts, ty, field_types);
+            return build_runtime_fields_layout(tree, layouts, field_types);
         }
     }
 
     // otherwise mirror the canonical MIR record layout directly
-    let raw_layout = raw_layout_entry(tree, ty)?;
+    let Some(raw_layout) = tree.type_layout(ty) else {
+        return build_runtime_fields_layout(tree, layouts, field_types);
+    };
     let fields = raw_fields_from_layout(raw_layout);
 
     Ok(Layout {
@@ -598,17 +634,30 @@ fn build_array_layout(
         ));
     }
 
-    // otherwise mirror the canonical MIR array stride and size
-    let raw_layout = raw_layout_entry(tree, ty)?;
-    let stride = raw_array_stride(raw_layout)?;
+    // otherwise mirror canonical MIR layout when present
+    let (stride, byte_len, alignment) = match tree.type_layout(ty) {
+        Some(raw_layout) => (
+            raw_array_stride(raw_layout)?,
+            raw_layout.size as usize,
+            raw_layout.alignment as usize,
+        ),
+        None => {
+            let stride = element_layout.stride();
+            (
+                stride,
+                stride_byte_len(length, stride)?,
+                element_layout.alignment,
+            )
+        }
+    };
 
     Ok(repeated_layout(
         element_type,
         &element_layout,
         stride,
         length,
-        raw_layout.size as usize,
-        raw_layout.alignment as usize,
+        byte_len,
+        alignment,
         |element| LayoutShape::Array { element, length },
     ))
 }
@@ -813,31 +862,31 @@ fn heap_reference_space(
 
     match tree.get(ty) {
         mir::Type::Reference {
-            kind: mir::ReferenceKind::Managed | mir::ReferenceKind::Owned,
+            kind,
             address_space,
             ..
-        } => Some(address_space.clone()),
+        } if is_heap_reference_kind(*kind) => Some(address_space.clone()),
         mir::Type::Slice {
-            kind: mir::ReferenceKind::Managed | mir::ReferenceKind::Owned,
+            kind,
             address_space,
             ..
-        } => Some(address_space.clone()),
+        } if is_heap_reference_kind(*kind) => Some(address_space.clone()),
         mir::Type::TensorView {
-            kind: mir::ReferenceKind::Managed | mir::ReferenceKind::Owned,
+            kind,
             address_space,
             ..
-        } => Some(address_space.clone()),
+        } if is_heap_reference_kind(*kind) => Some(address_space.clone()),
         mir::Type::Callable { .. } => Some(mir::AddressSpace::Local),
         _ => None,
     }
 }
 
-/// Return the raw MIR layout entry for one type.
-fn raw_layout_entry(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Result<&mir::Layout> {
-    tree.type_layout(ty)
-        .ok_or_else(|| Error::InvariantViolation {
-            context: format!("missing MIR raw layout metadata for {ty:?}"),
-        })
+/// Return whether one reference kind can name heap storage.
+fn is_heap_reference_kind(kind: mir::ReferenceKind) -> bool {
+    matches!(
+        kind,
+        mir::ReferenceKind::Managed | mir::ReferenceKind::Unique | mir::ReferenceKind::Borrowed
+    )
 }
 
 /// Extract ordered field layouts from one raw MIR layout.
@@ -879,7 +928,6 @@ fn raw_array_stride(layout: &mir::Layout) -> Result<usize> {
 fn build_runtime_fields_layout(
     tree: &mir::Tree,
     layouts: &mut HashMap<mir::LocalNodeId<mir::Type>, Layout>,
-    ty: mir::LocalNodeId<mir::Type>,
     field_types: impl IntoIterator<Item = mir::LocalNodeId<mir::Type>>,
 ) -> Result<Layout> {
     let mut fields = Vec::new();
@@ -910,8 +958,6 @@ fn build_runtime_fields_layout(
         alignment,
     };
 
-    debug_assert!(layout.byte_len <= raw_layout_entry(tree, ty)?.size as usize);
-
     Ok(layout)
 }
 
@@ -936,6 +982,10 @@ fn build_reference_map(
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Result<ReferenceMap> {
+    if tree.metadata.layout.union_layout(ty).is_some() {
+        return build_union_reference_map(tree, layouts, ty);
+    }
+
     let mut local_offsets = Vec::new();
     let mut shared_offsets = Vec::new();
 
@@ -959,6 +1009,134 @@ fn build_reference_map(
     };
 
     Ok(reference_map)
+}
+
+/// Build a tag-selected reference map for one lowered union.
+fn build_union_reference_map(
+    tree: &mir::Tree,
+    layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+    ty: mir::LocalNodeId<mir::Type>,
+) -> Result<ReferenceMap> {
+    let union = tree
+        .metadata
+        .layout
+        .union_layout(ty)
+        .ok_or_else(|| Error::InvariantViolation {
+            context: format!("missing union metadata for {ty:?}"),
+        })?;
+    let tag_offset = union_field_offset(tree, layouts, ty, union.tag_field_name)?;
+    let payload_offset = union_field_offset(tree, layouts, ty, union.payload_field_name)?;
+
+    let tag_bytes = union_tag_bytes(tree, union.tag_type)?;
+    let mut variants = Vec::with_capacity(union.element_types.len());
+
+    for (tag, element_type) in union.element_types.iter().copied().enumerate() {
+        let map = union_variant_reference_map(layouts, union, element_type)?;
+        variants.push(mir::ReferenceVariant {
+            tag: tag as u64,
+            payload_offset,
+            map,
+        });
+    }
+
+    Ok(ReferenceMap::Tagged {
+        tag_offset,
+        tag_bytes,
+        variants: variants.into_boxed_slice(),
+    })
+}
+
+/// Return the byte offset for one lowered union field.
+fn union_field_offset(
+    tree: &mir::Tree,
+    layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+    ty: mir::LocalNodeId<mir::Type>,
+    field_name: StringId,
+) -> Result<u32> {
+    if let Some(mir::Layout {
+        kind:
+            mir::LayoutKind::Union {
+                tag_offset,
+                payload_offset,
+                ..
+            },
+        ..
+    }) = tree.type_layout(ty)
+    {
+        let union =
+            tree.metadata
+                .layout
+                .union_layout(ty)
+                .ok_or_else(|| Error::InvariantViolation {
+                    context: format!("missing union metadata for {ty:?}"),
+                })?;
+        if field_name == union.tag_field_name {
+            return Ok(*tag_offset);
+        }
+        if field_name == union.payload_field_name {
+            return Ok(*payload_offset);
+        }
+    }
+
+    let mir::Type::Struct { fields, .. } = tree.get(ty) else {
+        return Err(Error::InvariantViolation {
+            context: format!("union metadata attached to non-struct type {ty:?}"),
+        });
+    };
+    let layout = layouts.get(&ty).ok_or_else(|| Error::InvariantViolation {
+        context: format!("missing union layout for {ty:?}"),
+    })?;
+
+    for (index, field_id) in fields.iter().enumerate() {
+        if tree.get(*field_id).name != Some(field_name) {
+            continue;
+        }
+        let field = layout
+            .field(index as u32)
+            .ok_or_else(|| Error::InvariantViolation {
+                context: format!("missing union field layout {ty:?}.{index}"),
+            })?;
+
+        return u32::try_from(field.offset).map_err(|_| Error::InvariantViolation {
+            context: format!("union field offset is too large: {}", field.offset),
+        });
+    }
+
+    Err(Error::InvariantViolation {
+        context: format!("missing union field {field_name:?}"),
+    })
+}
+
+/// Return the tag byte width for one union tag type.
+fn union_tag_bytes(tree: &mir::Tree, tag_type: mir::LocalNodeId<mir::Type>) -> Result<u8> {
+    let mir::Type::Int { width, .. } = tree.get(tag_type) else {
+        return Err(Error::InvariantViolation {
+            context: format!("union tag type is not integer: {tag_type:?}"),
+        });
+    };
+
+    u8::try_from(scalar_byte_len(*width as usize)).map_err(|_| Error::InvariantViolation {
+        context: format!("union tag width is too large: {width}"),
+    })
+}
+
+/// Return the payload reference map for one union variant.
+fn union_variant_reference_map(
+    layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
+    union: &mir::UnionLayout,
+    element_type: mir::LocalNodeId<mir::Type>,
+) -> Result<ReferenceMap> {
+    let payload_type = match union.payload_kind {
+        mir::UnionPayloadKind::Inline => element_type,
+        mir::UnionPayloadKind::Boxed => union.payload_type,
+    };
+
+    layouts
+        .get(&payload_type)
+        .map(|layout| layout.reference_map.clone())
+        .ok_or_else(|| Error::InvariantViolation {
+            context: format!("missing union variant layout for {payload_type:?}"),
+        })
 }
 
 /// Append heap reference offsets for one compiled layout subtree.
@@ -1177,9 +1355,40 @@ mod tests {
         panic!("missing type alias {name}");
     }
 
-    /// Compiled raw struct layout matches canonical MIR raw layout metadata.
+    /// Look up one named struct field.
+    fn lookup_field(
+        tree: &Tree,
+        strings: &StringPool,
+        ty: mir::LocalNodeId<Type>,
+        name: &str,
+    ) -> (StringId, mir::LocalNodeId<Type>) {
+        let Type::Struct { fields, .. } = tree.get(ty) else {
+            panic!("expected struct type {ty:?}");
+        };
+
+        for field_id in fields {
+            let field = tree.get(*field_id);
+            let Some(field_name) = field.name else {
+                continue;
+            };
+            if strings.get(field_name) != name {
+                continue;
+            }
+
+            let field_type = field
+                .ty
+                .ty()
+                .expect("struct field should be concrete after validation");
+
+            return (field_name, field_type);
+        }
+
+        panic!("missing field {name}");
+    }
+
+    /// Struct layout uses canonical field alignment when raw metadata is absent.
     #[test]
-    fn test_build_layout_imports_raw_struct_layout() {
+    fn test_build_layout_aligns_struct_fields() {
         let mir_text = r#"
 type Mixed {
     first: uint8;
@@ -1190,16 +1399,12 @@ type Mixed {
         let ty = lookup_type_alias(&tree, &strings, "Mixed");
         let layouts = build_layouts(&tree).expect("failed to build layouts");
         let layout = layouts.get(&ty).expect("missing layout");
-        let raw_layout = tree.type_layout(ty).expect("missing MIR raw layout");
 
-        // top-level facts
-        assert_eq!(layout.byte_len, raw_layout.size as usize);
+        assert_eq!(layout.byte_len, 24);
 
-        // field facts
-        let raw_fields = raw_fields_from_layout(raw_layout);
-        assert_eq!(layout.field(0), raw_fields.first().copied());
-        assert_eq!(layout.field(1), raw_fields.get(1).copied());
-        assert_eq!(layout.field(2), raw_fields.get(2).copied());
+        assert_eq!(layout.field(0).expect("missing field 0").offset, 0);
+        assert_eq!(layout.field(1).expect("missing field 1").offset, 8);
+        assert_eq!(layout.field(2).expect("missing field 2").offset, 16);
     }
 
     /// Heap-backed struct layout matches the canonical pointer-shaped runtime layout.
@@ -1227,6 +1432,27 @@ type Packed {
             layout.reference_map,
             ReferenceMap::Direct {
                 local_offsets: vec![8].into_boxed_slice(),
+                shared_offsets: Vec::new().into_boxed_slice(),
+            }
+        );
+    }
+
+    /// Heap-space borrowed references are traced as interior roots.
+    #[test]
+    fn test_build_layout_traces_managed_lifetime_borrowed_reference() {
+        let mir_text = r#"
+type View {
+    name: ref<int32, borrowed, lifetime(managed), readonly>;
+}"#;
+        let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
+        let ty = lookup_type_alias(&tree, &strings, "View");
+        let layouts = build_layouts(&tree).expect("failed to build layouts");
+        let layout = layouts.get(&ty).expect("missing layout");
+
+        assert_eq!(
+            layout.reference_map,
+            ReferenceMap::Direct {
+                local_offsets: vec![0].into_boxed_slice(),
                 shared_offsets: Vec::new().into_boxed_slice(),
             }
         );
@@ -1277,6 +1503,66 @@ type Holder {
             ReferenceMap::Direct {
                 local_offsets: vec![0].into_boxed_slice(),
                 shared_offsets: Vec::new().into_boxed_slice(),
+            }
+        );
+    }
+
+    /// Lowered unions trace only the active payload variant.
+    #[test]
+    fn test_build_layout_uses_tagged_reference_map_for_union() {
+        let mir_text = r#"
+type Ref = ref<int32, managed, readonly>;
+type Plain = int32;
+type Payload = usize[1];
+type Shape {
+    tag: uint8;
+    payload: Payload;
+}"#;
+        let (mut tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
+        let union_type = lookup_type_alias(&tree, &strings, "Shape");
+        let ref_type = lookup_type_alias(&tree, &strings, "Ref");
+        let plain_type = lookup_type_alias(&tree, &strings, "Plain");
+        let (tag_field_name, tag_type) = lookup_field(&tree, &strings, union_type, "tag");
+        let (payload_field_name, payload_type) =
+            lookup_field(&tree, &strings, union_type, "payload");
+
+        tree.metadata.layout.set_union_layout(
+            union_type,
+            mir::UnionLayout {
+                tag_type,
+                payload_type,
+                payload_kind: mir::UnionPayloadKind::Inline,
+                element_types: vec![ref_type, plain_type],
+                tag_field_name,
+                payload_field_name,
+                discriminant: None,
+            },
+        );
+
+        let layouts = build_layouts(&tree).expect("failed to build layouts");
+        let layout = layouts.get(&union_type).expect("missing layout");
+
+        assert_eq!(
+            layout.reference_map,
+            ReferenceMap::Tagged {
+                tag_offset: 0,
+                tag_bytes: 1,
+                variants: vec![
+                    mir::ReferenceVariant {
+                        tag: 0,
+                        payload_offset: 8,
+                        map: ReferenceMap::Direct {
+                            local_offsets: vec![0].into_boxed_slice(),
+                            shared_offsets: Vec::new().into_boxed_slice(),
+                        },
+                    },
+                    mir::ReferenceVariant {
+                        tag: 1,
+                        payload_offset: 8,
+                        map: ReferenceMap::empty(),
+                    },
+                ]
+                .into_boxed_slice(),
             }
         );
     }

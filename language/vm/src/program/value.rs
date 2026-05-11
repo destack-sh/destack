@@ -390,6 +390,7 @@ pub(crate) fn value_layout_from_type(
         mir::Type::Callable { .. } => ValueLayout::Callable { ty },
         mir::Type::Tuple { .. }
         | mir::Type::Struct { .. }
+        | mir::Type::Union { .. }
         | mir::Type::Vector { .. }
         | mir::Type::Tensor { .. } => ValueLayout::FrameBytes { ty },
         mir::Type::TensorView {
@@ -491,12 +492,12 @@ pub(crate) fn pointer_class_from_reference(
 ) -> PointerClass {
     match address_space {
         mir::AddressSpace::Local => match kind {
-            mir::ReferenceKind::Managed | mir::ReferenceKind::Owned => PointerClass::Heap,
+            mir::ReferenceKind::Managed | mir::ReferenceKind::Unique => PointerClass::Heap,
             mir::ReferenceKind::Borrowed => PointerClass::HeapAddress,
             mir::ReferenceKind::Raw => PointerClass::Raw,
         },
         mir::AddressSpace::Shared => match kind {
-            mir::ReferenceKind::Managed | mir::ReferenceKind::Owned => PointerClass::SharedHeap,
+            mir::ReferenceKind::Managed | mir::ReferenceKind::Unique => PointerClass::SharedHeap,
             mir::ReferenceKind::Borrowed => PointerClass::SharedHeapAddress,
             mir::ReferenceKind::Raw => PointerClass::SharedRaw,
         },
