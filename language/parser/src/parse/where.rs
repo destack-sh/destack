@@ -145,6 +145,25 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_where_negative_capability() {
+        let mut test = TestParser::new("where T: !Unpin");
+        let mut parser = test.prepare();
+        let clauses = parser.eat_where().unwrap();
+
+        test.assert_no_errors(&parser);
+
+        assert_eq!(clauses.len(), 1);
+        assert_node!(parser.tree, clauses[0], WhereClause { left, right } => {
+            assert_string!(parser, *left, "T");
+            assert_node!(parser.tree, *right, TypeExpression::Not { target_type } => {
+                assert_node!(parser.tree, *target_type, TypeExpression::Reference { path, .. } => {
+                    assert_path!(parser, *path, "Unpin");
+                });
+            });
+        });
+    }
+
+    #[test]
     fn test_parse_where_multiple_clauses() {
         let input = "where T: Numeric, U: Copy, V: Comparable";
         let mut test = TestParser::new(input);

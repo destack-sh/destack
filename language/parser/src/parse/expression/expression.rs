@@ -852,6 +852,16 @@ impl Parser {
 
                 TypeExpression::Shared { target_type }
             }
+            TypeUnaryOperator::Not => {
+                let target_type = self.eat_type_expression_or_recover_missing(
+                    self.flags
+                        .with_ambient_context(right_ambient_context)
+                        .with_expression_context(right_expression_context),
+                    NodeType::Expression,
+                )?;
+
+                TypeExpression::Not { target_type }
+            }
             _ => unreachable!(),
         };
 
@@ -884,7 +894,6 @@ impl Parser {
             TokenType::OpenBrace | TokenType::OpenBracket | TokenType::Multiply
         ) || token_type == TokenType::LessThan
             && self.can_start_generic_arrow_expression()
-            || token_type == TokenType::Not && self.peek_type_literal().is_ok()
             || self.peek_type_unary_prefix_operator_maybe().is_some();
         if starts_type_only_composite {
             return true;
@@ -2049,6 +2058,16 @@ impl Parser {
 
                 TypeExpression::Shared { target_type }
             }
+            TypeUnaryOperator::Not => {
+                let target_type = self.eat_type_expression_or_recover_missing(
+                    self.flags
+                        .with_type(true)
+                        .with_expression_context(right_flags),
+                    NodeType::Expression,
+                )?;
+
+                TypeExpression::Not { target_type }
+            }
             _ => unreachable!(),
         };
 
@@ -2370,20 +2389,7 @@ impl Parser {
                 )))
             }
 
-            // contextual literals and private identifiers
-            TokenType::Not if self.peek_type_literal().is_ok() => {
-                let type_literal = self.eat_type_literal(None)?;
-                let type_expression_id = self.insert_node(
-                    TypeExpression::Literal {
-                        value: type_literal,
-                    },
-                    self.get_span_from(start),
-                );
-
-                Ok(ParsedExpression::plain(
-                    self.wrap_type_expression(type_expression_id),
-                ))
-            }
+            // private identifiers
             TokenType::Hash
                 if self.lookahead(|parser| {
                     parser.bump();
@@ -2495,25 +2501,13 @@ impl Parser {
                     self.get_span_from(start),
                 ))
             }
-            TokenType::Not if self.peek_type_literal().is_ok() => {
-                let type_literal = self.eat_type_literal(None)?;
-
-                Ok(self.insert_node(
-                    TypeExpression::Literal {
-                        value: type_literal,
-                    },
-                    self.get_span_from(start),
-                ))
-            }
-
-            // signed literal types
-            _ if self.peek_unary_prefix_operator_maybe().is_some() => {
-                let operator = self.peek_unary_prefix_operator_maybe().unwrap();
-                self.eat_type_signed_scalar_literal_expression(start, operator)
-            }
             _ if self.peek_type_unary_prefix_operator_maybe().is_some() => {
                 let operator = self.peek_type_unary_prefix_operator_maybe().unwrap();
                 self.eat_type_unary_prefix_expression(start, operator)
+            }
+            _ if self.peek_unary_prefix_operator_maybe().is_some() => {
+                let operator = self.peek_unary_prefix_operator_maybe().unwrap();
+                self.eat_type_signed_scalar_literal_expression(start, operator)
             }
 
             // no strict type primary matched

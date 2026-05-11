@@ -29,6 +29,8 @@ pub(crate) enum TypeUnaryOperator {
     Readonly,
     /// `shared T`
     Shared,
+    /// `!T`
+    Not,
     /// `T as comptime`
     AsComptime,
 }
@@ -42,13 +44,18 @@ impl TypeUnaryOperator {
             TypeUnaryOperator::Keyof => TYPE_UNARY_PRECEDENCE + 3,
             TypeUnaryOperator::Readonly => TYPE_UNARY_PRECEDENCE + 3,
             TypeUnaryOperator::Shared => TYPE_UNARY_PRECEDENCE + 3,
+            TypeUnaryOperator::Not => TYPE_UNARY_PRECEDENCE + 3,
             TypeUnaryOperator::AsComptime => TYPE_UNARY_PRECEDENCE + 2,
         }
     }
 
-    /// Return one prefix operator from identifier text.
+    /// Return one prefix operator from token text.
     #[inline]
-    pub(crate) fn from_prefix_token(token_str: &str, _token_type: TokenType) -> Option<Self> {
+    pub(crate) fn from_prefix_token(token_str: &str, token_type: TokenType) -> Option<Self> {
+        if token_type == TokenType::Not {
+            return Some(TypeUnaryOperator::Not);
+        }
+
         match token_str {
             "typeof" => Some(TypeUnaryOperator::Typeof),
             "keyof" => Some(TypeUnaryOperator::Keyof),
