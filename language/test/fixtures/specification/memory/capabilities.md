@@ -26,7 +26,7 @@ APIs that duplicate explicitly can require `Clone`.
 
 ```ds
 function cloneValue<T: Clone>(value: T): T {
-    return value;
+    return value.clone();
 }
 
 struct NotClone {
