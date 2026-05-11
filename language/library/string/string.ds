@@ -21,8 +21,6 @@ export class StringBuilder {
     data: *uint8 = null as *uint8;
 }
 
-// TODO #Incomplete: implement String and StringBuilder operations
-
 extension of String {
     /// The length in UTF-16 code units (TypeScript-compatible).
     get length(): number {
