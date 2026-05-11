@@ -1,14 +1,16 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::bindings::{BindingDescriptor, BindingEngine, BindingReplayPayload};
-use crate::runtime::policy::{BindingDispatchDecision, HookEvent, PolicyDecision, RuleSubject};
+use crate::runtime::binding::{
+    BindingDescriptor, BindingEngine, BindingReplayPayload, RuntimeAccess, RuntimeWorld,
+};
+use crate::runtime::policy::{BindingDecision, HookEvent, PolicyDecision, RuleSubject};
 use crate::runtime::{Topology, WorkerId};
-use destack_workspace::{ExecutionMode, RuntimeAccess, RuntimeWorld};
+use destack_workspace::ExecutionMode;
 
-use super::{RuntimeId, WorldScope};
+use super::{RuntimeId, WorldState};
 
-impl WorldScope {
-    /// Resolve binding dispatch decisions for one binding call.
-    pub(crate) fn resolve_binding_dispatch(
+impl WorldState {
+    /// Resolve one binding decision for one binding call.
+    pub(crate) fn resolve_binding(
         &self,
         mode: ExecutionMode,
         runtime_id: RuntimeId,
@@ -18,11 +20,11 @@ impl WorldScope {
         default_access: RuntimeAccess,
         default_world: RuntimeWorld,
         default_replay_payload: BindingReplayPayload,
-    ) -> RuntimeResult<BindingDispatchDecision> {
-        let subject = Self::resolve_rule_subject(self.topology(), runtime_id, worker_id, mode)?;
+    ) -> RuntimeResult<BindingDecision> {
+        let subject = Self::rule_subject(self.topology(), runtime_id, worker_id, mode)?;
 
-        // evaluate dispatch decision against active policy
-        let decision = self.policy().resolve_binding_dispatch_for_subject(
+        // evaluate active policy
+        let decision = self.policy().resolve_binding_for_subject(
             subject,
             descriptor,
             engine,
@@ -36,7 +38,7 @@ impl WorldScope {
 
     /// Evaluate one policy event for one worker under one world lock.
     pub(crate) fn evaluate_policy_event(
-        &self,
+        &mut self,
         mode: ExecutionMode,
         runtime_id: RuntimeId,
         worker_id: WorkerId,
@@ -80,7 +82,7 @@ impl WorldScope {
     }
 
     /// Resolve one rule subject from world topology metadata.
-    fn resolve_rule_subject<'a>(
+    fn rule_subject<'a>(
         topology: &'a Topology,
         runtime_id: RuntimeId,
         worker_id: WorkerId,

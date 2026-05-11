@@ -1,8 +1,8 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::observe::{
-    Observation, ObservationCategory, ObservationRecord, ObservationScope,
+use crate::runtime::trace::{
+    Observation, ObservationCategory, ObservationRecord, ObservationScope, Outcome, Trace,
+    TraceRecord, TraceSequence,
 };
-use crate::runtime::trace::{Outcome, Trace, TraceRecord, TraceSequence};
 use crate::runtime::world::{Command, World, WorldResourceId};
 use crate::runtime::{RuntimeId, WorkerId};
 

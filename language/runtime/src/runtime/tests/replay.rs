@@ -7,13 +7,14 @@ use crate::platform::{
     PlatformError, ResourceBacking, ResourceCapture, ResourceId, ResourcePortability,
 };
 use crate::runtime::WorkerId;
-use crate::runtime::bindings::{
-    BindingDescriptor, BindingId, BindingReplayKind, BindingReplayPayload, BindingReplayPolicy,
+use crate::runtime::binding::{
+    BindingAffinity, BindingDescriptor, BindingEffect, BindingId, BindingProvider,
+    BindingReplayKind, BindingReplayPayload, RuntimeAccess,
 };
 use crate::runtime::engine::Entry;
-use crate::runtime::policy::{Effect, Rule, RuleId};
+use crate::runtime::policy::{Rule, RuleAction, RuleId, RuntimeSelector};
 use crate::runtime::random::RandomStreamId;
-use crate::runtime::time::WorldInstant;
+use crate::runtime::time::Instant;
 use crate::runtime::trace::{
     EntropyKind, EntropySubject, EnvironmentConfig, Trace, TraceError, TraceHeader,
 };
@@ -22,7 +23,7 @@ use crate::runtime::world::{
     WorldResourceId,
 };
 use destack_vm as vm;
-use destack_workspace::config::{ExecutionMode, RuntimeAccess, RuntimeSelector};
+use destack_workspace::config::ExecutionMode;
 use serde::{Deserialize, Serialize};
 
 /// Build one replay entropy subject for tests.
@@ -53,11 +54,15 @@ fn test_trace_header() -> TraceHeader {
 #[test]
 fn test_record_replay_binding_call() {
     // setup a recordable binding descriptor
-    let descriptor = BindingDescriptor::external(
+    let descriptor = BindingDescriptor::new(
         "destack.test.call",
         "test() -> u64",
-        BindingReplayPolicy::Recordable,
+        BindingEffect::ExternalRecordable,
         BindingReplayKind::BindingCall,
+        BindingReplayPayload::Results,
+        &[],
+        BindingProvider::Host,
+        BindingAffinity::None,
     );
 
     // record a binding call
@@ -80,11 +85,15 @@ fn test_record_replay_binding_call() {
 #[test]
 fn test_replay_binding_call_runtime_error_roundtrip() {
     // setup one recordable binding descriptor
-    let descriptor = BindingDescriptor::external(
+    let descriptor = BindingDescriptor::new(
         "destack.test.binding.error",
         "test() -> u64",
-        BindingReplayPolicy::Recordable,
+        BindingEffect::ExternalRecordable,
         BindingReplayKind::BindingCall,
+        BindingReplayPayload::Results,
+        &[],
+        BindingProvider::Host,
+        BindingAffinity::None,
     );
 
     // record one failing binding call
@@ -350,7 +359,7 @@ fn test_record_replay_policy_command() {
                 binding: Some("destack.test.policy.command".to_string()),
                 ..RuntimeSelector::default()
             }),
-            action: Effect::SetAccess {
+            action: RuleAction::SetAccess {
                 access: RuntimeAccess::Deny,
             },
             trigger: None,
@@ -513,7 +522,7 @@ fn test_record_replay_tick() {
     // record one virtual time advance
     let record_state = Trace::new(ExecutionMode::Record, test_trace_header());
     record_state
-        .record_time_advance(WorldInstant::new(123_456))
+        .record_time_advance(Instant::new(123_456))
         .expect("record tick");
 
     // replay the same virtual time advance
@@ -523,7 +532,7 @@ fn test_record_replay_tick() {
         .expect("replay time advance");
 
     // verify the replayed tick matches
-    assert_eq!(replayed, WorldInstant::new(123_456));
+    assert_eq!(replayed, Instant::new(123_456));
 }
 
 /// Replay tick resolution rejects mismatched deadlines.
@@ -532,13 +541,13 @@ fn test_resolve_tick_rejects_mismatch() {
     // record one virtual time advance
     let record_state = Trace::new(ExecutionMode::Record, test_trace_header());
     record_state
-        .record_time_advance(WorldInstant::new(123_456))
+        .record_time_advance(Instant::new(123_456))
         .expect("record tick");
 
     // replaying with a different deadline must fail loudly
     let replay_state = Trace::from_log(ExecutionMode::Replay, record_state.log().clone());
     let error = replay_state
-        .resolve_time_advance(WorldInstant::new(123_457))
+        .resolve_time_advance(Instant::new(123_457))
         .expect_err("tick mismatch should fail");
     assert!(
         error.message().contains("time"),
@@ -552,10 +561,10 @@ fn test_replay_rejects_backward_tick() {
     // record one forward tick and one backward tick in one log
     let record_state = Trace::new(ExecutionMode::Record, test_trace_header());
     record_state
-        .record_time_advance(WorldInstant::new(50))
+        .record_time_advance(Instant::new(50))
         .expect("record tick");
     record_state
-        .record_time_advance(WorldInstant::new(40))
+        .record_time_advance(Instant::new(40))
         .expect("record tick");
 
     // replay should reject the backward move on the second tick

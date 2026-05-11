@@ -15,7 +15,7 @@ use crate::host::{
 };
 use crate::platform::ResourceId;
 use crate::platform::time::TimerClock;
-use crate::runtime::bindings::BindingEngine;
+use crate::runtime::binding::BindingEngine;
 use crate::runtime::engine::{Context, Continuation, Engine, Entry, Outcome};
 use crate::runtime::poller::{
     HostPoller, HostPollerFlags, PlatformHandle, PlatformInterest, PollerEvent, PollerEventFlags,
@@ -27,8 +27,8 @@ use crate::runtime::scheduler::{
 use crate::runtime::time::{HostClockSource, Nanos};
 use crate::runtime::world::{Branch, CheckpointId, Revision, WorldEntityKindDefinition};
 use crate::runtime::{
-    BindingCallContext, DropCounts, Runtime, RuntimeId, RuntimeSharedHeap, TickOutcome, Worker,
-    WorkerId, World, WorldScope,
+    BindingCallContext, DropCounts, Runtime, RuntimeId, SharedHeap, TickResult, Worker, WorkerId,
+    WorkerOptions, World, WorldState,
 };
 
 /// Test host clock source for deterministic host-time runtime tests.
@@ -80,15 +80,15 @@ impl TestHostClockSource {
 
 /// Build one native binding call context for runtime tests.
 pub(super) fn binding_call_context(
-    worker: &Worker,
+    worker: &mut Worker,
     host: &Session,
-    world: &WorldScope,
+    world: &mut WorldState,
 ) -> BindingCallContext {
     BindingCallContext::from_raw(
-        worker as *const Worker,
+        worker as *mut Worker,
         worker.event_loop.as_ref() as *const _,
         host as *const Session,
-        world as *const WorldScope,
+        world as *mut WorldState,
         BindingEngine::Native,
     )
 }
@@ -185,7 +185,7 @@ pub(super) struct TestRuntime {
     /// Wrapped worker under test.
     worker: Worker,
     /// Runtime-owned shared heap state used by the worker.
-    shared: RuntimeSharedHeap,
+    shared: SharedHeap,
     /// Runtime-owned static bytes used by the worker.
     runtime_static: engine::StaticSpace,
     /// Wrapped host under test.
@@ -253,6 +253,19 @@ impl TestWorld {
         &mut self.world
     }
 
+    /// Borrow one runtime and the world state together.
+    pub(super) fn with_runtime_and_state_mut<R>(
+        &mut self,
+        runtime_id: RuntimeId,
+        callback: impl FnOnce(&mut WorldState, &mut Runtime) -> R,
+    ) -> RuntimeResult<R> {
+        let state = &mut self.world.state as *mut WorldState;
+        let runtime = self.world.runtime_mut(runtime_id)? as *mut Runtime;
+
+        // split disjoint world fields for test setup
+        Ok(unsafe { callback(&mut *state, &mut *runtime) })
+    }
+
     /// Return the active branch metadata for the wrapped world.
     pub(super) fn branch(&self) -> Branch {
         self.world.branch()
@@ -282,15 +295,15 @@ impl TestWorld {
         self.spawn_runtime(options, Self::vm_engine())
     }
 
-    /// Return the primary worker id for one runtime.
-    pub(super) fn primary_worker_id(&self, runtime_id: RuntimeId) -> WorkerId {
+    /// Return the default worker id for one runtime.
+    pub(super) fn default_worker_id(&self, runtime_id: RuntimeId) -> WorkerId {
         self.world
             .runtime(runtime_id)
             .expect("runtime should exist")
-            .primary_worker_id()
+            .default_worker_id()
     }
 
-    /// Allocate one heap value in the primary worker VM isolate.
+    /// Allocate one heap value in the default worker VM isolate.
     pub(super) fn allocate_vm_managed_value(
         &mut self,
         runtime_id: RuntimeId,
@@ -300,10 +313,10 @@ impl TestWorld {
             .world_mut()
             .runtime_mut(runtime_id)
             .expect("runtime should exist");
-        let worker_id = runtime.primary_worker_id();
+        let worker_id = runtime.default_worker_id();
         let worker = runtime
             .worker_mut(worker_id)
-            .expect("runtime should keep its primary worker");
+            .expect("runtime should keep its default worker");
         let bytes = value.to_byte_array();
         let reference_map = ReferenceMap::empty();
         let shape = heap::AllocationShape::new(bytes.len(), 1, &reference_map);
@@ -315,7 +328,7 @@ impl TestWorld {
             .expect("heap allocation should succeed")
     }
 
-    /// Allocate one heap value in the primary worker VM isolate.
+    /// Allocate one heap value in the default worker VM isolate.
     pub(super) fn allocate_vm_heap_allocation(
         &mut self,
         runtime_id: RuntimeId,
@@ -323,7 +336,7 @@ impl TestWorld {
         self.allocate_vm_managed_value(runtime_id, vm::Word::int32(7))
     }
 
-    /// Return the managed bytes for one primary worker heap allocation.
+    /// Return the managed bytes for one default worker heap allocation.
     pub(super) fn read_vm_heap_bytes_result(
         &mut self,
         runtime_id: RuntimeId,
@@ -333,10 +346,10 @@ impl TestWorld {
             .world_mut()
             .runtime_mut(runtime_id)
             .expect("runtime should exist");
-        let worker_id = runtime.primary_worker_id();
+        let worker_id = runtime.default_worker_id();
         let worker = runtime
             .worker_mut(worker_id)
-            .expect("runtime should keep its primary worker");
+            .expect("runtime should keep its default worker");
         let byte_len = vm::Word::BYTE_LEN;
         let mut bytes = vec![0u8; byte_len];
         let address = worker.heap.heap_base_address() + reference.offset();
@@ -349,7 +362,7 @@ impl TestWorld {
         Ok(bytes)
     }
 
-    /// Return the managed bytes for one primary worker heap allocation.
+    /// Return the managed bytes for one default worker heap allocation.
     pub(super) fn read_vm_heap_bytes(
         &mut self,
         runtime_id: RuntimeId,
@@ -359,7 +372,7 @@ impl TestWorld {
             .expect("managed byte read should succeed")
     }
 
-    /// Mutate one managed byte in the primary worker heap.
+    /// Mutate one managed byte in the default worker heap.
     pub(super) fn mutate_vm_heap_byte(
         &mut self,
         runtime_id: RuntimeId,
@@ -371,10 +384,10 @@ impl TestWorld {
             .world_mut()
             .runtime_mut(runtime_id)
             .expect("runtime should exist");
-        let worker_id = runtime.primary_worker_id();
+        let worker_id = runtime.default_worker_id();
         let worker = runtime
             .worker_mut(worker_id)
-            .expect("runtime should keep its primary worker");
+            .expect("runtime should keep its default worker");
 
         worker
             .heap
@@ -388,21 +401,21 @@ impl TestWorld {
         }
     }
 
-    /// Return the heap allocation count for the primary worker VM isolate.
+    /// Return the heap allocation count for the default worker VM isolate.
     pub(super) fn vm_heap_allocation_count(&mut self, runtime_id: RuntimeId) -> usize {
         let runtime = self
             .world_mut()
             .runtime_mut(runtime_id)
             .expect("runtime should exist");
-        let worker_id = runtime.primary_worker_id();
+        let worker_id = runtime.default_worker_id();
         let worker = runtime
             .worker_mut(worker_id)
-            .expect("runtime should keep its primary worker");
+            .expect("runtime should keep its default worker");
 
         worker.heap.heap_allocation_count()
     }
 
-    /// Create one VM continuation in the primary worker.
+    /// Create one VM continuation in the default worker.
     pub(super) fn yielding_continuation(
         &mut self,
         runtime_id: RuntimeId,
@@ -413,16 +426,16 @@ impl TestWorld {
             .world_mut()
             .runtime_mut(runtime_id)
             .expect("runtime should exist");
-        let worker_id = runtime.primary_worker_id();
+        let worker_id = runtime.default_worker_id();
 
         runtime
             .with_worker_context(worker_id, |shared, runtime_static, worker| {
                 start_worker_continuation(worker, shared, runtime_static, "test.task", value)
             })
-            .expect("runtime should keep its primary worker")
+            .expect("runtime should keep its default worker")
     }
 
-    /// Allocate one raw span in the primary worker heap.
+    /// Allocate one raw span in the default worker heap.
     pub(super) fn allocate_vm_raw_bytes(
         &mut self,
         runtime_id: RuntimeId,
@@ -432,10 +445,10 @@ impl TestWorld {
             .world_mut()
             .runtime_mut(runtime_id)
             .expect("runtime should exist");
-        let worker_id = runtime.primary_worker_id();
+        let worker_id = runtime.default_worker_id();
         let worker = runtime
             .worker_mut(worker_id)
-            .expect("runtime should keep its primary worker");
+            .expect("runtime should keep its default worker");
 
         worker
             .heap
@@ -446,7 +459,7 @@ impl TestWorld {
             .expect("raw heap allocation should succeed")
     }
 
-    /// Return the bytes for one raw allocation in the primary worker heap.
+    /// Return the bytes for one raw allocation in the default worker heap.
     pub(super) fn read_vm_raw_bytes_result(
         &mut self,
         runtime_id: RuntimeId,
@@ -456,15 +469,15 @@ impl TestWorld {
             .world_mut()
             .runtime_mut(runtime_id)
             .expect("runtime should exist");
-        let worker_id = runtime.primary_worker_id();
+        let worker_id = runtime.default_worker_id();
         let worker = runtime
             .worker_mut(worker_id)
-            .expect("runtime should keep its primary worker");
+            .expect("runtime should keep its default worker");
 
         worker.heap.read_raw_bytes(pointer)
     }
 
-    /// Return the bytes for one raw allocation in the primary worker heap.
+    /// Return the bytes for one raw allocation in the default worker heap.
     pub(super) fn read_vm_raw_bytes(
         &mut self,
         runtime_id: RuntimeId,
@@ -474,7 +487,7 @@ impl TestWorld {
             .expect("raw byte read should succeed")
     }
 
-    /// Mutate one raw byte in the primary worker heap.
+    /// Mutate one raw byte in the default worker heap.
     pub(super) fn mutate_vm_raw_byte(
         &mut self,
         runtime_id: RuntimeId,
@@ -486,7 +499,7 @@ impl TestWorld {
             .expect("raw byte write should succeed");
     }
 
-    /// Mutate one raw byte in the primary worker heap.
+    /// Mutate one raw byte in the default worker heap.
     pub(super) fn mutate_vm_raw_byte_result(
         &mut self,
         runtime_id: RuntimeId,
@@ -498,10 +511,10 @@ impl TestWorld {
             .world_mut()
             .runtime_mut(runtime_id)
             .expect("runtime should exist");
-        let worker_id = runtime.primary_worker_id();
+        let worker_id = runtime.default_worker_id();
         let worker = runtime
             .worker_mut(worker_id)
-            .expect("runtime should keep its primary worker");
+            .expect("runtime should keep its default worker");
 
         worker.heap.write_raw_byte(pointer, index, byte)
     }
@@ -547,10 +560,10 @@ impl Runtime {
     pub(super) fn with_worker_context<R>(
         &mut self,
         worker_id: WorkerId,
-        callback: impl FnOnce(&RuntimeSharedHeap, &engine::StaticSpace, &mut Worker) -> R,
+        callback: impl FnOnce(&SharedHeap, &engine::StaticSpace, &mut Worker) -> R,
     ) -> RuntimeResult<R> {
-        let shared = &self.shared as *const RuntimeSharedHeap;
-        let runtime_static = self.runtime_static() as *const engine::StaticSpace;
+        let shared = &self.shared as *const SharedHeap;
+        let runtime_static = self.statics() as *const engine::StaticSpace;
         let worker = self
             .worker_mut(worker_id)
             .expect("worker should exist in runtime");
@@ -725,11 +738,6 @@ impl TestRuntime {
             .expect("scheduler options should configure");
     }
 
-    /// Borrow one execution view from the wrapped world.
-    fn world_scope(&mut self) -> WorldScope {
-        self.world.world_scope()
-    }
-
     /// Return the exact live heap usage for this test worker.
     pub(super) fn heap_usage(&self) -> heap::HeapUsage {
         self.worker.heap.usage()
@@ -845,21 +853,22 @@ impl TestRuntime {
 
     /// Tick once and fail loudly on runtime errors.
     pub(super) fn tick(&mut self) -> bool {
-        let world = self.world_scope();
-
         self.worker
-            .tick(&world, &self.shared, &self.runtime_static, &self.host)
+            .tick(
+                &mut self.world.state,
+                &self.shared,
+                &self.runtime_static,
+                &self.host,
+            )
             .expect("tick should execute runtime work")
     }
 
     /// Tick until idle and fail loudly on runtime errors.
     pub(super) fn tick_until_idle(&mut self) {
-        let world = self.world_scope();
-
-        let mut poller = None;
+        let mut poller = TestPoller::default();
         self.worker
             .run_event_loop(
-                &world,
+                &mut self.world.state,
                 &self.shared,
                 &self.runtime_static,
                 &self.host,
@@ -872,11 +881,10 @@ impl TestRuntime {
 
     /// Run one synthetic entrypoint and return the engine output.
     pub(super) fn run_entrypoint(&mut self) -> RuntimeResult<engine::Value> {
-        let world = self.world_scope();
-        let mut poller = None;
+        let mut poller = TestPoller::default();
 
         self.worker.run_entrypoint_with_host_and_poller(
-            &world,
+            &mut self.world.state,
             &self.shared,
             &self.runtime_static,
             &self.host,
@@ -891,11 +899,10 @@ impl TestRuntime {
         &mut self,
         task_id: u64,
     ) -> RuntimeResult<engine::Value> {
-        let world = self.world_scope();
-        let mut poller = None;
+        let mut poller = TestPoller::default();
 
         let output = self.worker.run_event_loop(
-            &world,
+            &mut self.world.state,
             &self.shared,
             &self.runtime_static,
             &self.host,
@@ -916,11 +923,10 @@ impl TestRuntime {
         task_id: u64,
         timeout_nanos: Option<u64>,
     ) -> RuntimeResult<Option<engine::Value>> {
-        let world = self.world_scope();
-        let mut poller = None;
+        let mut poller = TestPoller::default();
 
         self.worker.run_event_loop(
-            &world,
+            &mut self.world.state,
             &self.shared,
             &self.runtime_static,
             &self.host,
@@ -1001,18 +1007,20 @@ impl TestMultiAgentRuntime {
         Self { world, runtime_id }
     }
 
-    /// Return the primary worker id.
-    pub(super) fn primary_worker_id(&self) -> WorkerId {
+    /// Return the default worker id.
+    pub(super) fn default_worker_id(&self) -> WorkerId {
         self.world
             .runtime(self.runtime_id)
             .expect("runtime should exist")
-            .primary_worker_id()
+            .default_worker_id()
     }
 
     /// Spawn one additional worker with one explicit engine and return its id.
     pub(super) fn spawn_worker(&mut self, engine: impl Into<Engine>) -> WorkerId {
+        let options = RuntimeOptions::default();
+
         self.world
-            .spawn_worker(self.runtime_id, engine)
+            .spawn_worker(self.runtime_id, &options, WorkerOptions::default(), engine)
             .expect("worker should spawn")
     }
 
@@ -1034,7 +1042,7 @@ impl TestMultiAgentRuntime {
     }
 
     /// Execute one runtime tick and fail loudly on runtime errors.
-    pub(super) fn tick(&mut self) -> TickOutcome {
+    pub(super) fn tick(&mut self) -> TickResult {
         self.world.tick().expect("runtime tick should succeed")
     }
 
@@ -1099,21 +1107,15 @@ impl TestMultiAgentRuntime {
 #[allow(dead_code)]
 fn worker_for_options(
     options: &RuntimeOptions,
-) -> (
-    World,
-    RuntimeSharedHeap,
-    engine::StaticSpace,
-    Worker,
-    Session,
-) {
+) -> (World, SharedHeap, engine::StaticSpace, Worker, Session) {
     agent_for_options_with_engine(options, TestEngine::default())
 }
 
 /// Build runtime-owned shared heap state for one test world.
-pub(super) fn runtime_shared_heap(world: &World, options: &RuntimeOptions) -> RuntimeSharedHeap {
+pub(super) fn runtime_shared_heap(world: &World, options: &RuntimeOptions) -> SharedHeap {
     let lineage = world.lineage.read();
 
-    RuntimeSharedHeap::new(lineage.allocator(), lineage.collector(), options)
+    SharedHeap::new(lineage.allocator(), lineage.collector(), options)
         .expect("runtime shared heap should build")
 }
 
@@ -1122,13 +1124,7 @@ pub(super) fn runtime_shared_heap(world: &World, options: &RuntimeOptions) -> Ru
 fn agent_for_options_with_host_clock_source(
     options: &RuntimeOptions,
     host_clock_source: Option<Arc<dyn HostClockSource>>,
-) -> (
-    World,
-    RuntimeSharedHeap,
-    engine::StaticSpace,
-    Worker,
-    Session,
-) {
+) -> (World, SharedHeap, engine::StaticSpace, Worker, Session) {
     agent_for_options_with_engine_and_host_clock_source(
         options,
         TestEngine::default(),
@@ -1140,13 +1136,7 @@ fn agent_for_options_with_host_clock_source(
 fn agent_for_options_with_engine(
     options: &RuntimeOptions,
     engine: impl Into<Engine>,
-) -> (
-    World,
-    RuntimeSharedHeap,
-    engine::StaticSpace,
-    Worker,
-    Session,
-) {
+) -> (World, SharedHeap, engine::StaticSpace, Worker, Session) {
     agent_for_options_with_engine_and_host_clock_source(options, engine, None)
 }
 
@@ -1155,13 +1145,7 @@ fn agent_for_options_with_engine_and_host_clock_source(
     options: &RuntimeOptions,
     engine: impl Into<Engine>,
     host_clock_source: Option<Arc<dyn HostClockSource>>,
-) -> (
-    World,
-    RuntimeSharedHeap,
-    engine::StaticSpace,
-    Worker,
-    Session,
-) {
+) -> (World, SharedHeap, engine::StaticSpace, Worker, Session) {
     let mut world = if let Some(host_clock_source) = host_clock_source.clone() {
         World::new(options, Some(host_clock_source)).expect("runtime test world should build")
     } else {
@@ -1169,15 +1153,17 @@ fn agent_for_options_with_engine_and_host_clock_source(
     };
 
     // construct one runtime worker from explicit options
-    let world_scope = world.world_scope();
     let shared = runtime_shared_heap(&world, options);
+    let world_state = &mut world.state;
+
     let runtime_static = engine::StaticSpace::empty();
     let mut worker = Worker::new_in_world(
         Vec::new(),
         options,
-        &world_scope,
+        world_state,
         &shared,
         &runtime_static,
+        WorkerOptions::default(),
         engine,
     )
     .expect("runtime test worker should build");
@@ -1204,7 +1190,7 @@ fn agent_for_options_with_engine_and_host_clock_source(
 /// Start one VM continuation in a worker test harness.
 pub(crate) fn start_worker_continuation(
     worker: &mut Worker,
-    shared: &RuntimeSharedHeap,
+    shared: &SharedHeap,
     runtime_static: &engine::StaticSpace,
     entry: &str,
     value: i32,
@@ -1219,7 +1205,7 @@ pub(crate) fn start_worker_continuation(
     } = worker;
     let context = Context {
         heap,
-        shared_heap: shared.shared(),
+        shared_heap: shared.heap(),
         shared_allocator,
         shared_gc: shared_gc_worker,
         worker_static: statics,

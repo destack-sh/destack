@@ -28,7 +28,7 @@ impl Moment {
 impl World {
     /// Return the current live execution coordinate for this world.
     pub fn moment(&self) -> Moment {
-        Moment::new(self.branch_id, self.trace.log().next_sequence())
+        Moment::new(self.state.branch_id, self.state.trace.log().next_sequence())
     }
 
     /// Return the exact execution coordinate for one committed revision.

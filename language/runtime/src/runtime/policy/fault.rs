@@ -7,7 +7,7 @@ use crate::runtime::world::topology::Topology;
 use crate::runtime::world::{WorldEdgeId, WorldEdgeKind, WorldEntityId, WorldEntityKind};
 use destack_workspace as workspace;
 
-use super::{Effect, Rule};
+use super::{Rule, RuleAction};
 
 /// Jitter distribution for runtime delay faults.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -32,7 +32,7 @@ pub enum FaultDirection {
     Both,
 }
 
-/// Data corruption mode for data-plane faults.
+/// Data corruption mode for payload faults.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum FaultCorruptionMode {
@@ -330,87 +330,87 @@ pub enum FaultType {
         /// Delay distribution mode.
         distribution: Option<RuntimeJitterDistribution>,
     },
-    /// Inject hard blocking behavior.
+    /// Inject hard blocking.
     Block {},
-    /// Inject starvation behavior.
+    /// Inject starvation.
     Starve {
         /// Optional starvation duration in nanoseconds.
         duration_ns: Option<u64>,
     },
-    /// Inject drop behavior.
+    /// Inject drops.
     Drop {},
-    /// Inject duplicate behavior.
+    /// Inject duplicates.
     Duplicate {
         /// Number of duplicates emitted when the fault triggers.
         copies: Option<u32>,
     },
-    /// Inject reorder behavior.
+    /// Inject reordering.
     Reorder {
         /// Reordering window size.
         window: Option<u32>,
     },
-    /// Inject payload corruption behavior.
+    /// Inject payload corruption.
     Corrupt {
         /// Optional corruption mode selector.
         mode: Option<FaultCorruptionMode>,
     },
-    /// Inject truncation behavior.
+    /// Inject truncation.
     Truncate {
         /// Maximum bytes preserved after truncation.
         max_bytes: u64,
     },
-    /// Inject partial completion behavior.
+    /// Inject partial completion.
     Partial {
         /// Maximum bytes completed before returning.
         max_bytes: u64,
     },
-    /// Inject connection disconnect behavior.
+    /// Inject connection disconnects.
     Disconnect {},
-    /// Inject connection reset behavior.
+    /// Inject connection resets.
     Reset {},
-    /// Inject partition behavior.
+    /// Inject partitions.
     Partition {
         /// Direction selector for one-way or two-way partition.
         direction: Option<FaultDirection>,
     },
-    /// Inject blackhole behavior.
+    /// Inject blackholes.
     Blackhole {
         /// Direction selector for one-way or two-way blackhole.
         direction: Option<FaultDirection>,
     },
-    /// Inject throughput throttling behavior.
+    /// Inject throughput throttling.
     Throttle {
         /// Maximum throughput in bytes per second.
         bytes_per_second: u64,
     },
-    /// Inject operation-rate limiting behavior.
+    /// Inject operation-rate limiting.
     Limit {
         /// Maximum operations per second.
         ops_per_second: u64,
     },
-    /// Inject resource exhaustion behavior.
+    /// Inject resource exhaustion.
     Exhaust {
         /// Resource class that is exhausted.
         resource: FaultResourceKind,
     },
-    /// Inject quota enforcement behavior.
+    /// Inject quota enforcement.
     Quota {
         /// Resource class with quota enforcement.
         resource: FaultResourceKind,
         /// Resource quota limit.
         limit: u64,
     },
-    /// Inject process crash behavior.
+    /// Inject process crashes.
     Crash {
         /// Optional crash signal number.
         signal: Option<i64>,
     },
-    /// Inject process restart behavior.
+    /// Inject process restarts.
     Restart {
         /// Optional restart delay in nanoseconds.
         delay_ns: Option<u64>,
     },
-    /// Inject reboot behavior.
+    /// Inject reboots.
     Reboot {},
     /// Inject one wall or monotonic clock jump.
     ClockJump {
@@ -422,9 +422,9 @@ pub enum FaultType {
         /// Signed rate offset in parts-per-million.
         rate_ppm: i64,
     },
-    /// Inject clock freeze behavior.
+    /// Inject clock freezes.
     ClockFreeze {},
-    /// Inject durability violation behavior.
+    /// Inject durability violations.
     DurabilityViolation {
         /// Durability violation mode selector.
         mode: FaultDurabilityMode,
@@ -811,7 +811,7 @@ pub(crate) fn validate_rule_fault_compatibility(
     rule: &Rule,
     kind_catalog: &(impl FaultKindCatalog + ?Sized),
 ) -> RuntimeResult<()> {
-    let Effect::Fault { fault } = &rule.action else {
+    let RuleAction::Fault { fault } = &rule.action else {
         return Ok(());
     };
 

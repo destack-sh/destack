@@ -2,8 +2,7 @@ use std::sync::Arc;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::WorkerId;
-use crate::runtime::observe::ObservationSubscriptionId;
-use crate::runtime::trace::TraceCursor;
+use crate::runtime::trace::{ObservationSubscriptionId, TraceCursor};
 use crate::runtime::world::{Revision, RevisionState, RuntimeId, World, WorldImage, WorldSnapshot};
 
 use super::Control;
@@ -48,12 +47,12 @@ pub(crate) struct ObservationEntry {
 }
 
 /// One live trace-cursor entry.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub(crate) struct TraceCursorEntry {
     /// The owning world handle.
     pub world_handle_id: ControlHandleId,
     /// The trace cursor itself.
-    pub cursor: Arc<TraceCursor>,
+    pub cursor: TraceCursor,
 }
 
 /// One pinned world-view entry.
@@ -128,7 +127,7 @@ impl ControlObject {
         }
     }
 
-    /// Return one borrowed worker entry when this is an worker object.
+    /// Return one borrowed worker entry when this is a worker object.
     fn as_worker(&self) -> Option<&WorkerEntry> {
         match self {
             ControlObject::Worker(entry) => Some(entry),
@@ -146,6 +145,14 @@ impl ControlObject {
 
     /// Return one borrowed trace-cursor entry when this is a trace cursor object.
     fn as_trace_cursor(&self) -> Option<&TraceCursorEntry> {
+        match self {
+            ControlObject::TraceCursor(entry) => Some(entry),
+            _ => None,
+        }
+    }
+
+    /// Return one mutably borrowed trace-cursor entry when this is a trace cursor object.
+    fn as_trace_cursor_mut(&mut self) -> Option<&mut TraceCursorEntry> {
         match self {
             ControlObject::TraceCursor(entry) => Some(entry),
             _ => None,
@@ -416,6 +423,31 @@ impl Control {
         })?;
 
         object.as_trace_cursor().ok_or_else(|| {
+            RuntimeError::Internal {
+                message: format!(
+                    "control object kind mismatch for {} handle {}",
+                    ControlKind::TraceCursor.name(),
+                    handle_id.get()
+                ),
+            }
+            .boxed()
+        })
+    }
+
+    /// Resolve one mutable trace-cursor entry.
+    pub(super) fn get_trace_cursor_entry_mut(
+        &mut self,
+        handle_id: ControlHandleId,
+    ) -> RuntimeResult<&mut TraceCursorEntry> {
+        let object = self.objects.get_mut(&handle_id).ok_or_else(|| {
+            RuntimeError::ControlHandleNotFound {
+                handle_id: handle_id.get(),
+                kind: ControlKind::TraceCursor.name().to_string(),
+            }
+            .boxed()
+        })?;
+
+        object.as_trace_cursor_mut().ok_or_else(|| {
             RuntimeError::Internal {
                 message: format!(
                     "control object kind mismatch for {} handle {}",

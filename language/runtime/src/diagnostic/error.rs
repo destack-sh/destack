@@ -22,12 +22,12 @@ pub enum RuntimeError {
         /// Fully qualified binding name.
         name: String,
     } = 101,
-    /// Binding call rejected due to a missing required capability.
-    CapabilityViolation {
+    /// Binding call rejected due to a missing required action.
+    HostActionDenied {
         /// Fully qualified binding name.
         name: String,
-        /// Required capability that was not granted.
-        capability: String,
+        /// Required action that was not granted.
+        action: String,
     } = 102,
     /// Binding call rejected due to an execution-affinity mismatch.
     AffinityViolation {
@@ -147,20 +147,20 @@ pub enum RuntimeError {
         /// Conflicting worker identifier.
         worker_id: u64,
     } = 130,
-    /// Runtime image is missing its declared primary worker.
-    PrimaryWorkerMissing {
-        /// Runtime identifier with the invalid primary-worker reference.
+    /// Runtime image is missing its declared default worker.
+    DefaultWorkerMissing {
+        /// Runtime identifier with the invalid default-worker reference.
         runtime_id: u64,
-        /// Missing primary worker identifier.
+        /// Missing default worker identifier.
         worker_id: u64,
     } = 131,
     /// Runtime cannot remove its last remaining worker.
     LastWorkerRemoval = 132,
-    /// Runtime cannot remove the primary worker until a replacement is selected.
-    PrimaryWorkerRemoval = 133,
-    /// Runtime capability profile configuration is invalid.
-    CapabilityProfileInvalid {
-        /// Invalid capability profile name.
+    /// Runtime cannot remove the default worker until a replacement is selected.
+    DefaultWorkerRemoval = 133,
+    /// Runtime action profile configuration is invalid.
+    HostActionProfileInvalid {
+        /// Invalid action profile name.
         profile: String,
         /// Human-readable validation detail.
         detail: String,
@@ -277,8 +277,8 @@ impl RuntimeError {
             RuntimeError::PolicyViolation { name } => {
                 format!("binding forbidden by policy: {name}")
             }
-            RuntimeError::CapabilityViolation { name, capability } => {
-                format!("binding capability denied: {name} requires {capability}")
+            RuntimeError::HostActionDenied { name, action } => {
+                format!("binding action denied: {name} requires {action}")
             }
             RuntimeError::AffinityViolation { name, affinity } => {
                 format!("binding affinity denied: {name} requires {affinity}")
@@ -363,18 +363,18 @@ impl RuntimeError {
             RuntimeError::WorkerAlreadyExists { worker_id } => {
                 format!("worker already exists: {worker_id}")
             }
-            RuntimeError::PrimaryWorkerMissing {
+            RuntimeError::DefaultWorkerMissing {
                 runtime_id,
                 worker_id,
             } => {
-                format!("runtime {runtime_id} is missing primary worker {worker_id}")
+                format!("runtime {runtime_id} is missing default worker {worker_id}")
             }
             RuntimeError::LastWorkerRemoval => "runtime must keep at least one worker".to_string(),
-            RuntimeError::PrimaryWorkerRemoval => {
-                "cannot remove primary worker: set a new primary worker first".to_string()
+            RuntimeError::DefaultWorkerRemoval => {
+                "cannot remove default worker: set a new default worker first".to_string()
             }
-            RuntimeError::CapabilityProfileInvalid { profile, detail } => {
-                format!("runtime capability profile `{profile}` is invalid: {detail}")
+            RuntimeError::HostActionProfileInvalid { profile, detail } => {
+                format!("runtime action profile `{profile}` is invalid: {detail}")
             }
             RuntimeError::TopologyRuntimeMissing { runtime_id } => {
                 format!("runtime {runtime_id} is not registered in world topology")
@@ -616,11 +616,9 @@ impl From<Box<RuntimeError>> for vm::Error {
             RuntimeError::Platform(error) => (*error).into(),
             RuntimeError::BindingNotFound { name } => vm::Error::BindingFunctionNotFound { name },
             RuntimeError::PolicyViolation { name } => vm::Error::BindingCallForbidden { name },
-            RuntimeError::CapabilityViolation { name, capability } => {
-                vm::Error::BindingCallForbidden {
-                    name: format!("{name} ({capability})"),
-                }
-            }
+            RuntimeError::HostActionDenied { name, action } => vm::Error::BindingCallForbidden {
+                name: format!("{name} ({action})"),
+            },
             RuntimeError::AffinityViolation { name, affinity } => vm::Error::BindingCallForbidden {
                 name: format!("{name} ({affinity})"),
             },

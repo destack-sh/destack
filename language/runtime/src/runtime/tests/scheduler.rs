@@ -15,8 +15,8 @@ use crate::runtime::poller::{
 use crate::runtime::scheduler::{
     EventLoop, Microtask, MicrotaskId, Runnable, Task, TaskId, TaskStatus, Timer, TimerDeadline,
 };
-use crate::runtime::time::{Nanos, WorldInstant, host as host_time};
-use crate::runtime::{DropReason, TickOutcome, Worker, World};
+use crate::runtime::time::{Instant, Nanos, host as host_time};
+use crate::runtime::{DropReason, TickResult, Worker, WorkerOptions, World};
 
 use super::tests::{
     TestEngine, TestHostClockSource, TestMultiAgentRuntime, TestPoller, TestRuntime,
@@ -227,7 +227,7 @@ fn test_runtime_tick_records_unmatched_poller_ingress() {
     // one runtime tick should account for the unmatched ingress without resuming work
     let outcome = runtime.tick();
 
-    assert_eq!(outcome, TickOutcome::Progressed);
+    assert_eq!(outcome, TickResult::Worked);
     assert_eq!(
         runtime.drop_counts().count(DropReason::UnmatchedIngress),
         1,
@@ -610,17 +610,17 @@ fn test_runtime_tick_advances_virtual_time_before_dispatch() {
     let options = runtime_options_with_time_mode(TimeMode::Virtual);
     let mut runtime =
         TestMultiAgentRuntime::with_options_and_engine(&options, TestEngine::default());
-    let primary_worker_id = runtime.primary_worker_id();
+    let default_worker_id = runtime.default_worker_id();
     let fire_at_nanos = runtime.wall_nanos().saturating_add(5_000);
-    let continuation = runtime.completing_continuation(primary_worker_id, 111);
-    runtime.with_worker_mut(primary_worker_id, |worker| {
+    let continuation = runtime.completing_continuation(default_worker_id, 111);
+    runtime.with_worker_mut(default_worker_id, |worker| {
         register_timer_watch(worker, 950, continuation, 0);
         schedule_timer(worker, TimerClock::Wall, 950, fire_at_nanos, None);
     });
 
     // the first tick should only advance time
     let outcome = runtime.tick();
-    assert_eq!(outcome, TickOutcome::AdvancedTime);
+    assert_eq!(outcome, TickResult::TimeAdvanced);
     assert_eq!(
         runtime.wall_nanos(),
         fire_at_nanos,
@@ -634,7 +634,7 @@ fn test_runtime_tick_advances_virtual_time_before_dispatch() {
 
     // the next tick should dispatch the newly ready timer task
     let outcome = runtime.tick();
-    assert_eq!(outcome, TickOutcome::Progressed);
+    assert_eq!(outcome, TickResult::Worked);
 }
 
 /// Executes one world tick through the attached runtime.
@@ -646,11 +646,11 @@ fn test_world_tick_drives_runtime() {
     let runtime_id = world
         .spawn_runtime(Vec::new(), &options, TestEngine::default())
         .expect("runtime should spawn");
-    // enqueue one ready task on the primary worker
+    // enqueue one ready task on the default worker
     let runtime = world.runtime_mut(runtime_id).expect("runtime should exist");
-    let primary_worker_id = runtime.primary_worker_id();
+    let default_worker_id = runtime.default_worker_id();
     runtime
-        .with_worker_context(primary_worker_id, |shared, runtime_static, worker| {
+        .with_worker_context(default_worker_id, |shared, runtime_static, worker| {
             let continuation = super::tests::start_worker_continuation(
                 worker,
                 shared,
@@ -666,10 +666,10 @@ fn test_world_tick_drives_runtime() {
                 priority: 0,
             });
         })
-        .expect("primary worker should exist");
+        .expect("default worker should exist");
 
     // world tick should delegate through the runtime and execute the task
-    assert_eq!(world.tick().expect("world tick"), TickOutcome::Progressed);
+    assert_eq!(world.tick().expect("world tick"), TickResult::Worked);
 }
 
 /// Dispatches equal-deadline timers in stable worker-id order.
@@ -679,15 +679,15 @@ fn test_runtime_tick_orders_equal_deadline_timers_by_worker_id() {
     let options = runtime_options_with_time_mode(TimeMode::Virtual);
     let mut runtime =
         TestMultiAgentRuntime::with_options_and_engine(&options, TestEngine::default());
-    let primary_worker_id = runtime.primary_worker_id();
+    let default_worker_id = runtime.default_worker_id();
     let secondary_worker_id = runtime.spawn_worker(TestEngine::default());
     let fire_at_nanos = runtime.wall_nanos().saturating_add(10_000);
-    let primary_continuation = runtime.completing_continuation(primary_worker_id, 201);
+    let default_continuation = runtime.completing_continuation(default_worker_id, 201);
     let secondary_continuation = runtime.completing_continuation(secondary_worker_id, 202);
 
     // register one watched timer on each worker
-    runtime.with_worker_mut(primary_worker_id, |worker| {
-        register_timer_watch(worker, 960, primary_continuation, 0);
+    runtime.with_worker_mut(default_worker_id, |worker| {
+        register_timer_watch(worker, 960, default_continuation, 0);
         schedule_timer(worker, TimerClock::Wall, 960, fire_at_nanos, None);
     });
     runtime.with_worker_mut(secondary_worker_id, |worker| {
@@ -696,10 +696,10 @@ fn test_runtime_tick_orders_equal_deadline_timers_by_worker_id() {
     });
 
     // the first tick advances time and later ticks dispatch in worker order
-    assert_eq!(runtime.tick(), TickOutcome::AdvancedTime);
-    assert_eq!(runtime.tick(), TickOutcome::Progressed);
-    assert_eq!(runtime.tick(), TickOutcome::Progressed);
-    assert_eq!(runtime.tick(), TickOutcome::Idle);
+    assert_eq!(runtime.tick(), TickResult::TimeAdvanced);
+    assert_eq!(runtime.tick(), TickResult::Worked);
+    assert_eq!(runtime.tick(), TickResult::Worked);
+    assert_eq!(runtime.tick(), TickResult::Idle);
 }
 
 /// Advances virtual time to one simulation deadline when no worker work is ready.
@@ -712,17 +712,17 @@ fn test_runtime_tick_advances_to_simulation_deadline() {
     runtime
         .world_mut()
         .simulation_mut()
-        .schedule_event(WorldInstant::new(7_500));
+        .schedule_event(Instant::new(7_500));
 
     // the first tick should advance world time to the simulated deadline
     let outcome = runtime.tick();
-    assert_eq!(outcome, TickOutcome::AdvancedTime);
+    assert_eq!(outcome, TickResult::TimeAdvanced);
     assert_eq!(runtime.wall_nanos(), 7_500);
     assert_eq!(runtime.mono_nanos(), 7_500);
     let world = runtime.world();
     let simulation = world.simulation();
     assert_eq!(simulation.ready_events().len(), 1);
-    assert_eq!(simulation.ready_events()[0].at(), WorldInstant::new(7_500));
+    assert_eq!(simulation.ready_events()[0].at(), Instant::new(7_500));
 }
 
 /// Rejects synchronous virtual sleeps so time only advances through runtime ticks.
@@ -731,19 +731,21 @@ fn test_virtual_sleep_binding_fails_loudly() {
     // build one virtual-time binding context
     let options = runtime_options_with_time_mode(TimeMode::Virtual);
     let mut world = World::from_options(&options).expect("world");
-    let world_scope = world.world_scope();
     let shared = super::tests::runtime_shared_heap(&world, &options);
-    let worker = Worker::new_in_world(
+    let world_state = &mut world.state;
+
+    let mut worker = Worker::new_in_world(
         Vec::new(),
         &options,
-        &world_scope,
+        world_state,
         &shared,
         &engine::StaticSpace::empty(),
+        WorkerOptions::default(),
         TestEngine::default(),
     )
     .expect("worker should build");
     let host = Session::from_runtime_options(&options, worker.runtime_id);
-    let binding = super::tests::binding_call_context(&worker, &host, &world_scope);
+    let binding = super::tests::binding_call_context(&mut worker, &host, world_state);
     let wall_before = binding.wall_nanos();
 
     // synchronous sleep must fail instead of advancing virtual time inline

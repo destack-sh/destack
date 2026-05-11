@@ -53,7 +53,7 @@ pub enum BranchOrigin {
 impl World {
     /// Return the active branch identifier for this world.
     pub fn branch_id(&self) -> BranchId {
-        self.branch_id
+        self.state.branch_id
     }
 
     /// Return the active branch metadata for this world.
@@ -61,7 +61,7 @@ impl World {
         let lineage = self.lineage.read();
         let branch = lineage
             .branches
-            .get(&self.branch_id)
+            .get(&self.state.branch_id)
             .expect("world lineage must contain the active branch");
 
         branch.clone()

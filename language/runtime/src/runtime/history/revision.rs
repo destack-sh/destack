@@ -4,7 +4,7 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::time::WorldInstant;
+use crate::runtime::time::Instant;
 use crate::runtime::trace::{TraceImage, TraceSequence};
 use crate::runtime::world::World;
 
@@ -40,9 +40,9 @@ pub struct RevisionState {
     /// The captured trace image for this revision.
     pub trace_image_id: TraceImageId,
     /// The wall-clock instant captured by this revision.
-    pub wall: WorldInstant,
+    pub wall: Instant,
     /// The monotonic instant captured by this revision.
-    pub mono: WorldInstant,
+    pub mono: Instant,
     /// The revision labels.
     pub labels: BTreeMap<String, String>,
 }
@@ -53,7 +53,7 @@ impl World {
         let lineage = self.lineage.read();
         let branch = lineage
             .branches
-            .get(&self.branch_id)
+            .get(&self.state.branch_id)
             .expect("world lineage must contain the active branch");
 
         branch.head_revision

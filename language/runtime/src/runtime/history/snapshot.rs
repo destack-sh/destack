@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::resource::ResourceRebinders;
-use crate::runtime::bindings::BindingReplayPayload;
+use crate::runtime::binding::BindingReplayPayload;
 use crate::runtime::policy::{Policy, PolicyState};
 use crate::runtime::random::RandomImage;
 use crate::runtime::time::ClockImage;
@@ -292,7 +292,7 @@ pub struct WorldSnapshot {
 }
 
 impl WorldSnapshot {
-    /// Create one serialized snapshot wrapper for one materialized revision.
+    /// Create one serialized snapshot for one materialized revision.
     pub const fn new(config: SnapshotConfig, revision: Revision, lineage: LineageSnapshot) -> Self {
         Self {
             format_version: 1,
@@ -349,7 +349,7 @@ impl WorldSnapshot {
 impl World {
     /// Build one snapshot world configuration from the live world.
     fn snapshot_config(&self) -> SnapshotConfig {
-        let header = self.trace.log().header();
+        let header = self.state.trace.log().header();
         let replay_payload = match header.replay_payload {
             BindingReplayPayload::Results => ReplayPayloadMode::ResultsOnly,
             BindingReplayPayload::ArgumentsAndResults => ReplayPayloadMode::ArgumentsAndResults,
@@ -361,10 +361,10 @@ impl World {
         };
 
         SnapshotConfig {
-            execution: self.trace.mode(),
+            execution: self.state.trace.mode(),
             scheduler_mode: self.lineage.read().collector().mode().to_scheduler_mode(),
-            time_mode: self.time_mode,
-            random_mode: self.random_mode,
+            time_mode: self.state.time_mode,
+            random_mode: self.state.random_mode,
             replay_payload,
             replay_chunk_size_mb,
         }
@@ -601,7 +601,7 @@ impl World {
         rebind_context: Option<&ResourceRebinders>,
     ) -> RuntimeResult<Self> {
         let options = Self::runtime_options_from_snapshot(snapshot);
-        let mut world = Self::for_branch(snapshot.revision()?.branch_id, &options, None)?;
+        let mut world = Self::new_at_branch(snapshot.revision()?.branch_id, &options, None)?;
         world.restore_snapshot(snapshot, rebind_context)?;
 
         Ok(world)
@@ -625,10 +625,10 @@ impl World {
     ) -> RuntimeResult<()> {
         let revision = snapshot.revision()?;
 
-        if revision.branch_id != self.branch_id {
+        if revision.branch_id != self.state.branch_id {
             return Err(RuntimeError::SnapshotBranchMismatch {
                 snapshot_branch_id: revision.branch_id.get(),
-                world_branch_id: self.branch_id.get(),
+                world_branch_id: self.state.branch_id.get(),
             }
             .boxed());
         }
@@ -654,20 +654,20 @@ impl World {
             let mut worker_images = BTreeMap::new();
 
             for runtime in self.runtimes.values_mut() {
-                let (runtime_image, runtime_agents) = runtime.capture_image(mode)?;
+                let (runtime_image, runtime_workers) = runtime.capture_image(mode)?;
                 runtime_images.insert(runtime.runtime_id(), runtime_image);
-                worker_images.extend(runtime_agents);
+                worker_images.extend(runtime_workers);
             }
 
             Ok(WorldImage {
-                next_runtime_id: self.next_runtime_id,
-                next_worker_id: self.next_worker_id,
-                policy: self.policy.clone(),
-                topology: self.topology.clone(),
-                resources: self.resources.clone(),
-                simulation: self.simulation.clone(),
-                clock: self.clock.snapshot(),
-                random: self.random.snapshot(),
+                next_runtime_id: self.state.next_runtime_id,
+                next_worker_id: self.state.next_worker_id,
+                policy: self.state.policy.clone(),
+                topology: self.state.topology.clone(),
+                resources: self.state.resources.clone(),
+                simulation: self.state.simulation.clone(),
+                clock: self.state.clock.snapshot(),
+                random: self.state.random.snapshot(),
                 runtimes: runtime_images,
                 workers: worker_images,
             })
@@ -687,21 +687,22 @@ impl World {
         self.quiesce_shared_gc();
         let result = (|| {
             // world-owned state
-            self.next_runtime_id = image.next_runtime_id;
-            self.next_worker_id = image.next_worker_id;
-            self.policy = image.policy.clone();
-            self.topology = image.topology.clone();
-            self.resources = image.resources.clone();
-            self.simulation = image.simulation.clone();
+            self.state.next_runtime_id = image.next_runtime_id;
+            self.state.next_worker_id = image.next_worker_id;
+            self.state.policy = image.policy.clone();
+            self.state.topology = image.topology.clone();
+            self.state.resources = image.resources.clone();
+            self.state.simulation = image.simulation.clone();
 
-            self.clock.restore_snapshot(&image.clock);
-            self.random.restore_snapshot(&image.random)?;
-            self.observations.reset();
+            self.state.clock.restore_snapshot(&image.clock);
+            self.state.random.restore_snapshot(&image.random)?;
+            self.state.observations.reset();
 
             // runtime and worker state
             let mut restored_runtimes = BTreeMap::new();
             for (runtime_id, runtime_image) in &image.runtimes {
                 let runtime_name = self
+                    .state
                     .topology
                     .runtime_subject(*runtime_id)
                     .ok_or_else(|| {
@@ -712,13 +713,13 @@ impl World {
                     })?
                     .0
                     .to_string();
-                let runtime_agent_images = image
+                let runtime_worker_images = image
                     .workers
                     .iter()
                     .filter(|(worker_id, _)| image.runtime_owns_worker(*runtime_id, **worker_id))
                     .map(|(worker_id, worker_image)| (*worker_id, worker_image.clone()))
                     .collect::<BTreeMap<_, _>>();
-                let runtime_agent_names = runtime_agent_images
+                let runtime_worker_names = runtime_worker_images
                     .keys()
                     .map(|worker_id| {
                         let worker_name = image.worker_name(*worker_id)?;
@@ -732,14 +733,14 @@ impl World {
                 };
 
                 let runtime = Runtime::from_image(
-                    &self.world_scope(),
+                    &mut self.state,
                     allocator,
                     collector,
                     *runtime_id,
                     runtime_name,
                     runtime_image.as_ref(),
-                    &runtime_agent_names,
-                    &runtime_agent_images,
+                    &runtime_worker_names,
+                    &runtime_worker_images,
                     rebind_context,
                 )?;
                 restored_runtimes.insert(*runtime_id, Box::new(runtime));
