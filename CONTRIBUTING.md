@@ -47,6 +47,7 @@ Use conventional commits for all repository changes.
 - Use the full scope (sometimes stylisied) like `language/ast`, `language/compiler/analyze`, `library/ui`, ...
 - If the commit touches multiple scopes either use the highest most, use `all`, or (if large enough) break into multiple smaller commits
 - For example: `feat(language/source): improve error span precision (to sub-token granularity)`.
+- In case of doubt, look at the past 50 or so commit messages for common style.
 - Do not mention non-human authors or contributors in commit messages. We don't care.
 
 ## Security
