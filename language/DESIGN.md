@@ -388,7 +388,7 @@ final class PacketHeader {
 
 Destack supports richer sequence forms beyond the classic dynamic arrays - `T[]` / `Array<T>` with explicit slice, fixed array, and tuple forms.
 Unfortunately, not much syntax was left here, so we had to adopt the slightly non-TS-y syntax forms of `[T]` and `[T; N]`.
-(This is also why `.ds` does not support `.ts`-style array tuples `[A, B]`; tuples must be explicit `(A, B)`)
+(This is also why `.ds` does not support `.ts`-style array tuples `[A, B]` and tuples must be explicit `(A, B)`)
 
 | Forms | Representation | Meaning |
 |------|----------------|---------|
