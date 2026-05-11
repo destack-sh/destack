@@ -6,7 +6,7 @@ import {
     RuntimeCreateOptions,
     RuntimeDescriptor,
     RuntimeHandle,
-    RuntimeTickOutcome,
+    RuntimeTickResult,
     WorldCreateOptions,
     WorldDescriptor,
     WorldHandle,
@@ -54,7 +54,7 @@ export declare function worldDescribe(world: WorldHandle): Result<WorldDescripto
     provider: "runtime",
     affinity: "worker",
 })
-export declare function worldTick(world: WorldHandle): Result<RuntimeTickOutcome, PlatformError>;
+export declare function worldTick(world: WorldHandle): Result<RuntimeTickResult, PlatformError>;
 
 /// Spawn one runtime in one world.
 @binding("destack.runtime.core.runtimeCreate", {

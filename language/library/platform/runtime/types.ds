@@ -107,13 +107,15 @@ export enum RuntimeWorldKind {
 }
 
 /// Tick result for one world advance.
-export enum RuntimeTickOutcome {
+export enum RuntimeTickResult {
     /// No progress was possible.
     Idle = 1,
     /// One or more tasks or events progressed.
     Progressed = 2,
     /// Time advanced without dispatching work.
     AdvancedTime = 3,
+    /// Background work is still active.
+    Background = 4,
 }
 
 /// Snapshot export format.
@@ -204,8 +206,8 @@ export struct WorldDescriptor {
 export struct RuntimeDescriptor {
     /// Runtime identifier.
     id: RuntimeId;
-    /// Primary worker identifier.
-    primaryWorkerId: WorkerId;
+    /// Default worker identifier.
+    defaultWorkerId: WorkerId;
     /// Optional runtime name.
     name?: string;
     /// Worker count in this runtime.
