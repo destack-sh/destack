@@ -9,22 +9,6 @@ use crate::platform::{PlatformError, resource};
 use crate::runtime::BindingCallContext;
 
 /// Read terminal size.
-///
-/// Read one terminal size snapshot for one terminal handle.
-/// Pixel fields may be zero when host APIs do not provide pixel metrics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses TIOCGWINSZ on Unix and console buffer APIs on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.size`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_tty_get_size(
     binding: &BindingCallContext,
     out: *mut TtySize,
@@ -65,22 +49,6 @@ pub(crate) unsafe fn destack_tty_get_size(
 }
 
 /// Apply terminal size.
-///
-/// Apply one terminal size to one terminal handle.
-/// Resize propagation to attached sessions follows host terminal semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses TIOCSWINSZ on Unix and console size APIs on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.size`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_tty_set_size(
     binding: &BindingCallContext,
     handle: resource::TtyHandle,

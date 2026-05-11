@@ -10,26 +10,6 @@ use crate::runtime::BindingCallContext;
 use crate::platform::crypto::core::write_out_value;
 
 /// Open one crypto store.
-///
-/// Create one runtime crypto store handle for key and certificate operations.
-/// Provider selection and access scope follow runtime crypto store semantics.
-/// `Ephemeral` and `Provider` store support is required.
-/// Host-backed `System`, `User`, and `Machine` support is host dependent.
-/// Host-backed stores may expose certificate reads while rejecting key or certificate writes.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime crypto store primitives over OpenSSL software providers and host stores: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software providers plus keystore callbacks when host callbacks are configured.
-/// Operations may return `notSupported` when host stores are unavailable.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.store.read`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_store_open(
     binding: &BindingCallContext,
     out: *mut resource::CryptoStoreHandle,
@@ -40,23 +20,6 @@ pub(crate) unsafe fn destack_crypto_store_open(
 }
 
 /// Close one crypto store.
-///
-/// Release one runtime crypto store handle.
-/// Open key and certificate handles remain valid according to runtime store lifetime rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime crypto store primitives over OpenSSL software providers and host stores: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software providers plus keystore callbacks when host callbacks are configured.
-/// Operations may return `notSupported` when host stores are unavailable.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `crypto.store.read`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_store_close(
     binding: &BindingCallContext,
     handle: resource::CryptoStoreHandle,
@@ -65,23 +28,6 @@ pub(crate) unsafe fn destack_crypto_store_close(
 }
 
 /// List keys from one store.
-///
-/// Enumerate key entries that match one query selector.
-/// Result ordering and visibility follow runtime store policies and caller permissions.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime crypto store primitives over OpenSSL software providers and host stores: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software providers plus keystore callbacks when host callbacks are configured.
-/// Operations may return `notSupported` when host stores are unavailable.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.store.read`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_store_list_keys(
     binding: &BindingCallContext,
     out: *mut CryptoKeyListPage,
@@ -93,23 +39,6 @@ pub(crate) unsafe fn destack_crypto_store_list_keys(
 }
 
 /// List certificates from one store.
-///
-/// Enumerate certificate entries that match one query selector.
-/// Result ordering and visibility follow runtime store policies and caller permissions.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime crypto store primitives over OpenSSL software providers and host stores: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software providers plus keystore callbacks when host callbacks are configured.
-/// Operations may return `notSupported` when host stores are unavailable.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.store.read`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_store_list_certificates(
     binding: &BindingCallContext,
     out: *mut CryptoCertificateListPage,
@@ -121,21 +50,6 @@ pub(crate) unsafe fn destack_crypto_store_list_certificates(
 }
 
 /// Return capabilities for one store backend identity.
-///
-/// Query one store kind and optional provider and return effective capability policy.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime crypto store capability introspection over OpenSSL software providers and host stores: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software providers plus keystore callbacks when host callbacks are configured.
-///
-/// # Errors
-/// Returns invalidArgument, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.probe`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_crypto_store_probe_capability(
     binding: &BindingCallContext,
     out: *mut CryptoStoreCapability,
@@ -151,21 +65,6 @@ pub(crate) unsafe fn destack_crypto_store_probe_capability(
 }
 
 /// List store backend kinds that are currently available.
-///
-/// Return one runtime capability snapshot for store backends that can be opened.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses runtime crypto store capability introspection over OpenSSL software providers and host stores: Security.framework keychain and trust stores on Apple, CNG and Crypt32 stores on Windows, and Android software providers plus keystore callbacks when host callbacks are configured.
-///
-/// # Errors
-/// Returns ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.probe`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_crypto_store_probe_kinds(
     binding: &BindingCallContext,
     out: *mut NativeArray<CryptoStoreKind>,

@@ -1213,27 +1213,6 @@ pub(super) fn set_read_mode(
 }
 
 /// Read one input event.
-///
-/// Read one pending input event from one opened device stream.
-/// Per-device streams report control and motion events for that device and exclude global device topology events.
-/// Backend framing packets are filtered from this semantic stream.
-/// Queue pressure can report one device cancel packet through the typed payload.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one readable input backend.
-/// Uses evdev event reads on Linux.
-/// Uses event-tap queue reads on macOS.
-/// Uses terminal-byte event reads on other Unix hosts.
-/// Uses `ReadConsoleInputW` queue reads or raw-state polling on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `input.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_input_read(
     binding: &BindingCallContext,
     out: *mut InputEvent,
@@ -1256,22 +1235,6 @@ pub(crate) unsafe fn destack_input_read(
 }
 
 /// Close one global input event monitor.
-///
-/// Close one opened monitor stream and release host subscription resources.
-/// Pending unread monitor events are discarded.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses close(2) on Unix and CloseHandle on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock.
-///
-/// # Security
-/// Requires `input.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_input_monitor_close(
     binding: &BindingCallContext,
     handle: resource::InputMonitorHandle,
@@ -1296,25 +1259,6 @@ pub(crate) unsafe fn destack_input_monitor_close(
 }
 
 /// Open one global input event monitor.
-///
-/// Open one monitor stream that reports host input topology events, including connect and disconnect.
-/// Monitor streams are independent from per-device data streams.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one global monitor stream.
-/// Uses inotify-backed `/dev/input` monitor events on Linux.
-/// Falls back to snapshot scans on Linux when watcher setup is unavailable.
-/// Uses session and terminal-device scans on macOS and other Unix hosts.
-/// Uses raw-input device-change subscriptions on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `input.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_input_monitor_open(
     binding: &BindingCallContext,
     out: *mut resource::InputMonitorHandle,
@@ -1348,25 +1292,6 @@ pub(crate) unsafe fn destack_input_monitor_open(
 }
 
 /// Read one global input monitor event.
-///
-/// Read one pending monitor event from the global input monitor stream.
-/// This stream is the canonical source for device connect, disconnect, and metadata-change events.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one global monitor stream.
-/// Uses blocking reads from inotify-backed Linux monitor queues.
-/// Falls back to snapshot scans on Linux when watcher setup is unavailable.
-/// Uses terminal or session monitor streams on Unix hosts.
-/// Uses raw-input monitor queues on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `input.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_input_monitor_read(
     binding: &BindingCallContext,
     out: *mut InputMonitorEvent,
@@ -1393,25 +1318,6 @@ pub(crate) unsafe fn destack_input_monitor_read(
 }
 
 /// Poll one global input monitor event without blocking.
-///
-/// Poll one pending monitor event and return immediately when no event is queued.
-/// Empty queue state is reported through ioWouldBlock.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one global monitor stream.
-/// Uses nonblocking reads from inotify-backed Linux monitor queues.
-/// Falls back to snapshot scans on Linux when watcher setup is unavailable.
-/// Uses terminal or session monitor streams on Unix hosts.
-/// Uses raw-input monitor queues on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `input.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_input_monitor_try_read(
     binding: &BindingCallContext,
     out: *mut InputMonitorEvent,
@@ -1438,25 +1344,6 @@ pub(crate) unsafe fn destack_input_monitor_try_read(
 }
 
 /// Enable or disable exclusive device grab.
-///
-/// Toggle exclusive-grab mode for one input device when the host backend supports it.
-/// This is one device-wide exclusivity control and is distinct from pointer confinement or locking modes.
-/// Grabs can prevent event delivery to other clients.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where exclusive grab is not defined by host policy.
-/// Uses `EVIOCGRAB` on Linux.
-/// Returns `notSupported` for global-session and terminal-backed Unix input.
-/// Uses `SetConsoleMode` capture toggles on Windows console input.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `input.grab`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_input_set_exclusive_grab(
     binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
@@ -1472,24 +1359,6 @@ pub(crate) unsafe fn destack_input_set_exclusive_grab(
 }
 
 /// Read one batch of input events.
-///
-/// Read up to `maxEvents` events from one opened device stream in one call.
-/// Batch ordering matches backend delivery order and excludes global device topology events.
-/// Backend framing packets are filtered from this semantic stream.
-/// Queue pressure can report one device cancel packet through the typed payload.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one readable input backend.
-/// Uses batched reads when supported and runtime looped reads otherwise.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `input.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_input_read_batch(
     binding: &BindingCallContext,
     out: *mut NativeArray<InputEvent>,
@@ -1532,24 +1401,6 @@ pub(crate) unsafe fn destack_input_read_batch(
 }
 
 /// Select event decoding mode for one input stream.
-///
-/// Select translated or raw decoding mode for one opened input endpoint.
-/// Hosts can return notSupported when raw mode is unavailable for the selected endpoint.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses per-stream runtime mode selection on Linux evdev and macOS session backends.
-/// Uses termios raw and cooked mode updates on Unix TTY paths.
-/// Uses `SetConsoleMode` updates on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `input.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_input_set_read_mode(
     binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
@@ -1560,27 +1411,6 @@ pub(crate) unsafe fn destack_input_set_read_mode(
 }
 
 /// Poll one input event without blocking.
-///
-/// Poll one pending input event from one opened device stream and return immediately when no event is queued.
-/// Empty queue state is reported through ioWouldBlock.
-/// Backend framing packets are filtered from this semantic stream.
-/// Queue pressure can report one device cancel packet through the typed payload.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one readable input backend.
-/// Uses nonblocking evdev reads on Linux.
-/// Uses nonblocking event-tap queue reads on macOS.
-/// Uses nonblocking terminal-byte reads on other Unix hosts.
-/// Uses nonblocking console queue reads or raw-state polling on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `input.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_input_try_read(
     binding: &BindingCallContext,
     out: *mut InputEvent,

@@ -160,22 +160,6 @@ fn string_from_wide_pointer(pointer: *const u16, label: &str) -> RuntimeResult<S
 }
 
 /// Resolve an interface name to an index.
-///
-/// Maps a host interface name to its numeric index for route and multicast operations.
-/// The mapping follows host network namespace rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses if_nametoindex on Unix and ConvertInterfaceAliasToLuid plus ConvertInterfaceLuidToIndex on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `net.interface`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_interface_index(
     _binding: &BindingCallContext,
     out: *mut u32,
@@ -221,22 +205,6 @@ pub(crate) unsafe fn destack_net_interface_index(
 }
 
 /// Resolve an interface index to a name.
-///
-/// Maps a numeric host interface index to its canonical interface name.
-/// The mapping follows host network namespace rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses if_indextoname on Unix and ConvertInterfaceIndexToLuid plus ConvertInterfaceLuidToAlias on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `net.interface`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_interface_name(
     binding: &BindingCallContext,
     out: *mut NativeStringRef,
@@ -293,22 +261,6 @@ pub(crate) unsafe fn destack_net_interface_name(
 }
 
 /// List network interfaces with addresses and flags.
-///
-/// Enumerates host interfaces and returns their current address records.
-/// Results are snapshots and may become stale immediately after the call.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses getifaddrs on Unix and iphlpapi adapter enumeration on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netTimedOut, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `net.interface`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_list_interfaces(
     binding: &BindingCallContext,
     out: *mut NativeArray<NetInterface>,

@@ -62,10 +62,7 @@ pub(crate) fn background_event_open(
     binding: &BindingCallContext,
     options: BackgroundEventOpenOptionsValue,
 ) -> RuntimeResult<resource::BackgroundEventHandle> {
-    if !binding
-        .host()
-        .has_host_capability(PlatformCapability::OsBackgroundRead)
-    {
+    if !binding.host().has_host_action(HostAction::OsBackgroundRead) {
         return Err(not_supported("destack.os.background.event.open"));
     }
 

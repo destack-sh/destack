@@ -37,22 +37,6 @@ fn thread_join_error(code: libc::c_int) -> Box<RuntimeError> {
 }
 
 /// Detach one host thread.
-///
-/// Detach one thread from join tracking.
-/// Detached thread lifecycle and cleanup are host-managed.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses pthread_detach on Unix and handle-release semantics on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.spawn`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_detach(
     binding: &BindingCallContext,
     handle: ThreadHandle,
@@ -87,22 +71,6 @@ pub(crate) unsafe fn destack_thread_detach(
 }
 
 /// Join one host thread.
-///
-/// Wait for one joinable thread to exit and return its machine-word result.
-/// Join lifecycle follows host thread rules, but the returned value is runtime-defined.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses pthread_join on Unix and one runtime-managed completion slot.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.spawn`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_join(
     binding: &BindingCallContext,
     out: *mut u64,
@@ -151,21 +119,6 @@ pub(crate) unsafe fn destack_thread_join(
 }
 
 /// Spawn one host thread.
-///
-/// This is currently parked until runtime installed thread entry handles exist.
-///
-/// # Platform
-/// Unix and Windows.
-/// Host thread creation is not yet wired for this entry model.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.spawn`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_spawn(
     _binding: &BindingCallContext,
     _out: *mut ThreadHandle,

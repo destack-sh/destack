@@ -10,22 +10,6 @@ use windows_sys::Win32::System::Threading::{
 
 use crate::runtime::BindingCallContext;
 /// Create one thread-local key.
-///
-/// Allocate one runtime thread-local storage key.
-/// Key lifetime is explicit and must be released with delete.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses pthread TLS keys on Unix and TlsAlloc on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.local`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_local_create(
     binding: &BindingCallContext,
     out: *mut ThreadLocalKey,
@@ -56,22 +40,6 @@ pub(crate) unsafe fn destack_thread_local_create(
 }
 
 /// Delete one thread-local key.
-///
-/// Release one thread-local key and associated host resources.
-/// Existing per-thread values become invalid after deletion.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses pthread TLS key deletion on Unix and TlsFree on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.local`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_local_delete(
     binding: &BindingCallContext,
     key: ThreadLocalKey,
@@ -94,22 +62,6 @@ pub(crate) unsafe fn destack_thread_local_delete(
 }
 
 /// Read one thread-local value.
-///
-/// Read one machine-word value from one thread-local key.
-/// Value interpretation is caller-defined and ABI-dependent.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses pthread TLS storage on Unix and TlsGetValue on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.local`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_local_get(
     binding: &BindingCallContext,
     out: *mut u64,
@@ -148,22 +100,6 @@ pub(crate) unsafe fn destack_thread_local_get(
 }
 
 /// Store one thread-local value.
-///
-/// Write one machine-word value into one thread-local key.
-/// Value interpretation is caller-defined and ABI-dependent.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses pthread TLS storage on Unix and TlsSetValue on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.local`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_local_set(
     binding: &BindingCallContext,
     key: ThreadLocalKey,

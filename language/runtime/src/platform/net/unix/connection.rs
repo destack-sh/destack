@@ -392,22 +392,6 @@ fn socket_pair_dgram_loopback(
 }
 
 /// Accept a new connection from a listener.
-///
-/// Accept the next pending connection from the listener queue.
-/// Accept flags and queued-connection ordering follow host kernel semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses accept4/accept on Unix and accept/AcceptEx on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.accept`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_accept(
     binding: &BindingCallContext,
     out: *mut SocketHandle,
@@ -484,22 +468,6 @@ pub(crate) unsafe fn destack_net_accept(
 }
 
 /// Close a socket handle.
-///
-/// Close the target socket descriptor.
-/// Close-on-pending-I/O behavior follows host kernel socket semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses close(2) on Unix and closesocket on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.close`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_close(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -535,22 +503,6 @@ pub(crate) unsafe fn destack_net_close(
 }
 
 /// Close a listener handle.
-///
-/// Close a listener socket descriptor.
-/// Pending accepts are interrupted according to host kernel semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses close(2) on Unix and closesocket on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.close`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_close_listener(
     binding: &BindingCallContext,
     handle: ListenerHandle,
@@ -606,22 +558,6 @@ pub(crate) unsafe fn destack_net_connect_raw(
 }
 
 /// Bind an existing socket to a raw address.
-///
-/// Bind an existing socket descriptor to the specified local address.
-/// Address validation and reuse checks are enforced by the host kernel.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses bind(2) on Unix and bind on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.listen`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_bind(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -720,22 +656,6 @@ pub(crate) unsafe fn destack_net_listen_raw(
 }
 
 /// Create a socket from a native family, type, and protocol.
-///
-/// Allocate a new socket endpoint with the requested family, type, and protocol number.
-/// Protocol defaults and socket limits are determined by the host kernel.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses socket(2) on Unix and WSASocketW on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_socket(
     binding: &BindingCallContext,
     out: *mut SocketHandle,
@@ -777,22 +697,6 @@ pub(crate) unsafe fn destack_net_socket(
 }
 
 /// Create a connected socket pair.
-///
-/// Allocate two already-connected peer sockets for local full-duplex communication.
-/// Pair creation semantics and descriptor inheritance follow host kernel behavior.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses socketpair(2) on Unix and loopback-pair emulation on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.connect`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_socket_pair(
     binding: &BindingCallContext,
     out: *mut SocketPair,

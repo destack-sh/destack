@@ -13,8 +13,8 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::resource::{ResourceId, ResourceKind, ResourceKindVm, ResourceOwnership};
 use crate::platform::{PlatformError, RuntimeStatus, VmAggregateCodec, abi as platform_abi};
 use crate::runtime::bindings::{
-    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
-    BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, native_call,
+    BindingAffinity, BindingDescriptor, BindingProvider, BindingRegistry, BindingReplayKind,
+    BindingReplayPolicy, NativeBinding, NativeBindingSet, native_call,
 };
 use crate::runtime::trace::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
@@ -191,56 +191,56 @@ struct ResourceIdCloseReplayRecord {
 
 /// Binding descriptor for destack.resource.id.close.
 pub(crate) const RESOURCE_ID_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.resource.id.close",
         "export function close(id: ResourceId): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["resource.close"],
-        BindingScope::Runtime,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Runtime,
+        BindingAffinity::None,
     )
     .with_namespace("resource")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.resource.id.kind.
 pub(crate) const RESOURCE_ID_KIND: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_behavior(
+    BindingDescriptor::deterministic_with_requires_and_dispatch(
         "destack.resource.id.kind",
         "export function kind(id: ResourceId): Result<ResourceKind, PlatformError>",
         &["resource.read"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Runtime,
+        BindingAffinity::None,
     )
     .with_namespace("resource")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.resource.id.remove.
 pub(crate) const RESOURCE_ID_REMOVE: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_behavior(
+    BindingDescriptor::deterministic_with_requires_and_dispatch(
         "destack.resource.id.remove",
         "export function remove(id: ResourceId): Result<void, PlatformError>",
         &["resource.manage"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Runtime,
+        BindingAffinity::None,
     )
     .with_namespace("resource")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.resource.id.transfer.
-pub(crate) const RESOURCE_ID_TRANSFER: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_behavior(
+pub(crate) const RESOURCE_ID_TRANSFER: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
     "destack.resource.id.transfer",
     "export function transfer(id: ResourceId, ownership: ResourceOwnership): Result<void, PlatformError>",
     &["resource.transfer"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Runtime,
+    BindingAffinity::None,
 )
     .with_namespace("resource")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Native binding set for resource.
 pub(crate) const RESOURCE_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

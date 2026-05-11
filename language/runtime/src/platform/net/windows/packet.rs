@@ -762,27 +762,6 @@ fn record_received_packet(state: &mut WindowsPacketState) {
 }
 
 /// Open a packet capture or inject endpoint.
-///
-/// Opens one host packet endpoint for packet capture and injection.
-/// Frame shape and metadata are backend specific.
-/// Host privilege checks and backend-specific limits are enforced by the kernel or driver.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses AF_PACKET on Linux and `/dev/bpf` packet devices on macOS.
-/// Returns `notSupported` on Unix targets without a packet backend.
-/// Uses one configured host packet backend on Windows.
-/// Current Windows backend uses raw IPv4 sockets with `SIO_RCVALL`, payloads are IP packets rather than Ethernet frames.
-/// Returns `notSupported` on Windows when no packet backend is configured.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `net.raw`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_packet_open(
     binding: &BindingCallContext,
     out: *mut SocketHandle,
@@ -879,26 +858,6 @@ pub(crate) unsafe fn destack_net_packet_open(
 }
 
 /// Receive one packet from a packet endpoint.
-///
-/// Reads one packet record into the provided payload buffer and returns packet metadata.
-/// Truncation is reported explicitly when the payload buffer is smaller than the captured frame.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses AF_PACKET packet reads on Linux and BPF packet reads on macOS.
-/// Returns `notSupported` on Unix targets without a packet backend.
-/// Uses one configured host packet backend on Windows.
-/// Current Windows backend reads raw IPv4 packets from `SOCK_RAW` capture lanes.
-/// Returns `notSupported` on Windows when no packet backend is configured.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `net.raw`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_packet_receive(
     binding: &BindingCallContext,
     out: *mut PacketCaptureRecord,
@@ -984,26 +943,6 @@ pub(crate) unsafe fn destack_net_packet_receive(
 }
 
 /// Send one packet through a packet endpoint.
-///
-/// Writes one raw packet frame from the provided payload buffer.
-/// Partial sends are reported through the returned byte count.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses AF_PACKET packet writes on Linux and BPF packet writes on macOS.
-/// Returns `notSupported` on Unix targets without a packet backend.
-/// Uses one configured host packet backend on Windows.
-/// Current Windows backend sends raw IPv4 packets through `SOCK_RAW`.
-/// Returns `notSupported` on Windows when no packet backend is configured.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `net.raw`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_packet_send(
     binding: &BindingCallContext,
     out: *mut u64,
@@ -1046,25 +985,6 @@ pub(crate) unsafe fn destack_net_packet_send(
 }
 
 /// Configure packet timestamp mode for a socket or packet endpoint.
-///
-/// Updates timestamping mode for packet metadata capture on supported backends.
-/// Unsupported timestamp modes return notSupported.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses SO_TIMESTAMP families on Linux and BPF timestamp lanes on macOS.
-/// Returns `notSupported` on Unix targets without timestamp-capable packet backends.
-/// Uses one configured host packet backend on Windows.
-/// Returns `notSupported` on Windows when no packet backend is configured.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `net.raw`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_packet_set_timestamp_mode(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -1080,24 +1000,6 @@ pub(crate) unsafe fn destack_net_packet_set_timestamp_mode(
 }
 
 /// Clear packet fanout from a packet endpoint.
-///
-/// Remove this endpoint from any active fanout group.
-/// Group teardown behavior and packet redistribution follow host kernel semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses PACKET_FANOUT reset on Linux and returns `notSupported` where fanout groups are unavailable.
-/// Uses one configured host packet backend on Windows.
-/// Returns `notSupported` on Windows when no packet backend is configured.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.raw`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_packet_clear_fanout(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -1107,25 +1009,6 @@ pub(crate) unsafe fn destack_net_packet_clear_fanout(
 }
 
 /// Clear the active packet filter program.
-///
-/// Removes any backend packet filter from the raw endpoint.
-/// Filter teardown semantics are host defined.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses SO_DETACH_FILTER on Linux and BIOCSETF reset on macOS.
-/// Returns `notSupported` on Unix targets without packet-filter backends.
-/// Uses one configured host packet backend on Windows.
-/// Returns `notSupported` on Windows when no packet backend is configured.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.raw`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_packet_clear_filter(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -1143,24 +1026,6 @@ pub(crate) unsafe fn destack_net_packet_clear_filter(
 }
 
 /// Clear packet rx and tx ring configuration.
-///
-/// Disable ring-backed packet queues and return to syscall-based send and receive.
-/// Pending ring buffers are released according to host packet socket semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses PACKET_RX_RING and PACKET_TX_RING reset on Linux and returns `notSupported` elsewhere.
-/// Uses one configured host packet backend on Windows.
-/// Returns `notSupported` on Windows when no packet backend is configured.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.raw`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_packet_clear_ring(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -1170,24 +1035,6 @@ pub(crate) unsafe fn destack_net_packet_clear_ring(
 }
 
 /// Set packet fanout on a packet endpoint.
-///
-/// Attach this endpoint to one kernel packet fanout group with the provided mode.
-/// Fanout group behavior and mode-specific flags follow host packet socket semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses PACKET_FANOUT on Linux and returns `notSupported` where fanout groups are unavailable.
-/// Uses one configured host packet backend on Windows.
-/// Returns `notSupported` on Windows when no packet backend is configured.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.raw`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_packet_set_fanout(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -1198,25 +1045,6 @@ pub(crate) unsafe fn destack_net_packet_set_fanout(
 }
 
 /// Attach one packet filter program to a raw endpoint.
-///
-/// Installs one backend packet filter program for capture path filtering.
-/// Filter verification and accepted instruction sets are host defined.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses SO_ATTACH_FILTER on Linux and BIOCSETF on macOS.
-/// Returns `notSupported` on Unix targets without packet-filter backends.
-/// Uses one configured host packet backend on Windows.
-/// Returns `notSupported` on Windows when no packet backend is configured.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.raw`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_packet_set_filter(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -1243,24 +1071,6 @@ pub(crate) unsafe fn destack_net_packet_set_filter(
 }
 
 /// Configure one packet rx ring for zero-copy capture.
-///
-/// Configure one receive ring so packet frames are delivered through kernel ring buffers.
-/// Ring geometry is validated by the host kernel and may be clamped or rejected.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses PACKET_RX_RING on Linux and returns `notSupported` where packet rings are unavailable.
-/// Uses one configured host packet backend on Windows.
-/// Returns `notSupported` on Windows when no packet backend is configured.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.raw`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_packet_set_rx_ring(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -1271,24 +1081,6 @@ pub(crate) unsafe fn destack_net_packet_set_rx_ring(
 }
 
 /// Configure one packet tx ring for zero-copy transmit.
-///
-/// Configure one transmit ring so packet frames are queued through kernel ring buffers.
-/// Ring geometry is validated by the host kernel and may be clamped or rejected.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses PACKET_TX_RING on Linux and returns `notSupported` where packet rings are unavailable.
-/// Uses one configured host packet backend on Windows.
-/// Returns `notSupported` on Windows when no packet backend is configured.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.raw`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_packet_set_tx_ring(
     binding: &BindingCallContext,
     handle: SocketHandle,
@@ -1299,25 +1091,6 @@ pub(crate) unsafe fn destack_net_packet_set_tx_ring(
 }
 
 /// Read packet capture statistics from one endpoint.
-///
-/// Reads cumulative backend packet counters for the endpoint.
-/// Counter units and reset behavior follow host backend semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses packet socket stats on Linux and BPF stats on macOS.
-/// Returns `notSupported` on Unix targets without packet stats backends.
-/// Uses one configured host packet backend on Windows.
-/// Returns `notSupported` on Windows when no packet backend is configured.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.raw`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_packet_stats(
     binding: &BindingCallContext,
     out: *mut PacketCaptureStats,

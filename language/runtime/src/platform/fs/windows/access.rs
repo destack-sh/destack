@@ -215,22 +215,6 @@ fn check_path_access(wide: &[u16], attrs: u32, mode: AccessMode) -> RuntimeResul
 }
 
 /// Check file access permissions.
-///
-/// Check file access permissions via host kernel APIs.
-/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses access(2) on Unix and GetFileAttributesW plus ACL checks on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.metadata`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_access_bytes(
     _binding: &BindingCallContext,
     path: PathBytes,
@@ -249,22 +233,6 @@ pub(crate) unsafe fn destack_fs_access_bytes(
 }
 
 /// Check file access permissions.
-///
-/// Check file access permissions via host kernel APIs.
-/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses access(2) on Unix and GetFileAttributesW plus ACL checks on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.metadata`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_access_utf16(
     _binding: &BindingCallContext,
     path: PathUtf16,
@@ -283,22 +251,6 @@ pub(crate) unsafe fn destack_fs_access_utf16(
 }
 
 /// Change file permissions.
-///
-/// Change file permissions via host kernel APIs.
-/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses chmod(2) on Unix and file attribute/security updates on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.chmod`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_chmod_bytes(
     _binding: &BindingCallContext,
     path: PathBytes,
@@ -330,22 +282,6 @@ pub(crate) unsafe fn destack_fs_chmod_bytes(
 }
 
 /// Change file permissions.
-///
-/// Change file permissions via host kernel APIs.
-/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses chmod(2) on Unix and file attribute/security updates on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.chmod`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_chmod_utf16(
     _binding: &BindingCallContext,
     path: PathUtf16,
@@ -377,22 +313,6 @@ pub(crate) unsafe fn destack_fs_chmod_utf16(
 }
 
 /// Change file permissions relative to a directory handle.
-///
-/// Change file permissions relative to a directory handle via host kernel APIs.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses fchmodat(2) on Unix and handle-relative mode updates on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.chmod`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_fchmodat_bytes(
     binding: &BindingCallContext,
     dir: DirectoryHandle,
@@ -418,22 +338,6 @@ pub(crate) unsafe fn destack_fs_fchmodat_bytes(
 }
 
 /// Change file permissions relative to a directory handle.
-///
-/// Change file permissions relative to a directory handle via host kernel APIs.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses fchmodat(2) on Unix and handle-relative mode updates on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.chmod`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_fchmodat_utf16(
     binding: &BindingCallContext,
     dir: DirectoryHandle,
@@ -458,22 +362,6 @@ pub(crate) unsafe fn destack_fs_fchmodat_utf16(
 }
 
 /// Change file owner and group.
-///
-/// Change file owner and group via host kernel APIs.
-/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses chown(2) on Unix and token/owner updates where supported on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.chown`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_chown_bytes(
     binding: &BindingCallContext,
     path: PathBytes,
@@ -504,22 +392,6 @@ pub(crate) unsafe fn destack_fs_chown_bytes(
 }
 
 /// Change file owner and group relative to a directory handle.
-///
-/// Change file owner and group relative to a directory handle via host kernel APIs.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses fchownat(2) on Unix and handle-relative owner updates where supported on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.chown`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_fchownat_bytes(
     binding: &BindingCallContext,
     dir: DirectoryHandle,
@@ -546,22 +418,6 @@ pub(crate) unsafe fn destack_fs_fchownat_bytes(
 }
 
 /// Change file owner and group relative to a directory handle.
-///
-/// Change file owner and group relative to a directory handle via host kernel APIs.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses fchownat(2) on Unix and handle-relative owner updates where supported on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.chown`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_fchownat_utf16(
     binding: &BindingCallContext,
     dir: DirectoryHandle,
@@ -587,22 +443,6 @@ pub(crate) unsafe fn destack_fs_fchownat_utf16(
 }
 
 /// Change file owner and group.
-///
-/// Change file owner and group via host kernel APIs.
-/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses chown(2) on Unix and token/owner updates where supported on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.chown`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_chown_utf16(
     binding: &BindingCallContext,
     path: PathUtf16,
@@ -633,22 +473,6 @@ pub(crate) unsafe fn destack_fs_chown_utf16(
 }
 
 /// Check file access permissions.
-///
-/// Check file access permissions via host kernel APIs.
-/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses access(2) on Unix and GetFileAttributesW plus ACL checks on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.metadata`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_access(
     binding: &BindingCallContext,
     path: OsPath,
@@ -663,22 +487,6 @@ pub(crate) unsafe fn destack_fs_access(
 }
 
 /// Change file permissions.
-///
-/// Change file permissions via host kernel APIs.
-/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses chmod(2) on Unix and file attribute/security updates on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.chmod`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_chmod(
     binding: &BindingCallContext,
     path: OsPath,
@@ -693,22 +501,6 @@ pub(crate) unsafe fn destack_fs_chmod(
 }
 
 /// Change file permissions relative to a directory handle.
-///
-/// Change file permissions relative to a directory handle via host kernel APIs.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses fchmodat(2) on Unix and handle-relative mode updates on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.chmod`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_fchmodat(
     binding: &BindingCallContext,
     dir: DirectoryHandle,
@@ -725,22 +517,6 @@ pub(crate) unsafe fn destack_fs_fchmodat(
 }
 
 /// Change file owner and group.
-///
-/// Change file owner and group via host kernel APIs.
-/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses chown(2) on Unix and token/owner updates where supported on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.chown`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_chown(
     binding: &BindingCallContext,
     path: OsPath,
@@ -756,22 +532,6 @@ pub(crate) unsafe fn destack_fs_chown(
 }
 
 /// Change file owner and group relative to a directory handle.
-///
-/// Change file owner and group relative to a directory handle via host kernel APIs.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses fchownat(2) on Unix and handle-relative owner updates where supported on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.chown`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_fchownat(
     binding: &BindingCallContext,
     dir: DirectoryHandle,
@@ -789,22 +549,6 @@ pub(crate) unsafe fn destack_fs_fchownat(
 }
 
 /// Check file access permissions relative to a directory handle.
-///
-/// Check file access permissions relative to a directory handle via host kernel APIs.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses faccessat(2) on Unix and relative path checks via native handles on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.metadata`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_accessat(
     binding: &BindingCallContext,
     dir: DirectoryHandle,

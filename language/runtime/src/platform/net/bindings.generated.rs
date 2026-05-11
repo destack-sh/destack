@@ -40,8 +40,8 @@ use crate::platform::{
     abi as platform_abi,
 };
 use crate::runtime::bindings::{
-    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
-    BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+    BindingAffinity, BindingDescriptor, BindingProvider, BindingRegistry, BindingReplayKind,
+    BindingReplayPolicy, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
 use crate::runtime::trace::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
@@ -3967,1481 +3967,1378 @@ struct NetUdsUdsSocketPairReplayRecord {
 
 /// Binding descriptor for destack.net.address.localAddress.
 pub(crate) const NET_ADDRESS_LOCAL_ADDRESS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.address.localAddress",
         "export function localAddress(handle: SocketHandle): Result<SocketAddress, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.control"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.address.peerAddress.
 pub(crate) const NET_ADDRESS_PEER_ADDRESS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.address.peerAddress",
         "export function peerAddress(handle: SocketHandle): Result<SocketAddress, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.control"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.interface.interfaceIndex.
 pub(crate) const NET_INTERFACE_INTERFACE_INDEX: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.interface.interfaceIndex",
         "export function interfaceIndex(name: string): Result<uint32, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.interface"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.interface.interfaceName.
 pub(crate) const NET_INTERFACE_INTERFACE_NAME: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.interface.interfaceName",
         "export function interfaceName(index: uint32): Result<string, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.interface"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.interface.listInterfaces.
 pub(crate) const NET_INTERFACE_LIST_INTERFACES: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.interface.listInterfaces",
         "export function listInterfaces(): Result<NetInterface[], PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.interface"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.listener.accept.
-pub(crate) const NET_LISTENER_ACCEPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_LISTENER_ACCEPT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.listener.accept",
     "export function accept(listener: ListenerHandle, flags: AcceptFlags): Result<SocketHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.accept"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.listener.bind.
-pub(crate) const NET_LISTENER_BIND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_LISTENER_BIND: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.listener.bind",
     "export function bind(handle: SocketHandle, address: SocketAddress): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.listen"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.listener.closeListener.
 pub(crate) const NET_LISTENER_CLOSE_LISTENER: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.listener.closeListener",
         "export function closeListener(handle: ListenerHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.close"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.listener.listen.
-pub(crate) const NET_LISTENER_LISTEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_LISTENER_LISTEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.listener.listen",
     "export function listen(address: SocketAddress, backlog: uint32): Result<ListenerHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.listen"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.options.getBroadcast.
 pub(crate) const NET_OPTIONS_GET_BROADCAST: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.options.getBroadcast",
         "export function getBroadcast(handle: SocketHandle): Result<boolean, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.control"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.options.getLinger.
 pub(crate) const NET_OPTIONS_GET_LINGER: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.options.getLinger",
         "export function getLinger(handle: SocketHandle): Result<Linger, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.control"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.options.getOnlyV6.
 pub(crate) const NET_OPTIONS_GET_ONLY_V6: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.options.getOnlyV6",
         "export function getOnlyV6(handle: SocketHandle): Result<boolean, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.control"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.options.getPacketMark.
 pub(crate) const NET_OPTIONS_GET_PACKET_MARK: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.options.getPacketMark",
         "export function getPacketMark(handle: SocketHandle): Result<uint32, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.control"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos"]);
+    .with_platforms(&["android", "ios", "linux", "macos"]);
 
 /// Binding descriptor for destack.net.options.getReadTimeout.
 pub(crate) const NET_OPTIONS_GET_READ_TIMEOUT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.options.getReadTimeout",
         "export function getReadTimeout(handle: SocketHandle): Result<uint32, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.control"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.options.getRecvBuffer.
 pub(crate) const NET_OPTIONS_GET_RECV_BUFFER: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.options.getRecvBuffer",
         "export function getRecvBuffer(handle: SocketHandle): Result<uint32, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.control"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.options.getSendBuffer.
 pub(crate) const NET_OPTIONS_GET_SEND_BUFFER: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.options.getSendBuffer",
         "export function getSendBuffer(handle: SocketHandle): Result<uint32, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.control"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.options.getSockOptRaw.
-pub(crate) const NET_OPTIONS_GET_SOCK_OPT_RAW: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_OPTIONS_GET_SOCK_OPT_RAW: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.options.getSockOptRaw",
     "export function getSockOptRaw(handle: SocketHandle, level: SocketOptionLevel, name: SocketOptionName, maxBytes: uint32): Result<uint8[], PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.control"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.options.getTimestamping.
-pub(crate) const NET_OPTIONS_GET_TIMESTAMPING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_OPTIONS_GET_TIMESTAMPING: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.options.getTimestamping",
     "export function getTimestamping(handle: SocketHandle): Result<SocketTimestampingMode, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.control"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.options.getTos.
 pub(crate) const NET_OPTIONS_GET_TOS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.options.getTos",
         "export function getTos(handle: SocketHandle): Result<uint32, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.control"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.options.getTtl.
 pub(crate) const NET_OPTIONS_GET_TTL: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.options.getTtl",
         "export function getTtl(handle: SocketHandle): Result<uint32, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.control"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.options.getWriteTimeout.
 pub(crate) const NET_OPTIONS_GET_WRITE_TIMEOUT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.options.getWriteTimeout",
         "export function getWriteTimeout(handle: SocketHandle): Result<uint32, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.control"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.options.setBroadcast.
-pub(crate) const NET_OPTIONS_SET_BROADCAST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_OPTIONS_SET_BROADCAST: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.options.setBroadcast",
     "export function setBroadcast(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.control"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.options.setLinger.
-pub(crate) const NET_OPTIONS_SET_LINGER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_OPTIONS_SET_LINGER: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.options.setLinger",
     "export function setLinger(handle: SocketHandle, linger: Linger): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.control"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.options.setOnlyV6.
-pub(crate) const NET_OPTIONS_SET_ONLY_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_OPTIONS_SET_ONLY_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.options.setOnlyV6",
     "export function setOnlyV6(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.control"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.options.setPacketMark.
-pub(crate) const NET_OPTIONS_SET_PACKET_MARK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_OPTIONS_SET_PACKET_MARK: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.options.setPacketMark",
     "export function setPacketMark(handle: SocketHandle, mark: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.control"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos"]);
+    .with_platforms(&["android", "ios", "linux", "macos"]);
 
 /// Binding descriptor for destack.net.options.setReadTimeout.
-pub(crate) const NET_OPTIONS_SET_READ_TIMEOUT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_OPTIONS_SET_READ_TIMEOUT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.options.setReadTimeout",
     "export function setReadTimeout(handle: SocketHandle, timeoutMs: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.control"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.options.setRecvBuffer.
-pub(crate) const NET_OPTIONS_SET_RECV_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_OPTIONS_SET_RECV_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.options.setRecvBuffer",
     "export function setRecvBuffer(handle: SocketHandle, size: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.control"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.options.setSendBuffer.
-pub(crate) const NET_OPTIONS_SET_SEND_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_OPTIONS_SET_SEND_BUFFER: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.options.setSendBuffer",
     "export function setSendBuffer(handle: SocketHandle, size: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.control"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.options.setSockOptRaw.
-pub(crate) const NET_OPTIONS_SET_SOCK_OPT_RAW: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_OPTIONS_SET_SOCK_OPT_RAW: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.options.setSockOptRaw",
     "export function setSockOptRaw(handle: SocketHandle, level: SocketOptionLevel, name: SocketOptionName, value: Slice<uint8>): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.control"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.options.setTimestamping.
-pub(crate) const NET_OPTIONS_SET_TIMESTAMPING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_OPTIONS_SET_TIMESTAMPING: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.options.setTimestamping",
     "export function setTimestamping(handle: SocketHandle, mode: SocketTimestampingMode): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.control"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.options.setTos.
 pub(crate) const NET_OPTIONS_SET_TOS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.options.setTos",
         "export function setTos(handle: SocketHandle, tos: uint32): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.control"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.options.setTtl.
 pub(crate) const NET_OPTIONS_SET_TTL: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.options.setTtl",
         "export function setTtl(handle: SocketHandle, ttl: uint32): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.control"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.options.setWriteTimeout.
-pub(crate) const NET_OPTIONS_SET_WRITE_TIMEOUT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_OPTIONS_SET_WRITE_TIMEOUT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.options.setWriteTimeout",
     "export function setWriteTimeout(handle: SocketHandle, timeoutMs: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.control"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetBackendList.
-pub(crate) const NET_RAW_PACKET_BACKEND_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_RAW_PACKET_BACKEND_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.raw.packetBackendList",
     "export function packetBackendList(): Result<Slice<PacketBackendDescriptor>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.raw"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetClearFanout.
 pub(crate) const NET_RAW_PACKET_CLEAR_FANOUT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.raw.packetClearFanout",
         "export function packetClearFanout(handle: SocketHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.raw"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetClearFilter.
 pub(crate) const NET_RAW_PACKET_CLEAR_FILTER: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.raw.packetClearFilter",
         "export function packetClearFilter(handle: SocketHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.raw"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetClearRing.
 pub(crate) const NET_RAW_PACKET_CLEAR_RING: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.raw.packetClearRing",
         "export function packetClearRing(handle: SocketHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.raw"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetOpen.
-pub(crate) const NET_RAW_PACKET_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_RAW_PACKET_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.raw.packetOpen",
     "export function packetOpen(options: PacketCaptureOptions): Result<SocketHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.raw"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetReceive.
-pub(crate) const NET_RAW_PACKET_RECEIVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_RAW_PACKET_RECEIVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.raw.packetReceive",
     "export function packetReceive(handle: SocketHandle, payload: Slice<uint8>): Result<PacketCaptureRecord, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.raw"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetSend.
-pub(crate) const NET_RAW_PACKET_SEND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_RAW_PACKET_SEND: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.raw.packetSend",
     "export function packetSend(handle: SocketHandle, payload: Slice<uint8>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.raw"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetSetFanout.
-pub(crate) const NET_RAW_PACKET_SET_FANOUT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_RAW_PACKET_SET_FANOUT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.raw.packetSetFanout",
     "export function packetSetFanout(handle: SocketHandle, options: PacketFanoutOptions): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.raw"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetSetFilter.
-pub(crate) const NET_RAW_PACKET_SET_FILTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_RAW_PACKET_SET_FILTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.raw.packetSetFilter",
     "export function packetSetFilter(handle: SocketHandle, filterProgram: Slice<uint8>): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.raw"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetSetRxRing.
-pub(crate) const NET_RAW_PACKET_SET_RX_RING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_RAW_PACKET_SET_RX_RING: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.raw.packetSetRxRing",
     "export function packetSetRxRing(handle: SocketHandle, options: PacketRingOptions): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.raw"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetSetTimestampMode.
-pub(crate) const NET_RAW_PACKET_SET_TIMESTAMP_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_RAW_PACKET_SET_TIMESTAMP_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.raw.packetSetTimestampMode",
     "export function packetSetTimestampMode(handle: SocketHandle, mode: PacketTimestampMode): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.raw"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetSetTxRing.
-pub(crate) const NET_RAW_PACKET_SET_TX_RING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_RAW_PACKET_SET_TX_RING: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.raw.packetSetTxRing",
     "export function packetSetTxRing(handle: SocketHandle, options: PacketRingOptions): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.raw"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.raw.packetStats.
-pub(crate) const NET_RAW_PACKET_STATS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_RAW_PACKET_STATS: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.raw.packetStats",
     "export function packetStats(handle: SocketHandle): Result<PacketCaptureStats, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.raw"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.raw.setHeaderIncluded.
-pub(crate) const NET_RAW_SET_HEADER_INCLUDED: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_RAW_SET_HEADER_INCLUDED: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.raw.setHeaderIncluded",
     "export function rawSetHeaderIncluded(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.raw"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.raw.socket.
-pub(crate) const NET_RAW_SOCKET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_RAW_SOCKET: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.raw.socket",
     "export function rawSocket(family: SocketFamily, protocol: int32): Result<SocketHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.raw"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.resolve.lookup.
 pub(crate) const NET_RESOLVE_LOOKUP: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.resolve.lookup",
         "export function resolve(query: ResolveQuery): Result<SocketAddress[], PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.dns"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.resolve.reverseLookup.
-pub(crate) const NET_RESOLVE_REVERSE_LOOKUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_RESOLVE_REVERSE_LOOKUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.resolve.reverseLookup",
     "export function reverseLookup(address: SocketAddress, flags: ReverseLookupFlags): Result<ReverseLookupName[], PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.dns"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.reuse.getReuseAddr.
 pub(crate) const NET_REUSE_GET_REUSE_ADDR: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.reuse.getReuseAddr",
         "export function getReuseAddr(handle: SocketHandle): Result<boolean, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.control"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.reuse.getReusePort.
 pub(crate) const NET_REUSE_GET_REUSE_PORT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.reuse.getReusePort",
         "export function getReusePort(handle: SocketHandle): Result<boolean, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.control"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos"]);
+    .with_platforms(&["android", "ios", "linux", "macos"]);
 
 /// Binding descriptor for destack.net.reuse.setReuseAddr.
-pub(crate) const NET_REUSE_SET_REUSE_ADDR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_REUSE_SET_REUSE_ADDR: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.reuse.setReuseAddr",
     "export function setReuseAddr(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.control"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.reuse.setReusePort.
-pub(crate) const NET_REUSE_SET_REUSE_PORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_REUSE_SET_REUSE_PORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.reuse.setReusePort",
     "export function setReusePort(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.control"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos"]);
+    .with_platforms(&["android", "ios", "linux", "macos"]);
 
 /// Binding descriptor for destack.net.route.routeAdd.
 pub(crate) const NET_ROUTE_ROUTE_ADD: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.route.routeAdd",
         "export function routeAdd(route: RouteEntry): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.route.write"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.route.routeDelete.
 pub(crate) const NET_ROUTE_ROUTE_DELETE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.route.routeDelete",
         "export function routeDelete(route: RouteEntry): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.route.write"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.route.routeList.
 pub(crate) const NET_ROUTE_ROUTE_LIST: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.route.routeList",
         "export function routeList(family: SocketFamily): Result<RouteEntry[], PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.route.read"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.socket.close.
 pub(crate) const NET_SOCKET_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.socket.close",
         "export function close(handle: SocketHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.close"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.socket.connect.
-pub(crate) const NET_SOCKET_CONNECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_SOCKET_CONNECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.socket.connect",
     "export function connect(handle: SocketHandle, address: SocketAddress): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.connect"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.socket.open.
-pub(crate) const NET_SOCKET_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_SOCKET_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.socket.open",
     "export function socket(family: SocketFamily, socketType: SocketType, protocol: SocketProtocol): Result<SocketHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.control"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.socket.openPair.
-pub(crate) const NET_SOCKET_OPEN_PAIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_SOCKET_OPEN_PAIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.socket.openPair",
     "export function socketPair(family: SocketFamily, socketType: SocketType, protocol: SocketProtocol): Result<SocketPair, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.connect"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.socket.read.
-pub(crate) const NET_SOCKET_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_SOCKET_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.socket.read",
     "export function read(handle: SocketHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.connect"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.socket.readv.
-pub(crate) const NET_SOCKET_READV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_SOCKET_READV: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.socket.readv",
     "export function readv(handle: SocketHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.connect"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.socket.recvFrom.
-pub(crate) const NET_SOCKET_RECV_FROM: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_SOCKET_RECV_FROM: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.socket.recvFrom",
     "export function recvFrom(handle: SocketHandle, buffer: Slice<uint8>, recvFlags: SocketMessageFlags): Result<SocketRecvFrom, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.udp"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.socket.recvMmsg.
-pub(crate) const NET_SOCKET_RECV_MMSG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_SOCKET_RECV_MMSG: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.socket.recvMmsg",
     "export function recvMmsg(handle: SocketHandle, requests: Slice<SocketRecvBatchRequest>, maxFds: uint32, wantCredentials: boolean, maxControlBytes: uint32): Result<SocketRecvMessage[], PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.udp"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.socket.recvMsg.
-pub(crate) const NET_SOCKET_RECV_MSG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_SOCKET_RECV_MSG: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.socket.recvMsg",
     "export function recvMsg(handle: SocketHandle, buffer: Slice<uint8>, recvFlags: SocketMessageFlags, maxFds: uint32, wantCredentials: boolean, maxControlBytes: uint32): Result<SocketRecvMessage, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.control"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.socket.sendMmsg.
-pub(crate) const NET_SOCKET_SEND_MMSG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_SOCKET_SEND_MMSG: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.socket.sendMmsg",
     "export function sendMmsg(handle: SocketHandle, messages: Slice<SocketSendBatchEntry>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.udp"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.socket.sendMsg.
-pub(crate) const NET_SOCKET_SEND_MSG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_SOCKET_SEND_MSG: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.socket.sendMsg",
     "export function sendMsg(handle: SocketHandle, buffer: Slice<uint8>, message: SocketSendMessage): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.control"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.socket.sendTo.
-pub(crate) const NET_SOCKET_SEND_TO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_SOCKET_SEND_TO: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.socket.sendTo",
     "export function sendTo(handle: SocketHandle, buffer: Slice<uint8>, message: SocketSendTo): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.udp"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.socket.setNonblocking.
-pub(crate) const NET_SOCKET_SET_NONBLOCKING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_SOCKET_SET_NONBLOCKING: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.socket.setNonblocking",
     "export function setNonblocking(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.control"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.socket.shutdown.
-pub(crate) const NET_SOCKET_SHUTDOWN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_SOCKET_SHUTDOWN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.socket.shutdown",
     "export function shutdown(handle: SocketHandle, how: SocketShutdown): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.close"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.socket.write.
-pub(crate) const NET_SOCKET_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_SOCKET_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.socket.write",
     "export function write(handle: SocketHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.connect"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.socket.writev.
-pub(crate) const NET_SOCKET_WRITEV: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_SOCKET_WRITEV: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.socket.writev",
     "export function writev(handle: SocketHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.connect"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.tcp.getKeepAlive.
-pub(crate) const NET_TCP_GET_KEEP_ALIVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_TCP_GET_KEEP_ALIVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.tcp.getKeepAlive",
     "export function getKeepAlive(handle: SocketHandle): Result<KeepAliveConfig, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.control"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.tcp.getNoDelay.
 pub(crate) const NET_TCP_GET_NO_DELAY: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.tcp.getNoDelay",
         "export function getNoDelay(handle: SocketHandle): Result<boolean, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.control"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.tcp.setKeepAlive.
-pub(crate) const NET_TCP_SET_KEEP_ALIVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_TCP_SET_KEEP_ALIVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.tcp.setKeepAlive",
     "export function setKeepAlive(handle: SocketHandle, config: KeepAliveConfig): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.control"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.tcp.setNoDelay.
-pub(crate) const NET_TCP_SET_NO_DELAY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_TCP_SET_NO_DELAY: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.tcp.setNoDelay",
     "export function setNoDelay(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.control"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.udp.bind.
-pub(crate) const NET_UDP_BIND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_BIND: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.udp.bind",
     "export function udpBind(handle: SocketHandle, address: SocketAddress): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.udp"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.udp.connect.
-pub(crate) const NET_UDP_CONNECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_CONNECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.udp.connect",
     "export function udpConnect(handle: SocketHandle, address: SocketAddress): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.udp"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.udp.getMulticastInterfaceV4.
-pub(crate) const NET_UDP_GET_MULTICAST_INTERFACE_V4: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_GET_MULTICAST_INTERFACE_V4: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.udp.getMulticastInterfaceV4",
     "export function getMulticastInterfaceV4(handle: SocketHandle): Result<string, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.multicast"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.udp.getMulticastInterfaceV6.
-pub(crate) const NET_UDP_GET_MULTICAST_INTERFACE_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_GET_MULTICAST_INTERFACE_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.udp.getMulticastInterfaceV6",
     "export function getMulticastInterfaceV6(handle: SocketHandle): Result<uint32, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.multicast"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.udp.getMulticastLoop.
 pub(crate) const NET_UDP_GET_MULTICAST_LOOP: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.udp.getMulticastLoop",
         "export function getMulticastLoop(handle: SocketHandle): Result<boolean, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.multicast"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.udp.getMulticastTtl.
 pub(crate) const NET_UDP_GET_MULTICAST_TTL: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.udp.getMulticastTtl",
         "export function getMulticastTtl(handle: SocketHandle): Result<uint32, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.multicast"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.udp.joinMulticastSourceV4.
-pub(crate) const NET_UDP_JOIN_MULTICAST_SOURCE_V4: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_JOIN_MULTICAST_SOURCE_V4: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.udp.joinMulticastSourceV4",
     "export function joinMulticastSourceV4(handle: SocketHandle, membership: UdpSourceMembershipV4): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.multicast"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.udp.joinMulticastSourceV6.
-pub(crate) const NET_UDP_JOIN_MULTICAST_SOURCE_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_JOIN_MULTICAST_SOURCE_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.udp.joinMulticastSourceV6",
     "export function joinMulticastSourceV6(handle: SocketHandle, membership: UdpSourceMembershipV6): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.multicast"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.udp.joinMulticastV4.
-pub(crate) const NET_UDP_JOIN_MULTICAST_V4: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_JOIN_MULTICAST_V4: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.udp.joinMulticastV4",
     "export function joinMulticastV4(handle: SocketHandle, group: string, interfaceAddress: string): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.multicast"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.udp.joinMulticastV6.
-pub(crate) const NET_UDP_JOIN_MULTICAST_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_JOIN_MULTICAST_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.udp.joinMulticastV6",
     "export function joinMulticastV6(handle: SocketHandle, group: string, interfaceIndex: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.multicast"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.udp.leaveMulticastSourceV4.
-pub(crate) const NET_UDP_LEAVE_MULTICAST_SOURCE_V4: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_LEAVE_MULTICAST_SOURCE_V4: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.udp.leaveMulticastSourceV4",
     "export function leaveMulticastSourceV4(handle: SocketHandle, membership: UdpSourceMembershipV4): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.multicast"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.udp.leaveMulticastSourceV6.
-pub(crate) const NET_UDP_LEAVE_MULTICAST_SOURCE_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_LEAVE_MULTICAST_SOURCE_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.udp.leaveMulticastSourceV6",
     "export function leaveMulticastSourceV6(handle: SocketHandle, membership: UdpSourceMembershipV6): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.multicast"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.udp.leaveMulticastV4.
-pub(crate) const NET_UDP_LEAVE_MULTICAST_V4: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_LEAVE_MULTICAST_V4: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.udp.leaveMulticastV4",
     "export function leaveMulticastV4(handle: SocketHandle, group: string, interfaceAddress: string): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.multicast"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.udp.leaveMulticastV6.
-pub(crate) const NET_UDP_LEAVE_MULTICAST_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_LEAVE_MULTICAST_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.udp.leaveMulticastV6",
     "export function leaveMulticastV6(handle: SocketHandle, group: string, interfaceIndex: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.multicast"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.udp.recvFrom.
-pub(crate) const NET_UDP_RECV_FROM: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_RECV_FROM: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.udp.recvFrom",
     "export function udpRecvFrom(handle: SocketHandle, buffer: Slice<uint8>, recvFlags: UdpMessageFlags): Result<UdpReceive, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.udp"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.udp.sendTo.
-pub(crate) const NET_UDP_SEND_TO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_SEND_TO: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.udp.sendTo",
     "export function udpSendTo(handle: SocketHandle, address: SocketAddress, buffer: Slice<uint8>, sendFlags: UdpMessageFlags): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.udp"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.udp.setMulticastInterfaceV4.
-pub(crate) const NET_UDP_SET_MULTICAST_INTERFACE_V4: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_SET_MULTICAST_INTERFACE_V4: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.udp.setMulticastInterfaceV4",
     "export function setMulticastInterfaceV4(handle: SocketHandle, interfaceAddress: string): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.multicast"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.udp.setMulticastInterfaceV6.
-pub(crate) const NET_UDP_SET_MULTICAST_INTERFACE_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_SET_MULTICAST_INTERFACE_V6: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.udp.setMulticastInterfaceV6",
     "export function setMulticastInterfaceV6(handle: SocketHandle, interfaceIndex: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.multicast"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.udp.setMulticastLoop.
-pub(crate) const NET_UDP_SET_MULTICAST_LOOP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_SET_MULTICAST_LOOP: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.udp.setMulticastLoop",
     "export function setMulticastLoop(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.multicast"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.udp.setMulticastTtl.
-pub(crate) const NET_UDP_SET_MULTICAST_TTL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDP_SET_MULTICAST_TTL: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.udp.setMulticastTtl",
     "export function setMulticastTtl(handle: SocketHandle, ttl: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.multicast"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.udp.socket.
 pub(crate) const NET_UDP_SOCKET: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.udp.socket",
         "export function udpSocket(family: SocketFamily): Result<SocketHandle, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.udp"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.uds.udsAccept.
 pub(crate) const NET_UDS_UDS_ACCEPT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.uds.udsAccept",
         "export function udsAccept(listener: ListenerHandle): Result<SocketHandle, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.accept"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.uds.udsCloseListener.
 pub(crate) const NET_UDS_UDS_CLOSE_LISTENER: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.uds.udsCloseListener",
         "export function udsCloseListener(handle: ListenerHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.close"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.uds.udsConnect.
 pub(crate) const NET_UDS_UDS_CONNECT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.uds.udsConnect",
         "export function udsConnect(address: UdsAddress): Result<SocketHandle, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.connect"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.uds.udsListen.
-pub(crate) const NET_UDS_UDS_LISTEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const NET_UDS_UDS_LISTEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.net.uds.udsListen",
     "export function udsListen(address: UdsAddress, backlog: uint32): Result<ListenerHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["net.listen"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.net.uds.udsSocketPair.
 pub(crate) const NET_UDS_UDS_SOCKET_PAIR: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.net.uds.udsSocketPair",
         "export function udsSocketPair(socketType: SocketType): Result<SocketPair, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["net.connect"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("net")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Native binding set for net.
 pub(crate) const NET_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

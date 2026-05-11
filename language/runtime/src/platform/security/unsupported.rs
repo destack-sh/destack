@@ -8,57 +8,22 @@ use crate::runtime::BindingCallContext;
 use crate::platform::resource;
 use crate::platform::security::SecurityPolicyRule;
 
-/// Check one capability.
-///
-/// Evaluate whether one capability is active in the current runtime context.
-/// Capability checks use runtime policy rules and sandbox scope inheritance.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime security policy state.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `security.policy.read`.
-///
-/// # Replay
-/// Deterministic.
-pub(crate) unsafe fn destack_security_capability_has(
+/// Check one action.
+pub(crate) unsafe fn destack_security_action_has(
     _binding: &BindingCallContext,
     out: *mut bool,
-    capability: NativeStringRef,
+    action: NativeStringRef,
 ) -> RuntimeResult<()> {
     if out.is_null() {
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
-    let _ = (out, capability);
+    let _ = (out, action);
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.security.capability.has",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.security.action.has")).boxed())
 }
 
-/// List active capabilities.
-///
-/// Return the currently active runtime capability set for the executing context.
-/// Capabilities are normalized to the canonical intrinsic capability string space.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime security policy state.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `security.policy.read`.
-///
-/// # Replay
-/// Deterministic.
-pub(crate) unsafe fn destack_security_capability_list(
+/// List active actions.
+pub(crate) unsafe fn destack_security_action_list(
     _binding: &BindingCallContext,
     out: *mut NativeStringSlice,
 ) -> RuntimeResult<()> {
@@ -67,29 +32,10 @@ pub(crate) unsafe fn destack_security_capability_list(
     }
     let _ = out;
 
-    Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.security.capability.list",
-    ))
-    .boxed())
+    Err(RuntimeError::from(PlatformError::not_supported("destack.security.action.list")).boxed())
 }
 
 /// Seal one sandbox policy.
-///
-/// Transition one sandbox scope into sealed mode.
-/// Sealed policy rejects further capability broadening.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime sandbox policy controls.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `security.restrict`.
-///
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_security_sandbox_seal(
     _binding: &BindingCallContext,
     handle: resource::SandboxHandle,
@@ -102,53 +48,21 @@ pub(crate) unsafe fn destack_security_sandbox_seal(
     .boxed())
 }
 
-/// Apply an explicit capability set to one sandbox scope.
-///
-/// Replace one sandbox capability set with explicit allow-list semantics.
-/// Capability inheritance and scope visibility follow runtime policy rules.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime sandbox policy controls.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `security.restrict`.
-///
-/// # Replay
-/// Deterministic.
-pub(crate) unsafe fn destack_security_sandbox_set_capabilities(
+/// Apply an explicit action set to one sandbox scope.
+pub(crate) unsafe fn destack_security_sandbox_set_actions(
     _binding: &BindingCallContext,
     handle: resource::SandboxHandle,
-    capabilities: NativeStringSlice,
+    actions: NativeStringSlice,
 ) -> RuntimeResult<()> {
-    let _ = (handle, capabilities);
+    let _ = (handle, actions);
 
     Err(RuntimeError::from(PlatformError::not_supported(
-        "destack.security.enforce.sandboxSetCapabilities",
+        "destack.security.enforce.sandboxSetActions",
     ))
     .boxed())
 }
 
 /// Set runtime W^X policy.
-///
-/// Enable or disable runtime write-xor-execute policy enforcement.
-/// Policy update affects subsequent executable-memory transitions.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime memory policy controls layered over host page protections.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `security.restrict`.
-///
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_security_set_write_xor_execute(
     _binding: &BindingCallContext,
     enabled: bool,
@@ -161,23 +75,7 @@ pub(crate) unsafe fn destack_security_set_write_xor_execute(
     .boxed())
 }
 
-/// Read policy capabilities for one named scope.
-///
-/// Read one policy scope and return its effective capability set.
-/// Scope resolution and inheritance follow runtime security policy rules.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime security policy state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `security.policy.read`.
-///
-/// # Replay
-/// Deterministic.
+/// Read policy actions for one named scope.
 pub(crate) unsafe fn destack_security_policy_get(
     _binding: &BindingCallContext,
     out: *mut NativeStringSlice,
@@ -192,22 +90,6 @@ pub(crate) unsafe fn destack_security_policy_get(
 }
 
 /// Read structured policy rules for one named scope.
-///
-/// Read one policy scope and return explicit capability rules with allow, deny, and audit decisions.
-/// Rule ordering and precedence follow runtime policy resolution semantics.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime security policy state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `security.policy.read`.
-///
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_security_policy_get_rules(
     _binding: &BindingCallContext,
     out: *mut NativeSlice<SecurityPolicyRule>,
@@ -224,50 +106,18 @@ pub(crate) unsafe fn destack_security_policy_get_rules(
     .boxed())
 }
 
-/// Replace policy capabilities for one named scope.
-///
-/// Replace one policy scope with an explicit capability set.
-/// Policy writes are validated against runtime security admin policy.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime security policy state.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `security.policy.write`.
-///
-/// # Replay
-/// Deterministic.
+/// Replace policy actions for one named scope.
 pub(crate) unsafe fn destack_security_policy_set(
     _binding: &BindingCallContext,
     scope: NativeStringRef,
-    capabilities: NativeStringSlice,
+    actions: NativeStringSlice,
 ) -> RuntimeResult<()> {
-    let _ = (scope, capabilities);
+    let _ = (scope, actions);
 
     Err(RuntimeError::from(PlatformError::not_supported("destack.security.policy.set")).boxed())
 }
 
 /// Replace structured policy rules for one named scope.
-///
-/// Replace one policy scope with explicit capability rules and decision modes.
-/// Rule conflicts and precedence are validated by runtime policy authoring rules.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime security policy state.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `security.policy.write`.
-///
-/// # Replay
-/// Deterministic.
 pub(crate) unsafe fn destack_security_policy_set_rules(
     _binding: &BindingCallContext,
     scope: NativeStringRef,
@@ -282,22 +132,6 @@ pub(crate) unsafe fn destack_security_policy_set_rules(
 }
 
 /// Enter a sandbox scope.
-///
-/// Create and enter one new runtime sandbox scope.
-/// Scope inherits baseline policy then applies runtime sandbox restrictions.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime sandbox scope state.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `security.sandbox`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_security_sandbox_enter(
     _binding: &BindingCallContext,
     out: *mut resource::SandboxHandle,
@@ -315,22 +149,6 @@ pub(crate) unsafe fn destack_security_sandbox_enter(
 }
 
 /// Leave a sandbox scope.
-///
-/// Exit one previously entered sandbox scope.
-/// Scope unwinding follows strict runtime stack discipline.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime sandbox scope state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `security.sandbox`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_security_sandbox_exit(
     _binding: &BindingCallContext,
     handle: resource::SandboxHandle,

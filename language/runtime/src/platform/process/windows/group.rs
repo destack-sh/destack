@@ -8,22 +8,6 @@ use crate::runtime::BindingCallContext;
 use crate::platform::process::{ProcessId, ProcessLimit, ProcessLimitResource};
 
 /// Read one control-group resource limit.
-///
-/// Read one controller limit value from one control-group path.
-/// Resource selector interpretation follows host controller semantics.
-///
-/// # Platform
-/// Linux.
-/// Uses cgroup controller files in v2 hierarchies.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, processPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `process.cgroup`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_process_cgroup_get_limit(
     _binding: &BindingCallContext,
     out: *mut ProcessLimit,
@@ -41,22 +25,6 @@ pub(crate) unsafe fn destack_process_cgroup_get_limit(
 }
 
 /// Join one control group.
-///
-/// Attach the current process to one control-group path.
-/// Group hierarchy and controller behavior follow host kernel rules.
-///
-/// # Platform
-/// Linux.
-/// Uses cgroup v2 control files.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, processPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `process.cgroup`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_process_cgroup_join(
     _binding: &BindingCallContext,
     path: NativeStringRef,
@@ -70,22 +38,6 @@ pub(crate) unsafe fn destack_process_cgroup_join(
 }
 
 /// Write one control-group resource limit.
-///
-/// Write one controller limit value to one control-group path.
-/// Controller validation and privilege checks are host-enforced.
-///
-/// # Platform
-/// Linux.
-/// Uses cgroup controller files in v2 hierarchies.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, processPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `process.cgroup`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_process_cgroup_set_limit(
     _binding: &BindingCallContext,
     path: NativeStringRef,
@@ -102,22 +54,6 @@ pub(crate) unsafe fn destack_process_cgroup_set_limit(
 }
 
 /// Assign processes to one Windows job object.
-///
-/// Attach one or more target processes to one named job object.
-/// Job object lifetime and inheritance follow host process-manager semantics.
-///
-/// # Platform
-/// Windows.
-/// Uses job object assignment APIs.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `process.cgroup`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_process_job_assign(
     _binding: &BindingCallContext,
     name: NativeStringRef,
@@ -133,22 +69,6 @@ pub(crate) unsafe fn destack_process_job_assign(
 }
 
 /// Set one Windows job object resource limit.
-///
-/// Write one resource limit entry to one named job object.
-/// Resource selector interpretation follows host job object semantics.
-///
-/// # Platform
-/// Windows.
-/// Uses job object limit APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, processPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `process.cgroup`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_process_job_set_limit(
     _binding: &BindingCallContext,
     name: NativeStringRef,

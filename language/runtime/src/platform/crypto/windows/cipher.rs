@@ -9,19 +9,6 @@ use crate::runtime::BindingCallContext;
 use crate::platform::crypto::core::{cipher_output, decode_bytes, write_out_value};
 
 /// Encrypt one payload in one shot.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret keys when available.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.cipher`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_cipher_encrypt(
     binding: &BindingCallContext,
     out: *mut CryptoCipherOutput,
@@ -36,19 +23,6 @@ pub(crate) unsafe fn destack_crypto_cipher_encrypt(
 }
 
 /// Decrypt one payload in one shot.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret keys when available.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.cipher`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_cipher_decrypt(
     binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
@@ -62,19 +36,6 @@ pub(crate) unsafe fn destack_crypto_cipher_decrypt(
 }
 
 /// Open one streaming cipher context.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret keys when available.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.cipher`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_cipher_open(
     binding: &BindingCallContext,
     out: *mut resource::CryptoCipherHandle,
@@ -87,19 +48,6 @@ pub(crate) unsafe fn destack_crypto_cipher_open(
 }
 
 /// Update additional authenticated data for one streaming cipher context.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret keys when available.
-///
-/// # Errors
-/// Returns invalidArgument, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.cipher`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_cipher_update_additional_data(
     binding: &BindingCallContext,
     handle: resource::CryptoCipherHandle,
@@ -110,19 +58,6 @@ pub(crate) unsafe fn destack_crypto_cipher_update_additional_data(
 }
 
 /// Update one streaming cipher context with one payload chunk.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret keys when available.
-///
-/// # Errors
-/// Returns invalidArgument, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.cipher`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_cipher_update(
     binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
@@ -135,22 +70,6 @@ pub(crate) unsafe fn destack_crypto_cipher_update(
 }
 
 /// Finalize one streaming cipher context.
-///
-/// Provide one final payload chunk.
-/// Return output bytes and one authentication tag when applicable.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret keys when available.
-///
-/// # Errors
-/// Returns invalidArgument, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.cipher`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_cipher_finish(
     binding: &BindingCallContext,
     out: *mut CryptoCipherOutput,
@@ -164,19 +83,6 @@ pub(crate) unsafe fn destack_crypto_cipher_finish(
 }
 
 /// Reset one streaming cipher context with new parameters.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret keys when available.
-///
-/// # Errors
-/// Returns invalidArgument, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.cipher`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_cipher_reset(
     binding: &BindingCallContext,
     handle: resource::CryptoCipherHandle,
@@ -186,19 +92,6 @@ pub(crate) unsafe fn destack_crypto_cipher_reset(
 }
 
 /// Close one streaming cipher context.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP symmetric-cipher primitives for software keys, and host key APIs for host-managed secret keys when available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `crypto.cipher`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_cipher_close(
     binding: &BindingCallContext,
     handle: resource::CryptoCipherHandle,

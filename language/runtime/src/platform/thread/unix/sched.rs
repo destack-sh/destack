@@ -24,23 +24,6 @@ fn pthread_error(syscall: &str, code: libc::c_int) -> Box<RuntimeError> {
 }
 
 /// Read thread CPU affinity.
-///
-/// Read one thread logical-processor affinity set.
-/// Unix targets always report group `0`.
-/// Windows reports group-local logical processors for the active thread affinity.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses sched affinity APIs on Unix and GetThreadGroupAffinity on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `thread.sched`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_get_affinity(
     binding: &BindingCallContext,
     out: *mut ThreadCpuSet,
@@ -125,22 +108,6 @@ pub(crate) unsafe fn destack_thread_get_affinity(
 }
 
 /// Read thread priority.
-///
-/// Read one thread priority value from host scheduler state.
-/// Priority value normalization is runtime-defined per host.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses pthread scheduling APIs on Unix and GetThreadPriority on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `thread.sched`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_get_priority(
     binding: &BindingCallContext,
     out: *mut i32,
@@ -177,23 +144,6 @@ pub(crate) unsafe fn destack_thread_get_priority(
 }
 
 /// Set thread CPU affinity.
-///
-/// Bind one thread to one set of logical processors.
-/// Unix targets interpret every entry with group `0`.
-/// Windows maps entries to processor groups and group-local logical processors.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses pthread affinity APIs on Unix and SetThreadGroupAffinity on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `thread.sched`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_set_affinity(
     binding: &BindingCallContext,
     handle: ThreadHandle,
@@ -285,22 +235,6 @@ pub(crate) unsafe fn destack_thread_set_affinity(
 }
 
 /// Set thread priority.
-///
-/// Set one thread priority value using host scheduler controls.
-/// Priority range and interpretation are host-specific.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses pthread scheduling APIs on Unix and SetThreadPriority on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `thread.sched`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_thread_set_priority(
     binding: &BindingCallContext,
     handle: ThreadHandle,

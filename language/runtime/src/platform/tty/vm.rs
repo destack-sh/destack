@@ -65,22 +65,6 @@ fn termios_attributes_from_vm(
 }
 
 /// Close one terminal handle.
-///
-/// Close one terminal endpoint and release runtime ownership.
-/// Follow-up operations on the closed handle fail with invalid-handle errors.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses close(2) on Unix and CloseHandle-style finalization on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.handle`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_tty_close(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -90,22 +74,6 @@ pub(crate) fn destack_tty_close(
 }
 
 /// Return whether one file handle is attached to a terminal.
-///
-/// Query one file handle and return true when it targets a terminal endpoint.
-/// This can be used before converting process stdio streams into tty workflows.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses isatty(3) on Unix and GetConsoleMode on Windows console handles.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.handle`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_tty_is_terminal_file(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -115,23 +83,6 @@ pub(crate) fn destack_tty_is_terminal_file(
 }
 
 /// Open one standard error terminal handle.
-///
-/// Open one terminal handle for the current process standard error stream.
-/// The returned handle can be used with tty write, mode, and size operations.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses dup(2) from descriptor 2 on Unix and DuplicateHandle from GetStdHandle(STD_ERROR_HANDLE) on Windows.
-/// Fails when the standard stream is not attached to a terminal.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.handle`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_tty_stdio_stderr(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -140,23 +91,6 @@ pub(crate) fn destack_tty_stdio_stderr(
 }
 
 /// Open one standard input terminal handle.
-///
-/// Open one terminal handle for the current process standard input stream.
-/// The returned handle can be used with tty read, mode, and size operations.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses dup(2) from descriptor 0 on Unix and DuplicateHandle from GetStdHandle(STD_INPUT_HANDLE) on Windows.
-/// Fails when the standard stream is not attached to a terminal.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.handle`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_tty_stdio_stdin(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -165,23 +99,6 @@ pub(crate) fn destack_tty_stdio_stdin(
 }
 
 /// Open one standard output terminal handle.
-///
-/// Open one terminal handle for the current process standard output stream.
-/// The returned handle can be used with tty write, mode, and size operations.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses dup(2) from descriptor 1 on Unix and DuplicateHandle from GetStdHandle(STD_OUTPUT_HANDLE) on Windows.
-/// Fails when the standard stream is not attached to a terminal.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.handle`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_tty_stdio_stdout(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -190,22 +107,6 @@ pub(crate) fn destack_tty_stdio_stdout(
 }
 
 /// Read bytes from a terminal.
-///
-/// Read one byte sequence from one terminal handle into caller memory.
-/// Read mode and canonical processing depend on active terminal mode settings.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses read(2) on Unix terminals and ReadConsole or ReadFile on Windows consoles.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_tty_read(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -230,22 +131,6 @@ pub(crate) fn destack_tty_read(
 }
 
 /// Write bytes to a terminal.
-///
-/// Write one byte sequence from caller memory to one terminal handle.
-/// Encoding and newline translation follow host terminal API behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses write(2) on Unix terminals and WriteConsole or WriteFile on Windows consoles.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_tty_write(
     binding: &BindingCallContext,
     context: &mut vm::BindingContext<'_>,
@@ -266,23 +151,6 @@ pub(crate) fn destack_tty_write(
 }
 
 /// Read terminal mode flags.
-///
-/// Read one terminal mode snapshot for one terminal handle.
-/// Mode fields are projected from host terminal APIs.
-/// Field-level behavior is host-specific, especially for non-POSIX backends.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses termios get attributes on Unix and GetConsoleMode on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.mode`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_tty_get_mode(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -292,22 +160,6 @@ pub(crate) fn destack_tty_get_mode(
 }
 
 /// Apply terminal mode flags.
-///
-/// Apply one terminal mode snapshot to one terminal handle.
-/// Mode transition timing and unsupported bits follow host API behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses termios set attributes on Unix and SetConsoleMode on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.mode`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_tty_set_mode(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -318,22 +170,6 @@ pub(crate) fn destack_tty_set_mode(
 }
 
 /// Enable or disable raw terminal mode.
-///
-/// Apply one host-defined raw-mode profile for one terminal handle.
-/// This maps to cfmakeraw-style behavior on Unix and console-mode toggles on Windows.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses cfmakeraw plus tcsetattr on Unix and SetConsoleMode profile updates on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.mode`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_tty_set_raw_mode(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -344,22 +180,6 @@ pub(crate) fn destack_tty_set_raw_mode(
 }
 
 /// Close one pseudo-terminal controller.
-///
-/// Close one pseudo-terminal controller endpoint.
-/// Worker endpoint behavior after close follows host pseudo-terminal semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host pseudo-terminal handle close APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.pty`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_tty_pty_close(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -369,22 +189,6 @@ pub(crate) fn destack_tty_pty_close(
 }
 
 /// Open one pseudo-terminal pair.
-///
-/// Create one controller and worker terminal endpoint pair.
-/// Endpoint ownership and inheritance follow host pseudo-terminal semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses posix_openpt and openpty on Unix and ConPTY on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.pty`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_tty_pty_open(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -396,22 +200,6 @@ pub(crate) fn destack_tty_pty_open(
 }
 
 /// Read terminal size.
-///
-/// Read one terminal size snapshot for one terminal handle.
-/// Pixel fields may be zero when host APIs do not provide pixel metrics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses TIOCGWINSZ on Unix and console buffer APIs on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.size`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_tty_get_size(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,
@@ -421,22 +209,6 @@ pub(crate) fn destack_tty_get_size(
 }
 
 /// Apply terminal size.
-///
-/// Apply one terminal size to one terminal handle.
-/// Resize propagation to attached sessions follows host terminal semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses TIOCSWINSZ on Unix and console size APIs on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.size`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) fn destack_tty_set_size(
     binding: &BindingCallContext,
     _context: &mut vm::BindingContext<'_>,

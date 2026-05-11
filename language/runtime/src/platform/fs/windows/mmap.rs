@@ -107,22 +107,6 @@ fn map_view_access(prot: MmapProt, flags: DecodedMmapFlags) -> RuntimeResult<u32
 }
 
 /// Create a file-backed memory mapping.
-///
-/// Map a file-backed region into virtual memory using the requested offset, length, and protection.
-/// Page alignment, commit behavior, and memory fault semantics follow host virtual-memory rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses mmap(2) MAP_SHARED/MAP_PRIVATE on Unix and CreateFileMapping/MapViewOfFile on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.mmap`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_mmap_file(
     binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
@@ -214,22 +198,6 @@ pub(crate) unsafe fn destack_fs_mmap_file(
 }
 
 /// Create an anonymous memory mapping.
-///
-/// Map an anonymous zero-initialized region into virtual memory using host allocation primitives.
-/// Page alignment, commit behavior, and memory fault semantics follow host virtual-memory rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses mmap(2) MAP_ANONYMOUS on Unix and VirtualAlloc/MapViewOfFile on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.mmap`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_mmap_anonymous(
     binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
@@ -275,22 +243,6 @@ pub(crate) unsafe fn destack_fs_mmap_anonymous(
 }
 
 /// Unmap a memory region.
-///
-/// Unmap the specified virtual-memory range and release its mapping resources.
-/// Page alignment, commit behavior, and memory fault semantics follow host virtual-memory rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses munmap(2) on Unix and UnmapViewOfFile/VirtualFree on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.mmap`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_munmap(
     binding: &BindingCallContext,
     mapping: NativeSlice<u8>,
@@ -336,22 +288,6 @@ pub(crate) unsafe fn destack_fs_munmap(
 }
 
 /// Change memory protection for a mapping.
-///
-/// Change memory protection for a mapping via host kernel APIs.
-/// Page alignment, commit behavior, and memory fault semantics follow host virtual-memory rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses mprotect(2) on Unix and VirtualProtect on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.mmap`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_mprotect(
     _binding: &BindingCallContext,
     mapping: NativeSlice<u8>,
@@ -379,22 +315,6 @@ pub(crate) unsafe fn destack_fs_mprotect(
 }
 
 /// Flush a mapping to storage.
-///
-/// Flush a mapping to storage via host kernel APIs.
-/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses msync(2) on Unix and FlushViewOfFile on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.mmap`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_msync(
     binding: &BindingCallContext,
     mapping: NativeSlice<u8>,
@@ -425,22 +345,6 @@ pub(crate) unsafe fn destack_fs_msync(
 }
 
 /// Advise the kernel about access patterns.
-///
-/// Advise the kernel about access patterns via host kernel APIs.
-/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses madvise(2) on Unix and advisory memory APIs where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.mmap`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_madvise(
     _binding: &BindingCallContext,
     mapping: NativeSlice<u8>,

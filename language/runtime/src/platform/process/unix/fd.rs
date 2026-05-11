@@ -384,22 +384,6 @@ fn ensure_signal_fd_handle(
 }
 
 /// Open one standard input stream handle.
-///
-/// Open one handle for the current process standard input stream.
-/// The returned handle can be used with file-handle read and close operations.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses dup(2) from descriptor 0 on Unix and DuplicateHandle from GetStdHandle(STD_INPUT_HANDLE) on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.stdio`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_stdio_stdin(
     binding: &BindingCallContext,
     out: *mut resource::FileHandle,
@@ -408,22 +392,6 @@ pub(crate) unsafe fn destack_process_stdio_stdin(
 }
 
 /// Open one standard output stream handle.
-///
-/// Open one handle for the current process standard output stream.
-/// The returned handle can be used with file-handle write, sync, and close operations.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses dup(2) from descriptor 1 on Unix and DuplicateHandle from GetStdHandle(STD_OUTPUT_HANDLE) on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.stdio`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_stdio_stdout(
     binding: &BindingCallContext,
     out: *mut resource::FileHandle,
@@ -432,22 +400,6 @@ pub(crate) unsafe fn destack_process_stdio_stdout(
 }
 
 /// Open one standard error stream handle.
-///
-/// Open one handle for the current process standard error stream.
-/// The returned handle can be used with file-handle write, sync, and close operations.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses dup(2) from descriptor 2 on Unix and DuplicateHandle from GetStdHandle(STD_ERROR_HANDLE) on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.stdio`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_stdio_stderr(
     binding: &BindingCallContext,
     out: *mut resource::FileHandle,
@@ -456,22 +408,6 @@ pub(crate) unsafe fn destack_process_stdio_stderr(
 }
 
 /// Close one process descriptor.
-///
-/// Close one host process descriptor and release the kernel object reference.
-/// Closing semantics follow host descriptor teardown behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses close(2) on Unix and CloseHandle on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.handle`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_process_fd_close(
     binding: &BindingCallContext,
     handle: resource::ProcessFdHandle,
@@ -495,22 +431,6 @@ pub(crate) unsafe fn destack_process_process_fd_close(
 }
 
 /// Open one process descriptor for the target process id.
-///
-/// Open one host process descriptor that can be used for wait and signal operations without pid reuse races.
-/// Descriptor semantics follow pidfd on Linux and host-equivalent process-handle semantics on other targets.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses pidfd_open(2) on Linux and process handle duplication on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.handle`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_process_fd_open(
     binding: &BindingCallContext,
     out: *mut resource::ProcessFdHandle,
@@ -560,22 +480,6 @@ pub(crate) unsafe fn destack_process_process_fd_open(
 }
 
 /// Send one signal through a process descriptor.
-///
-/// Deliver one signal using a stable process descriptor rather than a numeric pid.
-/// Delivery semantics follow pidfd_send_signal on Linux and host-equivalent process-signal APIs on other targets.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses pidfd_send_signal(2) on Linux and process-handle control APIs on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.signal.send`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_process_fd_send_signal(
     binding: &BindingCallContext,
     handle: resource::ProcessFdHandle,
@@ -607,22 +511,6 @@ pub(crate) unsafe fn destack_process_process_fd_send_signal(
 }
 
 /// Poll one process descriptor state transition without blocking.
-///
-/// Poll one process descriptor for state transition readiness and return immediately when no transition is pending.
-/// Non-ready state is reported through ioWouldBlock.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses nonblocking poll over pidfd on Linux and zero-timeout process wait on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `process.wait`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_process_fd_try_wait(
     binding: &BindingCallContext,
     out: *mut ProcessWaitStatus,
@@ -655,22 +543,6 @@ pub(crate) unsafe fn destack_process_process_fd_try_wait(
 }
 
 /// Wait for one process descriptor state transition.
-///
-/// Wait for one child-state transition associated with the process descriptor.
-/// Wait semantics follow pollable pidfd readiness on Linux and host process wait APIs on other targets.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses poll or waitid over pidfd on Linux and WaitForSingleObject plus status queries on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, ioInterrupted, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `process.wait`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_process_fd_wait(
     binding: &BindingCallContext,
     out: *mut ProcessWaitStatus,
@@ -710,22 +582,6 @@ pub(crate) unsafe fn destack_process_process_fd_wait(
 }
 
 /// Close one signal descriptor.
-///
-/// Close one descriptor-backed signal queue and release host resources.
-/// Close semantics follow host descriptor teardown behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses close(2) on Unix and CloseHandle on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.signal.receive`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_signal_fd_close(
     binding: &BindingCallContext,
     handle: resource::SignalFdHandle,
@@ -749,22 +605,6 @@ pub(crate) unsafe fn destack_process_signal_fd_close(
 }
 
 /// Open one signal descriptor for the provided signal mask.
-///
-/// Open one descriptor-backed signal queue that can be polled and read like other fd resources.
-/// Signal mask semantics follow signalfd on Linux and host-equivalent runtime adapters on other targets.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses signalfd(2) on Linux and host-equivalent process-signal descriptor adapters elsewhere.
-///
-/// # Errors
-/// Returns invalidArgument, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.signal.receive`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_signal_fd_open(
     binding: &BindingCallContext,
     out: *mut resource::SignalFdHandle,
@@ -807,22 +647,6 @@ pub(crate) unsafe fn destack_process_signal_fd_open(
 }
 
 /// Read one queued signal event from a signal descriptor.
-///
-/// Read the next queued signal payload from one descriptor-backed signal queue.
-/// Queue ordering and coalescing behavior follow host signal queue semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses read(2) over signalfd on Linux and host-equivalent signal descriptor reads on other targets.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, ioInterrupted, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `process.signal.receive`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_signal_fd_read(
     binding: &BindingCallContext,
     out: *mut SignalEvent,
@@ -879,22 +703,6 @@ pub(crate) unsafe fn destack_process_signal_fd_read(
 }
 
 /// Replace the active signal mask for one signal descriptor.
-///
-/// Replace the descriptor signal mask with one explicit signal-set value.
-/// Mask transitions are atomic under host signal-descriptor APIs.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses signalfd mask update semantics on Linux and host-equivalent signal descriptor mask updates elsewhere.
-///
-/// # Errors
-/// Returns invalidArgument, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.signal.receive`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_signal_fd_set_mask(
     binding: &BindingCallContext,
     handle: resource::SignalFdHandle,
@@ -930,22 +738,6 @@ pub(crate) unsafe fn destack_process_signal_fd_set_mask(
 }
 
 /// Poll one queued signal event from a signal descriptor without blocking.
-///
-/// Poll one descriptor-backed signal queue for one signal event and return immediately when empty.
-/// Empty queue state is reported through ioWouldBlock.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses nonblocking reads over signalfd on Linux and host-equivalent signal descriptor polling elsewhere.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `process.signal.receive`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_signal_fd_try_read(
     binding: &BindingCallContext,
     out: *mut SignalEvent,

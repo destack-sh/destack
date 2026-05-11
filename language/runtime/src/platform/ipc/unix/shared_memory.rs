@@ -20,22 +20,6 @@ const SHARED_MEMORY_MAP_OPERATION: &str = "destack.ipc.sharedMemory.map";
 const SHARED_MEMORY_UNMAP_OPERATION: &str = "destack.ipc.sharedMemory.unmap";
 
 /// Close one shared memory object handle.
-///
-/// Close one shared memory handle without unmapping process mappings.
-/// Mapping lifetime remains independent until explicit unmap calls.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses close(2) on Unix and CloseHandle on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `ipc.shared.memory`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_ipc_shared_memory_close(
     binding: &BindingCallContext,
     handle: resource::SharedMemoryHandle,
@@ -56,22 +40,6 @@ pub(crate) unsafe fn destack_ipc_shared_memory_close(
 }
 
 /// Create one named shared memory object.
-///
-/// Create one shared memory object with explicit size and creation flags.
-/// Name namespace and visibility follow host object manager semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses shm_open or memfd-style APIs on Unix and file mapping objects on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioAlreadyExists, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `ipc.shared.memory`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_ipc_shared_memory_create(
     binding: &BindingCallContext,
     out: *mut resource::SharedMemoryHandle,
@@ -143,22 +111,6 @@ pub(crate) unsafe fn destack_ipc_shared_memory_create(
 }
 
 /// Map one shared memory range.
-///
-/// Map one region of a shared memory object into the current process address space.
-/// Mapping protection and coherence follow host virtual-memory semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses mmap family on Unix and MapViewOfFile on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `ipc.shared.memory`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_ipc_shared_memory_map(
     binding: &BindingCallContext,
     out: *mut SharedMemoryMapping,
@@ -220,22 +172,6 @@ pub(crate) unsafe fn destack_ipc_shared_memory_map(
 }
 
 /// Open one named shared memory object.
-///
-/// Open one existing shared memory object by name.
-/// Access rights and visibility follow host object manager semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses shm_open-style APIs on Unix and OpenFileMapping on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `ipc.shared.memory`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_ipc_shared_memory_open(
     binding: &BindingCallContext,
     out: *mut resource::SharedMemoryHandle,
@@ -278,22 +214,6 @@ pub(crate) unsafe fn destack_ipc_shared_memory_open(
 }
 
 /// Unmap one shared memory range.
-///
-/// Unmap one previously mapped memory range from the process address space.
-/// Unmap operation does not destroy the underlying shared memory object.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses munmap on Unix and UnmapViewOfFile on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `ipc.shared.memory`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_ipc_shared_memory_unmap(
     _binding: &BindingCallContext,
     address: u64,

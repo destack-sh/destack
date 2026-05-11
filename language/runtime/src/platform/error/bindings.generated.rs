@@ -34,8 +34,8 @@ use crate::platform::{
     PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, abi as platform_abi,
 };
 use crate::runtime::bindings::{
-    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingScope,
-    NativeBinding, NativeBindingSet, native_call,
+    BindingAffinity, BindingDescriptor, BindingProvider, BindingRegistry, NativeBinding,
+    NativeBindingSet, native_call,
 };
 use crate::runtime::with_binding_call_context;
 use crate::{binding, vm_binding_set};
@@ -1336,16 +1336,16 @@ fn encode_destack_error_error_take_platform_error_result(
 
 /// Binding descriptor for destack.error.error.takePlatformError.
 pub(crate) const ERROR_ERROR_TAKE_PLATFORM_ERROR: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_behavior(
+    BindingDescriptor::deterministic_with_requires_and_dispatch(
         "destack.error.error.takePlatformError",
         "export function takePlatformError(errorId: uint64): Result<PlatformError, PlatformError>",
         &["diagnostic.read"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Runtime,
+        BindingAffinity::None,
     )
     .with_namespace("error")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Native binding set for error.
 pub(crate) const ERROR_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

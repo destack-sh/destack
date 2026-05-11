@@ -247,22 +247,6 @@ fn exec_replace_with_path(
     unsafe { ExitProcess(exit_code) }
 }
 /// Replace the current process image with a command path.
-///
-/// Replace the current process image in-place by executing the given command path.
-/// This call does not return on success and preserves host exec semantics for inherited descriptors.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses execve(2) on Unix and process-replacement emulation with CreateProcessW plus exit on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.exec`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_exec(
     _binding: &BindingCallContext,
     command: fs::OsPath,
@@ -276,22 +260,6 @@ pub(crate) unsafe fn destack_process_exec(
 }
 
 /// Replace the current process image using a directory-relative path.
-///
-/// Replace the current process image in-place by executing a directory-relative target.
-/// Flag behavior follows host exec-at semantics and may reject unsupported combinations.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses execveat(2) on Unix where available and runtime fallback or `notSupported` on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.exec`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_execat(
     binding: &BindingCallContext,
     directory: resource::DirectoryHandle,
@@ -327,22 +295,6 @@ pub(crate) unsafe fn destack_process_execat(
 }
 
 /// Replace the current process image using an executable file handle.
-///
-/// Replace the current process image in-place from an already-open executable descriptor.
-/// Descriptor validity, executable format, and permission checks are enforced by the host kernel.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses fexecve(2) on Unix where available and runtime fallback or `notSupported` on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.exec`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_fexec(
     binding: &BindingCallContext,
     executable: resource::FileHandle,

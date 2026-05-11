@@ -414,22 +414,6 @@ pub(super) fn device_capabilities(
 }
 
 /// Close one input device.
-///
-/// Close one opened input device endpoint and release host resources.
-/// Pending unread events are discarded according to host backend behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses close(2) on Unix and CloseHandle on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock.
-///
-/// # Security
-/// Requires `input.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_input_close(
     binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
@@ -438,26 +422,6 @@ pub(crate) unsafe fn destack_input_close(
 }
 
 /// List available input devices.
-///
-/// Enumerate host input devices and return stable identifiers and typed device metadata.
-/// Device ordering and hotplug visibility follow host input subsystem semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Returns operation-level `notSupported` on hosts that do not expose one discoverable input backend.
-/// Uses evdev device-node enumeration on Linux.
-/// Uses global-session and terminal discovery on macOS.
-/// Uses terminal input discovery on other Unix hosts.
-/// Uses console and raw-state discovery on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `input.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_input_list(
     binding: &BindingCallContext,
     out: *mut NativeSlice<InputDeviceDescriptor>,
@@ -475,25 +439,6 @@ pub(crate) unsafe fn destack_input_list(
 }
 
 /// Open one input device.
-///
-/// Open one input device endpoint for event reads and optional control operations.
-/// Exclusive-grab behavior and permission checks are host-defined.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one openable input backend.
-/// Uses evdev device-node open on Linux.
-/// Uses global-session or terminal-device open on macOS.
-/// Uses terminal-device open on other Unix hosts.
-/// Uses duplicated console-input handles or raw-state handles on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `input.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_input_open(
     binding: &BindingCallContext,
     out: *mut resource::InputDeviceHandle,
@@ -513,25 +458,6 @@ pub(crate) unsafe fn destack_input_open(
 }
 
 /// Query capabilities for one opened input device.
-///
-/// Return detailed axis, button, and feature capability metadata for one opened device.
-/// Metadata values are backend-derived and may be partially unavailable.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses evdev and libinput-style capability tables on Linux.
-/// Uses HID and raw-input capability queries on Windows.
-/// Uses backend capability tables when available.
-/// Falls back to deriving capabilities from available device summary metadata.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `input.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_input_capabilities(
     binding: &BindingCallContext,
     out: *mut InputDeviceCapabilities,

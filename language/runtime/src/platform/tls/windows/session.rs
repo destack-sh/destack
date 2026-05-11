@@ -83,22 +83,6 @@ fn socket_descriptor(
 }
 
 /// Close one tls session object.
-///
-/// Release one session object and runtime tls state.
-/// Socket ownership remains with the caller and is not implicitly closed by this operation.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime tls session teardown.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `tls.session`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_tls_session_close(
     binding: &BindingCallContext,
     handle: resource::TlsSessionHandle,
@@ -107,23 +91,6 @@ pub(crate) unsafe fn destack_tls_session_close(
 }
 
 /// Export keying material bytes for one tls session.
-///
-/// Derive exporter keying material for one label and one explicit context value.
-/// Empty context bytes remain distinct input and are not treated as absence.
-/// Exporter derivation follows RFC 5705 and RFC 8446 runtime tls rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime tls exporter support.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.session`, `tls.exporter`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_session_export_keying_material(
     binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
@@ -156,22 +123,6 @@ pub(crate) unsafe fn destack_tls_session_export_keying_material(
 }
 
 /// Advance one tls handshake state machine.
-///
-/// Drive one handshake step for one session and return readiness requirements for continuation.
-/// Handshake transitions follow rustls state-machine semantics for the selected protocol version.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime tls handshake state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.handshake`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_tls_session_handshake(
     binding: &BindingCallContext,
     out: *mut TlsHandshakeStatus,
@@ -198,22 +149,6 @@ pub(crate) unsafe fn destack_tls_session_handshake(
 }
 
 /// Return negotiated alpn protocol bytes.
-///
-/// Read one negotiated application protocol value selected during handshake.
-/// Empty bytes indicate no protocol was negotiated by the peer and runtime.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime tls negotiated-protocol state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.session`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_tls_session_negotiated_alpn(
     binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
@@ -238,23 +173,6 @@ pub(crate) unsafe fn destack_tls_session_negotiated_alpn(
 }
 
 /// Open one tls session over one connected socket.
-///
-/// Bind one tls session object to one connected socket using one tls context.
-/// Transport ownership remains with the caller, and tls uses the socket for encrypted record I/O.
-/// `serverName` is required for client contexts and ignored for server contexts.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses the runtime tls engine over host sockets.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.session`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_tls_session_open(
     binding: &BindingCallContext,
     out: *mut resource::TlsSessionHandle,
@@ -299,22 +217,6 @@ pub(crate) unsafe fn destack_tls_session_open(
 }
 
 /// Return the peer certificate chain bytes in pem encoding.
-///
-/// Read one peer certificate chain as normalized PEM bytes for verification and inspection.
-/// Chain ordering and included intermediates follow peer presentation order.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime tls peer-certificate state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.certificate.read`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_session_peer_certificates_pem(
     binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
@@ -339,22 +241,6 @@ pub(crate) unsafe fn destack_tls_session_peer_certificates_pem(
 }
 
 /// Read decrypted application bytes from one tls session.
-///
-/// Read plaintext bytes into one caller-provided buffer after record decryption.
-/// Decrypt and read semantics follow runtime buffering behavior and transport readiness.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime tls record processing over host sockets.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.session`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_session_read(
     binding: &BindingCallContext,
     out: *mut u64,
@@ -385,22 +271,6 @@ pub(crate) unsafe fn destack_tls_session_read(
 }
 
 /// Return whether one session resumed from cached state or ticket.
-///
-/// Report resumption state as observed by the runtime after handshake completion.
-/// State semantics follow runtime cache and ticket policy behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime tls session-state inspection.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.session`, `tls.resumption`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_tls_session_resumption_state(
     binding: &BindingCallContext,
     out: *mut TlsSessionResumptionState,
@@ -425,22 +295,6 @@ pub(crate) unsafe fn destack_tls_session_resumption_state(
 }
 
 /// Shutdown one tls session.
-///
-/// Emit closure alerts and transition one session to closed state.
-/// Half-close behavior and alert sequencing follow rustls close-notify semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime tls shutdown state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.session`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_tls_session_shutdown(
     binding: &BindingCallContext,
     handle: resource::TlsSessionHandle,
@@ -454,22 +308,6 @@ pub(crate) unsafe fn destack_tls_session_shutdown(
 }
 
 /// Write plaintext application bytes to one tls session.
-///
-/// Encrypt and write plaintext bytes from one caller-provided buffer into tls records.
-/// Record emission and flush behavior follow runtime buffering and transport readiness.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime tls record processing over host sockets.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.session`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_tls_session_write(
     binding: &BindingCallContext,
     out: *mut u64,

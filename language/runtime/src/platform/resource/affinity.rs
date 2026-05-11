@@ -6,42 +6,27 @@ use crate::runtime::{ExecutionContext, ExecutionContextId, execution_context_sat
 /// Stored resource-affinity requirement for one live resource entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ResourceAffinity {
-    /// Require the owning worker event-loop context.
-    EventLoop,
-    /// Require the captured owner execution context.
-    Owner(ExecutionContextId),
+    /// Require the owning worker context.
+    Worker,
     /// Require the process main execution context.
-    ProcessMain,
+    Main,
 }
 
 impl ResourceAffinity {
-    /// Build one resource-affinity requirement from one binding affinity and execution context.
-    pub const fn from_binding_affinity(
-        affinity: BindingAffinity,
-        execution_context: ExecutionContext,
-    ) -> Option<Self> {
+    /// Build one resource-affinity requirement from one binding affinity.
+    pub const fn from_binding_affinity(affinity: BindingAffinity) -> Option<Self> {
         match affinity {
-            BindingAffinity::Any => None,
-            BindingAffinity::EventLoop => Some(Self::EventLoop),
-            BindingAffinity::Owner => Some(Self::Owner(execution_context.id)),
-            BindingAffinity::ProcessMain => Some(Self::ProcessMain),
+            BindingAffinity::None => None,
+            BindingAffinity::Worker => Some(Self::Worker),
+            BindingAffinity::Main => Some(Self::Main),
         }
     }
 
     /// Return the binding-affinity class represented by this resource requirement.
     pub const fn binding_affinity(self) -> BindingAffinity {
         match self {
-            Self::EventLoop => BindingAffinity::EventLoop,
-            Self::Owner(_) => BindingAffinity::Owner,
-            Self::ProcessMain => BindingAffinity::ProcessMain,
-        }
-    }
-
-    /// Return the captured owner token when this requirement is owner-affine.
-    pub const fn owner_affinity(self) -> Option<ExecutionContextId> {
-        match self {
-            Self::Owner(owner_affinity) => Some(owner_affinity),
-            Self::EventLoop | Self::ProcessMain => None,
+            Self::Worker => BindingAffinity::Worker,
+            Self::Main => BindingAffinity::Main,
         }
     }
 
@@ -55,7 +40,6 @@ impl ResourceAffinity {
             execution_context,
             event_loop_context_id,
             self.binding_affinity(),
-            self.owner_affinity(),
         )
     }
 }

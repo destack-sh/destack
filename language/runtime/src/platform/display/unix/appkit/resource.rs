@@ -18,7 +18,7 @@ pub(crate) fn open_display_handle(
 ) -> resource::DisplayHandle {
     let entry = ResourceEntry::new(ResourceKind::Display)
         .with_label(core::DISPLAY_RESOURCE_LABEL)
-        .with_binding_affinity(BindingAffinity::EventLoop, context.execution_context())
+        .with_binding_affinity(BindingAffinity::Worker)
         .with_payload(AppKitDisplayHostState { id });
     let resource_id =
         context
@@ -36,7 +36,7 @@ pub(crate) fn open_display_handle_for_runtime(
 ) -> resource::DisplayHandle {
     let entry = ResourceEntry::new(ResourceKind::Display)
         .with_label(core::DISPLAY_RESOURCE_LABEL)
-        .with_affinity(ResourceAffinity::EventLoop)
+        .with_affinity(ResourceAffinity::Worker)
         .with_payload(AppKitDisplayHostState { id });
     let resource_id = runtime_state.resource_table().insert_untracked(entry);
 
@@ -84,13 +84,10 @@ pub(crate) fn resolve_display_id(
 }
 
 /// Build one resource entry for one opened AppKit window host state.
-pub(crate) fn window_resource_entry(
-    context: &BindingCallContext,
-    binding: Arc<Mutex<AppKitWindowHostState>>,
-) -> ResourceEntry {
+pub(crate) fn window_resource_entry(binding: Arc<Mutex<AppKitWindowHostState>>) -> ResourceEntry {
     ResourceEntry::new(ResourceKind::Window)
         .with_label(core::WINDOW_RESOURCE_LABEL)
-        .with_binding_affinity(BindingAffinity::EventLoop, context.execution_context())
+        .with_binding_affinity(BindingAffinity::Worker)
         .with_payload(binding)
 }
 

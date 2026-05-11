@@ -85,21 +85,6 @@ fn gamepad_validate_motion_sensors(
 }
 
 /// Set one gamepad light color.
-///
-/// Apply one rgb light color for one opened gamepad-capable device when supported.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where gamepad light control is unavailable.
-/// Uses backend-specific gamepad light-control APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `input.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_input_gamepad_set_light(
     binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
@@ -148,21 +133,6 @@ pub(crate) unsafe fn destack_input_gamepad_set_motion_sensors_enabled(
 }
 
 /// Set one gamepad player index.
-///
-/// Apply one player index hint for one opened gamepad-capable device.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where player-index assignment is unavailable.
-/// Uses backend-specific gamepad player-index assignment APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `input.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_input_gamepad_set_player_index(
     binding: &BindingCallContext,
     handle: resource::InputDeviceHandle,
@@ -177,22 +147,6 @@ pub(crate) unsafe fn destack_input_gamepad_set_player_index(
 }
 
 /// Read one gamepad state snapshot.
-///
-/// Return one full gamepad state snapshot for one opened gamepad-capable device.
-/// Snapshot fields mirror backend-standardized gamepad semantics for axes, buttons, touches, and battery metadata.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where gamepad snapshots are unavailable.
-/// Uses backend-specific gamepad state APIs with normalized axes, buttons, touch contacts, and battery metadata.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `input.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_input_gamepad_state(
     binding: &BindingCallContext,
     out: *mut InputGamepadState,

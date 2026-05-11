@@ -10,22 +10,6 @@ pub(crate) const OS_POWER_STATE_OPERATION: &str = "destack.os.power.state";
 pub(crate) const OS_POWER_SUSPEND_OPERATION: &str = "destack.os.power.suspend";
 
 /// Read current host power state.
-///
-/// Return one normalized host power-state classification.
-/// State mapping follows runtime normalization over host power APIs.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host power management APIs such as sysfs and IOKit on Unix-like systems and GetSystemPowerStatus on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.power`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_os_power_state(
     binding: &BindingCallContext,
     out: *mut PowerState,

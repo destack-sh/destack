@@ -417,22 +417,6 @@ fn set_legacy_process_affinity(
     Ok(())
 }
 /// Read process CPU affinity.
-///
-/// Read the active CPU affinity mask for the target process identifier.
-/// Returned CPUs reflect host scheduler topology visibility.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses sched_getaffinity(2) on Unix and GetProcessAffinityMask on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.affinity`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_get_affinity(
     binding: &BindingCallContext,
     out: *mut ProcessCpuSet,
@@ -468,22 +452,6 @@ pub(crate) unsafe fn destack_process_get_affinity(
 }
 
 /// Read a process priority value.
-///
-/// Read the scheduler priority value for the target process identifier.
-/// Priority ranges and classes are host-defined.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses getpriority(2) on Unix and GetPriorityClass plus thread priority mapping on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.priority`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_get_priority(
     _binding: &BindingCallContext,
     out: *mut i32,
@@ -516,22 +484,6 @@ pub(crate) unsafe fn destack_process_get_priority(
 }
 
 /// Read scheduler policy and priority for a process.
-///
-/// Read one process scheduler policy class and its priority details.
-/// Returned policy availability and numeric ranges are host-defined.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses sched_getscheduler plus sched_getparam on Unix and process scheduling class mapping on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.scheduler`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_get_scheduler(
     _binding: &BindingCallContext,
     out: *mut ProcessSchedulerConfig,
@@ -562,22 +514,6 @@ pub(crate) unsafe fn destack_process_get_scheduler(
 }
 
 /// Set process CPU affinity.
-///
-/// Set the CPU affinity mask for the target process identifier.
-/// Invalid CPU sets and privilege violations are rejected by the host scheduler.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses sched_setaffinity(2) on Unix and SetProcessAffinityMask on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.affinity`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_set_affinity(
     _binding: &BindingCallContext,
     pid: ProcessId,
@@ -605,22 +541,6 @@ pub(crate) unsafe fn destack_process_set_affinity(
 }
 
 /// Set a process priority value.
-///
-/// Set the scheduler priority value for the target process identifier.
-/// Privilege checks and clamping are enforced by the host scheduler.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses setpriority(2) on Unix and SetPriorityClass or SetThreadPriority on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.priority`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_set_priority(
     _binding: &BindingCallContext,
     pid: ProcessId,
@@ -643,22 +563,6 @@ pub(crate) unsafe fn destack_process_set_priority(
 }
 
 /// Set scheduler policy and priority for a process.
-///
-/// Set one process scheduler policy class with explicit priority and flags.
-/// Privilege checks and policy-specific clamping are enforced by the host scheduler.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses sched_setscheduler plus sched_setparam on Unix and process scheduling class mapping on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.scheduler`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_set_scheduler(
     _binding: &BindingCallContext,
     pid: ProcessId,
@@ -690,22 +594,6 @@ pub(crate) unsafe fn destack_process_set_scheduler(
 }
 
 /// Yield the current thread to the scheduler.
-///
-/// Yield one scheduler timeslice voluntarily from the current execution context.
-/// Yield ordering and wakeup behavior follow host scheduler semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses sched_yield(2) on Unix and SwitchToThread or Sleep(0) on Windows.
-///
-/// # Errors
-/// Returns processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.scheduler`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_yield_now(_binding: &BindingCallContext) -> RuntimeResult<()> {
     use windows_sys::Win32::System::Threading::{Sleep, SwitchToThread};
 

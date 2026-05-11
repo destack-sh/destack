@@ -310,22 +310,6 @@ fn uds_datagram_socket_pair(
 }
 
 /// Connect to a UDS endpoint.
-///
-/// Connect to an existing AF_UNIX endpoint address.
-/// Address kind and endpoint type validation follow host AF_UNIX semantics.
-///
-/// # Platform
-/// Unix and Windows only when AF_UNIX support is available at runtime.
-/// Uses connect(2) on AF_UNIX sockets on Unix and AF_UNIX connect on Windows where available.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.connect`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_uds_connect(
     binding: &BindingCallContext,
     out: *mut SocketHandle,
@@ -376,22 +360,6 @@ pub(crate) unsafe fn destack_net_uds_connect(
 }
 
 /// Listen on a UDS address.
-///
-/// Place the bound socket into passive listen mode with the requested backlog semantics.
-/// Path addresses are forwarded from `OsPath` without runtime normalization, while abstract and unnamed addresses follow host AF_UNIX rules.
-///
-/// # Platform
-/// Unix and Windows only when AF_UNIX support is available at runtime.
-/// Uses bind(2)+listen(2) on AF_UNIX sockets on Unix and AF_UNIX listen on Windows where available.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.listen`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_uds_listen(
     binding: &BindingCallContext,
     out: *mut ListenerHandle,
@@ -465,22 +433,6 @@ pub(crate) unsafe fn destack_net_uds_listen(
 }
 
 /// Accept a connection from a UDS listener.
-///
-/// Accept the next pending AF_UNIX stream connection.
-/// Accept ordering and descriptor flags follow host kernel semantics.
-///
-/// # Platform
-/// Unix and Windows only when AF_UNIX support is available at runtime.
-/// Uses accept(2) on AF_UNIX sockets on Unix and accept on Windows where available.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.accept`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_uds_accept(
     binding: &BindingCallContext,
     out: *mut SocketHandle,
@@ -490,22 +442,6 @@ pub(crate) unsafe fn destack_net_uds_accept(
 }
 
 /// Close a UDS listener handle.
-///
-/// Close an AF_UNIX listener socket descriptor.
-/// Pending accepts are interrupted according to host kernel semantics.
-///
-/// # Platform
-/// Unix and Windows only when AF_UNIX support is available at runtime.
-/// Uses close(2) on Unix and closesocket on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.close`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_uds_close_listener(
     binding: &BindingCallContext,
     handle: ListenerHandle,
@@ -514,22 +450,6 @@ pub(crate) unsafe fn destack_net_uds_close_listener(
 }
 
 /// Create a connected UDS socket pair.
-///
-/// Allocate a connected AF_UNIX socket pair for local full-duplex messaging.
-/// Pair semantics and descriptor inheritance follow host kernel behavior.
-///
-/// # Platform
-/// Unix and Windows only when AF_UNIX support is available at runtime.
-/// Uses socketpair(AF_UNIX) on Unix and runtime emulation on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.connect`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_net_uds_socket_pair(
     binding: &BindingCallContext,
     out: *mut SocketPair,

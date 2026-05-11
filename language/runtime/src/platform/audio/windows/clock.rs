@@ -7,22 +7,6 @@ use crate::platform::{PlatformError, resource};
 use crate::runtime::BindingCallContext;
 
 /// Read one timestamp in one selected clock domain.
-///
-/// Read one clock timestamp for one process-wide domain.
-/// Domain availability and precision follow host platform behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Mirrors host monotonic and wall clock query semantics.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `audio.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_audio_clock_now(
     binding: &BindingCallContext,
     out: *mut u64,
@@ -41,27 +25,6 @@ pub(crate) unsafe fn destack_audio_clock_now(
 }
 
 /// Read one stream clock snapshot.
-///
-/// Read one synchronized stream-position and selected clock-domain timestamp snapshot.
-/// Snapshot values are advisory and can change immediately after read.
-/// This is the strict lane-select API.
-/// For one full best-effort snapshot without lane-specific errors use `audio.stream.timing`.
-/// Domain-specific lanes like `InputAdc`, `OutputDac`, and `Device` can return `notSupported` when the opened stream does not expose them.
-///
-/// # Platform
-/// Unix and Windows.
-/// Mirrors PortAudio `PaStreamCallbackTimeInfo` input and output timestamp correlation.
-/// Mirrors ASIO `bufferSwitchTimeInfo` and time-info correlation semantics.
-/// Mirrors cubeb `cubeb_stream_get_position` plus latency-correlation snapshots.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `audio.control`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_audio_stream_clock(
     binding: &BindingCallContext,
     out: *mut AudioClockSnapshot,

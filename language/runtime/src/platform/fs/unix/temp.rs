@@ -9,23 +9,6 @@ use std::ffi::CStr;
 const MKDTEMP_TEMPLATE_SUFFIX: &[u8] = b"XXXXXX";
 
 /// Create a temporary directory.
-///
-/// Create a unique temporary directory by replacing the trailing `XXXXXX` suffix in `template`.
-/// The resulting directory is created at the caller-supplied path, not in an implicit host temp root.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses mkdtemp(3) on Unix and a CreateDirectoryW-based template loop on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.temp`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdtemp_bytes(
     binding: &BindingCallContext,
     out: *mut PathBytes,
@@ -73,23 +56,6 @@ pub(crate) unsafe fn destack_fs_mkdtemp_bytes(
 
 #[allow(dead_code)]
 /// Create a temporary directory.
-///
-/// Create a unique temporary directory by replacing the trailing `XXXXXX` suffix in `template`.
-/// The resulting directory is created at the caller-supplied path, not in an implicit host temp root.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses mkdtemp(3) on Unix and a CreateDirectoryW-based template loop on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.temp`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdtemp_utf16(
     binding: &BindingCallContext,
     out: *mut PathUtf16,
@@ -113,23 +79,6 @@ pub(crate) unsafe fn destack_fs_mkdtemp_utf16(
 }
 
 /// Create a temporary directory.
-///
-/// Create a unique temporary directory by replacing the trailing `XXXXXX` suffix in `template`.
-/// The resulting directory is created at the caller-supplied path, not in an implicit host temp root.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses mkdtemp(3) on Unix and a CreateDirectoryW-based template loop on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.temp`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdtemp(
     binding: &BindingCallContext,
     out: *mut OsPath,

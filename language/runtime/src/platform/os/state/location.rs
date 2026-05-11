@@ -6,7 +6,7 @@ use super::*;
 pub(crate) fn location_services_enabled(binding: &BindingCallContext) -> RuntimeResult<bool> {
     require_location_capability(
         binding,
-        PlatformCapability::OsLocationRead,
+        HostAction::OsLocationRead,
         "destack.os.location.servicesEnabled",
     )?;
 
@@ -21,7 +21,7 @@ pub(crate) fn location_last_known(
 ) -> RuntimeResult<LocationSampleValue> {
     require_location_capability(
         binding,
-        PlatformCapability::OsLocationRead,
+        HostAction::OsLocationRead,
         "destack.os.location.lastKnown",
     )?;
 
@@ -42,7 +42,7 @@ pub(crate) fn location_watch_open(
 ) -> RuntimeResult<resource::LocationWatchHandle> {
     require_location_capability(
         binding,
-        PlatformCapability::OsLocationWatch,
+        HostAction::OsLocationWatch,
         "destack.os.location.watchOpen",
     )?;
 
@@ -165,13 +165,13 @@ pub(crate) fn location_watch_read(
     )
 }
 
-/// Require one live location host capability before opening or reading location state.
+/// Require one live location host action before opening or reading location state.
 fn require_location_capability(
     binding: &BindingCallContext,
-    capability: PlatformCapability,
+    action: HostAction,
     operation: &'static str,
 ) -> RuntimeResult<()> {
-    if binding.host().has_host_capability(capability) {
+    if binding.host().has_host_action(action) {
         return Ok(());
     }
 

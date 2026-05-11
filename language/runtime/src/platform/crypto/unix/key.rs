@@ -11,23 +11,6 @@ use crate::runtime::BindingCallContext;
 use crate::platform::crypto::core::{decode_bytes, write_out_bytes, write_out_value};
 
 /// Generate one symmetric key.
-///
-/// Create one store-backed secret key object.
-/// Generation policy and persistence semantics follow runtime store behavior.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
-/// Hardware-backed secret-key generation is available when the selected host store exposes symmetric hardware-key callbacks.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.key.generate`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_generate_secret(
     binding: &BindingCallContext,
     out: *mut resource::CryptoKeyHandle,
@@ -39,22 +22,6 @@ pub(crate) unsafe fn destack_crypto_key_generate_secret(
 }
 
 /// Generate one asymmetric key pair.
-///
-/// Create one store-backed asymmetric key pair and return public and private handles.
-/// Generation policy and persistence semantics follow runtime store behavior.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.key.generate`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_generate_pair(
     binding: &BindingCallContext,
     out: *mut CryptoKeyPair,
@@ -66,23 +33,6 @@ pub(crate) unsafe fn destack_crypto_key_generate_pair(
 }
 
 /// Import one key object.
-///
-/// Parse and import one key blob into one store.
-/// Key visibility and persistence follow runtime store policies.
-/// Encrypted PKCS#8 inputs require one non-empty `request.passphrase`.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.store.write`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_import(
     binding: &BindingCallContext,
     out: *mut resource::CryptoKeyHandle,
@@ -94,21 +44,6 @@ pub(crate) unsafe fn destack_crypto_key_import(
 }
 
 /// Export one public key.
-///
-/// Export one public key representation in the requested encoding format.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.store.read`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_export_public(
     binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
@@ -120,24 +55,6 @@ pub(crate) unsafe fn destack_crypto_key_export_public(
 }
 
 /// Export one private key.
-///
-/// Export one private key representation in the requested encoding format.
-/// Output format and passphrase are provided by `CryptoPrivateKeyExportRequest`.
-/// Encrypted PKCS#8 output requires one non-empty passphrase.
-/// The operation fails when store policy marks this key as non-exportable.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.store.read`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_export_private(
     binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
@@ -149,22 +66,6 @@ pub(crate) unsafe fn destack_crypto_key_export_private(
 }
 
 /// Export one secret key.
-///
-/// Export one symmetric or raw-secret key representation in the requested encoding format.
-/// The operation fails when store policy marks this key as non-exportable.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.store.read`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_export_secret(
     binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
@@ -176,21 +77,6 @@ pub(crate) unsafe fn destack_crypto_key_export_secret(
 }
 
 /// Return one key descriptor.
-///
-/// Query one key object and return normalized metadata fields.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.store.read`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_descriptor(
     binding: &BindingCallContext,
     out: *mut CryptoKeyDescriptor,
@@ -201,22 +87,6 @@ pub(crate) unsafe fn destack_crypto_key_descriptor(
 }
 
 /// Sign one payload.
-///
-/// Produce one signature over one payload using one store-backed private key.
-/// Payload hashing behavior is controlled by signature parameters.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.key.sign`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_sign(
     binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
@@ -230,22 +100,6 @@ pub(crate) unsafe fn destack_crypto_key_sign(
 }
 
 /// Verify one signature.
-///
-/// Verify one signature over one payload using one store-backed public key.
-/// Payload hashing behavior is controlled by signature parameters.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.key.verify`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_verify(
     binding: &BindingCallContext,
     out: *mut bool,
@@ -261,22 +115,6 @@ pub(crate) unsafe fn destack_crypto_key_verify(
 }
 
 /// Encrypt one payload with one asymmetric key.
-///
-/// Encrypt one payload using one store-backed public key.
-/// Padding and label semantics are controlled by encryption parameters.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.key.encrypt`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_encrypt(
     binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
@@ -290,22 +128,6 @@ pub(crate) unsafe fn destack_crypto_key_encrypt(
 }
 
 /// Decrypt one payload with one asymmetric key.
-///
-/// Decrypt one payload using one store-backed private key.
-/// Padding and label semantics are controlled by encryption parameters.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.key.decrypt`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_decrypt(
     binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
@@ -319,23 +141,6 @@ pub(crate) unsafe fn destack_crypto_key_decrypt(
 }
 
 /// Wrap one key.
-///
-/// Export and encrypt one key object under one wrapping key.
-/// Wrapping semantics are selected by `CryptoKeyWrapParameters`.
-/// `RsaOaep` uses asymmetric OAEP wrapping and `AesKw` or `AesKwp` use RFC 3394 or RFC 5649 key-wrap semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.key.wrap`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_wrap(
     binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
@@ -349,22 +154,6 @@ pub(crate) unsafe fn destack_crypto_key_wrap(
 }
 
 /// Unwrap one key.
-///
-/// Decrypt and import one wrapped key object into one store.
-/// Import semantics follow runtime store policy and the import request.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.key.unwrap`, `crypto.store.write`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_unwrap(
     binding: &BindingCallContext,
     out: *mut resource::CryptoKeyHandle,
@@ -387,22 +176,6 @@ pub(crate) unsafe fn destack_crypto_key_unwrap(
 }
 
 /// Delete one key object.
-///
-/// Delete one store-backed key object and invalidate this handle.
-/// Deletion permissions and persistence policies are enforced by runtime store policy.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.store.write`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_key_delete(
     binding: &BindingCallContext,
     handle: resource::CryptoKeyHandle,

@@ -7,19 +7,6 @@ use crate::runtime::BindingCallContext;
 use crate::platform::crypto::core::{decode_bytes, write_out_bytes, write_out_value};
 
 /// Compute one digest in one shot.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP digest primitives on Unix and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.digest`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_digest_compute(
     binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
@@ -32,19 +19,6 @@ pub(crate) unsafe fn destack_crypto_digest_compute(
 }
 
 /// Open one streaming digest context.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP digest primitives on Unix and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.digest`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_digest_open(
     binding: &BindingCallContext,
     out: *mut resource::CryptoDigestHandle,
@@ -55,19 +29,6 @@ pub(crate) unsafe fn destack_crypto_digest_open(
 }
 
 /// Update one streaming digest context.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP digest primitives on Unix and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.digest`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_digest_update(
     binding: &BindingCallContext,
     handle: resource::CryptoDigestHandle,
@@ -78,19 +39,6 @@ pub(crate) unsafe fn destack_crypto_digest_update(
 }
 
 /// Finalize one streaming digest context and return one digest output.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP digest primitives on Unix and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.digest`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_digest_finish(
     binding: &BindingCallContext,
     out: *mut NativeSlice<u8>,
@@ -101,19 +49,6 @@ pub(crate) unsafe fn destack_crypto_digest_finish(
 }
 
 /// Reset one streaming digest context to its initial state.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP digest primitives on Unix and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.digest`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_digest_reset(
     binding: &BindingCallContext,
     handle: resource::CryptoDigestHandle,
@@ -122,19 +57,6 @@ pub(crate) unsafe fn destack_crypto_digest_reset(
 }
 
 /// Close one streaming digest context.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP digest primitives on Unix and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `crypto.digest`.
-///
-/// # Replay
-/// External, nonrecordable.
 pub(crate) unsafe fn destack_crypto_digest_close(
     binding: &BindingCallContext,
     handle: resource::CryptoDigestHandle,

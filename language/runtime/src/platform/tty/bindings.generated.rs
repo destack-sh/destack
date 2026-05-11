@@ -20,8 +20,8 @@ use crate::platform::{
     PlatformError, RuntimeStatus, VmAggregateCodec, VmSlice, abi as platform_abi,
 };
 use crate::runtime::bindings::{
-    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
-    BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+    BindingAffinity, BindingDescriptor, BindingProvider, BindingRegistry, BindingReplayKind,
+    BindingReplayPolicy, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
 use crate::runtime::trace::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
@@ -916,322 +916,300 @@ struct TtyTermiosSetProcessGroupReplayRecord {
 
 /// Binding descriptor for destack.tty.handle.close.
 pub(crate) const TTY_HANDLE_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.tty.handle.close",
         "export function close(handle: TtyHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["tty.handle"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tty.handle.isTerminalFile.
 pub(crate) const TTY_HANDLE_IS_TERMINAL_FILE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.tty.handle.isTerminalFile",
         "export function isTerminalFile(handle: FileHandle): Result<boolean, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["tty.handle"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tty.handle.stdioStderr.
 pub(crate) const TTY_HANDLE_STDIO_STDERR: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.tty.handle.stdioStderr",
         "export function stdioStderr(): Result<TtyHandle, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["tty.handle"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tty.handle.stdioStdin.
 pub(crate) const TTY_HANDLE_STDIO_STDIN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.tty.handle.stdioStdin",
         "export function stdioStdin(): Result<TtyHandle, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["tty.handle"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tty.handle.stdioStdout.
 pub(crate) const TTY_HANDLE_STDIO_STDOUT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.tty.handle.stdioStdout",
         "export function stdioStdout(): Result<TtyHandle, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["tty.handle"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tty.io.read.
-pub(crate) const TTY_IO_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TTY_IO_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.tty.io.read",
     "export function read(handle: TtyHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["tty.read"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tty.io.write.
-pub(crate) const TTY_IO_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TTY_IO_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.tty.io.write",
     "export function write(handle: TtyHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["tty.write"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tty.mode.getMode.
 pub(crate) const TTY_MODE_GET_MODE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.tty.mode.getMode",
         "export function getMode(handle: TtyHandle): Result<TtyMode, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["tty.mode"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tty.mode.setMode.
 pub(crate) const TTY_MODE_SET_MODE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.tty.mode.setMode",
         "export function setMode(handle: TtyHandle, mode: TtyMode): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["tty.mode"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tty.mode.setRawMode.
-pub(crate) const TTY_MODE_SET_RAW_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TTY_MODE_SET_RAW_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.tty.mode.setRawMode",
     "export function setRawMode(handle: TtyHandle, enabled: boolean): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["tty.mode"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tty.pty.close.
 pub(crate) const TTY_PTY_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.tty.pty.close",
         "export function ptyClose(handle: PtyHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["tty.pty"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tty.pty.open.
-pub(crate) const TTY_PTY_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TTY_PTY_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.tty.pty.open",
     "export function ptyOpen(rows: uint32, columns: uint32, flags: uint32): Result<PtyPair, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["tty.pty"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tty.size.getSize.
 pub(crate) const TTY_SIZE_GET_SIZE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.tty.size.getSize",
         "export function getSize(handle: TtyHandle): Result<TtySize, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["tty.size"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tty.size.setSize.
 pub(crate) const TTY_SIZE_SET_SIZE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.tty.size.setSize",
         "export function setSize(handle: TtyHandle, size: TtySize): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["tty.size"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tty.termios.drain.
 pub(crate) const TTY_TERMIOS_DRAIN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.tty.termios.drain",
         "export function termiosDrain(handle: TtyHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["tty.termios"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "ios", "linux", "macos"]);
+    .with_platforms(&["android", "ios", "linux", "macos"]);
 
 /// Binding descriptor for destack.tty.termios.flow.
-pub(crate) const TTY_TERMIOS_FLOW: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TTY_TERMIOS_FLOW: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.tty.termios.flow",
     "export function termiosFlow(handle: TtyHandle, action: TtyTermiosFlowAction): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["tty.termios"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "ios", "linux", "macos"]);
+    .with_platforms(&["android", "ios", "linux", "macos"]);
 
 /// Binding descriptor for destack.tty.termios.flush.
-pub(crate) const TTY_TERMIOS_FLUSH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TTY_TERMIOS_FLUSH: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.tty.termios.flush",
     "export function termiosFlush(handle: TtyHandle, queue: TtyTermiosQueue): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["tty.termios"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "ios", "linux", "macos"]);
+    .with_platforms(&["android", "ios", "linux", "macos"]);
 
 /// Binding descriptor for destack.tty.termios.getAttributes.
-pub(crate) const TTY_TERMIOS_GET_ATTRIBUTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TTY_TERMIOS_GET_ATTRIBUTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.tty.termios.getAttributes",
     "export function termiosGetAttributes(handle: TtyHandle): Result<TtyTermiosAttributes, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["tty.termios"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "ios", "linux", "macos"]);
+    .with_platforms(&["android", "ios", "linux", "macos"]);
 
 /// Binding descriptor for destack.tty.termios.getProcessGroup.
-pub(crate) const TTY_TERMIOS_GET_PROCESS_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TTY_TERMIOS_GET_PROCESS_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.tty.termios.getProcessGroup",
     "export function termiosGetProcessGroup(handle: TtyHandle): Result<ProcessId, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["tty.termios"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "ios", "linux", "macos"]);
+    .with_platforms(&["android", "ios", "linux", "macos"]);
 
 /// Binding descriptor for destack.tty.termios.sendBreak.
-pub(crate) const TTY_TERMIOS_SEND_BREAK: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TTY_TERMIOS_SEND_BREAK: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.tty.termios.sendBreak",
     "export function termiosSendBreak(handle: TtyHandle, duration: uint32): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["tty.termios"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "ios", "linux", "macos"]);
+    .with_platforms(&["android", "ios", "linux", "macos"]);
 
 /// Binding descriptor for destack.tty.termios.setAttributes.
-pub(crate) const TTY_TERMIOS_SET_ATTRIBUTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TTY_TERMIOS_SET_ATTRIBUTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.tty.termios.setAttributes",
     "export function termiosSetAttributes(handle: TtyHandle, attributes: TtyTermiosAttributes, action: TtyTermiosSetAction): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["tty.termios"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "ios", "linux", "macos"]);
+    .with_platforms(&["android", "ios", "linux", "macos"]);
 
 /// Binding descriptor for destack.tty.termios.setProcessGroup.
-pub(crate) const TTY_TERMIOS_SET_PROCESS_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const TTY_TERMIOS_SET_PROCESS_GROUP: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.tty.termios.setProcessGroup",
     "export function termiosSetProcessGroup(handle: TtyHandle, processGroupId: ProcessId): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["tty.termios"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("tty")
-    .with_host_platforms(&["android", "ios", "linux", "macos"]);
+    .with_platforms(&["android", "ios", "linux", "macos"]);
 
 /// Native binding set for tty.
 pub(crate) const TTY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

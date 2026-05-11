@@ -159,8 +159,8 @@ use crate::platform::{
     abi as platform_abi,
 };
 use crate::runtime::bindings::{
-    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
-    BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+    BindingAffinity, BindingDescriptor, BindingProvider, BindingRegistry, BindingReplayKind,
+    BindingReplayPolicy, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
 use crate::runtime::trace::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
@@ -11769,1802 +11769,1675 @@ struct DeviceUsbWatchTryReadReplayRecord {
 }
 
 /// Binding descriptor for destack.device.bluetooth.adapterList.
-pub(crate) const DEVICE_BLUETOOTH_ADAPTER_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_ADAPTER_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.bluetooth.adapterList",
     "export function bluetoothAdapterList(): Result<Slice<BluetoothAdapterDescriptor>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.scan"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.adapterWatchClose.
-pub(crate) const DEVICE_BLUETOOTH_ADAPTER_WATCH_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_ADAPTER_WATCH_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.bluetooth.adapterWatchClose",
     "export function bluetoothAdapterWatchClose(handle: BluetoothAdapterWatchHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.scan"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.adapterWatchOpen.
-pub(crate) const DEVICE_BLUETOOTH_ADAPTER_WATCH_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_ADAPTER_WATCH_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.bluetooth.adapterWatchOpen",
     "export function bluetoothAdapterWatchOpen(): Result<BluetoothAdapterWatchHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.scan"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.adapterWatchRead.
-pub(crate) const DEVICE_BLUETOOTH_ADAPTER_WATCH_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_ADAPTER_WATCH_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.bluetooth.adapterWatchRead",
     "export function bluetoothAdapterWatchRead(handle: BluetoothAdapterWatchHandle, timeoutNs: uint64): Result<BluetoothAdapterEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.scan"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.adapterWatchTryRead.
-pub(crate) const DEVICE_BLUETOOTH_ADAPTER_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_ADAPTER_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.bluetooth.adapterWatchTryRead",
     "export function bluetoothAdapterWatchTryRead(handle: BluetoothAdapterWatchHandle): Result<BluetoothAdapterEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.scan"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.characteristicList.
-pub(crate) const DEVICE_BLUETOOTH_GATT_CHARACTERISTIC_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_GATT_CHARACTERISTIC_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.bluetooth.gatt.characteristicList",
     "export function bluetoothGattCharacteristicList(handle: BluetoothDeviceHandle, serviceId: string): Result<Slice<BluetoothGattCharacteristic>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.gatt"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.descriptorList.
-pub(crate) const DEVICE_BLUETOOTH_GATT_DESCRIPTOR_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_GATT_DESCRIPTOR_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.bluetooth.gatt.descriptorList",
     "export function bluetoothGattDescriptorList(handle: BluetoothDeviceHandle, characteristicId: string): Result<Slice<BluetoothGattDescriptor>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.gatt"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.mtu.
-pub(crate) const DEVICE_BLUETOOTH_GATT_MTU: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_GATT_MTU: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.bluetooth.gatt.mtu",
     "export function bluetoothGattMtu(handle: BluetoothDeviceHandle): Result<uint16, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.gatt"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.read.
-pub(crate) const DEVICE_BLUETOOTH_GATT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_GATT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.bluetooth.gatt.read",
     "export function bluetoothGattRead(handle: BluetoothDeviceHandle, characteristicId: string, timeoutNs: uint64): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.gatt"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.readDescriptor.
-pub(crate) const DEVICE_BLUETOOTH_GATT_READ_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_GATT_READ_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.bluetooth.gatt.readDescriptor",
     "export function bluetoothGattReadDescriptor(handle: BluetoothDeviceHandle, descriptorId: string, timeoutNs: uint64): Result<Slice<uint8>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.gatt"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.readEvent.
-pub(crate) const DEVICE_BLUETOOTH_GATT_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_GATT_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.bluetooth.gatt.readEvent",
     "export function bluetoothGattReadEvent(handle: BluetoothSubscriptionHandle, timeoutNs: uint64): Result<BluetoothGattValueEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.gatt"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.serviceList.
-pub(crate) const DEVICE_BLUETOOTH_GATT_SERVICE_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_GATT_SERVICE_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.bluetooth.gatt.serviceList",
     "export function bluetoothGattServiceList(handle: BluetoothDeviceHandle): Result<Slice<BluetoothGattService>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.gatt"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.subscribe.
-pub(crate) const DEVICE_BLUETOOTH_GATT_SUBSCRIBE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_GATT_SUBSCRIBE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.bluetooth.gatt.subscribe",
     "export function bluetoothGattSubscribe(handle: BluetoothDeviceHandle, characteristicId: string): Result<BluetoothSubscriptionHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.gatt"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.tryReadEvent.
-pub(crate) const DEVICE_BLUETOOTH_GATT_TRY_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_GATT_TRY_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.bluetooth.gatt.tryReadEvent",
     "export function bluetoothGattTryReadEvent(handle: BluetoothSubscriptionHandle): Result<BluetoothGattValueEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.gatt"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.unsubscribe.
-pub(crate) const DEVICE_BLUETOOTH_GATT_UNSUBSCRIBE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_GATT_UNSUBSCRIBE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.bluetooth.gatt.unsubscribe",
     "export function bluetoothGattUnsubscribe(handle: BluetoothSubscriptionHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.gatt"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.write.
-pub(crate) const DEVICE_BLUETOOTH_GATT_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_GATT_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.bluetooth.gatt.write",
     "export function bluetoothGattWrite(handle: BluetoothDeviceHandle, characteristicId: string, value: Slice<uint8>, mode: BluetoothGattWriteMode, timeoutNs: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.gatt"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.gatt.writeDescriptor.
-pub(crate) const DEVICE_BLUETOOTH_GATT_WRITE_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_GATT_WRITE_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.bluetooth.gatt.writeDescriptor",
     "export function bluetoothGattWriteDescriptor(handle: BluetoothDeviceHandle, descriptorId: string, value: Slice<uint8>, timeoutNs: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.gatt"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.scan.close.
-pub(crate) const DEVICE_BLUETOOTH_SCAN_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_SCAN_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.bluetooth.scan.close",
     "export function bluetoothScanClose(handle: BluetoothScanHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.scan"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.scan.open.
-pub(crate) const DEVICE_BLUETOOTH_SCAN_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_SCAN_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.bluetooth.scan.open",
     "export function bluetoothScanOpen(adapterId: string, filter: BluetoothScanFilter): Result<BluetoothScanHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.scan"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.scan.readEvent.
-pub(crate) const DEVICE_BLUETOOTH_SCAN_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_SCAN_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.bluetooth.scan.readEvent",
     "export function bluetoothScanReadEvent(handle: BluetoothScanHandle, timeoutNs: uint64): Result<BluetoothScanEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.scan"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.scan.tryReadEvent.
-pub(crate) const DEVICE_BLUETOOTH_SCAN_TRY_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_SCAN_TRY_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.bluetooth.scan.tryReadEvent",
     "export function bluetoothScanTryReadEvent(handle: BluetoothScanHandle): Result<BluetoothScanEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.scan"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.session.close.
-pub(crate) const DEVICE_BLUETOOTH_SESSION_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_SESSION_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.bluetooth.session.close",
     "export function bluetoothClose(handle: BluetoothDeviceHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.connect"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.session.descriptor.
-pub(crate) const DEVICE_BLUETOOTH_SESSION_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_SESSION_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.bluetooth.session.descriptor",
     "export function bluetoothDescriptor(handle: BluetoothDeviceHandle): Result<BluetoothDeviceDescriptor, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.connect"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.session.open.
-pub(crate) const DEVICE_BLUETOOTH_SESSION_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_SESSION_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.bluetooth.session.open",
     "export function bluetoothOpen(adapterId: string, deviceId: string): Result<BluetoothDeviceHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.connect"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.session.pair.
-pub(crate) const DEVICE_BLUETOOTH_SESSION_PAIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_SESSION_PAIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.bluetooth.session.pair",
     "export function bluetoothPair(handle: BluetoothDeviceHandle, timeoutNs: uint64): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.connect"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.session.readEvent.
-pub(crate) const DEVICE_BLUETOOTH_SESSION_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_SESSION_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.bluetooth.session.readEvent",
     "export function bluetoothSessionReadEvent(handle: BluetoothDeviceHandle, timeoutNs: uint64): Result<BluetoothSessionEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.connect"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.session.rssi.
-pub(crate) const DEVICE_BLUETOOTH_SESSION_RSSI: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_SESSION_RSSI: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.bluetooth.session.rssi",
     "export function bluetoothReadRssi(handle: BluetoothDeviceHandle, timeoutNs: uint64): Result<int32, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.connect"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.session.tryReadEvent.
-pub(crate) const DEVICE_BLUETOOTH_SESSION_TRY_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_SESSION_TRY_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.bluetooth.session.tryReadEvent",
     "export function bluetoothSessionTryReadEvent(handle: BluetoothDeviceHandle): Result<BluetoothSessionEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.connect"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.bluetooth.session.unpair.
-pub(crate) const DEVICE_BLUETOOTH_SESSION_UNPAIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_BLUETOOTH_SESSION_UNPAIR: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.bluetooth.session.unpair",
     "export function bluetoothUnpair(adapterId: string, deviceId: string): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["device.bluetooth.connect"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.device.close.
-pub(crate) const DEVICE_CAMERA_DEVICE_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_DEVICE_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.camera.device.close",
     "export function cameraDeviceClose(handle: CameraDeviceHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.camera.device"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.device.list.
 pub(crate) const DEVICE_CAMERA_DEVICE_LIST: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.device.camera.device.list",
         "export function cameraDeviceList(): Result<Slice<CameraDeviceDescriptor>, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["device.camera.device"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.device.open.
 pub(crate) const DEVICE_CAMERA_DEVICE_OPEN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.device.camera.device.open",
         "export function cameraDeviceOpen(id: string): Result<CameraDeviceHandle, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["device.camera.device"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.device.streamCapabilityList.
-pub(crate) const DEVICE_CAMERA_DEVICE_STREAM_CAPABILITY_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_DEVICE_STREAM_CAPABILITY_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.camera.device.streamCapabilityList",
     "export function cameraDeviceStreamCapabilityList(handle: CameraDeviceHandle): Result<Slice<CameraStreamCapability>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.camera.device"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.device.watchClose.
-pub(crate) const DEVICE_CAMERA_DEVICE_WATCH_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_DEVICE_WATCH_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.camera.device.watchClose",
     "export function cameraDeviceWatchClose(handle: CameraWatchHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.camera.device"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.device.watchOpen.
 pub(crate) const DEVICE_CAMERA_DEVICE_WATCH_OPEN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.device.camera.device.watchOpen",
         "export function cameraDeviceWatchOpen(): Result<CameraWatchHandle, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["device.camera.device"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.device.watchRead.
-pub(crate) const DEVICE_CAMERA_DEVICE_WATCH_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_DEVICE_WATCH_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.camera.device.watchRead",
     "export function cameraDeviceWatchRead(handle: CameraWatchHandle, timeoutNs: uint64): Result<CameraWatchEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.camera.device"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.device.watchTryRead.
-pub(crate) const DEVICE_CAMERA_DEVICE_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_DEVICE_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.camera.device.watchTryRead",
     "export function cameraDeviceWatchTryRead(handle: CameraWatchHandle): Result<CameraWatchEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.camera.device"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.close.
-pub(crate) const DEVICE_CAMERA_STREAM_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_STREAM_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.camera.stream.close",
     "export function cameraStreamClose(handle: CameraStreamHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.camera.capture"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.config.
-pub(crate) const DEVICE_CAMERA_STREAM_CONFIG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_STREAM_CONFIG: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.camera.stream.config",
     "export function cameraStreamConfig(handle: CameraStreamHandle): Result<CameraStreamConfig, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.camera.capture"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.configureControls.
-pub(crate) const DEVICE_CAMERA_STREAM_CONFIGURE_CONTROLS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_STREAM_CONFIGURE_CONTROLS: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.camera.stream.configureControls",
     "export function cameraStreamConfigureControls(handle: CameraStreamHandle, controls: CameraControlPatch): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.camera.control"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.controlCapabilities.
-pub(crate) const DEVICE_CAMERA_STREAM_CONTROL_CAPABILITIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_STREAM_CONTROL_CAPABILITIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.camera.stream.controlCapabilities",
     "export function cameraStreamControlCapabilities(handle: CameraStreamHandle): Result<CameraControlCapabilities, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.camera.control"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.controlState.
-pub(crate) const DEVICE_CAMERA_STREAM_CONTROL_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_STREAM_CONTROL_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.camera.stream.controlState",
     "export function cameraStreamControlState(handle: CameraStreamHandle): Result<CameraControlState, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.camera.control"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.open.
-pub(crate) const DEVICE_CAMERA_STREAM_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_STREAM_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.camera.stream.open",
     "export function cameraStreamOpen(device: CameraDeviceHandle, config: CameraStreamConfig): Result<CameraStreamHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.camera.capture"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.pauseRecording.
-pub(crate) const DEVICE_CAMERA_STREAM_PAUSE_RECORDING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_STREAM_PAUSE_RECORDING: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.camera.stream.pauseRecording",
     "export function cameraStreamPauseRecording(handle: CameraStreamHandle): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["device.camera.capture"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.photoCapabilities.
-pub(crate) const DEVICE_CAMERA_STREAM_PHOTO_CAPABILITIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_STREAM_PHOTO_CAPABILITIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.camera.stream.photoCapabilities",
     "export function cameraStreamPhotoCapabilities(handle: CameraStreamHandle): Result<CameraPhotoCapabilities, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.camera.capture"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.photoState.
-pub(crate) const DEVICE_CAMERA_STREAM_PHOTO_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_STREAM_PHOTO_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.camera.stream.photoState",
     "export function cameraStreamPhotoState(handle: CameraStreamHandle): Result<CameraPhotoState, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.camera.capture"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.read.
-pub(crate) const DEVICE_CAMERA_STREAM_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_STREAM_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.camera.stream.read",
     "export function cameraStreamRead(handle: CameraStreamHandle, timeoutNs: uint64): Result<CameraFrame, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.camera.capture"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.recordingCapabilities.
-pub(crate) const DEVICE_CAMERA_STREAM_RECORDING_CAPABILITIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_STREAM_RECORDING_CAPABILITIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.camera.stream.recordingCapabilities",
     "export function cameraStreamRecordingCapabilities(handle: CameraStreamHandle): Result<CameraRecordingCapabilities, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.camera.capture"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.recordingState.
-pub(crate) const DEVICE_CAMERA_STREAM_RECORDING_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_STREAM_RECORDING_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.camera.stream.recordingState",
     "export function cameraStreamRecordingState(handle: CameraStreamHandle): Result<CameraRecordingState, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.camera.capture"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.resumeRecording.
-pub(crate) const DEVICE_CAMERA_STREAM_RESUME_RECORDING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_STREAM_RESUME_RECORDING: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.camera.stream.resumeRecording",
     "export function cameraStreamResumeRecording(handle: CameraStreamHandle): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["device.camera.capture"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.start.
-pub(crate) const DEVICE_CAMERA_STREAM_START: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_STREAM_START: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.camera.stream.start",
     "export function cameraStreamStart(handle: CameraStreamHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.camera.capture"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.startRecording.
-pub(crate) const DEVICE_CAMERA_STREAM_START_RECORDING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_STREAM_START_RECORDING: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.camera.stream.startRecording",
     "export function cameraStreamStartRecording(handle: CameraStreamHandle, options: CameraRecordingOptions): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["device.camera.capture", "audio.capture"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.stop.
 pub(crate) const DEVICE_CAMERA_STREAM_STOP: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.device.camera.stream.stop",
         "export function cameraStreamStop(handle: CameraStreamHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["device.camera.capture"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.stopRecording.
-pub(crate) const DEVICE_CAMERA_STREAM_STOP_RECORDING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_STREAM_STOP_RECORDING: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.camera.stream.stopRecording",
     "export function cameraStreamStopRecording(handle: CameraStreamHandle, timeoutNs: uint64): Result<CameraRecording, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["device.camera.capture"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.takePhoto.
-pub(crate) const DEVICE_CAMERA_STREAM_TAKE_PHOTO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_STREAM_TAKE_PHOTO: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.camera.stream.takePhoto",
     "export function cameraStreamTakePhoto(handle: CameraStreamHandle, settings: CameraPhotoSettings, timeoutNs: uint64): Result<CameraPhoto, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.camera.capture"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.camera.stream.tryRead.
-pub(crate) const DEVICE_CAMERA_STREAM_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_CAMERA_STREAM_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.camera.stream.tryRead",
     "export function cameraStreamTryRead(handle: CameraStreamHandle): Result<CameraFrame, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.camera.capture"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.backend.list.
 pub(crate) const DEVICE_MIDI_BACKEND_LIST: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.device.midi.backend.list",
         "export function backendList(): Result<Slice<MidiBackendDescriptor>, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["device.midi.port"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.event.close.
 pub(crate) const DEVICE_MIDI_EVENT_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.device.midi.event.close",
         "export function eventClose(handle: MidiEventHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["device.midi.observe"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.event.open.
-pub(crate) const DEVICE_MIDI_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_MIDI_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.midi.event.open",
     "export function eventOpen(options: MidiEventSubscriptionOptions): Result<MidiEventHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.midi.observe"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.event.read.
-pub(crate) const DEVICE_MIDI_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_MIDI_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.midi.event.read",
     "export function eventRead(handle: MidiEventHandle, timeoutNs: uint64): Result<MidiEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.midi.observe"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.event.readBatch.
-pub(crate) const DEVICE_MIDI_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_MIDI_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.midi.event.readBatch",
     "export function eventReadBatch(handle: MidiEventHandle, maxEvents: uint32, timeoutNs: uint64): Result<Slice<MidiEvent>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.midi.observe"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.event.tryRead.
 pub(crate) const DEVICE_MIDI_EVENT_TRY_READ: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.device.midi.event.tryRead",
         "export function eventTryRead(handle: MidiEventHandle): Result<MidiEvent, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["device.midi.observe"],
-        BindingScope::Host,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.event.tryReadBatch.
-pub(crate) const DEVICE_MIDI_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_MIDI_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.midi.event.tryReadBatch",
     "export function eventTryReadBatch(handle: MidiEventHandle, maxEvents: uint32): Result<Slice<MidiEvent>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.midi.observe"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.input.port.close.
 pub(crate) const DEVICE_MIDI_INPUT_PORT_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.device.midi.input.port.close",
         "export function inputPortClose(handle: MidiInputPortHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["device.midi.port"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.input.port.descriptor.
-pub(crate) const DEVICE_MIDI_INPUT_PORT_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_MIDI_INPUT_PORT_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.midi.input.port.descriptor",
     "export function inputPortDescriptor(handle: MidiInputPortHandle): Result<MidiPortDescriptor, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.midi.port"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.input.port.list.
-pub(crate) const DEVICE_MIDI_INPUT_PORT_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_MIDI_INPUT_PORT_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.midi.input.port.list",
     "export function inputPortList(options: MidiPortListOptions): Result<Slice<MidiPortDescriptor>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.midi.port"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.input.port.open.
-pub(crate) const DEVICE_MIDI_INPUT_PORT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_MIDI_INPUT_PORT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.midi.input.port.open",
     "export function inputPortOpen(id: string, options: MidiInputPortOpenOptions): Result<MidiInputPortHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.midi.port"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.input.read.
-pub(crate) const DEVICE_MIDI_INPUT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_MIDI_INPUT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.midi.input.read",
     "export function inputRead(handle: MidiInputPortHandle, timeoutNs: uint64): Result<MidiInputRecord, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.midi.read"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.input.readBatch.
-pub(crate) const DEVICE_MIDI_INPUT_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_MIDI_INPUT_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.midi.input.readBatch",
     "export function inputReadBatch(handle: MidiInputPortHandle, maxRecords: uint32, timeoutNs: uint64): Result<MidiInputRecord[], PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.midi.read"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.input.tryRead.
-pub(crate) const DEVICE_MIDI_INPUT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_MIDI_INPUT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.midi.input.tryRead",
     "export function inputTryRead(handle: MidiInputPortHandle): Result<MidiInputRecord, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.midi.read"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.input.tryReadBatch.
-pub(crate) const DEVICE_MIDI_INPUT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_MIDI_INPUT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.midi.input.tryReadBatch",
     "export function inputTryReadBatch(handle: MidiInputPortHandle, maxRecords: uint32): Result<MidiInputRecord[], PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.midi.read"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.input.virtual.create.
-pub(crate) const DEVICE_MIDI_INPUT_VIRTUAL_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_MIDI_INPUT_VIRTUAL_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.midi.input.virtual.create",
     "export function inputVirtualCreate(options: MidiVirtualInputCreateOptions): Result<MidiInputPortHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.midi.virtual"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.output.port.close.
-pub(crate) const DEVICE_MIDI_OUTPUT_PORT_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_MIDI_OUTPUT_PORT_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.midi.output.port.close",
     "export function outputPortClose(handle: MidiOutputPortHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.midi.port"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.output.port.descriptor.
-pub(crate) const DEVICE_MIDI_OUTPUT_PORT_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_MIDI_OUTPUT_PORT_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.midi.output.port.descriptor",
     "export function outputPortDescriptor(handle: MidiOutputPortHandle): Result<MidiPortDescriptor, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.midi.port"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.output.port.list.
-pub(crate) const DEVICE_MIDI_OUTPUT_PORT_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_MIDI_OUTPUT_PORT_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.midi.output.port.list",
     "export function outputPortList(options: MidiPortListOptions): Result<Slice<MidiPortDescriptor>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.midi.port"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.output.port.open.
-pub(crate) const DEVICE_MIDI_OUTPUT_PORT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_MIDI_OUTPUT_PORT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.midi.output.port.open",
     "export function outputPortOpen(id: string, options: MidiOutputPortOpenOptions): Result<MidiOutputPortHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.midi.port"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.output.virtual.create.
-pub(crate) const DEVICE_MIDI_OUTPUT_VIRTUAL_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_MIDI_OUTPUT_VIRTUAL_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.midi.output.virtual.create",
     "export function outputVirtualCreate(options: MidiVirtualOutputCreateOptions): Result<MidiOutputPortHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.midi.virtual"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.midi.output.write.
-pub(crate) const DEVICE_MIDI_OUTPUT_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_MIDI_OUTPUT_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.midi.output.write",
     "export function outputWrite(handle: MidiOutputPortHandle, records: MidiOutputRecord[]): Result<uint32, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.midi.write"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.close.
 pub(crate) const DEVICE_SERIAL_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.device.serial.close",
         "export function serialClose(handle: SerialPortHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["device.serial.control"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.config.
-pub(crate) const DEVICE_SERIAL_CONFIG: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_SERIAL_CONFIG: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.serial.config",
     "export function serialConfig(handle: SerialPortHandle): Result<SerialPortConfig, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.serial.control"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.configure.
-pub(crate) const DEVICE_SERIAL_CONFIGURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_SERIAL_CONFIGURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.serial.configure",
     "export function serialConfigure(handle: SerialPortHandle, config: SerialPortConfig): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.serial.control"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.descriptor.
-pub(crate) const DEVICE_SERIAL_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_SERIAL_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.serial.descriptor",
     "export function serialDescriptor(handle: SerialPortHandle): Result<SerialPortDescriptor, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.serial.control"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.discardInput.
 pub(crate) const DEVICE_SERIAL_DISCARD_INPUT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.device.serial.discardInput",
         "export function serialDiscardInput(handle: SerialPortHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["device.serial.control"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.discardOutput.
-pub(crate) const DEVICE_SERIAL_DISCARD_OUTPUT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_SERIAL_DISCARD_OUTPUT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.serial.discardOutput",
     "export function serialDiscardOutput(handle: SerialPortHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.serial.control"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.drain.
 pub(crate) const DEVICE_SERIAL_DRAIN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.device.serial.drain",
         "export function serialDrain(handle: SerialPortHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["device.serial.write"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.getSignals.
-pub(crate) const DEVICE_SERIAL_GET_SIGNALS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_SERIAL_GET_SIGNALS: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.serial.getSignals",
     "export function serialGetSignals(handle: SerialPortHandle): Result<SerialInputSignals, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.serial.control"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.list.
 pub(crate) const DEVICE_SERIAL_LIST: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.device.serial.list",
         "export function serialList(): Result<Slice<SerialPortDescriptor>, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["device.serial.control"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.open.
-pub(crate) const DEVICE_SERIAL_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_SERIAL_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.serial.open",
     "export function serialOpen(id: string, options: SerialPortOpenOptions): Result<SerialPortHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.serial.control"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.readEvent.
-pub(crate) const DEVICE_SERIAL_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_SERIAL_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.serial.readEvent",
     "export function serialReadEvent(handle: SerialPortHandle, timeoutNs: uint64): Result<SerialEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.serial.control"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.readInto.
-pub(crate) const DEVICE_SERIAL_READ_INTO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_SERIAL_READ_INTO: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.serial.readInto",
     "export function serialReadInto(handle: SerialPortHandle, buffer: Slice<uint8>, timeoutNs: uint64): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.serial.read"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.setSignals.
-pub(crate) const DEVICE_SERIAL_SET_SIGNALS: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_SERIAL_SET_SIGNALS: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.serial.setSignals",
     "export function serialSetSignals(handle: SerialPortHandle, signals: SerialOutputSignals): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.serial.control"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.tryReadEvent.
-pub(crate) const DEVICE_SERIAL_TRY_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_SERIAL_TRY_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.serial.tryReadEvent",
     "export function serialTryReadEvent(handle: SerialPortHandle): Result<SerialEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.serial.control"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.tryReadInto.
-pub(crate) const DEVICE_SERIAL_TRY_READ_INTO: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_SERIAL_TRY_READ_INTO: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.serial.tryReadInto",
     "export function serialTryReadInto(handle: SerialPortHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.serial.read"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.watchClose.
 pub(crate) const DEVICE_SERIAL_WATCH_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.device.serial.watchClose",
         "export function serialWatchClose(handle: SerialWatchHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["device.serial.control"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.watchOpen.
 pub(crate) const DEVICE_SERIAL_WATCH_OPEN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.device.serial.watchOpen",
         "export function serialWatchOpen(): Result<SerialWatchHandle, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["device.serial.control"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.watchRead.
-pub(crate) const DEVICE_SERIAL_WATCH_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_SERIAL_WATCH_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.serial.watchRead",
     "export function serialWatchRead(handle: SerialWatchHandle, timeoutNs: uint64): Result<SerialWatchEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.serial.control"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.watchTryRead.
-pub(crate) const DEVICE_SERIAL_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_SERIAL_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.serial.watchTryRead",
     "export function serialWatchTryRead(handle: SerialWatchHandle): Result<SerialWatchEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.serial.control"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.serial.write.
-pub(crate) const DEVICE_SERIAL_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_SERIAL_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.serial.write",
     "export function serialWrite(handle: SerialPortHandle, data: Slice<uint8>, timeoutNs: uint64): Result<uint64, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.serial.write"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.bosCapabilityList.
-pub(crate) const DEVICE_USB_BOS_CAPABILITY_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_BOS_CAPABILITY_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.usb.bosCapabilityList",
     "export function usbBosCapabilityList(handle: UsbDeviceHandle): Result<Slice<UsbBosCapabilityDescriptor>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.usb.enumerate"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.bulkRead.
-pub(crate) const DEVICE_USB_BULK_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_BULK_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.usb.bulkRead",
     "export function usbBulkRead(handle: UsbDeviceHandle, endpoint: UsbEndpointSelector, maxBytes: uint32, timeoutNs: uint64): Result<UsbInTransferResult, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.usb.transfer"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.bulkWrite.
-pub(crate) const DEVICE_USB_BULK_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_BULK_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.usb.bulkWrite",
     "export function usbBulkWrite(handle: UsbDeviceHandle, endpoint: UsbEndpointSelector, bytes: Slice<uint8>, timeoutNs: uint64): Result<UsbOutTransferResult, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.usb.transfer"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.claimInterface.
-pub(crate) const DEVICE_USB_CLAIM_INTERFACE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_CLAIM_INTERFACE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.usb.claimInterface",
     "export function usbClaimInterface(handle: UsbDeviceHandle, interfaceNumber: uint8): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.usb.control"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.clearHalt.
-pub(crate) const DEVICE_USB_CLEAR_HALT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_CLEAR_HALT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.usb.clearHalt",
     "export function usbClearHalt(handle: UsbDeviceHandle, endpoint: UsbEndpointSelector): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.usb.control"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.close.
 pub(crate) const DEVICE_USB_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.device.usb.close",
         "export function usbClose(handle: UsbDeviceHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["device.usb.control"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.configurationGet.
-pub(crate) const DEVICE_USB_CONFIGURATION_GET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_CONFIGURATION_GET: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.usb.configurationGet",
     "export function usbConfigurationGet(handle: UsbDeviceHandle): Result<uint8, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.usb.control"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.configurationList.
-pub(crate) const DEVICE_USB_CONFIGURATION_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_CONFIGURATION_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.usb.configurationList",
     "export function usbConfigurationList(handle: UsbDeviceHandle): Result<Slice<UsbConfigurationDescriptor>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.usb.enumerate"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.configurationSet.
-pub(crate) const DEVICE_USB_CONFIGURATION_SET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_CONFIGURATION_SET: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.usb.configurationSet",
     "export function usbConfigurationSet(handle: UsbDeviceHandle, configurationValue: uint8): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.usb.control"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.controlRead.
-pub(crate) const DEVICE_USB_CONTROL_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_CONTROL_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.usb.controlRead",
     "export function usbControlRead(handle: UsbDeviceHandle, setup: UsbControlSetup, timeoutNs: uint64): Result<UsbInTransferResult, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.usb.transfer"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.controlWrite.
-pub(crate) const DEVICE_USB_CONTROL_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_CONTROL_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.usb.controlWrite",
     "export function usbControlWrite(handle: UsbDeviceHandle, setup: UsbControlSetup, bytes: Slice<uint8>, timeoutNs: uint64): Result<UsbOutTransferResult, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.usb.transfer"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.descriptor.
-pub(crate) const DEVICE_USB_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.usb.descriptor",
     "export function usbDescriptor(handle: UsbDeviceHandle): Result<UsbDeviceDescriptor, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.usb.enumerate"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.interruptRead.
-pub(crate) const DEVICE_USB_INTERRUPT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_INTERRUPT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.usb.interruptRead",
     "export function usbInterruptRead(handle: UsbDeviceHandle, endpoint: UsbEndpointSelector, maxBytes: uint32, timeoutNs: uint64): Result<UsbInTransferResult, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.usb.transfer"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.interruptWrite.
-pub(crate) const DEVICE_USB_INTERRUPT_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_INTERRUPT_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.usb.interruptWrite",
     "export function usbInterruptWrite(handle: UsbDeviceHandle, endpoint: UsbEndpointSelector, bytes: Slice<uint8>, timeoutNs: uint64): Result<UsbOutTransferResult, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.usb.transfer"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.isochronousRead.
-pub(crate) const DEVICE_USB_ISOCHRONOUS_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_ISOCHRONOUS_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.usb.isochronousRead",
     "export function usbIsochronousRead(handle: UsbDeviceHandle, endpoint: UsbEndpointSelector, packetSizes: Slice<uint32>, timeoutNs: uint64): Result<UsbIsochronousTransferResult, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.usb.transfer"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.isochronousWrite.
-pub(crate) const DEVICE_USB_ISOCHRONOUS_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_ISOCHRONOUS_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.usb.isochronousWrite",
     "export function usbIsochronousWrite(handle: UsbDeviceHandle, endpoint: UsbEndpointSelector, bytes: Slice<uint8>, packetSizes: Slice<uint32>, timeoutNs: uint64): Result<UsbIsochronousTransferResult, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.usb.transfer"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.list.
 pub(crate) const DEVICE_USB_LIST: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.device.usb.list",
         "export function usbList(): Result<Slice<UsbDeviceDescriptor>, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["device.usb.enumerate"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.open.
 pub(crate) const DEVICE_USB_OPEN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.device.usb.open",
         "export function usbOpen(id: string): Result<UsbDeviceHandle, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["device.usb.control"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.releaseInterface.
-pub(crate) const DEVICE_USB_RELEASE_INTERFACE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_RELEASE_INTERFACE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.usb.releaseInterface",
     "export function usbReleaseInterface(handle: UsbDeviceHandle, interfaceNumber: uint8): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.usb.control"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.reset.
 pub(crate) const DEVICE_USB_RESET: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.device.usb.reset",
         "export function usbReset(handle: UsbDeviceHandle): Result<void, PlatformError>",
         BindingReplayPolicy::NonRecordable,
         BindingReplayKind::BindingCall,
         &["device.usb.control"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.setInterfaceAlternateSetting.
-pub(crate) const DEVICE_USB_SET_INTERFACE_ALTERNATE_SETTING: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_SET_INTERFACE_ALTERNATE_SETTING: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.usb.setInterfaceAlternateSetting",
     "export function usbSetInterfaceAlternateSetting(handle: UsbDeviceHandle, interfaceNumber: uint8, alternateSetting: uint8): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.usb.control"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.stringDescriptor.
-pub(crate) const DEVICE_USB_STRING_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_STRING_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.usb.stringDescriptor",
     "export function usbStringDescriptor(handle: UsbDeviceHandle, languageId: uint16): Result<UsbStringDescriptor, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.usb.enumerate"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.stringLanguageList.
-pub(crate) const DEVICE_USB_STRING_LANGUAGE_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_STRING_LANGUAGE_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.usb.stringLanguageList",
     "export function usbStringLanguageList(handle: UsbDeviceHandle): Result<Slice<uint16>, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.usb.enumerate"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.transferCancel.
-pub(crate) const DEVICE_USB_TRANSFER_CANCEL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_TRANSFER_CANCEL: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.usb.transferCancel",
     "export function usbTransferCancel(handle: UsbDeviceHandle, endpoint: UsbEndpointSelector): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["device.usb.transfer"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.transferCancelAll.
-pub(crate) const DEVICE_USB_TRANSFER_CANCEL_ALL: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_TRANSFER_CANCEL_ALL: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.usb.transferCancelAll",
     "export function usbTransferCancelAll(handle: UsbDeviceHandle): Result<void, PlatformError>",
     BindingReplayPolicy::NonRecordable,
     BindingReplayKind::BindingCall,
     &["device.usb.transfer"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.watchClose.
 pub(crate) const DEVICE_USB_WATCH_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.device.usb.watchClose",
         "export function usbWatchClose(handle: UsbWatchHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["device.usb.enumerate"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.watchOpen.
 pub(crate) const DEVICE_USB_WATCH_OPEN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.device.usb.watchOpen",
         "export function usbWatchOpen(): Result<UsbWatchHandle, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["device.usb.enumerate"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.watchRead.
-pub(crate) const DEVICE_USB_WATCH_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_WATCH_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.usb.watchRead",
     "export function usbWatchRead(handle: UsbWatchHandle, timeoutNs: uint64): Result<UsbHotplugEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.usb.enumerate"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.device.usb.watchTryRead.
-pub(crate) const DEVICE_USB_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEVICE_USB_WATCH_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.device.usb.watchTryRead",
     "export function usbWatchTryRead(handle: UsbWatchHandle): Result<UsbHotplugEvent, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["device.usb.enumerate"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("device")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Native binding set for device.
 pub(crate) const DEVICE_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

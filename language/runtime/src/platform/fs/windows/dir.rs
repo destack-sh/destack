@@ -276,22 +276,6 @@ fn dirent_kind_from_find_data(data: &WIN32_FIND_DATAW) -> DirentKind {
 }
 
 /// Open a directory and return a handle.
-///
-/// Open the target resource with the requested flags and return the host handle exposed by the kernel.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses opendir/readdir on Unix and FindFirstFileW directory enumeration on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_opendir_bytes(
     binding: &BindingCallContext,
     out: *mut DirectoryHandle,
@@ -364,22 +348,6 @@ pub(crate) unsafe fn destack_fs_opendir_bytes(
 }
 
 /// Open a directory and return a handle.
-///
-/// Open the target resource with the requested flags and return the host handle exposed by the kernel.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses opendir/readdir on Unix and FindFirstFileW directory enumeration on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_opendir_utf16(
     binding: &BindingCallContext,
     out: *mut DirectoryHandle,
@@ -452,22 +420,6 @@ pub(crate) unsafe fn destack_fs_opendir_utf16(
 }
 
 /// Read directory entries from an open directory handle.
-///
-/// Read the full directory stream from the current cursor until the host reports end-of-directory.
-/// Entry ordering and type classification follow host directory iteration semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses readdir(3) loop on Unix and FindNextFileW loop on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_readdir(
     binding: &BindingCallContext,
     out: *mut NativeArray<Dirent>,
@@ -501,22 +453,6 @@ pub(crate) unsafe fn destack_fs_readdir(
 }
 
 /// Create a directory.
-///
-/// Create a single directory entry at the provided path with the supplied mode bits.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses mkdir(2) on Unix and CreateDirectoryW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdir_bytes(
     _binding: &BindingCallContext,
     path: PathBytes,
@@ -534,22 +470,6 @@ pub(crate) unsafe fn destack_fs_mkdir_bytes(
 }
 
 /// Create a directory.
-///
-/// Create a single directory entry at the provided path with the supplied mode bits.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses mkdir(2) on Unix and CreateDirectoryW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdir_utf16(
     _binding: &BindingCallContext,
     path: PathUtf16,
@@ -567,22 +487,6 @@ pub(crate) unsafe fn destack_fs_mkdir_utf16(
 }
 
 /// Create a directory relative to a directory handle.
-///
-/// Create a single directory entry relative to an existing directory descriptor.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses mkdirat(2) on Unix and handle-relative directory create on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdirat_bytes(
     binding: &BindingCallContext,
     dir: DirectoryHandle,
@@ -620,22 +524,6 @@ pub(crate) unsafe fn destack_fs_mkdirat_bytes(
 }
 
 /// Create a directory relative to a directory handle.
-///
-/// Create a single directory entry relative to an existing directory descriptor.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses mkdirat(2) on Unix and handle-relative directory create on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdirat_utf16(
     binding: &BindingCallContext,
     dir: DirectoryHandle,
@@ -673,22 +561,6 @@ pub(crate) unsafe fn destack_fs_mkdirat_utf16(
 }
 
 /// Remove a directory.
-///
-/// Remove the target resource through a single host namespace operation with no runtime fallback path.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses rmdir(2) on Unix and RemoveDirectoryW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_rmdir_bytes(
     _binding: &BindingCallContext,
     path: PathBytes,
@@ -708,22 +580,6 @@ pub(crate) unsafe fn destack_fs_rmdir_bytes(
 }
 
 /// Remove a directory.
-///
-/// Remove the target resource through a single host namespace operation with no runtime fallback path.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses rmdir(2) on Unix and RemoveDirectoryW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_rmdir_utf16(
     _binding: &BindingCallContext,
     path: PathUtf16,
@@ -743,22 +599,6 @@ pub(crate) unsafe fn destack_fs_rmdir_utf16(
 }
 
 /// Create a directory.
-///
-/// Create a single directory entry at the provided path with the supplied mode bits.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses mkdir(2) on Unix and CreateDirectoryW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdir(
     binding: &BindingCallContext,
     path: OsPath,
@@ -773,22 +613,6 @@ pub(crate) unsafe fn destack_fs_mkdir(
 }
 
 /// Create a directory relative to a directory handle.
-///
-/// Create a single directory entry relative to an existing directory descriptor.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses mkdirat(2) on Unix and handle-relative directory create on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_mkdirat(
     binding: &BindingCallContext,
     dir: DirectoryHandle,
@@ -804,22 +628,6 @@ pub(crate) unsafe fn destack_fs_mkdirat(
 }
 
 /// Remove a directory.
-///
-/// Remove the target resource through a single host namespace operation with no runtime fallback path.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses rmdir(2) on Unix and RemoveDirectoryW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_rmdir(
     binding: &BindingCallContext,
     path: OsPath,
@@ -833,22 +641,6 @@ pub(crate) unsafe fn destack_fs_rmdir(
 }
 
 /// Open a directory and return a handle.
-///
-/// Open the target resource with the requested flags and return the host handle exposed by the kernel.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses opendir/readdir on Unix and FindFirstFileW directory enumeration on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_opendir(
     binding: &BindingCallContext,
     out: *mut DirectoryHandle,
@@ -863,22 +655,6 @@ pub(crate) unsafe fn destack_fs_opendir(
 }
 
 /// Read a single directory entry from an open directory handle.
-///
-/// Read at most one entry from the current directory cursor and advance the host iterator.
-/// Callers can iterate deterministically by repeatedly invoking this operation until `entry` is void.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses readdir(3) step on Unix and FindNextFileW step on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_readdir_next(
     binding: &BindingCallContext,
     out: *mut DirentNext,
@@ -919,22 +695,6 @@ pub(crate) unsafe fn destack_fs_readdir_next(
 }
 
 /// Reset an open directory handle to the first entry.
-///
-/// Reset the directory iteration cursor to the beginning of the stream.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses rewinddir(3) on Unix and enumeration reset on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_rewinddir(
     binding: &BindingCallContext,
     handle: DirectoryHandle,
@@ -954,22 +714,6 @@ pub(crate) unsafe fn destack_fs_rewinddir(
 }
 
 /// Start watching a path and return a watch handle.
-///
-/// Registers the path with the native watch backend and starts event delivery for the selected mask.
-/// Event ordering and coalescing behavior are backend defined.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses inotify on Linux, kqueue on BSD, FSEvents on macOS, and ReadDirectoryChangesW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.watch`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_watch(
     binding: &BindingCallContext,
     out: *mut WatchHandle,
@@ -999,22 +743,6 @@ pub(crate) unsafe fn destack_fs_watch(
 }
 
 /// Close a watch handle.
-///
-/// Unregisters the watch from the backend and releases associated runtime resources.
-/// No further events are delivered after close succeeds.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend specific handle close and unregister operations.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.watch`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_watch_close(
     binding: &BindingCallContext,
     handle: WatchHandle,
@@ -1023,22 +751,6 @@ pub(crate) unsafe fn destack_fs_watch_close(
 }
 
 /// Read a batch of events from a watch handle.
-///
-/// Reads available watch records from the backend queue and reports overflow explicitly when events were dropped.
-/// Callers should treat `overflowed` as a signal to resynchronize state.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses inotify event reads on Linux, kevent on BSD, FSEvents stream reads on macOS, and ReadDirectoryChangesW reads on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.watch`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_watch_read(
     binding: &BindingCallContext,
     out: *mut WatchBatch,
@@ -1059,22 +771,6 @@ pub(crate) unsafe fn destack_fs_watch_read(
 }
 
 /// Start watching a path relative to a directory handle.
-///
-/// Resolves the path relative to the supplied directory and registers the resulting entry with the backend watcher.
-/// Event ordering and coalescing behavior are backend defined.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses inotify on Linux, kqueue on BSD, FSEvents on macOS, and ReadDirectoryChangesW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.watch`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_watchat(
     binding: &BindingCallContext,
     out: *mut WatchHandle,

@@ -7,22 +7,6 @@ use crate::platform::tty::core::ensure_out;
 use crate::runtime::BindingCallContext;
 
 /// Read bytes from a terminal.
-///
-/// Read one byte sequence from one terminal handle into caller memory.
-/// Read mode and canonical processing depend on active terminal mode settings.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses read(2) on Unix terminals and ReadConsole or ReadFile on Windows consoles.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_tty_read(
     binding: &BindingCallContext,
     out: *mut u64,
@@ -62,22 +46,6 @@ pub(crate) unsafe fn destack_tty_read(
 }
 
 /// Write bytes to a terminal.
-///
-/// Write one byte sequence from caller memory to one terminal handle.
-/// Encoding and newline translation follow host terminal API behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses write(2) on Unix terminals and WriteConsole or WriteFile on Windows consoles.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_tty_write(
     binding: &BindingCallContext,
     out: *mut u64,

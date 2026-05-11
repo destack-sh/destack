@@ -1371,24 +1371,6 @@ unsafe fn host_text_set_state(session_handle: u64, request: HostTextInputStateRe
 }
 
 /// Open one text input session.
-///
-/// Open one focused text input session for the active renderer editor and initial text state.
-/// The host uses this session to attach platform IME or editing services for the selected target scope.
-///
-/// # Platform
-/// Unix and Windows.
-/// Returns operation-level `notSupported` where text input sessions or one window scope are unavailable.
-/// Unix terminal and Windows console backends currently emit committed insert intents from cooked text input.
-/// Explicit window targets are used for session metadata and geometry hints when one opened window resource is provided.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `input.text`.
-///
-/// # Replay
-/// External, recordable.
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub(crate) unsafe fn destack_input_text_open(
     binding: &BindingCallContext,
@@ -1680,22 +1662,6 @@ pub(crate) unsafe fn destack_input_text_open(
 }
 
 /// Close one text input session.
-///
-/// Close one active text input session and detach any host IME or editing services.
-/// Pending composition updates are finalized or canceled according to backend policy.
-///
-/// # Platform
-/// Unix and Windows.
-/// Returns operation-level `notSupported` where text input sessions are unavailable.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `input.text`.
-///
-/// # Replay
-/// External, recordable.
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub(crate) unsafe fn destack_input_text_close(
     binding: &BindingCallContext,
@@ -1742,23 +1708,6 @@ pub(crate) unsafe fn destack_input_text_close(
 }
 
 /// Get text input area.
-///
-/// Return the currently configured text input area and cursor position hint.
-/// Resolve state for one active text input session.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where one window scope is unavailable.
-/// Uses backend-specific text-area hint state tracking.
-/// Explicit window targets are used for session metadata and geometry hints when one opened window resource is provided.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `input.text`.
-///
-/// # Replay
-/// External, recordable.
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub(crate) unsafe fn destack_input_text_get_geometry(
     binding: &BindingCallContext,

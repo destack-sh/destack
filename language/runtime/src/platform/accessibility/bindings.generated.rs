@@ -114,8 +114,8 @@ use crate::platform::{
     PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice, abi as platform_abi,
 };
 use crate::runtime::bindings::{
-    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
-    BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+    BindingAffinity, BindingDescriptor, BindingProvider, BindingRegistry, BindingReplayKind,
+    BindingReplayPolicy, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
 };
 use crate::runtime::trace::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
@@ -5143,215 +5143,200 @@ struct AccessibilityTreeHitTestReplayRecord {
 }
 
 /// Binding descriptor for destack.accessibility.action.close.
-pub(crate) const ACCESSIBILITY_ACTION_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const ACCESSIBILITY_ACTION_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.accessibility.action.close",
     "export function actionClose(handle: AccessibilityActionHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["accessibility.actions"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("accessibility")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.accessibility.action.open.
-pub(crate) const ACCESSIBILITY_ACTION_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const ACCESSIBILITY_ACTION_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.accessibility.action.open",
     "export function actionOpen(window: WindowHandle, options: AccessibilityActionOpenOptions): Result<AccessibilityActionHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["accessibility.actions"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("accessibility")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.accessibility.action.read.
-pub(crate) const ACCESSIBILITY_ACTION_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const ACCESSIBILITY_ACTION_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.accessibility.action.read",
     "export function actionRead(handle: AccessibilityActionHandle, timeoutNs: uint64): Result<AccessibilityAction, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["accessibility.actions"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("accessibility")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.accessibility.action.tryRead.
-pub(crate) const ACCESSIBILITY_ACTION_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const ACCESSIBILITY_ACTION_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.accessibility.action.tryRead",
     "export function actionTryRead(handle: AccessibilityActionHandle): Result<AccessibilityAction, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["accessibility.actions"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("accessibility")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.accessibility.document.clear.
-pub(crate) const ACCESSIBILITY_DOCUMENT_CLEAR: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const ACCESSIBILITY_DOCUMENT_CLEAR: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.accessibility.document.clear",
     "export function documentClear(window: WindowHandle, nodeId: AccessibilityNodeId): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["accessibility.publish"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("accessibility")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.accessibility.document.close.
-pub(crate) const ACCESSIBILITY_DOCUMENT_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const ACCESSIBILITY_DOCUMENT_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.accessibility.document.close",
     "export function documentClose(handle: AccessibilityDocumentHandle): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["accessibility.publish"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("accessibility")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.accessibility.document.open.
-pub(crate) const ACCESSIBILITY_DOCUMENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const ACCESSIBILITY_DOCUMENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.accessibility.document.open",
     "export function documentOpen(window: WindowHandle, options: AccessibilityDocumentOpenOptions): Result<AccessibilityDocumentHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["accessibility.publish"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("accessibility")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.accessibility.document.read.
-pub(crate) const ACCESSIBILITY_DOCUMENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const ACCESSIBILITY_DOCUMENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.accessibility.document.read",
     "export function documentRead(handle: AccessibilityDocumentHandle, timeoutNs: uint64): Result<AccessibilityDocumentQuery, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["accessibility.publish"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("accessibility")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.accessibility.document.respond.
-pub(crate) const ACCESSIBILITY_DOCUMENT_RESPOND: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const ACCESSIBILITY_DOCUMENT_RESPOND: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.accessibility.document.respond",
     "export function documentRespond(handle: AccessibilityDocumentHandle, response: AccessibilityDocumentResponse): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["accessibility.publish"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("accessibility")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.accessibility.document.set.
-pub(crate) const ACCESSIBILITY_DOCUMENT_SET: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const ACCESSIBILITY_DOCUMENT_SET: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.accessibility.document.set",
     "export function documentSet(window: WindowHandle, nodeId: AccessibilityNodeId, document: AccessibilityTextDocument): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["accessibility.publish"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("accessibility")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.accessibility.document.tryRead.
-pub(crate) const ACCESSIBILITY_DOCUMENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const ACCESSIBILITY_DOCUMENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.accessibility.document.tryRead",
     "export function documentTryRead(handle: AccessibilityDocumentHandle): Result<AccessibilityDocumentQuery, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["accessibility.publish"],
-    BindingScope::Host,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("accessibility")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.accessibility.notification.post.
-pub(crate) const ACCESSIBILITY_NOTIFICATION_POST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const ACCESSIBILITY_NOTIFICATION_POST: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.accessibility.notification.post",
     "export function notificationPost(window: WindowHandle, notification: AccessibilityNotification): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["accessibility.notify"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("accessibility")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.accessibility.tree.apply.
-pub(crate) const ACCESSIBILITY_TREE_APPLY: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const ACCESSIBILITY_TREE_APPLY: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.accessibility.tree.apply",
     "export function treeApply(window: WindowHandle, update: AccessibilityTreeUpdate): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["accessibility.publish"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("accessibility")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.accessibility.tree.clear.
 pub(crate) const ACCESSIBILITY_TREE_CLEAR: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.accessibility.tree.clear",
         "export function treeClear(window: WindowHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["accessibility.publish"],
-        BindingScope::Host,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Host,
+        BindingAffinity::None,
     )
     .with_namespace("accessibility")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.accessibility.tree.hitTest.
-pub(crate) const ACCESSIBILITY_TREE_HIT_TEST: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const ACCESSIBILITY_TREE_HIT_TEST: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.accessibility.tree.hitTest",
     "export function treeHitTest(window: WindowHandle, x: float64, y: float64): Result<AccessibilityNodeId | void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["accessibility.publish"],
-    BindingScope::Host,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Host,
+    BindingAffinity::None,
 )
     .with_namespace("accessibility")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Native binding set for accessibility.
 pub(crate) const ACCESSIBILITY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

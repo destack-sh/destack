@@ -14,22 +14,6 @@ use crate::runtime::BindingCallContext;
 const COPYFILE_FAIL_IF_EXISTS: u32 = 0x1;
 
 /// Copy a file.
-///
-/// Copy file contents from source path to destination path.
-/// Copy flags control overwrite behavior, and the destination mode follows host copy semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses copy_file_range/copy fallback on Unix and CopyFileW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`, `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_copyfile_bytes(
     _binding: &BindingCallContext,
     from: PathBytes,
@@ -63,22 +47,6 @@ pub(crate) unsafe fn destack_fs_copyfile_bytes(
 }
 
 /// Copy a file.
-///
-/// Copy file contents from source path to destination path.
-/// Copy flags control overwrite behavior, and the destination mode follows host copy semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses copy_file_range/copy fallback on Unix and CopyFileW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`, `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_copyfile_utf16(
     _binding: &BindingCallContext,
     from: PathUtf16,
@@ -112,22 +80,6 @@ pub(crate) unsafe fn destack_fs_copyfile_utf16(
 }
 
 /// Copy a range between file descriptors.
-///
-/// Copy bytes from one file descriptor range into another descriptor range.
-/// Source and destination offsets are applied exactly as provided to the host operation.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses copy_file_range(2) on linux and runtime copy fallback on other targets.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`, `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_copy_file_range(
     binding: &BindingCallContext,
     out: *mut u64,
@@ -216,22 +168,6 @@ pub(crate) unsafe fn destack_fs_copy_file_range(
 }
 
 /// Copy a file.
-///
-/// Copy file contents from source path to destination path.
-/// Copy flags control overwrite behavior, and the destination mode follows host copy semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses copy_file_range/copy fallback on Unix and CopyFileW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.read`, `fs.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_copyfile(
     binding: &BindingCallContext,
     from: OsPath,

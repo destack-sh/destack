@@ -120,22 +120,6 @@ fn statx_from_fallback_stat(stat: Stat) -> Statx {
 }
 
 /// Stat a file.
-///
-/// Stat a file via host kernel APIs.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses stat(2) on Unix and GetFileInformationByHandleEx on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.metadata`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_stat_bytes(
     _binding: &BindingCallContext,
     out: *mut Stat,
@@ -161,22 +145,6 @@ pub(crate) unsafe fn destack_fs_stat_bytes(
 }
 
 /// Stat a file.
-///
-/// Stat a file via host kernel APIs.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses stat(2) on Unix and GetFileInformationByHandleEx on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.metadata`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_stat_utf16(
     _binding: &BindingCallContext,
     out: *mut Stat,
@@ -202,22 +170,6 @@ pub(crate) unsafe fn destack_fs_stat_utf16(
 }
 
 /// Stat a file without following symlinks.
-///
-/// Stat a file without following symlinks via host kernel APIs.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses lstat(2) on Unix and reparse-point aware metadata query on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.metadata`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_lstat_bytes(
     _binding: &BindingCallContext,
     out: *mut Stat,
@@ -243,22 +195,6 @@ pub(crate) unsafe fn destack_fs_lstat_bytes(
 }
 
 /// Stat a file without following symlinks.
-///
-/// Stat a file without following symlinks via host kernel APIs.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses lstat(2) on Unix and reparse-point aware metadata query on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.metadata`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_lstat_utf16(
     _binding: &BindingCallContext,
     out: *mut Stat,
@@ -284,22 +220,6 @@ pub(crate) unsafe fn destack_fs_lstat_utf16(
 }
 
 /// Stat a filesystem.
-///
-/// Stat a filesystem via host kernel APIs.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses statfs/statvfs on Unix and GetDiskFreeSpaceExW/GetVolumeInformationW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.metadata`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_statfs_bytes(
     _binding: &BindingCallContext,
     out: *mut StatFs,
@@ -325,22 +245,6 @@ pub(crate) unsafe fn destack_fs_statfs_bytes(
 }
 
 /// Stat a filesystem.
-///
-/// Stat a filesystem via host kernel APIs.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses statfs/statvfs on Unix and GetDiskFreeSpaceExW/GetVolumeInformationW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.metadata`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_statfs_utf16(
     _binding: &BindingCallContext,
     out: *mut StatFs,
@@ -366,22 +270,6 @@ pub(crate) unsafe fn destack_fs_statfs_utf16(
 }
 
 /// Stat a file relative to a directory handle.
-///
-/// Stat a file relative to a directory handle via host kernel APIs.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses fstatat(2) on Unix and handle-relative stat on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.metadata`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_statat_bytes(
     binding: &BindingCallContext,
     out: *mut Stat,
@@ -440,22 +328,6 @@ pub(crate) unsafe fn destack_fs_statat_bytes(
 }
 
 /// Stat a file relative to a directory handle.
-///
-/// Stat a file relative to a directory handle via host kernel APIs.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses fstatat(2) on Unix and handle-relative stat on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.metadata`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_statat_utf16(
     binding: &BindingCallContext,
     out: *mut Stat,
@@ -514,22 +386,6 @@ pub(crate) unsafe fn destack_fs_statat_utf16(
 }
 
 /// Stat a file.
-///
-/// Stat a file via host kernel APIs.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses stat(2) on Unix and GetFileInformationByHandleEx on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.metadata`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_stat(
     binding: &BindingCallContext,
     out: *mut Stat,
@@ -544,22 +400,6 @@ pub(crate) unsafe fn destack_fs_stat(
 }
 
 /// Stat a file relative to a directory handle.
-///
-/// Stat a file relative to a directory handle via host kernel APIs.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses fstatat(2) on Unix and handle-relative stat on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.metadata`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_statat(
     binding: &BindingCallContext,
     out: *mut Stat,
@@ -576,22 +416,6 @@ pub(crate) unsafe fn destack_fs_statat(
 }
 
 /// Stat a file without following symlinks.
-///
-/// Stat a file without following symlinks via host kernel APIs.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses lstat(2) on Unix and reparse-point aware metadata query on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.metadata`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_lstat(
     binding: &BindingCallContext,
     out: *mut Stat,
@@ -606,22 +430,6 @@ pub(crate) unsafe fn destack_fs_lstat(
 }
 
 /// Stat a filesystem.
-///
-/// Stat a filesystem via host kernel APIs.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses statfs/statvfs on Unix and GetDiskFreeSpaceExW/GetVolumeInformationW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.metadata`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_statfs(
     binding: &BindingCallContext,
     out: *mut StatFs,
@@ -636,22 +444,6 @@ pub(crate) unsafe fn destack_fs_statfs(
 }
 
 /// Stat a path with statx semantics.
-///
-/// Stat a path with statx semantics via host kernel APIs.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses statx(2) on linux and runtime fallback on other targets.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.metadata`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_statx(
     binding: &BindingCallContext,
     out: *mut Statx,

@@ -27,23 +27,6 @@ fn apply_raw_mode(mode: &mut libc::termios, enabled: bool) {
 }
 
 /// Read terminal mode flags.
-///
-/// Read one terminal mode snapshot for one terminal handle.
-/// Mode fields are projected from host terminal APIs.
-/// Field-level behavior is host-specific, especially for non-POSIX backends.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses termios get attributes on Unix and GetConsoleMode on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.mode`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_tty_get_mode(
     binding: &BindingCallContext,
     out: *mut TtyMode,
@@ -84,22 +67,6 @@ pub(crate) unsafe fn destack_tty_get_mode(
 }
 
 /// Apply terminal mode flags.
-///
-/// Apply one terminal mode snapshot to one terminal handle.
-/// Mode transition timing and unsupported bits follow host API behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses termios set attributes on Unix and SetConsoleMode on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.mode`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_tty_set_mode(
     binding: &BindingCallContext,
     handle: resource::TtyHandle,
@@ -170,22 +137,6 @@ pub(crate) unsafe fn destack_tty_set_mode(
 }
 
 /// Enable or disable raw terminal mode.
-///
-/// Apply one host-defined raw-mode profile for one terminal handle.
-/// This maps to cfmakeraw-style behavior on Unix and console-mode toggles on Windows.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses cfmakeraw plus tcsetattr on Unix and SetConsoleMode profile updates on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.mode`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_tty_set_raw_mode(
     binding: &BindingCallContext,
     handle: resource::TtyHandle,

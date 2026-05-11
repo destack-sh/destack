@@ -9,22 +9,6 @@ use crate::platform::fs::core as core_fs;
 use std::ffi::{CStr, CString};
 
 /// Change the current working directory.
-///
-/// Update process working directory state for subsequent relative path resolution.
-/// Directory existence and permission checks are performed by the host kernel.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses chdir(2) on Unix and SetCurrentDirectoryW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `process.workdir.write`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_chdir(
     _binding: &BindingCallContext,
     path: fs::OsPath,
@@ -56,22 +40,6 @@ pub(crate) unsafe fn destack_process_chdir(
 }
 
 /// Return the current working directory.
-///
-/// Query the calling process working directory without changing process state.
-/// The returned path preserves host encoding through `OsPath`.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses getcwd(3) on Unix and GetCurrentDirectoryW on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `process.workdir.read`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_process_cwd(
     binding: &BindingCallContext,
     out: *mut fs::OsPath,

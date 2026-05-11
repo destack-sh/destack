@@ -469,7 +469,6 @@ pub(crate) unsafe fn window_open(
     let resource_id = context.worker().resources.insert(
         context.world(),
         display_resource::window_resource_entry(
-            context,
             Arc::clone(&connection_state),
             Arc::clone(&host_state),
         ),

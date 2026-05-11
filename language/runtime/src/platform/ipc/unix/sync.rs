@@ -166,22 +166,6 @@ fn unmap_futex_word(mapping: &FutexWordMapping) {
 }
 
 /// Wait on one shared-memory futex word.
-///
-/// Wait while one futex word matches the expected value.
-/// Offset is byte-based within the mapped shared memory object.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses futex wait on Linux and WaitOnAddress-style primitives on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioTimedOut, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `ipc.futex`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_ipc_futex_wait(
     binding: &BindingCallContext,
     sharedmemory: resource::SharedMemoryHandle,
@@ -314,22 +298,6 @@ pub(crate) unsafe fn destack_ipc_futex_wait(
 }
 
 /// Wake futex waiters for one shared-memory word.
-///
-/// Wake up to count waiters blocked on one futex word.
-/// Wake ordering follows host scheduler semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses futex wake on Linux and WakeByAddress-style primitives on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `ipc.futex`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_ipc_futex_wake(
     binding: &BindingCallContext,
     out: *mut u32,
@@ -390,22 +358,6 @@ pub(crate) unsafe fn destack_ipc_futex_wake(
 }
 
 /// Create one named semaphore.
-///
-/// Create one named interprocess semaphore with an initial count.
-/// Name visibility and ownership follow host semaphore namespace rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses POSIX semaphores on Unix and named semaphore objects on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioAlreadyExists, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `ipc.semaphore`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_ipc_semaphore_create(
     binding: &BindingCallContext,
     out: *mut resource::SemaphoreHandle,
@@ -441,22 +393,6 @@ pub(crate) unsafe fn destack_ipc_semaphore_create(
 }
 
 /// Increment one semaphore count.
-///
-/// Release one waiting semaphore acquisition by incrementing the count.
-/// Wakeup ordering follows host semaphore scheduling behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses sem_post on Unix and ReleaseSemaphore on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `ipc.semaphore`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_ipc_semaphore_post(
     binding: &BindingCallContext,
     handle: resource::SemaphoreHandle,
@@ -483,22 +419,6 @@ pub(crate) unsafe fn destack_ipc_semaphore_post(
 }
 
 /// Wait one semaphore count.
-///
-/// Decrement one semaphore count, waiting up to the provided timeout.
-/// Timeout units are nanoseconds and follow host wait semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses sem_timedwait or sem_wait on Unix and WaitForSingleObject on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioTimedOut, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `ipc.semaphore`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_ipc_semaphore_wait(
     binding: &BindingCallContext,
     handle: resource::SemaphoreHandle,

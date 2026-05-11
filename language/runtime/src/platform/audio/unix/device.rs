@@ -14,22 +14,6 @@ use crate::platform::{PlatformError, core as core_platform, resource};
 use crate::runtime::BindingCallContext;
 
 /// List host audio backends.
-///
-/// Enumerate available backend implementations and backend-level feature flags.
-///
-/// # Platform
-/// Unix and Windows.
-/// Mirrors cubeb `cubeb_get_backend_names`, libsoundio `soundio_backend_count` plus `soundio_get_backend`, and miniaudio `ma_get_enabled_backends`.
-/// Mirrors PortAudio host-api enumeration through `PaHostApiTypeId`.
-///
-/// # Errors
-/// Returns ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `audio.device`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_audio_backend_list(
     binding: &BindingCallContext,
     out: *mut NativeSlice<AudioBackendDescriptor>,
@@ -47,22 +31,6 @@ pub(crate) unsafe fn destack_audio_backend_list(
 }
 
 /// Trigger one backend rescan.
-///
-/// Request one immediate backend device rescan.
-/// This allows recovery from stale backend snapshots after hotplug churn.
-///
-/// # Platform
-/// Unix and Windows.
-/// Mirrors libsoundio `soundio_force_device_scan` semantics and backend-native refresh flows.
-///
-/// # Errors
-/// Returns ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `audio.device.monitor`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_audio_device_rescan(
     binding: &BindingCallContext,
     backend: AudioBackend,
@@ -80,22 +48,6 @@ pub(crate) unsafe fn destack_audio_device_rescan(
 }
 
 /// Close one audio device endpoint.
-///
-/// Close one opened audio endpoint and release host resources.
-/// Close semantics follow host backend teardown behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available endpoint close operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `audio.device`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_audio_device_close(
     binding: &BindingCallContext,
     handle: resource::AudioDeviceHandle,
@@ -116,23 +68,6 @@ pub(crate) unsafe fn destack_audio_device_close(
 }
 
 /// Read one default device identifier for the selected direction.
-///
-/// Resolve one default host audio endpoint for the selected direction and backend policy.
-/// Default selection can change asynchronously as host policy changes.
-///
-/// # Platform
-/// Unix and Windows.
-/// Mirrors cubeb and libsoundio default-endpoint query semantics.
-/// Mirrors SDL default logical-device routing behavior for playback and recording defaults.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `audio.device`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_audio_device_default(
     binding: &BindingCallContext,
     out: *mut NativeStringRef,
@@ -197,22 +132,6 @@ pub(crate) unsafe fn destack_audio_device_default(
 }
 
 /// Read metadata for one opened device endpoint.
-///
-/// Read one normalized snapshot for one opened device handle.
-/// Snapshot values are advisory and can change as host routes are updated.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available endpoint information query APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `audio.device`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_audio_device_descriptor(
     binding: &BindingCallContext,
     out: *mut AudioDeviceDescriptor,
@@ -233,22 +152,6 @@ pub(crate) unsafe fn destack_audio_device_descriptor(
 }
 
 /// List available audio devices.
-///
-/// Enumerate host audio endpoints and return stable identifiers for later open operations.
-/// Device visibility and ordering follow host backend semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available device enumeration.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `audio.device`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_audio_device_list(
     binding: &BindingCallContext,
     out: *mut NativeSlice<AudioDeviceDescriptor>,
@@ -271,22 +174,6 @@ pub(crate) unsafe fn destack_audio_device_list(
 }
 
 /// Open one audio device endpoint.
-///
-/// Open one host audio endpoint for playback, capture, duplex, or loopback operation.
-/// Handle lifetime and exclusivity semantics follow host backend rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available endpoint open operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `audio.device`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_audio_device_open(
     binding: &BindingCallContext,
     out: *mut resource::AudioDeviceHandle,

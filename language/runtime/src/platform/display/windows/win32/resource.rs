@@ -43,7 +43,7 @@ pub(crate) fn open_display_handle(
 ) -> resource::DisplayHandle {
     let entry = ResourceEntry::new(ResourceKind::Display)
         .with_label(DISPLAY_RESOURCE_LABEL)
-        .with_binding_affinity(BindingAffinity::EventLoop, binding.execution_context())
+        .with_binding_affinity(BindingAffinity::Worker)
         .with_payload(Win32DisplayHostState { id });
     let resource_id =
         binding
@@ -152,13 +152,12 @@ pub(crate) fn resolve_window_event_stream(
 
 /// Build one resource entry for one opened window host state.
 pub(crate) fn window_resource_entry(
-    context: &BindingCallContext,
     hwnd: HWND,
     binding: Arc<Mutex<Win32WindowHostState>>,
 ) -> ResourceEntry {
     ResourceEntry::new(ResourceKind::Window)
         .with_label(WINDOW_RESOURCE_LABEL)
-        .with_binding_affinity(BindingAffinity::EventLoop, context.execution_context())
+        .with_binding_affinity(BindingAffinity::Worker)
         .with_handle(hwnd as *mut c_void)
         .with_payload(binding)
         .with_finalizer(Win32WindowFinalizer { hwnd })

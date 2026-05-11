@@ -106,7 +106,7 @@ pub(crate) unsafe fn window_event_open(
         &binding.world(),
         ResourceEntry::new(ResourceKind::Window)
             .with_label(win32_core::WINDOW_EVENT_RESOURCE_LABEL)
-            .with_binding_affinity(BindingAffinity::EventLoop, binding.execution_context())
+            .with_binding_affinity(BindingAffinity::Worker)
             .with_payload(Arc::clone(&resolved_stream)),
         Some(binding.engine()),
     );

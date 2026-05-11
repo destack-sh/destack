@@ -19,8 +19,8 @@ use crate::platform::{
     NativeArray, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, abi as platform_abi,
 };
 use crate::runtime::bindings::{
-    BindingAffinity, BindingBlocking, BindingDescriptor, BindingRegistry, BindingReplayKind,
-    BindingReplayPolicy, BindingScope, NativeBinding, NativeBindingSet, native_call,
+    BindingAffinity, BindingDescriptor, BindingProvider, BindingRegistry, BindingReplayKind,
+    BindingReplayPolicy, NativeBinding, NativeBindingSet, native_call,
 };
 use crate::runtime::trace::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
@@ -499,164 +499,164 @@ struct DebugTraceStopReplayRecord {
 
 /// Binding descriptor for destack.debug.core.breakNow.
 pub(crate) const DEBUG_CORE_BREAK_NOW: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.debug.core.breakNow",
         "export function breakNow(): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["debug.inspect"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Runtime,
+        BindingAffinity::None,
     )
     .with_namespace("debug")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.debug.core.mark.
 pub(crate) const DEBUG_CORE_MARK: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.debug.core.mark",
         "export function mark(label: string): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["debug.trace"],
-        BindingScope::Runtime,
-        BindingBlocking::Never,
-        BindingAffinity::Any,
+        BindingProvider::Runtime,
+        BindingAffinity::None,
     )
     .with_namespace("debug")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.debug.inspector.endpoint.
-pub(crate) const DEBUG_INSPECTOR_ENDPOINT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEBUG_INSPECTOR_ENDPOINT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.debug.inspector.endpoint",
     "export function inspectorEndpoint(handle: InspectorHandle): Result<InspectorEndpoint, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["debug.inspect"],
-    BindingScope::Runtime,
-    BindingBlocking::Never,
-    BindingAffinity::Any,
+    BindingProvider::Runtime,
+    BindingAffinity::None,
 )
     .with_namespace("debug")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.debug.inspector.start.
-pub(crate) const DEBUG_INSPECTOR_START: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEBUG_INSPECTOR_START: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.debug.inspector.start",
     "export function inspectorStart(host: string, port: uint16): Result<InspectorHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["debug.inspect"],
-    BindingScope::Runtime,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Runtime,
+    BindingAffinity::None,
 )
     .with_namespace("debug")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.debug.inspector.stop.
 pub(crate) const DEBUG_INSPECTOR_STOP: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.debug.inspector.stop",
         "export function inspectorStop(handle: InspectorHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["debug.inspect"],
-        BindingScope::Runtime,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Runtime,
+        BindingAffinity::None,
     )
     .with_namespace("debug")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.debug.profile.snapshot.
 pub(crate) const DEBUG_PROFILE_SNAPSHOT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.debug.profile.snapshot",
         "export function profileSnapshot(handle: ProfileHandle): Result<uint8[], PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["debug.profile"],
-        BindingScope::Runtime,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Runtime,
+        BindingAffinity::None,
     )
     .with_namespace("debug")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.debug.profile.start.
 pub(crate) const DEBUG_PROFILE_START: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.debug.profile.start",
         "export function profileStart(kind: ProfileKind): Result<ProfileHandle, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["debug.profile"],
-        BindingScope::Runtime,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Runtime,
+        BindingAffinity::None,
     )
     .with_namespace("debug")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.debug.profile.stop.
 pub(crate) const DEBUG_PROFILE_STOP: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.debug.profile.stop",
         "export function profileStop(handle: ProfileHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["debug.profile"],
-        BindingScope::Runtime,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Runtime,
+        BindingAffinity::None,
     )
     .with_namespace("debug")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.debug.trace.emit.
-pub(crate) const DEBUG_TRACE_EMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEBUG_TRACE_EMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.debug.trace.emit",
     "export function traceEmit(category: string, name: string, payloadJson: string): Result<void, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["debug.trace"],
-    BindingScope::Runtime,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Runtime,
+    BindingAffinity::None,
 )
     .with_namespace("debug")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.debug.trace.start.
-pub(crate) const DEBUG_TRACE_START: BindingDescriptor = BindingDescriptor::external_with_requires_and_behavior(
+pub(crate) const DEBUG_TRACE_START: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
     "destack.debug.trace.start",
     "export function traceStart(level: TraceLevel, destination: string): Result<TraceHandle, PlatformError>",
     BindingReplayPolicy::Recordable,
     BindingReplayKind::BindingCall,
     &["debug.trace"],
-    BindingScope::Runtime,
-    BindingBlocking::Sometimes,
-    BindingAffinity::Any,
+    BindingProvider::Runtime,
+    BindingAffinity::None,
 )
     .with_namespace("debug")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.debug.trace.stop.
 pub(crate) const DEBUG_TRACE_STOP: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_behavior(
+    BindingDescriptor::external_with_requires_and_dispatch(
         "destack.debug.trace.stop",
         "export function traceStop(handle: TraceHandle): Result<void, PlatformError>",
         BindingReplayPolicy::Recordable,
         BindingReplayKind::BindingCall,
         &["debug.trace"],
-        BindingScope::Runtime,
-        BindingBlocking::Sometimes,
-        BindingAffinity::Any,
+        BindingProvider::Runtime,
+        BindingAffinity::None,
     )
     .with_namespace("debug")
-    .with_host_platforms(&["android", "ios", "linux", "macos", "wasi", "windows"]);
+    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
+    .with_hosts(&["wasi"]);
 
 /// Native binding set for debug.
 pub(crate) const DEBUG_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

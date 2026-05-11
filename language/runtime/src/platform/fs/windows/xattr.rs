@@ -502,22 +502,6 @@ where
 }
 
 /// Read an extended attribute by path with a raw name payload.
-///
-/// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
-/// Raw name bytes preserve host namespace data without UTF transcoding.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses getxattr(2) on Unix and extended-attribute APIs where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_getxattr_bytes(
     binding: &BindingCallContext,
     out: *mut NativeArray<u8>,
@@ -547,22 +531,6 @@ pub(crate) unsafe fn destack_fs_getxattr_bytes(
 }
 
 /// Read an extended attribute by path.
-///
-/// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
-/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses getxattr(2) on Unix and extended-attribute APIs where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_getxattr_utf16(
     binding: &BindingCallContext,
     out: *mut NativeArray<u8>,
@@ -592,22 +560,6 @@ pub(crate) unsafe fn destack_fs_getxattr_utf16(
 }
 
 /// Read an extended attribute without following symlinks, using a raw name payload.
-///
-/// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
-/// Raw name bytes preserve host namespace data without UTF transcoding.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses lgetxattr(2) on Unix and reparse-aware xattr query where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_lgetxattr_bytes(
     binding: &BindingCallContext,
     out: *mut NativeArray<u8>,
@@ -637,22 +589,6 @@ pub(crate) unsafe fn destack_fs_lgetxattr_bytes(
 }
 
 /// Read an extended attribute without following symlinks.
-///
-/// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
-/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses lgetxattr(2) on Unix and reparse-aware xattr query where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_lgetxattr_utf16(
     binding: &BindingCallContext,
     out: *mut NativeArray<u8>,
@@ -682,22 +618,6 @@ pub(crate) unsafe fn destack_fs_lgetxattr_utf16(
 }
 
 /// Read an extended attribute by handle.
-///
-/// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
-/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses fgetxattr(2) on Unix and handle-based xattr query where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_fgetxattr_handle(
     binding: &BindingCallContext,
     out: *mut NativeArray<u8>,
@@ -725,22 +645,6 @@ pub(crate) unsafe fn destack_fs_fgetxattr_handle(
 }
 
 /// Set an extended attribute by path with a raw name payload.
-///
-/// Set the requested control value on the descriptor through the native option interface.
-/// Raw name bytes preserve host namespace data without UTF transcoding.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses setxattr(2) on Unix and extended-attribute APIs where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_setxattr_bytes(
     _binding: &BindingCallContext,
     path: PathBytes,
@@ -780,22 +684,6 @@ pub(crate) unsafe fn destack_fs_setxattr_bytes(
 }
 
 /// Set an extended attribute by path.
-///
-/// Set the requested control value on the descriptor through the native option interface.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses setxattr(2) on Unix and extended-attribute APIs where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_setxattr_utf16(
     _binding: &BindingCallContext,
     path: PathUtf16,
@@ -835,22 +723,6 @@ pub(crate) unsafe fn destack_fs_setxattr_utf16(
 }
 
 /// Set an extended attribute without following symlinks, using a raw name payload.
-///
-/// Set the requested control value on the descriptor through the native option interface.
-/// Raw name bytes preserve host namespace data without UTF transcoding.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses lsetxattr(2) on Unix and reparse-aware xattr write where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_lsetxattr_bytes(
     _binding: &BindingCallContext,
     path: PathBytes,
@@ -890,22 +762,6 @@ pub(crate) unsafe fn destack_fs_lsetxattr_bytes(
 }
 
 /// Set an extended attribute without following symlinks.
-///
-/// Set the requested control value on the descriptor through the native option interface.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses lsetxattr(2) on Unix and reparse-aware xattr write where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_lsetxattr_utf16(
     _binding: &BindingCallContext,
     path: PathUtf16,
@@ -945,22 +801,6 @@ pub(crate) unsafe fn destack_fs_lsetxattr_utf16(
 }
 
 /// Set an extended attribute by handle.
-///
-/// Set the requested control value on the descriptor through the native option interface.
-/// The binding performs one control transaction and returns the exact host outcome without policy retries.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses fsetxattr(2) on Unix and handle-based xattr write where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_fsetxattr_handle(
     binding: &BindingCallContext,
     handle: FileHandle,
@@ -994,22 +834,6 @@ pub(crate) unsafe fn destack_fs_fsetxattr_handle(
 }
 
 /// List extended attribute names by path as raw byte payloads.
-///
-/// List extended attribute names by path via host kernel APIs.
-/// Raw name bytes preserve host namespace data without UTF transcoding.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses listxattr(2) on Unix and xattr enumeration APIs where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_listxattr_bytes(
     binding: &BindingCallContext,
     out: *mut NativeArray<NativeArray<u8>>,
@@ -1036,22 +860,6 @@ pub(crate) unsafe fn destack_fs_listxattr_bytes(
 }
 
 /// List extended attribute names by path.
-///
-/// List extended attribute names by path via host kernel APIs.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses listxattr(2) on Unix and xattr enumeration APIs where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_listxattr_utf16(
     binding: &BindingCallContext,
     out: *mut NativeArray<NativeArray<u8>>,
@@ -1078,22 +886,6 @@ pub(crate) unsafe fn destack_fs_listxattr_utf16(
 }
 
 /// List extended attribute names without following symlinks as raw byte payloads.
-///
-/// List extended attribute names without following symlinks via host kernel APIs.
-/// Raw name bytes preserve host namespace data without UTF transcoding.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses llistxattr(2) on Unix and reparse-aware xattr enumeration on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_llistxattr_bytes(
     binding: &BindingCallContext,
     out: *mut NativeArray<NativeArray<u8>>,
@@ -1120,22 +912,6 @@ pub(crate) unsafe fn destack_fs_llistxattr_bytes(
 }
 
 /// List extended attribute names without following symlinks.
-///
-/// List extended attribute names without following symlinks via host kernel APIs.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses llistxattr(2) on Unix and reparse-aware xattr enumeration on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_llistxattr_utf16(
     binding: &BindingCallContext,
     out: *mut NativeArray<NativeArray<u8>>,
@@ -1162,22 +938,6 @@ pub(crate) unsafe fn destack_fs_llistxattr_utf16(
 }
 
 /// List extended attribute names by handle.
-///
-/// List extended attribute names by handle via host kernel APIs.
-/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses flistxattr(2) on Unix and handle-based xattr enumeration on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_flistxattr_handle(
     binding: &BindingCallContext,
     out: *mut NativeArray<NativeArray<u8>>,
@@ -1202,22 +962,6 @@ pub(crate) unsafe fn destack_fs_flistxattr_handle(
 }
 
 /// Remove an extended attribute by path with a raw name payload.
-///
-/// Remove the target resource through a single host namespace operation with no runtime fallback path.
-/// Raw name bytes preserve host namespace data without UTF transcoding.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses removexattr(2) on Unix and xattr delete APIs where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_removexattr_bytes(
     _binding: &BindingCallContext,
     path: PathBytes,
@@ -1233,22 +977,6 @@ pub(crate) unsafe fn destack_fs_removexattr_bytes(
 }
 
 /// Remove an extended attribute by path.
-///
-/// Remove the target resource through a single host namespace operation with no runtime fallback path.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses removexattr(2) on Unix and xattr delete APIs where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_removexattr_utf16(
     _binding: &BindingCallContext,
     path: PathUtf16,
@@ -1264,22 +992,6 @@ pub(crate) unsafe fn destack_fs_removexattr_utf16(
 }
 
 /// Remove an extended attribute without following symlinks, using a raw name payload.
-///
-/// Remove the target resource through a single host namespace operation with no runtime fallback path.
-/// Raw name bytes preserve host namespace data without UTF transcoding.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses lremovexattr(2) on Unix and reparse-aware xattr delete on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_lremovexattr_bytes(
     _binding: &BindingCallContext,
     path: PathBytes,
@@ -1295,22 +1007,6 @@ pub(crate) unsafe fn destack_fs_lremovexattr_bytes(
 }
 
 /// Remove an extended attribute without following symlinks.
-///
-/// Remove the target resource through a single host namespace operation with no runtime fallback path.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses lremovexattr(2) on Unix and reparse-aware xattr delete on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_lremovexattr_utf16(
     _binding: &BindingCallContext,
     path: PathUtf16,
@@ -1326,22 +1022,6 @@ pub(crate) unsafe fn destack_fs_lremovexattr_utf16(
 }
 
 /// Remove an extended attribute by handle.
-///
-/// Remove the target resource through a single host namespace operation with no runtime fallback path.
-/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses fremovexattr(2) on Unix and handle-based xattr delete on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_fremovexattr_handle(
     binding: &BindingCallContext,
     handle: FileHandle,
@@ -1356,22 +1036,6 @@ pub(crate) unsafe fn destack_fs_fremovexattr_handle(
 }
 
 /// Read an extended attribute by path.
-///
-/// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
-/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses getxattr(2) on Unix and extended-attribute APIs where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_getxattr(
     binding: &BindingCallContext,
     out: *mut NativeArray<u8>,
@@ -1393,22 +1057,6 @@ pub(crate) unsafe fn destack_fs_getxattr(
 }
 
 /// Read an extended attribute without following symlinks.
-///
-/// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
-/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses lgetxattr(2) on Unix and reparse-aware xattr query where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_lgetxattr(
     binding: &BindingCallContext,
     out: *mut NativeArray<u8>,
@@ -1430,22 +1078,6 @@ pub(crate) unsafe fn destack_fs_lgetxattr(
 }
 
 /// Read an extended attribute by handle.
-///
-/// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
-/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses fgetxattr(2) on Unix and handle-based xattr query where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_fgetxattr(
     binding: &BindingCallContext,
     out: *mut NativeArray<u8>,
@@ -1460,22 +1092,6 @@ pub(crate) unsafe fn destack_fs_fgetxattr(
 }
 
 /// Set an extended attribute by path.
-///
-/// Set the requested control value on the descriptor through the native option interface.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses setxattr(2) on Unix and extended-attribute APIs where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_setxattr(
     binding: &BindingCallContext,
     path: OsPath,
@@ -1498,22 +1114,6 @@ pub(crate) unsafe fn destack_fs_setxattr(
 }
 
 /// Set an extended attribute without following symlinks.
-///
-/// Set the requested control value on the descriptor through the native option interface.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses lsetxattr(2) on Unix and reparse-aware xattr write where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_lsetxattr(
     binding: &BindingCallContext,
     path: OsPath,
@@ -1536,22 +1136,6 @@ pub(crate) unsafe fn destack_fs_lsetxattr(
 }
 
 /// Set an extended attribute by handle.
-///
-/// Set the requested control value on the descriptor through the native option interface.
-/// The binding performs one control transaction and returns the exact host outcome without policy retries.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses fsetxattr(2) on Unix and handle-based xattr write where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_fsetxattr(
     binding: &BindingCallContext,
     handle: FileHandle,
@@ -1567,22 +1151,6 @@ pub(crate) unsafe fn destack_fs_fsetxattr(
 }
 
 /// List extended attribute names by path.
-///
-/// List extended attribute names by path via host kernel APIs.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses listxattr(2) on Unix and xattr enumeration APIs where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_listxattr(
     binding: &BindingCallContext,
     out: *mut NativeArray<NativeStringRef>,
@@ -1615,22 +1183,6 @@ pub(crate) unsafe fn destack_fs_listxattr(
 }
 
 /// List extended attribute names without following symlinks.
-///
-/// List extended attribute names without following symlinks via host kernel APIs.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses llistxattr(2) on Unix and reparse-aware xattr enumeration on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_llistxattr(
     binding: &BindingCallContext,
     out: *mut NativeArray<NativeStringRef>,
@@ -1663,22 +1215,6 @@ pub(crate) unsafe fn destack_fs_llistxattr(
 }
 
 /// List extended attribute names by handle.
-///
-/// List extended attribute names by handle via host kernel APIs.
-/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses flistxattr(2) on Unix and handle-based xattr enumeration on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_flistxattr(
     binding: &BindingCallContext,
     out: *mut NativeArray<NativeStringRef>,
@@ -1704,22 +1240,6 @@ pub(crate) unsafe fn destack_fs_flistxattr(
 }
 
 /// Remove an extended attribute by path.
-///
-/// Remove the target resource through a single host namespace operation with no runtime fallback path.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses removexattr(2) on Unix and xattr delete APIs where available on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_removexattr(
     binding: &BindingCallContext,
     path: OsPath,
@@ -1740,22 +1260,6 @@ pub(crate) unsafe fn destack_fs_removexattr(
 }
 
 /// Remove an extended attribute without following symlinks.
-///
-/// Remove the target resource through a single host namespace operation with no runtime fallback path.
-/// Paths are forwarded from `OsPath` without runtime normalization or canonicalization, and permission checks follow host filesystem rules.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses lremovexattr(2) on Unix and reparse-aware xattr delete on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_lremovexattr(
     binding: &BindingCallContext,
     path: OsPath,
@@ -1776,22 +1280,6 @@ pub(crate) unsafe fn destack_fs_lremovexattr(
 }
 
 /// Remove an extended attribute by handle.
-///
-/// Remove the target resource through a single host namespace operation with no runtime fallback path.
-/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the kernel feature is unavailable.
-/// Uses fremovexattr(2) on Unix and handle-based xattr delete on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `fs.xattr`.
-///
-/// # Replay
-/// External, recordable.
 pub(crate) unsafe fn destack_fs_fremovexattr(
     binding: &BindingCallContext,
     handle: FileHandle,
