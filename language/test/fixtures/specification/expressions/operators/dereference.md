@@ -2,22 +2,22 @@
 
 Dereference turns wrapper values into borrowed access.
 
-## read
+## access
 
 ### readonly dereference
 
-`*value` returns `ReadonlyOutput`.
+Read uses `Dereference<"readonly">`.
 
 ```ds
 struct Ref<T> {
     value: T;
 }
 
-extension<T> of Ref<T> implements ReadonlyDereference {
-    type ReadonlyOutput = &readonly T;
+extension<T> of Ref<T> implements Dereference<"readonly"> {
+    type Output = &T;
 
-    readonlyDereference(): this.ReadonlyOutput {
-        &this.value
+    dereference(): &readonly T {
+        &readonly this.value
     }
 }
 
@@ -29,7 +29,7 @@ value satisfies &readonly int32;
 
 ### missing dereference
 
-`*value` requires `ReadonlyDereference`.
+`*value` requires readonly dereference.
 
 ```ds
 struct Ref<T> {
@@ -43,26 +43,19 @@ const value = *getRef();
 
 - contains: no matching overload
 
-## assignment
-
 ### mutable dereference
 
-Assignment through `*value` requires `Dereference`.
+Assignment through `*value` uses `Dereference<"mutable">`.
 
 ```ds
 struct Ref<T> {
     value: T;
 }
 
-extension<T> of Ref<T> implements Dereference {
-    type ReadonlyOutput = &readonly T;
+extension<T> of Ref<T> implements Dereference<"mutable"> {
     type Output = &T;
 
-    readonlyDereference(): this.ReadonlyOutput {
-        &this.value
-    }
-
-    dereference(): this.Output {
+    dereference(): &T {
         &this.value
     }
 }
@@ -73,20 +66,20 @@ let value = getRef();
 *value = 2;
 ```
 
-### readonly dereference
+### readonly dereference rejects assignment
 
-`ReadonlyDereference` is not enough for assignment.
+Readonly dereference is not enough for assignment.
 
 ```ds
 struct Ref<T> {
     value: T;
 }
 
-extension<T> of Ref<T> implements ReadonlyDereference {
-    type ReadonlyOutput = &readonly T;
+extension<T> of Ref<T> implements Dereference<"readonly"> {
+    type Output = &T;
 
-    readonlyDereference(): this.ReadonlyOutput {
-        &this.value
+    dereference(): &readonly T {
+        &readonly this.value
     }
 }
 
@@ -98,9 +91,59 @@ let value = getRef();
 
 - contains: no matching overload
 
+### exclusive dereference
+
+Exclusive borrowed access uses `Dereference<"exclusive">`.
+
+```ds
+struct Ref<T> {
+    value: T
+}
+
+extension<T> of Ref<T> implements Dereference<"exclusive"> {
+    type Output = &T;
+
+    dereference(): &exclusive T {
+        &exclusive this.value
+    }
+}
+
+declare function getRef(): Ref<int32>;
+
+let value = getRef();
+let inner = &exclusive *value;
+
+inner satisfies &exclusive int32;
+```
+
+### mutable dereference rejects exclusive borrow
+
+Mutable dereference is not exclusive dereference.
+
+```ds
+struct Ref<T> {
+    value: T
+}
+
+extension<T> of Ref<T> implements Dereference<"mutable"> {
+    type Output = &T;
+
+    dereference(): &T {
+        &this.value
+    }
+}
+
+declare function getRef(): Ref<int32>;
+
+let value = getRef();
+let inner = &exclusive *value;
+```
+
+- contains: no matching overload
+
 ## members
 
-### lookup
+### lookup checks wrapper first
 
 Member lookup checks the wrapper before readonly autoderef.
 
@@ -110,59 +153,54 @@ struct User {
     age: int32;
 }
 
-struct Box<T> {
+struct Slot<T> {
     value: T;
 
-    name(): "box" {
-        "box"
+    name(): "slot" {
+        "slot"
     }
 }
 
-extension<T> of Box<T> implements ReadonlyDereference {
-    type ReadonlyOutput = &readonly T;
+extension<T> of Slot<T> implements Dereference<"readonly"> {
+    type Output = &T;
 
-    readonlyDereference(): this.ReadonlyOutput {
-        &this.value
+    dereference(): &readonly T {
+        &readonly this.value
     }
 }
 
-declare function getUser(): Box<User>;
+declare function getUser(): Slot<User>;
 
 const user = getUser();
 const name = user.name();
 const age = user.age;
 
-name satisfies "box";
+name satisfies "slot";
 age satisfies int32;
 ```
 
-### mutation
+### mutation uses mutable dereference
 
-Member assignment through autoderef requires `Dereference`.
+Member assignment through autoderef uses `Dereference<"mutable">`.
 
 ```ds
 struct User {
     name: string;
 }
 
-struct Box<T> {
+struct Slot<T> {
     value: T;
 }
 
-extension<T> of Box<T> implements Dereference {
-    type ReadonlyOutput = &readonly T;
+extension<T> of Slot<T> implements Dereference<"mutable"> {
     type Output = &T;
 
-    readonlyDereference(): this.ReadonlyOutput {
-        &this.value
-    }
-
-    dereference(): this.Output {
+    dereference(): &T {
         &this.value
     }
 }
 
-declare function getUser(): Box<User>;
+declare function getUser(): Slot<User>;
 
 let user = getUser();
 user.name = "Ada";
@@ -181,11 +219,11 @@ struct Rc<T> {
     value: T;
 }
 
-extension<T> of Rc<T> implements ReadonlyDereference {
-    type ReadonlyOutput = &readonly T;
+extension<T> of Rc<T> implements Dereference<"readonly"> {
+    type Output = &T;
 
-    readonlyDereference(): this.ReadonlyOutput {
-        &this.value
+    dereference(): &readonly T {
+        &readonly this.value
     }
 }
 
