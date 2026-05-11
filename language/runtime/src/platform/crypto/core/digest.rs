@@ -48,7 +48,7 @@ pub(crate) fn digest_open(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     Ok(resource::CryptoDigestHandle(resource_id))
 }
@@ -119,7 +119,7 @@ pub(crate) fn digest_close(
         binding
             .worker()
             .resources
-            .remove(&binding.world(), handle.0, Some(binding.engine()))
+            .remove(binding.world(), handle.0, Some(binding.engine()))
     else {
         return Err(core_platform::io_not_found(
             "destack.crypto.digest.close",

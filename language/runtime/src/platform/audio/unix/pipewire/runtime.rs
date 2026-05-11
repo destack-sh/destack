@@ -2,7 +2,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::audio::core as audio_core;
 use crate::platform::audio::core::codec::clamp_audio_scalar;
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, start_with_policy};
+use crate::runtime::{ExecutionMode, ExecutionPolicy, start_with_policy};
 use std::ffi::{c_int, c_void};
 use std::ptr;
 use std::sync::{Arc, Condvar, Mutex, Weak};
@@ -375,7 +375,7 @@ fn spawn_worker(
     start_with_policy(
         "destack-audio-pipewire-transfer",
         "destack.audio.stream.open",
-        ExecutionPolicy::instance(ExecutionMode::Loop),
+        ExecutionPolicy::resource(ExecutionMode::Loop),
         move || {
             loop {
                 let mut state = binding

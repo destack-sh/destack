@@ -16,7 +16,7 @@ use crate::context::GeneratorContext;
 use crate::platform::model::{
     BindingCatalog, BindingEntry, BindingParameter, BindingReturn, BindingTypeContext,
     CatalogBindingAffinity, CatalogBindingProvider, CatalogBindingReplayKind,
-    CatalogBindingSimulation, CatalogEffectClass, CatalogEntropyKind, CatalogReplayPayload,
+    CatalogBindingSimulation, CatalogEffect, CatalogEntropyKind, CatalogReplayPayload,
     CatalogReplayPolicy, binding_type_symbols, collect_binding_params, collect_binding_return,
     format_declared_signature,
 };
@@ -37,7 +37,7 @@ struct BindingRecord {
     /// Return binding type for generated wrappers.
     return_binding: BindingReturn,
     /// Effect kind for replay and policy.
-    effect_class: CatalogEffectClass,
+    effect: CatalogEffect,
     /// Replay routing for the binding.
     replay_kind: CatalogBindingReplayKind,
     /// Replay payload policy for recorded bindings.
@@ -62,7 +62,7 @@ struct BindingDecorator {
     /// Optional binding name override.
     extern_name: Option<String>,
     /// Optional effect class override.
-    effect_class: CatalogEffectClass,
+    effect: CatalogEffect,
     /// Optional replay payload override.
     replay_payload: CatalogReplayPayload,
     /// Required host actions for this binding.
@@ -236,7 +236,7 @@ pub(crate) fn collect_platform_bindings(
                 signature_text,
                 params,
                 return_binding,
-                binding.effect_class,
+                binding.effect,
                 binding.replay_payload,
                 binding.requires,
                 binding.platforms,
@@ -267,7 +267,7 @@ fn binding_from_node(
     signature: String,
     params: Vec<BindingParameter>,
     return_binding: BindingReturn,
-    effect_class: CatalogEffectClass,
+    effect: CatalogEffect,
     replay_payload: CatalogReplayPayload,
     requires: Vec<String>,
     platforms: Vec<String>,
@@ -290,7 +290,7 @@ fn binding_from_node(
         signature,
         params,
         return_binding,
-        effect_class,
+        effect,
         replay_payload,
         requires,
         platforms,
@@ -315,7 +315,7 @@ fn insert_binding(domains: &mut BindingCatalog, record: BindingRecord) {
         parameters: record.params,
         return_binding: record.return_binding.binding_type,
         return_is_result: record.return_binding.is_result,
-        effect_class: record.effect_class,
+        effect: record.effect,
         replay_kind: record.replay_kind,
         replay_payload: record.replay_payload,
         requires: record.requires,
@@ -331,7 +331,7 @@ fn insert_binding(domains: &mut BindingCatalog, record: BindingRecord) {
         && (existing.implementation_name != entry.implementation_name
             || existing.documentation != entry.documentation
             || existing.signature != entry.signature
-            || existing.effect_class != entry.effect_class
+            || existing.effect != entry.effect
             || existing.replay_kind != entry.replay_kind
             || existing.replay_payload != entry.replay_payload
             || existing.requires != entry.requires
@@ -494,7 +494,7 @@ fn decorator_binding_argument(
     // return the payload
     BindingDecorator {
         extern_name,
-        effect_class: spec.effect_class,
+        effect: spec.effect,
         replay_payload: spec.replay_payload,
         requires: spec.requires,
         platforms: spec.platforms,
@@ -508,7 +508,7 @@ fn decorator_binding_argument(
 /// Parsed options for bindings.
 struct BindingSpec {
     /// Effect kind for the binding.
-    effect_class: CatalogEffectClass,
+    effect: CatalogEffect,
     /// Replay payload policy for recorded bindings.
     replay_payload: CatalogReplayPayload,
     /// Required host actions for this binding.
@@ -615,7 +615,7 @@ fn parse_binding_spec(
     }
 
     // build the effect kind
-    let (effect_class, replay_payload) = build_effect_class(effect.as_deref(), replay.as_deref());
+    let (effect, replay_payload) = build_effect(effect.as_deref(), replay.as_deref());
     let provider = parse_binding_provider(provider.as_deref());
     let affinity = parse_binding_affinity(affinity.as_deref());
     let simulation = parse_binding_simulation(simulation);
@@ -628,7 +628,7 @@ fn parse_binding_spec(
     let platforms = merge_platforms_and_families(platforms, families);
 
     BindingSpec {
-        effect_class,
+        effect,
         replay_payload,
         requires,
         platforms,
@@ -671,10 +671,10 @@ fn parse_binding_simulation(value: Option<bool>) -> CatalogBindingSimulation {
 }
 
 /// Build an effect class and replay payload from binding effect facts.
-fn build_effect_class(
+fn build_effect(
     effect: Option<&str>,
     replay: Option<&str>,
-) -> (CatalogEffectClass, CatalogReplayPayload) {
+) -> (CatalogEffect, CatalogReplayPayload) {
     match effect {
         None => {
             panic!("@binding requires an explicit effect");
@@ -683,18 +683,18 @@ fn build_effect_class(
             if replay.is_some() {
                 panic!("pure bindings cannot define replay");
             }
-            (CatalogEffectClass::Pure, CatalogReplayPayload::ResultsOnly)
+            (CatalogEffect::Pure, CatalogReplayPayload::ResultsOnly)
         }
         Some("deterministic") => {
             if replay.is_some() {
                 panic!("deterministic bindings cannot define replay");
             }
             (
-                CatalogEffectClass::Deterministic,
+                CatalogEffect::Deterministic,
                 CatalogReplayPayload::ResultsOnly,
             )
         }
-        Some("external") => build_external_effect_class(replay),
+        Some("external") => build_external_effect(replay),
         Some(value) => {
             panic!("unsupported @binding effect {value}");
         }
@@ -702,16 +702,16 @@ fn build_effect_class(
 }
 
 /// Build an external effect class from replay facts.
-fn build_external_effect_class(replay: Option<&str>) -> (CatalogEffectClass, CatalogReplayPayload) {
+fn build_external_effect(replay: Option<&str>) -> (CatalogEffect, CatalogReplayPayload) {
     match replay {
         Some("forbidden") => (
-            CatalogEffectClass::External {
+            CatalogEffect::External {
                 replay: CatalogReplayPolicy::NonRecordable,
             },
             CatalogReplayPayload::ResultsOnly,
         ),
         None => (
-            CatalogEffectClass::External {
+            CatalogEffect::External {
                 replay: CatalogReplayPolicy::Recordable,
             },
             CatalogReplayPayload::ResultsOnly,

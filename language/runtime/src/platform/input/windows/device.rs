@@ -162,7 +162,7 @@ pub(super) fn open_device(
                         release_console_lane: true,
                     });
                 let resource_id = binding.worker().resources.insert(
-                    &binding.world(),
+                    binding.world(),
                     entry,
                     Some(binding.engine()),
                 );
@@ -233,7 +233,7 @@ pub(super) fn open_device(
                 binding
                     .worker()
                     .resources
-                    .insert(&binding.world(), entry, Some(binding.engine()));
+                    .insert(binding.world(), entry, Some(binding.engine()));
             Ok(resource::InputDeviceHandle(resource_id))
         }
         input_core::WindowsInputOpenSpec::XInput(user_index) => {
@@ -286,7 +286,7 @@ pub(super) fn open_device(
                 binding
                     .worker()
                     .resources
-                    .insert(&binding.world(), entry, Some(binding.engine()));
+                    .insert(binding.world(), entry, Some(binding.engine()));
             Ok(resource::InputDeviceHandle(resource_id))
         }
     }
@@ -303,7 +303,7 @@ pub(super) fn close_device(
 
     // remove from resource table and run finalizer
     let removed = binding.worker().resources.remove_and_finalize(
-        &binding.world(),
+        binding.world(),
         handle.0,
         Some(binding.engine()),
     );

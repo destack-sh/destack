@@ -1467,7 +1467,7 @@ pub(crate) unsafe fn destack_input_text_open(
             binding
                 .worker()
                 .resources
-                .insert(&binding.world(), entry, Some(binding.engine()));
+                .insert(binding.world(), entry, Some(binding.engine()));
         let session_handle = resource::InputTextSessionHandle(resource_id);
 
         let activate = match source {
@@ -1493,7 +1493,7 @@ pub(crate) unsafe fn destack_input_text_open(
         };
         if let Err(error) = activate {
             let _ = binding.worker().resources.remove_and_finalize(
-                &binding.world(),
+                binding.world(),
                 session_handle.0,
                 Some(binding.engine()),
             );
@@ -1555,7 +1555,7 @@ pub(crate) unsafe fn destack_input_text_open(
             binding
                 .worker()
                 .resources
-                .insert(&binding.world(), entry, Some(binding.engine()));
+                .insert(binding.world(), entry, Some(binding.engine()));
         let session_handle = resource::InputTextSessionHandle(resource_id);
 
         let activate = appkit::activate_window_text_session(
@@ -1568,7 +1568,7 @@ pub(crate) unsafe fn destack_input_text_open(
         );
         if let Err(error) = activate {
             let _ = binding.worker().resources.remove_and_finalize(
-                &binding.world(),
+                binding.world(),
                 session_handle.0,
                 Some(binding.engine()),
             );
@@ -1651,7 +1651,7 @@ pub(crate) unsafe fn destack_input_text_open(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     // output
     unsafe {
@@ -1696,7 +1696,7 @@ pub(crate) unsafe fn destack_input_text_close(
 
     // remove and finalize
     let removed = binding.worker().resources.remove_and_finalize(
-        &binding.world(),
+        binding.world(),
         session.0,
         Some(binding.engine()),
     );
@@ -1925,7 +1925,7 @@ pub(crate) unsafe fn destack_input_text_open(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
     let session = resource::InputTextSessionHandle(resource_id);
     let session_id = resource_id.0;
 
@@ -1957,11 +1957,11 @@ pub(crate) unsafe fn destack_input_text_open(
     let status = unsafe { host_text_open(host_session_id, request) };
     if let Err(error) = host_status_result(status, "destack.input.text.open", "open") {
         state_store.remove_host_text_session(session_id);
-        let _ = binding.worker().resources.remove(
-            &binding.world(),
-            resource_id,
-            Some(binding.engine()),
-        );
+        let _ =
+            binding
+                .worker()
+                .resources
+                .remove(binding.world(), resource_id, Some(binding.engine()));
         return Err(error);
     }
 
@@ -2001,7 +2001,7 @@ pub(crate) unsafe fn destack_input_text_close(
     let _ = binding
         .worker()
         .resources
-        .remove(&binding.world(), session.0, Some(binding.engine()));
+        .remove(binding.world(), session.0, Some(binding.engine()));
 
     Ok(())
 }

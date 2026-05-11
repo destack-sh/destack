@@ -5,10 +5,13 @@ use objc2_core_graphics::{
     CGDisplayRegisterReconfigurationCallback, CGError,
 };
 
+use crate::diagnostic::RuntimeResult;
 use crate::platform::display::unix::appkit::event as appkit_event;
-use crate::runtime::process::service::executor::host::HostExecutor;
-use crate::runtime::process::{ExecutionAffinity, ExecutionMode, ExecutionPolicy, Service};
-use crate::runtime::{BindingCallContext, ProcessSubscriberRegistry, WorkerId};
+use crate::runtime::service::executor::host::HostExecutor;
+use crate::runtime::service::{ProcessSubscriberRegistry, Service};
+use crate::runtime::{
+    BindingCallContext, ExecutionAffinity, ExecutionMode, ExecutionPolicy, WorkerId,
+};
 
 use super::core::warn_callback_error;
 use super::runtime::AppKitRuntimeState;
@@ -31,14 +34,14 @@ struct AppKitDisplayServiceState {
 
 impl AppKitDisplayService {
     /// Create one process-global AppKit display service.
-    fn new() -> Self {
-        Self {
-            executor: HostExecutor::new("platform.display.appkit", ExecutionAffinity::MainThread),
+    fn new() -> RuntimeResult<Self> {
+        Ok(Self {
+            executor: HostExecutor::new("platform.display.appkit", ExecutionAffinity::MainThread)?,
             state: Arc::new(AppKitDisplayServiceState {
                 monitor_callback_runtimes: Mutex::new(ProcessSubscriberRegistry::default()),
                 monitor_callback_registration: OnceLock::new(),
             }),
-        }
+        })
     }
 
     /// Register one live runtime with the AppKit host loop.
@@ -92,12 +95,12 @@ impl AppKitDisplayService {
 
 impl Service for AppKitDisplayService {
     const POLICY: ExecutionPolicy =
-        ExecutionPolicy::global(ExecutionMode::Host).with_affinity(ExecutionAffinity::MainThread);
+        ExecutionPolicy::process(ExecutionMode::Host).with_affinity(ExecutionAffinity::MainThread);
 }
 
 /// Return one shared AppKit display service.
 pub(crate) fn appkit_display_service() -> Arc<AppKitDisplayService> {
-    AppKitDisplayService::global(|| Ok(AppKitDisplayService::new()))
+    AppKitDisplayService::global(AppKitDisplayService::new)
         .expect("AppKit display service initialization should succeed")
 }
 

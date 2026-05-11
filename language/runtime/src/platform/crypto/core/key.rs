@@ -924,7 +924,7 @@ fn rollback_key_publish(
         binding
             .worker()
             .resources
-            .remove(&binding.world(), handle.0, Some(binding.engine()))
+            .remove(binding.world(), handle.0, Some(binding.engine()))
     else {
         return;
     };
@@ -2702,7 +2702,7 @@ pub(crate) fn key_delete(
         binding
             .worker()
             .resources
-            .remove(&binding.world(), handle.0, Some(binding.engine()))
+            .remove(binding.world(), handle.0, Some(binding.engine()))
     else {
         return Err(core_platform::io_not_found(
             "destack.crypto.key.delete",

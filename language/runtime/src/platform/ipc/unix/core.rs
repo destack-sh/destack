@@ -380,7 +380,7 @@ pub(super) fn register_pipe_descriptor(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     resource::PipeHandle(resource_id)
 }
@@ -400,7 +400,7 @@ pub(super) fn register_shared_memory_descriptor(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     resource::SharedMemoryHandle(resource_id)
 }
@@ -424,7 +424,7 @@ pub(super) fn register_semaphore(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     resource::SemaphoreHandle(resource_id)
 }
@@ -444,7 +444,7 @@ pub(super) fn register_transferred_descriptor(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     resource::TransferredHandle(resource_id)
 }
@@ -465,7 +465,7 @@ pub(super) fn register_message_queue(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     resource::MessageQueueHandle(resource_id)
 }

@@ -11,7 +11,7 @@ use crate::platform::proactor::{
 };
 use crate::platform::{PlatformError, PlatformErrorCode, ResourceId, core as core_platform};
 use crate::runtime::poller::{PlatformHandle, PlatformInterest, PollerEventMask};
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, start_with_policy};
+use crate::runtime::{ExecutionMode, ExecutionPolicy, start_with_policy};
 
 /// Sentinel token emitted by wake notifications.
 const WAKE_TOKEN: u64 = u64::MAX;
@@ -66,7 +66,7 @@ impl UnixProactor {
         let worker_handle = start_with_policy(
             "destack-unix-proactor",
             "proactor.unix.open",
-            ExecutionPolicy::instance(ExecutionMode::Thread),
+            ExecutionPolicy::resource(ExecutionMode::Thread),
             move || worker_main(command_receiver, worker_completion_sender),
         )
         .map_err(|error| {

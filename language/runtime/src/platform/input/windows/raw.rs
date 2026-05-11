@@ -62,9 +62,10 @@ use crate::platform::input::{
     InputTouchContactState, InputTouchState,
 };
 use crate::platform::{PlatformError, core as core_platform};
-use crate::runtime::process::service::Service;
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, start_with_policy};
-use crate::runtime::{BindingCallContext, ProcessSubscriberRegistry, WorkerId};
+use crate::runtime::service::{ProcessSubscriberRegistry, Service};
+use crate::runtime::{
+    BindingCallContext, ExecutionMode, ExecutionPolicy, WorkerId, start_with_policy,
+};
 
 /// Prefix for monitor event device identifiers derived from raw device handles.
 pub(super) const WINDOWS_INPUT_MONITOR_ID_PREFIX: &str = "raw:device:";
@@ -527,7 +528,7 @@ pub(crate) struct WindowsRawInputService {
 }
 
 impl Service for WindowsRawInputService {
-    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Loop);
+    const POLICY: ExecutionPolicy = ExecutionPolicy::process(ExecutionMode::Loop);
 }
 
 /// Raw-input worker-thread control payload.
@@ -2272,7 +2273,7 @@ fn spawn_raw_input_worker(
     let handle = start_with_policy(
         "destack-input-raw",
         "destack.input.device.open",
-        ExecutionPolicy::global(ExecutionMode::Loop),
+        ExecutionPolicy::process(ExecutionMode::Loop),
         move || {
             raw_input_thread_main(thread_service, ready_tx);
         },

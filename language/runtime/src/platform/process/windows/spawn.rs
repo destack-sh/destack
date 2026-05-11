@@ -483,7 +483,7 @@ fn spawn_process(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     unsafe {
         *out = resource::ProcessHandle(resource_id);

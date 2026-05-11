@@ -4,7 +4,8 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 
 use crate::diagnostic::RuntimeResult;
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, Service};
+use crate::runtime::service::Service;
+use crate::runtime::{ExecutionMode, ExecutionPolicy};
 use windows_sys::Win32::Media::Audio::{midiInGetNumDevs, midiOutGetNumDevs};
 
 use super::core::{
@@ -30,7 +31,7 @@ impl WinMmService {
 }
 
 impl Service for WinMmService {
-    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
+    const POLICY: ExecutionPolicy = ExecutionPolicy::process(ExecutionMode::Inline);
 }
 
 /// Return the shared WinMM runtime service.

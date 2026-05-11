@@ -180,7 +180,7 @@ pub(crate) unsafe fn destack_io_uring_close(
         resolve_uring_resource(binding, handle)?;
 
         let removed = binding.worker().resources.remove_and_finalize(
-            &binding.world(),
+            binding.world(),
             handle.0,
             Some(binding.engine()),
         );
@@ -309,7 +309,7 @@ pub(crate) unsafe fn destack_io_uring_open(
             binding
                 .worker()
                 .resources
-                .insert(&binding.world(), entry, Some(binding.engine()));
+                .insert(binding.world(), entry, Some(binding.engine()));
 
         unsafe {
             out.write(resource::UringHandle(value));

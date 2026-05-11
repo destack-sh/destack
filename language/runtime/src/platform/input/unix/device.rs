@@ -135,7 +135,7 @@ pub(crate) unsafe fn destack_input_close(
     input_core::release_macos_subscription(binding, handle);
 
     let removed = binding.worker().resources.remove_and_finalize(
-        &binding.world(),
+        binding.world(),
         handle.0,
         Some(binding.engine()),
     );
@@ -255,7 +255,7 @@ pub(crate) unsafe fn destack_input_open(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     unsafe {
         *out = resource::InputDeviceHandle(resource_id);

@@ -343,7 +343,7 @@ pub(crate) unsafe fn destack_device_serial_open(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     unsafe {
         out.write(resource::SerialPortHandle(resource_id));

@@ -12,7 +12,7 @@ use crate::platform::core as core_platform;
 #[cfg(target_os = "linux")]
 use crate::platform::diagnostic::PlatformErrorCode;
 #[cfg(target_os = "linux")]
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, start_with_policy};
+use crate::runtime::{ExecutionMode, ExecutionPolicy, start_with_policy};
 
 use crate::platform::audio as audio_types;
 #[cfg(target_os = "linux")]
@@ -79,7 +79,7 @@ pub(crate) fn start_native_device_event_monitor(
         let handle = start_with_policy(
             "destack-audio-pactl-monitor",
             "destack.audio.event.open",
-            ExecutionPolicy::global(ExecutionMode::Loop),
+            ExecutionPolicy::process(ExecutionMode::Loop),
             move || run_pactl_monitor_thread(backend, stop_signal, process_id_signal, ready_sender),
         )?;
 

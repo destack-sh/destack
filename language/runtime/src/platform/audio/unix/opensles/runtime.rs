@@ -6,7 +6,7 @@ use std::time::Duration;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::core as audio_core;
 use crate::platform::audio::core::codec::clamp_audio_scalar;
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, start_with_policy};
+use crate::runtime::{ExecutionMode, ExecutionPolicy, start_with_policy};
 
 use super::abi::{
     SL_IID_ANDROIDSIMPLEBUFFERQUEUE, SL_IID_PLAY, SL_IID_RECORD, SLAndroidSimpleBufferQueueItf,
@@ -718,7 +718,7 @@ fn spawn_worker(
     start_with_policy(
         "destack-audio-opensles-transfer",
         "destack.audio.stream.open",
-        ExecutionPolicy::instance(ExecutionMode::Loop),
+        ExecutionPolicy::resource(ExecutionMode::Loop),
         move || {
             loop {
                 let mut state = binding

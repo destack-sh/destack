@@ -18,7 +18,8 @@ use crate::platform::os::NotificationPermissionState;
 use crate::platform::os::abi_generated::{
     NotificationCategoryValue, NotificationRequestValue, NotificationScheduledDescriptorValue,
 };
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, Service};
+use crate::runtime::service::Service;
+use crate::runtime::{ExecutionMode, ExecutionPolicy};
 
 #[cfg(test)]
 thread_local! {
@@ -102,7 +103,7 @@ impl DesktopNotificationRuntimeService {
 }
 
 impl Service for DesktopNotificationRuntimeService {
-    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
+    const POLICY: ExecutionPolicy = ExecutionPolicy::process(ExecutionMode::Inline);
 }
 
 /// Run one callback with native notification side effects disabled.

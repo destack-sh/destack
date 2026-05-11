@@ -37,7 +37,7 @@ pub(crate) unsafe fn window_close(
     let removed = context
         .worker()
         .resources
-        .remove(&context.world(), window_handle.0, Some(context.engine()))
+        .remove(context.world(), window_handle.0, Some(context.engine()))
         .is_some();
 
     // report unknown handles after resource removal

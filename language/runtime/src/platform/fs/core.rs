@@ -942,7 +942,7 @@ pub(crate) fn open_watch(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     Ok(WatchHandle(resource_id))
 }
@@ -955,7 +955,7 @@ pub(crate) fn close_watch(binding: &BindingCallContext, handle: WatchHandle) -> 
 
     // remove the watch resource and drop the backend watcher
     let removed = binding.worker().resources.remove_and_finalize(
-        &binding.world(),
+        binding.world(),
         handle.0,
         Some(binding.engine()),
     );

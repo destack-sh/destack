@@ -1439,29 +1439,32 @@ impl VmAbiCodec for RuntimeExecutionMode {
     }
 }
 
-/// ABI enum for RuntimeTickOutcome.
+/// ABI enum for RuntimeTickResult.
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum RuntimeTickOutcome {
+pub enum RuntimeTickResult {
     /// Idle.
     Idle = 1,
     /// Progressed.
     Progressed = 2,
     /// AdvancedTime.
     AdvancedTime = 3,
+    /// Background.
+    Background = 4,
 }
 
-impl VmValueCodec for RuntimeTickOutcome {
+impl VmValueCodec for RuntimeTickResult {
     fn decode(value: vm::Word) -> RuntimeResult<Self> {
         let raw = <i32 as VmValueCodec>::decode(value)?;
         let decoded = match raw {
             1i32 => Self::Idle,
             2i32 => Self::Progressed,
             3i32 => Self::AdvancedTime,
+            4i32 => Self::Background,
             _ => {
                 return Err(RuntimeError::from(AbiPlatformError::invalid_argument_value(
                     "value",
-                    "unknown RuntimeTickOutcome value",
+                    "unknown RuntimeTickResult value",
                 ))
                 .boxed());
             }
@@ -1474,13 +1477,13 @@ impl VmValueCodec for RuntimeTickOutcome {
     }
 }
 
-impl VmCollectionElement for RuntimeTickOutcome {}
+impl VmCollectionElement for RuntimeTickResult {}
 
-/// Value type for RuntimeTickOutcome.
-pub type RuntimeTickOutcomeValue = RuntimeTickOutcome;
+/// Value type for RuntimeTickResult.
+pub type RuntimeTickResultValue = RuntimeTickResult;
 
-impl NativeAbiCodec for RuntimeTickOutcome {
-    type Value = RuntimeTickOutcomeValue;
+impl NativeAbiCodec for RuntimeTickResult {
+    type Value = RuntimeTickResultValue;
 
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(self)
@@ -1491,8 +1494,8 @@ impl NativeAbiCodec for RuntimeTickOutcome {
     }
 }
 
-impl VmAbiCodec for RuntimeTickOutcome {
-    type Value = RuntimeTickOutcomeValue;
+impl VmAbiCodec for RuntimeTickResult {
+    type Value = RuntimeTickResultValue;
 
     fn into_value(
         self,
@@ -4698,8 +4701,8 @@ impl VmAbiCodec for RuntimeCreateOptionsAbi<VmAbi> {
 pub struct RuntimeDescriptorAbi<A: BindingAbi> {
     /// Runtime identifier.
     pub id: RuntimeId,
-    /// Primary worker identifier.
-    pub primary_worker_id: WorkerId,
+    /// Default worker identifier.
+    pub default_worker_id: WorkerId,
     /// Optional runtime name.
     pub name: Option<A::String>,
     /// Worker count in this runtime.
@@ -4757,7 +4760,7 @@ impl VmAggregateCodec for RuntimeDescriptorAbi<VmAbi> {
         }
         let field_id =
             <RuntimeId as VmAggregateCodec>::decode_field_with_context(context, value_ref, 0)?;
-        let field_primary_worker_id =
+        let field_default_worker_id =
             <WorkerId as VmAggregateCodec>::decode_field_with_context(context, value_ref, 1)?;
         let field_name = <Option<vm::StringHandle> as VmAggregateCodec>::decode_field_with_context(
             context, value_ref, 2,
@@ -4770,7 +4773,7 @@ impl VmAggregateCodec for RuntimeDescriptorAbi<VmAbi> {
             )?;
         Ok(Self {
             id: field_id,
-            primary_worker_id: field_primary_worker_id,
+            default_worker_id: field_default_worker_id,
             name: field_name,
             worker_count: field_worker_count,
             labels: field_labels,
@@ -4789,7 +4792,7 @@ impl VmAggregateCodec for RuntimeDescriptorAbi<VmAbi> {
             .write_field(0, field_value)
             .map_err(Box::<RuntimeError>::from)?;
         let field_value =
-            <WorkerId as VmAggregateCodec>::encode_with_context(self.primary_worker_id, context)?;
+            <WorkerId as VmAggregateCodec>::encode_with_context(self.default_worker_id, context)?;
         value_builder
             .write_field(1, field_value)
             .map_err(Box::<RuntimeError>::from)?;
@@ -4823,8 +4826,8 @@ impl VmCollectionElement for RuntimeDescriptorAbi<VmAbi> {}
 pub struct RuntimeDescriptorValue {
     /// Runtime identifier.
     pub id: RuntimeId,
-    /// Primary worker identifier.
-    pub primary_worker_id: WorkerId,
+    /// Default worker identifier.
+    pub default_worker_id: WorkerId,
     /// Optional runtime name.
     pub name: Option<String>,
     /// Worker count in this runtime.
@@ -4839,8 +4842,8 @@ impl NativeAbiCodec for RuntimeDescriptorAbi<NativeAbi> {
     unsafe fn into_value(self) -> RuntimeResult<<Self as NativeAbiCodec>::Value> {
         Ok(RuntimeDescriptorValue {
             id: unsafe { <RuntimeId as NativeAbiCodec>::into_value(self.id)? },
-            primary_worker_id: unsafe {
-                <WorkerId as NativeAbiCodec>::into_value(self.primary_worker_id)?
+            default_worker_id: unsafe {
+                <WorkerId as NativeAbiCodec>::into_value(self.default_worker_id)?
             },
             name: unsafe { <Option<NativeStringRef> as NativeAbiCodec>::into_value(self.name)? },
             worker_count: unsafe { <u32 as NativeAbiCodec>::into_value(self.worker_count)? },
@@ -4853,9 +4856,9 @@ impl NativeAbiCodec for RuntimeDescriptorAbi<NativeAbi> {
     fn from_value(binding: &BindingCallContext, value: <Self as NativeAbiCodec>::Value) -> Self {
         Self {
             id: <RuntimeId as NativeAbiCodec>::from_value(binding, value.id),
-            primary_worker_id: <WorkerId as NativeAbiCodec>::from_value(
+            default_worker_id: <WorkerId as NativeAbiCodec>::from_value(
                 binding,
-                value.primary_worker_id,
+                value.default_worker_id,
             ),
             name: <Option<NativeStringRef> as NativeAbiCodec>::from_value(binding, value.name),
             worker_count: <u32 as NativeAbiCodec>::from_value(binding, value.worker_count),
@@ -4876,8 +4879,8 @@ impl VmAbiCodec for RuntimeDescriptorAbi<VmAbi> {
     ) -> RuntimeResult<<Self as VmAbiCodec>::Value> {
         Ok(RuntimeDescriptorValue {
             id: <RuntimeId as VmAbiCodec>::into_value(self.id, context)?,
-            primary_worker_id: <WorkerId as VmAbiCodec>::into_value(
-                self.primary_worker_id,
+            default_worker_id: <WorkerId as VmAbiCodec>::into_value(
+                self.default_worker_id,
                 context,
             )?,
             name: <Option<vm::StringHandle> as VmAbiCodec>::into_value(self.name, context)?,
@@ -4895,9 +4898,9 @@ impl VmAbiCodec for RuntimeDescriptorAbi<VmAbi> {
     ) -> RuntimeResult<Self> {
         Ok(Self {
             id: <RuntimeId as VmAbiCodec>::from_value(context, value.id)?,
-            primary_worker_id: <WorkerId as VmAbiCodec>::from_value(
+            default_worker_id: <WorkerId as VmAbiCodec>::from_value(
                 context,
-                value.primary_worker_id,
+                value.default_worker_id,
             )?,
             name: <Option<vm::StringHandle> as VmAbiCodec>::from_value(context, value.name)?,
             worker_count: <u32 as VmAbiCodec>::from_value(context, value.worker_count)?,
@@ -7365,8 +7368,8 @@ pub struct RuntimecreateoptionsReplayRecord {
 pub struct RuntimedescriptorReplayRecord {
     /// Runtime identifier.
     pub id: RuntimeId,
-    /// Primary worker identifier.
-    pub primary_worker_id: WorkerId,
+    /// Default worker identifier.
+    pub default_worker_id: WorkerId,
     /// Optional runtime name.
     pub name: Option<String>,
     /// Worker count in this runtime.

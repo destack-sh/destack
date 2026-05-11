@@ -5,7 +5,7 @@ use super::types::{
     HostMediaImportPathResponse, HostMediaListRequest, HostMediaListResponse,
     HostMediaReadResponse,
 };
-use crate::host::apple::abi::bindings::invoke_ios_binding_callback;
+use crate::host::apple::abi::binding::invoke_ios_binding_callback;
 use crate::platform::abi::NativeStringRef;
 
 /// The host callback for `list`.

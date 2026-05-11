@@ -173,7 +173,7 @@ pub(crate) unsafe fn destack_device_bluetooth_adapter_watch_open(
     let handle = binding
         .worker()
         .resources
-        .insert(&binding.world(), entry, Some(binding.engine()));
+        .insert(binding.world(), entry, Some(binding.engine()));
 
     out.write(resource::BluetoothAdapterWatchHandle(handle));
 

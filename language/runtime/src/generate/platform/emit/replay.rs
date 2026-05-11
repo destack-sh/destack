@@ -1,6 +1,6 @@
 use crate::platform::model::{
     BindingEntry, BindingType, CatalogBindingProvider, CatalogBindingReplayKind,
-    CatalogBindingSimulation, CatalogEffectClass, CatalogReplayPayload, CatalogReplayPolicy,
+    CatalogBindingSimulation, CatalogEffect, CatalogReplayPayload, CatalogReplayPolicy,
 };
 use std::collections::BTreeSet;
 
@@ -1200,9 +1200,9 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
         let mut wrote = false;
         for binding in consts {
             let entry = binding.entry;
-            let CatalogEffectClass::External {
+            let CatalogEffect::External {
                 replay: CatalogReplayPolicy::Recordable,
-            } = entry.effect_class
+            } = entry.effect
             else {
                 continue;
             };
@@ -1261,8 +1261,8 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
 
         let bindings = consts.iter().filter(|binding| {
             matches!(
-                binding.entry.effect_class,
-                CatalogEffectClass::External {
+                binding.entry.effect,
+                CatalogEffect::External {
                     replay: CatalogReplayPolicy::Recordable
                 }
             ) && binding.entry.replay_kind == CatalogBindingReplayKind::BindingCall
@@ -1537,8 +1537,8 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
 
         let bindings = consts.iter().filter(|binding| {
             matches!(
-                binding.entry.effect_class,
-                CatalogEffectClass::External {
+                binding.entry.effect,
+                CatalogEffect::External {
                     replay: CatalogReplayPolicy::Recordable
                 }
             ) && binding.entry.replay_kind == CatalogBindingReplayKind::BindingCall
@@ -1832,9 +1832,9 @@ pub(crate) fn collect_replay_named_types(
     let codegen = ModuleCodegen::new(domain);
 
     for entry in bindings.values() {
-        let CatalogEffectClass::External {
+        let CatalogEffect::External {
             replay: CatalogReplayPolicy::Recordable,
-        } = entry.effect_class
+        } = entry.effect
         else {
             continue;
         };
@@ -1864,9 +1864,9 @@ pub(crate) fn collect_replay_vm_named_types(
     let mut names = BTreeSet::new();
     let codegen = ModuleCodegen::new(domain);
     for entry in bindings.values() {
-        let CatalogEffectClass::External {
+        let CatalogEffect::External {
             replay: CatalogReplayPolicy::Recordable,
-        } = entry.effect_class
+        } = entry.effect
         else {
             continue;
         };

@@ -280,7 +280,7 @@ pub(super) fn register_pty_pair(
         .with_label(PTY_RESOURCE_LABEL)
         .with_finalizer(WindowsPseudoConsoleFinalizer { pseudo_console });
     let controller_id = binding.worker().resources.insert(
-        &binding.world(),
+        binding.world(),
         controller_entry,
         Some(binding.engine()),
     );
@@ -296,7 +296,7 @@ pub(super) fn register_pty_pair(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), worker_entry, Some(binding.engine()));
+            .insert(binding.world(), worker_entry, Some(binding.engine()));
 
     PtyPair {
         controller: resource::PtyHandle(controller_id),

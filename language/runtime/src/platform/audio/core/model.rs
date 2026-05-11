@@ -11,7 +11,7 @@ use crate::platform::audio::{
     AudioStreamRequirementFlags, AudioStreamStateKind, AudioStreamStatusFlags,
 };
 use crate::platform::resource::{self, ResourceFinalizer, ResourceId};
-use crate::runtime::process::RuntimeScheduledCallbackHandle;
+use crate::runtime::WorkerCallbackHandle;
 
 use super::constants::{DEFAULT_STREAM_VOLUME, host_monotonic_nanos};
 use super::runtime::AudioRuntimeState;
@@ -367,7 +367,7 @@ pub(crate) struct AudioEventStreamState {
     /// Total dropped event count for this stream.
     pub(crate) dropped_count: u64,
     /// Registered synthetic stream poll callback.
-    pub(crate) poll_callback: Option<RuntimeScheduledCallbackHandle>,
+    pub(crate) poll_callback: Option<WorkerCallbackHandle>,
 }
 
 /// Stored audio event record payload.

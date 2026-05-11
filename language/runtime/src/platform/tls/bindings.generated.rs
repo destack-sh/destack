@@ -18,9 +18,10 @@ use crate::platform::tls::{
 use crate::platform::{
     PlatformError, RuntimeStatus, VmAggregateCodec, VmSlice, abi as platform_abi,
 };
-use crate::runtime::bindings::{
-    BindingAffinity, BindingDescriptor, BindingProvider, BindingRegistry, BindingReplayKind,
-    BindingReplayPolicy, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+use crate::runtime::binding::{
+    BindingAffinity, BindingDescriptor, BindingEffect, BindingProvider, BindingRegistry,
+    BindingReplayKind, BindingReplayPayload, NativeBinding, NativeBindingSet, RuntimeWorld,
+    native_call,
 };
 use crate::runtime::trace::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
@@ -733,25 +734,26 @@ struct TlsSessionShutdownReplayRecord {
 }
 
 /// Binding descriptor for destack.tls.context.close.
-pub(crate) const TLS_CONTEXT_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.tls.context.close",
-        "export function contextClose(handle: TlsContextHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["tls.context"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("tls")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const TLS_CONTEXT_CLOSE: BindingDescriptor = BindingDescriptor::new(
+    "destack.tls.context.close",
+    "export function contextClose(handle: TlsContextHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["tls.context"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("tls")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.context.open.
-pub(crate) const TLS_CONTEXT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const TLS_CONTEXT_OPEN: BindingDescriptor = BindingDescriptor::new(
     "destack.tls.context.open",
     "export function contextOpen(options: TlsContextOptions): Result<TlsContextHandle, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["tls.context"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -760,11 +762,12 @@ pub(crate) const TLS_CONTEXT_OPEN: BindingDescriptor = BindingDescriptor::extern
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.context.setCipherSuites.
-pub(crate) const TLS_CONTEXT_SET_CIPHER_SUITES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const TLS_CONTEXT_SET_CIPHER_SUITES: BindingDescriptor = BindingDescriptor::new(
     "destack.tls.context.setCipherSuites",
     "export function contextSetCipherSuites(handle: TlsContextHandle, suites: Slice<string>): Result<void, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
+    BindingEffect::ExternalNonRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["tls.context", "tls.policy"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -773,11 +776,12 @@ pub(crate) const TLS_CONTEXT_SET_CIPHER_SUITES: BindingDescriptor = BindingDescr
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.context.setGroups.
-pub(crate) const TLS_CONTEXT_SET_GROUPS: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const TLS_CONTEXT_SET_GROUPS: BindingDescriptor = BindingDescriptor::new(
     "destack.tls.context.setGroups",
     "export function contextSetGroups(handle: TlsContextHandle, groups: Slice<string>): Result<void, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
+    BindingEffect::ExternalNonRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["tls.context", "tls.policy"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -786,11 +790,12 @@ pub(crate) const TLS_CONTEXT_SET_GROUPS: BindingDescriptor = BindingDescriptor::
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.context.setHostnameVerificationMode.
-pub(crate) const TLS_CONTEXT_SET_HOSTNAME_VERIFICATION_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const TLS_CONTEXT_SET_HOSTNAME_VERIFICATION_MODE: BindingDescriptor = BindingDescriptor::new(
     "destack.tls.context.setHostnameVerificationMode",
     "export function contextSetHostnameVerificationMode(handle: TlsContextHandle, mode: TlsHostnameVerificationMode): Result<void, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
+    BindingEffect::ExternalNonRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["tls.context", "tls.hostname.verify"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -799,11 +804,12 @@ pub(crate) const TLS_CONTEXT_SET_HOSTNAME_VERIFICATION_MODE: BindingDescriptor =
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.context.setIdentityPem.
-pub(crate) const TLS_CONTEXT_SET_IDENTITY_PEM: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const TLS_CONTEXT_SET_IDENTITY_PEM: BindingDescriptor = BindingDescriptor::new(
     "destack.tls.context.setIdentityPem",
     "export function contextSetIdentityPem(handle: TlsContextHandle, certificateChainPem: Slice<uint8>, privateKeyPem: Slice<uint8>): Result<void, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
+    BindingEffect::ExternalNonRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["tls.context", "tls.identity.use", "tls.identity.write"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -812,11 +818,12 @@ pub(crate) const TLS_CONTEXT_SET_IDENTITY_PEM: BindingDescriptor = BindingDescri
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.context.setSessionResumption.
-pub(crate) const TLS_CONTEXT_SET_SESSION_RESUMPTION: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const TLS_CONTEXT_SET_SESSION_RESUMPTION: BindingDescriptor = BindingDescriptor::new(
     "destack.tls.context.setSessionResumption",
     "export function contextSetSessionResumption(handle: TlsContextHandle, mode: TlsSessionResumptionMode): Result<void, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
+    BindingEffect::ExternalNonRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["tls.context", "tls.resumption"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -825,11 +832,12 @@ pub(crate) const TLS_CONTEXT_SET_SESSION_RESUMPTION: BindingDescriptor = Binding
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.context.setSignatureAlgorithms.
-pub(crate) const TLS_CONTEXT_SET_SIGNATURE_ALGORITHMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const TLS_CONTEXT_SET_SIGNATURE_ALGORITHMS: BindingDescriptor = BindingDescriptor::new(
     "destack.tls.context.setSignatureAlgorithms",
     "export function contextSetSignatureAlgorithms(handle: TlsContextHandle, algorithms: Slice<string>): Result<void, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
+    BindingEffect::ExternalNonRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["tls.context", "tls.policy"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -838,11 +846,12 @@ pub(crate) const TLS_CONTEXT_SET_SIGNATURE_ALGORITHMS: BindingDescriptor = Bindi
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.context.setTrustAnchorsPem.
-pub(crate) const TLS_CONTEXT_SET_TRUST_ANCHORS_PEM: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const TLS_CONTEXT_SET_TRUST_ANCHORS_PEM: BindingDescriptor = BindingDescriptor::new(
     "destack.tls.context.setTrustAnchorsPem",
     "export function contextSetTrustAnchorsPem(handle: TlsContextHandle, trustAnchorsPem: Slice<uint8>): Result<void, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
+    BindingEffect::ExternalNonRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["tls.context", "tls.trust.write"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -851,25 +860,26 @@ pub(crate) const TLS_CONTEXT_SET_TRUST_ANCHORS_PEM: BindingDescriptor = BindingD
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.session.close.
-pub(crate) const TLS_SESSION_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.tls.session.close",
-        "export function sessionClose(handle: TlsSessionHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["tls.session"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("tls")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const TLS_SESSION_CLOSE: BindingDescriptor = BindingDescriptor::new(
+    "destack.tls.session.close",
+    "export function sessionClose(handle: TlsSessionHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["tls.session"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("tls")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.session.exportKeyingMaterial.
-pub(crate) const TLS_SESSION_EXPORT_KEYING_MATERIAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const TLS_SESSION_EXPORT_KEYING_MATERIAL: BindingDescriptor = BindingDescriptor::new(
     "destack.tls.session.exportKeyingMaterial",
     "export function sessionExportKeyingMaterial(handle: TlsSessionHandle, label: string, context: Slice<uint8>, outputLength: uint32): Result<Slice<uint8>, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
+    BindingEffect::ExternalNonRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["tls.session", "tls.exporter"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -878,11 +888,12 @@ pub(crate) const TLS_SESSION_EXPORT_KEYING_MATERIAL: BindingDescriptor = Binding
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.session.handshake.
-pub(crate) const TLS_SESSION_HANDSHAKE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const TLS_SESSION_HANDSHAKE: BindingDescriptor = BindingDescriptor::new(
     "destack.tls.session.handshake",
     "export function sessionHandshake(handle: TlsSessionHandle): Result<TlsHandshakeStatus, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["tls.handshake"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -891,11 +902,12 @@ pub(crate) const TLS_SESSION_HANDSHAKE: BindingDescriptor = BindingDescriptor::e
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.session.negotiatedAlpn.
-pub(crate) const TLS_SESSION_NEGOTIATED_ALPN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const TLS_SESSION_NEGOTIATED_ALPN: BindingDescriptor = BindingDescriptor::new(
     "destack.tls.session.negotiatedAlpn",
     "export function sessionNegotiatedAlpn(handle: TlsSessionHandle): Result<Slice<uint8>, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["tls.session"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -904,11 +916,12 @@ pub(crate) const TLS_SESSION_NEGOTIATED_ALPN: BindingDescriptor = BindingDescrip
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.session.open.
-pub(crate) const TLS_SESSION_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const TLS_SESSION_OPEN: BindingDescriptor = BindingDescriptor::new(
     "destack.tls.session.open",
     "export function sessionOpen(context: TlsContextHandle, socket: SocketHandle, serverName: string): Result<TlsSessionHandle, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["tls.session"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -917,11 +930,12 @@ pub(crate) const TLS_SESSION_OPEN: BindingDescriptor = BindingDescriptor::extern
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.session.peerCertificatesPem.
-pub(crate) const TLS_SESSION_PEER_CERTIFICATES_PEM: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const TLS_SESSION_PEER_CERTIFICATES_PEM: BindingDescriptor = BindingDescriptor::new(
     "destack.tls.session.peerCertificatesPem",
     "export function sessionPeerCertificatesPem(handle: TlsSessionHandle): Result<Slice<uint8>, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
+    BindingEffect::ExternalNonRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["tls.certificate.read"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -930,11 +944,12 @@ pub(crate) const TLS_SESSION_PEER_CERTIFICATES_PEM: BindingDescriptor = BindingD
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.session.read.
-pub(crate) const TLS_SESSION_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const TLS_SESSION_READ: BindingDescriptor = BindingDescriptor::new(
     "destack.tls.session.read",
     "export function sessionRead(handle: TlsSessionHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
+    BindingEffect::ExternalNonRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["tls.session"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -943,11 +958,12 @@ pub(crate) const TLS_SESSION_READ: BindingDescriptor = BindingDescriptor::extern
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.session.resumptionState.
-pub(crate) const TLS_SESSION_RESUMPTION_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const TLS_SESSION_RESUMPTION_STATE: BindingDescriptor = BindingDescriptor::new(
     "destack.tls.session.resumptionState",
     "export function sessionResumptionState(handle: TlsSessionHandle): Result<TlsSessionResumptionState, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["tls.session", "tls.resumption"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -956,25 +972,26 @@ pub(crate) const TLS_SESSION_RESUMPTION_STATE: BindingDescriptor = BindingDescri
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.session.shutdown.
-pub(crate) const TLS_SESSION_SHUTDOWN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.tls.session.shutdown",
-        "export function sessionShutdown(handle: TlsSessionHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["tls.session"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("tls")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const TLS_SESSION_SHUTDOWN: BindingDescriptor = BindingDescriptor::new(
+    "destack.tls.session.shutdown",
+    "export function sessionShutdown(handle: TlsSessionHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["tls.session"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("tls")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.tls.session.write.
-pub(crate) const TLS_SESSION_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const TLS_SESSION_WRITE: BindingDescriptor = BindingDescriptor::new(
     "destack.tls.session.write",
     "export function sessionWrite(handle: TlsSessionHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
+    BindingEffect::ExternalNonRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["tls.session"],
     BindingProvider::Host,
     BindingAffinity::None,

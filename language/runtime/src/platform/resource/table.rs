@@ -20,8 +20,8 @@ use super::{
 };
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::Hooks;
-use crate::runtime::bindings::{BindingAffinity, BindingEngine};
-use crate::runtime::world::WorldScope;
+use crate::runtime::binding::{BindingAffinity, BindingEngine};
+use crate::runtime::world::WorldState;
 
 /// Durable resource-table state captured at one checkpoint.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -420,7 +420,7 @@ impl ResourceTable {
     /// Allocate and insert a resource entry.
     pub(crate) fn insert(
         &self,
-        world: &WorldScope,
+        world: &mut WorldState,
         entry: ResourceEntry,
         engine: Option<BindingEngine>,
     ) -> ResourceId {
@@ -464,7 +464,7 @@ impl ResourceTable {
     /// Insert a resource entry with an explicit id.
     pub(crate) fn insert_with_id(
         &self,
-        world: &WorldScope,
+        world: &mut WorldState,
         resource_id: ResourceId,
         entry: ResourceEntry,
         engine: Option<BindingEngine>,
@@ -525,7 +525,7 @@ impl ResourceTable {
     /// Remove a resource entry from the table.
     pub(crate) fn remove(
         &self,
-        world: &WorldScope,
+        world: &mut WorldState,
         resource_id: ResourceId,
         engine: Option<BindingEngine>,
     ) -> Option<ResourceEntry> {
@@ -552,7 +552,7 @@ impl ResourceTable {
     /// Remove a resource entry and run its finalizer.
     pub(crate) fn remove_and_finalize(
         &self,
-        world: &WorldScope,
+        world: &mut WorldState,
         resource_id: ResourceId,
         engine: Option<BindingEngine>,
     ) -> bool {
@@ -795,7 +795,7 @@ mod tests {
         let table = ResourceTable::default();
         let mut world = World::from_options(&RuntimeOptions::default())
             .expect("resource-table test world should build");
-        let world_scope = world.world_scope();
+        let world_state = &mut world.state;
 
         // create a finalizer to track removals
         let hits = Arc::new(AtomicUsize::new(0));
@@ -803,17 +803,17 @@ mod tests {
 
         // insert an entry with a finalizer
         let entry = ResourceEntry::new(ResourceKind::Timer).with_finalizer(finalizer);
-        let resource_id = table.insert(&world_scope, entry, None);
+        let resource_id = table.insert(world_state, entry, None);
         assert!(table.contains(resource_id));
 
         // remove and finalize the entry
-        let removed = table.remove_and_finalize(&world_scope, resource_id, None);
+        let removed = table.remove_and_finalize(world_state, resource_id, None);
         assert!(removed);
         assert_eq!(hits.load(Ordering::SeqCst), 1);
         assert!(!table.contains(resource_id));
 
         // removing again should return false
-        let removed_again = table.remove_and_finalize(&world_scope, resource_id, None);
+        let removed_again = table.remove_and_finalize(world_state, resource_id, None);
         assert!(!removed_again);
     }
 
@@ -822,7 +822,7 @@ mod tests {
     fn test_snapshot_roundtrip_restores_provider_backed_resources() {
         let mut world = World::from_options(&RuntimeOptions::default())
             .expect("resource-table test world should build");
-        let world_scope = world.world_scope();
+        let world_state = &mut world.state;
         let table = ResourceTable::default();
         let provider = Arc::new(TestResourceProvider);
         table.register_provider(ResourceKind::Timer, provider);
@@ -830,7 +830,7 @@ mod tests {
         let entry = ResourceEntry::new(ResourceKind::Timer)
             .with_capture(ResourceCapture::State)
             .with_portability(ResourcePortability::Portable);
-        let resource_id = table.insert(&world_scope, entry, None);
+        let resource_id = table.insert(world_state, entry, None);
 
         let snapshot = table
             .snapshot(CaptureMode::Fork)
@@ -851,7 +851,7 @@ mod tests {
     fn test_snapshot_restore_requires_external_rebinding() {
         let mut world = World::from_options(&RuntimeOptions::default())
             .expect("resource-table test world should build");
-        let world_scope = world.world_scope();
+        let world_state = &mut world.state;
         let table = ResourceTable::default();
         let provider = Arc::new(TestResourceProvider);
         table.register_provider(ResourceKind::Timer, provider);
@@ -859,7 +859,7 @@ mod tests {
         let entry = ResourceEntry::new(ResourceKind::Timer)
             .with_capture(ResourceCapture::Recipe)
             .with_portability(ResourcePortability::External);
-        let _ = table.insert(&world_scope, entry, None);
+        let _ = table.insert(world_state, entry, None);
 
         let snapshot = table
             .snapshot(CaptureMode::Hibernate)

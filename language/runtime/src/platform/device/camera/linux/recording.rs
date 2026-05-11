@@ -3,7 +3,7 @@ use std::process::{Child, Command, Stdio};
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, start_with_policy};
+use crate::runtime::{ExecutionMode, ExecutionPolicy, start_with_policy};
 
 use super::core::*;
 use super::device::{read_host_frame_bytes, wait_for_frame};
@@ -158,7 +158,7 @@ pub(super) fn start_linux_recording_worker(
     let handle = start_with_policy(
         "destack-camera-linux-recording",
         "destack.device.camera.stream.startRecording",
-        ExecutionPolicy::instance(ExecutionMode::Loop),
+        ExecutionPolicy::resource(ExecutionMode::Loop),
         move || {
             let result = run_linux_recording_worker(
                 descriptor,

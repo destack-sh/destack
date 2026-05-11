@@ -945,7 +945,7 @@ pub(super) fn insert_key_resource(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     resource::CryptoKeyHandle(resource_id)
 }
@@ -962,7 +962,7 @@ pub(super) fn insert_certificate_resource(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     resource::CryptoCertificateHandle(resource_id)
 }

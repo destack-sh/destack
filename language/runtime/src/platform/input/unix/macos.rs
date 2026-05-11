@@ -17,8 +17,7 @@ use crate::platform::input::{
 };
 use crate::platform::resource::ResourceKind;
 use crate::platform::{PlatformError, resource};
-use crate::runtime::BindingCallContext;
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, start_with_policy};
+use crate::runtime::{BindingCallContext, ExecutionMode, ExecutionPolicy, start_with_policy};
 
 /// Stable runtime identifier for macOS global session input.
 pub(super) const MACOS_INPUT_SESSION_ID: &str = "macos:session";
@@ -401,7 +400,7 @@ fn ensure_tap_service_ready(operation: &'static str) -> RuntimeResult<()> {
         start_with_policy(
             "destack-input-macos-tap",
             "destack.input.event.open",
-            ExecutionPolicy::global(ExecutionMode::Loop),
+            ExecutionPolicy::process(ExecutionMode::Loop),
             move || run_event_tap_worker(state),
         )
         .map(|_handle| ())

@@ -40,7 +40,7 @@ pub(crate) struct PlatformOsState {
     /// Runtime-owned network watches.
     pub(super) network_watches: Arc<Mutex<HashMap<u64, Arc<NetworkWatchStream>>>>,
     /// Active network poll callback handle when one is registered.
-    pub(super) network_watch_callback: Arc<Mutex<Option<RuntimeScheduledCallbackHandle>>>,
+    pub(super) network_watch_callback: Arc<Mutex<Option<WorkerCallbackHandle>>>,
     /// Runtime-owned location watches.
     pub(super) location_watches: Arc<Mutex<HashMap<String, Arc<LocationWatchStream>>>>,
 }
@@ -213,17 +213,17 @@ impl PlatformOsState {
     }
 
     /// Return the active network watch callback handle when one exists.
-    pub(crate) fn network_watch_callback(&self) -> Option<RuntimeScheduledCallbackHandle> {
+    pub(crate) fn network_watch_callback(&self) -> Option<WorkerCallbackHandle> {
         *self.network_watch_callback.lock()
     }
 
     /// Store one network watch callback handle.
-    pub(crate) fn set_network_watch_callback(&self, handle: RuntimeScheduledCallbackHandle) {
+    pub(crate) fn set_network_watch_callback(&self, handle: WorkerCallbackHandle) {
         *self.network_watch_callback.lock() = Some(handle);
     }
 
     /// Clear one registered network watch callback handle.
-    pub(crate) fn clear_network_watch_callback(&self, handle: RuntimeScheduledCallbackHandle) {
+    pub(crate) fn clear_network_watch_callback(&self, handle: WorkerCallbackHandle) {
         let mut callback = self.network_watch_callback.lock();
         if callback.is_some_and(|current| current == handle) {
             *callback = None;

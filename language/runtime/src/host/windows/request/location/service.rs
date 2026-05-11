@@ -17,9 +17,9 @@ use crate::platform::core::{io_not_found, io_operation_error};
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::abi_generated::{LocationSampleValue, LocationWatchOptionsValue};
 use crate::platform::os::{LocationAccuracy, Permission, PermissionState};
-use crate::runtime::process::service::executor::thread::ServiceThreadExecutor;
-use crate::runtime::process::service::registry::{global_service, global_service_if_initialized};
-use crate::runtime::process::{ExecutionAffinity, ExecutionMode, ExecutionPolicy};
+use crate::runtime::service::executor::thread::ServiceThreadExecutor;
+use crate::runtime::service::registry::{global_service, global_service_if_initialized};
+use crate::runtime::{ExecutionAffinity, ExecutionMode, ExecutionPolicy};
 
 /// The location last-known maximum age.
 const LOCATION_LAST_KNOWN_MAXIMUM_AGE_NS: u64 = 300_000_000_000;
@@ -88,8 +88,8 @@ impl Drop for ActiveLocationWatch {
 
 impl WindowsLocationService {
     /// The execution policy for the Windows location service.
-    pub(crate) const POLICY: ExecutionPolicy =
-        ExecutionPolicy::global(ExecutionMode::Thread).with_affinity(ExecutionAffinity::WindowsMta);
+    pub(crate) const POLICY: ExecutionPolicy = ExecutionPolicy::process(ExecutionMode::Thread)
+        .with_affinity(ExecutionAffinity::WindowsMta);
 
     /// Return whether host location services are currently enabled.
     pub(crate) fn location_services_enabled(&self, operation: &'static str) -> RuntimeResult<bool> {

@@ -17,9 +17,9 @@ use super::state::{
 };
 use crate::platform::PlatformError;
 use crate::runtime::control::queue::BoundedQueue;
-use crate::runtime::process::service::Service;
-use crate::runtime::process::service::windows::WindowsRegisteredWait;
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy};
+use crate::runtime::service::Service;
+use crate::runtime::service::windows::WindowsRegisteredWait;
+use crate::runtime::{ExecutionMode, ExecutionPolicy};
 
 use super::super::core::SerialWatchEventState;
 
@@ -280,7 +280,7 @@ impl WindowsSerialService {
 }
 
 impl Service for WindowsSerialService {
-    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
+    const POLICY: ExecutionPolicy = ExecutionPolicy::process(ExecutionMode::Inline);
 }
 
 /// Publish one snapshot delta into one watch queue.

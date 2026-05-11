@@ -1,5 +1,5 @@
 use crate::platform::model::{
-    BindingType, CatalogBindingProvider, CatalogBindingReplayKind, CatalogEffectClass,
+    BindingType, CatalogBindingProvider, CatalogBindingReplayKind, CatalogEffect,
     CatalogEntropyKind, CatalogReplayPolicy,
 };
 
@@ -46,8 +46,8 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             let implementation_fn_name = &binding.implementation_fn_name;
             let replay_fn_name = codegen.native_replay_fn_name(binding.extern_name);
             let is_recordable = matches!(
-                entry.effect_class,
-                CatalogEffectClass::External {
+                entry.effect,
+                CatalogEffect::External {
                     replay: CatalogReplayPolicy::Recordable
                 }
             );

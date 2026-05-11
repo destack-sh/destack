@@ -6,7 +6,7 @@ use super::types::{
     AndroidHostBluetoothGattServiceHeader, AndroidHostBluetoothScanEventHeader,
     AndroidHostBluetoothScanFilterHeader, AndroidHostBluetoothSessionEventHeader,
 };
-use crate::host::android::abi::bindings::invoke_android_binding_callback;
+use crate::host::android::abi::binding::invoke_android_binding_callback;
 use crate::platform::abi::{NativeSlice, NativeStringRef};
 
 /// The host callback for `adapter_list`.

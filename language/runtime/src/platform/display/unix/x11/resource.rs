@@ -8,7 +8,7 @@ use crate::platform::resource::resolve::resolve_payload;
 use crate::platform::resource::{ResourceEntry, ResourceFinalizer, ResourceId, ResourceKind};
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
-use crate::runtime::bindings::BindingAffinity;
+use crate::runtime::binding::BindingAffinity;
 
 use super::core;
 use super::event::{MonitorEventStream, WindowEventStream};
@@ -45,7 +45,7 @@ pub(crate) fn open_display_handle(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     resource::DisplayHandle(resource_id)
 }

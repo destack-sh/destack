@@ -19,7 +19,7 @@ pub(crate) fn intent_open(
     let handle = binding
         .worker()
         .resources
-        .insert(&binding.world(), entry, Some(binding.engine()));
+        .insert(binding.world(), entry, Some(binding.engine()));
 
     Ok(resource::IntentHandle(handle))
 }
@@ -34,7 +34,7 @@ pub(crate) fn intent_close(
         binding
             .worker()
             .resources
-            .remove(&binding.world(), handle.0, Some(binding.engine()));
+            .remove(binding.world(), handle.0, Some(binding.engine()));
 
     let Some(entry) = removed else {
         return Err(invalid_handle("unknown intent event stream handle"));

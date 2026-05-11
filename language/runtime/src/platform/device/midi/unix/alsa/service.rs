@@ -8,7 +8,8 @@ use parking_lot::Mutex;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform, BackendSupport};
 use crate::platform::device::{MidiEventSource, MidiPortDirection};
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, Service, start_with_policy};
+use crate::runtime::service::Service;
+use crate::runtime::{ExecutionMode, ExecutionPolicy, start_with_policy};
 
 use super::abi::{
     POLLIN, SND_SEQ_CLIENT_SYSTEM, SND_SEQ_OPEN_INPUT, SND_SEQ_PORT_CAP_NO_EXPORT,
@@ -60,7 +61,7 @@ impl Drop for AlsaService {
 }
 
 impl Service for AlsaService {
-    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
+    const POLICY: ExecutionPolicy = ExecutionPolicy::process(ExecutionMode::Inline);
 }
 
 /// Return the shared ALSA sequencer client service.
@@ -188,7 +189,7 @@ fn spawn_announce_thread(
     let announce_thread = start_with_policy(
         "destack-midi-alsa-announce",
         "destack.device.midi.alsa.announce.spawn",
-        ExecutionPolicy::global(ExecutionMode::Loop),
+        ExecutionPolicy::process(ExecutionMode::Loop),
         move || {
             run_announce_thread(handle, port_id, topology, native_event_registry, stop_flag);
         },

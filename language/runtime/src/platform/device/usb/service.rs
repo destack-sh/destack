@@ -2,8 +2,8 @@ use super::core::*;
 use super::descriptor::*;
 use super::ffi::{LibusbApi, ffi, libusb_library_candidates, load_libraryusb_api};
 use super::transfer::usb_hotplug_callback;
-use crate::runtime::process::service::Service;
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, WorkerLoop};
+use crate::runtime::service::Service;
+use crate::runtime::{ExecutionMode, ExecutionPolicy, WorkerLoop};
 
 /// One polling interval used for fallback hotplug snapshot diffs.
 ///
@@ -371,7 +371,7 @@ impl UsbService {
 }
 
 impl Service for UsbService {
-    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Loop);
+    const POLICY: ExecutionPolicy = ExecutionPolicy::process(ExecutionMode::Loop);
 }
 
 impl Drop for UsbService {

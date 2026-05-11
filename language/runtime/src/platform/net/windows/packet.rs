@@ -834,7 +834,7 @@ pub(crate) unsafe fn destack_net_packet_open(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
     let snap_length = usize::try_from(options.snap_length).unwrap_or(WINDOWS_PACKET_MAX_LENGTH);
     let snap_length = snap_length.clamp(1, WINDOWS_PACKET_MAX_LENGTH);
     PACKET_SOCKET_STATES.lock().insert(

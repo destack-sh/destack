@@ -32,7 +32,7 @@ pub(super) use crate::platform::resource::{ResourceEntry, ResourceFinalizer, Res
 pub(super) use crate::platform::{NativeAbiCodec, PlatformError, core as core_platform, resource};
 pub(super) use crate::runtime::BindingCallContext;
 pub(super) use crate::runtime::control::queue::BoundedQueue;
-pub(super) use crate::runtime::process::service::ProcessSubscriberRegistry;
+pub(super) use crate::runtime::service::ProcessSubscriberRegistry;
 
 /// Resource-table label for one usb device session.
 pub(super) const USB_DEVICE_RESOURCE_LABEL: &str = "device.usb.device";

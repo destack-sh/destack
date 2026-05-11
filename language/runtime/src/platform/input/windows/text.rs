@@ -1122,7 +1122,7 @@ pub(crate) unsafe fn destack_input_text_open(
                 binding
                     .worker()
                     .resources
-                    .insert(&binding.world(), entry, Some(binding.engine()));
+                    .insert(binding.world(), entry, Some(binding.engine()));
 
             return Ok(resource::InputTextSessionHandle(resource_id));
         }
@@ -1192,7 +1192,7 @@ pub(crate) unsafe fn destack_input_text_open(
             binding
                 .worker()
                 .resources
-                .insert(&binding.world(), entry, Some(binding.engine()));
+                .insert(binding.world(), entry, Some(binding.engine()));
 
         Ok(resource::InputTextSessionHandle(resource_id))
     })();
@@ -1241,7 +1241,7 @@ pub(crate) unsafe fn destack_input_text_close(
     }
 
     let removed = binding.worker().resources.remove_and_finalize(
-        &binding.world(),
+        binding.world(),
         session.0,
         Some(binding.engine()),
     );

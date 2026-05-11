@@ -21,7 +21,8 @@ use crate::platform::os::abi_generated::{
     LocationAccuracy, LocationSampleValue, LocationWatchOptionsValue,
 };
 use crate::runtime::action::{HostAction, HostActionSet};
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, Service, WorkerLoop};
+use crate::runtime::service::Service;
+use crate::runtime::{ExecutionMode, ExecutionPolicy, WorkerLoop};
 
 /// The Linux location services-enabled operation name.
 const LOCATION_SERVICES_ENABLED_OPERATION: &str = "destack.os.location.servicesEnabled";
@@ -159,7 +160,7 @@ impl LinuxLocationService {
         let worker = WorkerLoop::open(
             &format!("destack-linux-location-{}", host_session_id.0),
             LOCATION_WATCH_OPEN_OPERATION,
-            ExecutionPolicy::global(ExecutionMode::Loop),
+            ExecutionPolicy::process(ExecutionMode::Loop),
             move || {
                 let configuration =
                     runtime_watch_configuration(&worker_state).ok_or_else(|| {
@@ -256,7 +257,7 @@ impl LinuxLocationService {
 }
 
 impl Service for LinuxLocationService {
-    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
+    const POLICY: ExecutionPolicy = ExecutionPolicy::process(ExecutionMode::Inline);
 }
 
 /// Return dynamic Unix location actions for Linux hosts.

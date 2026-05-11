@@ -306,7 +306,7 @@ pub(crate) unsafe fn window_open(
         context
             .worker()
             .resources
-            .insert(&context.world(), entry, Some(context.engine()));
+            .insert(context.world(), entry, Some(context.engine()));
     let handle = resource::WindowHandle(resource_id);
     {
         let host_state = host_state.lock().unwrap_or_else(|error| error.into_inner());

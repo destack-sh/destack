@@ -67,7 +67,7 @@ pub(crate) unsafe fn monitor_close(
     let removed = context
         .worker()
         .resources
-        .remove(&context.world(), handle.0, Some(context.engine()))
+        .remove(context.world(), handle.0, Some(context.engine()))
         .is_some();
     if !removed {
         return Err(core_platform::io_not_found(

@@ -28,11 +28,9 @@ use crate::platform::input::{
     InputGamepadState, InputHapticEffectParameters, InputHapticEffectType, InputHapticsResult,
 };
 use crate::platform::{PlatformError, core as core_platform};
-use crate::runtime::BindingCallContext;
-use crate::runtime::process::service::executor::periodic::{
-    PeriodicTaskHandle, open_periodic_task,
-};
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, Service};
+use crate::runtime::service::Service;
+use crate::runtime::service::executor::periodic::{PeriodicTaskHandle, open_periodic_task};
+use crate::runtime::{BindingCallContext, ExecutionMode, ExecutionPolicy};
 
 /// Prefix for stable xinput device identifiers.
 pub(super) const XINPUT_DEVICE_ID_PREFIX: &str = "xinput:";
@@ -147,7 +145,7 @@ impl WindowsXInputService {
 }
 
 impl Service for WindowsXInputService {
-    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Polling);
+    const POLICY: ExecutionPolicy = ExecutionPolicy::process(ExecutionMode::Polling);
 }
 
 /// Return one process-global XInput polling service.

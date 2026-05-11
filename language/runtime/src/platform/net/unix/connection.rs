@@ -204,7 +204,7 @@ fn register_socket_pair(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), first_entry, Some(binding.engine()));
+            .insert(binding.world(), first_entry, Some(binding.engine()));
 
     let second_entry = ResourceEntry::new(ResourceKind::Socket)
         .with_socket(second_fd)
@@ -213,7 +213,7 @@ fn register_socket_pair(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), second_entry, Some(binding.engine()));
+            .insert(binding.world(), second_entry, Some(binding.engine()));
 
     unsafe {
         *out = SocketPair {
@@ -459,7 +459,7 @@ pub(crate) unsafe fn destack_net_accept(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = SocketHandle(resource_id);
     }
@@ -488,7 +488,7 @@ pub(crate) unsafe fn destack_net_close(
 
     // remove the resource and close it
     if !binding.worker().resources.remove_and_finalize(
-        &binding.world(),
+        binding.world(),
         handle.0,
         Some(binding.engine()),
     ) {
@@ -523,7 +523,7 @@ pub(crate) unsafe fn destack_net_close_listener(
 
     // remove the resource and close it
     if !binding.worker().resources.remove_and_finalize(
-        &binding.world(),
+        binding.world(),
         handle.0,
         Some(binding.engine()),
     ) {
@@ -646,7 +646,7 @@ pub(crate) unsafe fn destack_net_listen_raw(
             binding
                 .worker()
                 .resources
-                .insert(&binding.world(), entry, Some(binding.engine()));
+                .insert(binding.world(), entry, Some(binding.engine()));
         unsafe {
             *out = ListenerHandle(resource_id);
         }
@@ -688,7 +688,7 @@ pub(crate) unsafe fn destack_net_socket(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = SocketHandle(resource_id);
     }

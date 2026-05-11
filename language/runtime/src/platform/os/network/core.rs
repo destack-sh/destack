@@ -11,8 +11,7 @@ use crate::platform::net::{
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::{NativeAbiCodec, resource};
-use crate::runtime::BindingCallContext;
-use crate::runtime::process::RuntimeScheduledCallbackControl;
+use crate::runtime::{BindingCallContext, WorkerCallbackControl};
 
 use crate::platform::os::state::{NetworkWatchStream, PlatformOsState, invalid_handle, os_state};
 use crate::platform::os::{
@@ -89,7 +88,7 @@ pub(crate) fn watch_open(
     let handle = binding
         .worker()
         .resources
-        .insert(&binding.world(), entry, Some(binding.engine()));
+        .insert(binding.world(), entry, Some(binding.engine()));
 
     Ok(resource::NetworkWatchHandle(handle))
 }
@@ -104,7 +103,7 @@ pub(crate) fn watch_close(
         binding
             .worker()
             .resources
-            .remove(&binding.world(), handle.0, Some(binding.engine()));
+            .remove(binding.world(), handle.0, Some(binding.engine()));
     let Some(entry) = removed else {
         return Err(invalid_handle("unknown network watch handle"));
     };
@@ -330,8 +329,7 @@ fn ensure_network_watch_callback(binding: &BindingCallContext) -> RuntimeResult<
     }
 
     let callback_runtime_state = runtime_state.clone();
-    let callback_handle = binding.worker().schedule_runtime_callback(
-        binding,
+    let callback_handle = binding.schedule_worker_callback(
         NETWORK_WATCH_CALLBACK_INTERVAL_NS,
         Some(NETWORK_WATCH_CALLBACK_INTERVAL_NS),
         move |binding| service_network_watch_callback(binding, &callback_runtime_state),
@@ -345,13 +343,13 @@ fn ensure_network_watch_callback(binding: &BindingCallContext) -> RuntimeResult<
 fn service_network_watch_callback(
     binding: &BindingCallContext,
     runtime_state: &PlatformOsState,
-) -> RuntimeResult<RuntimeScheduledCallbackControl> {
+) -> RuntimeResult<WorkerCallbackControl> {
     if !runtime_state.has_network_watches() {
         if let Some(handle) = runtime_state.network_watch_callback() {
             runtime_state.clear_network_watch_callback(handle);
         }
 
-        return Ok(RuntimeScheduledCallbackControl::Cancel);
+        return Ok(WorkerCallbackControl::Cancel);
     }
 
     let streams = runtime_state.network_watch_streams();
@@ -361,7 +359,7 @@ fn service_network_watch_callback(
         stream.publish_state(next_state);
     }
 
-    Ok(RuntimeScheduledCallbackControl::Keep)
+    Ok(WorkerCallbackControl::Keep)
 }
 
 /// Expose one VM-facing host network snapshot.

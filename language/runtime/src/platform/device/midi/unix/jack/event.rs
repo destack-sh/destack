@@ -20,8 +20,8 @@ use crate::platform::device::{
 use crate::platform::resource;
 use crate::runtime::BindingCallContext;
 use crate::runtime::control::queue::BoundedQueue;
-use crate::runtime::process::Service;
-use crate::runtime::process::service::executor::periodic::open_periodic_task;
+use crate::runtime::service::Service;
+use crate::runtime::service::executor::periodic::open_periodic_task;
 
 use super::core::{
     JackEventDeliveryKind, JackEventRepository, JackSnapshotKey, insert_event_resource,
@@ -100,7 +100,7 @@ fn register_poll_event_session(
     service: &Arc<JackService>,
     session: &Arc<Mutex<JackEventRepository>>,
     poll_interval: std::time::Duration,
-) -> RuntimeResult<Arc<crate::runtime::process::service::executor::periodic::PeriodicTaskHandle>> {
+) -> RuntimeResult<Arc<crate::runtime::service::executor::periodic::PeriodicTaskHandle>> {
     let service = service.clone();
     let session = Arc::downgrade(session);
     let is_failed = Arc::new(std::sync::atomic::AtomicBool::new(false));

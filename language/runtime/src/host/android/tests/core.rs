@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::host::core::registry::HostSessionRegistrationGuard;
-use crate::host::os::android::abi::bindings::AndroidHostBindings;
+use crate::host::os::android::abi::binding::AndroidHostBindings;
 use crate::host::os::android::abi::registry::{
     register_android_bindings as register_android_bindings_payload, unregister_android_bindings,
 };

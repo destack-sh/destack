@@ -313,7 +313,7 @@ pub(crate) fn remove_labeled_resource(
     handle_kind: &str,
 ) -> RuntimeResult<()> {
     let removed = binding.worker().resources.remove_and_finalize(
-        &binding.world(),
+        binding.world(),
         handle_id,
         Some(binding.engine()),
     );
@@ -351,7 +351,7 @@ where
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     wrap(resource_id)
 }

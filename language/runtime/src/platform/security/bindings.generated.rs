@@ -15,9 +15,9 @@ use crate::platform::security::{SecurityPolicyMode, SecurityPolicyRule, Security
 use crate::platform::{
     PlatformError, RuntimeStatus, VmAggregateCodec, VmSlice, abi as platform_abi,
 };
-use crate::runtime::bindings::{
-    BindingAffinity, BindingDescriptor, BindingProvider, BindingRegistry, BindingReplayKind,
-    BindingReplayPolicy, NativeBinding, NativeBindingSet, native_call,
+use crate::runtime::binding::{
+    BindingAffinity, BindingDescriptor, BindingEffect, BindingProvider, BindingRegistry,
+    BindingReplayKind, BindingReplayPayload, NativeBinding, NativeBindingSet, native_call,
 };
 use crate::runtime::trace::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
@@ -362,45 +362,54 @@ struct SecuritySandboxExitReplayRecord {
 }
 
 /// Binding descriptor for destack.security.action.has.
-pub(crate) const SECURITY_CAPABILITY_HAS: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_dispatch(
-        "destack.security.action.has",
-        "export function actionHas(action: HostAction): Result<boolean, PlatformError>",
-        &["security.policy.read"],
-        BindingProvider::Runtime,
-        BindingAffinity::None,
-    )
-    .with_namespace("security")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const SECURITY_CAPABILITY_HAS: BindingDescriptor = BindingDescriptor::new(
+    "destack.security.action.has",
+    "export function actionHas(action: HostAction): Result<boolean, PlatformError>",
+    BindingEffect::Deterministic,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["security.policy.read"],
+    BindingProvider::Runtime,
+    BindingAffinity::None,
+)
+.with_namespace("security")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.security.action.list.
-pub(crate) const SECURITY_CAPABILITY_LIST: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_dispatch(
-        "destack.security.action.list",
-        "export function actionList(): Result<Slice<HostAction>, PlatformError>",
-        &["security.policy.read"],
-        BindingProvider::Runtime,
-        BindingAffinity::None,
-    )
-    .with_namespace("security")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const SECURITY_CAPABILITY_LIST: BindingDescriptor = BindingDescriptor::new(
+    "destack.security.action.list",
+    "export function actionList(): Result<Slice<HostAction>, PlatformError>",
+    BindingEffect::Deterministic,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["security.policy.read"],
+    BindingProvider::Runtime,
+    BindingAffinity::None,
+)
+.with_namespace("security")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.security.enforce.sandboxSeal.
-pub(crate) const SECURITY_ENFORCE_SANDBOX_SEAL: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_dispatch(
-        "destack.security.enforce.sandboxSeal",
-        "export function sandboxSeal(handle: SandboxHandle): Result<void, PlatformError>",
-        &["security.restrict"],
-        BindingProvider::Runtime,
-        BindingAffinity::None,
-    )
-    .with_namespace("security")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const SECURITY_ENFORCE_SANDBOX_SEAL: BindingDescriptor = BindingDescriptor::new(
+    "destack.security.enforce.sandboxSeal",
+    "export function sandboxSeal(handle: SandboxHandle): Result<void, PlatformError>",
+    BindingEffect::Deterministic,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["security.restrict"],
+    BindingProvider::Runtime,
+    BindingAffinity::None,
+)
+.with_namespace("security")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.security.enforce.sandboxSetActions.
-pub(crate) const SECURITY_ENFORCE_SANDBOX_SET_CAPABILITIES: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
+pub(crate) const SECURITY_ENFORCE_SANDBOX_SET_CAPABILITIES: BindingDescriptor = BindingDescriptor::new(
     "destack.security.enforce.sandboxSetActions",
     "export function sandboxSetActions(handle: SandboxHandle, actions: Slice<HostAction>): Result<void, PlatformError>",
+    BindingEffect::Deterministic,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["security.restrict"],
     BindingProvider::Runtime,
     BindingAffinity::None,
@@ -410,9 +419,12 @@ pub(crate) const SECURITY_ENFORCE_SANDBOX_SET_CAPABILITIES: BindingDescriptor = 
 
 /// Binding descriptor for destack.security.enforce.setWriteXorExecute.
 pub(crate) const SECURITY_ENFORCE_SET_WRITE_XOR_EXECUTE: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_dispatch(
+    BindingDescriptor::new(
         "destack.security.enforce.setWriteXorExecute",
         "export function setWriteXorExecute(enabled: boolean): Result<void, PlatformError>",
+        BindingEffect::Deterministic,
+        BindingReplayKind::BindingCall,
+        BindingReplayPayload::Results,
         &["security.restrict"],
         BindingProvider::Runtime,
         BindingAffinity::None,
@@ -421,21 +433,26 @@ pub(crate) const SECURITY_ENFORCE_SET_WRITE_XOR_EXECUTE: BindingDescriptor =
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.security.policy.get.
-pub(crate) const SECURITY_POLICY_GET: BindingDescriptor =
-    BindingDescriptor::deterministic_with_requires_and_dispatch(
-        "destack.security.policy.get",
-        "export function policyGet(provider: string): Result<Slice<HostAction>, PlatformError>",
-        &["security.policy.read"],
-        BindingProvider::Runtime,
-        BindingAffinity::None,
-    )
-    .with_namespace("security")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const SECURITY_POLICY_GET: BindingDescriptor = BindingDescriptor::new(
+    "destack.security.policy.get",
+    "export function policyGet(provider: string): Result<Slice<HostAction>, PlatformError>",
+    BindingEffect::Deterministic,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["security.policy.read"],
+    BindingProvider::Runtime,
+    BindingAffinity::None,
+)
+.with_namespace("security")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.security.policy.getRules.
-pub(crate) const SECURITY_POLICY_GET_RULES: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
+pub(crate) const SECURITY_POLICY_GET_RULES: BindingDescriptor = BindingDescriptor::new(
     "destack.security.policy.getRules",
     "export function policyGetRules(provider: string): Result<Slice<SecurityPolicyRule>, PlatformError>",
+    BindingEffect::Deterministic,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["security.policy.read"],
     BindingProvider::Runtime,
     BindingAffinity::None,
@@ -444,9 +461,12 @@ pub(crate) const SECURITY_POLICY_GET_RULES: BindingDescriptor = BindingDescripto
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.security.policy.set.
-pub(crate) const SECURITY_POLICY_SET: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
+pub(crate) const SECURITY_POLICY_SET: BindingDescriptor = BindingDescriptor::new(
     "destack.security.policy.set",
     "export function policySet(provider: string, actions: Slice<HostAction>): Result<void, PlatformError>",
+    BindingEffect::Deterministic,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["security.policy.write"],
     BindingProvider::Runtime,
     BindingAffinity::None,
@@ -455,9 +475,12 @@ pub(crate) const SECURITY_POLICY_SET: BindingDescriptor = BindingDescriptor::det
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.security.policy.setRules.
-pub(crate) const SECURITY_POLICY_SET_RULES: BindingDescriptor = BindingDescriptor::deterministic_with_requires_and_dispatch(
+pub(crate) const SECURITY_POLICY_SET_RULES: BindingDescriptor = BindingDescriptor::new(
     "destack.security.policy.setRules",
     "export function policySetRules(provider: string, rules: Slice<SecurityPolicyRule>): Result<void, PlatformError>",
+    BindingEffect::Deterministic,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["security.policy.write"],
     BindingProvider::Runtime,
     BindingAffinity::None,
@@ -466,32 +489,32 @@ pub(crate) const SECURITY_POLICY_SET_RULES: BindingDescriptor = BindingDescripto
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.security.sandbox.enter.
-pub(crate) const SECURITY_SANDBOX_ENTER: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.security.sandbox.enter",
-        "export function sandboxEnter(name: string): Result<SandboxHandle, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["security.sandbox"],
-        BindingProvider::Runtime,
-        BindingAffinity::None,
-    )
-    .with_namespace("security")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const SECURITY_SANDBOX_ENTER: BindingDescriptor = BindingDescriptor::new(
+    "destack.security.sandbox.enter",
+    "export function sandboxEnter(name: string): Result<SandboxHandle, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["security.sandbox"],
+    BindingProvider::Runtime,
+    BindingAffinity::None,
+)
+.with_namespace("security")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.security.sandbox.exit.
-pub(crate) const SECURITY_SANDBOX_EXIT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.security.sandbox.exit",
-        "export function sandboxExit(handle: SandboxHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["security.sandbox"],
-        BindingProvider::Runtime,
-        BindingAffinity::None,
-    )
-    .with_namespace("security")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const SECURITY_SANDBOX_EXIT: BindingDescriptor = BindingDescriptor::new(
+    "destack.security.sandbox.exit",
+    "export function sandboxExit(handle: SandboxHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["security.sandbox"],
+    BindingProvider::Runtime,
+    BindingAffinity::None,
+)
+.with_namespace("security")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Native binding set for security.
 pub(crate) const SECURITY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

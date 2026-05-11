@@ -6,7 +6,7 @@ use parking_lot::Mutex;
 use super::codec::read_camera_device_descriptors;
 use super::core::*;
 use crate::runtime::control::queue::BoundedQueue;
-use crate::runtime::process::{RuntimeScheduledCallbackControl, RuntimeScheduledCallbackHandle};
+use crate::runtime::{WorkerCallbackControl, WorkerCallbackHandle};
 
 /// One camera-watch event queue capacity.
 const CAMERA_WATCH_QUEUE_CAPACITY: usize = 64;
@@ -37,8 +37,8 @@ struct AndroidCameraWatchState {
     event_state: Mutex<CameraWatchEventState>,
     /// The last known camera snapshot.
     known_devices: BTreeMap<String, CameraDeviceDescriptorValue>,
-    /// The active runtime callback when registered.
-    callback_handle: Option<RuntimeScheduledCallbackHandle>,
+    /// The active worker callback when registered.
+    callback_handle: Option<WorkerCallbackHandle>,
     /// Whether the watch has begun teardown.
     is_closed: bool,
 }
@@ -111,11 +111,10 @@ fn camera_watch_resource(
 fn register_camera_watch_callback(
     binding: &BindingCallContext,
     state: &Arc<Mutex<AndroidCameraWatchState>>,
-) -> RuntimeResult<RuntimeScheduledCallbackHandle> {
+) -> RuntimeResult<WorkerCallbackHandle> {
     let state = Arc::downgrade(state);
 
-    binding.worker().schedule_runtime_callback(
-        binding,
+    binding.schedule_worker_callback(
         CAMERA_WATCH_POLL_INTERVAL_NS,
         Some(CAMERA_WATCH_POLL_INTERVAL_NS),
         move |binding| poll_camera_watch(binding, &state),
@@ -126,13 +125,13 @@ fn register_camera_watch_callback(
 fn poll_camera_watch(
     binding: &BindingCallContext,
     state: &Weak<Mutex<AndroidCameraWatchState>>,
-) -> RuntimeResult<RuntimeScheduledCallbackControl> {
+) -> RuntimeResult<WorkerCallbackControl> {
     let Some(state) = state.upgrade() else {
-        return Ok(RuntimeScheduledCallbackControl::Cancel);
+        return Ok(WorkerCallbackControl::Cancel);
     };
     let mut state = state.lock();
     if state.is_closed {
-        return Ok(RuntimeScheduledCallbackControl::Cancel);
+        return Ok(WorkerCallbackControl::Cancel);
     }
 
     // synthetic topology refresh
@@ -144,12 +143,12 @@ fn poll_camera_watch(
         Err(_) => {
             state.is_closed = true;
             state.event_queue.close();
-            return Ok(RuntimeScheduledCallbackControl::Cancel);
+            return Ok(WorkerCallbackControl::Cancel);
         }
     };
     state.refresh(devices);
 
-    Ok(RuntimeScheduledCallbackControl::Keep)
+    Ok(WorkerCallbackControl::Keep)
 }
 
 /// Open one Android camera topology watch stream.
@@ -194,7 +193,7 @@ pub(crate) unsafe fn destack_device_camera_device_watch_open(
     let handle = binding
         .worker()
         .resources
-        .insert(&binding.world(), entry, Some(binding.engine()));
+        .insert(binding.world(), entry, Some(binding.engine()));
 
     unsafe {
         out.write(resource::CameraWatchHandle(handle));
@@ -219,9 +218,7 @@ pub(crate) unsafe fn destack_device_camera_device_watch_close(
         };
 
         if let Some(callback_handle) = callback_handle {
-            binding
-                .worker()
-                .cancel_runtime_callback(binding, callback_handle)?;
+            binding.cancel_worker_callback(callback_handle)?;
         }
     }
 

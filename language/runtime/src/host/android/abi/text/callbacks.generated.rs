@@ -4,7 +4,7 @@ use super::types::{
     HostTextInputCloseRequest, HostTextInputGeometryRequest, HostTextInputOpenRequest,
     HostTextInputStateRequest,
 };
-use crate::host::android::abi::bindings::invoke_android_binding_callback;
+use crate::host::android::abi::binding::invoke_android_binding_callback;
 
 /// The host callback for `open`.
 pub(crate) type AndroidHostTextOpenCallback =

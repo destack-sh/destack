@@ -1,5 +1,5 @@
 use crate::platform::model::{
-    CatalogBindingProvider, CatalogBindingReplayKind, CatalogEffectClass, CatalogEntropyKind,
+    CatalogBindingProvider, CatalogBindingReplayKind, CatalogEffect, CatalogEntropyKind,
     CatalogReplayPolicy,
 };
 
@@ -333,8 +333,8 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
                 "args"
             };
             let is_recordable = matches!(
-                binding.entry.effect_class,
-                CatalogEffectClass::External {
+                binding.entry.effect,
+                CatalogEffect::External {
                     replay: CatalogReplayPolicy::Recordable
                 }
             );

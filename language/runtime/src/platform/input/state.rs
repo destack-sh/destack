@@ -32,7 +32,7 @@ use crate::runtime::BindingCallContext;
 #[cfg(any(target_os = "android", target_os = "ios"))]
 use crate::runtime::RuntimeEventQueue;
 #[cfg(any(unix, windows))]
-use crate::runtime::process::service::ServiceHandle;
+use crate::runtime::service::ServiceHandle;
 
 #[cfg(any(target_os = "android", target_os = "ios"))]
 use super::core::text::{push_host_text_state_event, text_session_not_found};

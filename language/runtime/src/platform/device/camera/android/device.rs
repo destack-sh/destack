@@ -78,7 +78,7 @@ pub(crate) unsafe fn destack_device_camera_device_open(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     unsafe {
         out.write(resource::CameraDeviceHandle(resource_id));

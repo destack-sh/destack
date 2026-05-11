@@ -8,7 +8,7 @@ use crate::platform::display::{
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::{NativeArray, core as core_platform, resource};
 use crate::runtime::BindingCallContext;
-use crate::runtime::bindings::BindingAffinity;
+use crate::runtime::binding::BindingAffinity;
 
 use crate::platform::display::unix::wayland::event::codec::display_event_from_record;
 use crate::platform::display::unix::wayland::event::publish::seed_monitor_event_stream;
@@ -111,7 +111,7 @@ pub(crate) unsafe fn monitor_event_open(
     runtime_state.initialize_monitor_topology_snapshot(snapshots);
 
     let resource_id = binding.worker().resources.insert(
-        &binding.world(),
+        binding.world(),
         ResourceEntry::new(ResourceKind::Display)
             .with_label(wayland_core::DISPLAY_EVENT_RESOURCE_LABEL)
             .with_binding_affinity(BindingAffinity::Worker)
@@ -145,7 +145,7 @@ pub(crate) unsafe fn monitor_event_close(
     let removed = binding
         .worker()
         .resources
-        .remove(&binding.world(), handle.0, Some(binding.engine()))
+        .remove(binding.world(), handle.0, Some(binding.engine()))
         .is_some();
 
     if !removed {

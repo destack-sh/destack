@@ -276,7 +276,7 @@ impl VmAggregateCodec for MemoryRange {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value, "memory::MemoryRange")
+            .value_ref(value, "heap::MemoryRange")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -308,7 +308,7 @@ impl VmAggregateCodec for MemoryRange {
         context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
-            .begin_named_aggregate_builder("memory::MemoryRange")
+            .begin_named_aggregate_builder("heap::MemoryRange")
             .map_err(Box::<RuntimeError>::from)?;
         let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.address, context)?;
         value_builder
@@ -375,7 +375,7 @@ impl VmAggregateCodec for ProtectedMemoryRange {
         value: vm::Word,
     ) -> RuntimeResult<Self> {
         let value_ref = context
-            .value_ref(value, "memory::ProtectedMemoryRange")
+            .value_ref(value, "heap::ProtectedMemoryRange")
             .map_err(|error| RuntimeError::from(error).boxed())?;
         <Self as VmAggregateCodec>::decode_value_ref_with_context(context, &value_ref)
     }
@@ -407,7 +407,7 @@ impl VmAggregateCodec for ProtectedMemoryRange {
         context: &mut vm::BindingWrite<'_, '_>,
     ) -> RuntimeResult<vm::Word> {
         let mut value_builder = context
-            .begin_named_aggregate_builder("memory::ProtectedMemoryRange")
+            .begin_named_aggregate_builder("heap::ProtectedMemoryRange")
             .map_err(Box::<RuntimeError>::from)?;
         let field_value = <u64 as VmAggregateCodec>::encode_with_context(self.address, context)?;
         value_builder
@@ -488,8 +488,8 @@ pub const MEMORY_RESERVE_TOP_DOWN: MemoryReserveFlags = MemoryReserveFlags(1u32)
 
 /// Register VM aggregate schemas for memory.
 pub(crate) fn register_memory_vm_aggregate_types(isolate: &mut vm::Isolate) -> vm::Result<()> {
-    isolate.register_named_aggregate_type("memory::MemoryRange", 2)?;
-    isolate.register_named_aggregate_type("memory::ProtectedMemoryRange", 2)?;
+    isolate.register_named_aggregate_type("heap::MemoryRange", 2)?;
+    isolate.register_named_aggregate_type("heap::ProtectedMemoryRange", 2)?;
 
     Ok(())
 }

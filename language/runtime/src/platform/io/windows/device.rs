@@ -189,7 +189,7 @@ pub(crate) unsafe fn destack_io_device_open(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     unsafe {
         out.write(resource::DeviceHandle(resource_id));
@@ -204,7 +204,7 @@ pub(crate) unsafe fn destack_io_device_close(
     handle: resource::DeviceHandle,
 ) -> RuntimeResult<()> {
     let removed = binding.worker().resources.remove_and_finalize(
-        &binding.world(),
+        binding.world(),
         handle.0,
         Some(binding.engine()),
     );

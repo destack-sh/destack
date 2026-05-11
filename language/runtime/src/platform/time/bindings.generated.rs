@@ -15,9 +15,9 @@ use crate::platform::time::{
     TimerOptions, TimerOptionsVm,
 };
 use crate::platform::{PlatformError, RuntimeStatus, VmAggregateCodec, abi as platform_abi};
-use crate::runtime::bindings::{
-    BindingAffinity, BindingDescriptor, BindingProvider, BindingRegistry, BindingReplayKind,
-    BindingReplayPolicy, NativeBinding, NativeBindingSet, native_call,
+use crate::runtime::binding::{
+    BindingAffinity, BindingDescriptor, BindingEffect, BindingProvider, BindingRegistry,
+    BindingReplayKind, BindingReplayPayload, NativeBinding, NativeBindingSet, native_call,
 };
 use crate::runtime::random::RandomStreamId;
 use crate::runtime::trace::{EntropyKind, TraceError};
@@ -705,136 +705,138 @@ struct TimeTimerUpdateIntervalReplayRecord {
 }
 
 /// Binding descriptor for destack.time.clock.metadata.
-pub(crate) const TIME_CLOCK_METADATA: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.time.clock.metadata",
-        "export function clockMetadata(clock: ClockId): Result<ClockMetadata, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["time.monotonic.read"],
-        BindingProvider::Runtime,
-        BindingAffinity::None,
-    )
-    .with_namespace("time")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const TIME_CLOCK_METADATA: BindingDescriptor = BindingDescriptor::new(
+    "destack.time.clock.metadata",
+    "export function clockMetadata(clock: ClockId): Result<ClockMetadata, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["time.monotonic.read"],
+    BindingProvider::Runtime,
+    BindingAffinity::None,
+)
+.with_namespace("time")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.time.clock.monoNs.
-pub(crate) const TIME_CLOCK_MONO_NS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.time.clock.monoNs",
-        "export function monoNs(): Result<uint64, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::Entropy(EntropyKind::TimeReadMonotonic),
-        &["time.monotonic.read"],
-        BindingProvider::Runtime,
-        BindingAffinity::None,
-    )
-    .with_namespace("time")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const TIME_CLOCK_MONO_NS: BindingDescriptor = BindingDescriptor::new(
+    "destack.time.clock.monoNs",
+    "export function monoNs(): Result<uint64, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::Entropy(EntropyKind::TimeReadMonotonic),
+    BindingReplayPayload::Results,
+    &["time.monotonic.read"],
+    BindingProvider::Runtime,
+    BindingAffinity::None,
+)
+.with_namespace("time")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.time.clock.nowNs.
-pub(crate) const TIME_CLOCK_NOW_NS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.time.clock.nowNs",
-        "export function nowNs(clock: ClockId): Result<uint64, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["time.monotonic.read"],
-        BindingProvider::Runtime,
-        BindingAffinity::None,
-    )
-    .with_namespace("time")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const TIME_CLOCK_NOW_NS: BindingDescriptor = BindingDescriptor::new(
+    "destack.time.clock.nowNs",
+    "export function nowNs(clock: ClockId): Result<uint64, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["time.monotonic.read"],
+    BindingProvider::Runtime,
+    BindingAffinity::None,
+)
+.with_namespace("time")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.time.clock.processCpuNs.
-pub(crate) const TIME_CLOCK_PROCESS_CPU_NS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.time.clock.processCpuNs",
-        "export function processCpuNs(): Result<uint64, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["time.monotonic.read"],
-        BindingProvider::Runtime,
-        BindingAffinity::None,
-    )
-    .with_namespace("time")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const TIME_CLOCK_PROCESS_CPU_NS: BindingDescriptor = BindingDescriptor::new(
+    "destack.time.clock.processCpuNs",
+    "export function processCpuNs(): Result<uint64, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["time.monotonic.read"],
+    BindingProvider::Runtime,
+    BindingAffinity::None,
+)
+.with_namespace("time")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.time.clock.threadCpuNs.
-pub(crate) const TIME_CLOCK_THREAD_CPU_NS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.time.clock.threadCpuNs",
-        "export function threadCpuNs(): Result<uint64, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["time.monotonic.read"],
-        BindingProvider::Runtime,
-        BindingAffinity::None,
-    )
-    .with_namespace("time")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const TIME_CLOCK_THREAD_CPU_NS: BindingDescriptor = BindingDescriptor::new(
+    "destack.time.clock.threadCpuNs",
+    "export function threadCpuNs(): Result<uint64, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["time.monotonic.read"],
+    BindingProvider::Runtime,
+    BindingAffinity::None,
+)
+.with_namespace("time")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.time.clock.wallNs.
-pub(crate) const TIME_CLOCK_WALL_NS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.time.clock.wallNs",
-        "export function wallNs(): Result<uint64, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::Entropy(EntropyKind::TimeReadWall),
-        &["time.wall.read"],
-        BindingProvider::Runtime,
-        BindingAffinity::None,
-    )
-    .with_namespace("time")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const TIME_CLOCK_WALL_NS: BindingDescriptor = BindingDescriptor::new(
+    "destack.time.clock.wallNs",
+    "export function wallNs(): Result<uint64, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::Entropy(EntropyKind::TimeReadWall),
+    BindingReplayPayload::Results,
+    &["time.wall.read"],
+    BindingProvider::Runtime,
+    BindingAffinity::None,
+)
+.with_namespace("time")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.time.sleep.ns.
-pub(crate) const TIME_SLEEP_NS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.time.sleep.ns",
-        "export function sleepNs(duration: uint64): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["time.wall.sleep"],
-        BindingProvider::Runtime,
-        BindingAffinity::None,
-    )
-    .with_namespace("time")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
-
-/// Binding descriptor for destack.time.sleep.onNs.
-pub(crate) const TIME_SLEEP_ON_NS: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
-    "destack.time.sleep.onNs",
-    "export function sleepOnNs(duration: uint64, clock: SleepClock): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+pub(crate) const TIME_SLEEP_NS: BindingDescriptor = BindingDescriptor::new(
+    "destack.time.sleep.ns",
+    "export function sleepNs(duration: uint64): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["time.wall.sleep"],
     BindingProvider::Runtime,
     BindingAffinity::None,
 )
-    .with_namespace("time")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+.with_namespace("time")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+
+/// Binding descriptor for destack.time.sleep.onNs.
+pub(crate) const TIME_SLEEP_ON_NS: BindingDescriptor = BindingDescriptor::new(
+    "destack.time.sleep.onNs",
+    "export function sleepOnNs(duration: uint64, clock: SleepClock): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["time.wall.sleep"],
+    BindingProvider::Runtime,
+    BindingAffinity::None,
+)
+.with_namespace("time")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.time.sleep.untilNs.
-pub(crate) const TIME_SLEEP_UNTIL_NS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.time.sleep.untilNs",
-        "export function sleepUntilNs(deadline: uint64): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["time.wall.sleep"],
-        BindingProvider::Runtime,
-        BindingAffinity::None,
-    )
-    .with_namespace("time")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const TIME_SLEEP_UNTIL_NS: BindingDescriptor = BindingDescriptor::new(
+    "destack.time.sleep.untilNs",
+    "export function sleepUntilNs(deadline: uint64): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["time.wall.sleep"],
+    BindingProvider::Runtime,
+    BindingAffinity::None,
+)
+.with_namespace("time")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.time.sleep.untilOnNs.
-pub(crate) const TIME_SLEEP_UNTIL_ON_NS: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const TIME_SLEEP_UNTIL_ON_NS: BindingDescriptor = BindingDescriptor::new(
     "destack.time.sleep.untilOnNs",
     "export function sleepUntilOnNs(deadline: uint64, clock: SleepClock): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["time.wall.sleep"],
     BindingProvider::Runtime,
     BindingAffinity::None,
@@ -843,11 +845,12 @@ pub(crate) const TIME_SLEEP_UNTIL_ON_NS: BindingDescriptor = BindingDescriptor::
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.time.timer.at.
-pub(crate) const TIME_TIMER_AT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const TIME_TIMER_AT: BindingDescriptor = BindingDescriptor::new(
     "destack.time.timer.at",
     "export function timerAt(deadlineNs: uint64, options: TimerOptions): Result<TimerHandle, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["time.timer"],
     BindingProvider::Runtime,
     BindingAffinity::None,
@@ -857,26 +860,27 @@ pub(crate) const TIME_TIMER_AT: BindingDescriptor = BindingDescriptor::external_
     .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.time.timer.cancel.
-pub(crate) const TIME_TIMER_CANCEL: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.time.timer.cancel",
-        "export function timerCancel(handle: TimerHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["time.timer"],
-        BindingProvider::Runtime,
-        BindingAffinity::None,
-    )
-    .with_namespace("time")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
-    .with_hosts(&["wasi"]);
+pub(crate) const TIME_TIMER_CANCEL: BindingDescriptor = BindingDescriptor::new(
+    "destack.time.timer.cancel",
+    "export function timerCancel(handle: TimerHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["time.timer"],
+    BindingProvider::Runtime,
+    BindingAffinity::None,
+)
+.with_namespace("time")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"])
+.with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.time.timer.interval.
-pub(crate) const TIME_TIMER_INTERVAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const TIME_TIMER_INTERVAL: BindingDescriptor = BindingDescriptor::new(
     "destack.time.timer.interval",
     "export function timerInterval(periodNs: uint64, options: TimerOptions): Result<TimerHandle, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["time.timer"],
     BindingProvider::Runtime,
     BindingAffinity::None,
@@ -886,26 +890,27 @@ pub(crate) const TIME_TIMER_INTERVAL: BindingDescriptor = BindingDescriptor::ext
     .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.time.timer.isActive.
-pub(crate) const TIME_TIMER_IS_ACTIVE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.time.timer.isActive",
-        "export function timerIsActive(handle: TimerHandle): Result<boolean, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["time.timer"],
-        BindingProvider::Runtime,
-        BindingAffinity::None,
-    )
-    .with_namespace("time")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
-    .with_hosts(&["wasi"]);
+pub(crate) const TIME_TIMER_IS_ACTIVE: BindingDescriptor = BindingDescriptor::new(
+    "destack.time.timer.isActive",
+    "export function timerIsActive(handle: TimerHandle): Result<boolean, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["time.timer"],
+    BindingProvider::Runtime,
+    BindingAffinity::None,
+)
+.with_namespace("time")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"])
+.with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.time.timer.once.
-pub(crate) const TIME_TIMER_ONCE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const TIME_TIMER_ONCE: BindingDescriptor = BindingDescriptor::new(
     "destack.time.timer.once",
     "export function timerOnce(delayNs: uint64, options: TimerOptions): Result<TimerHandle, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["time.timer"],
     BindingProvider::Runtime,
     BindingAffinity::None,
@@ -915,70 +920,72 @@ pub(crate) const TIME_TIMER_ONCE: BindingDescriptor = BindingDescriptor::externa
     .with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.time.timer.pause.
-pub(crate) const TIME_TIMER_PAUSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.time.timer.pause",
-        "export function timerPause(handle: TimerHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["time.timer"],
-        BindingProvider::Runtime,
-        BindingAffinity::None,
-    )
-    .with_namespace("time")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
-    .with_hosts(&["wasi"]);
-
-/// Binding descriptor for destack.time.timer.remainingNs.
-pub(crate) const TIME_TIMER_REMAINING_NS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.time.timer.remainingNs",
-        "export function timerRemainingNs(handle: TimerHandle): Result<uint64, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["time.timer"],
-        BindingProvider::Runtime,
-        BindingAffinity::None,
-    )
-    .with_namespace("time")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
-    .with_hosts(&["wasi"]);
-
-/// Binding descriptor for destack.time.timer.reset.
-pub(crate) const TIME_TIMER_RESET: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
-    "destack.time.timer.reset",
-    "export function timerReset(handle: TimerHandle, delayNs: uint64): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+pub(crate) const TIME_TIMER_PAUSE: BindingDescriptor = BindingDescriptor::new(
+    "destack.time.timer.pause",
+    "export function timerPause(handle: TimerHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["time.timer"],
     BindingProvider::Runtime,
     BindingAffinity::None,
 )
-    .with_namespace("time")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
-    .with_hosts(&["wasi"]);
+.with_namespace("time")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"])
+.with_hosts(&["wasi"]);
+
+/// Binding descriptor for destack.time.timer.remainingNs.
+pub(crate) const TIME_TIMER_REMAINING_NS: BindingDescriptor = BindingDescriptor::new(
+    "destack.time.timer.remainingNs",
+    "export function timerRemainingNs(handle: TimerHandle): Result<uint64, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["time.timer"],
+    BindingProvider::Runtime,
+    BindingAffinity::None,
+)
+.with_namespace("time")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"])
+.with_hosts(&["wasi"]);
+
+/// Binding descriptor for destack.time.timer.reset.
+pub(crate) const TIME_TIMER_RESET: BindingDescriptor = BindingDescriptor::new(
+    "destack.time.timer.reset",
+    "export function timerReset(handle: TimerHandle, delayNs: uint64): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["time.timer"],
+    BindingProvider::Runtime,
+    BindingAffinity::None,
+)
+.with_namespace("time")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"])
+.with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.time.timer.resume.
-pub(crate) const TIME_TIMER_RESUME: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.time.timer.resume",
-        "export function timerResume(handle: TimerHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["time.timer"],
-        BindingProvider::Runtime,
-        BindingAffinity::None,
-    )
-    .with_namespace("time")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"])
-    .with_hosts(&["wasi"]);
+pub(crate) const TIME_TIMER_RESUME: BindingDescriptor = BindingDescriptor::new(
+    "destack.time.timer.resume",
+    "export function timerResume(handle: TimerHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["time.timer"],
+    BindingProvider::Runtime,
+    BindingAffinity::None,
+)
+.with_namespace("time")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"])
+.with_hosts(&["wasi"]);
 
 /// Binding descriptor for destack.time.timer.updateInterval.
-pub(crate) const TIME_TIMER_UPDATE_INTERVAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const TIME_TIMER_UPDATE_INTERVAL: BindingDescriptor = BindingDescriptor::new(
     "destack.time.timer.updateInterval",
     "export function timerUpdateInterval(handle: TimerHandle, periodNs: uint64): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["time.timer"],
     BindingProvider::Runtime,
     BindingAffinity::None,

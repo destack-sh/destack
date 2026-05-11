@@ -444,7 +444,7 @@ pub(crate) fn host_completion_register_accepted_handle(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
     Ok(resource_id.0 as i64)
 }
 
@@ -484,7 +484,7 @@ pub(crate) fn host_event_open(
             binding
                 .worker()
                 .resources
-                .insert(&binding.world(), entry, Some(binding.engine()));
+                .insert(binding.world(), entry, Some(binding.engine()));
         Ok(EventToken(resource_id.0))
     }
 
@@ -518,7 +518,7 @@ pub(crate) fn host_event_open(
             binding
                 .worker()
                 .resources
-                .insert(&binding.world(), entry, Some(binding.engine()));
+                .insert(binding.world(), entry, Some(binding.engine()));
 
         Ok(EventToken(resource_id.0))
     }
@@ -531,7 +531,7 @@ pub(crate) fn host_event_close(
 ) -> RuntimeResult<()> {
     // remove one token resource from the runtime table
     let removed = binding.worker().resources.remove_and_finalize(
-        &binding.world(),
+        binding.world(),
         ResourceId(token.0),
         Some(binding.engine()),
     );

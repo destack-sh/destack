@@ -13,7 +13,7 @@ use crate::platform::runtime::{
     EngineDescriptor, EventLoopDescriptor, HeapDescriptor, ImageDescriptor, ImageFilter, ImageId,
     ObservationHandle, ObservationOptions, ObservationRecord, ResourceDescriptor, ResourceFilter,
     RevisionDescriptor, RevisionFilter, RevisionId, RuntimeCreateOptions, RuntimeDescriptor,
-    RuntimeFilter, RuntimeHandle, RuntimeId, RuntimeLabel, RuntimeTickOutcome, SnapshotDescriptor,
+    RuntimeFilter, RuntimeHandle, RuntimeId, RuntimeLabel, RuntimeTickResult, SnapshotDescriptor,
     SnapshotFormat, SnapshotId, TopologyEdge as TopologyEdgeDescriptor, TopologyEdgeFilter,
     TopologyEdgeId, TopologyEntity as TopologyEntityDescriptor, TopologyEntityFilter,
     TopologyEntityId, TraceCursorHandle, TraceCursorOptions, TraceDescriptor, TraceRecord,
@@ -25,7 +25,7 @@ use crate::platform::{NativeArray, PlatformError};
 use crate::runtime;
 use crate::runtime::control::inspect::labels_match_selectors;
 use crate::runtime::control::{control, empty_vm_engine};
-use crate::runtime::{BindingCallContext, TickOutcome};
+use crate::runtime::{BindingCallContext, TickResult};
 
 /// Close one worker.
 pub(crate) unsafe fn destack_runtime_worker_close(
@@ -286,7 +286,7 @@ pub(crate) unsafe fn destack_runtime_world_describe(
 /// Advance one world by one scheduler step.
 pub(crate) unsafe fn destack_runtime_world_tick(
     binding: &BindingCallContext,
-    out: *mut RuntimeTickOutcome,
+    out: *mut RuntimeTickResult,
     argument_world: WorldHandle,
 ) -> RuntimeResult<()> {
     ensure_out(out, "out")?;
@@ -297,10 +297,10 @@ pub(crate) unsafe fn destack_runtime_world_tick(
     let mut table = control.lock();
     let world = table.world_mut(RuntimeHandleCodec::decode_world_handle(argument_world))?;
     let outcome = match world.tick()? {
-        TickOutcome::Idle => RuntimeTickOutcome::Idle,
-        TickOutcome::Progressed => RuntimeTickOutcome::Progressed,
-        TickOutcome::AdvancedTime => RuntimeTickOutcome::AdvancedTime,
-        TickOutcome::Concurrent => RuntimeTickOutcome::Progressed,
+        TickResult::Idle => RuntimeTickResult::Idle,
+        TickResult::Worked => RuntimeTickResult::Progressed,
+        TickResult::TimeAdvanced => RuntimeTickResult::AdvancedTime,
+        TickResult::Background => RuntimeTickResult::Background,
     };
 
     unsafe {
@@ -1744,21 +1744,26 @@ pub(crate) unsafe fn destack_runtime_trace_next(
     binding.clear_values();
 
     // read the next batch from one live cursor
-    let control = control();
-    let table = control.lock();
-    let entry = table.trace_cursor_entry(RuntimeHandleCodec::decode_trace_cursor_handle(cursor))?;
-    let cursor = entry.cursor;
-    let limit = RuntimeRequestCodec::list_limit_or_max(limit);
-    let mut records = Vec::new();
+    let records = {
+        let control = control();
+        let mut table = control.lock();
+        let entry =
+            table.trace_cursor_entry_mut(RuntimeHandleCodec::decode_trace_cursor_handle(cursor))?;
+        let cursor = &mut entry.cursor;
+        let limit = RuntimeRequestCodec::list_limit_or_max(limit);
+        let mut records = Vec::new();
 
-    for _ in 0..limit {
-        let sequence = cursor.sequence();
-        let Some(event) = cursor.next_event()? else {
-            break;
-        };
+        for _ in 0..limit {
+            let sequence = cursor.sequence();
+            let Some(event) = cursor.next_event()? else {
+                break;
+            };
 
-        records.push((sequence, event));
-    }
+            records.push((sequence, event));
+        }
+
+        records
+    };
 
     let runtime_binding = NativeRuntimeBinding::new(binding);
 
@@ -1783,11 +1788,11 @@ pub(crate) unsafe fn destack_runtime_trace_open(
     binding.clear_values();
 
     // open one live cursor at the requested sequence
-    let cursor = {
+    let mut cursor = {
         let control = control();
         let table = control.lock();
         let world = table.world(RuntimeHandleCodec::decode_world_handle(argument_world))?;
-        Arc::new(world.trace().log().reader())
+        world.trace().log().reader()
     };
     let options = options.unwrap_or(TraceCursorOptions {
         start_sequence: None,
@@ -1818,14 +1823,19 @@ pub(crate) unsafe fn destack_runtime_trace_seek_checkpoint(
 
     // seek to the revision sequence anchored by one checkpoint
     let control = control();
-    let table = control.lock();
-    let entry = table.trace_cursor_entry(RuntimeHandleCodec::decode_trace_cursor_handle(cursor))?;
+    let mut table = control.lock();
+    let handle_id = RuntimeHandleCodec::decode_trace_cursor_handle(cursor);
+    let entry = table.trace_cursor_entry(handle_id)?;
     let world = table.world(entry.world_handle_id)?;
     let checkpoint =
         world.checkpoint_info(RuntimeHandleCodec::decode_checkpoint_id(checkpointid))?;
     let revision = world.revision_state(checkpoint.revision)?;
+    let sequence = revision.sequence;
 
-    entry.cursor.seek_sequence(revision.sequence)
+    table
+        .trace_cursor_entry_mut(handle_id)?
+        .cursor
+        .seek_sequence(sequence)
 }
 
 /// Seek one causal trace cursor to one revision boundary.
@@ -1838,12 +1848,17 @@ pub(crate) unsafe fn destack_runtime_trace_seek_revision(
 
     // seek to the sequence captured by one revision
     let control = control();
-    let table = control.lock();
-    let entry = table.trace_cursor_entry(RuntimeHandleCodec::decode_trace_cursor_handle(cursor))?;
+    let mut table = control.lock();
+    let handle_id = RuntimeHandleCodec::decode_trace_cursor_handle(cursor);
+    let entry = table.trace_cursor_entry(handle_id)?;
     let world = table.world(entry.world_handle_id)?;
     let revision = world.revision_state(RuntimeHandleCodec::decode_revision_id(revisionid))?;
+    let sequence = revision.sequence;
 
-    entry.cursor.seek_sequence(revision.sequence)
+    table
+        .trace_cursor_entry_mut(handle_id)?
+        .cursor
+        .seek_sequence(sequence)
 }
 
 /// Seek one causal trace cursor to one sequence.
@@ -1856,8 +1871,9 @@ pub(crate) unsafe fn destack_runtime_trace_seek_sequence(
 
     // seek one live cursor directly to one sequence boundary
     let control = control();
-    let table = control.lock();
-    let entry = table.trace_cursor_entry(RuntimeHandleCodec::decode_trace_cursor_handle(cursor))?;
+    let mut table = control.lock();
+    let entry =
+        table.trace_cursor_entry_mut(RuntimeHandleCodec::decode_trace_cursor_handle(cursor))?;
 
     entry
         .cursor

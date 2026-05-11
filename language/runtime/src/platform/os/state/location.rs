@@ -68,7 +68,7 @@ pub(crate) fn location_watch_open(
     let handle = binding
         .worker()
         .resources
-        .insert(&binding.world(), entry, Some(binding.engine()));
+        .insert(binding.world(), entry, Some(binding.engine()));
 
     Ok(resource::LocationWatchHandle(handle))
 }
@@ -98,7 +98,7 @@ pub(crate) fn location_watch_close(
         binding
             .worker()
             .resources
-            .remove(&binding.world(), handle.0, Some(binding.engine()));
+            .remove(binding.world(), handle.0, Some(binding.engine()));
 
     let Some(entry) = removed else {
         return Err(invalid_handle("unknown location watch stream handle"));

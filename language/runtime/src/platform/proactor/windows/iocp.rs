@@ -36,7 +36,7 @@ use crate::platform::proactor::{
 };
 use crate::platform::{PlatformError, PlatformErrorCode, ResourceId, core as core_platform};
 use crate::runtime::poller::{PlatformHandle, PlatformInterest, PollerEventMask};
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, start_with_policy};
+use crate::runtime::{ExecutionMode, ExecutionPolicy, start_with_policy};
 
 /// Completion key reserved for wake notifications.
 const WAKE_COMPLETION_KEY: usize = usize::MAX;

@@ -152,7 +152,7 @@ pub(crate) fn mac_open(
             binding
                 .worker()
                 .resources
-                .insert(&binding.world(), entry, Some(binding.engine()));
+                .insert(binding.world(), entry, Some(binding.engine()));
 
         return Ok(resource::CryptoMacHandle(resource_id));
     }
@@ -181,7 +181,7 @@ pub(crate) fn mac_open(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     Ok(resource::CryptoMacHandle(resource_id))
 }
@@ -319,7 +319,7 @@ pub(crate) fn mac_close(
         binding
             .worker()
             .resources
-            .remove(&binding.world(), handle.0, Some(binding.engine()))
+            .remove(binding.world(), handle.0, Some(binding.engine()))
     else {
         return Err(core_platform::io_not_found(
             "destack.crypto.mac.close",

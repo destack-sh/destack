@@ -14,8 +14,8 @@ use super::watch::{
     handle_scan_message, handle_subscription_message, start_adapter_discovery, start_notify,
     stop_adapter_discovery, stop_notify,
 };
-use crate::runtime::process::service::Service;
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, WorkerLoop};
+use crate::runtime::service::Service;
+use crate::runtime::{ExecutionMode, ExecutionPolicy, WorkerLoop};
 
 /// Process-global BlueZ transport and signal service.
 pub(crate) struct LinuxBluetoothService {
@@ -390,7 +390,7 @@ impl LinuxBluetoothService {
 }
 
 impl Service for LinuxBluetoothService {
-    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Loop);
+    const POLICY: ExecutionPolicy = ExecutionPolicy::process(ExecutionMode::Loop);
 }
 
 impl Default for LinuxBluetoothSignalRuntime {

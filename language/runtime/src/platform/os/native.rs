@@ -622,7 +622,7 @@ pub(crate) unsafe fn destack_os_document_pick_close(
 ) -> RuntimeResult<()> {
     // remove the one-shot transaction resource
     let removed = binding.worker().resources.remove_and_finalize(
-        &binding.world(),
+        binding.world(),
         handle.0,
         Some(binding.engine()),
     );
@@ -660,7 +660,7 @@ pub(crate) unsafe fn destack_os_document_pick_open(
     let handle = binding
         .worker()
         .resources
-        .insert(&binding.world(), entry, Some(binding.engine()));
+        .insert(binding.world(), entry, Some(binding.engine()));
 
     unsafe {
         out.write(resource::DocumentPickHandle(handle));
@@ -1495,7 +1495,7 @@ pub(crate) unsafe fn destack_os_notification_request_permission_close(
 ) -> RuntimeResult<()> {
     // remove the one-shot transaction resource
     let removed = binding.worker().resources.remove_and_finalize(
-        &binding.world(),
+        binding.world(),
         handle.0,
         Some(binding.engine()),
     );
@@ -1531,7 +1531,7 @@ pub(crate) unsafe fn destack_os_notification_request_permission_open(
     let handle = binding
         .worker()
         .resources
-        .insert(&binding.world(), entry, Some(binding.engine()));
+        .insert(binding.world(), entry, Some(binding.engine()));
 
     unsafe {
         out.write(resource::NotificationPermissionRequestHandle(handle));
@@ -1625,7 +1625,7 @@ pub(crate) unsafe fn destack_os_permission_request_close(
 ) -> RuntimeResult<()> {
     // remove the one-shot transaction resource
     let removed = binding.worker().resources.remove_and_finalize(
-        &binding.world(),
+        binding.world(),
         handle.0,
         Some(binding.engine()),
     );
@@ -1664,7 +1664,7 @@ pub(crate) unsafe fn destack_os_permission_request_many_open(
     let handle = binding
         .worker()
         .resources
-        .insert(&binding.world(), entry, Some(binding.engine()));
+        .insert(binding.world(), entry, Some(binding.engine()));
 
     unsafe {
         out.write(resource::PermissionRequestHandle(handle));
@@ -1696,7 +1696,7 @@ pub(crate) unsafe fn destack_os_permission_request_open(
     let handle = binding
         .worker()
         .resources
-        .insert(&binding.world(), entry, Some(binding.engine()));
+        .insert(binding.world(), entry, Some(binding.engine()));
 
     unsafe {
         out.write(resource::PermissionRequestHandle(handle));

@@ -155,7 +155,7 @@ mod tests {
     use crate::host::abi::permission::HostPermissionRequest;
     use crate::host::core::registry::HostSessionRegistrationGuard;
     use crate::host::os::apple::abi::background::callbacks::IosHostBackgroundCallbacks;
-    use crate::host::os::apple::abi::bindings::IosHostBindings;
+    use crate::host::os::apple::abi::binding::IosHostBindings;
     use crate::host::os::apple::abi::calendar::callbacks::IosHostCalendarCallbacks;
     use crate::host::os::apple::abi::contact::callbacks::IosHostContactCallbacks;
     use crate::host::os::apple::abi::document::callbacks::IosHostDocumentCallbacks;

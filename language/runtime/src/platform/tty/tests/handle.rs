@@ -56,7 +56,7 @@ fn register_non_terminal_file(binding: &BindingCallContext) -> RuntimeResult<Fil
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     Ok(FileHandle(resource_id))
 }

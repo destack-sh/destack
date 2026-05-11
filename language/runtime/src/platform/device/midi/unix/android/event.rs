@@ -17,9 +17,8 @@ use crate::platform::device::{
     MidiPortDirectionFlags,
 };
 use crate::platform::{core as core_platform, resource};
-use crate::runtime::BindingCallContext;
 use crate::runtime::control::queue::BoundedQueue;
-use crate::runtime::process::RuntimeScheduledCallbackHandle;
+use crate::runtime::{BindingCallContext, WorkerCallbackControl, WorkerCallbackHandle};
 
 use super::backend::resolve_backend;
 use super::core::{
@@ -99,31 +98,26 @@ fn register_poll_event_session(
     binding: &BindingCallContext,
     session: &Arc<Mutex<AndroidEventRepository>>,
     poll_interval_ns: u64,
-) -> RuntimeResult<RuntimeScheduledCallbackHandle> {
+) -> RuntimeResult<WorkerCallbackHandle> {
     let session = session.clone();
 
-    binding.worker().schedule_runtime_callback(
-        binding,
-        poll_interval_ns,
-        Some(poll_interval_ns),
-        move |binding| {
-            let mut session = session.lock();
+    binding.schedule_worker_callback(poll_interval_ns, Some(poll_interval_ns), move |binding| {
+        let mut session = session.lock();
 
-            let refresh_result = refresh_event_subscription(
-                binding,
-                &mut session,
-                MidiEventSource::SyntheticPoll,
-                "destack.device.midi.event.syntheticPoll",
-            );
-            if refresh_result.is_ok() {
-                return Ok(crate::runtime::process::RuntimeScheduledCallbackControl::Keep);
-            }
+        let refresh_result = refresh_event_subscription(
+            binding,
+            &mut session,
+            MidiEventSource::SyntheticPoll,
+            "destack.device.midi.event.syntheticPoll",
+        );
+        if refresh_result.is_ok() {
+            return Ok(WorkerCallbackControl::Keep);
+        }
 
-            queue_backend_disconnected_event(&mut session, MidiEventSource::SyntheticPoll, 0)?;
+        queue_backend_disconnected_event(&mut session, MidiEventSource::SyntheticPoll, 0)?;
 
-            Ok(crate::runtime::process::RuntimeScheduledCallbackControl::Cancel)
-        },
-    )
+        Ok(WorkerCallbackControl::Cancel)
+    })
 }
 
 /// Pop one queued event after surfacing deferred overflow.
@@ -238,9 +232,7 @@ pub(crate) fn midi_event_close(
 
         // cancel the synthetic poll callback before dropping the resource
         if let Some(poll_callback) = session.poll_callback {
-            binding
-                .worker()
-                .cancel_runtime_callback(binding, poll_callback)?;
+            binding.cancel_worker_callback(poll_callback)?;
         }
     }
 

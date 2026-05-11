@@ -36,9 +36,10 @@ use crate::platform::{
     NativeArray, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice,
     abi as platform_abi,
 };
-use crate::runtime::bindings::{
-    BindingAffinity, BindingDescriptor, BindingProvider, BindingRegistry, BindingReplayKind,
-    BindingReplayPolicy, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+use crate::runtime::binding::{
+    BindingAffinity, BindingDescriptor, BindingEffect, BindingProvider, BindingRegistry,
+    BindingReplayKind, BindingReplayPayload, NativeBinding, NativeBindingSet, RuntimeWorld,
+    native_call,
 };
 use crate::runtime::trace::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
@@ -3477,123 +3478,124 @@ struct ProcessWaitTryWaitReplayRecord {
 }
 
 /// Binding descriptor for destack.process.args.list.
-pub(crate) const PROCESS_ARGS_LIST: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.args.list",
-        "export function args(): Result<Slice<string>, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.run"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_ARGS_LIST: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.args.list",
+    "export function args(): Result<Slice<string>, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.run"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.cwd.chdir.
-pub(crate) const PROCESS_CWD_CHDIR: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.cwd.chdir",
-        "export function chdir(path: OsPath): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.workdir.write"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_CWD_CHDIR: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.cwd.chdir",
+    "export function chdir(path: OsPath): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.workdir.write"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.cwd.get.
-pub(crate) const PROCESS_CWD_GET: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.cwd.get",
-        "export function cwd(): Result<OsPath, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.workdir.read"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_CWD_GET: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.cwd.get",
+    "export function cwd(): Result<OsPath, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.workdir.read"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.env.delete.
-pub(crate) const PROCESS_ENV_DELETE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.env.delete",
-        "export function envDelete(name: string): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["env.write"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_ENV_DELETE: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.env.delete",
+    "export function envDelete(name: string): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["env.write"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.env.deleteBytes.
-pub(crate) const PROCESS_ENV_DELETE_BYTES: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.env.deleteBytes",
-        "export function envDeleteBytes(name: Slice<uint8>): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["env.write"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_ENV_DELETE_BYTES: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.env.deleteBytes",
+    "export function envDeleteBytes(name: Slice<uint8>): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["env.write"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.env.get.
-pub(crate) const PROCESS_ENV_GET: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.env.get",
-        "export function envGet(name: string): Result<string, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["env.read"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_ENV_GET: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.env.get",
+    "export function envGet(name: string): Result<string, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["env.read"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.env.getBytes.
-pub(crate) const PROCESS_ENV_GET_BYTES: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.env.getBytes",
-        "export function envGetBytes(name: Slice<uint8>): Result<uint8[], PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["env.read"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_ENV_GET_BYTES: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.env.getBytes",
+    "export function envGetBytes(name: Slice<uint8>): Result<uint8[], PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["env.read"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.env.set.
-pub(crate) const PROCESS_ENV_SET: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.env.set",
-        "export function envSet(name: string, value: string): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["env.write"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_ENV_SET: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.env.set",
+    "export function envSet(name: string, value: string): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["env.write"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.env.setBytes.
-pub(crate) const PROCESS_ENV_SET_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const PROCESS_ENV_SET_BYTES: BindingDescriptor = BindingDescriptor::new(
     "destack.process.env.setBytes",
     "export function envSetBytes(name: Slice<uint8>, value: Slice<uint8>): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["env.write"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -3602,11 +3604,12 @@ pub(crate) const PROCESS_ENV_SET_BYTES: BindingDescriptor = BindingDescriptor::e
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.exec.fexec.
-pub(crate) const PROCESS_EXEC_FEXEC: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const PROCESS_EXEC_FEXEC: BindingDescriptor = BindingDescriptor::new(
     "destack.process.exec.fexec",
     "export function fexec(executable: FileHandle, arguments: Slice<string>, environment: Slice<string>): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["process.exec"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -3615,11 +3618,12 @@ pub(crate) const PROCESS_EXEC_FEXEC: BindingDescriptor = BindingDescriptor::exte
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.exec.path.
-pub(crate) const PROCESS_EXEC_PATH: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const PROCESS_EXEC_PATH: BindingDescriptor = BindingDescriptor::new(
     "destack.process.exec.path",
     "export function exec(command: OsPath, arguments: Slice<string>, environment: Slice<string>): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["process.exec"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -3628,11 +3632,12 @@ pub(crate) const PROCESS_EXEC_PATH: BindingDescriptor = BindingDescriptor::exter
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.exec.pathat.
-pub(crate) const PROCESS_EXEC_PATHAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const PROCESS_EXEC_PATHAT: BindingDescriptor = BindingDescriptor::new(
     "destack.process.exec.pathat",
     "export function execat(directory: DirectoryHandle, path: OsPath, arguments: Slice<string>, environment: Slice<string>, flags: ExecAtFlags): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["process.exec"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -3641,39 +3646,40 @@ pub(crate) const PROCESS_EXEC_PATHAT: BindingDescriptor = BindingDescriptor::ext
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.exit.terminate.
-pub(crate) const PROCESS_EXIT_TERMINATE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.exit.terminate",
-        "export function exit(code: uint32): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.run"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_EXIT_TERMINATE: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.exit.terminate",
+    "export function exit(code: uint32): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.run"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.fd.processFdClose.
-pub(crate) const PROCESS_FD_PROCESS_FD_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.fd.processFdClose",
-        "export function processFdClose(handle: ProcessFdHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.handle"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_FD_PROCESS_FD_CLOSE: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.fd.processFdClose",
+    "export function processFdClose(handle: ProcessFdHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.handle"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.fd.processFdOpen.
-pub(crate) const PROCESS_FD_PROCESS_FD_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const PROCESS_FD_PROCESS_FD_OPEN: BindingDescriptor = BindingDescriptor::new(
     "destack.process.fd.processFdOpen",
     "export function processFdOpen(pid: ProcessId, flags: ProcessFdFlags): Result<ProcessFdHandle, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["process.handle"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -3682,11 +3688,12 @@ pub(crate) const PROCESS_FD_PROCESS_FD_OPEN: BindingDescriptor = BindingDescript
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.fd.processFdSendSignal.
-pub(crate) const PROCESS_FD_PROCESS_FD_SEND_SIGNAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const PROCESS_FD_PROCESS_FD_SEND_SIGNAL: BindingDescriptor = BindingDescriptor::new(
     "destack.process.fd.processFdSendSignal",
     "export function processFdSendSignal(handle: ProcessFdHandle, signal: Signal, flags: ProcessFdSignalFlags): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["process.signal.send"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -3695,11 +3702,12 @@ pub(crate) const PROCESS_FD_PROCESS_FD_SEND_SIGNAL: BindingDescriptor = BindingD
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.fd.processFdTryWait.
-pub(crate) const PROCESS_FD_PROCESS_FD_TRY_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const PROCESS_FD_PROCESS_FD_TRY_WAIT: BindingDescriptor = BindingDescriptor::new(
     "destack.process.fd.processFdTryWait",
     "export function processFdTryWait(handle: ProcessFdHandle): Result<ProcessWaitStatus, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["process.wait"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -3708,11 +3716,12 @@ pub(crate) const PROCESS_FD_PROCESS_FD_TRY_WAIT: BindingDescriptor = BindingDesc
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.fd.processFdWait.
-pub(crate) const PROCESS_FD_PROCESS_FD_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const PROCESS_FD_PROCESS_FD_WAIT: BindingDescriptor = BindingDescriptor::new(
     "destack.process.fd.processFdWait",
     "export function processFdWait(handle: ProcessFdHandle, timeoutNs: uint64): Result<ProcessWaitStatus, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["process.wait"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -3721,25 +3730,26 @@ pub(crate) const PROCESS_FD_PROCESS_FD_WAIT: BindingDescriptor = BindingDescript
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.fd.signalFdClose.
-pub(crate) const PROCESS_FD_SIGNAL_FD_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.fd.signalFdClose",
-        "export function signalFdClose(handle: SignalFdHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.signal.receive"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_FD_SIGNAL_FD_CLOSE: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.fd.signalFdClose",
+    "export function signalFdClose(handle: SignalFdHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.signal.receive"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.fd.signalFdOpen.
-pub(crate) const PROCESS_FD_SIGNAL_FD_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const PROCESS_FD_SIGNAL_FD_OPEN: BindingDescriptor = BindingDescriptor::new(
     "destack.process.fd.signalFdOpen",
     "export function signalFdOpen(signals: Slice<Signal>, flags: SignalFdFlags): Result<SignalFdHandle, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["process.signal.receive"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -3748,25 +3758,26 @@ pub(crate) const PROCESS_FD_SIGNAL_FD_OPEN: BindingDescriptor = BindingDescripto
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.fd.signalFdRead.
-pub(crate) const PROCESS_FD_SIGNAL_FD_READ: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.fd.signalFdRead",
-        "export function signalFdRead(handle: SignalFdHandle): Result<SignalEvent, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.signal.receive"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_FD_SIGNAL_FD_READ: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.fd.signalFdRead",
+    "export function signalFdRead(handle: SignalFdHandle): Result<SignalEvent, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.signal.receive"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.fd.signalFdSetMask.
-pub(crate) const PROCESS_FD_SIGNAL_FD_SET_MASK: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const PROCESS_FD_SIGNAL_FD_SET_MASK: BindingDescriptor = BindingDescriptor::new(
     "destack.process.fd.signalFdSetMask",
     "export function signalFdSetMask(handle: SignalFdHandle, signals: Slice<Signal>): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["process.signal.receive"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -3775,66 +3786,68 @@ pub(crate) const PROCESS_FD_SIGNAL_FD_SET_MASK: BindingDescriptor = BindingDescr
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.fd.signalFdTryRead.
-pub(crate) const PROCESS_FD_SIGNAL_FD_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const PROCESS_FD_SIGNAL_FD_TRY_READ: BindingDescriptor = BindingDescriptor::new(
     "destack.process.fd.signalFdTryRead",
     "export function signalFdTryRead(handle: SignalFdHandle): Result<SignalEvent, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["process.signal.receive"],
     BindingProvider::Host,
     BindingAffinity::None,
 )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.fd.stdioStderr.
-pub(crate) const PROCESS_FD_STDIO_STDERR: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.fd.stdioStderr",
-        "export function stdioStderr(): Result<FileHandle, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.stdio"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_FD_STDIO_STDERR: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.fd.stdioStderr",
+    "export function stdioStderr(): Result<FileHandle, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.stdio"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.fd.stdioStdin.
-pub(crate) const PROCESS_FD_STDIO_STDIN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.fd.stdioStdin",
-        "export function stdioStdin(): Result<FileHandle, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.stdio"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_FD_STDIO_STDIN: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.fd.stdioStdin",
+    "export function stdioStdin(): Result<FileHandle, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.stdio"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.fd.stdioStdout.
-pub(crate) const PROCESS_FD_STDIO_STDOUT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.fd.stdioStdout",
-        "export function stdioStdout(): Result<FileHandle, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.stdio"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_FD_STDIO_STDOUT: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.fd.stdioStdout",
+    "export function stdioStdout(): Result<FileHandle, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.stdio"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.group.cgroupGetLimit.
-pub(crate) const PROCESS_GROUP_CGROUP_GET_LIMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const PROCESS_GROUP_CGROUP_GET_LIMIT: BindingDescriptor = BindingDescriptor::new(
     "destack.process.group.cgroupGetLimit",
     "export function cgroupGetLimit(path: string, resource: ProcessLimitResource): Result<ProcessLimit, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
+    BindingEffect::ExternalNonRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["process.cgroup"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -3843,25 +3856,26 @@ pub(crate) const PROCESS_GROUP_CGROUP_GET_LIMIT: BindingDescriptor = BindingDesc
     .with_platforms(&["linux"]);
 
 /// Binding descriptor for destack.process.group.cgroupJoin.
-pub(crate) const PROCESS_GROUP_CGROUP_JOIN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.group.cgroupJoin",
-        "export function cgroupJoin(path: string): Result<void, PlatformError>",
-        BindingReplayPolicy::NonRecordable,
-        BindingReplayKind::BindingCall,
-        &["process.cgroup"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["linux"]);
+pub(crate) const PROCESS_GROUP_CGROUP_JOIN: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.group.cgroupJoin",
+    "export function cgroupJoin(path: string): Result<void, PlatformError>",
+    BindingEffect::ExternalNonRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.cgroup"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["linux"]);
 
 /// Binding descriptor for destack.process.group.cgroupSetLimit.
-pub(crate) const PROCESS_GROUP_CGROUP_SET_LIMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const PROCESS_GROUP_CGROUP_SET_LIMIT: BindingDescriptor = BindingDescriptor::new(
     "destack.process.group.cgroupSetLimit",
     "export function cgroupSetLimit(path: string, resource: ProcessLimitResource, limit: ProcessLimit): Result<void, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
+    BindingEffect::ExternalNonRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["process.cgroup"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -3870,24 +3884,26 @@ pub(crate) const PROCESS_GROUP_CGROUP_SET_LIMIT: BindingDescriptor = BindingDesc
     .with_platforms(&["linux"]);
 
 /// Binding descriptor for destack.process.group.jobAssign.
-pub(crate) const PROCESS_GROUP_JOB_ASSIGN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const PROCESS_GROUP_JOB_ASSIGN: BindingDescriptor = BindingDescriptor::new(
     "destack.process.group.jobAssign",
     "export function jobAssign(name: string, pids: Slice<ProcessId>): Result<void, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
+    BindingEffect::ExternalNonRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["process.cgroup"],
     BindingProvider::Host,
     BindingAffinity::None,
 )
-    .with_namespace("process")
-    .with_platforms(&["windows"]);
+.with_namespace("process")
+.with_platforms(&["windows"]);
 
 /// Binding descriptor for destack.process.group.jobSetLimit.
-pub(crate) const PROCESS_GROUP_JOB_SET_LIMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const PROCESS_GROUP_JOB_SET_LIMIT: BindingDescriptor = BindingDescriptor::new(
     "destack.process.group.jobSetLimit",
     "export function jobSetLimit(name: string, resource: ProcessLimitResource, limit: ProcessLimit): Result<void, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
+    BindingEffect::ExternalNonRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["process.cgroup"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -3896,249 +3912,250 @@ pub(crate) const PROCESS_GROUP_JOB_SET_LIMIT: BindingDescriptor = BindingDescrip
     .with_platforms(&["windows"]);
 
 /// Binding descriptor for destack.process.ids.egid.
-pub(crate) const PROCESS_IDS_EGID: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.ids.egid",
-        "export function egid(): Result<GroupId, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.identity.read"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_IDS_EGID: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.ids.egid",
+    "export function egid(): Result<GroupId, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.identity.read"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.ids.euid.
-pub(crate) const PROCESS_IDS_EUID: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.ids.euid",
-        "export function euid(): Result<UserId, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.identity.read"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_IDS_EUID: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.ids.euid",
+    "export function euid(): Result<UserId, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.identity.read"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.ids.gid.
-pub(crate) const PROCESS_IDS_GID: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.ids.gid",
-        "export function gid(): Result<GroupId, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.identity.read"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_IDS_GID: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.ids.gid",
+    "export function gid(): Result<GroupId, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.identity.read"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.ids.groupIds.
-pub(crate) const PROCESS_IDS_GROUP_IDS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.ids.groupIds",
-        "export function groupIds(): Result<ProcessGroupIds, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.identity.read"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_IDS_GROUP_IDS: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.ids.groupIds",
+    "export function groupIds(): Result<ProcessGroupIds, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.identity.read"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.ids.groups.
-pub(crate) const PROCESS_IDS_GROUPS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.ids.groups",
-        "export function groups(): Result<Slice<GroupId>, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.identity.read"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_IDS_GROUPS: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.ids.groups",
+    "export function groups(): Result<Slice<GroupId>, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.identity.read"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.ids.pid.
-pub(crate) const PROCESS_IDS_PID: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.ids.pid",
-        "export function pid(): Result<ProcessId, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.identity.read"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_IDS_PID: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.ids.pid",
+    "export function pid(): Result<ProcessId, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.identity.read"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.ids.ppid.
-pub(crate) const PROCESS_IDS_PPID: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.ids.ppid",
-        "export function ppid(): Result<ProcessId, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.identity.read"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_IDS_PPID: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.ids.ppid",
+    "export function ppid(): Result<ProcessId, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.identity.read"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.ids.setEgid.
-pub(crate) const PROCESS_IDS_SET_EGID: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.ids.setEgid",
-        "export function setEgid(groupId: GroupId): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.identity.write"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_IDS_SET_EGID: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.ids.setEgid",
+    "export function setEgid(groupId: GroupId): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.identity.write"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.ids.setEuid.
-pub(crate) const PROCESS_IDS_SET_EUID: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.ids.setEuid",
-        "export function setEuid(userId: UserId): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.identity.write"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_IDS_SET_EUID: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.ids.setEuid",
+    "export function setEuid(userId: UserId): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.identity.write"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.ids.setGid.
-pub(crate) const PROCESS_IDS_SET_GID: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.ids.setGid",
-        "export function setGid(groupId: GroupId): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.identity.write"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_IDS_SET_GID: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.ids.setGid",
+    "export function setGid(groupId: GroupId): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.identity.write"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.ids.setGroupIds.
-pub(crate) const PROCESS_IDS_SET_GROUP_IDS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.ids.setGroupIds",
-        "export function setGroupIds(ids: ProcessGroupIds): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.identity.write"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_IDS_SET_GROUP_IDS: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.ids.setGroupIds",
+    "export function setGroupIds(ids: ProcessGroupIds): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.identity.write"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.ids.setGroups.
-pub(crate) const PROCESS_IDS_SET_GROUPS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.ids.setGroups",
-        "export function setGroups(groups: Slice<GroupId>): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.identity.write"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_IDS_SET_GROUPS: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.ids.setGroups",
+    "export function setGroups(groups: Slice<GroupId>): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.identity.write"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.ids.setUid.
-pub(crate) const PROCESS_IDS_SET_UID: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.ids.setUid",
-        "export function setUid(userId: UserId): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.identity.write"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_IDS_SET_UID: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.ids.setUid",
+    "export function setUid(userId: UserId): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.identity.write"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.ids.setUserIds.
-pub(crate) const PROCESS_IDS_SET_USER_IDS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.ids.setUserIds",
-        "export function setUserIds(ids: ProcessUserIds): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.identity.write"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_IDS_SET_USER_IDS: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.ids.setUserIds",
+    "export function setUserIds(ids: ProcessUserIds): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.identity.write"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.ids.uid.
-pub(crate) const PROCESS_IDS_UID: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.ids.uid",
-        "export function uid(): Result<UserId, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.identity.read"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_IDS_UID: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.ids.uid",
+    "export function uid(): Result<UserId, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.identity.read"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.ids.userIds.
-pub(crate) const PROCESS_IDS_USER_IDS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.ids.userIds",
-        "export function userIds(): Result<ProcessUserIds, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.identity.read"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_IDS_USER_IDS: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.ids.userIds",
+    "export function userIds(): Result<ProcessUserIds, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.identity.read"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.isolation.chroot.
-pub(crate) const PROCESS_ISOLATION_CHROOT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.isolation.chroot",
-        "export function chroot(path: OsPath): Result<void, PlatformError>",
-        BindingReplayPolicy::NonRecordable,
-        BindingReplayKind::BindingCall,
-        &["security.restrict"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos"]);
+pub(crate) const PROCESS_ISOLATION_CHROOT: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.isolation.chroot",
+    "export function chroot(path: OsPath): Result<void, PlatformError>",
+    BindingEffect::ExternalNonRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["security.restrict"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos"]);
 
 /// Binding descriptor for destack.process.isolation.installSyscallFilter.
-pub(crate) const PROCESS_ISOLATION_INSTALL_SYSCALL_FILTER: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const PROCESS_ISOLATION_INSTALL_SYSCALL_FILTER: BindingDescriptor = BindingDescriptor::new(
     "destack.process.isolation.installSyscallFilter",
     "export function installSyscallFilter(program: uint8[], flags: SyscallFilterFlags): Result<void, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
+    BindingEffect::ExternalNonRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["security.filter"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4147,26 +4164,27 @@ pub(crate) const PROCESS_ISOLATION_INSTALL_SYSCALL_FILTER: BindingDescriptor = B
     .with_platforms(&["linux"]);
 
 /// Binding descriptor for destack.process.isolation.setHostName.
-pub(crate) const PROCESS_ISOLATION_SET_HOST_NAME: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.isolation.setHostName",
-        "export function setHostName(name: string): Result<void, PlatformError>",
-        BindingReplayPolicy::NonRecordable,
-        BindingReplayKind::BindingCall,
-        &["process.namespace"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_ISOLATION_SET_HOST_NAME: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.isolation.setHostName",
+    "export function setHostName(name: string): Result<void, PlatformError>",
+    BindingEffect::ExternalNonRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.namespace"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.isolation.setNetworkNamespace.
 pub(crate) const PROCESS_ISOLATION_SET_NETWORK_NAMESPACE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
+    BindingDescriptor::new(
         "destack.process.isolation.setNetworkNamespace",
         "export function setNetworkNamespace(path: OsPath): Result<void, PlatformError>",
-        BindingReplayPolicy::NonRecordable,
+        BindingEffect::ExternalNonRecordable,
         BindingReplayKind::BindingCall,
+        BindingReplayPayload::Results,
         &["process.namespace"],
         BindingProvider::Host,
         BindingAffinity::None,
@@ -4175,11 +4193,12 @@ pub(crate) const PROCESS_ISOLATION_SET_NETWORK_NAMESPACE: BindingDescriptor =
     .with_platforms(&["linux"]);
 
 /// Binding descriptor for destack.process.isolation.setns.
-pub(crate) const PROCESS_ISOLATION_SETNS: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const PROCESS_ISOLATION_SETNS: BindingDescriptor = BindingDescriptor::new(
     "destack.process.isolation.setns",
     "export function setns(pid: ProcessId, namespace: ProcessNamespaceKind): Result<void, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
+    BindingEffect::ExternalNonRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["process.namespace"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4188,38 +4207,40 @@ pub(crate) const PROCESS_ISOLATION_SETNS: BindingDescriptor = BindingDescriptor:
     .with_platforms(&["linux"]);
 
 /// Binding descriptor for destack.process.isolation.unshare.
-pub(crate) const PROCESS_ISOLATION_UNSHARE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.isolation.unshare",
-        "export function unshare(flags: ProcessUnshareFlags): Result<void, PlatformError>",
-        BindingReplayPolicy::NonRecordable,
-        BindingReplayKind::BindingCall,
-        &["process.namespace"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["linux"]);
+pub(crate) const PROCESS_ISOLATION_UNSHARE: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.isolation.unshare",
+    "export function unshare(flags: ProcessUnshareFlags): Result<void, PlatformError>",
+    BindingEffect::ExternalNonRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.namespace"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["linux"]);
 
 /// Binding descriptor for destack.process.limits.getLimit.
-pub(crate) const PROCESS_LIMITS_GET_LIMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const PROCESS_LIMITS_GET_LIMIT: BindingDescriptor = BindingDescriptor::new(
     "destack.process.limits.getLimit",
     "export function getLimit(resource: ProcessLimitResource): Result<ProcessLimit, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["process.run"],
     BindingProvider::Host,
     BindingAffinity::None,
 )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.limits.setLimit.
-pub(crate) const PROCESS_LIMITS_SET_LIMIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const PROCESS_LIMITS_SET_LIMIT: BindingDescriptor = BindingDescriptor::new(
     "destack.process.limits.setLimit",
     "export function setLimit(resource: ProcessLimitResource, limit: ProcessLimit): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["process.run"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4228,79 +4249,82 @@ pub(crate) const PROCESS_LIMITS_SET_LIMIT: BindingDescriptor = BindingDescriptor
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.sched.getAffinity.
-pub(crate) const PROCESS_SCHED_GET_AFFINITY: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.sched.getAffinity",
-        "export function getAffinity(pid: ProcessId): Result<ThreadCpuSet, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.affinity"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
-
-/// Binding descriptor for destack.process.sched.getPriority.
-pub(crate) const PROCESS_SCHED_GET_PRIORITY: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.sched.getPriority",
-        "export function getPriority(pid: ProcessId): Result<int32, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.priority"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
-
-/// Binding descriptor for destack.process.sched.getScheduler.
-pub(crate) const PROCESS_SCHED_GET_SCHEDULER: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
-    "destack.process.sched.getScheduler",
-    "export function getScheduler(pid: ProcessId): Result<ProcessSchedulerConfig, PlatformError>",
-    BindingReplayPolicy::Recordable,
+pub(crate) const PROCESS_SCHED_GET_AFFINITY: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.sched.getAffinity",
+    "export function getAffinity(pid: ProcessId): Result<ThreadCpuSet, PlatformError>",
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
-    &["process.scheduler"],
-    BindingProvider::Host,
-    BindingAffinity::None,
-)
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
-
-/// Binding descriptor for destack.process.sched.setAffinity.
-pub(crate) const PROCESS_SCHED_SET_AFFINITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
-    "destack.process.sched.setAffinity",
-    "export function setAffinity(pid: ProcessId, cpus: ThreadCpuSet): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
-    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["process.affinity"],
     BindingProvider::Host,
     BindingAffinity::None,
 )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+
+/// Binding descriptor for destack.process.sched.getPriority.
+pub(crate) const PROCESS_SCHED_GET_PRIORITY: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.sched.getPriority",
+    "export function getPriority(pid: ProcessId): Result<int32, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.priority"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+
+/// Binding descriptor for destack.process.sched.getScheduler.
+pub(crate) const PROCESS_SCHED_GET_SCHEDULER: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.sched.getScheduler",
+    "export function getScheduler(pid: ProcessId): Result<ProcessSchedulerConfig, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.scheduler"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+
+/// Binding descriptor for destack.process.sched.setAffinity.
+pub(crate) const PROCESS_SCHED_SET_AFFINITY: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.sched.setAffinity",
+    "export function setAffinity(pid: ProcessId, cpus: ThreadCpuSet): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.affinity"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.sched.setPriority.
-pub(crate) const PROCESS_SCHED_SET_PRIORITY: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.sched.setPriority",
-        "export function setPriority(pid: ProcessId, priority: int32): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.priority"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_SCHED_SET_PRIORITY: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.sched.setPriority",
+    "export function setPriority(pid: ProcessId, priority: int32): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.priority"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.sched.setScheduler.
-pub(crate) const PROCESS_SCHED_SET_SCHEDULER: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const PROCESS_SCHED_SET_SCHEDULER: BindingDescriptor = BindingDescriptor::new(
     "destack.process.sched.setScheduler",
     "export function setScheduler(pid: ProcessId, config: ProcessSchedulerConfig): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["process.scheduler"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4309,95 +4333,96 @@ pub(crate) const PROCESS_SCHED_SET_SCHEDULER: BindingDescriptor = BindingDescrip
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.sched.yieldNow.
-pub(crate) const PROCESS_SCHED_YIELD_NOW: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.sched.yieldNow",
-        "export function yieldNow(): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.scheduler"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_SCHED_YIELD_NOW: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.sched.yieldNow",
+    "export function yieldNow(): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.scheduler"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.session.getpgid.
-pub(crate) const PROCESS_SESSION_GETPGID: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.session.getpgid",
-        "export function getpgid(pid: ProcessId): Result<ProcessId, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.session"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_SESSION_GETPGID: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.session.getpgid",
+    "export function getpgid(pid: ProcessId): Result<ProcessId, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.session"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.session.setpgid.
-pub(crate) const PROCESS_SESSION_SETPGID: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.session.setpgid",
-        "export function setpgid(pid: ProcessId, pgid: ProcessId): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.session"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_SESSION_SETPGID: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.session.setpgid",
+    "export function setpgid(pid: ProcessId, pgid: ProcessId): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.session"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.session.setsid.
-pub(crate) const PROCESS_SESSION_SETSID: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.session.setsid",
-        "export function setsid(): Result<ProcessId, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.session"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_SESSION_SETSID: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.session.setsid",
+    "export function setsid(): Result<ProcessId, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.session"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.signals.kill.
-pub(crate) const PROCESS_SIGNALS_KILL: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.signals.kill",
-        "export function kill(pid: ProcessId, signal: Signal): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.signal.send"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_SIGNALS_KILL: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.signals.kill",
+    "export function kill(pid: ProcessId, signal: Signal): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.signal.send"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.signals.signalMaskRead.
-pub(crate) const PROCESS_SIGNALS_SIGNAL_MASK_READ: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.signals.signalMaskRead",
-        "export function signalMaskRead(): Result<Signal[], PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.signal.receive"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_SIGNALS_SIGNAL_MASK_READ: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.signals.signalMaskRead",
+    "export function signalMaskRead(): Result<Signal[], PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.signal.receive"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.signals.signalMaskUpdate.
-pub(crate) const PROCESS_SIGNALS_SIGNAL_MASK_UPDATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const PROCESS_SIGNALS_SIGNAL_MASK_UPDATE: BindingDescriptor = BindingDescriptor::new(
     "destack.process.signals.signalMaskUpdate",
     "export function signalMaskUpdate(how: SignalMaskHow, signals: Slice<Signal>): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["process.signal.receive"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4406,94 +4431,96 @@ pub(crate) const PROCESS_SIGNALS_SIGNAL_MASK_UPDATE: BindingDescriptor = Binding
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.signals.signalReceive.
-pub(crate) const PROCESS_SIGNALS_SIGNAL_RECEIVE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.signals.signalReceive",
-        "export function signalReceive(handle: SignalHandle): Result<SignalEvent, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.signal.receive"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
-
-/// Binding descriptor for destack.process.signals.signalSubscribe.
-pub(crate) const PROCESS_SIGNALS_SIGNAL_SUBSCRIBE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.signals.signalSubscribe",
-        "export function signalSubscribe(signal: Signal): Result<SignalHandle, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.signal.receive"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
-
-/// Binding descriptor for destack.process.signals.signalTryReceive.
-pub(crate) const PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
-    "destack.process.signals.signalTryReceive",
-    "export function signalTryReceive(handle: SignalHandle): Result<SignalEvent, PlatformError>",
-    BindingReplayPolicy::Recordable,
+pub(crate) const PROCESS_SIGNALS_SIGNAL_RECEIVE: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.signals.signalReceive",
+    "export function signalReceive(handle: SignalHandle): Result<SignalEvent, PlatformError>",
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["process.signal.receive"],
     BindingProvider::Host,
     BindingAffinity::None,
 )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+
+/// Binding descriptor for destack.process.signals.signalSubscribe.
+pub(crate) const PROCESS_SIGNALS_SIGNAL_SUBSCRIBE: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.signals.signalSubscribe",
+    "export function signalSubscribe(signal: Signal): Result<SignalHandle, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.signal.receive"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+
+/// Binding descriptor for destack.process.signals.signalTryReceive.
+pub(crate) const PROCESS_SIGNALS_SIGNAL_TRY_RECEIVE: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.signals.signalTryReceive",
+    "export function signalTryReceive(handle: SignalHandle): Result<SignalEvent, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.signal.receive"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.signals.signalTryWait.
-pub(crate) const PROCESS_SIGNALS_SIGNAL_TRY_WAIT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.signals.signalTryWait",
-        "export function signalTryWait(signals: Slice<Signal>): Result<SignalEvent, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.signal.receive"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_SIGNALS_SIGNAL_TRY_WAIT: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.signals.signalTryWait",
+    "export function signalTryWait(signals: Slice<Signal>): Result<SignalEvent, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.signal.receive"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.signals.signalUnsubscribe.
-pub(crate) const PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.signals.signalUnsubscribe",
-        "export function signalUnsubscribe(handle: SignalHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.signal.receive"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_SIGNALS_SIGNAL_UNSUBSCRIBE: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.signals.signalUnsubscribe",
+    "export function signalUnsubscribe(handle: SignalHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.signal.receive"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.signals.signalWait.
-pub(crate) const PROCESS_SIGNALS_SIGNAL_WAIT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.signals.signalWait",
-        "export function signalWait(signals: Slice<Signal>): Result<SignalEvent, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.signal.receive"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_SIGNALS_SIGNAL_WAIT: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.signals.signalWait",
+    "export function signalWait(signals: Slice<Signal>): Result<SignalEvent, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.signal.receive"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.spawn.start.
-pub(crate) const PROCESS_SPAWN_START: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const PROCESS_SPAWN_START: BindingDescriptor = BindingDescriptor::new(
     "destack.process.spawn.start",
     "export function spawn(command: OsPath, arguments: Slice<string>, environment: Slice<string>, options: ProcessSpawnOptions): Result<ProcessHandle, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["process.spawn"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4502,11 +4529,12 @@ pub(crate) const PROCESS_SPAWN_START: BindingDescriptor = BindingDescriptor::ext
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.spawn.withActions.
-pub(crate) const PROCESS_SPAWN_WITH_ACTIONS: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const PROCESS_SPAWN_WITH_ACTIONS: BindingDescriptor = BindingDescriptor::new(
     "destack.process.spawn.withActions",
     "export function spawnWithActions(command: OsPath, arguments: Slice<string>, environment: Slice<string>, options: ProcessSpawnOptions, stdio: Slice<ProcessStdio>, actions: Slice<ProcessFdAction>): Result<ProcessHandle, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["process.spawn", "process.spawn.actions"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4515,25 +4543,26 @@ pub(crate) const PROCESS_SPAWN_WITH_ACTIONS: BindingDescriptor = BindingDescript
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.umask.set.
-pub(crate) const PROCESS_UMASK_SET: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.umask.set",
-        "export function umask(mask: uint32): Result<uint32, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.identity.write"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_UMASK_SET: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.umask.set",
+    "export function umask(mask: uint32): Result<uint32, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.identity.write"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.wait.handle.
-pub(crate) const PROCESS_WAIT_HANDLE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const PROCESS_WAIT_HANDLE: BindingDescriptor = BindingDescriptor::new(
     "destack.process.wait.handle",
     "export function wait(handle: ProcessHandle, flags: ProcessWaitFlags): Result<ProcessWaitStatus, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["process.wait"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4542,11 +4571,12 @@ pub(crate) const PROCESS_WAIT_HANDLE: BindingDescriptor = BindingDescriptor::ext
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.wait.pid.
-pub(crate) const PROCESS_WAIT_PID: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const PROCESS_WAIT_PID: BindingDescriptor = BindingDescriptor::new(
     "destack.process.wait.pid",
     "export function waitPid(pid: ProcessId, flags: ProcessWaitFlags): Result<ProcessWaitStatus, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["process.wait"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4555,18 +4585,18 @@ pub(crate) const PROCESS_WAIT_PID: BindingDescriptor = BindingDescriptor::extern
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.process.wait.tryWait.
-pub(crate) const PROCESS_WAIT_TRY_WAIT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.process.wait.tryWait",
-        "export function tryWait(handle: ProcessHandle): Result<ProcessWaitStatus, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["process.wait"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("process")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const PROCESS_WAIT_TRY_WAIT: BindingDescriptor = BindingDescriptor::new(
+    "destack.process.wait.tryWait",
+    "export function tryWait(handle: ProcessHandle): Result<ProcessWaitStatus, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["process.wait"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("process")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Native binding set for process.
 pub(crate) const PROCESS_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

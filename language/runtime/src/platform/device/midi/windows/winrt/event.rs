@@ -22,8 +22,8 @@ use crate::platform::device::{
 use crate::platform::resource;
 use crate::runtime::BindingCallContext;
 use crate::runtime::control::queue::BoundedQueue;
-use crate::runtime::process::Service;
-use crate::runtime::process::service::executor::periodic::open_periodic_task;
+use crate::runtime::service::Service;
+use crate::runtime::service::executor::periodic::open_periodic_task;
 
 use super::core::{
     SnapshotKey, WinRtEventDeliveryKind, WinRtEventSession, WinRtTopologyState,
@@ -119,7 +119,7 @@ fn register_poll_event_session(
     service: &Arc<WinRtService>,
     session: &Arc<Mutex<WinRtEventSession>>,
     poll_interval: Duration,
-) -> RuntimeResult<Arc<crate::runtime::process::service::executor::periodic::PeriodicTaskHandle>> {
+) -> RuntimeResult<Arc<crate::runtime::service::executor::periodic::PeriodicTaskHandle>> {
     let topology = service.topology.clone();
     let session = Arc::downgrade(session);
     let is_failed = Arc::new(std::sync::atomic::AtomicBool::new(false));

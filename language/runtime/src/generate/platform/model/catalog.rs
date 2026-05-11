@@ -76,7 +76,7 @@ pub(crate) enum CatalogReplayPayload {
 
 /// Effect kind for external bindings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum CatalogEffectClass {
+pub(crate) enum CatalogEffect {
     /// No observable side effects.
     Pure,
     /// Deterministic effects that do not require external I/O.
@@ -104,10 +104,10 @@ pub(crate) struct BindingEntry {
     /// Whether the binding returns a Result wrapper.
     pub return_is_result: bool,
     /// Effect kind for replay and policy.
-    pub effect_class: CatalogEffectClass,
+    pub effect: CatalogEffect,
     /// Replay routing for the binding.
     pub replay_kind: CatalogBindingReplayKind,
-    /// Replay payload action for recorded bindings.
+    /// Replay payload policy for recorded bindings.
     pub replay_payload: CatalogReplayPayload,
     /// Required host actions for this binding.
     pub requires: Vec<String>,
