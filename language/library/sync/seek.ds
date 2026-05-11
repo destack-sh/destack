@@ -1,0 +1,15 @@
+import { type Result } from "destack:error";
+import { type IoError } from "destack:error";
+
+/// Seek origin.
+@derive(Tagged)
+export newtype SeekFrom =
+    | { kind: "start"; offset: uint64 }
+    | { kind: "current"; offset: int64 }
+    | { kind: "end"; offset: int64 };
+
+/// Seekable byte stream.
+export interface Seeker {
+    /// Seek to a new stream position.
+    seek(from: SeekFrom): Result<uint64, IoError>;
+}

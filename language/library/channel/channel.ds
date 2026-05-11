@@ -1,0 +1,79 @@
+import { type AsyncResult, type Result } from "destack:error";
+
+/// Channel send failure kind.
+export type SendErrorKind = "closed" | "full";
+
+/// Channel receive failure kind.
+export type ReceiveErrorKind = "closed" | "empty" | "lagged";
+
+/// Failed send operation.
+export struct SendError<T> {
+    /// The failure kind.
+    kind: SendErrorKind;
+
+    /// The value that was not sent.
+    value: T;
+}
+
+/// Failed receive operation.
+export struct ReceiveError {
+    /// The failure kind.
+    kind: ReceiveErrorKind;
+
+    /// The number of skipped messages for lagged broadcast receivers.
+    skipped?: usize;
+}
+
+/// Channel buffer options.
+export interface ChannelOptions {
+    /// The bounded channel capacity.
+    capacity?: usize;
+}
+
+/// Synchronous sender endpoint.
+export interface Sender<T> {
+    /// Send one value.
+    send(value: ^T): Result<void, SendError<T>>;
+
+    /// Try to send one value without blocking.
+    trySend(value: ^T): Result<void, SendError<T>>;
+
+    /// Close this sender.
+    close(): void;
+}
+
+/// Synchronous receiver endpoint.
+export interface Receiver<T> {
+    /// Receive one value.
+    receive(): Result<T, ReceiveError>;
+
+    /// Try to receive one value without blocking.
+    tryReceive(): Result<T, ReceiveError>;
+
+    /// Close this receiver.
+    close(): void;
+}
+
+/// Asynchronous sender endpoint.
+export interface AsyncSender<T> {
+    /// Send one value.
+    send(value: ^T): AsyncResult<void, SendError<T>>;
+
+    /// Try to send one value without suspending.
+    trySend(value: ^T): Result<void, SendError<T>>;
+
+    /// Close this sender.
+    close(): void;
+}
+
+/// Asynchronous receiver endpoint.
+export interface AsyncReceiver<T> {
+    /// Receive one value.
+    receive(): AsyncResult<T, ReceiveError>;
+
+    /// Try to receive one value without suspending.
+    tryReceive(): Result<T, ReceiveError>;
+
+    /// Close this receiver.
+    close(): void;
+}

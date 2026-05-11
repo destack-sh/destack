@@ -1,4 +1,4 @@
-import { intrinsic } from "../core/decorator/intrinsic.ds";
+import { todo } from "destack:error";
 
 /// Memory ordering for atomic operations.
 ///
@@ -80,6 +80,67 @@ export enum MemoryRegionSet {
     Io = 256,
     /// All memory locations.
     Any = 511,
+}
+
+/// Atomic storage for one value.
+export newtype Atomic<T> = intrinsic;
+
+extension<T> of Atomic<T> {
+    /// Create atomic storage.
+    static new(value: T): Atomic<T> {
+        todo("Atomic.new")
+    }
+
+    /// Load the current value.
+    load(order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): T {
+        todo("Atomic.load")
+    }
+
+    /// Store a new value.
+    store(value: T, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): void {
+        todo("Atomic.store")
+    }
+
+    /// Replace the value and return the previous value.
+    exchange(value: T, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): T {
+        todo("Atomic.exchange")
+    }
+
+    /// Compare with `expected` and replace with `desired` when equal.
+    compareExchange(
+        expected: T,
+        desired: T,
+        order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent,
+    ): [T, boolean] {
+        todo("Atomic.compareExchange")
+    }
+}
+
+extension<T: int> of Atomic<T> {
+    /// Add `value` and return the previous value.
+    fetchAdd(value: T, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): T {
+        todo("Atomic.fetchAdd")
+    }
+
+    /// Subtract `value` and return the previous value.
+    fetchSub(value: T, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): T {
+        todo("Atomic.fetchSub")
+    }
+
+    /// Apply bitwise and and return the previous value.
+    fetchAnd(value: T, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): T {
+        todo("Atomic.fetchAnd")
+    }
+
+    /// Apply bitwise or and return the previous value.
+    fetchOr(value: T, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): T {
+        todo("Atomic.fetchOr")
+    }
+
+    /// Apply bitwise xor and return the previous value.
+    fetchXor(value: T, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): T {
+        todo("Atomic.fetchXor")
+    }
 }
 
 /// Atomic load.

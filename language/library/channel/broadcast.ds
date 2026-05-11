@@ -1,0 +1,31 @@
+import { todo } from "destack:error";
+import { type Send } from "destack:memory";
+import {
+    type AsyncReceiver,
+    type AsyncSender,
+    type ChannelOptions,
+    type Receiver,
+    type Sender,
+} from "./channel.ds";
+
+/// Create a local blocking broadcast channel.
+export function channel<T>(options?: ChannelOptions): (Sender<T>, Receiver<T>) {
+    todo("broadcast.channel")
+}
+
+/// Create a shared blocking broadcast channel.
+export function sharedChannel<T: Send>(options?: ChannelOptions): (Sender<T>, Receiver<T>) {
+    todo("broadcast.sharedChannel")
+}
+
+/// Create a local suspending broadcast channel.
+export function asyncChannel<T>(options?: ChannelOptions): (AsyncSender<T>, AsyncReceiver<T>) {
+    todo("broadcast.async")
+}
+
+/// Create a shared suspending broadcast channel.
+export function sharedAsyncChannel<T: Send>(
+    options?: ChannelOptions,
+): (AsyncSender<T>, AsyncReceiver<T>) {
+    todo("broadcast.sharedAsyncChannel")
+}

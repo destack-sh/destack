@@ -1,0 +1,47 @@
+import { todo } from "destack:error";
+import { type AsyncResult } from "destack:error";
+import { type Promise } from "./promise.ds";
+
+/// Worker-local asynchronous task.
+export class Task<T> {
+    /// The completion promise.
+    completion: Promise<T>;
+
+    /// Wait for this task to complete.
+    join(): Promise<T> {
+        todo("Task.join")
+    }
+
+    /// Request cancellation.
+    cancel(): void {
+        todo("Task.cancel")
+    }
+}
+
+/// Owned handle to a spawned task.
+export struct JoinHandle<T> {
+    /// The spawned task.
+    task: Task<T>;
+}
+
+extension<T> of JoinHandle<T> {
+    /// Wait for the task result.
+    join(): AsyncResult<T, unknown> {
+        todo("JoinHandle.join")
+    }
+
+    /// Request task cancellation.
+    cancel(): void {
+        todo("JoinHandle.cancel")
+    }
+}
+
+/// Spawn a worker-local asynchronous task.
+export function spawn<T>(body: () => Promise<T>): JoinHandle<T> {
+    todo("async.spawn")
+}
+
+/// Yield back to the local scheduler.
+export function yieldNow(): Promise<void> {
+    todo("async.yieldNow")
+}

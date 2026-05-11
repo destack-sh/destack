@@ -1,0 +1,77 @@
+import { todo } from "destack:error";
+import { type Dispose } from "destack:memory";
+import { type Dereference } from "destack:ops";
+import { type Promise } from "./promise.ds";
+
+/// Asynchronous reader-writer lock.
+export class AsyncRwLock<T> {
+    /// The protected value.
+    value: T;
+
+    /// Create an async reader-writer lock protecting `value`.
+    constructor(value: T) {
+        this.value = value
+    }
+
+    /// Lock this value for shared reading.
+    read(): Promise<AsyncRwLockReadGuard<T>> {
+        todo("AsyncRwLock.read")
+    }
+
+    /// Try to lock this value for shared reading.
+    tryRead(): AsyncRwLockReadGuard<T> | undefined {
+        todo("AsyncRwLock.tryRead")
+    }
+
+    /// Lock this value for exclusive writing.
+    write(): Promise<AsyncRwLockWriteGuard<T>> {
+        todo("AsyncRwLock.write")
+    }
+
+    /// Try to lock this value for exclusive writing.
+    tryWrite(): AsyncRwLockWriteGuard<T> | undefined {
+        todo("AsyncRwLock.tryWrite")
+    }
+}
+
+/// Active async readonly lock guard.
+export struct AsyncRwLockReadGuard<T> {
+    /// The locked value.
+    lock: *AsyncRwLock<T>;
+}
+
+extension<T> of AsyncRwLockReadGuard<T> implements Dispose, Dereference<"readonly"> {
+    /// The projected result form.
+    type Output = &readonly T;
+
+    /// Release this guard.
+    dispose(): void {
+        todo("AsyncRwLockReadGuard.dispose")
+    }
+
+    /// Borrow the protected value.
+    dereference(): this.Output {
+        todo("AsyncRwLockReadGuard.dereference")
+    }
+}
+
+/// Active async exclusive lock guard.
+export struct AsyncRwLockWriteGuard<T> {
+    /// The locked value.
+    lock: *AsyncRwLock<T>;
+}
+
+extension<T> of AsyncRwLockWriteGuard<T> implements Dispose, Dereference<"exclusive"> {
+    /// The projected result form.
+    type Output = &exclusive T;
+
+    /// Release this guard.
+    dispose(): void {
+        todo("AsyncRwLockWriteGuard.dispose")
+    }
+
+    /// Borrow the protected value.
+    dereference(): this.Output {
+        todo("AsyncRwLockWriteGuard.dereference")
+    }
+}

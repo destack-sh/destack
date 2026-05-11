@@ -1,0 +1,11 @@
+import { type AsyncResult } from "destack:error";
+import { type IoError } from "destack:error";
+
+/// Asynchronous byte writer.
+export interface AsyncWriter {
+    /// Write bytes from `buffer`.
+    write(buffer: &readonly [uint8]): AsyncResult<usize, IoError>;
+
+    /// Flush buffered writes.
+    flush(): AsyncResult<void, IoError>;
+}

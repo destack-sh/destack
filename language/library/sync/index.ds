@@ -1,4 +1,5 @@
 export {
+    Atomic,
     AtomicScope,
     MemoryOrdering,
     MemoryRegionSet,
@@ -22,4 +23,11 @@ export {
     atomicLoad,
     atomicStore,
 } from "./atomic.ds";
-export { sync } from "./sync.ds";
+export * from "./barrier.ds";
+export * from "./condvar.ds";
+export * from "./mutex.ds";
+export * from "./once.ds";
+export * from "./reader.ds";
+export * from "./rwlock.ds";
+export * from "./seek.ds";
+export * from "./writer.ds";

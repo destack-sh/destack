@@ -1,0 +1,43 @@
+import { todo } from "destack:error";
+import { type Result } from "destack:error";
+import { type MaybeUninit } from "destack:memory";
+import { type Promise } from "./promise.ds";
+
+/// One-time async execution state.
+export class AsyncOnce {
+    /// Run `body` once.
+    call(body: () => Promise<void>): Promise<void> {
+        todo("AsyncOnce.call")
+    }
+
+    /// Return true after the body has completed.
+    isCompleted(): boolean {
+        todo("AsyncOnce.isCompleted")
+    }
+}
+
+/// One-time async initialized cell.
+export class AsyncOnceCell<T> {
+    /// The stored value.
+    value: MaybeUninit<T>;
+
+    /// Get the initialized value.
+    get(): &readonly T | undefined {
+        todo("AsyncOnceCell.get")
+    }
+
+    /// Set the value once.
+    set(value: ^T): Result<void, ^T> {
+        todo("AsyncOnceCell.set")
+    }
+
+    /// Get the value or initialize it.
+    getOrInit(init: () => Promise<T>): Promise<&readonly T> {
+        todo("AsyncOnceCell.getOrInit")
+    }
+
+    /// Move the value out when initialized.
+    take(this: &exclusive AsyncOnceCell<T>): T | undefined {
+        todo("AsyncOnceCell.take")
+    }
+}

@@ -1,0 +1,34 @@
+import { todo } from "destack:error";
+import { type Promise } from "destack:async";
+import { type Send } from "destack:memory";
+
+/// Sender for the latest watched value.
+export interface WatchSender<T> {
+    /// Replace the watched value.
+    send(value: ^T): void;
+
+    /// Close this sender.
+    close(): void;
+}
+
+/// Receiver for the latest watched value.
+export interface WatchReceiver<T> {
+    /// Borrow the latest value.
+    borrow(): &readonly T;
+
+    /// Wait for a changed value.
+    changed(): Promise<void>;
+
+    /// Close this receiver.
+    close(): void;
+}
+
+/// Create a local watch channel.
+export function channel<T>(value: ^T): (WatchSender<T>, WatchReceiver<T>) {
+    todo("watch.channel")
+}
+
+/// Create a shared watch channel.
+export function sharedChannel<T: Send>(value: ^T): (WatchSender<T>, WatchReceiver<T>) {
+    todo("watch.sharedChannel")
+}

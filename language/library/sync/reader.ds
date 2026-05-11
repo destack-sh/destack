@@ -1,0 +1,13 @@
+import { type Result, todo } from "destack:error";
+import { type IoError } from "destack:error";
+
+/// Byte reader.
+export interface Reader {
+    /// Read bytes into `buffer`.
+    read(buffer: &exclusive [uint8]): Result<usize, IoError>;
+}
+
+/// Read until end of input.
+export function readAll(reader: &exclusive Reader): Result<uint8[], IoError> {
+    todo("sync.readAll")
+}
