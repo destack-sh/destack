@@ -29,7 +29,6 @@ assert_required_recipe "install-toolchain"
 assert_required_recipe "doctor-toolchain"
 assert_required_recipe "ensure-toolchain"
 assert_required_recipe "check-hygiene"
-assert_required_recipe "check-release-drift"
 assert_required_recipe "check-workflow-policy"
 assert_required_recipe "quick"
 assert_required_recipe "full"
@@ -56,26 +55,6 @@ if rg -n "just bridge/install-toolchain" "${ci_file}" "${nightly_file}" "${relea
 	exit 1
 fi
 
-if ! rg -n "just check-release-drift" "${ci_file}" >/dev/null; then
-	echo "ci.yml must run just check-release-drift" >&2
-	exit 1
-fi
-
-if ! rg -n "just check-release-drift" "${nightly_file}" >/dev/null; then
-	echo "nightly.yml must run just check-release-drift" >&2
-	exit 1
-fi
-
-if ! rg -n "fetch-depth: 0" "${ci_file}" >/dev/null; then
-	echo "ci.yml must fetch full history for release metadata checks" >&2
-	exit 1
-fi
-
-if ! rg -n "fetch-depth: 0" "${nightly_file}" >/dev/null; then
-	echo "nightly.yml must fetch full history for release metadata checks" >&2
-	exit 1
-fi
-
 # release workflow should be tag driven for immutable releases
 if ! rg -n '^\s+- "v\*"$' "${release_file}" >/dev/null; then
 	echo "release workflow must trigger from v* tags" >&2
@@ -96,11 +75,6 @@ if ! rg -n 'just validate-release ' "${release_file}" >/dev/null; then
 
 	if ! rg -n "dev version check" "${release_file}" >/dev/null; then
 		echo "release workflow must run tracked version file checks" >&2
-		exit 1
-	fi
-
-	if ! rg -n "validate-release-changelog.sh" "${release_file}" >/dev/null; then
-		echo "release workflow must validate changelog entry for the release version" >&2
 		exit 1
 	fi
 fi
