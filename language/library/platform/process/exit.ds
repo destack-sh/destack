@@ -1,9 +1,9 @@
 import type { PlatformError } from "../error/index.ds";
 
 /// Exit the current process with the given code.
-@binding("destack.process.exit.terminate", {
+@binding("destack.process.exit", {
     effect: "external",
-    requires: ["process.run"],
+    requires: ["process.exit"],
     families: ["windows", "unix"],
     simulation: true,
 })

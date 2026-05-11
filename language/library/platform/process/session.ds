@@ -1,29 +1,32 @@
 import type { PlatformError } from "../error/index.ds";
-import { ProcessId } from "./ids.ds";
+import { ProcessId } from "./identity.ds";
 
-/// Create a new session and return the new session leader id.
-@binding("destack.process.session.setsid", {
+/// Create a new Unix session and return the session leader id.
+@binding("destack.process.session.create", {
     effect: "external",
     requires: ["process.session"],
-    families: ["windows", "unix"],
+    families: ["unix"],
     simulation: true,
 })
-export declare function setsid(): Result<ProcessId, PlatformError>;
+export declare function createSession(): Result<ProcessId, PlatformError>;
 
-/// Set a process group id for a process.
-@binding("destack.process.session.setpgid", {
+/// Set the process group id for one Unix process.
+@binding("destack.process.session.setGroup", {
     effect: "external",
     requires: ["process.session"],
-    families: ["windows", "unix"],
+    families: ["unix"],
     simulation: true,
 })
-export declare function setpgid(pid: ProcessId, pgid: ProcessId): Result<void, PlatformError>;
+export declare function setProcessGroup(
+    pid: ProcessId,
+    group: ProcessId,
+): Result<void, PlatformError>;
 
-/// Read a process group id.
-@binding("destack.process.session.getpgid", {
+/// Read the process group id for one Unix process.
+@binding("destack.process.session.group", {
     effect: "external",
     requires: ["process.session"],
-    families: ["windows", "unix"],
+    families: ["unix"],
     simulation: true,
 })
-export declare function getpgid(pid: ProcessId): Result<ProcessId, PlatformError>;
+export declare function getProcessGroup(pid: ProcessId): Result<ProcessId, PlatformError>;

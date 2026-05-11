@@ -1,10 +1,10 @@
 import type { PlatformError } from "../error/index.ds";
 
 /// Set process file-creation umask and return the previous value.
-@binding("destack.process.umask.set", {
+@binding("destack.process.umask", {
     effect: "external",
-    requires: ["process.identity.write"],
-    families: ["windows", "unix"],
+    requires: ["process.umask"],
+    families: ["unix"],
     simulation: true,
 })
 export declare function umask(mask: uint32): Result<uint32, PlatformError>;

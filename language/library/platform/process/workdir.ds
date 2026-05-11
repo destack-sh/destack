@@ -2,19 +2,19 @@ import type { PlatformError } from "../error/index.ds";
 import { Path } from "../fs/path.ds";
 
 /// Return the current working directory.
-@binding("destack.process.cwd.get", {
+@binding("destack.process.workdir.get", {
     effect: "external",
     requires: ["process.workdir.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function cwd(): Result<Path, PlatformError>;
+export declare function getCurrentDirectory(): Result<^Path, PlatformError>;
 
 /// Change the current working directory.
-@binding("destack.process.cwd.chdir", {
+@binding("destack.process.workdir.set", {
     effect: "external",
     requires: ["process.workdir.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function chdir(path: Path): Result<void, PlatformError>;
+export declare function setCurrentDirectory(path: &readonly Path): Result<void, PlatformError>;

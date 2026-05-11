@@ -1,47 +1,62 @@
-import { Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
 import { OpenFlags } from "../fs/file.ds";
 import { Path } from "../fs/path.ds";
 import { FileMode } from "../fs/status.ds";
 import { FileHandle, PipeHandle, ProcessHandle } from "../resource/index.ds";
+import { EnvironmentVariable } from "./environment.ds";
 
-/// Inherit stdio from the parent process.
+/// Process spawn flags.
+export newtype ProcessSpawnFlags = uint32;
+
+/// Spawn the child detached from the parent lifetime.
+export const PROCESS_DETACHED: ProcessSpawnFlags = ProcessSpawnFlags(0x1);
+
+/// Spawn the child in a new process group.
+export const PROCESS_NEW_GROUP: ProcessSpawnFlags = ProcessSpawnFlags(0x2);
+
+/// Reset inherited signal dispositions before exec where supported.
+export const PROCESS_RESET_SIGNALS: ProcessSpawnFlags = ProcessSpawnFlags(0x4);
+
+/// Inherit the parent environment and apply explicit variables.
+export const PROCESS_INHERIT_ENVIRONMENT: ProcessSpawnFlags = ProcessSpawnFlags(0x8);
+
+/// Inherit a standard stream from the parent process.
 export struct ProcessStdioInherit {
     /// Discriminator for this stdio variant.
     kind: "inherit";
 }
 
-/// Connect stdio to one null sink.
+/// Connect a standard stream to the host null device.
 export struct ProcessStdioNull {
     /// Discriminator for this stdio variant.
     kind: "null";
 }
 
-/// Connect stdio to one pipe endpoint.
+/// Connect a standard stream to one pipe endpoint.
 export struct ProcessStdioPipe {
     /// Discriminator for this stdio variant.
     kind: "pipe";
-    /// Pipe handle used for this stdio lane.
+    /// Pipe endpoint used by the child.
     pipe: PipeHandle;
 }
 
-/// Connect stdio to one existing file handle.
+/// Connect a standard stream to one file handle.
 export struct ProcessStdioFile {
     /// Discriminator for this stdio variant.
     kind: "file";
-    /// File handle used for this stdio lane.
+    /// File handle used by the child.
     file: FileHandle;
 }
 
-/// Connect stdio to one existing numeric descriptor.
+/// Connect a standard stream to one numeric descriptor.
 export struct ProcessStdioDescriptor {
     /// Discriminator for this stdio variant.
     kind: "descriptor";
-    /// Numeric descriptor used for this stdio lane.
+    /// Numeric descriptor used by the child.
     descriptor: int32;
 }
 
-/// Stdio entry for process spawning.
+/// Standard stream binding for process spawning.
 export newtype ProcessStdio =
     | ProcessStdioInherit
     | ProcessStdioNull
@@ -49,79 +64,71 @@ export newtype ProcessStdio =
     | ProcessStdioFile
     | ProcessStdioDescriptor;
 
-/// Close one descriptor before exec.
-export struct ProcessFdActionClose {
-    /// Discriminator for this fd action variant.
+/// Close one descriptor in the child before exec.
+export struct ProcessDescriptorClose {
+    /// Discriminator for this descriptor action.
     kind: "close";
     /// Descriptor to close.
     descriptor: int32;
 }
 
-/// Duplicate one descriptor onto another.
-export struct ProcessFdActionDup2 {
-    /// Discriminator for this fd action variant.
-    kind: "dup2";
+/// Duplicate one descriptor in the child before exec.
+export struct ProcessDescriptorDuplicate {
+    /// Discriminator for this descriptor action.
+    kind: "duplicate";
     /// Source descriptor.
     source: int32;
     /// Target descriptor.
     target: int32;
 }
 
-/// Open one path and bind it to one descriptor.
-export struct ProcessFdActionOpen {
-    /// Discriminator for this fd action variant.
+/// Open one path onto one child descriptor before exec.
+export struct ProcessDescriptorOpen {
+    /// Discriminator for this descriptor action.
     kind: "open";
     /// Target descriptor.
     target: int32;
-    /// Path used by open action.
+    /// Path opened by the descriptor action.
     path: Path;
-    /// Open flags for open action.
+    /// Open flags.
     flags: OpenFlags;
-    /// Open mode for open action.
+    /// Open mode.
     mode: FileMode;
 }
 
-/// File descriptor action for process spawning.
-export newtype ProcessFdAction = ProcessFdActionClose | ProcessFdActionDup2 | ProcessFdActionOpen;
+/// Descriptor action for process spawning.
+export newtype ProcessDescriptorAction =
+    | ProcessDescriptorClose
+    | ProcessDescriptorDuplicate
+    | ProcessDescriptorOpen;
 
 /// Process spawn options.
 export struct ProcessSpawnOptions {
-    /// Current directory for the child process.
-    cwd: Path;
-    /// Whether to create a detached child process.
-    detached: boolean;
-    /// Whether to reset signal dispositions in the child.
-    resetSignals: boolean;
-    /// Whether to create a new process group.
-    newProcessGroup: boolean;
+    /// Command path.
+    command: Path;
+    /// Argument zero override.
+    argument0?: string;
+    /// Argument vector excluding the command path.
+    arguments: [string];
+    /// Environment variables applied to the child.
+    environment: [EnvironmentVariable];
+    /// Child current directory.
+    workingDirectory?: Path;
+    /// Standard stream bindings in stdin, stdout, stderr order.
+    stdio: [ProcessStdio];
+    /// Descriptor actions applied before exec.
+    descriptors: [ProcessDescriptorAction];
+    /// Spawn behavior flags.
+    flags: ProcessSpawnFlags;
 }
 
-/// Spawn a child process with default stdio inheritance.
-@binding("destack.process.spawn.start", {
+/// Spawn a child process.
+@binding("destack.process.spawn", {
     effect: "external",
     requires: ["process.spawn"],
     families: ["windows", "unix"],
     simulation: true,
 })
 export declare function spawn(
-    command: Path,
-    arguments: Slice<string>,
-    environment: Slice<string>,
-    options: ProcessSpawnOptions,
-): Result<ProcessHandle, PlatformError>;
-
-/// Spawn a child process with explicit stdio and descriptor actions.
-@binding("destack.process.spawn.withActions", {
-    effect: "external",
-    requires: ["process.spawn", "process.spawn.actions"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function spawnWithActions(
-    command: Path,
-    arguments: Slice<string>,
-    environment: Slice<string>,
-    options: ProcessSpawnOptions,
-    stdio: Slice<ProcessStdio>,
-    requires: Slice<ProcessFdAction>,
+    options: &readonly ProcessSpawnOptions,
 ): Result<ProcessHandle, PlatformError>;

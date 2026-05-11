@@ -1,10 +1,19 @@
 import type { PlatformError } from "../error/index.ds";
 import { ProcessHandle } from "../resource/index.ds";
-import { ProcessId } from "./ids.ds";
-import { Signal } from "./signals.ds";
+import { ProcessId } from "./identity.ds";
+import { Signal } from "./signal.ds";
 
 /// Wait flags for process waits.
 export newtype ProcessWaitFlags = uint32;
+
+/// Return immediately if no status is available.
+export const PROCESS_WAIT_NO_HANG: ProcessWaitFlags = ProcessWaitFlags(0x1);
+
+/// Report stopped children.
+export const PROCESS_WAIT_STOPPED: ProcessWaitFlags = ProcessWaitFlags(0x2);
+
+/// Report continued children.
+export const PROCESS_WAIT_CONTINUED: ProcessWaitFlags = ProcessWaitFlags(0x4);
 
 /// Child process running status payload.
 export struct ProcessWaitRunningStatus {
@@ -20,7 +29,7 @@ export struct ProcessWaitExitedStatus {
     kind: "exited";
     /// Child process identifier.
     pid: ProcessId;
-    /// Exit code when available.
+    /// Exit code.
     exitCode: int32;
 }
 
@@ -30,7 +39,7 @@ export struct ProcessWaitSignaledStatus {
     kind: "signaled";
     /// Child process identifier.
     pid: ProcessId;
-    /// Signal number when available.
+    /// Signal number.
     signal: Signal;
     /// Whether a core file was produced.
     coreDumped: boolean;
@@ -42,7 +51,7 @@ export struct ProcessWaitStoppedStatus {
     kind: "stopped";
     /// Child process identifier.
     pid: ProcessId;
-    /// Signal number when available.
+    /// Signal number.
     signal: Signal;
 }
 
@@ -69,19 +78,21 @@ export newtype ProcessWaitStatus =
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function wait(
+export declare function waitProcess(
     handle: ProcessHandle,
     flags: ProcessWaitFlags,
 ): Result<ProcessWaitStatus, PlatformError>;
 
 /// Poll a child process handle without blocking.
-@binding("destack.process.wait.tryWait", {
+@binding("destack.process.wait.poll", {
     effect: "external",
     requires: ["process.wait"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function tryWait(handle: ProcessHandle): Result<ProcessWaitStatus, PlatformError>;
+export declare function pollProcess(
+    handle: ProcessHandle,
+): Result<ProcessWaitStatus, PlatformError>;
 
 /// Wait for a process identifier.
 @binding("destack.process.wait.pid", {
@@ -90,7 +101,7 @@ export declare function tryWait(handle: ProcessHandle): Result<ProcessWaitStatus
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function waitPid(
+export declare function waitProcessId(
     pid: ProcessId,
     flags: ProcessWaitFlags,
 ): Result<ProcessWaitStatus, PlatformError>;
