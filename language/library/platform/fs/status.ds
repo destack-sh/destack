@@ -1,4 +1,3 @@
-import { Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
 import { FileHandle } from "../resource/index.ds";
 import { Entry } from "./entry.ds";
@@ -69,20 +68,20 @@ export struct FileTimes {
     modification: FileTime;
 }
 
-/// Windows security identifier bytes.
-export newtype PrincipalSid = Slice<uint8>;
+/// Windows file security identifier bytes.
+export newtype FilePrincipalSid = uint8[];
 
 /// File owner principal.
-export newtype Principal =
+export newtype FilePrincipal =
     | { kind: "unix"; id: uint32 }
-    | { kind: "windows"; sid: PrincipalSid };
+    | { kind: "windows"; sid: FilePrincipalSid };
 
 /// File owner assignment.
 export struct FileOwner {
     /// User owner principal.
-    user: Principal | void;
+    user?: FilePrincipal;
     /// Group owner principal.
-    group: Principal | void;
+    group?: FilePrincipal;
 }
 
 /// File status field mask.

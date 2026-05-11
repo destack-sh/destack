@@ -64,7 +64,10 @@ export struct WatchBatch {
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function watch(entry: Entry, options: WatchOptions): Result<WatchHandle, PlatformError>;
+export declare function watch(
+    entry: Entry,
+    options: WatchOptions,
+): Result<WatchHandle, PlatformError>;
 
 /// Read watch events into an output slice.
 @binding("destack.fs.watch.read", {
