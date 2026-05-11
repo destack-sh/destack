@@ -7,8 +7,8 @@ use std::sync::{Arc, LazyLock, Once};
 use destack_artifact::{
     ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactOutcome, ArtifactPayload,
     ArtifactProvider, ArtifactVersion, Ast, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay,
-    DiagnosticError, EmitFormat, MemoryCacheStore, Platform, ProfileFlags, ProfileKey, Runtime,
-    ToDiagnostic,
+    DiagnosticError, EmitFormat, Host, MemoryCacheStore, Platform, ProfileFlags, ProfileKey,
+    Runtime, ToDiagnostic,
 };
 use destack_ast as ast;
 use destack_ast::NodeParentIndex;
@@ -701,7 +701,8 @@ impl TestProgram {
         let profile_key = ProfileKey::new(
             EmitFormat::Js,
             Runtime::Js,
-            Platform::Web,
+            Platform::Unknown,
+            Host::Browser,
             None,
             None,
             None,
