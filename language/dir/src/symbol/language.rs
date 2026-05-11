@@ -84,106 +84,103 @@ define_language_items! {
     /// Operator interfaces.
     operator {
         /// `+` operator: `a + b` => `a.add(b)`
-        Add => (Interface, "operator/plus", "Add"),
+        Add => (Interface, "ops/plus", "Add"),
 
         /// `-` operator: `a - b` => `a.subtract(b)`
-        Subtract => (Interface, "operator/minus", "Subtract"),
+        Subtract => (Interface, "ops/minus", "Subtract"),
 
         /// Unary `-`: `-a` => `a.negate()`
-        Negate => (Interface, "operator/negate", "Negate"),
+        Negate => (Interface, "ops/negate", "Negate"),
 
         /// `*` operator: `a * b` => `a.multiply(b)`
-        Multiply => (Interface, "operator/multiply", "Multiply"),
+        Multiply => (Interface, "ops/multiply", "Multiply"),
 
         /// `/` operator: `a / b` => `a.divide(b)`
-        Divide => (Interface, "operator/divide", "Divide"),
+        Divide => (Interface, "ops/divide", "Divide"),
 
         /// `%` operator: `a % b` => `a.remainder(b)`
-        Remainder => (Interface, "operator/remainder", "Remainder"),
+        Remainder => (Interface, "ops/remainder", "Remainder"),
 
         /// `**` operator: `a ** b` => `a.power(b)`
-        Power => (Interface, "operator/power", "Power"),
+        Power => (Interface, "ops/power", "Power"),
 
         /// Unary `+`: `+a` => `a.plus()`
-        Plus => (Interface, "operator/plus", "Plus"),
+        Plus => (Interface, "ops/plus", "Plus"),
 
         /// `&` operator: `a & b` => `a.and(b)`
-        And => (Interface, "operator/bitwise", "And"),
+        And => (Interface, "ops/bitwise", "And"),
 
         /// `|` operator: `a | b` => `a.or(b)`
-        Or => (Interface, "operator/bitwise", "Or"),
+        Or => (Interface, "ops/bitwise", "Or"),
 
         /// `^` operator: `a ^ b` => `a.xor(b)`
-        Xor => (Interface, "operator/bitwise", "Xor"),
+        Xor => (Interface, "ops/bitwise", "Xor"),
 
         /// `~` operator: `~a` => `a.not()`
-        Not => (Interface, "operator/bitwise", "Not"),
+        Not => (Interface, "ops/bitwise", "Not"),
 
         /// `<<` operator
-        ShiftLeft => (Interface, "operator/shift", "ShiftLeft"),
+        ShiftLeft => (Interface, "ops/shift", "ShiftLeft"),
 
         /// `>>` operator
-        ShiftRight => (Interface, "operator/shift", "ShiftRight"),
+        ShiftRight => (Interface, "ops/shift", "ShiftRight"),
 
         /// `>>>` operator
-        ShiftRightUnsigned => (Interface, "operator/shift", "ShiftRightUnsigned"),
+        ShiftRightUnsigned => (Interface, "ops/shift", "ShiftRightUnsigned"),
     }
 
     /// Equality operator interfaces.
     equality {
         /// `==` and `!=` operators
-        Equal => (Interface, "operator/equality", "Equal"),
+        Equal => (Interface, "ops/equality", "Equal"),
 
         /// Partial equality for types like float
-        PartialEqual => (Interface, "operator/equality", "PartialEqual"),
+        PartialEqual => (Interface, "ops/equality", "PartialEqual"),
     }
 
     /// Comparison operator interfaces.
     comparison {
         /// `<`, `<=`, `>`, `>=` operators
-        Compare => (Interface, "operator/comparison", "Compare"),
+        Compare => (Interface, "ops/comparison", "Compare"),
 
         /// Comparison result enum (Less, Equal, Greater)
-        Ordering => (Enum, "operator/comparison", "Ordering"),
+        Ordering => (Enum, "ops/comparison", "Ordering"),
 
         /// Partial comparison for types like float
-        PartialCompare => (Interface, "operator/comparison", "PartialCompare"),
+        PartialCompare => (Interface, "ops/comparison", "PartialCompare"),
     }
 
     /// Formatting operator interfaces.
     format {
         /// Interface for the `Display` trait.
-        Display => (Interface, "operator/format", "Display"),
+        Display => (Interface, "ops/format", "Display"),
 
         /// Interface for the `Debug` trait.
-        Debug => (Interface, "operator/format", "Debug"),
+        Debug => (Interface, "ops/format", "Debug"),
     }
 
     /// Subscript operators.
     subscript {
         /// `a[i]` access
-        Index => (Interface, "operator/subscript", "Index"),
+        Index => (Interface, "ops/subscript", "Index"),
 
         /// `a[i] = v` assignment
-        IndexSet => (Interface, "operator/subscript", "IndexSet"),
+        IndexSet => (Interface, "ops/subscript", "IndexSet"),
     }
 
     /// Dereference operators.
     dereference {
-        /// `*a` readonly dereference
-        ReadonlyDereference => (Interface, "operator/dereference", "ReadonlyDereference"),
-
-        /// `*a = v` mutable dereference
-        Dereference => (Interface, "operator/dereference", "Dereference"),
+        /// `*a` dereference
+        Dereference => (Interface, "ops/dereference", "Dereference"),
     }
 
     /// Result and error types.
     result {
         /// `?` operator for early return
-        Try => (Interface, "operator/try", "Try"),
+        Try => (Interface, "ops/try", "Try"),
 
         /// Try branch shape for ? and ??
-        TryBranch => (TypeAlias, "operator/try", "TryBranch"),
+        TryBranch => (TypeAlias, "ops/try", "TryBranch"),
 
         /// Error interface for conventional error shapes
         Error => (Interface, "error/error", "Error"),
@@ -199,6 +196,33 @@ define_language_items! {
 
         /// Async result type
         AsyncResult => (Newtype, "error/result", "AsyncResult"),
+    }
+
+    /// Trap functions.
+    trap {
+        /// Panic diagnostic function.
+        Panic => (Function, "error/panic", "panic"),
+
+        /// Immediate abort function.
+        Abort => (Function, "error/panic", "abort"),
+
+        /// Unfinished-code trap function.
+        Todo => (Function, "error/panic", "todo"),
+
+        /// Unreachable-code trap function.
+        Unreachable => (Function, "error/panic", "unreachable"),
+    }
+
+    /// Ownership and cleanup interfaces.
+    memory {
+        /// Ownership finalization protocol.
+        Drop => (Interface, "memory/drop", "Drop"),
+
+        /// Explicit synchronous cleanup protocol.
+        Dispose => (Interface, "memory/dispose", "Dispose"),
+
+        /// Explicit asynchronous cleanup protocol.
+        AsyncDispose => (Interface, "memory/dispose", "AsyncDispose"),
     }
 
     /// Reflection types and layout queries.
@@ -288,16 +312,16 @@ define_language_items! {
     /// Macro protocol items.
     macro_protocol {
         /// Shared macro context.
-        MacroContext => (Interface, "module/macro", "MacroContext"),
+        MacroContext => (Interface, "macro/macro", "MacroContext"),
 
         /// Expansion context.
-        ExpansionContext => (Interface, "module/macro", "ExpansionContext"),
+        ExpansionContext => (Interface, "macro/macro", "ExpansionContext"),
 
         /// Materialization context.
-        MaterializationContext => (Interface, "module/macro", "MaterializationContext"),
+        MaterializationContext => (Interface, "macro/macro", "MaterializationContext"),
 
         /// Macro protocol.
-        Macro => (Interface, "module/macro", "Macro"),
+        Macro => (Interface, "macro/macro", "Macro"),
     }
 
     /// Derive provider items.
@@ -376,7 +400,7 @@ mod tests {
 
     #[test]
     fn test_add_properties() {
-        assert_eq!(LanguageItem::Add.module(), "operator/plus");
+        assert_eq!(LanguageItem::Add.module(), "ops/plus");
         assert_eq!(LanguageItem::Add.export_name(), "Add");
         assert_eq!(LanguageItem::Add.form(), LanguageItemForm::Interface);
     }
