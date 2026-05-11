@@ -63,31 +63,11 @@ export newtype ProcessWaitStatus =
     | ProcessWaitContinuedStatus;
 
 /// Wait for a child process handle.
-///
-/// Wait for one child state transition and return a normalized wait status payload.
-/// Blocking and state-filter behavior is controlled by wait flags and host wait semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses waitpid or waitid on Unix and WaitForSingleObject plus status queries on Windows.
-///
-/// # Errors
-/// Returns processNotFound, processPermissionDenied, ioInterrupted, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `process.wait`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.process.wait.handle", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["process.wait"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["process.wait"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function wait(
     handle: ProcessHandle,
@@ -95,60 +75,20 @@ export declare function wait(
 ): Result<ProcessWaitStatus, PlatformError>;
 
 /// Poll a child process handle without blocking.
-///
-/// Poll one child for a state transition and return immediately when no transition is pending.
-/// Pending absence is reported through `ioWouldBlock` without sleeping.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses nonblocking waitpid or waitid on Unix and zero-timeout wait on Windows.
-///
-/// # Errors
-/// Returns processNotFound, processPermissionDenied, ioInterrupted, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `process.wait`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.process.wait.tryWait", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["process.wait"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["process.wait"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function tryWait(handle: ProcessHandle): Result<ProcessWaitStatus, PlatformError>;
 
 /// Wait for a process identifier.
-///
-/// Wait for one state transition for the specified process identifier.
-/// Identifier matching and visibility follow host process table and job-control rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses waitpid or waitid on Unix and process-handle wait translation on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, ioInterrupted, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `process.wait`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.process.wait.pid", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["process.wait"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["process.wait"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function waitPid(
     pid: ProcessId,

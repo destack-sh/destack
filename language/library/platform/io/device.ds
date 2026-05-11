@@ -4,33 +4,12 @@ import { Path } from "../fs/path.ds";
 import { DeviceHandle } from "../resource/index.ds";
 import { DescriptorRequest, DescriptorResult } from "./control.ds";
 
-/// Raw device bindings.
 /// Open one raw device endpoint.
-///
-/// Open one host device node or device path with explicit open flags.
-/// Access checks and device availability are enforced by the host kernel and device policy.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` on hosts without a compatible raw-device namespace.
-/// Uses open(2) on Unix and CreateFileW on Windows device paths.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.device.read`, `io.device.write`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.io.device.open", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["io.device.read", "io.device.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["io.device.read", "io.device.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function deviceOpen(
     path: Path,
@@ -39,60 +18,20 @@ export declare function deviceOpen(
 ): Result<DeviceHandle, PlatformError>;
 
 /// Close one raw device endpoint.
-///
-/// Close one previously opened raw device handle.
-/// Close semantics for in-flight operations follow host backend behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses close(2) on Unix and CloseHandle on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.device.read`, `io.device.write`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.io.device.close", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["io.device.read", "io.device.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["io.device.read", "io.device.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function deviceClose(handle: DeviceHandle): Result<void, PlatformError>;
 
 /// Read bytes from one raw device endpoint.
-///
-/// Read bytes into caller-provided memory and return the number of bytes transferred.
-/// Partial reads are preserved exactly as reported by the host.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses read(2) on Unix and ReadFile on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.device.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.io.device.read", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["io.device.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["io.device.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function deviceRead(
     handle: DeviceHandle,
@@ -100,31 +39,11 @@ export declare function deviceRead(
 ): Result<uint64, PlatformError>;
 
 /// Write bytes to one raw device endpoint.
-///
-/// Write bytes from caller-provided memory and return the number of bytes transferred.
-/// Partial writes are preserved exactly as reported by the host.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses write(2) on Unix and WriteFile on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.device.write`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.io.device.write", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["io.device.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["io.device.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function deviceWrite(
     handle: DeviceHandle,
@@ -132,31 +51,11 @@ export declare function deviceWrite(
 ): Result<uint64, PlatformError>;
 
 /// Run one device-specific control request.
-///
-/// Execute one opaque control request with caller-provided bytes and return host output bytes.
-/// Request code semantics and payload layout are device-specific by design.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses ioctl(2) on Unix and DeviceIoControl on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.device.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.io.device.control", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["io.device.control"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["io.device.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function deviceControl(
     handle: DeviceHandle,

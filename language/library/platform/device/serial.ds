@@ -275,121 +275,39 @@ export newtype SerialEvent =
     | SerialErrorEvent
     | SerialOverflowEvent;
 
-/// Serial bindings.
 /// List serial endpoints.
-///
-/// Enumerate serial endpoints that are currently reachable from the host namespace and return stable descriptor snapshots for them.
-/// Descriptor identity is topology based rather than open-handle based, so callers can compare enumeration results across watch and open lifetimes.
-///
-/// # Platform
-/// macOS, Linux-class Unix, and Windows.
-/// Uses SetupAPI serial device interfaces on Windows, IOKit serial-service enumeration on macOS, and tty enumeration with sysfs or udev identity enrichment on Linux-class Unix.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.serial.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.serial.list", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.serial.control"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.serial.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function serialList(): Result<Slice<SerialPortDescriptor>, PlatformError>;
 
 /// Open a serial topology watch stream.
-///
-/// Open a watch stream that reports serial endpoint attach and detach transitions as ordered topology events.
-/// The stream is scoped to host namespace changes rather than to any individual open port session.
-///
-/// # Platform
-/// macOS, Linux-class Unix, and Windows.
-/// Uses Configuration Manager device-interface notifications on Windows and native device-namespace watchers paired with IOKit or sysfs descriptor snapshots on macOS and Linux-class Unix.
-///
-/// # Errors
-/// Returns ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.serial.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.serial.watchOpen", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.serial.control"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.serial.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function serialWatchOpen(): Result<SerialWatchHandle, PlatformError>;
 
 /// Close a serial topology watch stream.
-///
-/// Close one opened serial topology watch stream and release its host subscription state.
-/// Closing a watch never closes or mutates any separately opened serial port session.
-///
-/// # Platform
-/// macOS, Linux-class Unix, and Windows.
-/// Uses Configuration Manager notification teardown on Windows and native device-namespace watcher teardown on macOS and Linux-class Unix.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.serial.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.serial.watchClose", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.serial.control"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.serial.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function serialWatchClose(handle: SerialWatchHandle): Result<void, PlatformError>;
 
 /// Read one serial topology event.
-///
-/// Wait for the next queued serial topology event from one opened watch stream.
-/// The returned event carries the full descriptor snapshot so callers do not need to race a follow-up list call.
-/// Overflow events report dropped topology transitions and tell callers to resynchronize with `serialList`.
-///
-/// # Platform
-/// macOS, Linux-class Unix, and Windows.
-/// Uses watch queues fed by Configuration Manager device-interface notifications on Windows and by native device-namespace watchers on macOS and Linux-class Unix.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `device.serial.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.serial.watchRead", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.serial.control"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.serial.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function serialWatchRead(
     handle: SerialWatchHandle,
@@ -397,62 +315,22 @@ export declare function serialWatchRead(
 ): Result<SerialWatchEvent, PlatformError>;
 
 /// Poll one serial topology event without blocking.
-///
-/// Read the next queued serial topology event from one opened watch stream without waiting.
-/// This operation only consumes already published watch events, including overflow markers.
-///
-/// # Platform
-/// macOS, Linux-class Unix, and Windows.
-/// Uses watch queues fed by Configuration Manager device-interface notifications on Windows and by native device-namespace watchers on macOS and Linux-class Unix.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.serial.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.serial.watchTryRead", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.serial.control"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["device.serial.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function serialWatchTryRead(
     handle: SerialWatchHandle,
 ): Result<SerialWatchEvent, PlatformError>;
 
 /// Open a serial endpoint.
-///
-/// Open one serial endpoint with explicit line configuration and host buffering policy.
-/// Opening establishes a long lived session whose configuration, events, and I/O remain isolated from later topology churn.
-///
-/// # Platform
-/// macOS, Linux-class Unix, and Windows.
-/// Uses overlapped serial handles with DCB and timeout configuration on Windows and POSIX open plus termios session setup on macOS and Linux-class Unix.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.serial.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.serial.open", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.serial.control"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.serial.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function serialOpen(
     id: string,
@@ -460,120 +338,40 @@ export declare function serialOpen(
 ): Result<SerialPortHandle, PlatformError>;
 
 /// Close a serial endpoint.
-///
-/// Close one opened serial endpoint and release its underlying host session.
-/// Closing a port also terminates its event stream and any pending read or write waits owned by that session.
-///
-/// # Platform
-/// macOS, Linux-class Unix, and Windows.
-/// Uses handle teardown and wait cancellation on Windows and file-descriptor close on macOS and Linux-class Unix.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.serial.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.serial.close", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.serial.control"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.serial.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function serialClose(handle: SerialPortHandle): Result<void, PlatformError>;
 
 /// Read a serial endpoint descriptor.
-///
-/// Read the stable descriptor associated with one opened serial endpoint.
-/// The descriptor reports topology identity and metadata, not transient line state.
-///
-/// # Platform
-/// macOS, Linux-class Unix, and Windows.
-/// Uses the session's bound topology identity with metadata gathered from SetupAPI on Windows, IOKit on macOS, and sysfs or udev on Linux-class Unix.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.serial.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.serial.descriptor", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.serial.control"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.serial.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function serialDescriptor(
     handle: SerialPortHandle,
 ): Result<SerialPortDescriptor, PlatformError>;
 
 /// Read serial endpoint configuration.
-///
-/// Read the current line configuration for one opened serial endpoint.
-/// The returned snapshot reflects the active host serial driver state rather than only the original open options.
-///
-/// # Platform
-/// macOS, Linux-class Unix, and Windows.
-/// Uses GetCommState on Windows and tcgetattr on macOS and Linux-class Unix.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.serial.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.serial.config", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.serial.control"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.serial.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function serialConfig(handle: SerialPortHandle): Result<SerialPortConfig, PlatformError>;
 
 /// Reconfigure a serial endpoint.
-///
-/// Apply one complete serial line configuration to one opened endpoint.
-/// Configuration updates take effect on the live session and govern subsequent I/O and event behavior.
-///
-/// # Platform
-/// macOS, Linux-class Unix, and Windows.
-/// Uses SetCommState and related serial control calls on Windows and termios attribute updates on macOS and Linux-class Unix.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.serial.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.serial.configure", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.serial.control"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.serial.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function serialConfigure(
     handle: SerialPortHandle,
@@ -581,31 +379,11 @@ export declare function serialConfigure(
 ): Result<void, PlatformError>;
 
 /// Read serial bytes.
-///
-/// Read bytes directly into caller memory from one opened serial endpoint.
-/// Partial completion is preserved exactly so callers can build their own framing and buffering policy.
-///
-/// # Platform
-/// macOS, Linux-class Unix, and Windows.
-/// Uses overlapped ReadFile on Windows and blocking or deadline-bounded reads on macOS and Linux-class Unix.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `device.serial.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.serial.readInto", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.serial.read"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.serial.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function serialReadInto(
     handle: SerialPortHandle,
@@ -614,31 +392,11 @@ export declare function serialReadInto(
 ): Result<uint64, PlatformError>;
 
 /// Poll serial bytes without blocking.
-///
-/// Read bytes directly into caller memory from one opened serial endpoint without waiting for new input.
-/// This operation only reports bytes that are already buffered by the host serial stack.
-///
-/// # Platform
-/// macOS, Linux-class Unix, and Windows.
-/// Uses nonblocking overlapped completion checks on Windows and nonblocking read paths on macOS and Linux-class Unix.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.serial.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.serial.tryReadInto", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.serial.read"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["device.serial.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function serialTryReadInto(
     handle: SerialPortHandle,
@@ -646,31 +404,11 @@ export declare function serialTryReadInto(
 ): Result<uint64, PlatformError>;
 
 /// Write serial bytes.
-///
-/// Write one byte sequence to one opened serial endpoint.
-/// Partial completion is preserved exactly so callers can retry or pace writes explicitly.
-///
-/// # Platform
-/// macOS, Linux-class Unix, and Windows.
-/// Uses overlapped WriteFile on Windows and write or writev class serial output on macOS and Linux-class Unix.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.serial.write`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.serial.write", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.serial.write"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.serial.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function serialWrite(
     handle: SerialPortHandle,
@@ -679,149 +417,49 @@ export declare function serialWrite(
 ): Result<uint64, PlatformError>;
 
 /// Drain serial output.
-///
-/// Wait until queued outbound bytes for one opened serial endpoint have left the host transmit queue.
-/// This is a transport flush barrier, not a close or cancellation operation.
-///
-/// # Platform
-/// macOS, Linux-class Unix, and Windows.
-/// Uses transmit-empty waits on Windows and tcdrain on macOS and Linux-class Unix.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.serial.write`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.serial.drain", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.serial.write"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.serial.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function serialDrain(handle: SerialPortHandle): Result<void, PlatformError>;
 
 /// Discard queued inbound serial bytes.
-///
-/// Drop queued unread inbound bytes for one opened serial endpoint.
-/// This affects host receive buffers only and does not synthesize a disconnect or error condition.
-///
-/// # Platform
-/// macOS, Linux-class Unix, and Windows.
-/// Uses PurgeComm receive-flush flags on Windows and tcflush with TCIFLUSH on macOS and Linux-class Unix.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.serial.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.serial.discardInput", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.serial.control"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.serial.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function serialDiscardInput(handle: SerialPortHandle): Result<void, PlatformError>;
 
 /// Discard queued outbound serial bytes.
-///
-/// Drop queued unwritten outbound bytes for one opened serial endpoint.
-/// This operation aborts buffered transmit data without modifying the line configuration.
-///
-/// # Platform
-/// macOS, Linux-class Unix, and Windows.
-/// Uses PurgeComm transmit-flush flags on Windows and tcflush with TCOFLUSH on macOS and Linux-class Unix.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.serial.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.serial.discardOutput", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.serial.control"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.serial.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function serialDiscardOutput(handle: SerialPortHandle): Result<void, PlatformError>;
 
 /// Read serial input signal state.
-///
-/// Return the current modem input signal state for one opened endpoint.
-/// Signal sampling is instantaneous and does not consume the serial event stream.
-///
-/// # Platform
-/// macOS, Linux-class Unix, and Windows.
-/// Uses GetCommModemStatus on Windows and modem-bit reads such as TIOCMGET on macOS and Linux-class Unix.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.serial.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.serial.getSignals", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.serial.control"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["device.serial.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function serialGetSignals(
     handle: SerialPortHandle,
 ): Result<SerialInputSignals, PlatformError>;
 
 /// Update serial output signal state.
-///
-/// Apply one partial output signal update for one opened endpoint.
-/// Fields that are omitted leave the corresponding line state unchanged.
-///
-/// # Platform
-/// macOS, Linux-class Unix, and Windows.
-/// Uses EscapeCommFunction and serial control ioctls on Windows and modem-control ioctls on macOS and Linux-class Unix.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.serial.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.serial.setSignals", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.serial.control"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.serial.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function serialSetSignals(
     handle: SerialPortHandle,
@@ -829,31 +467,11 @@ export declare function serialSetSignals(
 ): Result<void, PlatformError>;
 
 /// Read one serial event.
-///
-/// Wait for the next queued serial event for one opened endpoint.
-/// Events report readiness, modem transitions, disconnects, line errors, and queue overflow without forcing callers to poll control state.
-///
-/// # Platform
-/// macOS, Linux-class Unix, and Windows.
-/// Uses queued session ingress on every supported backend: WaitCommEvent driven ingress on Windows and dedicated readiness monitors plus modem-status sampling on macOS and Linux-class Unix.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `device.serial.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.serial.readEvent", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.serial.control"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.serial.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function serialReadEvent(
     handle: SerialPortHandle,
@@ -861,31 +479,11 @@ export declare function serialReadEvent(
 ): Result<SerialEvent, PlatformError>;
 
 /// Poll one serial event without blocking.
-///
-/// Read the next queued serial event for one opened endpoint without waiting for new host activity.
-/// This operation only consumes events that have already been published into the session queue.
-///
-/// # Platform
-/// macOS, Linux-class Unix, and Windows.
-/// Uses session event queues fed by WaitCommEvent on Windows and readiness monitors on macOS and Linux-class Unix.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.serial.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.serial.tryReadEvent", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.serial.control"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["device.serial.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function serialTryReadEvent(
     handle: SerialPortHandle,

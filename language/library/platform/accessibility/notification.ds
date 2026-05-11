@@ -52,31 +52,12 @@ export struct AccessibilityNotification {
     textRange: AccessibilityTextRange | void;
 }
 
-/// Accessibility notification bindings.
 /// Post one accessibility notification for one window.
-///
-/// Deliver one semantic notification that is not fully implied by the published tree update alone.
-///
-/// # Platform
-/// Android, Unix, and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `accessibility.notify`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.accessibility.notification.post", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["accessibility.notify"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["accessibility.notify"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function notificationPost(
     window: WindowHandle,

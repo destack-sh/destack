@@ -22,33 +22,12 @@ export struct UnixReceiveAncillary {
     credentials: UnixPeerCredentials | void;
 }
 
-/// Unix ancillary bindings.
 /// Send payload and transferred handles.
-///
-/// Send one payload and optional transferred handles over a unix-domain socket.
-/// Handle transfer semantics follow host ancillary message ownership rules.
-///
-/// # Platform
-/// Unix.
-/// Uses sendmsg with SCM_RIGHTS and optional credential control messages.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `ipc.unix`, `ipc.fd.pass`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.ipc.unix.send", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["ipc.unix", "ipc.fd.pass"],
-    platforms: ["unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["ipc.unix", "ipc.fd.pass"],
+    families: ["unix"],
+    simulation: true,
 })
 export declare function unixSend(
     socket: SocketHandle,
@@ -57,31 +36,11 @@ export declare function unixSend(
 ): Result<uint64, PlatformError>;
 
 /// Receive payload and transferred handles.
-///
-/// Receive one ancillary message payload with transferred handles and credentials.
-/// Handle ownership transfer is explicit and host-limited.
-///
-/// # Platform
-/// Unix.
-/// Uses recvmsg with SCM_RIGHTS and peer credential control messages.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `ipc.unix`, `ipc.fd.pass`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.ipc.unix.receive", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["ipc.unix", "ipc.fd.pass"],
-    platforms: ["unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["ipc.unix", "ipc.fd.pass"],
+    families: ["unix"],
+    simulation: true,
 })
 export declare function unixReceive(
     socket: SocketHandle,

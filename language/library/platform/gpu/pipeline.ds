@@ -519,33 +519,12 @@ export struct GpuRenderPipelineOptions {
     flags: uint32;
 }
 
-/// GPU pipeline bindings.
 /// Create a shader module.
-///
-/// Create a shader module from source or binary payload bytes and module metadata.
-/// Stage and entry-point selection are defined by pipeline stage descriptors, not by shader-module creation.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style shader module creation APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.shader`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.pipeline.shaderCreate", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.shader"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.shader"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function shaderCreate(
     device: GpuDeviceHandle,
@@ -554,60 +533,20 @@ export declare function shaderCreate(
 ): Result<GpuShaderHandle, PlatformError>;
 
 /// Destroy a shader module.
-///
-/// Destroy a shader module and release backend compiler or cache resources.
-/// The shader handle becomes invalid after destroy.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style shader module destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `gpu.shader`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.pipeline.shaderDestroy", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.shader"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.shader"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function shaderDestroy(handle: GpuShaderHandle): Result<void, PlatformError>;
 
 /// Read a shader-compilation diagnostics snapshot.
-///
-/// Read compilation diagnostics for a shader module.
-/// Diagnostics are backend-defined and can include warnings and informational messages.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style shader compilation-info query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.shader`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.pipeline.shaderCompilationInfo", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.shader"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.shader"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function shaderCompilationInfo(
     handle: GpuShaderHandle,
@@ -615,31 +554,11 @@ export declare function shaderCompilationInfo(
 ): Result<GpuCompilationInfo, PlatformError>;
 
 /// Create a compute pipeline.
-///
-/// Create a compute pipeline from a compute stage descriptor and an explicit or inferred layout.
-/// Pipeline compilation and cache behavior follow host backend semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style compute pipeline creation APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.compute`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.pipeline.computeCreate", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.compute"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.compute"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function computePipelineCreate(
     device: GpuDeviceHandle,
@@ -647,31 +566,11 @@ export declare function computePipelineCreate(
 ): Result<GpuPipelineHandle, PlatformError>;
 
 /// Create a render pipeline.
-///
-/// Create a render pipeline with explicit shader stages, an explicit or inferred layout, and render-state descriptors.
-/// Pipeline compilation and backend render-state linkage follow host API semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style render pipeline creation APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.render`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.pipeline.renderCreate", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.render"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.render"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function renderPipelineCreate(
     device: GpuDeviceHandle,
@@ -679,31 +578,11 @@ export declare function renderPipelineCreate(
 ): Result<GpuPipelineHandle, PlatformError>;
 
 /// Resolve one bind-group layout from one pipeline.
-///
-/// Resolve a bind-group layout at the requested group index from a pipeline.
-/// This follows pipeline-layout reflection rules of the selected backend.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style pipeline bind-group-layout query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.bind`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.pipeline.bindGroupLayout", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.bind"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.bind"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function pipelineBindGroupLayout(
     pipeline: GpuPipelineHandle,
@@ -711,30 +590,10 @@ export declare function pipelineBindGroupLayout(
 ): Result<GpuBindGroupLayoutHandle, PlatformError>;
 
 /// Destroy a pipeline object.
-///
-/// Destroy a pipeline object and release backend compiled state.
-/// Outstanding command buffers, render bundles, and active passes referencing the pipeline must be synchronized by callers.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style pipeline destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.compute`, `gpu.render`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.pipeline.destroy", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.compute", "gpu.render"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.compute", "gpu.render"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function pipelineDestroy(handle: GpuPipelineHandle): Result<void, PlatformError>;

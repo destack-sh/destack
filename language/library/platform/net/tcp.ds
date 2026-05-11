@@ -14,89 +14,29 @@ export struct KeepAliveConfig {
 }
 
 /// Enable or disable TCP_NODELAY.
-///
-/// Set TCP_NODELAY on the target TCP socket.
-/// Nagle aggregation behavior changes immediately according to host TCP stack semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses setsockopt(TCP_NODELAY) on Unix and setsockopt on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.tcp.setNoDelay", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.control"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["net.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function setNoDelay(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>;
 
 /// Read TCP_NODELAY.
-///
-/// Read the current TCP_NODELAY setting from the host TCP option layer.
-/// The returned boolean reflects whether Nagle aggregation is disabled for this socket.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses getsockopt(TCP_NODELAY) on Unix and getsockopt on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.tcp.getNoDelay", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.control"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["net.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function getNoDelay(handle: SocketHandle): Result<boolean, PlatformError>;
 
 /// Write full TCP keepalive parameters.
-///
-/// Set host keepalive configuration fields for this TCP socket.
-/// Unsupported subfields are returned as `notSupported` rather than silently ignored.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses setsockopt(SO_KEEPALIVE and TCP_KEEP*) on Unix and WSAIoctl on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.tcp.setKeepAlive", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.control"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["net.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function setKeepAlive(
     handle: SocketHandle,
@@ -104,30 +44,10 @@ export declare function setKeepAlive(
 ): Result<void, PlatformError>;
 
 /// Read full TCP keepalive parameters.
-///
-/// Read host keepalive configuration fields for this TCP socket.
-/// Field units and defaults follow platform TCP stack semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses getsockopt(SO_KEEPALIVE and TCP_KEEP*) on Unix and WSAIoctl on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.tcp.getKeepAlive", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.control"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["net.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function getKeepAlive(handle: SocketHandle): Result<KeepAliveConfig, PlatformError>;

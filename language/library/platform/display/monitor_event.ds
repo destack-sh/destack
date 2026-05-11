@@ -160,91 +160,35 @@ export struct DisplayMonitorEventOpenOptions {
     filter: DisplayMonitorEventFilter | void;
 }
 
-/// Display monitor event bindings.
 /// Open a global monitor-event stream.
-///
-/// Open the host monitor-event stream for display hotplug and descriptor changes.
-/// Events follow host event-loop delivery and use stable display identifiers when available.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host monitor callback and message subscription APIs.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.monitor.eventOpen", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.read"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function monitorEventOpen(
     options: DisplayMonitorEventOpenOptions,
 ): Result<DisplayEventHandle, PlatformError>;
 
 /// Close a global monitor-event stream.
-///
-/// Close a monitor-event stream and release host routing resources.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific event-stream close operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.monitor.eventClose", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.read"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function monitorEventClose(handle: DisplayEventHandle): Result<void, PlatformError>;
 
 /// Wait for a monitor event.
-///
-/// Wait for the next event from a monitor-event stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host event queue wait operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.monitor.eventRead", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.read"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function monitorEventRead(
     handle: DisplayEventHandle,
@@ -252,61 +196,24 @@ export declare function monitorEventRead(
 ): Result<DisplayMonitorEvent, PlatformError>;
 
 /// Poll a monitor event without blocking.
-///
-/// Poll a pending event from a monitor-event stream without waiting.
-/// Empty queue state is reported through ioWouldBlock.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses nonblocking host event queue polling.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.monitor.eventTryRead", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.read"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "eventLoop",
+    requires: ["display.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function monitorEventTryRead(
     handle: DisplayEventHandle,
 ): Result<DisplayMonitorEvent, PlatformError>;
 
 /// Wait for a batch of monitor events.
-///
-/// Wait for pending events from a monitor-event stream and return up to `maxEvents` events.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host event queue batch wait operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.monitor.eventReadBatch", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.read"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function monitorEventReadBatch(
     handle: DisplayEventHandle,
@@ -315,30 +222,12 @@ export declare function monitorEventReadBatch(
 ): Result<Array<DisplayMonitorEvent>, PlatformError>;
 
 /// Poll a batch of monitor events without blocking.
-///
-/// Poll pending events from a monitor-event stream and return up to `maxEvents` events.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses nonblocking host event queue batch polling.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.monitor.eventTryReadBatch", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.read"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "eventLoop",
+    requires: ["display.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function monitorEventTryReadBatch(
     handle: DisplayEventHandle,

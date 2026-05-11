@@ -1,32 +1,11 @@
 import type { PlatformError } from "../error/index.ds";
 import { ResourceId } from "../resource/index.ds";
 
-/// GPU debug bindings.
 /// Set a debug label on a GPU resource object.
-///
-/// Set a human-readable label on a GPU resource or pipeline object.
-/// Label visibility and truncation behavior are backend-defined.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style object-label operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.debug`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.debug.setLabel", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.debug"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.debug"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function setLabel(handle: ResourceId, label: string): Result<void, PlatformError>;

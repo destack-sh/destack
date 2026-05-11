@@ -1,24 +1,49 @@
-import type { PlatformCapability } from "./capability.ds";
+import type { HostAction } from "./action.ds";
 
-/// Platform selector tags for runtime binding availability.
-export type PlatformTag = "windows" | "unix" | "wasi" | "linux" | "macos" | "bsd";
+/// Platform tags accepted by runtime bindings.
+export type PlatformTag =
+    | "windows"
+    | "macos"
+    | "linux"
+    | "freebsd"
+    | "openbsd"
+    | "netbsd"
+    | "dragonfly"
+    | "solaris"
+    | "illumos"
+    | "haiku"
+    | "fuchsia"
+    | "redox"
+    | "hermit"
+    | "ios"
+    | "android";
+
+/// Platform family selectors accepted by runtime bindings.
+export type PlatformFamilyTag = "windows" | "unix";
+
+/// Host tags accepted by runtime bindings.
+export type HostTag = "native" | "browser" | "wasi" | "emscripten" | "freestanding";
 
 /// Options for runtime bindings.
 export type BindingOptions = {
-    /// Effect classification for the binding.
-    effect: "pure" | "deterministic" | "external" | "io";
-    /// Replay policy for external effects.
-    replay?: "recordable" | "nonrecordable";
-    /// Replay payload policy for the binding.
-    payload?: "results" | "argumentsAndResults";
-    /// Capability requirements for this binding.
-    capabilities?: PlatformCapability[];
-    /// Platform availability tags for this binding.
+    /// Effect kind for the binding.
+    effect: "pure" | "deterministic" | "external";
+    /// Host actions required by this binding.
+    requires: HostAction[];
+    /// Platforms that support this binding.
     platforms?: PlatformTag[];
-    /// Platform scope for this binding.
-    scope?: "host" | "runtime";
-    /// Blocking behavior classification for this binding.
-    blocking?: "always" | "never" | "sometimes";
+    /// Platform families that support this binding.
+    families?: PlatformFamilyTag[];
+    /// Hosts that support this binding.
+    hosts?: HostTag[];
+    /// Marks bindings implemented by runtime state instead of the host.
+    provider?: "runtime";
+    /// Replay override for external effects.
+    replay?: "forbidden";
+    /// Execution context required by this binding.
+    affinity?: "worker" | "main";
+    /// Whether this binding can execute against a simulated world.
+    simulation?: boolean;
 };
 
 /// Marks something as a runtime binding.
@@ -26,8 +51,9 @@ export type BindingOptions = {
 /// ```
 /// @binding("destack.fs.open", {
 ///   effect: "external",
-///   replay: "recordable",
-///   payload: "results",
+///   requires: ["fs.open"],
+///   families: ["windows", "unix"],
+///   simulation: true,
 /// })
 /// function open() { }
 /// ```

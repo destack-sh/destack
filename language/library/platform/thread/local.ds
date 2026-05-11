@@ -1,119 +1,42 @@
 import type { PlatformError } from "../error/index.ds";
 import { ThreadLocalKey } from "../resource/index.ds";
 
-/// Thread-local storage bindings.
 /// Create one thread-local key.
-///
-/// Allocate one runtime thread-local storage key.
-/// Key lifetime is explicit and must be released with delete.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses pthread TLS keys on Unix and TlsAlloc on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.local`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.thread.local.create", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["thread.local"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["thread.local"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function localCreate(): Result<ThreadLocalKey, PlatformError>;
 
 /// Store one thread-local value.
-///
-/// Write one machine-word value into one thread-local key.
-/// Value interpretation is caller-defined and ABI-dependent.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses pthread TLS storage on Unix and TlsSetValue on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.local`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.thread.local.set", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["thread.local"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["thread.local"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function localSet(key: ThreadLocalKey, value: uint64): Result<void, PlatformError>;
 
 /// Read one thread-local value.
-///
-/// Read one machine-word value from one thread-local key.
-/// Value interpretation is caller-defined and ABI-dependent.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses pthread TLS storage on Unix and TlsGetValue on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.local`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.thread.local.get", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["thread.local"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["thread.local"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function localGet(key: ThreadLocalKey): Result<uint64, PlatformError>;
 
 /// Delete one thread-local key.
-///
-/// Release one thread-local key and associated host resources.
-/// Existing per-thread values become invalid after deletion.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses pthread TLS key deletion on Unix and TlsFree on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.local`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.thread.local.delete", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["thread.local"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["thread.local"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function localDelete(key: ThreadLocalKey): Result<void, PlatformError>;

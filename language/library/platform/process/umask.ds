@@ -1,30 +1,10 @@
 import type { PlatformError } from "../error/index.ds";
 
 /// Set process file-creation umask and return the previous value.
-///
-/// Update the process-wide file mode creation mask used by future file-creation operations.
-/// Mask interpretation follows POSIX mode bit rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses umask(2) on Unix and runtime compatibility behavior on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.identity.write`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.process.umask.set", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["process.identity.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["process.identity.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function umask(mask: uint32): Result<uint32, PlatformError>;

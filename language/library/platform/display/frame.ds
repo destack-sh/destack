@@ -53,93 +53,35 @@ export struct DisplayBeginFrameOpenOptions {
     filter: DisplayBeginFrameFilter | void;
 }
 
-/// Display begin-frame bindings.
 /// Open a global begin-frame stream.
-///
-/// Open the host begin-frame stream for windows in this runtime.
-/// Events are delivered after `windowInvalidate(...)` or host invalidations that schedule another frame.
-/// Window-state changes are reported separately through `display.window_event`.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses Wayland frame callbacks, X11 expose and invalidate delivery, and Win32 paint and redraw message delivery.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.frame.beginOpen", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function beginFrameOpen(
     options: DisplayBeginFrameOpenOptions,
 ): Result<DisplayBeginFrameHandle, PlatformError>;
 
 /// Close a begin-frame stream.
-///
-/// Close a begin-frame stream and release host routing resources.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses Wayland frame-callback deregistration, X11 redraw queue cleanup, and Win32 paint-routing teardown.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.frame.beginClose", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function beginFrameClose(handle: DisplayBeginFrameHandle): Result<void, PlatformError>;
 
 /// Wait for a begin-frame event.
-///
-/// Wait for the next event from a begin-frame stream.
-/// Hidden, occluded, suspended, and zero-sized windows can suppress delivery until the window becomes renderable again.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses Wayland frame-callback dispatch, X11 expose queue waits, and Win32 paint and redraw message waits.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.frame.beginRead", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function beginFrameRead(
     handle: DisplayBeginFrameHandle,
@@ -147,61 +89,24 @@ export declare function beginFrameRead(
 ): Result<DisplayBeginFrameEvent, PlatformError>;
 
 /// Poll a begin-frame event without blocking.
-///
-/// Poll a pending event from a begin-frame stream without waiting.
-/// Empty queue state is reported through ioWouldBlock.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses nonblocking Wayland frame-callback dispatch, X11 expose polling, and Win32 paint and redraw polling.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.frame.beginTryRead", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function beginFrameTryRead(
     handle: DisplayBeginFrameHandle,
 ): Result<DisplayBeginFrameEvent, PlatformError>;
 
 /// Wait for a batch of begin-frame events.
-///
-/// Wait for pending events from a begin-frame stream and return up to `maxEvents` events.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses Wayland frame-callback batch dispatch, X11 expose queue waits, and Win32 paint and redraw batch waits.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.frame.beginReadBatch", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function beginFrameReadBatch(
     handle: DisplayBeginFrameHandle,
@@ -210,30 +115,12 @@ export declare function beginFrameReadBatch(
 ): Result<Array<DisplayBeginFrameEvent>, PlatformError>;
 
 /// Poll a batch of begin-frame events without blocking.
-///
-/// Poll pending events from a begin-frame stream and return up to `maxEvents` events.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses nonblocking Wayland frame-callback batch dispatch, X11 expose polling, and Win32 paint and redraw batch polling.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.frame.beginTryReadBatch", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function beginFrameTryReadBatch(
     handle: DisplayBeginFrameHandle,

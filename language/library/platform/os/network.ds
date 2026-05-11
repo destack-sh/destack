@@ -67,116 +67,39 @@ export struct NetworkEvent {
     state: NetworkState;
 }
 
-/// Network bindings.
 /// Read host network state.
-///
-/// Read one point-in-time host network state snapshot.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host network state facilities.
-///
-/// # Errors
-/// Returns ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.network.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.network.state", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.network.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["os.network.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function networkState(): Result<NetworkState, PlatformError>;
 
 /// Open host network watch stream.
-///
-/// Open one host network watch stream for connectivity state transitions.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host network state facilities and runtime watch state.
-///
-/// # Errors
-/// Returns ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.network.watch`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.network.watchOpen", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.network.watch"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["os.network.watch"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function networkWatchOpen(): Result<NetworkWatchHandle, PlatformError>;
 
 /// Close host network watch stream.
-///
-/// Close one host network watch stream and release host subscription resources.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime watch state cleanup.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.network.watch`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.network.watchClose", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.network.watch"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["os.network.watch"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function networkWatchClose(handle: NetworkWatchHandle): Result<void, PlatformError>;
 
 /// Wait for one host network event.
-///
-/// Wait for one queued host network event from one opened watch stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime network watch state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `os.network.watch`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.network.watchRead", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.network.watch"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["os.network.watch"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function networkWatchRead(
     handle: NetworkWatchHandle,
@@ -184,30 +107,11 @@ export declare function networkWatchRead(
 ): Result<NetworkEvent, PlatformError>;
 
 /// Poll one host network event without blocking.
-///
-/// Poll one queued host network event from one opened watch stream without waiting.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime network watch state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.network.watch`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.network.watchTryRead", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.network.watch"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["os.network.watch"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function networkWatchTryRead(
     handle: NetworkWatchHandle,

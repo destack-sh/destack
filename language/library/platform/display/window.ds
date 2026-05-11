@@ -469,270 +469,101 @@ export struct WindowState {
     aspectRatio: WindowAspectRatio | void;
 }
 
-/// Window bindings.
 /// Open a window.
-///
-/// Create a host window from an explicit configuration payload.
-///
-/// # Platform
-/// Unix and Windows.
-/// Declared backend kinds include mobile and Apple backends, while this host runtime currently implements one subset.
-/// Uses host window-system APIs on Win32, X11, and Wayland desktop backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.open", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowOpen(options: WindowOptions): Result<WindowHandle, PlatformError>;
 
 /// Close a window.
-///
-/// Close a host window and release associated resources.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific window close and destroy operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.close", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowClose(window: WindowHandle): Result<void, PlatformError>;
 
 /// Read window descriptor metadata.
-///
-/// Read the current descriptor snapshot for a window.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific window metadata queries.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.descriptor", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowDescriptor(window: WindowHandle): Result<WindowDescriptor, PlatformError>;
 
 /// Read a window state snapshot.
-///
-/// Read the current host window state snapshot.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific window state queries.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.state", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowState(window: WindowHandle): Result<WindowState, PlatformError>;
 
 /// Read the logical content rectangle for a window.
-///
-/// Read the current logical content rectangle.
-/// This excludes host chrome and uses window-local coordinates.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses Win32 client-rect queries, X11 window geometry, and Wayland configured content-area tracking.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.contentRect", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowContentRect(
     window: WindowHandle,
 ): Result<WindowLogicalRect, PlatformError>;
 
 /// Read the drawable framebuffer size for a window.
-///
-/// Read the current drawable framebuffer size.
-/// This is the canonical render and present size for the window.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses drawable pixel-size queries derived from client geometry, compositor scale, and backing-surface extent.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.framebufferSize", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowFramebufferSize(
     window: WindowHandle,
 ): Result<WindowPhysicalSize, PlatformError>;
 
 /// Read the render state for a window.
-///
-/// Read the current renderability state.
-/// When the state is `SurfaceLost`, stop presenting until the window becomes renderable again.
-/// Then use `gpu.surfaceStatus(...)` to decide whether to reconfigure or reopen the present surface.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses visibility, occlusion, lifecycle suspension, and host-surface state derived from compositor and window-system state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.renderState", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowRenderState(
     window: WindowHandle,
 ): Result<WindowRenderState, PlatformError>;
 
-/// Read the effective capability set for a window.
-///
-/// Read the effective capability set after backend and role negotiation.
-/// This can be a strict subset of the backend descriptor capability flags.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend and role specific capability resolution.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.display.window.capabilities", {
+/// Read the effective action set for a window.
+@binding("destack.display.window.actions", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowCapabilities(
     window: WindowHandle,
 ): Result<DisplayBackendCapabilityFlags, PlatformError>;
 
 /// Set a window title string.
-///
-/// Update a host window title.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific title update operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.setTitle", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowSetTitle(
     window: WindowHandle,
@@ -740,32 +571,12 @@ export declare function windowSetTitle(
 ): Result<void, PlatformError>;
 
 /// Set a window icon set.
-///
-/// Apply a host window icon set from packed pixel bytes.
-/// Backends can select the closest icon size per host surface.
-/// Passing `void` clears custom icons and restores host default behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific window icon APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.setIcons", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowSetIcons(
     window: WindowHandle,
@@ -773,30 +584,12 @@ export declare function windowSetIcons(
 ): Result<void, PlatformError>;
 
 /// Set a window position.
-///
-/// Apply a host window position in desktop coordinates.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific window move operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.setPosition", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowSetPosition(
     window: WindowHandle,
@@ -804,30 +597,12 @@ export declare function windowSetPosition(
 ): Result<void, PlatformError>;
 
 /// Set a logical window size.
-///
-/// Apply a host window size in logical platform points.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific window resize operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.setSizeLogical", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowSetSizeLogical(
     window: WindowHandle,
@@ -835,30 +610,12 @@ export declare function windowSetSizeLogical(
 ): Result<void, PlatformError>;
 
 /// Set a physical window size.
-///
-/// Apply a host window size in physical pixels.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific pixel-size resize operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.setSizePhysical", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowSetSizePhysical(
     window: WindowHandle,
@@ -866,31 +623,12 @@ export declare function windowSetSizePhysical(
 ): Result<void, PlatformError>;
 
 /// Set logical size constraints.
-///
-/// Apply minimum and maximum logical size constraints for a window.
-/// Passing `void` clears current constraints.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific size-constraint operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.setSizeConstraints", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowSetSizeConstraints(
     window: WindowHandle,
@@ -898,31 +636,12 @@ export declare function windowSetSizeConstraints(
 ): Result<void, PlatformError>;
 
 /// Set a window aspect-ratio lock.
-///
-/// Apply an aspect-ratio lock for a window.
-/// Passing `void` clears any currently active aspect-ratio lock.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific aspect-ratio lock operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.setAspectRatio", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowSetAspectRatio(
     window: WindowHandle,
@@ -930,30 +649,12 @@ export declare function windowSetAspectRatio(
 ): Result<void, PlatformError>;
 
 /// Set a window visibility state.
-///
-/// Apply a window visibility state transition.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific show and hide and minimize and maximize operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.setVisibility", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowSetVisibility(
     window: WindowHandle,
@@ -961,114 +662,42 @@ export declare function windowSetVisibility(
 ): Result<void, PlatformError>;
 
 /// Minimize a window.
-///
-/// Transition a window to minimized host state.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific minimize operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.minimize", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowMinimize(window: WindowHandle): Result<void, PlatformError>;
 
 /// Maximize a window.
-///
-/// Transition a window to maximized host state.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific maximize operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.maximize", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowMaximize(window: WindowHandle): Result<void, PlatformError>;
 
 /// Restore a window.
-///
-/// Restore a minimized or maximized window to standard visible state.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific restore operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.restore", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowRestore(window: WindowHandle): Result<void, PlatformError>;
 
 /// Set a window mode.
-///
-/// Apply a host window mode transition for a window.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific fullscreen and borderless and windowed mode operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.setMode", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowSetMode(
     window: WindowHandle,
@@ -1076,30 +705,12 @@ export declare function windowSetMode(
 ): Result<void, PlatformError>;
 
 /// Set window resizable state.
-///
-/// Enable or disable host resize affordances for a window.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific resizable-window flags.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.setResizable", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowSetResizable(
     window: WindowHandle,
@@ -1107,30 +718,12 @@ export declare function windowSetResizable(
 ): Result<void, PlatformError>;
 
 /// Set window decoration state.
-///
-/// Enable or disable host decorations for a window.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific decorated-window flags.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.setDecorated", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowSetDecorated(
     window: WindowHandle,
@@ -1138,30 +731,12 @@ export declare function windowSetDecorated(
 ): Result<void, PlatformError>;
 
 /// Set a window chrome style.
-///
-/// Apply a backend chrome style policy for a window.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific window style and type operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.setChrome", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowSetChrome(
     window: WindowHandle,
@@ -1169,30 +744,12 @@ export declare function windowSetChrome(
 ): Result<void, PlatformError>;
 
 /// Set taskbar visibility for a window.
-///
-/// Control whether a window is visible in task switching and taskbar surfaces.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific taskbar and dock visibility operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.setTaskbarVisible", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowSetTaskbarVisible(
     window: WindowHandle,
@@ -1200,30 +757,12 @@ export declare function windowSetTaskbarVisible(
 ): Result<void, PlatformError>;
 
 /// Set always-on-top state.
-///
-/// Enable or disable host always-on-top policy for a window.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific topmost-window flags.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.setAlwaysOnTop", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowSetAlwaysOnTop(
     window: WindowHandle,
@@ -1231,30 +770,12 @@ export declare function windowSetAlwaysOnTop(
 ): Result<void, PlatformError>;
 
 /// Set a window opacity.
-///
-/// Apply a whole-window opacity value in `[0.0, 1.0]`.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific whole-window opacity APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.setOpacity", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowSetOpacity(
     window: WindowHandle,
@@ -1262,116 +783,42 @@ export declare function windowSetOpacity(
 ): Result<void, PlatformError>;
 
 /// Read a window opacity value.
-///
-/// Read the current whole-window opacity value in `[0.0, 1.0]`.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific whole-window opacity queries.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.opacity", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowOpacity(window: WindowHandle): Result<float64, PlatformError>;
 
 /// Focus a window.
-///
-/// Request keyboard focus for a window.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific focus request operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.focus", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowFocus(window: WindowHandle): Result<void, PlatformError>;
 
 /// Raise a window.
-///
-/// Request that a window moves to the top of its stack group.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific raise and stack-order operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.raise", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowRaise(window: WindowHandle): Result<void, PlatformError>;
 
 /// Set a parent window relationship.
-///
-/// Apply a parent relationship where backend policy allows.
-/// This relationship is ignored when `transientFor` is also set.
-/// Passing `void` removes the parent relationship.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific parent-window relationship operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window.parenting`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.setParent", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window.parenting"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window.parenting"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowSetParent(
     window: WindowHandle,
@@ -1379,32 +826,12 @@ export declare function windowSetParent(
 ): Result<void, PlatformError>;
 
 /// Set a transient-owner relationship.
-///
-/// Apply a transient-owner relationship where backend policy allows.
-/// This relationship takes precedence over `parent`.
-/// Passing `void` removes the transient-owner relationship.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific transient-window relationship operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window.parenting`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.setTransientFor", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window.parenting"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window.parenting"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowSetTransientFor(
     window: WindowHandle,
@@ -1412,31 +839,12 @@ export declare function windowSetTransientFor(
 ): Result<void, PlatformError>;
 
 /// Set a window modal relationship.
-///
-/// Enable or disable a modal relationship where backend policy allows.
-/// Modal mode requires an active `transientFor` or `parent` relationship.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific modal-window operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window.modal`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.setModal", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window.modal"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window.modal"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowSetModal(
     window: WindowHandle,
@@ -1444,30 +852,12 @@ export declare function windowSetModal(
 ): Result<void, PlatformError>;
 
 /// Set mouse passthrough behavior for a window.
-///
-/// Enable or disable pointer hit-test passthrough for a window.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific hit-test and pointer-input region operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.setMousePassthrough", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowSetMousePassthrough(
     window: WindowHandle,
@@ -1475,60 +865,22 @@ export declare function windowSetMousePassthrough(
 ): Result<void, PlatformError>;
 
 /// Invalidate a window for redraw.
-///
-/// Enqueue a host invalidation for a window.
-/// Multiple outstanding invalidations can be coalesced by the backend.
-/// Call this after scene, layout, animation, or state changes when no host invalidation already guarantees another begin frame.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses Wayland frame callbacks, X11 redraw invalidation, and Win32 `InvalidateRect` or equivalent redraw requests.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.invalidate", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowInvalidate(window: WindowHandle): Result<void, PlatformError>;
 
 /// Request user attention for a window.
-///
-/// Request host-specific user attention signaling for a window.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific request-attention primitives.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.requestAttention", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowRequestAttention(
     window: WindowHandle,
@@ -1536,30 +888,12 @@ export declare function windowRequestAttention(
 ): Result<void, PlatformError>;
 
 /// Set cursor interaction mode for a window.
-///
-/// Apply a cursor mode policy for a window.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific cursor lock and confine and hide operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.setCursorMode", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowSetCursorMode(
     window: WindowHandle,
@@ -1567,30 +901,12 @@ export declare function windowSetCursorMode(
 ): Result<void, PlatformError>;
 
 /// Set cursor icon for a window.
-///
-/// Apply a standard system cursor icon for a window.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific cursor-shape operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.setCursorIcon", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowSetCursorIcon(
     window: WindowHandle,
@@ -1598,30 +914,12 @@ export declare function windowSetCursorIcon(
 ): Result<void, PlatformError>;
 
 /// Set cursor visibility for a window.
-///
-/// Show or hide the window cursor without changing lock or confinement state.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific cursor visibility operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.setCursorVisible", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowSetCursorVisible(
     window: WindowHandle,
@@ -1629,32 +927,12 @@ export declare function windowSetCursorVisible(
 ): Result<void, PlatformError>;
 
 /// Set cursor position for a window.
-///
-/// Warp cursor position relative to a window.
-/// This is a window-scoped convenience API for UI and tooling interactions.
-/// Use `input.pointer.warp` for device-target scoped pointer control.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific cursor warp operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.setCursorPosition", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowSetCursorPosition(
     window: WindowHandle,
@@ -1662,58 +940,22 @@ export declare function windowSetCursorPosition(
 ): Result<void, PlatformError>;
 
 /// Begin a native move-drag interaction.
-///
-/// Start a host-controlled move-drag interaction for a window.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific interactive move-drag operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.beginMoveDrag", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowBeginMoveDrag(window: WindowHandle): Result<void, PlatformError>;
 
 /// Begin a native resize-drag interaction.
-///
-/// Start a host-controlled resize-drag interaction for a window and the selected edge.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific interactive resize-drag operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.beginResizeDrag", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowBeginResizeDrag(
     window: WindowHandle,

@@ -251,36 +251,12 @@ export newtype InputTextSessionEvent =
     | InputEditIntentEvent
     | InputClipboardCommandEvent;
 
-/// Input text bindings.
 /// Open one text input session.
-///
-/// Open one focused text input session for the active renderer editor and initial text state.
-/// The host uses this session to attach platform IME or editing services for the selected target scope.
-///
-/// # Platform
-/// Android, iOS, Unix, and Windows.
-/// Returns operation-level `notSupported` where text input sessions or one window scope are unavailable.
-/// Android and iOS use the focused host text target and do not support explicit window routing.
-/// Unix terminal and Windows console backends currently route committed cooked text through session edit-intent events.
-/// Explicit window targets are used for session metadata and geometry hints when one opened window resource is provided.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `input.text`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.input.text.open", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["input.text"],
-    platforms: ["android", "ios", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["input.text"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function textOpen(
     config: InputTextSessionConfig,
@@ -288,62 +264,20 @@ export declare function textOpen(
 ): Result<InputTextSessionHandle, PlatformError>;
 
 /// Close one text input session.
-///
-/// Close one active text input session and detach any host IME or editing services.
-/// Pending composition updates are finalized or canceled according to backend policy.
-///
-/// # Platform
-/// Android, iOS, Unix, and Windows.
-/// Returns operation-level `notSupported` where text input sessions are unavailable.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `input.text`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.input.text.close", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["input.text"],
-    platforms: ["android", "ios", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["input.text"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function textClose(session: InputTextSessionHandle): Result<void, PlatformError>;
 
 /// Set text input geometry.
-///
-/// Set one text input geometry hint for one active text input session.
-/// Geometry hints are used by host IME placement when supported for the selected target scope.
-///
-/// # Platform
-/// Android, iOS, Unix, and Windows, with operation-level `notSupported` where text-geometry hints or one window scope are unavailable.
-/// Android and iOS use the focused host text target and do not support explicit window routing.
-/// Uses backend-specific text-geometry tracking.
-/// Explicit window targets are used for session metadata and geometry hints when one opened window resource is provided.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `input.text`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.input.text.setGeometry", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["input.text"],
-    platforms: ["android", "ios", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["input.text"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function textSetGeometry(
     session: InputTextSessionHandle,
@@ -351,64 +285,22 @@ export declare function textSetGeometry(
 ): Result<void, PlatformError>;
 
 /// Get text input geometry.
-///
-/// Return the currently configured text input geometry hint.
-/// Resolve state for one active text input session.
-///
-/// # Platform
-/// Android, iOS, Unix, and Windows, with operation-level `notSupported` where one window scope is unavailable.
-/// Uses backend-specific text-geometry state tracking.
-/// Explicit window targets are used for session metadata and geometry hints when one opened window resource is provided.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-/// Returns `ioWouldBlock` until one renderer geometry hint has been supplied for the session.
-///
-/// # Security
-/// Requires `input.text`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.input.text.getGeometry", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["input.text"],
-    platforms: ["android", "ios", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["input.text"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function textGetGeometry(
     session: InputTextSessionHandle,
 ): Result<InputTextGeometry, PlatformError>;
 
 /// Set text input state.
-///
-/// Update one active text input session with renderer-owned text, selection, and composition state.
-/// Hosts use this state to synchronize platform IME or editing services with the focused editor.
-///
-/// # Platform
-/// Android, iOS, Unix, and Windows.
-/// Returns operation-level `notSupported` where text input sessions are unavailable.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `input.text`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.input.text.setState", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["input.text"],
-    platforms: ["android", "ios", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["input.text"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function textSetState(
     session: InputTextSessionHandle,
@@ -416,68 +308,22 @@ export declare function textSetState(
 ): Result<void, PlatformError>;
 
 /// Read one text-session event.
-///
-/// Read one pending text-session event for one active text input session.
-/// Session events include host state changes, composition events, edit intents, and clipboard commands.
-///
-/// # Platform
-/// Android, iOS, Unix, and Windows, with operation-level `notSupported` where text-session events are unavailable.
-/// Uses backend-specific IME, editing, and clipboard event queues.
-/// Android and iOS deliver host text-state events through the focused mobile text lane.
-/// AppKit, Wayland, and Win32 window hosts provide the strongest composition and geometry-backed behavior.
-/// X11 window hosts and terminal or console lanes are best-effort and may emit only committed edit intents and clipboard commands.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `input.text`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.input.text.readEvent", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["input.text"],
-    platforms: ["android", "ios", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["input.text"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function textReadEvent(
     session: InputTextSessionHandle,
 ): Result<InputTextSessionEvent, PlatformError>;
 
 /// Poll one text-session event without blocking.
-///
-/// Poll one pending text-session event and return immediately when no event is queued.
-/// Empty queue state is reported through ioWouldBlock.
-///
-/// # Platform
-/// Android, iOS, Unix, and Windows, with operation-level `notSupported` where text-session events are unavailable.
-/// Uses backend-specific nonblocking IME, editing, and clipboard queue reads.
-/// Android and iOS deliver host text-state events through the focused mobile text lane.
-/// AppKit, Wayland, and Win32 window hosts provide the strongest composition and geometry-backed behavior.
-/// X11 window hosts and terminal or console lanes are best-effort and may emit only committed edit intents and clipboard commands.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `input.text`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.input.text.tryReadEvent", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["input.text"],
-    platforms: ["android", "ios", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["input.text"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function textTryReadEvent(
     session: InputTextSessionHandle,

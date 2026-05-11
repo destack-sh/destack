@@ -45,13 +45,9 @@ export struct NodeOptions {
 /// Rename or exchange one filesystem entry.
 @binding("destack.fs.namespace.rename", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function rename(
     from: Entry,
@@ -62,26 +58,18 @@ export declare function rename(
 /// Remove one non-directory filesystem entry.
 @binding("destack.fs.namespace.unlink", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function unlink(entry: Entry): Result<void, PlatformError>;
 
 /// Create one hard link.
 @binding("destack.fs.namespace.link", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.link"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.link"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function link(
     existing: Entry,
@@ -92,13 +80,9 @@ export declare function link(
 /// Create one symbolic link.
 @binding("destack.fs.namespace.symlink", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.link"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.link"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function symlink(
     target: Path,
@@ -109,13 +93,9 @@ export declare function symlink(
 /// Read a symbolic link into an output buffer.
 @binding("destack.fs.namespace.readLink", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function readLink(
     entry: Entry,
@@ -125,13 +105,9 @@ export declare function readLink(
 /// Resolve an entry into an output buffer.
 @binding("destack.fs.namespace.canonicalize", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.metadata"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.metadata"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function canonicalize(
     entry: Entry,
@@ -141,26 +117,18 @@ export declare function canonicalize(
 /// Create one FIFO node.
 @binding("destack.fs.namespace.fifo", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.node"],
-    platforms: ["unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.node"],
+    families: ["unix"],
+    simulation: true,
 })
 export declare function createFifo(entry: Entry, mode: FileMode): Result<void, PlatformError>;
 
 /// Create one host filesystem node.
 @binding("destack.fs.namespace.node", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.node"],
-    platforms: ["unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.node"],
+    families: ["unix"],
+    simulation: true,
 })
 export declare function createNode(
     entry: Entry,

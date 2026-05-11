@@ -21,13 +21,9 @@ export const ACCESS_READ: AccessMask = AccessMask(0x4);
 /// Check access to a filesystem entry.
 @binding("destack.fs.attribute.checkAccess", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.metadata"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.metadata"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function checkAccess(
     entry: Entry,
@@ -37,13 +33,9 @@ export declare function checkAccess(
 /// Set the permission mode for an entry.
 @binding("destack.fs.attribute.mode", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.mode"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.mode"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function setMode(
     entry: Entry,
@@ -54,26 +46,18 @@ export declare function setMode(
 /// Set the permission mode for an open file.
 @binding("destack.fs.attribute.fileMode", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.mode"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.mode"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function setFileMode(file: FileHandle, mode: FileMode): Result<void, PlatformError>;
 
 /// Set the owner for an entry.
 @binding("destack.fs.attribute.owner", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.owner"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.owner"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function setOwner(
     entry: Entry,
@@ -84,26 +68,18 @@ export declare function setOwner(
 /// Set the owner for an open file.
 @binding("destack.fs.attribute.fileOwner", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.owner"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.owner"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function setFileOwner(file: FileHandle, owner: FileOwner): Result<void, PlatformError>;
 
 /// Set access and modification times for an entry.
 @binding("destack.fs.attribute.times", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.metadata"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.metadata"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function setTimes(
     entry: Entry,
@@ -114,12 +90,8 @@ export declare function setTimes(
 /// Set access and modification times for an open file.
 @binding("destack.fs.attribute.fileTimes", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.metadata"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.metadata"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function setFileTimes(file: FileHandle, times: FileTimes): Result<void, PlatformError>;

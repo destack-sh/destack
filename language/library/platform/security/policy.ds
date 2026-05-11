@@ -1,144 +1,63 @@
 import { Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
-import type { PlatformCapability } from "./capability.ds";
+import type { HostAction } from "./action.ds";
 
-/// Policy decision mode for one capability entry.
+/// Policy decision mode for one action entry.
 export enum SecurityPolicyMode {
-    /// Explicitly allow the capability.
+    /// Explicitly allow the action.
     Allow = 1,
-    /// Explicitly deny the capability.
+    /// Explicitly deny the action.
     Deny = 2,
     /// Allow but emit diagnostics or audit records.
     Audit = 3,
 }
 
-/// Structured policy rule for one capability.
+/// Structured policy rule for one action.
 export struct SecurityPolicyRule {
-    /// Capability selector for the rule.
-    capability: PlatformCapability;
-    /// Decision mode for the capability.
+    /// Action selector for the rule.
+    action: HostAction;
+    /// Decision mode for the action.
     mode: SecurityPolicyMode;
 }
 
-/// Security policy bindings.
-/// Read policy capabilities for one named scope.
-///
-/// Read one policy scope and return its effective capability set.
-/// Scope resolution and inheritance follow runtime security policy rules.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime security policy state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `security.policy.read`.
-///
-/// # Replay
-/// Deterministic.
+/// Read policy actions for one named scope.
 @binding("destack.security.policy.get", {
     effect: "deterministic",
-    replay: "nonrecordable",
-    capabilities: ["security.policy.read"],
-    platforms: ["windows", "unix"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "any",
+    requires: ["security.policy.read"],
+    families: ["windows", "unix"],
+    provider: "runtime",
 })
-export declare function policyGet(scope: string): Result<Slice<PlatformCapability>, PlatformError>;
+export declare function policyGet(provider: string): Result<Slice<HostAction>, PlatformError>;
 
 /// Read structured policy rules for one named scope.
-///
-/// Read one policy scope and return explicit capability rules with allow, deny, and audit decisions.
-/// Rule ordering and precedence follow runtime policy resolution semantics.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime security policy state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `security.policy.read`.
-///
-/// # Replay
-/// Deterministic.
 @binding("destack.security.policy.getRules", {
     effect: "deterministic",
-    replay: "nonrecordable",
-    capabilities: ["security.policy.read"],
-    platforms: ["windows", "unix"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "any",
+    requires: ["security.policy.read"],
+    families: ["windows", "unix"],
+    provider: "runtime",
 })
-export declare function policyGetRules(scope: string): Result<Slice<SecurityPolicyRule>, PlatformError>;
+export declare function policyGetRules(provider: string): Result<Slice<SecurityPolicyRule>, PlatformError>;
 
-/// Replace policy capabilities for one named scope.
-///
-/// Replace one policy scope with an explicit capability set.
-/// Policy writes are validated against runtime security admin policy.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime security policy state.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `security.policy.write`.
-///
-/// # Replay
-/// Deterministic.
+/// Replace policy actions for one named scope.
 @binding("destack.security.policy.set", {
     effect: "deterministic",
-    replay: "nonrecordable",
-    capabilities: ["security.policy.write"],
-    platforms: ["windows", "unix"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "any",
+    requires: ["security.policy.write"],
+    families: ["windows", "unix"],
+    provider: "runtime",
 })
 export declare function policySet(
-    scope: string,
-    capabilities: Slice<PlatformCapability>,
+    provider: string,
+    requires: Slice<HostAction>,
 ): Result<void, PlatformError>;
 
 /// Replace structured policy rules for one named scope.
-///
-/// Replace one policy scope with explicit capability rules and decision modes.
-/// Rule conflicts and precedence are validated by runtime policy authoring rules.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime security policy state.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `security.policy.write`.
-///
-/// # Replay
-/// Deterministic.
 @binding("destack.security.policy.setRules", {
     effect: "deterministic",
-    replay: "nonrecordable",
-    capabilities: ["security.policy.write"],
-    platforms: ["windows", "unix"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "any",
+    requires: ["security.policy.write"],
+    families: ["windows", "unix"],
+    provider: "runtime",
 })
 export declare function policySetRules(
-    scope: string,
+    provider: string,
     rules: Slice<SecurityPolicyRule>,
 ): Result<void, PlatformError>;

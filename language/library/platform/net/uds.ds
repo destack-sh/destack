@@ -28,64 +28,21 @@ export struct UdsUnnamedAddress {
 /// Unix domain socket address payload.
 export newtype UdsAddress = UdsPathAddress | UdsAbstractAddress | UdsUnnamedAddress;
 
-///
 /// On byte path targets, `kind: "utf16"` inputs are transcoded before syscall dispatch.
-/// Use `kind: "bytes"` when socket paths contain non-UTF-8 bytes.
-/// Connect to a UDS endpoint.
-///
-/// Connect to an existing AF_UNIX endpoint address.
-/// Address kind and endpoint type validation follow host AF_UNIX semantics.
-///
-/// # Platform
-/// Unix and Windows only when AF_UNIX support is available at runtime.
-/// Uses connect(2) on AF_UNIX sockets on Unix and AF_UNIX connect on Windows where available.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.connect`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.uds.udsConnect", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.connect"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["net.connect"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function udsConnect(address: UdsAddress): Result<SocketHandle, PlatformError>;
 
 /// Listen on a UDS address.
-///
-/// Place the bound socket into passive listen mode with the requested backlog semantics.
-/// Path addresses are forwarded from `Path` without runtime normalization, while abstract and unnamed addresses follow host AF_UNIX rules.
-///
-/// # Platform
-/// Unix and Windows only when AF_UNIX support is available at runtime.
-/// Uses bind(2)+listen(2) on AF_UNIX sockets on Unix and AF_UNIX listen on Windows where available.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.listen`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.uds.udsListen", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.listen"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["net.listen"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function udsListen(
     address: UdsAddress,
@@ -93,88 +50,28 @@ export declare function udsListen(
 ): Result<ListenerHandle, PlatformError>;
 
 /// Accept a connection from a UDS listener.
-///
-/// Accept the next pending AF_UNIX stream connection.
-/// Accept ordering and descriptor flags follow host kernel semantics.
-///
-/// # Platform
-/// Unix and Windows only when AF_UNIX support is available at runtime.
-/// Uses accept(2) on AF_UNIX sockets on Unix and accept on Windows where available.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.accept`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.uds.udsAccept", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.accept"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["net.accept"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function udsAccept(listener: ListenerHandle): Result<SocketHandle, PlatformError>;
 
 /// Close a UDS listener handle.
-///
-/// Close an AF_UNIX listener socket descriptor.
-/// Pending accepts are interrupted according to host kernel semantics.
-///
-/// # Platform
-/// Unix and Windows only when AF_UNIX support is available at runtime.
-/// Uses close(2) on Unix and closesocket on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.close`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.uds.udsCloseListener", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.close"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["net.close"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function udsCloseListener(handle: ListenerHandle): Result<void, PlatformError>;
 
 /// Create a connected UDS socket pair.
-///
-/// Allocate a connected AF_UNIX socket pair for local full-duplex messaging.
-/// Pair semantics and descriptor inheritance follow host kernel behavior.
-///
-/// # Platform
-/// Unix and Windows only when AF_UNIX support is available at runtime.
-/// Uses socketpair(AF_UNIX) on Unix and runtime emulation on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.connect`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.uds.udsSocketPair", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.connect"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["net.connect"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function udsSocketPair(socketType: SocketType): Result<SocketPair, PlatformError>;

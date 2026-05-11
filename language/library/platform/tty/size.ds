@@ -13,61 +13,20 @@ export struct TtySize {
     yPixels: uint32;
 }
 
-/// Terminal size bindings.
 /// Read terminal size.
-///
-/// Read one terminal size snapshot for one terminal handle.
-/// Pixel fields may be zero when host APIs do not provide pixel metrics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses TIOCGWINSZ on Unix and console buffer APIs on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.size`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.tty.size.getSize", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["tty.size"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["tty.size"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function getSize(handle: TtyHandle): Result<TtySize, PlatformError>;
 
 /// Apply terminal size.
-///
-/// Apply one terminal size to one terminal handle.
-/// Resize propagation to attached sessions follows host terminal semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses TIOCSWINSZ on Unix and console size APIs on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.size`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.tty.size.setSize", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["tty.size"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["tty.size"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function setSize(handle: TtyHandle, size: TtySize): Result<void, PlatformError>;

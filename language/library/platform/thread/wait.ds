@@ -1,33 +1,12 @@
 import type { PlatformError } from "../error/index.ds";
 
-/// Thread wait and wake bindings.
 /// Wait on one memory address value.
-///
-/// Wait while the target memory word matches the expected value.
-/// Address must identify one valid aligned 32 bit word that remains live for the full wait.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses futex wait on Linux and WaitOnAddress on Windows.
-/// Other Unix targets currently return notSupported.
-///
-/// # Errors
-/// Returns invalidArgument, ioTimedOut, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.wait`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.thread.wait.addressWait", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["thread.wait"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["thread.wait"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function addressWait(
     address: uint64,
@@ -36,61 +15,21 @@ export declare function addressWait(
 ): Result<void, PlatformError>;
 
 /// Wake one waiter on one memory address.
-///
-/// Wake one waiter blocked on the target memory address.
-/// Wake ordering follows the host wait-address primitive.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses futex wake on Linux and WakeByAddressSingle on Windows.
-/// Other Unix targets currently return notSupported.
-///
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.wait`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.thread.wait.addressWakeOne", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["thread.wait"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["thread.wait"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function addressWakeOne(address: uint64): Result<void, PlatformError>;
 
 /// Wake all waiters on one memory address.
-///
-/// Wake all waiters blocked on the target memory address.
-/// Wake ordering follows the host wait-address primitive.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses futex wake on Linux and WakeByAddressAll on Windows.
-/// Other Unix targets currently return notSupported.
-///
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `thread.wait`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.thread.wait.addressWakeAll", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["thread.wait"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["thread.wait"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function addressWakeAll(address: uint64): Result<void, PlatformError>;

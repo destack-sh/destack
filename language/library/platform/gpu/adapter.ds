@@ -396,7 +396,7 @@ export struct GpuAdapterInfo {
     limits: GpuAdapterLimits;
 }
 
-/// Adapter texture-format capability snapshot.
+/// Adapter texture-format action snapshot.
 export struct GpuAdapterFormatCapabilities {
     /// Texture format identifier.
     format: GpuTextureFormat;
@@ -406,212 +406,75 @@ export struct GpuAdapterFormatCapabilities {
     flags: GpuTextureFormatFeatureFlags;
 }
 
-/// GPU adapter bindings.
 /// List available GPU adapters.
-///
-/// List host GPU adapters with stable identifiers and normalized capability metadata.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style adapter discovery and enumeration on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.adapter`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.adapter.list", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.adapter"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.adapter"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function adapterList(
     request: GpuAdapterRequest,
 ): Result<Array<GpuAdapterInfo>, PlatformError>;
 
 /// Open a GPU adapter.
-///
-/// Open a GPU adapter for device creation and capability queries.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style adapter open or retain operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.adapter`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.adapter.open", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.adapter"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.adapter"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function adapterOpen(id: string): Result<GpuAdapterHandle, PlatformError>;
 
 /// Read adapter metadata.
-///
-/// Read the current normalized adapter metadata.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style adapter property and feature query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.adapter`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.adapter.info", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.adapter"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.adapter"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function adapterInfo(handle: GpuAdapterHandle): Result<GpuAdapterInfo, PlatformError>;
 
 /// Read an adapter feature snapshot.
-///
-/// Read the enabled feature identifiers for an adapter.
-/// Feature identifiers follow the runtime GPU feature registry.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style adapter feature query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.adapter`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.adapter.features", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.adapter"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.adapter"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function adapterFeatures(
     handle: GpuAdapterHandle,
 ): Result<Slice<GpuFeatureId>, PlatformError>;
 
 /// Read an adapter limits snapshot.
-///
-/// Read the normalized limits for an adapter.
-/// Limits remain stable for the adapter lifetime.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style adapter limits query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.adapter`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.adapter.limits", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.adapter"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.adapter"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function adapterLimits(
     handle: GpuAdapterHandle,
 ): Result<GpuAdapterLimits, PlatformError>;
 
 /// Check whether an adapter supports a feature.
-///
-/// Check one feature identifier against the adapter feature set.
-/// Feature identifiers follow the runtime GPU feature registry.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style adapter feature query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.adapter`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.adapter.hasFeature", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.adapter"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.adapter"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function adapterHasFeature(
     handle: GpuAdapterHandle,
     feature: GpuFeatureId,
 ): Result<boolean, PlatformError>;
 
-/// Query texture-format capabilities for an adapter.
-///
-/// Query one texture format on an adapter and return normalized capability data.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style adapter format-capability query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.adapter`.
-///
-/// # Replay
-/// External, recordable.
+/// Query texture-format actions for an adapter.
 @binding("destack.gpu.adapter.formatCapabilities", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.adapter"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.adapter"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function adapterFormatCapabilities(
     handle: GpuAdapterHandle,
@@ -619,30 +482,10 @@ export declare function adapterFormatCapabilities(
 ): Result<GpuAdapterFormatCapabilities, PlatformError>;
 
 /// Close a GPU adapter.
-///
-/// Close an adapter and release host backend references.
-/// The adapter handle becomes invalid after close.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style release or destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `gpu.adapter`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.adapter.close", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.adapter"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.adapter"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function adapterClose(handle: GpuAdapterHandle): Result<void, PlatformError>;

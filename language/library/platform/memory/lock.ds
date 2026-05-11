@@ -1,60 +1,19 @@
 import type { PlatformError } from "../error/index.ds";
 
-/// Memory lock bindings.
 /// Lock one memory range into physical memory.
-///
-/// Prevent one memory range from being paged out when supported by the host.
-/// Lock behavior and resource limits follow host memory-lock policy.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses mlock family on Unix and VirtualLock on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `memory.lock`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.memory.lock.lockRange", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["memory.lock"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["memory.lock"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function lock(address: uint64, length: uint64): Result<void, PlatformError>;
 
 /// Unlock one memory range.
-///
-/// Release one previously locked memory range.
-/// Unlock behavior and accounting follow host memory-lock policy.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses munlock family on Unix and VirtualUnlock on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `memory.lock`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.memory.lock.unlock", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["memory.lock"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["memory.lock"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function unlock(address: uint64, length: uint64): Result<void, PlatformError>;

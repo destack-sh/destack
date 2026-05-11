@@ -603,92 +603,35 @@ export struct WindowEventOpenOptions {
     filter: WindowEventFilter | void;
 }
 
-/// Window event bindings.
 /// Open a global window-event stream.
-///
-/// Open the host window-event stream for all windows in this runtime.
-/// Events report lifecycle, state, and drop transitions as the host event loop delivers them.
-/// Begin-frame delivery is exposed separately through `display.frame`.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses Wayland event dispatch, X11 event queue dispatch, and Win32 message-loop delivery with stable window-handle routing.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window.events`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.eventOpen", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window.events"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window.events"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowEventOpen(
     options: WindowEventOpenOptions,
 ): Result<WindowEventHandle, PlatformError>;
 
 /// Close a global window-event stream.
-///
-/// Close a window-event stream and release host routing resources.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses Wayland event-stream deregistration, X11 queue cleanup, and Win32 message-routing teardown.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window.events`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.eventClose", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window.events"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window.events"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowEventClose(handle: WindowEventHandle): Result<void, PlatformError>;
 
 /// Wait for a window event.
-///
-/// Wait for the next event from a window-event stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses Wayland event waits, X11 event queue waits, and Win32 message waits.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window.events`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.eventRead", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window.events"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window.events"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowEventRead(
     handle: WindowEventHandle,
@@ -696,61 +639,24 @@ export declare function windowEventRead(
 ): Result<WindowEvent, PlatformError>;
 
 /// Poll a window event without blocking.
-///
-/// Poll a pending event from a window-event stream without waiting.
-/// Empty queue state is reported through ioWouldBlock.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses nonblocking Wayland dispatch, X11 event polling, and Win32 message polling.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window.events`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.eventTryRead", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window.events"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "eventLoop",
+    requires: ["display.window.events"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowEventTryRead(
     handle: WindowEventHandle,
 ): Result<WindowEvent, PlatformError>;
 
 /// Wait for a batch of window events.
-///
-/// Wait for pending events from a window-event stream and return up to `maxEvents` events.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses Wayland batch dispatch, X11 event queue waits, and Win32 message batch waits.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window.events`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.eventReadBatch", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window.events"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window.events"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowEventReadBatch(
     handle: WindowEventHandle,
@@ -759,30 +665,12 @@ export declare function windowEventReadBatch(
 ): Result<Array<WindowEvent>, PlatformError>;
 
 /// Poll a batch of window events without blocking.
-///
-/// Poll pending events from a window-event stream and return up to `maxEvents` events.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses nonblocking Wayland batch dispatch, X11 event polling, and Win32 message batch polling.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window.events`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.window.eventTryReadBatch", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window.events"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "eventLoop",
+    requires: ["display.window.events"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function windowEventTryReadBatch(
     handle: WindowEventHandle,

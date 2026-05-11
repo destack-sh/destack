@@ -44,13 +44,13 @@ export const DISPLAY_METRIC_CHANGED_ORIENTATION: DisplayMetricChangedMask =
 export const DISPLAY_METRIC_CHANGED_COLOR_STATE: DisplayMetricChangedMask =
     DisplayMetricChangedMask(0x40);
 
-/// Support status for one capability that may be unknown on some hosts.
+/// Support status for one action that may be unknown on some hosts.
 export enum DisplaySupportStatus {
     /// Backend cannot determine support status.
     Unknown = 0,
-    /// Backend determined this capability is unsupported.
+    /// Backend determined this action is unsupported.
     Unsupported = 1,
-    /// Backend determined this capability is supported.
+    /// Backend determined this action is supported.
     Supported = 2,
 }
 
@@ -152,9 +152,9 @@ export struct DisplayDescriptor {
     orientation: DisplayOrientation;
     /// Built-in panel status.
     builtinPanel: DisplaySupportStatus;
-    /// Variable-refresh capability status.
+    /// Variable-refresh action status.
     variableRefreshSupport: DisplaySupportStatus;
-    /// HDR capability status.
+    /// HDR action status.
     hdrSupport: DisplaySupportStatus;
     /// Current display color state when exposed by the backend.
     colorState: DisplayColorState | void;
@@ -178,94 +178,37 @@ export struct DisplayMonitorOpenOptions {
     backendPolicy: DisplayBackendSelectionPolicy;
 }
 
-/// Display monitor bindings.
 /// List available displays.
-///
-/// List host display outputs with stable identifiers and physical metadata.
-///
-/// # Platform
-/// Unix and Windows.
-/// Declared backend kinds include mobile and Apple backends, while this host runtime currently implements one subset.
-/// Uses host display-enumeration APIs on Unix and Windows targets.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `display.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.monitor.list", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.read"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function monitorList(
     request: DisplayMonitorListRequest,
 ): Result<Slice<DisplayDescriptor>, PlatformError>;
 
 /// Read the current primary display handle.
-///
-/// Return the current primary display handle when available.
-/// Returns `void` when the backend has no discoverable primary display.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses compositor and system-display primary-output selection.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `display.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.monitor.primary", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.read"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function monitorPrimary(
     request: DisplayMonitorListRequest,
 ): Result<DisplayHandle | void, PlatformError>;
 
 /// Open a display endpoint.
-///
-/// Open a display endpoint by identifier for mode queries and updates.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific display open handles.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `display.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.monitor.open", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.read"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function monitorOpen(
     id: string,
@@ -273,173 +216,64 @@ export declare function monitorOpen(
 ): Result<DisplayHandle, PlatformError>;
 
 /// Close a display endpoint.
-///
-/// Close a display endpoint and release host resources.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific display close operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `display.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.monitor.close", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.read"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "eventLoop",
+    requires: ["display.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function monitorClose(handle: DisplayHandle): Result<void, PlatformError>;
 
 /// Read display descriptor metadata.
-///
-/// Read the current descriptor snapshot for a display endpoint.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific monitor metadata queries.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `display.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.monitor.descriptor", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.read"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "eventLoop",
+    requires: ["display.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function monitorDescriptor(
     handle: DisplayHandle,
 ): Result<DisplayDescriptor, PlatformError>;
 
 /// Read available display modes.
-///
-/// Read all host-supported modes for a display endpoint.
-/// Mode ordering follows backend reporting behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host mode-enumeration APIs on Unix and Windows targets.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `display.mode`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.monitor.modes", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.mode"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.mode"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function monitorModes(handle: DisplayHandle): Result<Slice<DisplayMode>, PlatformError>;
 
 /// Read the current mode for a display.
-///
-/// Read the active mode for a display endpoint.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific current-mode queries.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `display.mode`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.monitor.currentMode", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.mode"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.mode"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function monitorCurrentMode(handle: DisplayHandle): Result<DisplayMode, PlatformError>;
 
 /// Read the desktop-preferred mode for a display.
-///
-/// Read the platform desktop mode for a display endpoint.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend desktop-mode queries where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `display.mode`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.monitor.desktopMode", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.mode"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.mode"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function monitorDesktopMode(handle: DisplayHandle): Result<DisplayMode, PlatformError>;
 
 /// Resolve one requested mode to the closest supported mode.
-///
-/// Return the closest backend-selected mode for the requested mode.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend mode-matching queries where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `display.mode`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.monitor.closestMode", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.mode"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.mode"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function monitorClosestMode(
     handle: DisplayHandle,
@@ -447,31 +281,13 @@ export declare function monitorClosestMode(
 ): Result<DisplayMode, PlatformError>;
 
 /// Apply a display mode.
-///
-/// Apply a mode to a display endpoint.
-/// Mode-set behavior and rollback semantics are host-defined.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses KMS mode setting on Unix-like hosts and display mode APIs on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.mode`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.display.monitor.setMode", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["display.mode"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    replay: "forbidden",
+    requires: ["display.mode"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function monitorSetMode(
     handle: DisplayHandle,
@@ -479,88 +295,35 @@ export declare function monitorSetMode(
 ): Result<void, PlatformError>;
 
 /// Read a display color-state snapshot.
-///
-/// Read the current display color state for a display endpoint.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific color-state and colorspace query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `display.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.monitor.colorState", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.read"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function monitorColorState(
     handle: DisplayHandle,
 ): Result<DisplayColorState, PlatformError>;
 
 /// Read a display HDR policy mode.
-///
-/// Read the current HDR policy mode for a display endpoint.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific HDR query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `display.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.monitor.hdrMode", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.read"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function monitorHdrMode(handle: DisplayHandle): Result<DisplayHdrMode, PlatformError>;
 
 /// Set a display HDR policy mode.
-///
-/// Apply an HDR policy mode to a display endpoint.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific HDR control APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.mode`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.display.monitor.setHdrMode", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["display.mode"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    replay: "forbidden",
+    requires: ["display.mode"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function monitorSetHdrMode(
     handle: DisplayHandle,
@@ -568,60 +331,25 @@ export declare function monitorSetHdrMode(
 ): Result<void, PlatformError>;
 
 /// Read a display gamma ramp.
-///
-/// Read the gamma-ramp table for a display endpoint.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend gamma-ramp query APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `display.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.monitor.gammaRamp", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.read"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function monitorGammaRamp(
     handle: DisplayHandle,
 ): Result<DisplayGammaRamp, PlatformError>;
 
 /// Set a display gamma ramp.
-///
-/// Apply a gamma-ramp table to a display endpoint.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend gamma-ramp control APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.mode`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.display.monitor.setGammaRamp", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["display.mode"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    replay: "forbidden",
+    requires: ["display.mode"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function monitorSetGammaRamp(
     handle: DisplayHandle,

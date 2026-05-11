@@ -1,55 +1,22 @@
 import { Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
 
-/// Cryptographic random bindings.
 /// Fill one mutable byte slice with cryptographically secure random bytes.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL RAND primitives backed by host entropy sources on Unix and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.random`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.random.fill", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.random"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.random"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function randomFill(buffer: Slice<uint8>): Result<void, PlatformError>;
 
 /// Allocate one random byte vector with the requested length.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL RAND primitives backed by host entropy sources on Unix and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.random`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.random.bytes", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.random"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.random"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function randomBytes(length: uint32): Result<Slice<uint8>, PlatformError>;

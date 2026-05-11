@@ -2,33 +2,13 @@ import { Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
 import { SymbolHandle } from "../resource/index.ds";
 
-/// Foreign call bindings.
 /// Call one foreign symbol using raw ABI argument and result buffers.
-///
-/// Invoke one host symbol trampoline with caller-provided ABI payload bytes and explicit ABI selectors.
-/// ABI packing, alignment, and calling convention semantics are runtime-defined and backend-specific.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host ABI trampolines over process calling conventions.
-///
-/// # Errors
-/// Returns invalidArgument, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `ffi.call`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.ffi.call.invoke", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["ffi.call"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["ffi.call"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function call(
     symbol: SymbolHandle,

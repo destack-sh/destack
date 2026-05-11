@@ -1,61 +1,20 @@
 import type { PlatformError } from "../error/index.ds";
 import { SandboxHandle } from "../resource/index.ds";
 
-/// Security sandbox bindings.
 /// Enter a sandbox scope.
-///
-/// Create and enter one new runtime sandbox scope.
-/// Scope inherits baseline policy then applies runtime sandbox restrictions.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime sandbox scope state.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `security.sandbox`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.security.sandbox.enter", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["security.sandbox"],
-    platforms: ["windows", "unix"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "any",
+    requires: ["security.sandbox"],
+    families: ["windows", "unix"],
+    provider: "runtime",
 })
 export declare function sandboxEnter(name: string): Result<SandboxHandle, PlatformError>;
 
 /// Leave a sandbox scope.
-///
-/// Exit one previously entered sandbox scope.
-/// Scope unwinding follows strict runtime stack discipline.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime sandbox scope state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `security.sandbox`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.security.sandbox.exit", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["security.sandbox"],
-    platforms: ["windows", "unix"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "any",
+    requires: ["security.sandbox"],
+    families: ["windows", "unix"],
+    provider: "runtime",
 })
 export declare function sandboxExit(handle: SandboxHandle): Result<void, PlatformError>;

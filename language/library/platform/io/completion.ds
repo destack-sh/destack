@@ -52,91 +52,30 @@ export struct CompletionOperation {
     argument1: uint64;
 }
 
-/// Completion queue bindings.
 /// Open a completion queue.
-///
-/// Create one completion queue instance with backend-defined capacity.
-/// Queue behavior and worker-thread integration follow host completion APIs.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses io_uring or AIO style completion backends on Unix and IOCP on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.completion`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.io.completion.open", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["io.completion"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["io.completion"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function completionOpen(entries: uint32): Result<CompletionHandle, PlatformError>;
 
 /// Close a completion queue.
-///
-/// Close one completion queue and release host queue resources.
-/// Pending operations are canceled or drained by host policy.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host completion backend teardown semantics.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.completion`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.io.completion.close", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["io.completion"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["io.completion"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function completionClose(handle: CompletionHandle): Result<void, PlatformError>;
 
 /// Wait for completion events.
-///
-/// Wait for one batch of completion events and return normalized completion records.
-/// Timeout units are nanoseconds and follow host completion wait semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses io_uring CQ waits on Unix and IOCP dequeue waits on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioInterrupted, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.completion`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.io.completion.wait", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["io.completion"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["io.completion"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function completionWait(
     handle: CompletionHandle,
@@ -145,31 +84,11 @@ export declare function completionWait(
 ): Result<Array<CompletionEvent>, PlatformError>;
 
 /// Cancel queued operations for one target.
-///
-/// Cancel queued completion operations associated with one runtime resource target.
-/// Cancellation count reflects host backend cancellation behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses io_uring cancel requests on Unix and CancelIoEx style APIs on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.completion`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.io.completion.cancel", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["io.completion"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["io.completion"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function completionCancel(
     handle: CompletionHandle,
@@ -177,31 +96,11 @@ export declare function completionCancel(
 ): Result<uint32, PlatformError>;
 
 /// Submit one completion operation.
-///
-/// Submit one operation descriptor into the completion backend queue.
-/// Submission semantics follow host backend operation encoding rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses io_uring SQE submission on Unix and overlapped I/O submission on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.submit`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.io.completion.submit", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["io.submit"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["io.submit"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function completionSubmit(
     handle: CompletionHandle,
@@ -209,31 +108,11 @@ export declare function completionSubmit(
 ): Result<void, PlatformError>;
 
 /// Submit a batch of completion operations.
-///
-/// Submit multiple operation descriptors in one backend transaction.
-/// Batch ordering is preserved as provided by the caller.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses io_uring SQE batch submission on Unix and runtime batched overlapped submission on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.submit`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.io.completion.submitBatch", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["io.submit"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["io.submit"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function completionSubmitBatch(
     handle: CompletionHandle,
@@ -243,31 +122,11 @@ export declare function completionSubmitBatch(
 ): Result<uint32, PlatformError>;
 
 /// Enter the completion backend with submit and wait hints.
-///
-/// Ask the backend to flush pending submissions and optionally wait for completions.
-/// Enter semantics and wake behavior follow host backend contracts.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses io_uring_enter on Unix and runtime-entered wait-and-drain loop on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioInterrupted, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `io.submit`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.io.completion.enter", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["io.submit"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["io.submit"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function completionEnter(
     handle: CompletionHandle,

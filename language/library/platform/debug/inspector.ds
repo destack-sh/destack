@@ -9,33 +9,13 @@ export struct InspectorEndpoint {
     processId: uint32;
 }
 
-/// Inspector transport bindings.
 /// Start an inspector session.
-///
-/// Create one debugger inspector transport endpoint and attach it to the active runtime.
-/// Endpoint visibility and connection policy are controlled by runtime security settings.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime inspector transport, optionally backed by host sockets.
-///
-/// # Errors
-/// Returns invalidArgument, netAddressInUse, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `debug.inspect`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.debug.inspector.start", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["debug.inspect"],
-    platforms: ["windows", "unix", "wasi"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["debug.inspect"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
 })
 export declare function inspectorStart(
     host: string,
@@ -43,60 +23,22 @@ export declare function inspectorStart(
 ): Result<InspectorHandle, PlatformError>;
 
 /// Stop an inspector session.
-///
-/// Detach one inspector transport endpoint from the runtime.
-/// Active clients are disconnected according to runtime debugger policy.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime inspector transport teardown.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `debug.inspect`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.debug.inspector.stop", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["debug.inspect"],
-    platforms: ["windows", "unix", "wasi"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["debug.inspect"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
 })
 export declare function inspectorStop(handle: InspectorHandle): Result<void, PlatformError>;
 
 /// Read inspector endpoint metadata.
-///
-/// Return endpoint metadata for one active inspector session.
-/// Metadata shape is stable across transports and does not expose host-private handles.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime inspector session state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `debug.inspect`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.debug.inspector.endpoint", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["debug.inspect"],
-    platforms: ["windows", "unix", "wasi"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "any",
+    requires: ["debug.inspect"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
 })
 export declare function inspectorEndpoint(
     handle: InspectorHandle,

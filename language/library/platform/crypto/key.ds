@@ -747,33 +747,12 @@ export struct CryptoKeyWrapParameters {
 }
 
 /// Key bindings for runtime store key objects.
-/// Generate one symmetric key.
-///
-/// Create one store-backed secret key object.
-/// Generation policy and persistence semantics follow runtime store behavior.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
-/// Hardware-backed secret-key generation is available when the selected host store exposes symmetric hardware-key callbacks.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.key.generate`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.key.generateSecret", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.key.generate"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.key.generate"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function keyGenerateSecret(
     store: CryptoStoreHandle,
@@ -781,31 +760,12 @@ export declare function keyGenerateSecret(
 ): Result<CryptoKeyHandle, PlatformError>;
 
 /// Generate one asymmetric key pair.
-///
-/// Create one store-backed asymmetric key pair and return public and private handles.
-/// Generation policy and persistence semantics follow runtime store behavior.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.key.generate`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.key.generatePair", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.key.generate"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.key.generate"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function keyGeneratePair(
     store: CryptoStoreHandle,
@@ -813,32 +773,12 @@ export declare function keyGeneratePair(
 ): Result<CryptoKeyPair, PlatformError>;
 
 /// Import one key object.
-///
-/// Parse and import one key blob into one store.
-/// Key visibility and persistence follow runtime store policies.
-/// Encrypted PKCS#8 inputs require one non-empty `request.passphrase`.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.store.write`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.key.import", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.store.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.store.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function keyImport(
     store: CryptoStoreHandle,
@@ -846,30 +786,12 @@ export declare function keyImport(
 ): Result<CryptoKeyHandle, PlatformError>;
 
 /// Export one public key.
-///
-/// Export one public key representation in the requested encoding format.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.store.read`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.key.exportPublic", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.store.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.store.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function keyExportPublic(
     handle: CryptoKeyHandle,
@@ -877,33 +799,12 @@ export declare function keyExportPublic(
 ): Result<Slice<uint8>, PlatformError>;
 
 /// Export one private key.
-///
-/// Export one private key representation in the requested encoding format.
-/// Output format and passphrase are provided by `CryptoPrivateKeyExportRequest`.
-/// Encrypted PKCS#8 output requires one non-empty passphrase.
-/// The operation fails when store policy marks this key as non-exportable.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.store.read`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.key.exportPrivate", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.store.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.store.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function keyExportPrivate(
     handle: CryptoKeyHandle,
@@ -911,31 +812,12 @@ export declare function keyExportPrivate(
 ): Result<Slice<uint8>, PlatformError>;
 
 /// Export one secret key.
-///
-/// Export one symmetric or raw-secret key representation in the requested encoding format.
-/// The operation fails when store policy marks this key as non-exportable.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.store.read`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.key.exportSecret", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.store.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.store.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function keyExportSecret(
     handle: CryptoKeyHandle,
@@ -943,61 +825,24 @@ export declare function keyExportSecret(
 ): Result<Slice<uint8>, PlatformError>;
 
 /// Return one key descriptor.
-///
-/// Query one key object and return normalized metadata fields.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.store.read`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.key.descriptor", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.store.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.store.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function keyDescriptor(
     handle: CryptoKeyHandle,
 ): Result<CryptoKeyDescriptor, PlatformError>;
 
 /// Sign one payload.
-///
-/// Produce one signature over one payload using one store-backed private key.
-/// Payload hashing behavior is controlled by signature parameters.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.key.sign`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.key.sign", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.key.sign"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.key.sign"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function keySign(
     handle: CryptoKeyHandle,
@@ -1006,31 +851,12 @@ export declare function keySign(
 ): Result<Slice<uint8>, PlatformError>;
 
 /// Verify one signature.
-///
-/// Verify one signature over one payload using one store-backed public key.
-/// Payload hashing behavior is controlled by signature parameters.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.key.verify`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.key.verify", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.key.verify"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.key.verify"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function keyVerify(
     handle: CryptoKeyHandle,
@@ -1040,31 +866,12 @@ export declare function keyVerify(
 ): Result<boolean, PlatformError>;
 
 /// Encrypt one payload with one asymmetric key.
-///
-/// Encrypt one payload using one store-backed public key.
-/// Padding and label semantics are controlled by encryption parameters.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.key.encrypt`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.key.encrypt", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.key.encrypt"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.key.encrypt"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function keyEncrypt(
     handle: CryptoKeyHandle,
@@ -1073,31 +880,12 @@ export declare function keyEncrypt(
 ): Result<Slice<uint8>, PlatformError>;
 
 /// Decrypt one payload with one asymmetric key.
-///
-/// Decrypt one payload using one store-backed private key.
-/// Padding and label semantics are controlled by encryption parameters.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.key.decrypt`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.key.decrypt", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.key.decrypt"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.key.decrypt"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function keyDecrypt(
     handle: CryptoKeyHandle,
@@ -1106,32 +894,12 @@ export declare function keyDecrypt(
 ): Result<Slice<uint8>, PlatformError>;
 
 /// Wrap one key.
-///
-/// Export and encrypt one key object under one wrapping key.
-/// Wrapping semantics are selected by `CryptoKeyWrapParameters`.
-/// `RsaOaep` uses asymmetric OAEP wrapping and `AesKw` or `AesKwp` use RFC 3394 or RFC 5649 key-wrap semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.key.wrap`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.key.wrap", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.key.wrap"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.key.wrap"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function keyWrap(
     wrappingKey: CryptoKeyHandle,
@@ -1141,31 +909,12 @@ export declare function keyWrap(
 ): Result<Slice<uint8>, PlatformError>;
 
 /// Unwrap one key.
-///
-/// Decrypt and import one wrapped key object into one store.
-/// Import semantics follow runtime store policy and the import request.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.key.unwrap`, `crypto.store.write`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.key.unwrap", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.key.unwrap", "crypto.store.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.key.unwrap", "crypto.store.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function keyUnwrap(
     store: CryptoStoreHandle,
@@ -1176,30 +925,11 @@ export declare function keyUnwrap(
 ): Result<CryptoKeyHandle, PlatformError>;
 
 /// Delete one key object.
-///
-/// Delete one store-backed key object and invalidate this handle.
-/// Deletion permissions and persistence policies are enforced by runtime store policy.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software key-management primitives and host key stores: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when configured for hardware-backed storage.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.store.write`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.key.delete", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.store.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.store.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function keyDelete(handle: CryptoKeyHandle): Result<void, PlatformError>;

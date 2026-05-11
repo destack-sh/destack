@@ -125,31 +125,13 @@ export struct DisplayDragBeginOptions {
     preview: DisplayDragPreview | void;
 }
 
-/// Drag bindings.
 /// Read one text item from one drag session.
-///
-/// Read one text payload for the selected drag item.
-///
-/// # Platform
-/// Android, Unix, and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `display.window.events`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.drag.sessionReadText", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window.events"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window.events"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function dragSessionReadText(
     session: DisplayDragSessionHandle,
@@ -157,29 +139,12 @@ export declare function dragSessionReadText(
 ): Result<string, PlatformError>;
 
 /// Read one binary item from one drag session.
-///
-/// Read one binary payload for the selected drag item.
-///
-/// # Platform
-/// Android, Unix, and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `display.window.events`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.drag.sessionReadBytes", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window.events"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window.events"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function dragSessionReadBytes(
     session: DisplayDragSessionHandle,
@@ -187,29 +152,12 @@ export declare function dragSessionReadBytes(
 ): Result<Slice<uint8>, PlatformError>;
 
 /// Read one filesystem item from one drag session.
-///
-/// Read one filesystem payload for the selected drag item when the backend exposes one local path.
-///
-/// # Platform
-/// Android, Unix, and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `display.window.events`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.drag.sessionReadPath", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window.events"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    requires: ["display.window.events"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function dragSessionReadPath(
     session: DisplayDragSessionHandle,
@@ -217,30 +165,13 @@ export declare function dragSessionReadPath(
 ): Result<Path, PlatformError>;
 
 /// Select one accepted operation for one drag session.
-///
-/// Update the destination-selected operation for the current drag session.
-/// `None` rejects the current drop target.
-///
-/// # Platform
-/// Android, Unix, and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window.events`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.display.drag.sessionSetOperation", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["display.window.events"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "eventLoop",
+    replay: "forbidden",
+    requires: ["display.window.events"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function dragSessionSetOperation(
     session: DisplayDragSessionHandle,
@@ -248,59 +179,25 @@ export declare function dragSessionSetOperation(
 ): Result<void, PlatformError>;
 
 /// Close one drag session handle.
-///
-/// Release one drag session and any cached transfer payloads that were materialized for it.
-///
-/// # Platform
-/// Android, Unix, and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window.events`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.display.drag.sessionClose", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["display.window.events"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "eventLoop",
+    requires: ["display.window.events"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function dragSessionClose(
     session: DisplayDragSessionHandle,
 ): Result<void, PlatformError>;
 
 /// Begin one source-side drag session.
-///
-/// Start one host drag session from the selected window.
-/// The call returns the operation chosen by the destination, or `None` when the session is cancelled or rejected.
-///
-/// # Platform
-/// Android, Unix, and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `display.window`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.display.drag.begin", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["display.window"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "eventLoop",
+    replay: "forbidden",
+    requires: ["display.window"],
+    families: ["windows", "unix"],
+    simulation: true,
+    affinity: "worker",
 })
 export declare function dragBegin(
     options: DisplayDragBeginOptions,

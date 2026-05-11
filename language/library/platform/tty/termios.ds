@@ -54,63 +54,22 @@ export struct TtyTermiosAttributes {
 }
 
 /// POSIX termios bindings for tty handles.
-/// Read full termios attributes for one terminal handle.
-///
-/// Read one complete termios snapshot including flag groups, control characters, and speed codes.
-/// Control-character ordering follows host `c_cc` layout for the active target.
-///
-/// # Platform
-/// Unix.
-/// Uses tcgetattr(3), cfgetispeed(3), and cfgetospeed(3).
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.termios`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.tty.termios.getAttributes", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["tty.termios"],
-    platforms: ["unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["tty.termios"],
+    families: ["unix"],
+    simulation: true,
 })
 export declare function termiosGetAttributes(
     handle: TtyHandle,
 ): Result<TtyTermiosAttributes, PlatformError>;
 
 /// Apply full termios attributes to one terminal handle.
-///
-/// Apply one complete termios snapshot with caller-selected update timing semantics.
-/// Unsupported flag bits and control-character lanes follow host kernel behavior.
-///
-/// # Platform
-/// Unix.
-/// Uses tcsetattr(3), cfsetispeed(3), and cfsetospeed(3).
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.termios`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.tty.termios.setAttributes", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["tty.termios"],
-    platforms: ["unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["tty.termios"],
+    families: ["unix"],
+    simulation: true,
 })
 export declare function termiosSetAttributes(
     handle: TtyHandle,
@@ -119,60 +78,20 @@ export declare function termiosSetAttributes(
 ): Result<void, PlatformError>;
 
 /// Wait for pending output to drain on one terminal handle.
-///
-/// Block until queued terminal output bytes are transmitted according to host device behavior.
-/// This does not flush input data or modify mode flags.
-///
-/// # Platform
-/// Unix.
-/// Uses tcdrain(3).
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `tty.termios`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.tty.termios.drain", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["tty.termios"],
-    platforms: ["unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["tty.termios"],
+    families: ["unix"],
+    simulation: true,
 })
 export declare function termiosDrain(handle: TtyHandle): Result<void, PlatformError>;
 
 /// Flush one terminal queue.
-///
-/// Discard buffered input, output, or both queues as selected by the queue parameter.
-/// Queue semantics follow host terminal driver behavior.
-///
-/// # Platform
-/// Unix.
-/// Uses tcflush(3).
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.termios`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.tty.termios.flush", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["tty.termios"],
-    platforms: ["unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["tty.termios"],
+    families: ["unix"],
+    simulation: true,
 })
 export declare function termiosFlush(
     handle: TtyHandle,
@@ -180,31 +99,11 @@ export declare function termiosFlush(
 ): Result<void, PlatformError>;
 
 /// Apply terminal flow-control action.
-///
-/// Pause or resume output transmission, or send start and stop flow-control characters.
-/// Remote and local behavior follows host line-discipline configuration.
-///
-/// # Platform
-/// Unix.
-/// Uses tcflow(3).
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.termios`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.tty.termios.flow", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["tty.termios"],
-    platforms: ["unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["tty.termios"],
+    families: ["unix"],
+    simulation: true,
 })
 export declare function termiosFlow(
     handle: TtyHandle,
@@ -212,31 +111,11 @@ export declare function termiosFlow(
 ): Result<void, PlatformError>;
 
 /// Send one terminal break condition.
-///
-/// Transmit one break condition on the terminal line with one host-defined duration unit.
-/// A duration value of zero requests the host default break behavior.
-///
-/// # Platform
-/// Unix.
-/// Uses tcsendbreak(3).
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.termios`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.tty.termios.sendBreak", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["tty.termios"],
-    platforms: ["unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["tty.termios"],
+    families: ["unix"],
+    simulation: true,
 })
 export declare function termiosSendBreak(
     handle: TtyHandle,
@@ -244,60 +123,20 @@ export declare function termiosSendBreak(
 ): Result<void, PlatformError>;
 
 /// Read controlling-terminal process-group id.
-///
-/// Read the foreground process-group id currently associated with this terminal.
-/// Foreground group semantics follow host session and job-control rules.
-///
-/// # Platform
-/// Unix.
-/// Uses tcgetpgrp(3).
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.termios`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.tty.termios.getProcessGroup", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["tty.termios"],
-    platforms: ["unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["tty.termios"],
+    families: ["unix"],
+    simulation: true,
 })
 export declare function termiosGetProcessGroup(handle: TtyHandle): Result<ProcessId, PlatformError>;
 
 /// Set controlling-terminal process-group id.
-///
-/// Set the foreground process-group id for this terminal to one existing process group.
-/// Permission and session checks follow host kernel job-control rules.
-///
-/// # Platform
-/// Unix.
-/// Uses tcsetpgrp(3).
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tty.termios`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.tty.termios.setProcessGroup", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["tty.termios"],
-    platforms: ["unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["tty.termios"],
+    families: ["unix"],
+    simulation: true,
 })
 export declare function termiosSetProcessGroup(
     handle: TtyHandle,

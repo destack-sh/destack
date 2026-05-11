@@ -17,30 +17,13 @@ export struct CryptoAgreementDeriveKeyRequest {
     outputLength: uint32;
 }
 
-/// Key-agreement bindings.
 /// Derive one shared secret from one local private key and one peer public key.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL key-agreement primitives for software providers, and host key APIs for host-managed keys: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when registered.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.key.agree`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.agreement.deriveSharedSecret", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.key.agree"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.key.agree"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function agreementDeriveSharedSecret(
     privateKey: CryptoKeyHandle,
@@ -49,30 +32,12 @@ export declare function agreementDeriveSharedSecret(
 ): Result<Slice<uint8>, PlatformError>;
 
 /// Derive one symmetric key from one local private key and one peer public key.
-///
-/// This operation performs key agreement and an explicit KDF stage.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL key-agreement and KDF primitives for software providers, and host key APIs for host-managed keys: Security.framework on Apple, CNG on Windows, and Android keystore callbacks when registered.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.key.agree`, `crypto.kdf`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.agreement.deriveKey", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.key.agree", "crypto.kdf"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.key.agree", "crypto.kdf"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function agreementDeriveKey(
     privateKey: CryptoKeyHandle,

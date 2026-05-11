@@ -91,33 +91,12 @@ export struct GpuQuerySetInfo {
     count: uint32;
 }
 
-/// GPU synchronization bindings.
 /// Create a synchronization fence.
-///
-/// Create a fence object for queue wait and signal coordination.
-/// Timeline mode availability depends on backend feature support.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style fence or timeline semaphore creation APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.sync`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.sync.fenceCreate", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.sync"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.sync"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function fenceCreate(
     device: GpuDeviceHandle,
@@ -125,60 +104,20 @@ export declare function fenceCreate(
 ): Result<GpuFenceHandle, PlatformError>;
 
 /// Destroy a synchronization fence.
-///
-/// Destroy a fence object and release backend synchronization resources.
-/// The fence handle becomes invalid after destroy.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style fence destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `gpu.sync`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.sync.fenceDestroy", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.sync"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.sync"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function fenceDestroy(handle: GpuFenceHandle): Result<void, PlatformError>;
 
 /// Signal a fence value from a queue.
-///
-/// Signal a fence from a queue after prior submissions complete.
-/// Value handling follows backend binary or timeline semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style queue signal operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `gpu.sync`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.sync.queueSignal", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.sync"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.sync"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function queueSignal(
     queue: GpuQueueHandle,
@@ -187,31 +126,11 @@ export declare function queueSignal(
 ): Result<void, PlatformError>;
 
 /// Wait for a fence value.
-///
-/// Wait for a fence to reach or exceed a requested value.
-/// Timeout uses nanoseconds in the runtime monotonic domain.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style fence wait operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.sync`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.sync.queueWait", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.sync"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.sync"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function queueWait(
     queue: GpuQueueHandle,
@@ -221,31 +140,11 @@ export declare function queueWait(
 ): Result<void, PlatformError>;
 
 /// Wait for all previously submitted queue work.
-///
-/// Wait for a queue to complete all prior submissions.
-/// Timeout uses nanoseconds in the runtime monotonic domain.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style queue completion wait operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.sync`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.sync.queueWorkDone", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.sync"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.sync"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function queueWorkDone(
     queue: GpuQueueHandle,
@@ -253,61 +152,20 @@ export declare function queueWorkDone(
 ): Result<void, PlatformError>;
 
 /// Read a queue timestamp period.
-///
-/// Read the queue timestamp period in nanoseconds per hardware timestamp tick.
-/// Multiply timestamp query deltas by this value to convert to nanoseconds.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style queue timestamp-period query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.sync`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.sync.queueTimestampPeriod", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.sync"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.sync"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function queueTimestampPeriod(queue: GpuQueueHandle): Result<float64, PlatformError>;
 
 /// Create a query set.
-///
-/// Create a query set for timestamp, occlusion, or pipeline-statistics queries.
-/// Query set size and type are fixed for the object lifetime.
-/// Pipeline-statistics queries are optional and require feature support.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style query-pool creation APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.sync`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.sync.querySetCreate", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.sync"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.sync"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function querySetCreate(
     device: GpuDeviceHandle,
@@ -315,89 +173,29 @@ export declare function querySetCreate(
 ): Result<GpuQuerySetHandle, PlatformError>;
 
 /// Destroy a query set.
-///
-/// Destroy a query set and release backend query resources.
-/// The query set handle becomes invalid after destroy.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style query-pool destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `gpu.sync`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.sync.querySetDestroy", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.sync"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.sync"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function querySetDestroy(handle: GpuQuerySetHandle): Result<void, PlatformError>;
 
 /// Read a query-set metadata snapshot.
-///
-/// Read the current query-set type and count snapshot.
-/// Values remain stable for the query-set lifetime.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style query-set metadata operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.sync`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.sync.querySetInfo", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.sync"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.sync"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function querySetInfo(handle: GpuQuerySetHandle): Result<GpuQuerySetInfo, PlatformError>;
 
 /// Write a timestamp query from a command encoder.
-///
-/// Emit a timestamp query at the current command-list position.
-/// Query availability and timestamp period follow backend semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style write-timestamp commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.sync`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.sync.commandWriteTimestamp", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.sync"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.sync"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandWriteTimestamp(
     commandEncoder: GpuCommandEncoderHandle,
@@ -406,31 +204,11 @@ export declare function commandWriteTimestamp(
 ): Result<void, PlatformError>;
 
 /// Begin an occlusion query.
-///
-/// Begin an occlusion query in the active render pass.
-/// Query nesting and pass compatibility follow backend semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style begin-occlusion-query commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.sync`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.sync.commandBeginOcclusionQuery", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.sync"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.sync"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandBeginOcclusionQuery(
     renderPass: GpuRenderPassHandle,
@@ -439,62 +217,22 @@ export declare function commandBeginOcclusionQuery(
 ): Result<void, PlatformError>;
 
 /// End an occlusion query.
-///
-/// End an occlusion query in the active render pass.
-/// The current query must match the last begin call for this pass.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style end-occlusion-query commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.sync`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.sync.commandEndOcclusionQuery", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.sync"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.sync"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandEndOcclusionQuery(
     renderPass: GpuRenderPassHandle,
 ): Result<void, PlatformError>;
 
 /// Begin a pipeline-statistics query in a render pass.
-///
-/// Begin a pipeline-statistics query in an active render pass.
-/// Pipeline-statistics queries cannot be nested and require a matching end call.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific pipeline-statistics query commands where exposed.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.sync.pipeline.statistics`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.sync.commandBeginRenderPipelineStatisticsQuery", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.sync.pipeline.statistics"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.sync.pipeline.statistics"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandBeginRenderPipelineStatisticsQuery(
     renderPass: GpuRenderPassHandle,
@@ -503,62 +241,22 @@ export declare function commandBeginRenderPipelineStatisticsQuery(
 ): Result<void, PlatformError>;
 
 /// End a pipeline-statistics query in a render pass.
-///
-/// End an active pipeline-statistics query in a render pass.
-/// The active query must match the most recent begin call.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific pipeline-statistics query commands where exposed.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.sync.pipeline.statistics`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.sync.commandEndRenderPipelineStatisticsQuery", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.sync.pipeline.statistics"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.sync.pipeline.statistics"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandEndRenderPipelineStatisticsQuery(
     renderPass: GpuRenderPassHandle,
 ): Result<void, PlatformError>;
 
 /// Begin a pipeline-statistics query in a compute pass.
-///
-/// Begin a pipeline-statistics query in an active compute pass.
-/// Pipeline-statistics queries cannot be nested and require a matching end call.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific pipeline-statistics query commands where exposed.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.sync.pipeline.statistics`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.sync.commandBeginComputePipelineStatisticsQuery", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.sync.pipeline.statistics"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.sync.pipeline.statistics"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandBeginComputePipelineStatisticsQuery(
     computePass: GpuComputePassHandle,
@@ -567,62 +265,22 @@ export declare function commandBeginComputePipelineStatisticsQuery(
 ): Result<void, PlatformError>;
 
 /// End a pipeline-statistics query in a compute pass.
-///
-/// End an active pipeline-statistics query in a compute pass.
-/// The active query must match the most recent begin call.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific pipeline-statistics query commands where exposed.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.sync.pipeline.statistics`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.sync.commandEndComputePipelineStatisticsQuery", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.sync.pipeline.statistics"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.sync.pipeline.statistics"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandEndComputePipelineStatisticsQuery(
     computePass: GpuComputePassHandle,
 ): Result<void, PlatformError>;
 
 /// Resolve one query range into one destination buffer.
-///
-/// Resolve a query range and write results into a destination buffer.
-/// Destination alignment and encoding follow backend query-result rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style resolve-query commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.sync`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.sync.commandResolveQueries", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.sync"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.sync"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandResolveQueries(
     commandEncoder: GpuCommandEncoderHandle,

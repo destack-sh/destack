@@ -13,34 +13,13 @@ export enum TraceLevel {
     Debug = 4,
 }
 
-/// Low-level debug trace sink bindings.
 /// Start a debug trace stream.
-///
-/// Start one debug sink for runtime observation events with the requested level and destination.
-/// Destination routing is runtime-defined and may target file, socket, or collector backends.
-/// This stream is distinct from the world-owned causal trace used for deterministic replay, fork, and rewind.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime trace pipeline, optionally backed by host transports.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `debug.trace`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.debug.trace.start", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["debug.trace"],
-    platforms: ["windows", "unix", "wasi"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["debug.trace"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
 })
 export declare function traceStart(
     level: TraceLevel,
@@ -48,61 +27,22 @@ export declare function traceStart(
 ): Result<TraceHandle, PlatformError>;
 
 /// Stop a debug trace stream.
-///
-/// Stop one active trace stream and flush buffered events.
-/// Flush behavior and durability guarantees follow runtime trace backend policy.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime trace stream teardown and flush logic.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `debug.trace`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.debug.trace.stop", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["debug.trace"],
-    platforms: ["windows", "unix", "wasi"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["debug.trace"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
 })
 export declare function traceStop(handle: TraceHandle): Result<void, PlatformError>;
 
 /// Emit one debug trace event.
-///
-/// Append one structured diagnostic record to the active debug trace stream.
-/// Event ordering follows runtime scheduling and stream flush policy.
-/// This does not replace the structured causal trace and revision APIs.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses runtime trace event encoder and sink.
-///
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `debug.trace`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.debug.trace.emit", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["debug.trace"],
-    platforms: ["windows", "unix", "wasi"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["debug.trace"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
 })
 export declare function traceEmit(
     category: string,

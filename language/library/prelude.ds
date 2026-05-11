@@ -183,9 +183,8 @@ export {
     type BindingOptions,
 } from "./platform/core/binding.ds";
 export {
-    require,
-    type PlatformCapability,
-} from "./platform/core/capability.ds";
+    type HostAction,
+} from "./platform/core/action.ds";
 
 // operator interfaces
 export { type Add, type Plus } from "./core/operator/plus.ds";

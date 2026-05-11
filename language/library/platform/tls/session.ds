@@ -21,33 +21,11 @@ export enum TlsSessionResumptionState {
 }
 
 /// Tls session bindings for socket-backed transports.
-/// Open one tls session over one connected socket.
-///
-/// Bind one tls session object to one connected socket using one tls context.
-/// Transport ownership remains with the caller, and tls uses the socket for encrypted record I/O.
-/// `serverName` is required for client contexts and ignored for server contexts.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses the runtime tls engine over host sockets.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.session`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.tls.session.open", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["tls.session"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["tls.session"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function sessionOpen(
     context: TlsContextHandle,
@@ -56,62 +34,23 @@ export declare function sessionOpen(
 ): Result<TlsSessionHandle, PlatformError>;
 
 /// Advance one tls handshake state machine.
-///
-/// Drive one handshake step for one session and return readiness requirements for continuation.
-/// Handshake transitions follow rustls state-machine semantics for the selected protocol version.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime tls handshake state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.handshake`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.tls.session.handshake", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["tls.handshake"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["tls.handshake"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function sessionHandshake(
     handle: TlsSessionHandle,
 ): Result<TlsHandshakeStatus, PlatformError>;
 
 /// Read decrypted application bytes from one tls session.
-///
-/// Read plaintext bytes into one caller-provided buffer after record decryption.
-/// Decrypt and read semantics follow runtime buffering behavior and transport readiness.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime tls record processing over host sockets.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.session`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.tls.session.read", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["tls.session"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["tls.session"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function sessionRead(
     handle: TlsSessionHandle,
@@ -119,31 +58,12 @@ export declare function sessionRead(
 ): Result<uint64, PlatformError>;
 
 /// Write plaintext application bytes to one tls session.
-///
-/// Encrypt and write plaintext bytes from one caller-provided buffer into tls records.
-/// Record emission and flush behavior follow runtime buffering and transport readiness.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime tls record processing over host sockets.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.session`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.tls.session.write", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["tls.session"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["tls.session"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function sessionWrite(
     handle: TlsSessionHandle,
@@ -151,152 +71,53 @@ export declare function sessionWrite(
 ): Result<uint64, PlatformError>;
 
 /// Shutdown one tls session.
-///
-/// Emit closure alerts and transition one session to closed state.
-/// Half-close behavior and alert sequencing follow rustls close-notify semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime tls shutdown state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.session`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.tls.session.shutdown", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["tls.session"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["tls.session"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function sessionShutdown(handle: TlsSessionHandle): Result<void, PlatformError>;
 
 /// Close one tls session object.
-///
-/// Release one session object and runtime tls state.
-/// Socket ownership remains with the caller and is not implicitly closed by this operation.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime tls session teardown.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `tls.session`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.tls.session.close", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["tls.session"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["tls.session"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function sessionClose(handle: TlsSessionHandle): Result<void, PlatformError>;
 
 /// Return negotiated alpn protocol bytes.
-///
-/// Read one negotiated application protocol value selected during handshake.
-/// Empty bytes indicate no protocol was negotiated by the peer and runtime.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime tls negotiated-protocol state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.session`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.tls.session.negotiatedAlpn", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["tls.session"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["tls.session"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function sessionNegotiatedAlpn(
     handle: TlsSessionHandle,
 ): Result<Slice<uint8>, PlatformError>;
 
 /// Return the peer certificate chain bytes in pem encoding.
-///
-/// Read one peer certificate chain as normalized PEM bytes for verification and inspection.
-/// Chain ordering and included intermediates follow peer presentation order.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime tls peer-certificate state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.certificate.read`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.tls.session.peerCertificatesPem", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["tls.certificate.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["tls.certificate.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function sessionPeerCertificatesPem(
     handle: TlsSessionHandle,
 ): Result<Slice<uint8>, PlatformError>;
 
 /// Export keying material bytes for one tls session.
-///
-/// Derive exporter keying material for one label and one explicit context value.
-/// Empty context bytes remain distinct input and are not treated as absence.
-/// Exporter derivation follows RFC 5705 and RFC 8446 runtime tls rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime tls exporter support.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.session`, `tls.exporter`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.tls.session.exportKeyingMaterial", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["tls.session", "tls.exporter"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["tls.session", "tls.exporter"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function sessionExportKeyingMaterial(
     handle: TlsSessionHandle,
@@ -306,31 +127,11 @@ export declare function sessionExportKeyingMaterial(
 ): Result<Slice<uint8>, PlatformError>;
 
 /// Return whether one session resumed from cached state or ticket.
-///
-/// Report resumption state as observed by the runtime after handshake completion.
-/// State semantics follow runtime cache and ticket policy behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime tls session-state inspection.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `tls.session`, `tls.resumption`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.tls.session.resumptionState", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["tls.session", "tls.resumption"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["tls.session", "tls.resumption"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function sessionResumptionState(
     handle: TlsSessionHandle,

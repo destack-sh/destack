@@ -21,31 +21,12 @@ export struct TimerOptions {
 }
 
 /// Schedule a one-shot timer.
-///
-/// Register one timer that fires once after a relative delay with explicit timer options.
-/// The handle remains valid until explicit cancel or one-shot completion.
-///
-/// # Platform
-/// Runtime-integrated operation on Unix, Windows, and Wasi targets.
-/// Uses runtime scheduler timer queues.
-///
-/// # Errors
-/// Returns timeUnavailable, invalidArgument, notSupported.
-///
-/// # Security
-/// Requires `time.timer`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.time.timer.once", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["time.timer"],
-    platforms: ["windows", "unix", "wasi"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "any",
+    requires: ["time.timer"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
 })
 export declare function timerOnce(
     delayNs: uint64,
@@ -53,31 +34,12 @@ export declare function timerOnce(
 ): Result<TimerHandle, PlatformError>;
 
 /// Schedule a repeating timer.
-///
-/// Register one timer that fires repeatedly at a fixed period with explicit timer options.
-/// Drift and catch-up behavior follow runtime timer policy.
-///
-/// # Platform
-/// Runtime-integrated operation on Unix, Windows, and Wasi targets.
-/// Uses runtime scheduler timer queues.
-///
-/// # Errors
-/// Returns timeUnavailable, invalidArgument, notSupported.
-///
-/// # Security
-/// Requires `time.timer`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.time.timer.interval", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["time.timer"],
-    platforms: ["windows", "unix", "wasi"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "any",
+    requires: ["time.timer"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
 })
 export declare function timerInterval(
     periodNs: uint64,
@@ -85,31 +47,12 @@ export declare function timerInterval(
 ): Result<TimerHandle, PlatformError>;
 
 /// Schedule a timer for an absolute deadline.
-///
-/// Register one timer that fires at a specific deadline in nanoseconds with explicit timer options.
-/// Deadline interpretation follows runtime wall-clock and monotonic policy.
-///
-/// # Platform
-/// Runtime-integrated operation on Unix, Windows, and Wasi targets.
-/// Uses runtime scheduler timer queues.
-///
-/// # Errors
-/// Returns timeUnavailable, invalidArgument, notSupported.
-///
-/// # Security
-/// Requires `time.timer`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.time.timer.at", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["time.timer"],
-    platforms: ["windows", "unix", "wasi"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "any",
+    requires: ["time.timer"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
 })
 export declare function timerAt(
     deadlineNs: uint64,
@@ -117,205 +60,72 @@ export declare function timerAt(
 ): Result<TimerHandle, PlatformError>;
 
 /// Cancel one scheduled timer.
-///
-/// Remove one timer from the runtime scheduler.
-/// Cancellation is idempotent when supported by the runtime implementation.
-///
-/// # Platform
-/// Runtime-level operation available on all native runtime targets.
-/// Uses runtime scheduler timer queues.
-///
-/// # Errors
-/// Returns timeUnavailable, invalidArgument, notSupported.
-///
-/// # Security
-/// Requires `time.timer`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.time.timer.cancel", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["time.timer"],
-    platforms: ["windows", "unix", "wasi"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "any",
+    requires: ["time.timer"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
 })
 export declare function timerCancel(handle: TimerHandle): Result<void, PlatformError>;
 
 /// Pause one running timer.
-///
-/// Suspend one timer without discarding its scheduling state.
-/// Resume behavior and retained delay follow the active runtime timer policy.
-///
-/// # Platform
-/// Runtime-level operation available on all native runtime targets.
-/// Uses runtime scheduler timer queues.
-///
-/// # Errors
-/// Returns timeUnavailable, invalidArgument, notSupported.
-///
-/// # Security
-/// Requires `time.timer`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.time.timer.pause", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["time.timer"],
-    platforms: ["windows", "unix", "wasi"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "any",
+    requires: ["time.timer"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
 })
 export declare function timerPause(handle: TimerHandle): Result<void, PlatformError>;
 
 /// Resume one paused timer.
-///
-/// Reactivate one paused timer in the runtime scheduler.
-/// Resume timing semantics follow runtime timer policy.
-///
-/// # Platform
-/// Runtime-level operation available on all native runtime targets.
-/// Uses runtime scheduler timer queues.
-///
-/// # Errors
-/// Returns timeUnavailable, invalidArgument, notSupported.
-///
-/// # Security
-/// Requires `time.timer`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.time.timer.resume", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["time.timer"],
-    platforms: ["windows", "unix", "wasi"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "any",
+    requires: ["time.timer"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
 })
 export declare function timerResume(handle: TimerHandle): Result<void, PlatformError>;
 
 /// Return whether one timer is currently active.
-///
-/// Read active-state metadata for one timer handle.
-/// Active state reflects runtime scheduler ownership and cancellation state.
-///
-/// # Platform
-/// Runtime-level operation available on all native runtime targets.
-/// Uses runtime scheduler timer queues.
-///
-/// # Errors
-/// Returns timeUnavailable, invalidArgument, notSupported.
-///
-/// # Security
-/// Requires `time.timer`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.time.timer.isActive", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["time.timer"],
-    platforms: ["windows", "unix", "wasi"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "any",
+    requires: ["time.timer"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
 })
 export declare function timerIsActive(handle: TimerHandle): Result<boolean, PlatformError>;
 
 /// Return remaining timer delay in nanoseconds.
-///
-/// Read remaining delay for one timer relative to its configured clock domain.
-/// Remaining delay is zero when timer has fired or is inactive.
-///
-/// # Platform
-/// Runtime-level operation available on all native runtime targets.
-/// Uses runtime scheduler timer queues.
-///
-/// # Errors
-/// Returns timeUnavailable, invalidArgument, notSupported.
-///
-/// # Security
-/// Requires `time.timer`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.time.timer.remainingNs", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["time.timer"],
-    platforms: ["windows", "unix", "wasi"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "any",
+    requires: ["time.timer"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
 })
 export declare function timerRemainingNs(handle: TimerHandle): Result<uint64, PlatformError>;
 
 /// Reset one timer with a new relative delay.
-///
-/// Replace one timer schedule with a new relative delay.
-/// Reset semantics preserve timer identity and replay ordering.
-///
-/// # Platform
-/// Runtime-level operation available on all native runtime targets.
-/// Uses runtime scheduler timer queues.
-///
-/// # Errors
-/// Returns timeUnavailable, invalidArgument, notSupported.
-///
-/// # Security
-/// Requires `time.timer`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.time.timer.reset", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["time.timer"],
-    platforms: ["windows", "unix", "wasi"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "any",
+    requires: ["time.timer"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
 })
 export declare function timerReset(handle: TimerHandle, delayNs: uint64): Result<void, PlatformError>;
 
 /// Update one timer interval period.
-///
-/// Replace one interval timer period while preserving timer identity.
-/// Update semantics are runtime-defined for already-expired intervals.
-///
-/// # Platform
-/// Runtime-level operation available on all native runtime targets.
-/// Uses runtime scheduler timer queues.
-///
-/// # Errors
-/// Returns timeUnavailable, invalidArgument, notSupported.
-///
-/// # Security
-/// Requires `time.timer`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.time.timer.updateInterval", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["time.timer"],
-    platforms: ["windows", "unix", "wasi"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "any",
+    requires: ["time.timer"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
 })
 export declare function timerUpdateInterval(
     handle: TimerHandle,

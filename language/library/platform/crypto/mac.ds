@@ -15,30 +15,13 @@ export struct CryptoMacParameters {
     tagLengthBytes?: uint32;
 }
 
-/// Message authentication code bindings.
 /// Compute one message authentication code in one shot.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret keys when available.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.mac`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.mac.compute", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.mac"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.mac"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function macCompute(
     key: CryptoKeyHandle,
@@ -47,28 +30,12 @@ export declare function macCompute(
 ): Result<Slice<uint8>, PlatformError>;
 
 /// Verify one message authentication code in one shot.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret keys when available.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.mac`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.mac.verify", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.mac"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.mac"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function macVerify(
     key: CryptoKeyHandle,
@@ -78,28 +45,12 @@ export declare function macVerify(
 ): Result<boolean, PlatformError>;
 
 /// Open one streaming MAC context.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret keys when available.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.mac`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.mac.open", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.mac"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.mac"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function macOpen(
     key: CryptoKeyHandle,
@@ -107,28 +58,12 @@ export declare function macOpen(
 ): Result<CryptoMacHandle, PlatformError>;
 
 /// Update one streaming MAC context.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret keys when available.
-///
-/// # Errors
-/// Returns invalidArgument, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.mac`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.mac.update", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.mac"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.mac"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function macUpdate(
     handle: CryptoMacHandle,
@@ -136,79 +71,31 @@ export declare function macUpdate(
 ): Result<void, PlatformError>;
 
 /// Finalize one streaming MAC context and return one tag.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret keys when available.
-///
-/// # Errors
-/// Returns invalidArgument, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.mac`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.mac.finish", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.mac"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.mac"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function macFinish(handle: CryptoMacHandle): Result<Slice<uint8>, PlatformError>;
 
 /// Reset one streaming MAC context to its initial state.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret keys when available.
-///
-/// # Errors
-/// Returns invalidArgument, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.mac`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.mac.reset", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.mac"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.mac"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function macReset(handle: CryptoMacHandle): Result<void, PlatformError>;
 
 /// Close one streaming MAC context.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL EVP MAC primitives for software keys, and host key APIs for host-managed secret keys when available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `crypto.mac`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.mac.close", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.mac"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.mac"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function macClose(handle: CryptoMacHandle): Result<void, PlatformError>;

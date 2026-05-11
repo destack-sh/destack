@@ -9,33 +9,12 @@ export struct ProtectedMemoryRange {
     length: uint64;
 }
 
-/// Memory protection bindings.
 /// Change memory protection for one range.
-///
-/// Apply one protection mask to one virtual memory range.
-/// Execute, read, and write semantics follow host protection rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses mprotect on Unix and VirtualProtect on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `memory.protect`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.memory.protect.protectRange", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["memory.protect"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["memory.protect"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function protect(
     address: uint64,
@@ -44,31 +23,11 @@ export declare function protect(
 ): Result<void, PlatformError>;
 
 /// Resize one mapped range.
-///
-/// Remap one existing mapping to a new length.
-/// Move behavior and address stability are host-defined when remap cannot grow in place.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses mremap on Linux and reserve-plus-copy fallback on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `memory.protect`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.memory.protect.remap", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["memory.protect"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["memory.protect"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function remap(
     address: uint64,
@@ -78,31 +37,11 @@ export declare function remap(
 ): Result<ProtectedMemoryRange, PlatformError>;
 
 /// Flush instruction cache for one range.
-///
-/// Flush host instruction caches after writing executable code bytes.
-/// Cache flush granularity and barriers follow host architecture rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses built-in cache flush intrinsics and host process APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `memory.execute`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.memory.protect.flushInstructionCache", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["memory.execute"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["memory.execute"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function flushInstructionCache(
     address: uint64,

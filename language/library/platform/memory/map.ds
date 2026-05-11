@@ -13,31 +13,11 @@ export struct MemoryRange {
 }
 
 /// Map a file-backed memory range.
-///
-/// Map one file-backed range into virtual memory using the requested offset, length, protection, and mapping flags.
-/// Page alignment, commit behavior, sharing, and fault semantics follow host virtual-memory rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses mmap MAP_SHARED/MAP_PRIVATE on Unix and CreateFileMapping/MapViewOfFile on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `memory.map`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.memory.map.file", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["memory.map"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["memory.map"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function mapFile(
     handle: FileHandle,
@@ -48,31 +28,11 @@ export declare function mapFile(
 ): Result<Slice<uint8>, PlatformError>;
 
 /// Map an anonymous memory range.
-///
-/// Map one anonymous zero-initialized range into virtual memory.
-/// Page alignment, commit behavior, sharing, and fault semantics follow host virtual-memory rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses mmap MAP_ANONYMOUS on Unix and VirtualAlloc/MapViewOfFile on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `memory.map`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.memory.map.anonymous", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["memory.map"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["memory.map"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function mapAnonymous(
     length: uint64,
@@ -81,93 +41,32 @@ export declare function mapAnonymous(
 ): Result<Slice<uint8>, PlatformError>;
 
 /// Unmap a mapped memory range.
-///
-/// Unmap one previously mapped memory range and release its mapping resources.
-/// The slice becomes invalid immediately after a successful call.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses munmap on Unix and UnmapViewOfFile/VirtualFree on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `memory.map`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.memory.map.unmap", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["memory.map"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["memory.map"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function unmap(mapping: Slice<uint8>): Result<void, PlatformError>;
 
 /// Flush mapped memory to backing storage.
-///
-/// Flush dirty pages for one mapped range according to the requested synchronization flags.
-/// Flush scope and ordering follow host mapping rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses msync on Unix and FlushViewOfFile on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `memory.map`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.memory.map.sync", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["memory.map"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["memory.map"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function sync(
     mapping: Slice<uint8>,
     flags: MemorySyncFlags,
 ): Result<void, PlatformError>;
 
-/// Virtual memory map bindings.
 /// Allocate one mapped range.
-///
-/// Reserve and commit one virtual memory range in a single host operation.
-/// Allocation-time policy flags such as large pages are applied here when supported.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses mmap allocation paths on Unix and VirtualAlloc reserve-plus-commit on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `memory.map`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.memory.map.allocate", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["memory.map"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["memory.map"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function allocate(
     length: uint64,
@@ -177,32 +76,11 @@ export declare function allocate(
 ): Result<ProtectedMemoryRange, PlatformError>;
 
 /// Reserve one virtual memory range.
-///
-/// Reserve one address range without committing physical backing.
-/// A zero address hint lets the host choose placement.
-/// Explicit address hints follow host allocation-granularity alignment rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses mmap reserve patterns on Unix and VirtualAlloc reserve on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `memory.map`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.memory.map.reserve", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["memory.map"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["memory.map"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function reserve(
     length: uint64,
@@ -211,31 +89,11 @@ export declare function reserve(
 ): Result<MemoryRange, PlatformError>;
 
 /// Commit one reserved range.
-///
-/// Commit physical backing for one reserved address range.
-/// Commit granularity and zero-fill behavior follow host memory manager semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses mprotect or mmap commit semantics on Unix and VirtualAlloc commit on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `memory.map`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.memory.map.commit", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["memory.map"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["memory.map"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commit(
     address: uint64,
@@ -244,60 +102,19 @@ export declare function commit(
 ): Result<void, PlatformError>;
 
 /// Decommit one range.
-///
-/// Decommit physical backing while preserving virtual address reservation.
-/// Decommit effects on dirty pages follow host memory manager semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses madvise or mmap replacement patterns on Unix and VirtualFree decommit on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `memory.map`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.memory.map.decommit", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["memory.map"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["memory.map"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function decommit(address: uint64, length: uint64): Result<void, PlatformError>;
 
 /// Release one reserved range.
-///
-/// Release one virtual memory reservation back to the host allocator.
-/// Released ranges become invalid for future access by caller code.
-/// On Windows the length must cover the full reserved allocation span.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses munmap on Unix and VirtualFree release on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `memory.map`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.memory.map.release", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["memory.map"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["memory.map"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function release(address: uint64, length: uint64): Result<void, PlatformError>;

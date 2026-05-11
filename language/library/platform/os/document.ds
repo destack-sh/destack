@@ -46,90 +46,35 @@ export struct DocumentDescriptor {
     localPath?: Path;
 }
 
-/// Document bindings.
 /// Open one document-picker transaction.
-///
-/// Start one host document-picker interaction and return one transaction handle.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses SAF or system picker APIs on Android, UIDocumentPicker on Apple platforms, common file dialogs on Windows, and desktop file-picker bridges or portals on Unix desktop hosts.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.document.pick`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.document.pickOpen", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.document.pick"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.document.pick"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function documentPickOpen(
     options: DocumentPickOptions,
 ): Result<DocumentPickHandle, PlatformError>;
 
 /// Close one document-picker transaction.
-///
-/// Close one document-picker transaction handle and release host routing state.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host picker callback unregistration and runtime resource cleanup.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.document.pick`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.document.pickClose", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.document.pick"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.document.pick"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function documentPickClose(handle: DocumentPickHandle): Result<void, PlatformError>;
 
 /// Wait for one document-picker result.
-///
-/// Wait for the completion of one earlier document-picker transaction.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host picker completion queues and runtime transaction state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.document.pick`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.document.pickRead", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.document.pick"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.document.pick"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function documentPickRead(
     handle: DocumentPickHandle,
@@ -137,60 +82,24 @@ export declare function documentPickRead(
 ): Result<Array<DocumentDescriptor>, PlatformError>;
 
 /// Poll one document-picker result without blocking.
-///
-/// Poll the completion of one earlier document-picker transaction without waiting.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses nonblocking host picker completion queue reads.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.document.pick`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.document.pickTryRead", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.document.pick"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.document.pick"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function documentPickTryRead(
     handle: DocumentPickHandle,
 ): Result<Array<DocumentDescriptor>, PlatformError>;
 
 /// Open one document URI.
-///
-/// Open one host document-provider URI from one prior picker result with one selected access mode.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host document-provider open APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.document.control`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.document.open", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.document.control"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.document.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function documentOpen(
     uri: string,
@@ -198,58 +107,22 @@ export declare function documentOpen(
 ): Result<DocumentHandle, PlatformError>;
 
 /// Close one opened document handle.
-///
-/// Close one opened document-provider handle and release host resources.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host descriptor close APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.document.control`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.document.close", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.document.control"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.document.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function documentClose(handle: DocumentHandle): Result<void, PlatformError>;
 
 /// Read one chunk of document bytes.
-///
-/// Read up to `maxBytes` from one opened document handle.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host document-provider read APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `os.document.read`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.document.read", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.document.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.document.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function documentRead(
     handle: DocumentHandle,
@@ -258,30 +131,12 @@ export declare function documentRead(
 ): Result<Slice<uint8>, PlatformError>;
 
 /// Poll one chunk of document bytes without blocking.
-///
-/// Read up to `maxBytes` from one opened document handle without waiting.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host nonblocking document-provider read APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.document.read`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.document.tryRead", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.document.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.document.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function documentTryRead(
     handle: DocumentHandle,
@@ -289,30 +144,12 @@ export declare function documentTryRead(
 ): Result<Slice<uint8>, PlatformError>;
 
 /// Write one chunk of document bytes.
-///
-/// Write one byte chunk into one opened document handle and return written byte count.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host document-provider write APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.document.write`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.document.write", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.document.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.document.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function documentWrite(
     handle: DocumentHandle,
@@ -321,29 +158,11 @@ export declare function documentWrite(
 ): Result<uint32, PlatformError>;
 
 /// Flush one opened document handle.
-///
-/// Flush buffered outbound document bytes for one opened handle.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host document-provider flush APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.document.write`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.document.flush", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.document.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.document.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function documentFlush(handle: DocumentHandle): Result<void, PlatformError>;

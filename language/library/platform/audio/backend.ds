@@ -42,7 +42,7 @@ export newtype AudioDeviceListFlags = uint32;
 /// Device open option flags.
 export newtype AudioDeviceOpenFlags = uint32;
 
-/// Backend capability flags.
+/// Backend action flags.
 export newtype AudioBackendCapabilityFlags = uint64;
 
 /// Supported stream-option flags for one backend or device.
@@ -67,7 +67,7 @@ export struct AudioBackendDescriptor {
     support: BackendSupport;
     /// Priority in default auto-selection order, or zero when auto does not consider this selector.
     priority: uint16;
-    /// Backend-level capability flags.
+    /// Backend-level action flags.
     /// These are coarse feature categories.
     /// Use `supported*` masks for lane-level support decisions.
     capabilityFlags: AudioBackendCapabilityFlags;
@@ -85,33 +85,12 @@ export struct AudioBackendDescriptor {
     supportedStreamClockDomains: AudioSupportedStreamClockDomains;
 }
 
-/// Audio backend bindings.
 /// List host audio backends.
-///
-/// Enumerate backend selectors, support state, and backend-level feature flags.
-///
-/// # Platform
-/// Unix and Windows.
-/// Mirrors cubeb `cubeb_get_backend_names`, libsoundio `soundio_backend_count` plus `soundio_get_backend`, and miniaudio `ma_get_enabled_backends`.
-/// Mirrors PortAudio host-api enumeration through `PaHostApiTypeId`.
-///
-/// # Errors
-/// Returns ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `audio.device`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.audio.backend.list", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["audio.device"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["audio.device"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function backendList(): Result<Slice<AudioBackendDescriptor>, PlatformError>;
 
