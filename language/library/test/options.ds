@@ -1,0 +1,11 @@
+/// Test registration options.
+export interface TestOptions {
+    /// Run only matching tests.
+    only?: boolean;
+
+    /// Skip this test.
+    skip?: boolean;
+
+    /// Expected maximum duration in milliseconds.
+    timeout?: number;
+}

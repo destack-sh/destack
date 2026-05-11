@@ -1,0 +1,28 @@
+import { todo } from "destack:error";
+import { type TestOptions } from "./options.ds";
+
+/// Test suite callback.
+export type SuiteBody = () => void;
+
+/// Suite registration argument after the suite name.
+export type SuiteArgument = SuiteBody | TestOptions | number;
+
+/// Register one test suite.
+export function describe(name: string, argument?: SuiteArgument, body?: SuiteBody): void {
+    todo("describe")
+}
+
+/// Register one test suite.
+export function suite(name: string, argument?: SuiteArgument, body?: SuiteBody): void {
+    describe(name, argument, body)
+}
+
+/// Register one skipped test suite.
+export function describeSkip(name: string, body?: SuiteBody): void {
+    describe(name, { skip: true }, body)
+}
+
+/// Register one focused test suite.
+export function describeOnly(name: string, body?: SuiteBody): void {
+    describe(name, { only: true }, body)
+}

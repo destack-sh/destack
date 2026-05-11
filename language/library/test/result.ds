@@ -1,0 +1,8 @@
+import { type Promise } from "destack:async";
+import { type AsyncResult, type Result } from "destack:error";
+
+/// Test callback result.
+export type TestResult = void | Promise<void> | Result<void, unknown> | AsyncResult<void, unknown>;
+
+/// Test callback.
+export type TestBody = () => TestResult;

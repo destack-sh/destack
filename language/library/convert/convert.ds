@@ -1,0 +1,25 @@
+import { type Error, type Result } from "destack:error";
+
+/// Infallible conversion from `T`.
+export newtype interface From<T> {
+    /// Convert `value`.
+    static from(value: T): this;
+}
+
+/// Infallible conversion into `T`.
+export newtype interface Into<T> {
+    /// Convert this value.
+    into(): T;
+}
+
+/// Fallible conversion from `T`.
+export newtype interface TryFrom<T, E = Error> {
+    /// Convert `value`, or return an error.
+    static tryFrom(value: T): Result<this, E>;
+}
+
+/// Fallible conversion into `T`.
+export newtype interface TryInto<T, E = Error> {
+    /// Convert this value, or return an error.
+    tryInto(): Result<T, E>;
+}

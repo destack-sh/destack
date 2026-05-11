@@ -1,0 +1,60 @@
+import { type Result } from "destack:error";
+import { todo } from "destack:error";
+import { type Decoder, type Deserialize, type Encoder, type Serialize } from "destack:serde";
+
+/// JSON value.
+@derive(Tagged)
+export newtype Json =
+    | { kind: "null" }
+    | { kind: "boolean"; value: boolean }
+    | { kind: "number"; value: number }
+    | { kind: "string"; value: string }
+    | { kind: "array"; value: readonly Json[] }
+    | { kind: "object"; value: { readonly [key: string]: Json } };
+
+/// JSON parse error.
+export struct JsonError {
+    /// The error message.
+    message: string;
+
+    /// The byte offset when known.
+    offset?: usize;
+}
+
+/// JSON encoder.
+export class JsonEncoder implements Encoder {
+    /// The encoding error type.
+    type Error = JsonError;
+}
+
+/// JSON decoder.
+export class JsonDecoder implements Decoder {
+    /// The decoding error type.
+    type Error = JsonError;
+}
+
+/// Value that can encode itself as JSON.
+export type JsonSerialize = Serialize<JsonEncoder>;
+
+/// Value that can be decoded from JSON.
+export type JsonDeserialize = Deserialize<JsonDecoder>;
+
+/// Parse JSON text.
+export function parse(text: string): Result<Json, JsonError> {
+    todo("json.parse")
+}
+
+/// Serialize a JSON value.
+export function stringify(value: Json): Result<string, JsonError> {
+    todo("json.stringify")
+}
+
+/// Decode typed JSON text.
+export function decode<T: JsonDeserialize>(text: string): Result<T, JsonError> {
+    todo("json.decode")
+}
+
+/// Encode a typed value as JSON text.
+export function encode<T: JsonSerialize>(value: T): Result<string, JsonError> {
+    todo("json.encode")
+}
