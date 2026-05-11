@@ -99,13 +99,13 @@ b0:
     assert!(isolate.shared_heap.is_heap_live(reference));
 }
 
-/// Dropping owned heap allocations releases local heap storage immediately.
+/// Dropping unique heap allocations releases local heap storage immediately.
 #[test]
 fn test_drop_releases_owned_heap_allocation() {
     let mir = r#"
 function dropOwned(): int32 {
 b0:
-    v0: ref<int32, owned, readonly> = new int32
+    v0: ref<int32, unique, readonly> = new int32
     drop v0
     v1: int32 = 7int32
     return v1
@@ -125,7 +125,7 @@ fn test_drop_releases_owned_shared_heap_allocation() {
     let mir = r#"
 function dropOwned(): int32 {
 b0:
-    v0: ref<int32, owned, readonly, space(shared)> = new int32
+    v0: ref<int32, unique, readonly, space(shared)> = new int32
     drop v0
     v1: int32 = 7int32
     return v1

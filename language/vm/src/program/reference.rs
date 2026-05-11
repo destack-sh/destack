@@ -109,12 +109,18 @@ impl Program {
 
         match self.tree.get(repr_ty) {
             mir::Type::Reference {
-                kind: mir::ReferenceKind::Managed | mir::ReferenceKind::Owned,
+                kind:
+                    mir::ReferenceKind::Managed
+                    | mir::ReferenceKind::Unique
+                    | mir::ReferenceKind::Borrowed,
                 address_space: mir::AddressSpace::Local,
                 ..
             }
             | mir::Type::TensorView {
-                kind: mir::ReferenceKind::Managed | mir::ReferenceKind::Owned,
+                kind:
+                    mir::ReferenceKind::Managed
+                    | mir::ReferenceKind::Unique
+                    | mir::ReferenceKind::Borrowed,
                 address_space: mir::AddressSpace::Local,
                 ..
             }
@@ -122,12 +128,18 @@ impl Program {
                 Ok(Some(HeapEdge::Local(HeapReference::from_bits(bits))))
             }
             mir::Type::Reference {
-                kind: mir::ReferenceKind::Managed | mir::ReferenceKind::Owned,
+                kind:
+                    mir::ReferenceKind::Managed
+                    | mir::ReferenceKind::Unique
+                    | mir::ReferenceKind::Borrowed,
                 address_space: mir::AddressSpace::Shared,
                 ..
             }
             | mir::Type::TensorView {
-                kind: mir::ReferenceKind::Managed | mir::ReferenceKind::Owned,
+                kind:
+                    mir::ReferenceKind::Managed
+                    | mir::ReferenceKind::Unique
+                    | mir::ReferenceKind::Borrowed,
                 address_space: mir::AddressSpace::Shared,
                 ..
             } => Ok(Some(HeapEdge::Shared(SharedHeapReference::from_bits(bits)))),

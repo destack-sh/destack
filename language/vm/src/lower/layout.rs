@@ -134,14 +134,4 @@ impl<'a> BlockLowerer<'a> {
             }
         })
     }
-
-    /// Return the lowered byte length for one type.
-    pub(super) fn byte_len_for_type(&self, layout: mir::LocalNodeId<mir::Type>) -> Result<usize> {
-        self.layouts()
-            .get(&layout)
-            .map(|layout| layout.byte_len)
-            .ok_or_else(|| Error::InvariantViolation {
-                context: format!("missing lowered layout for type: {layout:?}"),
-            })
-    }
 }

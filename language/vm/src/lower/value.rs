@@ -244,7 +244,7 @@ pub(super) fn heap_pointee_type_for_value(
         mir::Type::Reference {
             kind:
                 kind @ (mir::ReferenceKind::Managed
-                | mir::ReferenceKind::Owned
+                | mir::ReferenceKind::Unique
                 | mir::ReferenceKind::Borrowed),
             address_space,
             pointee,
@@ -262,7 +262,7 @@ pub(super) fn heap_pointee_type_for_value(
         mir::Type::TensorView {
             kind:
                 kind @ (mir::ReferenceKind::Managed
-                | mir::ReferenceKind::Owned
+                | mir::ReferenceKind::Unique
                 | mir::ReferenceKind::Borrowed),
             address_space,
             element,

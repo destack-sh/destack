@@ -2,8 +2,7 @@ use destack_heap::{AllocationClass, HeapOptions, SmallAllocationLayout};
 use destack_mir as mir;
 
 use crate::program::{
-    AllocationLayout, Instruction, Layout, Op, PointerClass, Projection,
-    pointer_class_from_reference, repr_type, word_layout_from_type,
+    AllocationLayout, Instruction, Layout, Op, PointerClass, pointer_class_from_reference,
 };
 use crate::{Error, Result};
 
@@ -269,126 +268,13 @@ impl<'a> BlockLowerer<'a> {
         Ok(Instruction::new(op, word_offset(self, value)?, 0, 0, 0))
     }
 
-    /// Lower one owned-value drop.
+    /// Lower one ownership-end marker.
     pub(super) fn lower_drop(
         &self,
-        pool: &mut Pool<'_, '_>,
-        value: mir::ValueReference,
+        _pool: &mut Pool<'_, '_>,
+        _value: mir::ValueReference,
     ) -> Result<Vec<Instruction>> {
-        // resolve value and MIR type
-        let value = value.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "drop value".to_string(),
-        })?;
-        let value_type = repr_type(self.tree, self.value_type_for_value(value)?);
-
-        // lower references by ownership and address space
-        match self.tree.get(value_type) {
-            mir::Type::Reference {
-                kind,
-                address_space,
-                pointee,
-                ..
-            } => self.lower_reference_drop(value, *kind, address_space.clone(), *pointee),
-            mir::Type::Slice {
-                kind,
-                address_space,
-                ..
-            } => self.lower_slice_drop(pool, value, *kind, address_space.clone(), value_type),
-            _ => Err(Error::TypeMismatch {
-                expected: "droppable value".to_string(),
-                actual: format!("{value_type:?}"),
-            }),
-        }
-    }
-
-    /// Lower one reference drop.
-    fn lower_reference_drop(
-        &self,
-        value: mir::Value,
-        kind: mir::ReferenceKind,
-        address_space: mir::AddressSpace,
-        pointee: mir::TypeReference,
-    ) -> Result<Vec<Instruction>> {
-        // managed references are released by tracing
-        if matches!(kind, mir::ReferenceKind::Managed) {
-            return Ok(Vec::new());
-        }
-
-        // owned and stack references have concrete release operations
-        let instruction = match (kind, address_space) {
-            (mir::ReferenceKind::Owned, mir::AddressSpace::Local) => {
-                Instruction::new(Op::DropHeap, word_offset(self, value)?, 0, 0, 0)
-            }
-            (mir::ReferenceKind::Owned, mir::AddressSpace::Shared) => {
-                Instruction::new(Op::DropSharedHeap, word_offset(self, value)?, 0, 0, 0)
-            }
-            (mir::ReferenceKind::Raw, mir::AddressSpace::Stack) => {
-                let pointee = pointee.ty().ok_or_else(|| Error::MissingRepresentation {
-                    context: "stack drop pointee".to_string(),
-                })?;
-                let byte_len = self.byte_len_for_type(pointee)? as u64;
-
-                Instruction::new(
-                    Op::DropStack,
-                    word_offset(self, value)?,
-                    byte_len as u32,
-                    (byte_len >> 32) as u32,
-                    0,
-                )
-            }
-            (_kind, address_space) => {
-                return Err(Error::InvalidPointerType {
-                    actual: format!("{address_space:?}"),
-                });
-            }
-        };
-
-        Ok(vec![instruction])
-    }
-
-    /// Lower one slice drop.
-    fn lower_slice_drop(
-        &self,
-        pool: &mut Pool<'_, '_>,
-        value: mir::Value,
-        kind: mir::ReferenceKind,
-        address_space: mir::AddressSpace,
-        slice_type: mir::LocalNodeId<mir::Type>,
-    ) -> Result<Vec<Instruction>> {
-        // managed slice backing storage is released by tracing
-        if matches!(kind, mir::ReferenceKind::Managed) {
-            return Ok(Vec::new());
-        }
-
-        // owned slices release the backing allocation selected by address space
-        let op = match (kind, address_space) {
-            (mir::ReferenceKind::Owned, mir::AddressSpace::Local) => Op::DropSlice,
-            (mir::ReferenceKind::Owned, mir::AddressSpace::Shared) => Op::DropSharedSlice,
-            (_kind, address_space) => {
-                return Err(Error::InvalidPointerType {
-                    actual: format!("{address_space:?}"),
-                });
-            }
-        };
-
-        // describe the slice backing pointer once during lowering
-        let layout = self.layout_for_type(slice_type)?;
-        let slice = layout.slice().ok_or(Error::InvalidInstruction)?;
-        let access = Projection::fixed(
-            slice.data.ty,
-            slice.data.offset,
-            slice.data.byte_len,
-            word_layout_from_type(self.tree, slice.data.ty),
-        );
-        let access = pool.projection(access);
-
-        Ok(vec![Instruction::new(
-            op,
-            value_offset(self, value)?,
-            access.0,
-            0,
-            0,
-        )])
+        Ok(Vec::new())
     }
 }
 
