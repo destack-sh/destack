@@ -19,9 +19,9 @@ function kernel(data: shared (&Point)): int32 {
 
 ## values
 
-### local is an algebra form
+### local is a type form
 
-`Local<T>` explicitly pins a type to Worker-local space.
+`Local<T>` places a value in Worker-local space.
 
 ```ds
 struct Point {
@@ -45,6 +45,19 @@ struct Point {
 
 let point: shared Point = Point { x: 1, y: 2 };
 point satisfies shared Point;
+```
+
+### local values can hold shared values
+
+Local storage can hold handles to shared values.
+
+```ds
+class Registry {}
+
+const registry: shared Registry = new Registry();
+const local = { registry };
+
+local.registry satisfies shared Registry;
 ```
 
 ### ambient fields inherit shared placement

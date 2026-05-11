@@ -48,6 +48,85 @@ declare const value: Borrowed<int32, "static">;
 value satisfies Borrowed<int32, "static">;
 ```
 
+### managed field borrows infer real lifetimes
+
+Borrowing through managed storage infers a lifetime for that specific source place.
+
+```ds
+class User {
+    name: string = "";
+}
+
+function nameOf(user: User): &readonly string {
+    return &readonly user.name;
+}
+
+nameOf(new User()) satisfies &readonly string;
+```
+
+### managed branches join through inference
+
+Branches can return managed-rooted borrows without naming the lifetime.
+
+```ds
+class User {
+    name: string = "";
+}
+
+function pick(flag: boolean, a: User, b: User): &readonly string {
+    return flag ? &readonly a.name : &readonly b.name;
+}
+
+pick(true, new User(), new User()) satisfies &readonly string;
+```
+
+### managed arrays keep element borrows precise
+
+Borrowing an array element keeps the array alive without losing the element path.
+
+```ds
+function second<T>(items: Array<T>): &readonly T {
+    return &readonly items[1];
+}
+
+let items: Array<int32> = [1, 2, 3];
+let item = second(items);
+
+item satisfies &readonly int32;
+```
+
+### managed roots cannot be named as lifetimes
+
+Managed-rooted borrows still have specific inferred lifetimes.
+
+```ds
+class User {
+    name: string = "";
+}
+
+function nameView(user: User): ReadonlyBorrowed<string, "managed"> {
+    return &readonly user.name;
+}
+```
+
+- contains: lifetime
+
+### boxed field borrows cannot outlive the box
+
+A borrow through a box depends on the boxed owner.
+
+```ds
+class User {
+    name: string = "";
+}
+
+function leakedName(user: Box<User>): &readonly string {
+    return &readonly user.name;
+}
+```
+
+- contains: cannot return reference to local
+
 ### output borrow can name the input lifetime
 
 Explicit lifetime relationships use static parameters.

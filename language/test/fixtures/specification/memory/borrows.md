@@ -214,6 +214,60 @@ x satisfies &readonly int32;
 *y = 3;
 ```
 
+### exclusive borrows can split fields
+
+Exclusive borrows of disjoint fields can overlap.
+
+```ds
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+let point = ^Point { x: 1, y: 2 };
+let x = &exclusive point.x;
+let y = &exclusive point.y;
+
+*x = 3;
+*y = 4;
+```
+
+### parent borrows overlap child borrows
+
+Borrowing a whole value overlaps every field.
+
+```ds
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+let point = ^Point { x: 1, y: 2 };
+let whole = &readonly point;
+let x = &exclusive point.x;
+
+whole.x satisfies int32;
+*x = 3;
+```
+
+- contains: cannot borrow as exclusive
+
+### variable indexes may overlap fixed indexes
+
+A variable index may name the same element as a fixed index.
+
+```ds
+function write(values: &exclusive [int32; 4], index: uint): void {
+    let dynamic = &exclusive values[index];
+    let first = &exclusive values[0];
+
+    *dynamic = 1;
+    *first = 2;
+}
+```
+
+- contains: cannot borrow as exclusive
+
 ### borrow ends after last use
 
 A borrow ends at its last use.
@@ -232,11 +286,28 @@ let write = &exclusive point.x;
 *write = 2;
 ```
 
+### reborrows suspend exclusive borrows
+
+Exclusive borrowed access can be reborrowed and then used again after the reborrow ends.
+
+```ds
+struct Point {
+    x: int32;
+}
+
+let point = ^Point { x: 1 };
+let exclusive = &exclusive point;
+let field = &exclusive exclusive.x;
+
+*field = 2;
+exclusive.x = 3;
+```
+
 ## receivers
 
-### destinations choose managed or borrowed elements
+### expected result type selects value or borrow
 
-A typed destination can select the overload that returns the requested form.
+The expected result type can select an overload that returns the requested form.
 
 ```ds
 class Bucket<T> {
@@ -290,9 +361,9 @@ bucket.set(0, 1);
 item satisfies &readonly int32;
 ```
 
-### resizing excludes element borrows
+### custom collections can exclude element borrows
 
-Resizing a collection cannot overlap a borrowed element.
+Userland methods can require exclusive receiver access when they may invalidate element borrows.
 
 ```ds
 class Bucket<T> {
@@ -318,9 +389,41 @@ item satisfies &readonly int32;
 
 - contains: cannot borrow as exclusive
 
-### resizing is allowed after last use
+### array push excludes element borrows
 
-The collection can be mutated after the element borrow ends.
+Growing an array cannot overlap a borrowed element (because the Array is borrowed as `&exclusive this` for mutation).
+
+```ds
+let items: Array<int32> = [1, 2, 3];
+let item = &readonly items[1];
+
+items.push(4);
+item satisfies &readonly int32;
+```
+
+- contains: cannot borrow as exclusive
+
+### returned element borrows still protect arrays
+
+Returning an element borrow does not hide the array it came from.
+
+```ds
+function second<T>(items: Array<T>): &readonly T {
+    return &readonly items[1];
+}
+
+let items: Array<int32> = [1, 2, 3];
+let item = second(items);
+
+items.push(4);
+item satisfies &readonly int32;
+```
+
+- contains: cannot borrow as exclusive
+
+### custom collections can resize after last use
+
+The collection can take exclusive receiver access after the element borrow ends.
 
 ```ds
 class Bucket<T> {
@@ -342,6 +445,53 @@ let item = bucket.at(0);
 
 item satisfies &readonly int32;
 bucket.push(1);
+```
+
+### array push is allowed after last use
+
+The array can grow after the element borrow ends.
+
+```ds
+let items: Array<int32> = [1, 2, 3];
+let item = &readonly items[1];
+
+item satisfies &readonly int32;
+items.push(4);
+```
+
+### array element writes can overlap element borrows
+
+Writing an existing element does not relocate the backing storage.
+
+```ds
+let items: Array<int32> = [1, 2, 3];
+let item = &readonly items[1];
+
+items[1] = 4;
+item satisfies &readonly int32;
+```
+
+### method arguments are evaluated before exclusive receivers
+
+Call arguments are evaluated before a method takes exclusive receiver access.
+
+```ds
+class Bucket<T> {
+    items: T[] = [];
+}
+
+extension of Bucket<T> {
+    length(this: &readonly Bucket<T>): uint {
+        return this.items.length;
+    }
+
+    push(this: &exclusive Bucket<T>, value: T): void {
+        this.items.push(value);
+    }
+}
+
+let bucket = new Bucket<uint>();
+bucket.push(bucket.length());
 ```
 
 ## overloads
@@ -420,7 +570,7 @@ function write(point: &exclusive Point): void {
 Borrowed generic types preserve their arguments.
 
 ```ds
-class Box<T> {
+class Cell<T> {
     value: T;
 
     constructor(value: T) {
@@ -428,8 +578,8 @@ class Box<T> {
     }
 }
 
-function read<T>(box: &Box<T>): T {
-    return box.value;
+function read<T>(cell: &Cell<T>): T {
+    return cell.value;
 }
 ```
 

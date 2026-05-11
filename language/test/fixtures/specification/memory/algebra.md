@@ -1,39 +1,10 @@
 # Algebra
 
-## placement
+Memory algebra is the type-level model driving ownership, access, lifetime, and placement.
 
-### local values can hold shared values
+## constructors
 
-Local storage can hold handles to shared values.
-
-```ds
-class Registry {}
-
-const registry: shared Registry = new Registry();
-const local = { registry };
-
-local.registry satisfies shared Registry;
-```
-
-### shared values cannot hold explicit local fields
-
-Shared storage cannot point directly into a Worker-local heap.
-
-```ds
-class LocalBox {}
-
-struct SharedBox {
-    value: Local<LocalBox>;
-}
-
-let value: shared SharedBox;
-```
-
-- contains: shared
-
-## forms
-
-### Managed works for structs
+### Managed can name value types
 
 `Managed<T>` is valid for value-shaped types too.
 
@@ -45,7 +16,7 @@ struct Point {
 Managed<Point> satisfies Form<Point, "managed", "ambient">;
 ```
 
-### shared is WithSpace
+### shared rewrites space
 
 `shared T` is `WithSpace<T, "shared">`.
 
@@ -70,9 +41,9 @@ shared (^Cell) satisfies ^(shared Cell);
 shared (^Cell) satisfies WithSpace<^Cell, "shared">;
 ```
 
-### local and ambient are algebra forms
+### Local and Ambient rewrite placement
 
-`Local<T>` and `Ambient<T>` are type algebra aliases, not surface modifiers.
+`Local<T>` and `Ambient<T>` are just named helpers for `WithPlace`.
 
 ```ds
 struct Cell {
@@ -146,17 +117,6 @@ Borrowed forms carry their lifetime.
 function check<L: Lifetime>(value: Borrowed<int32, L>): void {
     LifetimeOf<typeof value> satisfies L;
 }
-```
-
-### static lifetime is a string
-
-The static storage lifetime is the literal `"static"`.
-
-```ds
-declare const value: Borrowed<int32, "static">;
-
-LifetimeOf<typeof value> satisfies "static";
-value satisfies Form<int32, "borrowed", "ambient", "static">;
 ```
 
 ### AccessOf extracts access
