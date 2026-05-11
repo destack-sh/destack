@@ -50,8 +50,8 @@ export struct NodeOptions {
     simulation: true,
 })
 export declare function rename(
-    from: Entry,
-    to: Entry,
+    from: &readonly Entry,
+    to: &readonly Entry,
     flags: RenameFlags,
 ): Result<void, PlatformError>;
 
@@ -62,7 +62,7 @@ export declare function rename(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function unlink(entry: Entry): Result<void, PlatformError>;
+export declare function unlink(entry: &readonly Entry): Result<void, PlatformError>;
 
 /// Create one hard link.
 @binding("destack.fs.namespace.link", {
@@ -72,8 +72,8 @@ export declare function unlink(entry: Entry): Result<void, PlatformError>;
     simulation: true,
 })
 export declare function link(
-    existing: Entry,
-    created: Entry,
+    existing: &readonly Entry,
+    created: &readonly Entry,
     flags: LinkFlags,
 ): Result<void, PlatformError>;
 
@@ -85,8 +85,8 @@ export declare function link(
     simulation: true,
 })
 export declare function symlink(
-    target: Path,
-    created: Entry,
+    target: &readonly Path,
+    created: &readonly Entry,
     kind: SymlinkKind,
 ): Result<void, PlatformError>;
 
@@ -98,8 +98,8 @@ export declare function symlink(
     simulation: true,
 })
 export declare function readLink(
-    entry: Entry,
-    buffer: PathBuffer,
+    entry: &readonly Entry,
+    buffer: &PathBuffer,
 ): Result<uint64, PlatformError>;
 
 /// Resolve an entry into an output buffer.
@@ -110,8 +110,8 @@ export declare function readLink(
     simulation: true,
 })
 export declare function canonicalize(
-    entry: Entry,
-    buffer: PathBuffer,
+    entry: &readonly Entry,
+    buffer: &PathBuffer,
 ): Result<uint64, PlatformError>;
 
 /// Create one FIFO node.
@@ -121,7 +121,10 @@ export declare function canonicalize(
     families: ["unix"],
     simulation: true,
 })
-export declare function createFifo(entry: Entry, mode: FileMode): Result<void, PlatformError>;
+export declare function createFifo(
+    entry: &readonly Entry,
+    mode: FileMode,
+): Result<void, PlatformError>;
 
 /// Create one host filesystem node.
 @binding("destack.fs.namespace.node", {
@@ -131,6 +134,6 @@ export declare function createFifo(entry: Entry, mode: FileMode): Result<void, P
     simulation: true,
 })
 export declare function createNode(
-    entry: Entry,
+    entry: &readonly Entry,
     options: NodeOptions,
 ): Result<void, PlatformError>;

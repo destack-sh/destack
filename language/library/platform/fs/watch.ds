@@ -1,4 +1,3 @@
-import { Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
 import { WatchHandle } from "../resource/index.ds";
 import { Entry } from "./entry.ds";
@@ -65,7 +64,7 @@ export struct WatchBatch {
     simulation: true,
 })
 export declare function watch(
-    entry: Entry,
+    entry: &readonly Entry,
     options: WatchOptions,
 ): Result<WatchHandle, PlatformError>;
 
@@ -78,6 +77,6 @@ export declare function watch(
 })
 export declare function readWatch(
     watch: WatchHandle,
-    events: Slice<WatchEvent>,
-    paths: PathBuffer,
+    events: &[WatchEvent],
+    paths: &PathBuffer,
 ): Result<WatchBatch, PlatformError>;

@@ -1,4 +1,3 @@
-import { Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
 import { FileHandle } from "../resource/index.ds";
 import { Entry } from "./entry.ds";
@@ -25,9 +24,9 @@ export newtype XattrTarget =
     simulation: true,
 })
 export declare function readXattr(
-    target: XattrTarget,
-    name: Slice<uint8>,
-    buffer: Slice<uint8>,
+    target: &readonly XattrTarget,
+    name: &readonly [uint8],
+    buffer: &[uint8],
 ): Result<uint64, PlatformError>;
 
 /// Write one extended attribute.
@@ -38,9 +37,9 @@ export declare function readXattr(
     simulation: true,
 })
 export declare function writeXattr(
-    target: XattrTarget,
-    name: Slice<uint8>,
-    value: Slice<uint8>,
+    target: &readonly XattrTarget,
+    name: &readonly [uint8],
+    value: &readonly [uint8],
     flags: XattrFlags,
 ): Result<void, PlatformError>;
 
@@ -52,8 +51,8 @@ export declare function writeXattr(
     simulation: true,
 })
 export declare function listXattrs(
-    target: XattrTarget,
-    buffer: Slice<uint8>,
+    target: &readonly XattrTarget,
+    buffer: &[uint8],
 ): Result<uint64, PlatformError>;
 
 /// Remove one extended attribute.
@@ -64,6 +63,6 @@ export declare function listXattrs(
     simulation: true,
 })
 export declare function removeXattr(
-    target: XattrTarget,
-    name: Slice<uint8>,
+    target: &readonly XattrTarget,
+    name: &readonly [uint8],
 ): Result<void, PlatformError>;

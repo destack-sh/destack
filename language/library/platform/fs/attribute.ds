@@ -26,7 +26,7 @@ export const ACCESS_READ: AccessMask = AccessMask(0x4);
     simulation: true,
 })
 export declare function checkAccess(
-    entry: Entry,
+    entry: &readonly Entry,
     access: AccessMask,
 ): Result<void, PlatformError>;
 
@@ -38,7 +38,7 @@ export declare function checkAccess(
     simulation: true,
 })
 export declare function setMode(
-    entry: Entry,
+    entry: &readonly Entry,
     mode: FileMode,
     isFollowing: boolean,
 ): Result<void, PlatformError>;
@@ -60,8 +60,8 @@ export declare function setFileMode(file: FileHandle, mode: FileMode): Result<vo
     simulation: true,
 })
 export declare function setOwner(
-    entry: Entry,
-    owner: FileOwner,
+    entry: &readonly Entry,
+    owner: &readonly FileOwner,
     isFollowing: boolean,
 ): Result<void, PlatformError>;
 
@@ -74,7 +74,7 @@ export declare function setOwner(
 })
 export declare function setFileOwner(
     file: FileHandle,
-    owner: FileOwner,
+    owner: &readonly FileOwner,
 ): Result<void, PlatformError>;
 
 /// Set access and modification times for an entry.
@@ -85,7 +85,7 @@ export declare function setFileOwner(
     simulation: true,
 })
 export declare function setTimes(
-    entry: Entry,
+    entry: &readonly Entry,
     times: FileTimes,
     isFollowing: boolean,
 ): Result<void, PlatformError>;

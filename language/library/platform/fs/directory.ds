@@ -1,4 +1,3 @@
-import { Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
 import { DirectoryHandle } from "../resource/index.ds";
 import { Entry } from "./entry.ds";
@@ -52,7 +51,10 @@ export struct DirectoryBatch {
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function createDirectory(entry: Entry, mode: FileMode): Result<void, PlatformError>;
+export declare function createDirectory(
+    entry: &readonly Entry,
+    mode: FileMode,
+): Result<void, PlatformError>;
 
 /// Remove one empty directory entry.
 @binding("destack.fs.directory.remove", {
@@ -61,7 +63,7 @@ export declare function createDirectory(entry: Entry, mode: FileMode): Result<vo
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function removeDirectory(entry: Entry): Result<void, PlatformError>;
+export declare function removeDirectory(entry: &readonly Entry): Result<void, PlatformError>;
 
 /// Open one directory stream.
 @binding("destack.fs.directory.open", {
@@ -70,7 +72,9 @@ export declare function removeDirectory(entry: Entry): Result<void, PlatformErro
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function openDirectory(entry: Entry): Result<DirectoryHandle, PlatformError>;
+export declare function openDirectory(
+    entry: &readonly Entry,
+): Result<DirectoryHandle, PlatformError>;
 
 /// Read directory entries into an output slice.
 @binding("destack.fs.directory.read", {
@@ -81,8 +85,8 @@ export declare function openDirectory(entry: Entry): Result<DirectoryHandle, Pla
 })
 export declare function readDirectory(
     directory: DirectoryHandle,
-    entries: Slice<DirectoryEntry>,
-    names: PathBuffer,
+    entries: &[DirectoryEntry],
+    names: &PathBuffer,
 ): Result<DirectoryBatch, PlatformError>;
 
 /// Reset a directory stream to the first entry.
@@ -101,4 +105,6 @@ export declare function rewindDirectory(directory: DirectoryHandle): Result<void
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function createTemporaryDirectory(template: Entry): Result<Entry, PlatformError>;
+export declare function createTemporaryDirectory(
+    template: &readonly Entry,
+): Result<Entry, PlatformError>;
