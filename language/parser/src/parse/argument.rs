@@ -173,6 +173,16 @@ impl Parser {
             return Err(ParseError::unexpected(self.peek()?.span));
         }
 
+        // explicit type-space argument
+        if self.is_keyword(Keyword::Type) {
+            self.eat_keyword(Keyword::Type)?;
+            let value = self.with_flags(context.with_type(true), |parser| {
+                parser.eat_type_expression()
+            })?;
+
+            return Ok(self.insert_node(GenericArgument::Type { value }, self.get_span_from(start)));
+        }
+
         // type ambient sites commit only when one full type expression owns the slot
         if self.generic_argument_slot_stays_in_type_space(context) {
             let value = self.with_flags(context, |parser| parser.eat_type_expression())?;
@@ -2592,6 +2602,23 @@ mod tests {
         });
         assert_node!(parser.tree, arguments[1], GenericArgument::Type { value } => {
                 assert_node!(parser.tree, *value, TypeExpression::Literal { value: TypeLiteral::Number });
+        });
+    }
+
+    #[test]
+    fn test_parse_generic_arguments_explicit_type_argument() {
+        // <type {}>
+        let mut test = TestParser::new("<type {}>");
+        let mut parser = test.prepare();
+        let arguments = parser.eat_generic_arguments().unwrap();
+
+        test.assert_no_errors(&parser);
+
+        assert_eq!(arguments.len(), 1);
+        assert_node!(parser.tree, arguments[0], GenericArgument::Type { value } => {
+            assert_node!(parser.tree, *value, TypeExpression::Object { members } => {
+                assert!(members.is_empty());
+            });
         });
     }
 
