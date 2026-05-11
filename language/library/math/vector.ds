@@ -1,5 +1,3 @@
-import { intrinsic } from "../core/decorator/intrinsic.ds";
-
 /// Fixed-width SIMD vector type.
 export newtype Vector<T, comptime N: int> = T;
 

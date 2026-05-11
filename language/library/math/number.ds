@@ -1,0 +1,41 @@
+/// Number constants and parsing functions.
+export class Number {
+    /// The largest finite float64 value.
+    static readonly MAX_VALUE: float64;
+
+    /// The smallest positive float64 value.
+    static readonly MIN_VALUE: float64;
+
+    /// The largest exactly representable integer in a float64.
+    static readonly MAX_SAFE_INTEGER: int64;
+
+    /// The smallest exactly representable integer in a float64.
+    static readonly MIN_SAFE_INTEGER: int64;
+
+    /// Positive infinity.
+    static readonly POSITIVE_INFINITY: float64;
+
+    /// Negative infinity.
+    static readonly NEGATIVE_INFINITY: float64;
+
+    /// Not-a-number.
+    static readonly NaN: float64;
+
+    /// Return whether `value` is finite.
+    static isFinite(value: number): boolean;
+
+    /// Return whether `value` is an integer.
+    static isInteger(value: number): boolean;
+
+    /// Return whether `value` is NaN.
+    static isNaN(value: number): boolean;
+
+    /// Return whether `value` is exactly representable as an integer.
+    static isSafeInteger(value: number): boolean;
+
+    /// Parse a float64 from `text`.
+    static parseFloat(text: string): float64;
+
+    /// Parse an integer from `text`.
+    static parseInt(text: string, radix?: int32): int64;
+}

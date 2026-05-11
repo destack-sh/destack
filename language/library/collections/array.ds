@@ -1,8 +1,17 @@
+import { todo } from "destack:error";
+import { type Iterable, type Iterator } from "destack:iter";
+import { type Index, type IndexSet } from "destack:ops";
+import { type MaybeUninit, type Unique } from "destack:memory";
+
 /// A growable contiguous array.
 export class Array<T> {
-    /// The backing storage view.
-    data: Slice<T> = undefined!;
-    /// The allocated capacity in elements.
+    /// The backing storage.
+    storage: Unique<[MaybeUninit<T>]>;
+
+    /// The number of initialized elements.
+    initializedLength: usize = 0;
+
+    /// The allocated element count.
     capacity: usize = 0;
 }
 
@@ -12,227 +21,197 @@ export type ReadonlyArray<T> = readonly T[];
 /// Fixed-size array alias.
 export type FixedArray<T, comptime N: number> = [T; N];
 
-extension<T> of Array<T> implements Index<number, T>, IndexSet<number, T>, Iterable<T> {
+extension<T> of Array<T> implements Index<number>, IndexSet<number, T>, Iterable<T> {
+    /// The indexed output type.
+    type Output = T;
+
     /// Get the length of the array.
     get length(): number {
-        this.data.length
+        this.initializedLength as number
     }
 
     /// Check if the array is empty.
     get isEmpty(): boolean {
-        this.data.isEmpty
+        this.initializedLength == 0
     }
 
     /// Get the element at the index with bounds checks.
     index(i: number): T {
-        if (i < 0 || i >= this.length) {
-            undefined!
-        }
-
-        this.unsafeGet(i as usize)
+        todo("Array.index")
     }
 
     /// Set the element at the index with bounds checks.
     indexSet(i: number, value: T): void {
-        if (i < 0 || i >= this.length) {
-            undefined!
-        }
-
-        this.unsafeSet(i as usize, value)
+        todo("Array.indexSet")
     }
 
-    /// Get element at index (unchecked).
+    /// Get element at index without bounds checks.
     unsafeGet(i: usize): T {
-        this.data.unsafeGet(i)
+        todo("Array.unsafeGet")
     }
 
-    /// Set element at index (unchecked).
+    /// Set element at index without bounds checks.
     unsafeSet(i: usize, value: T): void {
-        this.data.indexSet(i as number, value)
+        todo("Array.unsafeSet")
+    }
+
+    /// Return the initialized mutable slice.
+    asSlice(): &[T] {
+        todo("Array.asSlice")
+    }
+
+    /// Return the initialized readonly slice.
+    asReadonlySlice(): &readonly [T] {
+        todo("Array.asReadonlySlice")
     }
 
     /// Push an element to the end.
     push(value: T): void {
-        // #Incomplete
+        todo("Array.push")
     }
 
     /// Pop an element from the end.
     pop(): T | undefined {
-        if (this.isEmpty) {
-            return undefined;
-        }
-
-        // #Incomplete
-        undefined
+        todo("Array.pop")
     }
 
     /// Get the first element.
     first(): T | undefined {
-        if (this.isEmpty) {
-            return undefined;
-        }
-
-        this.unsafeGet(0)
+        todo("Array.first")
     }
 
     /// Get the last element.
     last(): T | undefined {
-        if (this.isEmpty) {
-            return undefined;
-        }
-
-        this.unsafeGet(this.data.length as usize - 1)
+        todo("Array.last")
     }
 
     /// Clear all elements.
     clear(): void {
-        // #Incomplete
+        todo("Array.clear")
     }
 
     /// Reserve capacity for at least `additional` more elements.
     reserve(additional: usize): void {
-        // #Incomplete
+        todo("Array.reserve")
     }
 
     /// Shrink capacity to fit current length.
     shrinkToFit(): void {
-        // #Incomplete
+        todo("Array.shrinkToFit")
     }
 
     /// Create an iterator over the array.
-    [Symbol.iterator](): Iterator<T> {
-        // #Incomplete
-        undefined!
+    iterator(): Iterator<T> {
+        todo("Array.iterator")
     }
 
     /// Map each element to a new value.
     map<U>(f: (value: T, index: number) => U): Array<U> {
-        // #Incomplete
-        undefined!
+        todo("Array.map")
     }
 
     /// Filter elements by predicate.
     filter(predicate: (value: T, index: number) => boolean): Array<T> {
-        // #Incomplete
-        undefined!
+        todo("Array.filter")
     }
 
     /// Reduce array to single value.
     reduce<U>(f: (acc: U, value: T, index: number) => U, initial: U): U {
-        // #Incomplete
-        initial
+        todo("Array.reduce")
     }
 
     /// Find first element matching predicate.
     find(predicate: (value: T, index: number) => boolean): T | undefined {
-        // #Incomplete
-        undefined
+        todo("Array.find")
     }
 
     /// Find index of first element matching predicate.
     findIndex(predicate: (value: T, index: number) => boolean): number {
-        // #Incomplete
-        -1
+        todo("Array.findIndex")
     }
 
     /// Check if any element matches predicate.
     some(predicate: (value: T, index: number) => boolean): boolean {
-        // #Incomplete
-        false
+        todo("Array.some")
     }
 
     /// Check if all elements match predicate.
     every(predicate: (value: T, index: number) => boolean): boolean {
-        // #Incomplete
-        true
+        todo("Array.every")
     }
 
     /// Execute function for each element.
     forEach(f: (value: T, index: number) => void): void {
-        // #Incomplete
+        todo("Array.forEach")
     }
 
     /// Check if array includes a value.
     includes(value: T, fromIndex?: number): boolean {
-        // #Incomplete
-        false
+        todo("Array.includes")
     }
 
-    /// Find index of value.
+    /// Find the index of a value.
     indexOf(value: T, fromIndex?: number): number {
-        // #Incomplete
-        -1
+        todo("Array.indexOf")
     }
 
     /// Join elements into a string.
     join(separator?: string): string {
-        // #Incomplete
-        ""
+        todo("Array.join")
     }
 
     /// Reverse the array in place.
     reverse(): this {
-        // #Incomplete
-        this
+        todo("Array.reverse")
     }
 
     /// Sort the array in place.
     sort(compareFn?: (a: T, b: T) => number): this {
-        // #Incomplete
-        this
+        todo("Array.sort")
     }
 
     /// Get a slice of the array.
     slice(start?: number, end?: number): Array<T> {
-        // #Incomplete
-        undefined!
+        todo("Array.slice")
     }
 
     /// Splice elements.
     splice(start: number, deleteCount?: number, ...items: T[]): Array<T> {
-        // #Incomplete
-        undefined!
+        todo("Array.splice")
     }
 
     /// Concatenate arrays.
     concat(...items: Array<T>[]): Array<T> {
-        // #Incomplete
-        undefined!
+        todo("Array.concat")
     }
 
     /// Flatten nested arrays.
     flat<D extends number = 1>(depth?: D): Array<unknown> {
-        // #Incomplete
-        undefined!
+        todo("Array.flat")
     }
 
     /// Map and flatten.
     flatMap<U>(f: (value: T, index: number) => Array<U>): Array<U> {
-        // #Incomplete
-        undefined!
+        todo("Array.flatMap")
     }
 
     /// Create an array from an iterable.
     static from<T>(values: Iterable<T>): Array<T> {
-        // #Incomplete
-        undefined!
+        todo("Array.from")
     }
 
     /// Create an array from a fixed-size array.
     static fromSized<T>(values: readonly T[]): Array<T> {
-        // #Incomplete
-        undefined!
+        todo("Array.fromSized")
     }
 }
 
 /// Create an array with the given elements.
 export function arrayOf<T>(...elements: T[]): Array<T> {
-    // #Incomplete
-    undefined!
+    todo("arrayOf")
 }
 
 /// Create an array with the given length, filled with a value.
 export function arrayFill<T>(length: usize, value: T): Array<T> {
-    // #Incomplete
-    undefined!
+    todo("arrayFill")
 }

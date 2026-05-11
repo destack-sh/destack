@@ -1,43 +1,67 @@
+import { todo } from "destack:error";
+import { type Iterable, type Iterator } from "destack:iter";
+import { type MaybeUninit, type Unique } from "destack:memory";
+import { type Index, type IndexSet } from "destack:ops";
+
 /// Ordered hash map with one hash index and one ordered entry array.
 export class Map<K, V> {
-    /// Number of entries in the map.
-    length: uint32 = 0;
-    /// Number of allocated hash slots.
-    tableCapacity: uint32 = 0;
-    /// Number of allocated entry slots.
-    entryCapacity: uint32 = 0;
-    /// Raw control-byte storage owned by this map.
-    control: *uint8 = null as *uint8;
-    /// Raw bucket-to-entry index storage owned by this map.
-    buckets: *uint32 = null as *uint32;
-    /// Raw ordered entry storage owned by this map.
-    entries: *MapEntry<K, V> = null as *MapEntry<K, V>;
+    /// The hash table storage.
+    table: HashTable<K, V>;
 }
 
-/// One stored key-value pair in insertion order.
-struct MapEntry<K, V> {
+/// Ordered open-addressing hash table.
+export struct HashTable<K, V> {
+    /// Number of initialized entries.
+    length: uint32 = 0;
+
+    /// Number of allocated hash slots.
+    tableCapacity: uint32 = 0;
+
+    /// Number of allocated entry slots.
+    entryCapacity: uint32 = 0;
+
+    /// Control-byte storage.
+    control: Unique<[uint8]>;
+
+    /// Bucket-to-entry index storage.
+    buckets: Unique<[uint32]>;
+
+    /// Ordered entry storage.
+    entries: Unique<[MaybeUninit<HashEntry<K, V>>]>;
+}
+
+/// One stored table entry in insertion order.
+export struct HashEntry<K, V> {
     /// Cached hash for lookup.
     hash: uint64;
+
     /// The entry key.
     key: K;
+
     /// The entry value.
     value: V;
 }
 
-/// TypeScript-compatible Record type alias.
-/// In native, Record<K, V> is a Map<K, V>.
+/// Key-value map alias.
 export type Record<K, V> = Map<K, V>;
 
-extension<K, V> of Map<K, V> implements Index<K, V>, IndexSet<K, V>, Iterable<[K, V]> {
+extension<K, V> of Map<K, V> implements Index<K>, IndexSet<K, V>, Iterable<[K, V]> {
+    /// The indexed output type.
+    type Output = V | undefined;
+
     /// Get the number of entries.
     get size(): number {
-        this.length as number
+        this.table.length as number
+    }
+
+    /// Check if the map is empty.
+    get isEmpty(): boolean {
+        this.table.length == 0
     }
 
     /// Get a value by key.
     get(key: K): V | undefined {
-        // #Incomplete
-        undefined
+        todo("Map.get")
     }
 
     /// Index operator for get.
@@ -47,81 +71,66 @@ extension<K, V> of Map<K, V> implements Index<K, V>, IndexSet<K, V>, Iterable<[K
 
     /// Set a key-value pair.
     set(key: K, value: V): this {
-        // #Incomplete
-        this
+        todo("Map.set")
     }
 
     /// Index operator for set.
     indexSet(key: K, value: V): void {
-        this.set(key, value);
+        this.set(key, value)
     }
 
     /// Check if a key exists.
     has(key: K): boolean {
-        // #Incomplete
-        false
+        todo("Map.has")
     }
 
     /// Delete a key-value pair.
     delete(key: K): boolean {
-        // #Incomplete
-        false
+        todo("Map.delete")
     }
 
     /// Clear all entries.
     clear(): void {
-        // #Incomplete
-        this.length = 0;
+        todo("Map.clear")
     }
 
     /// Get all keys.
     keys(): Iterator<K> {
-        // #Incomplete
-        undefined!
+        todo("Map.keys")
     }
 
     /// Get all values.
     values(): Iterator<V> {
-        // #Incomplete
-        undefined!
+        todo("Map.values")
     }
 
     /// Get all entries.
     entries(): Iterator<[K, V]> {
-        // #Incomplete
-        undefined!
+        todo("Map.entries")
     }
 
     /// Iterate over entries.
-    [Symbol.iterator](): Iterator<[K, V]> {
+    iterator(): Iterator<[K, V]> {
         this.entries()
     }
 
     /// Execute function for each entry.
     forEach(f: (value: V, key: K, map: Map<K, V>) => void, thisArg?: unknown): void {
-        // #Incomplete
-    }
-
-    /// Check if the map is empty.
-    get isEmpty(): boolean {
-        this.length == 0
+        todo("Map.forEach")
     }
 
     /// Create a new map from entries.
     static from<K, V>(entries: Iterable<[K, V]>): Map<K, V> {
-        // #Incomplete
-        undefined!
+        todo("Map.from")
     }
 
     /// Create an empty map.
     static new<K, V>(): Map<K, V> {
-        // #Incomplete
-        new Map<K, V>()
+        todo("Map.new")
     }
 
     /// Create a map with pre-allocated capacity.
     static withCapacity<K, V>(capacity: uint32): Map<K, V> {
-        // #Incomplete
-        undefined!
+        todo("Map.withCapacity")
     }
 }

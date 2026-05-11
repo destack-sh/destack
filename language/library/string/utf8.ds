@@ -1,0 +1,21 @@
+import { type Result, todo } from "destack:error";
+import { type Bytes } from "destack:bytes";
+
+/// Byte decoding failure.
+export struct DecodeError {
+    /// The byte offset where decoding failed.
+    offset: usize;
+
+    /// The error message.
+    message: string;
+}
+
+/// Encode text as UTF-8 bytes.
+export function encodeUtf8(text: string): Bytes {
+    todo("string.encodeUtf8")
+}
+
+/// Decode UTF-8 bytes as text.
+export function decodeUtf8(bytes: &readonly [uint8]): Result<string, DecodeError> {
+    todo("string.decodeUtf8")
+}

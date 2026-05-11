@@ -1,5 +1,3 @@
-import { intrinsic } from "../core/decorator/intrinsic.ds";
-
 /// Square root.
 @intrinsic("sqrt")
 export declare function sqrt<T: float>(x: T): T;

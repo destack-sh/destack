@@ -1,5 +1,3 @@
-import { intrinsic } from "../core/decorator/intrinsic.ds";
-
 /// Count leading zeros in an integer.
 ///
 /// Returns the number of leading zero bits in the binary representation.

@@ -1,0 +1,91 @@
+export * from "./float.ds";
+
+/// Floating point math functions and constants.
+export class Math {
+    /// Euler's number.
+    static readonly E: float64;
+
+    /// The natural logarithm of 10.
+    static readonly LN10: float64;
+
+    /// The natural logarithm of 2.
+    static readonly LN2: float64;
+
+    /// The base-2 logarithm of Euler's number.
+    static readonly LOG2E: float64;
+
+    /// The base-10 logarithm of Euler's number.
+    static readonly LOG10E: float64;
+
+    /// Pi.
+    static readonly PI: float64;
+
+    /// The square root of 1/2.
+    static readonly SQRT1_2: float64;
+
+    /// The square root of 2.
+    static readonly SQRT2: float64;
+
+    /// Return the absolute value of `value`.
+    static abs(value: number): float64;
+
+    /// Return the arccosine of `value`.
+    static acos(value: number): float64;
+
+    /// Return the arcsine of `value`.
+    static asin(value: number): float64;
+
+    /// Return the arctangent of `value`.
+    static atan(value: number): float64;
+
+    /// Return the angle from the positive x-axis to `y, x`.
+    static atan2(y: number, x: number): float64;
+
+    /// Return the smallest integer greater than or equal to `value`.
+    static ceil(value: number): float64;
+
+    /// Return the cosine of `value`.
+    static cos(value: number): float64;
+
+    /// Return e raised to `value`.
+    static exp(value: number): float64;
+
+    /// Return the largest integer less than or equal to `value`.
+    static floor(value: number): float64;
+
+    /// Return the natural logarithm of `value`.
+    static log(value: number): float64;
+
+    /// Return the base-2 logarithm of `value`.
+    static log2(value: number): float64;
+
+    /// Return the base-10 logarithm of `value`.
+    static log10(value: number): float64;
+
+    /// Return the maximum value.
+    static max(...values: number[]): float64;
+
+    /// Return the minimum value.
+    static min(...values: number[]): float64;
+
+    /// Return `base` raised to `exponent`.
+    static pow(base: number, exponent: number): float64;
+
+    /// Return a pseudo-random number in [0, 1).
+    static random(): float64;
+
+    /// Return `value` rounded to the nearest integer.
+    static round(value: number): float64;
+
+    /// Return the sine of `value`.
+    static sin(value: number): float64;
+
+    /// Return the square root of `value`.
+    static sqrt(value: number): float64;
+
+    /// Return the tangent of `value`.
+    static tan(value: number): float64;
+
+    /// Return `value` with its fractional digits truncated.
+    static trunc(value: number): float64;
+}

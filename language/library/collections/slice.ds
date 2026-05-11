@@ -1,7 +1,10 @@
-import { intrinsic } from "core/decorator/intrinsic.ds";
+import { panic, todo } from "destack:error";
+import { type Iterable } from "destack:iter";
+import { type Index, type IndexSet } from "destack:ops";
+import { type Array } from "./array.ds";
 
 /// A contiguous view into storage.
-export type Slice<T> = [T];
+export newtype Slice<T> = [T];
 
 /// Build a slice from raw storage.
 @intrinsic("slice.fromRaw")
@@ -19,7 +22,10 @@ declare function sliceUnsafeGet<T>(slice: Slice<T>, index: usize): T;
 @intrinsic("slice.set")
 declare function sliceUnsafeSet<T>(slice: &Slice<T>, index: usize, value: T): void;
 
-extension<T> of Slice<T> implements Index<number, T>, IndexSet<number, T>, Iterable<T> {
+extension<T> of Slice<T> implements Index<number>, IndexSet<number, T>, Iterable<T> {
+    /// The indexed output type.
+    type Output = T;
+
     /// Get the length of the slice.
     get length(): number {
         sliceLength(this) as number
@@ -35,7 +41,7 @@ extension<T> of Slice<T> implements Index<number, T>, IndexSet<number, T>, Itera
         let length = sliceLength(this) as number;
 
         if (i < 0 || i >= length) {
-            undefined!
+            panic("slice index out of bounds")
         }
 
         this.unsafeGet(i as usize)
@@ -48,8 +54,7 @@ extension<T> of Slice<T> implements Index<number, T>, IndexSet<number, T>, Itera
 
     /// Get a sub-slice.
     slice(start?: number, end?: number): Slice<T> {
-        // #Incomplete
-        undefined!
+        todo("Slice.slice")
     }
 
     /// Get the first element.
@@ -74,14 +79,12 @@ extension<T> of Slice<T> implements Index<number, T>, IndexSet<number, T>, Itera
 
     /// Split at index into two slices.
     splitAt(index: number): (Slice<T>, Slice<T>) {
-        // #Incomplete
-        undefined!
+        todo("Slice.splitAt")
     }
 
     /// Copy slice contents to an owned array.
     toArray(): Array<T> {
-        // #Incomplete
-        undefined!
+        todo("Slice.toArray")
     }
 
     /// Set the element at the index with bounds checks.
@@ -89,7 +92,7 @@ extension<T> of Slice<T> implements Index<number, T>, IndexSet<number, T>, Itera
         let length = sliceLength(this) as number;
 
         if (i < 0 || i >= length) {
-            undefined!
+            panic("slice index out of bounds")
         }
 
         sliceUnsafeSet(this, i as usize, value);
@@ -97,21 +100,21 @@ extension<T> of Slice<T> implements Index<number, T>, IndexSet<number, T>, Itera
 
     /// Fill the slice with a value.
     fill(this: &Slice<T>, value: T): void {
-        // #Incomplete
+        todo("Slice.fill")
     }
 
     /// Copy from another slice.
     copyFrom(this: &Slice<T>, src: Slice<T>): void {
-        // #Incomplete
+        todo("Slice.copyFrom")
     }
 
     /// Swap two elements.
     swap(this: &Slice<T>, i: number, j: number): void {
-        // #Incomplete
+        todo("Slice.swap")
     }
 
     /// Reverse in place.
     reverse(this: &Slice<T>): void {
-        // #Incomplete
+        todo("Slice.reverse")
     }
 }

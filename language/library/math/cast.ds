@@ -1,5 +1,3 @@
-import { intrinsic } from "../core/decorator/intrinsic.ds";
-
 // saturating conversions: clamp to bounds and map NaN to zero
 
 /// Saturating float to signed integer conversion.

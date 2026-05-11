@@ -7,6 +7,9 @@ export {
     rotateLeft,
     rotateRight,
 } from "./bits.ds";
+export * from "./bigint.ds";
+export * from "./number.ds";
+export * from "./math.ds";
 
 export {
     sqrt,
