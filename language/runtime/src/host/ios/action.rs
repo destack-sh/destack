@@ -1,24 +1,24 @@
 use crate::host::HostSessionId;
 use crate::host::os::apple::abi::registry::resolve_ios_bindings;
-use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
+use crate::runtime::action::{HostAction, HostActionSet};
 
-/// Return the static iOS host capabilities.
-pub(crate) fn static_capabilities() -> PlatformCapabilitySet {
-    let mut host_capabilities = PlatformCapabilitySet::new();
+/// Return the static iOS host actions.
+pub(crate) fn static_actions() -> HostActionSet {
+    let mut host_actions = HostActionSet::new();
 
-    host_capabilities.insert_capability(PlatformCapability::OsLifecycleRead);
-    host_capabilities.insert_capability(PlatformCapability::OsIntentRead);
-    host_capabilities.insert_capability(PlatformCapability::OsPower);
-    host_capabilities.insert_capability(PlatformCapability::OsPermissionRead);
-    host_capabilities.insert_capability(PlatformCapability::OsNotificationPermission);
+    host_actions.insert_action(HostAction::OsLifecycleRead);
+    host_actions.insert_action(HostAction::OsIntentRead);
+    host_actions.insert_action(HostAction::OsPower);
+    host_actions.insert_action(HostAction::OsPermissionRead);
+    host_actions.insert_action(HostAction::OsNotificationPermission);
 
-    host_capabilities
+    host_actions
 }
 
-/// Return the runtime-dependent iOS host capabilities.
-pub(crate) fn session_capabilities(host_session_id: HostSessionId) -> PlatformCapabilitySet {
+/// Return the runtime-dependent iOS host actions.
+pub(crate) fn session_actions(host_session_id: HostSessionId) -> HostActionSet {
     let Ok(bindings) = resolve_ios_bindings(host_session_id.0) else {
-        return PlatformCapabilitySet::new();
+        return HostActionSet::new();
     };
 
     let document_callbacks = &bindings.document;
@@ -74,61 +74,61 @@ pub(crate) fn session_capabilities(host_session_id: HostSessionId) -> PlatformCa
         || notification_callbacks.cancel_all.is_some()
         || notification_callbacks.post.is_some();
 
-    let mut capabilities = PlatformCapabilitySet::new();
+    let mut actions = HostActionSet::new();
 
     if has_document_pick_callbacks {
-        capabilities.insert_capability(PlatformCapability::OsDocumentPick);
+        actions.insert_action(HostAction::OsDocumentPick);
     }
 
     if has_permission_request_callbacks {
-        capabilities.insert_capability(PlatformCapability::OsPermissionRequest);
+        actions.insert_action(HostAction::OsPermissionRequest);
     }
 
     if has_intent_callbacks {
-        capabilities.insert_capability(PlatformCapability::OsIntentWrite);
+        actions.insert_action(HostAction::OsIntentWrite);
     }
 
     if has_location_read_callbacks {
-        capabilities.insert_capability(PlatformCapability::OsLocationRead);
+        actions.insert_action(HostAction::OsLocationRead);
     }
 
     if has_location_watch_callbacks {
-        capabilities.insert_capability(PlatformCapability::OsLocationWatch);
+        actions.insert_action(HostAction::OsLocationWatch);
     }
 
     if has_background_callbacks {
-        capabilities.insert_capability(PlatformCapability::OsBackgroundControl);
+        actions.insert_action(HostAction::OsBackgroundControl);
     }
 
     if has_calendar_read_callbacks {
-        capabilities.insert_capability(PlatformCapability::OsCalendarRead);
+        actions.insert_action(HostAction::OsCalendarRead);
     }
 
     if has_calendar_write_callbacks {
-        capabilities.insert_capability(PlatformCapability::OsCalendarWrite);
+        actions.insert_action(HostAction::OsCalendarWrite);
     }
 
     if has_contact_read_callbacks {
-        capabilities.insert_capability(PlatformCapability::OsContactRead);
+        actions.insert_action(HostAction::OsContactRead);
     }
 
     if has_contact_write_callbacks {
-        capabilities.insert_capability(PlatformCapability::OsContactWrite);
+        actions.insert_action(HostAction::OsContactWrite);
     }
 
     if has_media_read_callbacks {
-        capabilities.insert_capability(PlatformCapability::OsMediaRead);
+        actions.insert_action(HostAction::OsMediaRead);
     }
 
     if has_media_write_callbacks {
-        capabilities.insert_capability(PlatformCapability::OsMediaWrite);
+        actions.insert_action(HostAction::OsMediaWrite);
     }
 
     if has_notification_post_callbacks {
-        capabilities.insert_capability(PlatformCapability::OsNotificationPost);
+        actions.insert_action(HostAction::OsNotificationPost);
     }
 
-    capabilities
+    actions
 }
 
 #[cfg(test)]
@@ -169,9 +169,9 @@ mod tests {
     };
     use crate::host::{HOST_STATUS_OK, HostQueue, HostSessionId, HostSessionRegistry, Platform};
     use crate::platform::abi::NativeStringRef;
-    use crate::runtime::capability::PlatformCapability;
+    use crate::runtime::action::HostAction;
 
-    use super::{session_capabilities, static_capabilities};
+    use super::{session_actions, static_actions};
 
     /// Return the shared test lock for iOS bindings registration.
     fn callback_test_lock() -> &'static Mutex<()> {
@@ -348,48 +348,48 @@ mod tests {
         HOST_STATUS_OK
     }
 
-    /// Report the static iOS capability baseline.
+    /// Report the static iOS action baseline.
     #[test]
-    fn test_static_capabilities_report_ios_host_baseline() {
-        let capabilities = static_capabilities();
+    fn test_static_actions_report_ios_host_baseline() {
+        let actions = static_actions();
 
-        assert!(capabilities.contains_capability(PlatformCapability::OsLifecycleRead));
-        assert!(capabilities.contains_capability(PlatformCapability::OsIntentRead));
-        assert!(capabilities.contains_capability(PlatformCapability::OsPower));
-        assert!(capabilities.contains_capability(PlatformCapability::OsPermissionRead));
-        assert!(capabilities.contains_capability(PlatformCapability::OsNotificationPermission));
+        assert!(actions.contains_action(HostAction::OsLifecycleRead));
+        assert!(actions.contains_action(HostAction::OsIntentRead));
+        assert!(actions.contains_action(HostAction::OsPower));
+        assert!(actions.contains_action(HostAction::OsPermissionRead));
+        assert!(actions.contains_action(HostAction::OsNotificationPermission));
     }
 
-    /// Report no session capabilities without one registered iOS bindings table.
+    /// Report no session actions without one registered iOS bindings table.
     #[test]
-    fn test_session_capabilities_return_empty_without_ios_bindings() {
+    fn test_session_actions_return_empty_without_ios_bindings() {
         let _lock = callback_test_lock().lock().unwrap();
         let (_queue, _registration, runtime_id) = register_ios_runtime();
 
-        let capabilities = session_capabilities(HostSessionId(runtime_id));
+        let actions = session_actions(HostSessionId(runtime_id));
 
-        assert!(!capabilities.contains_capability(PlatformCapability::OsDocumentPick));
-        assert!(!capabilities.contains_capability(PlatformCapability::OsPermissionRequest));
-        assert!(!capabilities.contains_capability(PlatformCapability::OsIntentWrite));
-        assert!(!capabilities.contains_capability(PlatformCapability::OsLocationRead));
-        assert!(!capabilities.contains_capability(PlatformCapability::OsLocationWatch));
-        assert!(!capabilities.contains_capability(PlatformCapability::OsBackgroundControl));
-        assert!(!capabilities.contains_capability(PlatformCapability::OsCalendarRead));
-        assert!(!capabilities.contains_capability(PlatformCapability::OsCalendarWrite));
-        assert!(!capabilities.contains_capability(PlatformCapability::OsContactRead));
-        assert!(!capabilities.contains_capability(PlatformCapability::OsContactWrite));
-        assert!(!capabilities.contains_capability(PlatformCapability::OsMediaRead));
-        assert!(!capabilities.contains_capability(PlatformCapability::OsMediaWrite));
-        assert!(!capabilities.contains_capability(PlatformCapability::OsNotificationPost));
+        assert!(!actions.contains_action(HostAction::OsDocumentPick));
+        assert!(!actions.contains_action(HostAction::OsPermissionRequest));
+        assert!(!actions.contains_action(HostAction::OsIntentWrite));
+        assert!(!actions.contains_action(HostAction::OsLocationRead));
+        assert!(!actions.contains_action(HostAction::OsLocationWatch));
+        assert!(!actions.contains_action(HostAction::OsBackgroundControl));
+        assert!(!actions.contains_action(HostAction::OsCalendarRead));
+        assert!(!actions.contains_action(HostAction::OsCalendarWrite));
+        assert!(!actions.contains_action(HostAction::OsContactRead));
+        assert!(!actions.contains_action(HostAction::OsContactWrite));
+        assert!(!actions.contains_action(HostAction::OsMediaRead));
+        assert!(!actions.contains_action(HostAction::OsMediaWrite));
+        assert!(!actions.contains_action(HostAction::OsNotificationPost));
     }
 
-    /// Report session capabilities from the registered iOS bindings table.
+    /// Report session actions from the registered iOS bindings table.
     #[test]
-    fn test_session_capabilities_follow_ios_bindings_table() {
+    fn test_session_actions_follow_ios_bindings_table() {
         let _lock = callback_test_lock().lock().unwrap();
         let (_queue, _registration, runtime_id) = register_ios_runtime();
 
-        // register one representative callback for every dynamic iOS lane
+        // register one representative callback for every dynamic iOS action
         let status = register_ios_bindings(
             runtime_id,
             IosHostBindings {
@@ -442,21 +442,21 @@ mod tests {
         );
         assert_eq!(status, HOST_STATUS_OK);
 
-        // derive one runtime-scoped capability set from that table
-        let capabilities = session_capabilities(HostSessionId(runtime_id));
+        // derive one runtime-scoped action set from that table
+        let actions = session_actions(HostSessionId(runtime_id));
 
-        assert!(capabilities.contains_capability(PlatformCapability::OsDocumentPick));
-        assert!(capabilities.contains_capability(PlatformCapability::OsPermissionRequest));
-        assert!(capabilities.contains_capability(PlatformCapability::OsIntentWrite));
-        assert!(capabilities.contains_capability(PlatformCapability::OsLocationRead));
-        assert!(capabilities.contains_capability(PlatformCapability::OsLocationWatch));
-        assert!(capabilities.contains_capability(PlatformCapability::OsBackgroundControl));
-        assert!(capabilities.contains_capability(PlatformCapability::OsCalendarRead));
-        assert!(capabilities.contains_capability(PlatformCapability::OsCalendarWrite));
-        assert!(capabilities.contains_capability(PlatformCapability::OsContactRead));
-        assert!(capabilities.contains_capability(PlatformCapability::OsContactWrite));
-        assert!(capabilities.contains_capability(PlatformCapability::OsMediaRead));
-        assert!(capabilities.contains_capability(PlatformCapability::OsMediaWrite));
-        assert!(capabilities.contains_capability(PlatformCapability::OsNotificationPost));
+        assert!(actions.contains_action(HostAction::OsDocumentPick));
+        assert!(actions.contains_action(HostAction::OsPermissionRequest));
+        assert!(actions.contains_action(HostAction::OsIntentWrite));
+        assert!(actions.contains_action(HostAction::OsLocationRead));
+        assert!(actions.contains_action(HostAction::OsLocationWatch));
+        assert!(actions.contains_action(HostAction::OsBackgroundControl));
+        assert!(actions.contains_action(HostAction::OsCalendarRead));
+        assert!(actions.contains_action(HostAction::OsCalendarWrite));
+        assert!(actions.contains_action(HostAction::OsContactRead));
+        assert!(actions.contains_action(HostAction::OsContactWrite));
+        assert!(actions.contains_action(HostAction::OsMediaRead));
+        assert!(actions.contains_action(HostAction::OsMediaWrite));
+        assert!(actions.contains_action(HostAction::OsNotificationPost));
     }
 }

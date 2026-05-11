@@ -1,12 +1,12 @@
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::error::not_supported;
-use crate::host::os::android::capability;
+use crate::host::os::android::action;
 use crate::host::os::android::ingress::r#loop as android_ingress_loop;
 use crate::host::os::android::request::submit_request;
 use crate::host::{
     HostAdapter, HostRequest, HostRequestOutcome, HostSessionId, Platform, RequestContext,
 };
-use crate::runtime::capability::PlatformCapabilitySet;
+use crate::runtime::action::HostActionSet;
 
 /// Android host implementation.
 #[derive(Debug, Default)]
@@ -24,8 +24,8 @@ impl HostAdapter for AndroidHost {
         Platform::Android
     }
 
-    fn static_capabilities(&self) -> PlatformCapabilitySet {
-        capability::static_capabilities()
+    fn static_actions(&self) -> HostActionSet {
+        action::static_actions()
     }
 
     fn advance_native_ingress(&self) -> RuntimeResult<()> {
@@ -35,8 +35,8 @@ impl HostAdapter for AndroidHost {
         Ok(())
     }
 
-    fn session_capabilities(&self, host_session_id: HostSessionId) -> PlatformCapabilitySet {
-        capability::session_capabilities(host_session_id)
+    fn session_actions(&self, host_session_id: HostSessionId) -> HostActionSet {
+        action::session_actions(host_session_id)
     }
 
     fn submit_request(

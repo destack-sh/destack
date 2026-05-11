@@ -7,23 +7,23 @@ use crate::platform::core::{invalid_argument, io_operation_error, not_supported}
 use crate::platform::diagnostic::PlatformError;
 use crate::platform::fs;
 use crate::platform::fs::core as core_fs;
-use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
+use crate::runtime::action::{HostAction, HostActionSet};
 
 /// Canonical operation name for `intentOpenPath`.
 const HOST_INTENT_OPEN_PATH_OPERATION: &str = "destack.os.intent.openPath";
 /// Canonical operation name for `intentOpenUrl`.
 const HOST_INTENT_OPEN_URL_OPERATION: &str = "destack.os.intent.openUrl";
 
-/// Return request capabilities for one Unix desktop request adapter.
-pub(crate) fn request_capabilities() -> PlatformCapabilitySet {
-    let mut capabilities = PlatformCapabilitySet::new();
+/// Return request actions for one Unix desktop request adapter.
+pub(crate) fn request_actions() -> HostActionSet {
+    let mut actions = HostActionSet::new();
 
     // desktop launchers expose outbound intent routing when present
     if unix_launcher().is_some() {
-        capabilities.insert_capability(PlatformCapability::OsIntentWrite);
+        actions.insert_action(HostAction::OsIntentWrite);
     }
 
-    capabilities
+    actions
 }
 
 /// Submit one normalized Unix desktop host request.

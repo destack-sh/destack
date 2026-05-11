@@ -1,11 +1,11 @@
 use crate::diagnostic::RuntimeResult;
 use crate::host::os::windows::ingress::r#loop as windows_message_loop;
-use crate::host::os::windows::{ingress, request};
+use crate::host::os::windows::{action, ingress, request};
 use crate::host::{
     HostAdapter, HostRequest, HostRequestOutcome, HostSessionId, Platform, RequestContext,
     SessionContext,
 };
-use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
+use crate::runtime::action::HostActionSet;
 
 /// Windows host implementation.
 #[derive(Debug, Default)]
@@ -23,20 +23,12 @@ impl HostAdapter for WindowsHost {
         Platform::Windows
     }
 
-    fn static_capabilities(&self) -> PlatformCapabilitySet {
-        let mut host_capabilities = PlatformCapabilitySet::new();
-
-        // windows exposes runtime host intent ingress callbacks
-        host_capabilities.insert_capability(PlatformCapability::OsLifecycleRead);
-        host_capabilities.insert_capability(PlatformCapability::OsIntentRead);
-        host_capabilities.insert_capability(PlatformCapability::OsPower);
-        host_capabilities.insert_capability(PlatformCapability::OsPermissionRead);
-
-        host_capabilities
+    fn static_actions(&self) -> HostActionSet {
+        action::static_actions()
     }
 
-    fn session_capabilities(&self, _host_runtime_id: HostSessionId) -> PlatformCapabilitySet {
-        request::request_capabilities()
+    fn session_actions(&self, _host_runtime_id: HostSessionId) -> HostActionSet {
+        action::session_actions()
     }
 
     fn advance_native_ingress(&self) -> RuntimeResult<()> {

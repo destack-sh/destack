@@ -13,4 +13,4 @@ pub(super) use core::{
     CALENDAR_INTERFACE, CALENDAR_LIST_OPERATION, DESTACK_ICAL_PRODID, EDS_MOD_THIS,
     EDS_OPERATION_FLAGS,
 };
-pub(crate) use dispatch::{request_capabilities, submit_calendar_request};
+pub(crate) use dispatch::{request_actions, submit_calendar_request};

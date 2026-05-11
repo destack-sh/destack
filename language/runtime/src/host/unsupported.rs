@@ -1,5 +1,5 @@
 use crate::host::{HostAdapter, Platform};
-use crate::runtime::capability::PlatformCapabilitySet;
+use crate::runtime::action::HostActionSet;
 
 /// Unsupported host implementation.
 #[derive(Debug, Default)]
@@ -14,10 +14,10 @@ impl UnsupportedHost {
 
 impl HostAdapter for UnsupportedHost {
     fn platform(&self) -> Platform {
-        Platform::Universal
+        Platform::Unknown
     }
 
-    fn static_capabilities(&self) -> PlatformCapabilitySet {
-        PlatformCapabilitySet::new()
+    fn static_actions(&self) -> HostActionSet {
+        HostActionSet::new()
     }
 }

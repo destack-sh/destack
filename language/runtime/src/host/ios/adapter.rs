@@ -1,12 +1,12 @@
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::error::not_supported;
 use crate::host::os::apple::ingress::r#loop as apple_ingress_loop;
-use crate::host::os::ios::capability;
+use crate::host::os::ios::action;
 use crate::host::os::ios::request::submit_request;
 use crate::host::{
     HostAdapter, HostRequest, HostRequestOutcome, HostSessionId, Platform, RequestContext,
 };
-use crate::runtime::capability::PlatformCapabilitySet;
+use crate::runtime::action::HostActionSet;
 
 /// iOS host implementation.
 #[derive(Debug, Default)]
@@ -24,8 +24,8 @@ impl HostAdapter for IosHost {
         Platform::IOS
     }
 
-    fn static_capabilities(&self) -> PlatformCapabilitySet {
-        capability::static_capabilities()
+    fn static_actions(&self) -> HostActionSet {
+        action::static_actions()
     }
 
     fn is_process_main_context(&self) -> bool {
@@ -39,8 +39,8 @@ impl HostAdapter for IosHost {
         Ok(())
     }
 
-    fn session_capabilities(&self, host_session_id: HostSessionId) -> PlatformCapabilitySet {
-        capability::session_capabilities(host_session_id)
+    fn session_actions(&self, host_session_id: HostSessionId) -> HostActionSet {
+        action::session_actions(host_session_id)
     }
 
     fn submit_request(

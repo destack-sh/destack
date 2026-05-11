@@ -3,33 +3,33 @@ use crate::host::os::unix::request;
 use crate::host::{HostRequest, HostRequestOutcome, HostRequestResult, RequestContext};
 use crate::platform::core::not_supported;
 use crate::platform::os::{Permission, PermissionEntry, PermissionState};
-use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
+use crate::runtime::action::{HostAction, HostActionSet};
 
-/// Return dynamic macOS request capabilities.
-pub(crate) fn request_capabilities() -> PlatformCapabilitySet {
-    let mut capabilities = request::request_capabilities();
-    capabilities.extend_capabilities([
-        PlatformCapability::OsBackgroundControl,
-        PlatformCapability::OsBackgroundRead,
-        PlatformCapability::OsCalendarRead,
-        PlatformCapability::OsCalendarWrite,
-        PlatformCapability::OsContactRead,
-        PlatformCapability::OsContactWrite,
-        PlatformCapability::OsDocumentControl,
-        PlatformCapability::OsDocumentPick,
-        PlatformCapability::OsDocumentWrite,
-        PlatformCapability::OsLocationRead,
-        PlatformCapability::OsLocationWatch,
-        PlatformCapability::OsMediaRead,
-        PlatformCapability::OsMediaWrite,
-        PlatformCapability::OsNotificationPermission,
-        PlatformCapability::OsNotificationPost,
+/// Return dynamic macOS request actions.
+pub(crate) fn request_actions() -> HostActionSet {
+    let mut actions = request::request_actions();
+    actions.extend_actions([
+        HostAction::OsBackgroundControl,
+        HostAction::OsBackgroundRead,
+        HostAction::OsCalendarRead,
+        HostAction::OsCalendarWrite,
+        HostAction::OsContactRead,
+        HostAction::OsContactWrite,
+        HostAction::OsDocumentControl,
+        HostAction::OsDocumentPick,
+        HostAction::OsDocumentWrite,
+        HostAction::OsLocationRead,
+        HostAction::OsLocationWatch,
+        HostAction::OsMediaRead,
+        HostAction::OsMediaWrite,
+        HostAction::OsNotificationPermission,
+        HostAction::OsNotificationPost,
     ]);
 
     // document picking is live on the concrete macOS host
-    capabilities.insert_capability(PlatformCapability::OsDocumentPick);
+    actions.insert_action(HostAction::OsDocumentPick);
 
-    capabilities
+    actions
 }
 
 /// Submit one normalized macOS host request.
@@ -47,7 +47,7 @@ pub(crate) fn submit_request(
         return Ok(outcome);
     }
 
-    // then service macOS location lanes
+    // then service macOS location requests
     if let Some(outcome) = super::location::submit_location_request(context, &request)? {
         return Ok(outcome);
     }
@@ -57,17 +57,17 @@ pub(crate) fn submit_request(
         return Ok(outcome);
     }
 
-    // then service macOS calendar lanes
+    // then service macOS calendar requests
     if let Some(outcome) = super::calendar::submit_calendar_request(context, &request)? {
         return Ok(outcome);
     }
 
-    // then service macOS contact lanes
+    // then service macOS contact requests
     if let Some(outcome) = super::contact::submit_contact_request(context, &request)? {
         return Ok(outcome);
     }
 
-    // otherwise handle macOS-specific request lanes
+    // otherwise handle macOS-specific requests
     match request {
         HostRequest::OsDocumentPick { options } => Ok(HostRequestOutcome::immediate(
             HostRequestResult::DocumentDescriptors(super::document::pick_documents(

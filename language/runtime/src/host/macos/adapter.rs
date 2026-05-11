@@ -1,11 +1,11 @@
 use crate::diagnostic::RuntimeResult;
 use crate::host::os::apple::ingress::r#loop as apple_ingress_loop;
-use crate::host::os::macos::{capability, ingress, request};
+use crate::host::os::macos::{action, ingress, request};
 use crate::host::{
     HostAdapter, HostRequest, HostRequestOutcome, HostSessionId, Platform, RequestContext,
     SessionContext,
 };
-use crate::runtime::capability::PlatformCapabilitySet;
+use crate::runtime::action::HostActionSet;
 
 /// macOS host implementation.
 #[derive(Debug, Default)]
@@ -23,12 +23,12 @@ impl HostAdapter for MacosHost {
         Platform::MacOS
     }
 
-    fn static_capabilities(&self) -> PlatformCapabilitySet {
-        capability::static_capabilities()
+    fn static_actions(&self) -> HostActionSet {
+        action::static_actions()
     }
 
-    fn session_capabilities(&self, _host_runtime_id: HostSessionId) -> PlatformCapabilitySet {
-        request::request_capabilities()
+    fn session_actions(&self, _host_runtime_id: HostSessionId) -> HostActionSet {
+        request::request_actions()
     }
 
     fn is_process_main_context(&self) -> bool {

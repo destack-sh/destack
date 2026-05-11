@@ -3,14 +3,11 @@ use crate::host::os::linux::tests::{
     submit_test_location_request, unregister_test_location_runtime,
 };
 use crate::host::{HostRequest, HostRequestOutcome, HostSessionId, RequestContext};
-use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
+use crate::runtime::action::{HostAction, HostActionSet};
 
-/// Return dynamic Unix location capabilities for Linux tests.
-pub(crate) fn request_capabilities() -> PlatformCapabilitySet {
-    PlatformCapabilitySet::from_capabilities([
-        PlatformCapability::OsLocationRead,
-        PlatformCapability::OsLocationWatch,
-    ])
+/// Return dynamic Unix location actions for Linux tests.
+pub(crate) fn request_actions() -> HostActionSet {
+    HostActionSet::from_actions([HostAction::OsLocationRead, HostAction::OsLocationWatch])
 }
 
 /// Submit one Linux location request through the active test lane.

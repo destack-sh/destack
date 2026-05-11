@@ -1,6 +1,6 @@
-pub(crate) mod backend;
 #[cfg(all(unix, not(target_vendor = "apple"), not(target_os = "linux")))]
-mod capability;
+mod action;
+pub(crate) mod backend;
 #[cfg(all(unix, not(target_vendor = "apple"), not(target_os = "linux")))]
 mod category;
 #[cfg(all(unix, not(target_vendor = "apple"), not(target_os = "linux")))]

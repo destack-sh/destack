@@ -1,10 +1,10 @@
 use crate::diagnostic::RuntimeResult;
-use crate::host::os::linux::{ingress, request};
+use crate::host::os::linux::{action, ingress, request};
 use crate::host::{
     HostAdapter, HostRequest, HostRequestOutcome, HostSessionId, Platform, RequestContext,
     SessionContext,
 };
-use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
+use crate::runtime::action::HostActionSet;
 
 /// Linux host implementation.
 #[derive(Debug, Default)]
@@ -22,18 +22,12 @@ impl HostAdapter for LinuxHost {
         Platform::Linux
     }
 
-    fn static_capabilities(&self) -> PlatformCapabilitySet {
-        PlatformCapabilitySet::new()
+    fn static_actions(&self) -> HostActionSet {
+        action::static_actions()
     }
 
-    fn session_capabilities(&self, _host_runtime_id: HostSessionId) -> PlatformCapabilitySet {
-        let mut capabilities = request::request_capabilities();
-        capabilities.extend_capabilities([
-            PlatformCapability::OsBackgroundControl,
-            PlatformCapability::OsBackgroundRead,
-        ]);
-
-        capabilities
+    fn session_actions(&self, _host_runtime_id: HostSessionId) -> HostActionSet {
+        action::session_actions()
     }
 
     fn advance_session_ingress(&self, context: &SessionContext) -> RuntimeResult<()> {

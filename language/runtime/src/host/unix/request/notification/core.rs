@@ -12,7 +12,7 @@ use crate::platform::os::abi_generated::{
 use crate::platform::os::notification::runtime;
 use crate::platform::os::{NotificationPermissionState, NotificationPriority};
 
-use super::capability::{
+use super::action::{
     close_notification, unix_notification_server_available, unix_notification_supports_actions,
 };
 use super::category::set_categories as set_unix_categories;
