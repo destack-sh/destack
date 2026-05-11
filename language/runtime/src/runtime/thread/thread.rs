@@ -15,9 +15,11 @@ pub(crate) fn start_with_policy<T>(
 where
     T: Send + 'static,
 {
-    // reject policies that do not own one thread
     if !policy.mode.owns_thread() {
-        panic!("execution start requires one thread-owning execution mode");
+        return Err(core_platform::invalid_argument(
+            "execution.mode",
+            "execution start requires one thread-owning mode",
+        ));
     }
 
     let name = name.into();
@@ -30,8 +32,8 @@ where
                 operation,
                 None,
                 format!(
-                    "failed to start {lifetime} {mode} thread {name}: {error}",
-                    lifetime = policy.lifetime.name(),
+                    "failed to start {scope} {mode} thread {name}: {error}",
+                    scope = policy.scope.name(),
                     mode = policy.mode.name(),
                 ),
             )

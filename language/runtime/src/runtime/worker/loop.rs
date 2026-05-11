@@ -8,10 +8,12 @@ use parking_lot::Mutex;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core as core_platform;
-use crate::runtime::process::{ExecutionLifetime, ExecutionMode, ExecutionPolicy};
+use crate::runtime::thread::{ExecutionMode, ExecutionPolicy, ExecutionScope};
 
-use super::service::executor::state::{ExecutorFailure, ExecutorFailureKind, ExecutorState};
-use super::thread::start_with_policy;
+use crate::runtime::service::executor::state::{
+    ExecutorFailure, ExecutorFailureKind, ExecutorState,
+};
+use crate::runtime::thread::start_with_policy;
 
 /// One owned worker loop shutdown callback.
 pub(crate) type WorkerLoopShutdown = Box<dyn FnOnce() + Send + 'static>;
@@ -43,13 +45,21 @@ impl WorkerLoop {
     ) -> RuntimeResult<Self> {
         // policy
         if !matches!(
-            policy.lifetime,
-            ExecutionLifetime::Global | ExecutionLifetime::Instance
+            policy.scope,
+            ExecutionScope::Process | ExecutionScope::Resource
         ) {
-            panic!("worker loops must be global or instance-scoped");
+            return Err(core_platform::invalid_argument(
+                "execution.scope",
+                "worker loops must be process-scoped or resource-scoped",
+            ));
         }
 
-        policy.expect_mode(ExecutionMode::Loop);
+        if policy.mode != ExecutionMode::Loop {
+            return Err(core_platform::invalid_argument(
+                "execution.mode",
+                "worker loops require loop execution",
+            ));
+        }
 
         let (ready_tx, ready_rx) = sync_channel::<RuntimeResult<WorkerLoopShutdown>>(1);
         let thread_name = name.to_string();
@@ -141,7 +151,18 @@ fn worker_loop_main(
 ) {
     // record the thread identity before bootstrap
     if thread_id.set(thread::current().id()).is_err() {
-        panic!("worker loop thread id was already initialized");
+        state.mark_failed(ExecutorFailure::new(
+            ExecutorFailureKind::BootstrapPanic,
+            format!("worker loop {name} thread id was already initialized"),
+        ));
+
+        let error = core_platform::io_operation_error(
+            operation,
+            None,
+            format!("worker loop {name} thread id was already initialized"),
+        );
+        let _bootstrap_error_delivered = ready_tx.send(Err(error)).is_ok();
+        return;
     }
 
     // initialize the worker loop on its owning thread

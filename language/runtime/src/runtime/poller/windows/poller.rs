@@ -355,12 +355,10 @@ impl HostPoller for WindowsPoller {
             if pollfd.revents == 0 {
                 continue;
             }
-            let entry = self.entries[index];
-            if entry.is_none() {
+            let Some((resource_id, registration)) = self.entries[index] else {
                 self.wake.drain();
                 continue;
-            }
-            let (resource_id, registration) = entry.unwrap();
+            };
             let mask = event_mask_from_revents(pollfd.revents);
             let flags = event_flags_from_registration(registration.flags);
             output.push(PollerEvent {

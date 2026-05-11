@@ -1,7 +1,6 @@
 use super::{
-    BindingCallContext, RunnableScope, RuntimeScheduledCallbackHandle, Worker,
-    current_runnable_scope, enter_binding_call_context, enter_current_worker_context,
-    enter_runnable_scope,
+    BindingCallContext, RunnableScope, Worker, WorkerCallbackHandle, current_runnable_scope,
+    enter_binding_call_context, enter_current_worker_context, enter_runnable_scope,
 };
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::Session;
@@ -12,38 +11,29 @@ use crate::runtime::scheduler::{
     Microtask, Runnable, Task, TaskId, TaskStatus, Timer, TimerHandle,
 };
 use crate::runtime::time::timer::on_event_loop_timer_fire;
-use crate::runtime::world::WorldScope;
-use crate::runtime::{DropReason, RuntimeSharedHeap};
+use crate::runtime::world::WorldState;
+use crate::runtime::{DropReason, SharedHeap};
 use destack_workspace::TimeMode;
 use {destack_engine as engine, destack_heap as heap};
-
-/// Convert one configured runtime limit into a host usize.
-fn host_limit(value: u64, label: &str) -> RuntimeResult<usize> {
-    usize::try_from(value)
-        .map_err(|_| RuntimeError::Internal {
-            message: format!("runtime {label} exceeds host usize: {value}"),
-        })
-        .map_err(Box::new)
-}
 
 impl Worker {
     /// Run an entrypoint through the event loop with one external poller.
     pub(crate) fn run_entrypoint_with_host_and_poller(
         &mut self,
-        world: &WorldScope,
-        shared: &RuntimeSharedHeap,
+        world: &mut WorldState,
+        shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
         host: &Session,
         entry: &Entry,
         args: &[engine::Value],
-        poller: &mut Option<Box<dyn HostPoller>>,
+        poller: &mut dyn HostPoller,
     ) -> RuntimeResult<engine::Value> {
-        let agent_ptr = self as *const Worker;
+        let worker_ptr = self as *mut Worker;
         let event_loop = self.event_loop.as_ref() as *const _;
         let host_ptr = host as *const Session;
-        let world_ptr = world as *const WorldScope;
+        let world_ptr = world as *mut WorldState;
         let _context_guard = enter_current_worker_context(
-            agent_ptr,
+            worker_ptr,
             event_loop,
             host_ptr,
             world_ptr,
@@ -54,7 +44,7 @@ impl Worker {
         let _guard = enter_runnable_scope(RunnableScope::empty());
         let context = Context {
             heap: &mut self.heap,
-            shared_heap: shared.shared(),
+            shared_heap: shared.heap(),
             shared_allocator: &mut self.shared_allocator,
             shared_gc: &self.shared_gc_worker,
             worker_static: &mut self.statics,
@@ -98,13 +88,13 @@ impl Worker {
     /// Run the event loop until idle, timeout, or the target task completes.
     pub(crate) fn run_event_loop(
         &mut self,
-        world: &WorldScope,
-        shared: &RuntimeSharedHeap,
+        world: &mut WorldState,
+        shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
         host: &Session,
         target_task: Option<TaskId>,
         timeout_nanos: Option<u64>,
-        poller: &mut Option<Box<dyn HostPoller>>,
+        poller: &mut dyn HostPoller,
     ) -> RuntimeResult<Option<engine::Value>> {
         // capture one monotonic start timestamp for timeout accounting
         let start_mono_nanos = world.mono_nanos();
@@ -127,8 +117,8 @@ impl Worker {
             }
 
             // direct roots: worker execution may reshuffle shared roots
-            if progressed && shared.shared_gc_marking() {
-                shared.queue_shared_root_scan(self.id);
+            if progressed && shared.is_marking() {
+                shared.queue_root_scan(self.id);
             }
 
             // donate GC work before sleeping or declaring idle
@@ -160,8 +150,8 @@ impl Worker {
     /// Execute one local worker tick.
     pub(crate) fn tick(
         &mut self,
-        world: &WorldScope,
-        shared: &RuntimeSharedHeap,
+        world: &mut WorldState,
+        shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
         host: &Session,
     ) -> RuntimeResult<bool> {
@@ -171,8 +161,8 @@ impl Worker {
     /// Execute one local worker tick.
     fn tick_once(
         &mut self,
-        world: &WorldScope,
-        shared: &RuntimeSharedHeap,
+        world: &mut WorldState,
+        shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
         host: &Session,
     ) -> RuntimeResult<bool> {
@@ -180,8 +170,8 @@ impl Worker {
         let (mut progressed, _) = self.tick_loop(world, shared, runtime_static, host, None)?;
 
         // direct roots: worker execution may reshuffle shared roots
-        if progressed && shared.shared_gc_marking() {
-            shared.queue_shared_root_scan(self.id);
+        if progressed && shared.is_marking() {
+            shared.queue_root_scan(self.id);
         }
 
         // run one explicit GC safepoint after the ordinary tick
@@ -193,15 +183,11 @@ impl Worker {
     }
 
     /// Run cooperative GC work at one worker safepoint.
-    fn collect_at_safepoint(
-        &mut self,
-        shared: &RuntimeSharedHeap,
-        is_idle: bool,
-    ) -> RuntimeResult<bool> {
-        let prioritize_shared = shared.shared_gc_terminating()
-            || shared.pending_shared_root_epoch(self.id).is_some()
-            || (shared.shared_gc_marking() && !self.shared_edge_scan_idle());
-        let should_drain = is_idle || shared.shared_gc_terminating();
+    fn collect_at_safepoint(&mut self, shared: &SharedHeap, is_idle: bool) -> RuntimeResult<bool> {
+        let prioritize_shared = shared.is_terminating()
+            || shared.pending_root_epoch(self.id).is_some()
+            || (shared.is_marking() && !self.shared_edge_scan_idle());
+        let should_drain = is_idle || shared.is_terminating();
         let mut progressed = false;
 
         // cooperative GC work
@@ -226,7 +212,7 @@ impl Worker {
     }
 
     /// Run one GC safepoint step with shared heap work first.
-    fn collect_shared_priority_step(&mut self, shared: &RuntimeSharedHeap) -> RuntimeResult<bool> {
+    fn collect_shared_priority_step(&mut self, shared: &SharedHeap) -> RuntimeResult<bool> {
         // direct shared roots
         if self.assist_shared_root_scan(shared)? {
             return Ok(true);
@@ -251,7 +237,7 @@ impl Worker {
     }
 
     /// Run one GC safepoint step with local heap work first.
-    fn collect_local_priority_step(&mut self, shared: &RuntimeSharedHeap) -> RuntimeResult<bool> {
+    fn collect_local_priority_step(&mut self, shared: &SharedHeap) -> RuntimeResult<bool> {
         // local heap work
         if self.collect_local_step()?.made_progress() {
             return Ok(true);
@@ -276,45 +262,45 @@ impl Worker {
     }
 
     /// Publish one pending direct shared-root scan from this worker safepoint.
-    fn assist_shared_root_scan(&mut self, shared: &RuntimeSharedHeap) -> RuntimeResult<bool> {
+    fn assist_shared_root_scan(&mut self, shared: &SharedHeap) -> RuntimeResult<bool> {
         // active pass
-        let Some(epoch) = shared.pending_shared_root_epoch(self.id) else {
+        let Some(epoch) = shared.pending_root_epoch(self.id) else {
             return Ok(false);
         };
 
         // owner-local root publication
         let roots = self.collect_shared_roots()?;
-        shared.replace_shared_direct_roots(epoch, self.id, roots);
+        shared.replace_direct_roots(epoch, self.id, roots);
 
         Ok(true)
     }
 
     /// Assist one active shared reference pass from this worker safepoint.
-    fn assist_shared_edge_scan(&mut self, shared: &RuntimeSharedHeap) -> RuntimeResult<bool> {
-        if !shared.shared_gc_marking() || self.shared_edge_scan_idle() {
+    fn assist_shared_edge_scan(&mut self, shared: &SharedHeap) -> RuntimeResult<bool> {
+        if !shared.is_marking() || self.shared_edge_scan_idle() {
             return Ok(false);
         }
 
-        let work_bytes = shared.shared_edge_scan_work_bytes();
+        let work_bytes = shared.edge_scan_work_bytes();
         if work_bytes == 0 {
             return Ok(false);
         }
 
         let mut roots = Vec::new();
         let work_done = self.scan_shared_references(&mut roots, work_bytes)?;
-        shared.push_shared_edge_roots(self.id, &roots);
+        shared.push_edge_roots(self.id, &roots);
 
         let is_idle = self.shared_edge_scan_idle();
         if is_idle {
-            shared.leave_shared_edge_scan(self.id);
+            shared.leave_edge_scan(self.id);
         }
 
         Ok(work_done > 0 || is_idle)
     }
 
     /// Assist one active shared collection from this worker safepoint.
-    fn assist_shared_gc(&mut self, runtime_heap: &RuntimeSharedHeap) -> RuntimeResult<bool> {
-        let shared = runtime_heap.shared();
+    fn assist_shared_gc(&mut self, runtime_heap: &SharedHeap) -> RuntimeResult<bool> {
+        let shared = runtime_heap.heap();
         let budget_bytes = shared.take_assist_budget_bytes();
         if budget_bytes == 0 || shared.gc_phase() == heap::SharedGcPhase::Idle {
             return Ok(false);
@@ -338,18 +324,18 @@ impl Worker {
     /// Tick the loop once and return progress and optional target output.
     fn tick_loop(
         &mut self,
-        world: &WorldScope,
-        shared: &RuntimeSharedHeap,
+        world: &mut WorldState,
+        shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
         host: &Session,
         target_task: Option<TaskId>,
     ) -> RuntimeResult<(bool, Option<engine::Value>)> {
-        let agent_ptr = self as *const Worker;
+        let worker_ptr = self as *mut Worker;
         let event_loop = self.event_loop.as_ref() as *const _;
         let host_ptr = host as *const Session;
-        let world_ptr = world as *const WorldScope;
+        let world_ptr = world as *mut WorldState;
         let _context_guard = enter_current_worker_context(
-            agent_ptr,
+            worker_ptr,
             event_loop,
             host_ptr,
             world_ptr,
@@ -396,7 +382,7 @@ impl Worker {
             .event_loop
             .options()
             .max_microtask_depth
-            .map(|depth| host_limit(depth, "max_microtask_depth"))
+            .map(|depth| runtime_limit_as_usize(depth, "max_microtask_depth"))
             .transpose()?
             .unwrap_or(usize::MAX);
         let mut ran_macrotask = false;
@@ -465,18 +451,18 @@ impl Worker {
     /// Deliver one fired timer into the watched task queue.
     pub(crate) fn deliver_timer_wake(
         &mut self,
-        world: &WorldScope,
+        world: &mut WorldState,
         timer: Timer,
     ) -> RuntimeResult<()> {
-        // runtime-owned scheduled callbacks
+        // worker-owned callbacks
         match timer.handle {
             TimerHandle::Internal(handle) => {
                 let binding = BindingCallContext::from_current_worker_for_native()?;
                 let _guard = enter_binding_call_context(&binding);
 
-                self.runtime_callbacks.service_due_callback(
+                self.worker_callbacks.service_due_callback(
                     &binding,
-                    RuntimeScheduledCallbackHandle::from_internal_id(handle),
+                    WorkerCallbackHandle::from_internal_id(handle),
                 )?;
 
                 Ok(())
@@ -512,7 +498,7 @@ impl Worker {
     /// Enqueue one yielded continuation as a task.
     fn enqueue_task(
         &mut self,
-        world: &WorldScope,
+        world: &mut WorldState,
         task_id: TaskId,
         runnable: Continuation,
         resume_value: engine::Value,
@@ -532,8 +518,8 @@ impl Worker {
     /// Execute one task and return output when it completes the target task.
     fn execute_dequeued_task(
         &mut self,
-        world: &WorldScope,
-        shared: &RuntimeSharedHeap,
+        world: &mut WorldState,
+        shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
         task: Task,
         target_task: Option<TaskId>,
@@ -545,8 +531,8 @@ impl Worker {
     /// Execute one task and return output when it completes the target task.
     fn execute_task(
         &mut self,
-        world: &WorldScope,
-        shared: &RuntimeSharedHeap,
+        world: &mut WorldState,
+        shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
         mut task: Task,
         target_task: Option<TaskId>,
@@ -580,7 +566,7 @@ impl Worker {
     }
 
     /// Enqueue one prepared task and record enqueue hooks.
-    fn enqueue_prepared_task(&mut self, world: &WorldScope, task: Task) -> RuntimeResult<()> {
+    fn enqueue_prepared_task(&mut self, world: &mut WorldState, task: Task) -> RuntimeResult<()> {
         // enqueue the task into the event loop
         self.event_loop.enqueue_task(task);
         self.hooks.on_scheduler_enqueue(world);
@@ -591,7 +577,7 @@ impl Worker {
     /// Execute one microtask to completion.
     fn execute_microtask(
         &mut self,
-        shared: &RuntimeSharedHeap,
+        shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
         microtask: Microtask,
         max_microtask_depth: usize,
@@ -628,8 +614,8 @@ impl Worker {
     /// Drain all pending microtasks. Returns (drained_microtasks, budget_exhausted)
     fn drain_microtasks(
         &mut self,
-        world: &WorldScope,
-        shared: &RuntimeSharedHeap,
+        world: &mut WorldState,
+        shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
     ) -> RuntimeResult<(usize, bool)> {
         // resolve the microtask safety limits for this drain cycle
@@ -637,14 +623,14 @@ impl Worker {
             .event_loop
             .options()
             .microtask_budget
-            .map(|budget| host_limit(budget, "microtask_budget"))
+            .map(|budget| runtime_limit_as_usize(budget, "microtask_budget"))
             .transpose()?
             .unwrap_or(usize::MAX);
         let max_microtask_depth = self
             .event_loop
             .options()
             .max_microtask_depth
-            .map(|depth| host_limit(depth, "max_microtask_depth"))
+            .map(|depth| runtime_limit_as_usize(depth, "max_microtask_depth"))
             .transpose()?
             .unwrap_or(usize::MAX);
 
@@ -672,14 +658,14 @@ impl Worker {
     /// Resume one engine continuation with one runtime value.
     fn execute_runnable(
         &mut self,
-        shared: &RuntimeSharedHeap,
+        shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
         runnable: Continuation,
         resume_value: engine::Value,
     ) -> RuntimeResult<Outcome<Continuation>> {
         let context = Context {
             heap: &mut self.heap,
-            shared_heap: shared.shared(),
+            shared_heap: shared.heap(),
             shared_allocator: &mut self.shared_allocator,
             shared_gc: &self.shared_gc_worker,
             worker_static: &mut self.statics,
@@ -692,9 +678,9 @@ impl Worker {
     /// Wait for one scheduler wakeup when the loop has pending but not-ready work.
     fn wait_for_next_turn(
         &mut self,
-        world: &WorldScope,
+        world: &mut WorldState,
         host: &Session,
-        poller: &mut Option<Box<dyn HostPoller>>,
+        poller: &mut dyn HostPoller,
     ) -> RuntimeResult<bool> {
         // virtual mode never blocks: callers must advance virtual time explicitly
         if world.time_mode() == TimeMode::Virtual {
@@ -716,30 +702,19 @@ impl Worker {
             return Ok(true);
         }
 
-        // block on the poller when available
-        if let Some(poller) = poller.as_mut() {
-            let event_count = self
-                .event_loop
-                .poll_poller(poller.as_mut(), timeout_nanos.map(|timeout| timeout.get()))?;
-            if event_count > 0 {
-                for _ in 0..event_count {
-                    self.hooks.on_ingress_enqueue(world);
-                }
+        // block on poller work and timer wakeups together
+        let event_count = self
+            .event_loop
+            .poll_poller(poller, timeout_nanos.map(|timeout| timeout.get()))?;
+        if event_count > 0 {
+            for _ in 0..event_count {
+                self.hooks.on_ingress_enqueue(world);
             }
 
             return Ok(true);
         }
 
-        // otherwise wait for the next timer deadline when one is scheduled
-        if let Some(timeout_nanos) = timeout_nanos {
-            if timeout_nanos.get() > 0 {
-                world.clock().host_sleep_nanos(timeout_nanos.get());
-            }
-
-            return Ok(true);
-        }
-
-        Ok(false)
+        Ok(timeout_nanos.is_some())
     }
 
     /// Poll host events and enqueue host semantic events.
@@ -768,7 +743,7 @@ impl Worker {
     }
 
     /// Return whether the current tick exhausted the configured budget.
-    fn is_tick_budget_exhausted(&self, world: &WorldScope, tick_start_mono_nanos: u64) -> bool {
+    fn is_tick_budget_exhausted(&self, world: &mut WorldState, tick_start_mono_nanos: u64) -> bool {
         let Some(tick_budget_nanos) = self.event_loop.options().tick_budget_ns else {
             return false;
         };
@@ -776,4 +751,13 @@ impl Worker {
         let now = world.mono_nanos();
         now.saturating_sub(tick_start_mono_nanos) >= tick_budget_nanos
     }
+}
+
+/// Convert one configured runtime limit into a host usize.
+fn runtime_limit_as_usize(value: u64, label: &str) -> RuntimeResult<usize> {
+    usize::try_from(value)
+        .map_err(|_| RuntimeError::Internal {
+            message: format!("runtime {label} exceeds host usize: {value}"),
+        })
+        .map_err(Box::new)
 }

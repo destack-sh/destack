@@ -3,23 +3,17 @@ use crate::runtime::poller::{HostPoller, HostPollerBackend, create_host_poller_f
 use destack_workspace::{PollerBackend, RuntimeOptions};
 
 /// Build a poller instance from runtime options.
-pub(super) fn poller_for_options(
-    options: &RuntimeOptions,
-) -> RuntimeResult<Option<Box<dyn HostPoller>>> {
+pub(crate) fn poller_for_options(options: &RuntimeOptions) -> RuntimeResult<Box<dyn HostPoller>> {
     poller_for_backend(options.scheduler_options().poller_backend)
 }
 
 /// Build a poller instance from one explicit backend selector.
-pub(super) fn poller_for_backend(
-    backend: PollerBackend,
-) -> RuntimeResult<Option<Box<dyn HostPoller>>> {
+pub(crate) fn poller_for_backend(backend: PollerBackend) -> RuntimeResult<Box<dyn HostPoller>> {
     // map runtime config enum into the canonical platform backend selector
     let backend = map_runtime_backend(backend);
 
     // create one poller instance using shared platform policy
-    let poller = create_host_poller_for_runtime(backend)?;
-
-    Ok(Some(poller))
+    create_host_poller_for_runtime(backend)
 }
 
 /// Map runtime config backend values into canonical platform backend values.

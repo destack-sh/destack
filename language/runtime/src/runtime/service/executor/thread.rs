@@ -8,13 +8,12 @@ use parking_lot::Mutex;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::core::{self as core_platform};
-use crate::runtime::process::{
-    ExecutionAffinity, ExecutionLifetime, ExecutionMode, ExecutionPolicy,
+use crate::runtime::thread::{
+    ExecutionAffinity, ExecutionMode, ExecutionPolicy, ExecutionScope, start_with_policy,
 };
 
 use super::super::windows::initialize_windows_winrt_mta;
 use super::state::{ExecutorFailure, ExecutorFailureKind, ExecutorState};
-use crate::runtime::process::thread::start_with_policy;
 
 /// One bootstrap or dispatch command for one service-thread executor.
 enum ServiceThreadCommand<S> {
@@ -69,7 +68,7 @@ impl<S> ServiceThreadExecutor<S> {
         S: 'static,
     {
         // policy
-        assert_thread_policy(policy);
+        validate_thread_policy(policy)?;
 
         let (sender, receiver) = channel::<ServiceThreadCommand<S>>();
         let (ready_tx, ready_rx) = sync_channel::<RuntimeResult<()>>(1);
@@ -140,7 +139,18 @@ impl<S> ServiceThreadExecutor<S> {
     {
         // record the thread identity before bootstrap
         if thread_id.set(thread::current().id()).is_err() {
-            panic!("service thread id was already initialized");
+            state.mark_failed(ExecutorFailure::new(
+                ExecutorFailureKind::BootstrapPanic,
+                format!("service thread {name} thread id was already initialized"),
+            ));
+
+            let error = core_platform::io_operation_error(
+                "platform.service.spawn",
+                None,
+                format!("service thread {name} thread id was already initialized"),
+            );
+            let _bootstrap_error_delivered = ready_tx.send(Err(error)).is_ok();
+            return;
         }
 
         // initialize bootstrap state
@@ -317,10 +327,7 @@ impl<S> ServiceThreadExecutor<S> {
 impl<S> Drop for ServiceThreadExecutor<S> {
     /// Shut down one service thread.
     fn drop(&mut self) {
-        // request shutdown when the thread is still alive
-        if self.sender.send(ServiceThreadCommand::Shutdown).is_err() {
-            // the service thread already exited
-        }
+        let _ = self.sender.send(ServiceThreadCommand::Shutdown);
 
         // avoid joining from the dedicated service thread itself
         let is_current_thread = self
@@ -348,13 +355,21 @@ impl<S> Drop for ServiceThreadExecutor<S> {
     }
 }
 
-/// Require one global thread runtime policy.
-fn assert_thread_policy(policy: ExecutionPolicy) {
-    if policy.lifetime != ExecutionLifetime::Global {
-        panic!("service thread executor requires one global runtime");
+/// Validate one process-scoped thread runtime policy.
+fn validate_thread_policy(policy: ExecutionPolicy) -> RuntimeResult<()> {
+    if policy.scope != ExecutionScope::Process {
+        return Err(RuntimeError::Internal {
+            message: "service thread executor requires process scope".to_string(),
+        }
+        .boxed());
     }
 
     if policy.mode != ExecutionMode::Thread {
-        panic!("service thread executor requires thread execution");
+        return Err(RuntimeError::Internal {
+            message: "service thread executor requires thread execution".to_string(),
+        }
+        .boxed());
     }
+
+    Ok(())
 }

@@ -1,23 +1,13 @@
-#![cfg_attr(target_arch = "wasm32", allow(dead_code))]
-
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::{Arc, Weak};
 
-use crate::diagnostic::RuntimeResult;
-use crate::runtime::process::{ExecutionLifetime, ExecutionMode, ExecutionPolicy};
-
-pub(crate) mod executor;
-pub(crate) mod registry;
-#[cfg(target_os = "macos")]
-pub(crate) mod unix;
-#[cfg(windows)]
-pub(crate) mod windows;
-
-pub(crate) use registry::ServiceHandle;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::runtime::service::registry;
+use crate::runtime::thread::{ExecutionMode, ExecutionPolicy, ExecutionScope};
 
 #[cfg(windows)]
-use self::executor::thread::ServiceThreadExecutor;
+use crate::runtime::service::executor::thread::ServiceThreadExecutor;
 
 /// One process-global service with one declared execution policy.
 pub(crate) trait Service: Sized {
@@ -29,7 +19,7 @@ pub(crate) trait Service: Sized {
     where
         Self: Send + Sync + 'static,
     {
-        assert_global_service_policy::<Self>();
+        validate_global_service_policy::<Self>()?;
 
         registry::global_service(builder)
     }
@@ -41,8 +31,6 @@ pub(crate) trait Service: Sized {
     where
         Self: Send + Sync + 'static,
     {
-        assert_global_service_policy::<Self>();
-
         registry::global_service_if_initialized()
     }
 }
@@ -60,15 +48,18 @@ where
     ServiceThreadExecutor::spawn(name, policy, build)
 }
 
-/// Anchor one declared execution policy at the global-service boundary.
-fn assert_global_service_policy<S>()
+/// Validate one declared execution policy at the global-service boundary.
+fn validate_global_service_policy<S>() -> RuntimeResult<()>
 where
     S: Service,
 {
     let policy = S::POLICY;
 
-    if policy.lifetime != ExecutionLifetime::Global {
-        panic!("global service must declare one global lifetime");
+    if policy.scope != ExecutionScope::Process {
+        return Err(RuntimeError::Internal {
+            message: "global service must declare process scope".to_string(),
+        }
+        .boxed());
     }
 
     match policy.mode {
@@ -78,14 +69,19 @@ where
         ExecutionMode::Loop => {}
         ExecutionMode::Polling => {}
         ExecutionMode::Blocking => {
-            panic!("global service cannot declare blocking mode");
+            return Err(RuntimeError::Internal {
+                message: "global service cannot declare blocking mode".to_string(),
+            }
+            .boxed());
         }
     }
+
+    Ok(())
 }
 
 /// Process-global weak subscriber registry keyed by one stable runtime or worker id.
 #[derive(Debug)]
-pub struct ProcessSubscriberRegistry<K, T> {
+pub(crate) struct ProcessSubscriberRegistry<K, T> {
     /// Weak subscribers keyed by one stable subscriber id.
     subscribers: HashMap<K, Weak<T>>,
 }
@@ -104,24 +100,24 @@ where
     K: Copy + Eq + Hash,
 {
     /// Register one live subscriber.
-    pub fn register(&mut self, key: K, subscriber: &Arc<T>) {
+    pub(crate) fn register(&mut self, key: K, subscriber: &Arc<T>) {
         self.prune();
         self.subscribers.insert(key, Arc::downgrade(subscriber));
     }
 
     /// Unregister one subscriber.
-    pub fn unregister(&mut self, key: K) {
+    pub(crate) fn unregister(&mut self, key: K) {
         self.subscribers.remove(&key);
     }
 
     /// Return whether the registry is empty after pruning dead subscribers.
-    pub fn is_empty(&mut self) -> bool {
+    pub(crate) fn is_empty(&mut self) -> bool {
         self.prune();
         self.subscribers.is_empty()
     }
 
     /// Return one snapshot of the live subscribers.
-    pub fn snapshot(&mut self) -> Vec<Arc<T>> {
+    pub(crate) fn snapshot(&mut self) -> Vec<Arc<T>> {
         self.prune();
 
         self.subscribers
@@ -131,7 +127,7 @@ where
     }
 
     /// Prune dead weak subscribers.
-    pub fn prune(&mut self) {
+    pub(crate) fn prune(&mut self) {
         self.subscribers.retain(|_, weak| weak.strong_count() > 0);
     }
 }

@@ -1,37 +1,33 @@
 use destack_core::{Capture, CaptureMode, fnv1a_64};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use {destack_engine as engine, destack_heap as heap};
 
 use super::{
-    BindingCallContext, RuntimeScheduledCallbackControl, RuntimeScheduledCallbackHandle,
-    RuntimeScheduledCallbackRegistry,
+    BindingCallContext, WorkerCallbackControl, WorkerCallbackHandle, WorkerCallbackRegistry,
 };
 use crate::diagnostic::{DiagnosticSnapshot, DiagnosticStore, RuntimeError, RuntimeResult};
 use crate::host::HostEventKind;
 use crate::platform::resource::{ResourceRebinders, ResourceTableSnapshot};
 use crate::platform::{ResourceId, ResourceTable};
-use crate::runtime::bindings::{BindingPolicy, BindingRegistry};
-use crate::runtime::capability::resolve_capability_profile;
-use crate::runtime::engine::{Continuation, Engine, Image};
-use crate::runtime::memory::{
+use crate::runtime::action::resolve_action_profile;
+use crate::runtime::binding::{BindingAccess, BindingRegistry};
+use crate::runtime::engine::{Context, Continuation, Engine, Image};
+use crate::runtime::heap::{
     HeapHandle, HeapHandleTable, RootSet, RootSink, resolve_local_heap_options,
 };
 use crate::runtime::policy::HookSnapshot;
 use crate::runtime::poller::PollerToken;
 use crate::runtime::scheduler::{EventLoop, EventLoopSnapshot, EventLoopWatch};
-use crate::runtime::world::{RuntimeId, WorldScope};
+use crate::runtime::world::{RuntimeId, WorldState};
 use crate::runtime::{
     DropCounts, DropReason, ExecutionContextId, Hooks, PlatformState, PlatformStateImage,
-    RuntimeFinalizers, RuntimeFinalizersImage, RuntimeSharedHeap,
+    RuntimeFinalizers, RuntimeFinalizersImage, SharedHeap,
 };
 use destack_workspace::{ExecutionMode, RuntimeOptions};
 
-/// Stable identifier for one world-managed worker.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct WorkerId(pub u64);
-
-/// Execution agent owned by one runtime.
+/// Execution worker owned by one runtime.
 pub struct Worker {
     /// Monotonic world-local worker identity.
     pub(crate) id: WorkerId,
@@ -40,7 +36,7 @@ pub struct Worker {
     /// Runtime owner identifier in world topology.
     pub(crate) runtime_id: RuntimeId,
     /// Immutable process arguments for platform bindings.
-    pub(crate) platform_args: Arc<[String]>,
+    pub(crate) process_args: Arc<[String]>,
     /// Immutable runtime options.
     pub(crate) options: Arc<RuntimeOptions>,
 
@@ -50,8 +46,8 @@ pub struct Worker {
     pub(crate) hooks: Arc<Hooks>,
     /// Worker-level finalizer registry for module services.
     pub(crate) finalizers: RuntimeFinalizers,
-    /// Worker-local runtime scheduled callbacks.
-    pub(crate) runtime_callbacks: RuntimeScheduledCallbackRegistry,
+    /// Worker-local scheduled callbacks.
+    pub(crate) worker_callbacks: WorkerCallbackRegistry,
     /// Worker-owned platform state store.
     pub(crate) platform_state: PlatformState,
     /// Diagnostics storage for runtime errors and warning events.
@@ -75,6 +71,19 @@ pub struct Worker {
     pub(crate) engine: Engine,
     /// Event loop for tasks, microtasks, and timers.
     pub(crate) event_loop: Box<EventLoop>,
+}
+
+/// Stable identifier for one world-managed worker.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct WorkerId(pub u64);
+
+/// Worker creation options.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
+pub(crate) struct WorkerOptions {
+    /// Worker name used for identity selection and diagnostics.
+    pub(crate) name: Option<String>,
+    /// Worker labels used for topology and policy selection.
+    pub(crate) labels: BTreeMap<String, String>,
 }
 
 /// Materialized worker metadata captured in one world image.
@@ -137,11 +146,6 @@ impl PartialEq for WorkerImage {
     }
 }
 
-/// Serialize one captured worker heap snapshot for exact equality checks.
-fn worker_heap_snapshot_bytes(snapshot: &heap::HeapSnapshot) -> Result<Vec<u8>, postcard::Error> {
-    postcard::to_allocvec(snapshot)
-}
-
 impl WorkerOptionsImage {
     /// Capture one explicit worker options payload.
     pub fn explicit(options: RuntimeOptions) -> Self {
@@ -189,7 +193,7 @@ impl std::fmt::Debug for Worker {
             .field("worker_id", &self.id)
             .field("name", &self.name)
             .field("runtime_id", &self.runtime_id)
-            .field("platform_args", &self.platform_args)
+            .field("process_args", &self.process_args)
             .field("options", &self.options)
             .field("resources", &self.resources)
             .field("hooks", &self.hooks)
@@ -218,21 +222,22 @@ impl Worker {
         ExecutionContextId(fnv1a_64(&bytes))
     }
 
-    /// Create one worker with explicit runtime options in one shared world.
+    /// Create one worker in one new runtime in one shared world.
     pub(crate) fn new_in_world(
-        platform_args: impl Into<Arc<[String]>>,
+        process_args: impl Into<Arc<[String]>>,
         options: &RuntimeOptions,
-        world: &WorldScope,
-        shared: &RuntimeSharedHeap,
+        world: &mut WorldState,
+        shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
+        worker_options: WorkerOptions,
         engine: impl Into<Engine>,
     ) -> RuntimeResult<Self> {
-        let platform_args = platform_args.into();
-        let (runtime_id, worker_id, _runtime_name, worker_name) =
-            Self::register_runtime(world, options)?;
+        let process_args = process_args.into();
+        let (runtime_id, worker_id, worker_name) =
+            Self::register_runtime(world, options, &worker_options)?;
 
-        Self::assemble(
-            platform_args,
+        Self::from_registered(
+            process_args,
             options,
             world,
             shared,
@@ -244,21 +249,22 @@ impl Worker {
         )
     }
 
-    /// Create one worker with explicit runtime options in one existing runtime.
+    /// Create one worker in one existing runtime.
     pub(crate) fn new_in_runtime(
-        platform_args: impl Into<Arc<[String]>>,
+        process_args: impl Into<Arc<[String]>>,
         options: &RuntimeOptions,
-        world: &WorldScope,
-        shared: &RuntimeSharedHeap,
+        world: &mut WorldState,
+        shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
         runtime_id: RuntimeId,
+        worker_options: WorkerOptions,
         engine: impl Into<Engine>,
     ) -> RuntimeResult<Self> {
-        let platform_args = platform_args.into();
-        let (worker_id, worker_name) = Self::register_worker(world, options, runtime_id)?;
+        let process_args = process_args.into();
+        let (worker_id, worker_name) = Self::register_worker(world, runtime_id, &worker_options)?;
 
-        Self::assemble(
-            platform_args,
+        Self::from_registered(
+            process_args,
             options,
             world,
             shared,
@@ -270,12 +276,12 @@ impl Worker {
         )
     }
 
-    /// Assemble one worker from registered world topology metadata.
-    fn assemble(
-        platform_args: Arc<[String]>,
+    /// Create one worker from registered world topology metadata.
+    fn from_registered(
+        process_args: Arc<[String]>,
         options: &RuntimeOptions,
-        world: &WorldScope,
-        shared: &RuntimeSharedHeap,
+        world: &mut WorldState,
+        shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
         runtime_id: RuntimeId,
         worker_id: WorkerId,
@@ -289,12 +295,12 @@ impl Worker {
         let resources = ResourceTable::default();
         resources.set_hooks(hooks.clone());
 
-        // bindings and policy
+        // bindings
         let mut bindings = BindingRegistry::new();
-        bindings.set_policy(BindingPolicy::new(world.trace().mode()));
-        bindings.install_native_defaults();
+        bindings.set_access(BindingAccess::new(world.trace().mode()));
+        bindings.install_native_defaults()?;
         bindings.apply_runtime_defaults(options);
-        Self::apply_capability_profile(&mut bindings, options)?;
+        Self::apply_action_profile(&mut bindings, options)?;
 
         // heap and statics
         let heap_options = resolve_local_heap_options(&options.heap)?;
@@ -307,10 +313,10 @@ impl Worker {
         let mut heap = heap;
         let mut statics = engine::StaticSpace::empty();
         let shared_gc_worker = shared.register_collector_worker();
-        let mut shared_allocator = shared.shared().allocator();
-        let context = crate::runtime::engine::Context {
+        let mut shared_allocator = shared.heap().allocator();
+        let context = Context {
             heap: &mut heap,
-            shared_heap: shared.shared(),
+            shared_heap: shared.heap(),
             shared_allocator: &mut shared_allocator,
             shared_gc: &shared_gc_worker,
             worker_static: &mut statics,
@@ -329,12 +335,12 @@ impl Worker {
             id: worker_id,
             runtime_id,
             name: worker_name,
-            platform_args,
+            process_args,
             options: Arc::new(options.clone()),
             resources,
             hooks,
             finalizers: RuntimeFinalizers::default(),
-            runtime_callbacks: RuntimeScheduledCallbackRegistry::default(),
+            worker_callbacks: WorkerCallbackRegistry::default(),
             platform_state: PlatformState::default(),
             diagnostics: Arc::new(DiagnosticStore::from_options(&options.diagnostic)),
             drop_counts: DropCounts::default(),
@@ -349,32 +355,31 @@ impl Worker {
         })
     }
 
-    /// Apply one capability profile from runtime options to binding policy checks.
-    fn apply_capability_profile(
+    /// Apply one action profile from runtime options to binding access.
+    fn apply_action_profile(
         bindings: &mut BindingRegistry,
         options: &RuntimeOptions,
     ) -> RuntimeResult<()> {
-        let Some(capability_profile) = options.security.capability_profile.as_deref() else {
+        let Some(action_profile) = options.security.action_profile.as_deref() else {
             return Ok(());
         };
 
-        let capabilities = resolve_capability_profile(capability_profile).map_err(|message| {
-            RuntimeError::CapabilityProfileInvalid {
-                profile: capability_profile.to_string(),
+        let actions = resolve_action_profile(action_profile).map_err(|message| {
+            RuntimeError::HostActionProfileInvalid {
+                profile: action_profile.to_string(),
                 detail: message,
             }
             .boxed()
         })?;
 
-        bindings.set_capabilities(capabilities);
-        bindings.set_capability_requirements_enforced(true);
+        bindings.set_allowed_actions(actions);
 
         Ok(())
     }
 
     /// Return immutable process arguments exposed to platform bindings.
-    pub fn platform_args(&self) -> &[String] {
-        self.platform_args.as_ref()
+    pub fn process_args(&self) -> &[String] {
+        self.process_args.as_ref()
     }
 
     /// Return this worker identifier.
@@ -402,55 +407,54 @@ impl Worker {
         self.resources.len()
     }
 
-    /// Register one new runtime and one primary worker in one world.
+    /// Register one new runtime and one default worker in one world.
     fn register_runtime(
-        world: &WorldScope,
+        world: &mut WorldState,
         options: &RuntimeOptions,
-    ) -> RuntimeResult<(RuntimeId, WorkerId, String, String)> {
+        worker_options: &WorkerOptions,
+    ) -> RuntimeResult<(RuntimeId, WorkerId, String)> {
         // runtime selector metadata
         let runtime_name = options
             .name
             .clone()
             .unwrap_or_else(|| "runtime".to_string());
-        let runtime_labels = options.labels.clone();
+        let runtime_labels = BTreeMap::new();
 
         // worker selector metadata
         let runtime_id = world.allocate_runtime_id();
         let worker_id = world.allocate_worker_id();
-        let worker_name = options
-            .primary_worker
+        let worker_name = worker_options
             .name
             .clone()
             .unwrap_or_else(|| format!("worker-{}", worker_id.0));
-        let worker_labels = options.primary_worker.labels.clone();
+        let worker_labels = worker_options.labels.clone();
 
         // register runtime and worker directly in world topology
         world.register_runtime_topology(
             runtime_id,
-            runtime_name.clone(),
+            runtime_name,
             runtime_labels,
             worker_id,
             worker_name.clone(),
             worker_labels,
         )?;
 
-        Ok((runtime_id, worker_id, runtime_name, worker_name))
+        Ok((runtime_id, worker_id, worker_name))
     }
 
     /// Register one worker in one existing runtime.
     fn register_worker(
-        world: &WorldScope,
-        options: &RuntimeOptions,
+        world: &mut WorldState,
         runtime_id: RuntimeId,
+        worker_options: &WorkerOptions,
     ) -> RuntimeResult<(WorkerId, String)> {
         // worker selector metadata
         let worker_id = world.allocate_worker_id();
-        let worker_name = options
-            .primary_worker
+        let worker_name = worker_options
             .name
             .clone()
             .unwrap_or_else(|| format!("worker-{}", worker_id.0));
-        let worker_labels = options.primary_worker.labels.clone();
+        let worker_labels = worker_options.labels.clone();
 
         // register one worker in one existing runtime
         world.register_worker_topology(
@@ -480,40 +484,40 @@ impl Worker {
         self.event_loop.unwatch_timer(handle)
     }
 
-    /// Schedule one runtime callback on the owning event loop thread.
-    pub(crate) fn schedule_runtime_callback(
-        &self,
+    /// Schedule one worker callback on the owning event loop thread.
+    pub(crate) fn schedule_worker_callback(
+        &mut self,
         binding: &BindingCallContext,
         delay_ns: u64,
         interval_ns: Option<u64>,
-        callback: impl FnMut(&BindingCallContext) -> RuntimeResult<RuntimeScheduledCallbackControl>
+        callback: impl FnMut(&BindingCallContext) -> RuntimeResult<WorkerCallbackControl>
         + Send
         + 'static,
-    ) -> RuntimeResult<RuntimeScheduledCallbackHandle> {
-        self.runtime_callbacks
+    ) -> RuntimeResult<WorkerCallbackHandle> {
+        self.worker_callbacks
             .schedule(binding, delay_ns, interval_ns, callback)
     }
 
-    /// Cancel one scheduled runtime callback.
-    pub(crate) fn cancel_runtime_callback(
-        &self,
+    /// Cancel one scheduled worker callback.
+    pub(crate) fn cancel_worker_callback(
+        &mut self,
         binding: &BindingCallContext,
-        handle: RuntimeScheduledCallbackHandle,
+        handle: WorkerCallbackHandle,
     ) -> RuntimeResult<()> {
-        self.runtime_callbacks.cancel(binding, handle)
+        self.worker_callbacks.cancel(binding, handle)
     }
 
-    /// Service due runtime callbacks on the owning event loop thread.
-    pub(crate) fn service_runtime_callbacks(
-        &self,
+    /// Service due worker callbacks on the owning event loop thread.
+    pub(crate) fn service_worker_callbacks(
+        &mut self,
         binding: &BindingCallContext,
     ) -> RuntimeResult<()> {
-        // skip the timer scan when no runtime callback is registered
-        if !self.runtime_callbacks.has_active_callbacks() {
+        // skip the timer scan when no worker callback is registered
+        if !self.worker_callbacks.has_active_callbacks() {
             return Ok(());
         }
 
-        // collect only runtime owned timers from the shared ready set
+        // collect only worker owned timers from the shared ready set
         let wall_now = binding.world().wall();
         let mono_now = binding.world().mono();
         let due_timers =
@@ -521,21 +525,19 @@ impl Worker {
                 .event_loop()
                 .take_due_timers_matching(wall_now, mono_now, |handle| {
                     handle.internal_id().is_some_and(|handle| {
-                        self.runtime_callbacks
-                            .contains(RuntimeScheduledCallbackHandle::from_internal_id(handle))
+                        self.worker_callbacks
+                            .contains(WorkerCallbackHandle::from_internal_id(handle))
                     })
                 })?;
 
-        // run only runtime owned timer callbacks in this blocked wait path
+        // run only worker owned timer callbacks in this blocked wait path
         for timer in due_timers {
             let Some(handle) = timer.handle.internal_id() else {
                 continue;
             };
 
-            self.runtime_callbacks.service_due_callback(
-                binding,
-                RuntimeScheduledCallbackHandle::from_internal_id(handle),
-            )?;
+            self.worker_callbacks
+                .service_due_callback(binding, WorkerCallbackHandle::from_internal_id(handle))?;
         }
 
         Ok(())
@@ -729,12 +731,12 @@ impl Worker {
     pub(crate) fn capture_image(
         &mut self,
         mode: CaptureMode,
-        shared: &RuntimeSharedHeap,
+        shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
     ) -> RuntimeResult<WorkerImage> {
-        // runtime callback barrier
-        if self.runtime_callbacks.has_active_callbacks() {
-            return Err(self.runtime_callbacks.capture_barrier_error(mode));
+        // worker callback barrier
+        if self.worker_callbacks.has_active_callbacks() {
+            return Err(self.worker_callbacks.capture_barrier_error(mode));
         }
 
         // host-retained local handles cannot be materialized without the owning host state
@@ -781,7 +783,7 @@ impl Worker {
             statics: self.statics.clone(),
             engine_image: self.engine.image(engine::Context {
                 heap: &mut self.heap,
-                shared_heap: shared.shared(),
+                shared_heap: shared.heap(),
                 shared_allocator: &mut self.shared_allocator,
                 shared_gc: &self.shared_gc_worker,
                 worker_static: &mut self.statics,
@@ -794,12 +796,12 @@ impl Worker {
     pub(crate) fn try_fork(
         &mut self,
         execution_mode: ExecutionMode,
-        shared: &RuntimeSharedHeap,
+        shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
         shared_gc_worker: heap::SharedGcWorker,
     ) -> RuntimeResult<Option<Self>> {
-        // runtime callbacks
-        if self.runtime_callbacks.has_active_callbacks() {
+        // worker callbacks
+        if self.worker_callbacks.has_active_callbacks() {
             return Ok(None);
         }
 
@@ -830,17 +832,17 @@ impl Worker {
 
         // bindings and heap
         let mut bindings = BindingRegistry::new();
-        bindings.set_policy(BindingPolicy::new(execution_mode));
-        bindings.install_native_defaults();
+        bindings.set_access(BindingAccess::new(execution_mode));
+        bindings.install_native_defaults()?;
         bindings.apply_runtime_defaults(&self.options);
-        Self::apply_capability_profile(&mut bindings, &self.options)?;
+        Self::apply_action_profile(&mut bindings, &self.options)?;
 
         let mut heap = self.heap.fork()?;
         let mut statics = self.statics.clone();
-        let mut shared_allocator = shared.shared().allocator();
+        let mut shared_allocator = shared.heap().allocator();
         let mut engine = self.engine.fork(engine::Context {
             heap: &mut heap,
-            shared_heap: shared.shared(),
+            shared_heap: shared.heap(),
             shared_allocator: &mut shared_allocator,
             shared_gc: &shared_gc_worker,
             worker_static: &mut statics,
@@ -855,12 +857,12 @@ impl Worker {
             id: self.id,
             name: self.name.clone(),
             runtime_id: self.runtime_id,
-            platform_args: self.platform_args.clone(),
+            process_args: self.process_args.clone(),
             options: self.options.clone(),
             resources,
             hooks,
             finalizers,
-            runtime_callbacks: RuntimeScheduledCallbackRegistry::default(),
+            worker_callbacks: WorkerCallbackRegistry::default(),
             platform_state,
             diagnostics,
             drop_counts: self.drop_counts,
@@ -877,13 +879,13 @@ impl Worker {
 
     /// Restore one worker from one materialized image.
     pub(crate) fn from_image(
-        world: &WorldScope,
-        shared: &RuntimeSharedHeap,
+        world: &mut WorldState,
+        shared: &SharedHeap,
         runtime_static: &engine::StaticSpace,
         runtime_id: RuntimeId,
         worker_id: WorkerId,
         worker_name: String,
-        platform_args: Arc<[String]>,
+        process_args: Arc<[String]>,
         image: &WorkerImage,
         shared_options: Option<&Arc<RuntimeOptions>>,
         rebind_context: Option<&ResourceRebinders>,
@@ -898,10 +900,10 @@ impl Worker {
 
         // bindings
         let mut bindings = BindingRegistry::new();
-        bindings.set_policy(BindingPolicy::new(world.trace().mode()));
-        bindings.install_native_defaults();
+        bindings.set_access(BindingAccess::new(world.trace().mode()));
+        bindings.install_native_defaults()?;
         bindings.apply_runtime_defaults(&options);
-        Self::apply_capability_profile(&mut bindings, &options)?;
+        Self::apply_action_profile(&mut bindings, &options)?;
 
         // diagnostics and event loop
         let diagnostics = Arc::new(DiagnosticStore::from_options(&options.diagnostic));
@@ -918,15 +920,15 @@ impl Worker {
         .map_err(Box::<RuntimeError>::from)?;
         let mut statics = image.statics.clone();
         let shared_gc_worker = shared.register_collector_worker();
-        let mut shared_allocator = shared.shared().allocator();
+        let mut shared_allocator = shared.heap().allocator();
 
         // rebuild the engine from the materialized worker image
         let mut engine = Engine::from_image(&image.engine_image)?;
 
         // restore backend execution state over the restored heap
-        let context = crate::runtime::engine::Context {
+        let context = Context {
             heap: &mut heap,
-            shared_heap: shared.shared(),
+            shared_heap: shared.heap(),
             shared_allocator: &mut shared_allocator,
             shared_gc: &shared_gc_worker,
             worker_static: &mut statics,
@@ -936,7 +938,7 @@ impl Worker {
         engine.restore(
             engine::Context {
                 heap: &mut heap,
-                shared_heap: shared.shared(),
+                shared_heap: shared.heap(),
                 shared_allocator: &mut shared_allocator,
                 shared_gc: &shared_gc_worker,
                 worker_static: &mut statics,
@@ -957,7 +959,7 @@ impl Worker {
             id: worker_id,
             name: worker_name,
             runtime_id,
-            platform_args,
+            process_args,
             options,
             resources,
             hooks,
@@ -966,7 +968,7 @@ impl Worker {
                 finalizers.restore_image(&image.finalizers, ())?;
                 finalizers
             },
-            runtime_callbacks: RuntimeScheduledCallbackRegistry::default(),
+            worker_callbacks: WorkerCallbackRegistry::default(),
             platform_state: {
                 let mut platform_state = PlatformState::default();
                 platform_state.restore_image(&image.platform_state, ())?;
@@ -984,4 +986,9 @@ impl Worker {
             event_loop,
         })
     }
+}
+
+/// Serialize one captured worker heap snapshot for exact equality checks.
+fn worker_heap_snapshot_bytes(snapshot: &heap::HeapSnapshot) -> Result<Vec<u8>, postcard::Error> {
+    postcard::to_allocvec(snapshot)
 }

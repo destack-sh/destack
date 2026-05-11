@@ -2,37 +2,38 @@ use std::time::Duration;
 
 use crate::diagnostic::{DiagnosticStore, RuntimeError, RuntimeResult};
 use crate::host::Session;
+use crate::platform::abi::{NativeSlice, NativeStringRef, NativeStringSlice};
 use crate::platform::{NativeArray, PlatformError, core as core_platform};
-use crate::runtime::bindings::{
-    BindingAffinity, BindingDescriptor, BindingEngine, BindingPolicy, BindingReplayPayload,
-    RuntimeWorld,
+use crate::runtime::binding::{
+    BindingAccess, BindingAffinity, BindingDescriptor, BindingEngine, BindingReplayPayload,
+    RuntimeAccess, RuntimeWorld,
 };
-use crate::runtime::policy::BindingDispatchDecision;
+use crate::runtime::policy::BindingDecision;
 use crate::runtime::random::RandomStreamId;
 use crate::runtime::scheduler::{EventLoop, MicrotaskId, TaskId};
 use crate::runtime::trace::{EntropySubject, Trace};
-use crate::runtime::world::WorldScope;
+use crate::runtime::world::WorldState;
+use crate::runtime::{Hooks, PolicyCallId};
 use crate::simulation::Simulation;
 
 use super::{
-    BindingCallBuilder, ExecutionContext, ExecutionContextId, RunnableScope, Worker,
-    binding_affinity_name, current_runnable_scope, current_worker_context, with_binding_call_arena,
+    ExecutionContext, ExecutionContextId, NativeCallBuilder, RunnableScope, Worker,
+    WorkerCallbackControl, WorkerCallbackHandle, binding_affinity_name, current_runnable_scope,
+    current_worker_context, with_native_call_arena,
 };
-use crate::platform::abi::{NativeSlice, NativeStringRef, NativeStringSlice};
-use crate::runtime::{Hooks, PolicyCallId};
-use destack_workspace::{RuntimeAccess, RuntimeDiagnosticLevel, TimeMode};
+use destack_workspace::{RuntimeDiagnosticLevel, TimeMode};
 
 /// TLS payload for native runtime calls.
 #[derive(Debug, Clone)]
 pub struct BindingCallContext {
     /// Worker state for platform bindings.
-    worker: *const Worker,
+    worker: *mut Worker,
     /// Event loop for task queues and timers.
     event_loop: *const EventLoop,
     /// Host state for platform callbacks.
     host: *const Session,
     /// Shared world for replay, time, random, and policy.
-    world: *const WorldScope,
+    world: *mut WorldState,
     /// Engine kind for this binding call.
     engine: BindingEngine,
     /// Currently running task or microtask.
@@ -44,9 +45,9 @@ pub struct BindingCallContext {
 /// Scope guard that runs after-binding hooks when one binding call completes.
 #[derive(Debug)]
 pub struct BindingHookGuard<'call> {
-    /// Binding call context for hook dispatch.
+    /// Binding call context for hook routing.
     context: &'call BindingCallContext,
-    /// Binding descriptor for hook dispatch.
+    /// Binding descriptor for hook routing.
     spec: BindingDescriptor,
     /// Binding call identifier for before and after correlation.
     call_id: PolicyCallId,
@@ -62,10 +63,10 @@ impl Drop for BindingHookGuard<'_> {
 impl BindingCallContext {
     /// Create a binding call context from raw pointers.
     pub(crate) fn from_raw(
-        worker: *const Worker,
+        worker: *mut Worker,
         event_loop: *const EventLoop,
         host: *const Session,
-        world: *const WorldScope,
+        world: *mut WorldState,
         engine: BindingEngine,
     ) -> Self {
         let event_loop = unsafe { &*event_loop };
@@ -119,8 +120,13 @@ impl BindingCallContext {
     /// Borrow the worker state.
     #[inline]
     pub fn worker(&self) -> &Worker {
-        // safety: pointer is owned by the runtime caller
         unsafe { &*self.worker }
+    }
+
+    /// Borrow the worker mutably.
+    #[inline]
+    pub(crate) fn worker_mut(&self) -> &mut Worker {
+        unsafe { &mut *self.worker }
     }
 
     /// Borrow the runtime diagnostics store.
@@ -162,14 +168,13 @@ impl BindingCallContext {
     /// Borrow the event loop.
     #[inline]
     pub fn event_loop(&self) -> &EventLoop {
-        // safety: pointer is owned by the runtime
         unsafe { &*self.event_loop }
     }
 
     /// Borrow immutable process arguments.
     #[inline]
-    pub fn platform_args(&self) -> &[String] {
-        self.worker().platform_args()
+    pub fn process_args(&self) -> &[String] {
+        self.worker().process_args()
     }
 
     /// Borrow the trace state.
@@ -178,10 +183,10 @@ impl BindingCallContext {
         self.world().trace()
     }
 
-    /// Borrow the binding policy for this worker.
+    /// Borrow the binding access for this worker.
     #[inline]
-    fn policy(&self) -> parking_lot::RwLockReadGuard<'_, BindingPolicy> {
-        self.worker().bindings.policy().read()
+    fn access(&self) -> parking_lot::RwLockReadGuard<'_, BindingAccess> {
+        self.worker().bindings.access().read()
     }
 
     /// Build one entropy replay subject for the current call and one binding.
@@ -205,15 +210,13 @@ impl BindingCallContext {
     /// Borrow the runtime host state.
     #[inline]
     pub fn host(&self) -> &Session {
-        // safety: pointer is owned by the runtime caller
         unsafe { &*self.host }
     }
 
     /// Borrow the shared runtime world.
     #[inline]
-    pub(crate) fn world(&self) -> &WorldScope {
-        // safety: pointer is owned by the runtime caller
-        unsafe { &*self.world }
+    pub(crate) fn world(&self) -> &mut WorldState {
+        unsafe { &mut *self.world }
     }
 
     /// Borrow one read guard for the simulation state.
@@ -242,8 +245,26 @@ impl BindingCallContext {
         // host owned ingress
         self.host().advance_ingress()?;
 
-        // worker local runtime callbacks
-        self.worker().service_runtime_callbacks(self)
+        // worker local callbacks
+        self.worker_mut().service_worker_callbacks(self)
+    }
+
+    /// Schedule one worker-local callback.
+    pub(crate) fn schedule_worker_callback(
+        &self,
+        delay_ns: u64,
+        interval_ns: Option<u64>,
+        callback: impl FnMut(&BindingCallContext) -> RuntimeResult<WorkerCallbackControl>
+        + Send
+        + 'static,
+    ) -> RuntimeResult<WorkerCallbackHandle> {
+        self.worker_mut()
+            .schedule_worker_callback(self, delay_ns, interval_ns, callback)
+    }
+
+    /// Cancel one worker-local callback.
+    pub(crate) fn cancel_worker_callback(&self, handle: WorkerCallbackHandle) -> RuntimeResult<()> {
+        self.worker_mut().cancel_worker_callback(self, handle)
     }
 
     /// Wait for one binding result while runtime-owned host ingress makes progress.
@@ -379,84 +400,84 @@ impl BindingCallContext {
 
     /// Clear call-local storage for native bindings.
     pub fn clear_values(&self) {
-        with_binding_call_arena(|arena| arena.clear());
+        with_native_call_arena(|arena| arena.clear());
     }
 
     /// Store a string for the duration of the current call.
     pub fn store_string(&self, value: &str) -> NativeStringRef {
-        with_binding_call_arena(|arena| arena.store_string(value))
+        with_native_call_arena(|arena| arena.store_string(value))
     }
 
     /// Store one owned string for the duration of the current call.
     pub fn store_string_owned(&self, value: String) -> NativeStringRef {
-        with_binding_call_arena(|arena| arena.store_string_owned(value))
+        with_native_call_arena(|arena| arena.store_string_owned(value))
     }
 
     /// Store an optional string for the duration of the current call.
     pub fn store_string_option(&self, value: Option<&String>) -> NativeStringRef {
-        with_binding_call_arena(|arena| arena.store_string_option(value))
+        with_native_call_arena(|arena| arena.store_string_option(value))
     }
 
     /// Store a slice for the duration of the current call.
     pub fn store_slice<T: 'static>(&self, values: Vec<T>) -> NativeSlice<T> {
-        with_binding_call_arena(|arena| arena.store_slice(values))
+        with_native_call_arena(|arena| arena.store_slice(values))
     }
 
     /// Build and store one slice for the duration of the current call.
     pub fn store_slice_with<T: 'static>(
         &self,
         capacity: usize,
-        fill: impl FnOnce(&mut BindingCallBuilder<T>) -> RuntimeResult<()>,
+        fill: impl FnOnce(&mut NativeCallBuilder<T>) -> RuntimeResult<()>,
     ) -> RuntimeResult<NativeSlice<T>> {
-        with_binding_call_arena(|arena| arena.store_slice_with(capacity, fill))
+        with_native_call_arena(|arena| arena.store_slice_with(capacity, fill))
     }
 
     /// Copy a slice for the duration of the current call.
     pub fn store_slice_copy<T: Copy + 'static>(&self, values: &[T]) -> NativeSlice<T> {
-        with_binding_call_arena(|arena| arena.store_slice_copy(values))
+        with_native_call_arena(|arena| arena.store_slice_copy(values))
     }
 
     /// Store one zeroed byte slice for the duration of the current call.
     pub fn store_zeroed_byte_slice(&self, len: usize) -> NativeSlice<u8> {
-        with_binding_call_arena(|arena| arena.store_zeroed_byte_slice(len))
+        with_native_call_arena(|arena| arena.store_zeroed_byte_slice(len))
     }
 
     /// Store an array for the duration of the current call.
     pub fn store_array<T: 'static>(&self, values: Vec<T>) -> NativeArray<T> {
-        with_binding_call_arena(|arena| arena.store_array(values))
+        with_native_call_arena(|arena| arena.store_array(values))
     }
 
     /// Build and store one array for the duration of the current call.
     pub fn store_array_with<T: 'static>(
         &self,
         capacity: usize,
-        fill: impl FnOnce(&mut BindingCallBuilder<T>) -> RuntimeResult<()>,
+        fill: impl FnOnce(&mut NativeCallBuilder<T>) -> RuntimeResult<()>,
     ) -> RuntimeResult<NativeArray<T>> {
-        with_binding_call_arena(|arena| arena.store_array_with(capacity, fill))
+        with_native_call_arena(|arena| arena.store_array_with(capacity, fill))
     }
 
     /// Copy an array for the duration of the current call.
     pub fn store_array_copy<T: Copy + 'static>(&self, values: &[T]) -> NativeArray<T> {
-        with_binding_call_arena(|arena| arena.store_array_copy(values))
+        with_native_call_arena(|arena| arena.store_array_copy(values))
     }
 
     /// Store one zeroed byte array for the duration of the current call.
     pub fn store_zeroed_byte_array(&self, len: usize) -> NativeArray<u8> {
-        with_binding_call_arena(|arena| arena.store_zeroed_byte_array(len))
+        with_native_call_arena(|arena| arena.store_zeroed_byte_array(len))
     }
 
     /// Store a string slice for the duration of the current call.
     pub fn store_string_slice(&self, values: Vec<NativeStringRef>) -> NativeStringSlice {
-        with_binding_call_arena(|arena| arena.store_string_slice(values))
+        with_native_call_arena(|arena| arena.store_string_slice(values))
     }
 
     /// Build and store one string slice for the duration of the current call.
     pub fn store_string_slice_with(
         &self,
         capacity: usize,
-        fill: impl FnOnce(&mut BindingCallBuilder<NativeStringRef>) -> RuntimeResult<()>,
+        fill: impl FnOnce(&mut NativeCallBuilder<NativeStringRef>) -> RuntimeResult<()>,
     ) -> RuntimeResult<NativeStringSlice> {
-        with_binding_call_arena(|arena| arena.store_string_slice_with(capacity, fill))
+        with_native_call_arena(|arena| arena.store_string_slice_with(capacity, fill))
     }
 
     /// Return one policy-violation error for one binding descriptor.
@@ -480,7 +501,6 @@ impl BindingCallContext {
             self.execution_context(),
             self.event_loop().execution_context_id(),
             spec.affinity(),
-            None,
         ) {
             return Ok(());
         }
@@ -492,7 +512,7 @@ impl BindingCallContext {
     fn ensure_binding_access_allowed(
         &self,
         spec: BindingDescriptor,
-        decision: &BindingDispatchDecision,
+        decision: &BindingDecision,
     ) -> RuntimeResult<()> {
         if decision.access == RuntimeAccess::Deny {
             return Err(self.policy_violation_error(spec).boxed());
@@ -501,28 +521,16 @@ impl BindingCallContext {
         Ok(())
     }
 
-    /// Run pre-call policy checks and return one dispatch decision snapshot.
+    /// Run pre-call policy checks and return one binding decision snapshot.
     #[inline]
-    fn preflight_binding_call(
-        &self,
-        spec: BindingDescriptor,
-    ) -> RuntimeResult<BindingDispatchDecision> {
+    fn preflight_binding_call(&self, spec: BindingDescriptor) -> RuntimeResult<BindingDecision> {
         // reject execution-affinity mismatches before policy and hooks
         self.ensure_binding_affinity_allowed(spec)?;
 
-        // run policy checks before evaluating hooks
-        let policy = self.policy();
-        policy.ensure_allowed_for_engine(spec, Some(self.engine))?;
-        let decision = self.world().resolve_binding_dispatch(
-            self.hooks().execution_mode(),
-            self.worker().runtime_id,
-            self.worker().id,
-            spec,
-            Some(self.engine),
-            policy.default_access(),
-            policy.default_world(),
-            policy.default_replay_payload(),
-        )?;
+        // access and policy
+        let access = self.access();
+        access.ensure_allowed(spec)?;
+        let decision = self.binding_decision(spec, access.default_replay_payload())?;
         self.ensure_binding_access_allowed(spec, &decision)?;
 
         // service runtime-owned host ingress before host bindings execute
@@ -560,8 +568,8 @@ impl BindingCallContext {
         let decision = self.preflight_binding_call(spec)?;
         let world = decision.world;
 
-        // reject host dispatch when the binding is unavailable on this host
-        if world == RuntimeWorld::Host && !spec.supports_current_host() {
+        // reject unavailable host bindings before entering the call
+        if world == RuntimeWorld::Host && !spec.supports_current_target() {
             return Err(RuntimeError::from(PlatformError::not_supported(spec.name)).boxed());
         }
 
@@ -587,17 +595,8 @@ impl BindingCallContext {
     /// Resolve the binding world for this call context.
     #[inline]
     pub fn resolve_world(&self, spec: BindingDescriptor) -> RuntimeResult<RuntimeWorld> {
-        let policy = self.policy();
-        let decision = self.world().resolve_binding_dispatch(
-            self.hooks().execution_mode(),
-            self.worker().runtime_id,
-            self.worker().id,
-            spec,
-            Some(self.engine),
-            policy.default_access(),
-            policy.default_world(),
-            policy.default_replay_payload(),
-        )?;
+        let access = self.access();
+        let decision = self.binding_decision(spec, access.default_replay_payload())?;
 
         Ok(decision.world)
     }
@@ -608,39 +607,42 @@ impl BindingCallContext {
         &self,
         spec: BindingDescriptor,
     ) -> RuntimeResult<BindingReplayPayload> {
-        let policy = self.policy();
-        let decision = self.world().resolve_binding_dispatch(
+        let access = self.access();
+        let decision = self.binding_decision(spec, access.default_replay_payload())?;
+
+        let requested = decision.replay_payload;
+        self.trace().payload_policy_for_requested(spec, requested)
+    }
+
+    /// Resolve one binding policy decision for this call context.
+    #[inline]
+    fn binding_decision(
+        &self,
+        spec: BindingDescriptor,
+        default_replay_payload: BindingReplayPayload,
+    ) -> RuntimeResult<BindingDecision> {
+        self.world().resolve_binding(
             self.hooks().execution_mode(),
             self.worker().runtime_id,
             self.worker().id,
             spec,
             Some(self.engine),
-            policy.default_access(),
-            policy.default_world(),
-            policy.default_replay_payload(),
-        )?;
-
-        let requested = decision.replay_payload;
-        self.trace().payload_policy_for_requested(spec, requested)
+            RuntimeAccess::Allow,
+            RuntimeWorld::Host,
+            default_replay_payload,
+        )
     }
 }
 
 /// Return whether one execution context satisfies one binding affinity requirement.
 pub(crate) const fn execution_context_satisfies(
     execution_context: ExecutionContext,
-    event_loop_context_id: ExecutionContextId,
+    worker_context_id: ExecutionContextId,
     affinity: BindingAffinity,
-    owner_execution_context_id: Option<ExecutionContextId>,
 ) -> bool {
     match affinity {
-        BindingAffinity::Any => true,
-        BindingAffinity::EventLoop => execution_context.id.0 == event_loop_context_id.0,
-        BindingAffinity::Owner => match owner_execution_context_id {
-            Some(owner_execution_context_id) => {
-                execution_context.id.0 == owner_execution_context_id.0
-            }
-            None => false,
-        },
-        BindingAffinity::ProcessMain => execution_context.is_process_main,
+        BindingAffinity::None => true,
+        BindingAffinity::Worker => execution_context.id.0 == worker_context_id.0,
+        BindingAffinity::Main => execution_context.is_process_main,
     }
 }

@@ -4,7 +4,7 @@ use std::sync::{Arc, OnceLock};
 
 use parking_lot::Mutex;
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 
 /// One process-global registry of typed platform services.
 #[cfg_attr(any(target_os = "ios", target_os = "android"), allow(dead_code))]
@@ -75,12 +75,7 @@ impl ServiceRegistry {
         let services = self.services.lock();
         let service = services.get(&TypeId::of::<S>())?;
 
-        Some(
-            service
-                .clone()
-                .downcast::<S>()
-                .expect("typed platform service should downcast"),
-        )
+        service.clone().downcast::<S>().ok()
     }
 
     /// Return one shared typed service, initializing it on first access.
@@ -92,10 +87,7 @@ impl ServiceRegistry {
         {
             let services = self.services.lock();
             if let Some(service) = services.get(&TypeId::of::<S>()) {
-                return Ok(service
-                    .clone()
-                    .downcast::<S>()
-                    .expect("typed platform service should downcast"));
+                return downcast_service(service.clone());
             }
         }
 
@@ -105,10 +97,7 @@ impl ServiceRegistry {
         // publish the new service unless another thread won the race
         let mut services = self.services.lock();
         if let Some(existing) = services.get(&TypeId::of::<S>()) {
-            return Ok(existing
-                .clone()
-                .downcast::<S>()
-                .expect("typed platform service should downcast"));
+            return downcast_service(existing.clone());
         }
 
         services.insert(TypeId::of::<S>(), service.clone());
@@ -136,4 +125,17 @@ where
     S: Any + Send + Sync + 'static,
 {
     ServiceRegistry::shared().get::<S>()
+}
+
+/// Downcast one erased service to its concrete service type.
+fn downcast_service<S>(service: Arc<dyn Any + Send + Sync>) -> RuntimeResult<Arc<S>>
+where
+    S: Any + Send + Sync + 'static,
+{
+    service.downcast::<S>().map_err(|_| {
+        RuntimeError::Internal {
+            message: "typed platform service registry stored an invalid service type".to_string(),
+        }
+        .boxed()
+    })
 }
