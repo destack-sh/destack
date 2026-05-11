@@ -1,0 +1,23 @@
+/// Marks data as belonging to a taint domain.
+///
+/// ```ds
+/// @taint("url")
+/// const target = input;
+/// ```
+export newtype taint = (string,) | ();
+
+/// Marks a declaration as consuming tainted data.
+///
+/// ```ds
+/// @sink("url")
+/// function redirect(value: string): void;
+/// ```
+export newtype sink = (string,) | ();
+
+/// Marks a declaration as sanitizing tainted data.
+///
+/// ```ds
+/// @sanitizer("url")
+/// function sanitizeUrl(value: string): string;
+/// ```
+export newtype sanitizer = (string,) | ();

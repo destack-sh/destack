@@ -3,7 +3,7 @@ import {
     type Member,
     type Scope,
     type Symbol,
-} from "../../reflect/dir/index.ds";
+} from "destack:reflect/dir";
 
 /// What caused one macro invocation.
 export type MacroTrigger = "decorator" | "autoDerive";

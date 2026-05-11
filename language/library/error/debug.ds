@@ -1,5 +1,3 @@
-import { intrinsic } from "../decorator/intrinsic.ds";
-
 /// Trigger a debugger breakpoint.
 @intrinsic("breakpoint")
 export declare function breakpoint(): void;

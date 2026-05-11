@@ -21,9 +21,6 @@ export type Platform =
     | "bare-metal"
     | "universal";
 
-/// The output format for the build.
-export type Output = "js" | "ts" | "wasm" | "native";
-
 /// The semantic runtime contract for the build.
 export type Runtime = "destack" | "js";
 
@@ -41,28 +38,18 @@ export type TargetFamily =
 export interface ImportMetaTarget {
     /// Coarse target family.
     readonly family: TargetFamily;
-    /// Target vendor tag.
-    readonly vendor: string;
-    /// Target environment tag when one exists.
-    readonly env: string | undefined;
-    /// Target ABI tag when one exists.
-    readonly abi: string | undefined;
     /// Target architecture tag when one exists.
     readonly arch: string | undefined;
+    /// Target vendor tag when one exists.
+    readonly vendor: string | undefined;
+    /// Target ABI tag when one exists.
+    readonly abi: string | undefined;
 }
 
 /// Environment variables available at compile time.
 export interface ImportMetaEnv {
     /// Index signature for arbitrary environment variables.
     readonly [key: string]: string | undefined;
-    /// Environment mode.
-    readonly NODE_ENV?: "development" | "production" | "test";
-    /// True in development builds.
-    readonly DEV: boolean;
-    /// True in production builds.
-    readonly PROD: boolean;
-    /// True in test builds.
-    readonly TEST: boolean;
 }
 
 /// Metadata about the current module and build configuration.
@@ -79,8 +66,6 @@ export interface ImportMeta {
     readonly dir: string | undefined;
     /// Alias of `dir`.
     readonly dirname: string | undefined;
-    /// The output format being compiled.
-    readonly output: Output;
     /// The target platform (OS) being compiled for.
     readonly platform: Platform;
     /// The semantic runtime contract for this build.

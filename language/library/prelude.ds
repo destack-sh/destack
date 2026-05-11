@@ -1,15 +1,19 @@
 // reflection
-export * from "./reflect/index.ds";
+export * from "./reflect";
 
 // memory
 export {
     type StaticLifetime,
+    type ManagedLifetime,
     type Lifetime,
     type Space,
     type Place,
     type Ownership,
     type Access,
     type Form,
+    type Unique,
+    Box,
+    MaybeUninit,
     type Managed,
     type Borrowed,
     type ReadonlyBorrowed,
@@ -55,13 +59,14 @@ export {
     type Copy,
     type Clone,
     type Drop,
+    ManuallyDrop,
     type Dispose,
     type AsyncDispose,
     type Send,
     type Sync,
     defaultAllocator,
     drop,
-} from "./memory/index.ds";
+} from "./memory";
 
 // control flow
 export {
@@ -70,8 +75,14 @@ export {
     type TryBranch,
     type TryContinue,
     type TryFailure,
-} from "./core/operator/try.ds";
-export { type Error } from "./core/error/error.ds";
+} from "./ops/try.ds";
+export { type Error } from "./error/error.ds";
+export {
+    abort,
+    panic,
+    todo,
+    unreachable,
+} from "./error/panic.ds";
 export {
     type StackFrameId,
     type SourceLocation,
@@ -80,20 +91,31 @@ export {
     type StackTraceOptions,
     captureStackTrace,
     formatStackTrace,
-} from "./core/error/stack.ds";
+} from "./error/stack.ds";
 export {
     Ok,
     Err,
     Result,
     AsyncResult,
-} from "./core/error/result.ds";
+} from "./error/result.ds";
+export {
+    type As,
+    type From,
+    type Into,
+    type TryFrom,
+    type TryInto,
+} from "./convert";
+export {
+    type Encoder,
+    type Decoder,
+    type Serialize,
+    type Deserialize,
+} from "./serde";
 export {
     type Promise,
-    type PromiseConstructor,
     Promise,
-} from "./core/async/promise.ds";
+} from "./async/promise.ds";
 export {
-    type SymbolConstructor,
     Symbol,
     type IteratorYield,
     type IteratorReturn,
@@ -101,14 +123,14 @@ export {
     type Iterator,
     type Iterable,
     type IterableIterator,
-} from "./core/iterator/index.ds";
+} from "./iter";
 export {
     type Generator,
     type AsyncIterator,
     type AsyncIterable,
     type AsyncIterableIterator,
     type AsyncGenerator,
-} from "./core/async/generator.ds";
+} from "./async/generator.ds";
 
 // simd
 export {
@@ -159,24 +181,21 @@ export {
     mustUse,
     pure,
     tailcall,
-    unsafe,
-    transmute,
     taint,
     sink,
     sanitizer,
-    tag,
-} from "./core/decorator/index.ds";
+} from "./decorator";
 
 // macros
 export {
     type Module,
-} from "./core/module/config.ds";
+} from "./module/config.ds";
 export {
     type Macro,
     type MacroContext,
     type ExpansionContext,
     type MaterializationContext,
-} from "./core/module/macro.ds";
+} from "./macro";
 
 // platform decorators
 export {
@@ -188,31 +207,31 @@ export {
 } from "./platform/core/action.ds";
 
 // operator interfaces
-export { type Add, type Plus } from "./core/operator/plus.ds";
-export { type Subtract } from "./core/operator/minus.ds";
-export { type Negate } from "./core/operator/negate.ds";
-export { type Multiply } from "./core/operator/multiply.ds";
-export { type Divide } from "./core/operator/divide.ds";
-export { type Remainder } from "./core/operator/remainder.ds";
-export { type Power } from "./core/operator/power.ds";
-export { type And, type Or, type Xor, type Not } from "./core/operator/bitwise.ds";
+export { type Add, type Plus } from "./ops/plus.ds";
+export { type Subtract } from "./ops/minus.ds";
+export { type Negate } from "./ops/negate.ds";
+export { type Multiply } from "./ops/multiply.ds";
+export { type Divide } from "./ops/divide.ds";
+export { type Remainder } from "./ops/remainder.ds";
+export { type Power } from "./ops/power.ds";
+export { type And, type Or, type Xor, type Not } from "./ops/bitwise.ds";
 export {
     type ShiftLeft,
     type ShiftRight,
     type ShiftRightUnsigned,
-} from "./core/operator/shift.ds";
+} from "./ops/shift.ds";
 
 // equality and comparison operators
-export { type Equal, type PartialEqual } from "./core/operator/equality.ds";
+export { type Equal, type PartialEqual } from "./ops/equality.ds";
 export {
     type Compare,
     type PartialCompare,
     Ordering,
-} from "./core/operator/comparison.ds";
+} from "./ops/comparison.ds";
 
 // formatting
-export { type Display, type Debug } from "./core/operator/format.ds";
+export { type Display, type Debug } from "./ops/format.ds";
 
 // subscript operators
-export { type Index, type IndexSet } from "./core/operator/subscript.ds";
-export { type Dereference } from "./core/operator/dereference.ds";
+export { type Index, type IndexSet } from "./ops/subscript.ds";
+export { type Dereference } from "./ops/dereference.ds";

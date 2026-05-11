@@ -1,6 +1,6 @@
-import { type Promise } from "../async/promise.ds";
-import { type Equal } from "../operator/equality.ds";
-import { type FromFailure, type Try, type TryBranch, TryContinue, TryFailure } from "../operator/try.ds";
+import { type Promise } from "destack:async";
+import { type Equal } from "destack:ops";
+import { type FromFailure, type Try, type TryBranch, TryContinue, TryFailure } from "destack:ops";
 import { panic } from "./panic.ds";
 
 /// Successful result variant.
@@ -27,15 +27,6 @@ extension<T, E> of Result<T, E> {
     /// Create a failed result.
     static err(error: E): Result<T, E> {
         Result(Err { kind: "Err", error })
-    }
-
-    /// Run a throwing function and map the exception into a typed failure.
-    static try(body: () => T, recover: (error: unknown) => E): Result<T, E> {
-        try {
-            Result.ok(body())
-        } catch (error) {
-            Result.err(recover(error))
-        }
     }
 
     /// Return true when this result is successful.
@@ -220,11 +211,6 @@ extension<T, E> of AsyncResult<T, E> {
         )
     }
 
-    /// Run an async operation and map rejection into a typed error.
-    static try(body: () => Promise<T>, recover: (error: unknown) => E): AsyncResult<T, E> {
-        AsyncResult.fromPromise(body(), recover)
-    }
-
     /// Map the success value.
     map<U>(f: (value: T) => U): AsyncResult<U, E> {
         AsyncResult(this.then((result) => result.map(f)))
@@ -250,18 +236,6 @@ extension<T, E> of AsyncResult<T, E> {
     /// Continue with a synchronous result-returning operation.
     andThenSync<U, F>(f: (value: T) => Result<U, F>): AsyncResult<U, E | F> {
         AsyncResult(this.then((result) => result.andThen(f)))
-    }
-
-    /// Continue with a promise-returning operation.
-    andThenPromise<U, F>(f: (value: T) => Promise<Result<U, F>>): AsyncResult<U, E | F> {
-        AsyncResult(
-            this.then(async (result) => {
-                match (result) {
-                    Ok { value } => await f(value)
-                    Err { error } => Result.err(error)
-                }
-            }),
-        )
     }
 
     /// Recover from a failure with another async result.

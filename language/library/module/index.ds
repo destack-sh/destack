@@ -1,3 +1,2 @@
 export * from "./config.ds";
 export * from "./meta.ds";
-export * from "./macro.ds";

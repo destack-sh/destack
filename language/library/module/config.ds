@@ -1,4 +1,4 @@
-import { type Macro } from "./macro.ds";
+import { type Macro } from "destack:macro";
 
 /// Builder for lowercase tree tags in one module.
 export newtype interface TreeTagBuilder {}

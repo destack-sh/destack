@@ -1,8 +1,21 @@
-import { intrinsic } from "../decorator/intrinsic.ds";
-import { type Drop } from "../../memory/index.ds";
+import { type Drop } from "destack:memory";
 
 /// Worker-local handle to a suspended execution frame.
 export newtype ContinuationHandle = uint64;
+
+extension of ContinuationHandle implements Drop {
+    /// Resume this suspended execution frame.
+    @intrinsic("continuation.resume")
+    resume<TInput, TYield, TReturn>(value: TInput): ContinuationResult<TYield, TReturn>;
+
+    /// Throw into this suspended execution frame.
+    @intrinsic("continuation.throw")
+    throw<TYield, TReturn>(error: unknown): ContinuationResult<TYield, TReturn>;
+
+    /// Drop this suspended execution frame.
+    @intrinsic("continuation.drop")
+    drop(): void;
+}
 
 /// Suspended continuation produced by `yield`.
 export struct ContinuationYield<T> {
@@ -35,31 +48,6 @@ export declare function suspendContinuation<T>(
     register: (handle: ContinuationHandle) => void,
 ): T;
 
-/// Resume one suspended continuation.
-@intrinsic("continuation.resume")
-export declare function resumeContinuation<TInput, TYield, TReturn>(
-    handle: ContinuationHandle,
-    value: TInput,
-): ContinuationResult<TYield, TReturn>;
-
-/// Throw into one suspended continuation.
-@intrinsic("continuation.throw")
-export declare function throwContinuation<TYield, TReturn>(
-    handle: ContinuationHandle,
-    error: unknown,
-): ContinuationResult<TYield, TReturn>;
-
-/// Drop one suspended continuation.
-@intrinsic("continuation.drop")
-export declare function dropContinuation(handle: ContinuationHandle): void;
-
 /// Queue one Worker-local microtask.
 @intrinsic("microtask.queue")
 export declare function queueMicrotask(task: () => void): void;
-
-extension of ContinuationHandle implements Drop {
-    /// Drop the suspended execution frame.
-    drop(): void {
-        dropContinuation(this)
-    }
-}

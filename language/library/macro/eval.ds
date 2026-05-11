@@ -1,0 +1,10 @@
+/// Evaluate source code during comptime evaluation.
+@intrinsic("comptime.eval")
+export declare function eval<T = unknown>(source: string): T;
+
+/// Compile source code into a comptime function.
+@intrinsic("comptime.Function")
+export declare class Function<T = unknown> {
+    /// Create a comptime function from parameter names and body source.
+    constructor(...source: string[]);
+}

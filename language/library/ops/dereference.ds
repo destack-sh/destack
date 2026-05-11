@@ -1,12 +1,12 @@
-import { type Access, type WithAccess } from "../../memory/index.ds";
+import { type Access } from "destack:memory";
 
 /// Interface for dereference projection `*a`.
 ///
 /// `A` selects the access form required by the operator use.
 export newtype interface Dereference<A: Access = "readonly"> {
-    /// The projected target form.
+    /// The projected result form.
     type Output;
 
     /// Project the receiver into the requested access form.
-    dereference(): WithAccess<this.Output, A>;
+    dereference(): this.Output;
 }
