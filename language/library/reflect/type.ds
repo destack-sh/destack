@@ -1,4 +1,3 @@
-import { intrinsic } from "../core/decorator/intrinsic.ds";
 import { type Type as DirType } from "./dir/type.ds";
 
 export { type TypeId } from "./dir/type.ds";
@@ -32,19 +31,17 @@ export struct LayoutField {
     type: Type<unknown>;
 }
 
-/// Static helpers for reflected types.
-export namespace Type {
-    /// Return the reflected type for `T`.
-    @intrinsic("reflect.Type.of")
-    export function of<T>(): Type<T>;
-    /// Return true when two reflected types name the same normalized type.
-    @intrinsic("reflect.Type.equals")
-    export function equals<A, B>(left: Type<A>, right: Type<B>): boolean;
-}
-
 /// Return the reflected type for a value.
 @intrinsic("reflect.typeOf")
 export declare function typeOf<T>(value: T): Type<T>;
+
+/// Return the reflected type for `T`.
+@intrinsic("reflect.type")
+export declare function type<T>(): Type<T>;
+
+/// Return true when two reflected types name the same normalized type.
+@intrinsic("reflect.type.equals")
+export declare function equalTypes<A, B>(left: Type<A>, right: Type<B>): boolean;
 
 /// Return the target-specific size of `T`.
 @intrinsic("reflect.sizeOf")

@@ -1,5 +1,6 @@
-import * as platform from "library/platform/index.ds";
-import type { PlatformError } from "../platform/error/index.ds";
+import * as platform from "destack:platform";
+import { type TimerHandle } from "destack:resource";
+import type { PlatformError } from "destack:platform/error";
 
 /// Return wall clock time in nanoseconds since the runtime epoch.
 export function wallNs(): Result<uint64, PlatformError> {
@@ -14,4 +15,25 @@ export function monoNs(): Result<uint64, PlatformError> {
 /// Sleep for at least the given duration in nanoseconds.
 export function sleepNs(duration: uint64): Result<void, PlatformError> {
     platform.time.sleepNs(duration);
+}
+
+/// Schedule a one-shot timer.
+export function once(delayNs: uint64): Result<TimerHandle, PlatformError> {
+    platform.time.timerOnce(delayNs, {
+        clock: platform.time.TimerClock.Monotonic,
+        flags: platform.time.TimerFlags(0),
+    });
+}
+
+/// Schedule a repeating timer.
+export function interval(periodNs: uint64): Result<TimerHandle, PlatformError> {
+    platform.time.timerInterval(periodNs, {
+        clock: platform.time.TimerClock.Monotonic,
+        flags: platform.time.TimerFlags(0),
+    });
+}
+
+/// Cancel a scheduled timer.
+export function cancel(handle: TimerHandle): Result<void, PlatformError> {
+    platform.time.timerCancel(handle);
 }

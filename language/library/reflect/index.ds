@@ -1,2 +1,3 @@
 export * from "./type.ds";
-export * as dir from "./dir/index.ds";
+export * from "./reflect.ds";
+export * as dir from "./dir";

@@ -1,6 +1,6 @@
-import { AsyncResult } from "core";
-import type { PlatformError } from "../platform/error/index.ds";
-import { SocketHandle } from "../platform/resource/index.ds";
+import { AsyncResult } from "destack:error";
+import { PlatformError } from "destack:platform/error";
+import { SocketHandle } from "destack:platform/resource";
 import {
     AddressLookupQuery,
     AddressLookupResult,
@@ -8,7 +8,7 @@ import {
     SocketReceiveFromResult,
     SocketAddress,
     SocketFamily,
-} from "../platform/net/index.ds";
+} from "destack:platform/net";
 
 /// Owned stream socket.
 export struct Connection {
