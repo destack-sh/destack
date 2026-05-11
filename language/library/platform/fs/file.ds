@@ -102,7 +102,7 @@ export const WRITE_APPEND: WriteFlags = WriteFlags(0x10);
 /// File read options.
 export struct ReadOptions {
     /// Explicit byte offset, or current descriptor position when absent.
-    offset: FileOffset | void;
+    offset?: FileOffset;
     /// Read behavior flags.
     flags: ReadFlags;
 }
@@ -110,7 +110,7 @@ export struct ReadOptions {
 /// File write options.
 export struct WriteOptions {
     /// Explicit byte offset, or current descriptor position when absent.
-    offset: FileOffset | void;
+    offset?: FileOffset;
     /// Write behavior flags.
     flags: WriteFlags;
 }
@@ -200,7 +200,7 @@ export struct LockOptions {
 /// Open one filesystem entry as a file handle.
 @binding("destack.fs.file.open", {
     effect: "external",
-    requires: ["fs.read", "fs.write"],
+    requires: ["fs.open"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -264,7 +264,7 @@ export declare function writeMany(
 /// Reposition an open file and return the new offset.
 @binding("destack.fs.file.seek", {
     effect: "external",
-    requires: ["fs.handle"],
+    requires: ["fs.open"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -380,7 +380,7 @@ export declare function lock(file: FileHandle, options: LockOptions): Result<voi
 /// Duplicate an open file handle into a new owned resource.
 @binding("destack.fs.file.duplicate", {
     effect: "external",
-    requires: ["fs.handle"],
+    requires: ["fs.open"],
     families: ["windows", "unix"],
     simulation: true,
 })

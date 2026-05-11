@@ -72,7 +72,10 @@ export declare function setOwner(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function setFileOwner(file: FileHandle, owner: FileOwner): Result<void, PlatformError>;
+export declare function setFileOwner(
+    file: FileHandle,
+    owner: FileOwner,
+): Result<void, PlatformError>;
 
 /// Set access and modification times for an entry.
 @binding("destack.fs.attribute.times", {
@@ -94,4 +97,7 @@ export declare function setTimes(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function setFileTimes(file: FileHandle, times: FileTimes): Result<void, PlatformError>;
+export declare function setFileTimes(
+    file: FileHandle,
+    times: FileTimes,
+): Result<void, PlatformError>;
