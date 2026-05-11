@@ -2,7 +2,7 @@
 
 ## construction
 
-### owned expression yields owned storage
+### owned expression yields owned value
 
 Owned expressions create `^T`.
 
@@ -52,7 +52,7 @@ point.x;
 
 ### owned conversion moves plain values
 
-`^expr` converts a plain value into owned storage.
+`^expr` converts a plain value into an owned value.
 
 ```ds
 struct Point {
@@ -69,7 +69,7 @@ consume(^point);
 
 ### owned conversion rejects owned values
 
-Owned storage cannot be owned again.
+An owned value cannot be owned again.
 
 ```ds
 struct Point {

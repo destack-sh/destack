@@ -7,13 +7,13 @@
 Managed destinations receive managed values.
 
 ```ds
-class Box {
+class Widget {
     value: int32 = 0;
 }
 
-let box: Box = new Box();
+let box: Widget = new Widget();
 
-box satisfies Box;
+box satisfies Widget;
 ```
 
 ### new follows owned destinations
@@ -21,13 +21,13 @@ box satisfies Box;
 Owned destinations receive owned values.
 
 ```ds
-class Box {
+class Widget {
     value: int32 = 0;
 }
 
-let box: ^Box = new Box();
+let box: ^Widget = new Widget();
 
-box satisfies ^Box;
+box satisfies ^Widget;
 ```
 
 ### new follows owned shared destinations
@@ -35,14 +35,14 @@ box satisfies ^Box;
 Ownership and placement both come from the destination.
 
 ```ds
-class Box {
+class Widget {
     value: int32 = 0;
 }
 
-let box: shared (^Box) = new Box();
+let box: shared ^Widget = new Widget();
 
-box satisfies shared (^Box);
-box satisfies ^(shared Box);
+box satisfies shared ^Widget;
+box satisfies ^shared Widget;
 ```
 
 ## placement
@@ -52,13 +52,13 @@ box satisfies ^(shared Box);
 Shared destinations allocate in shared space.
 
 ```ds
-class Box {
+class Widget {
     value: int32 = 0;
 }
 
-let box: shared Box = new Box();
+let box: shared Widget = new Widget();
 
-box satisfies shared Box;
+box satisfies shared Widget;
 ```
 
 ### ambient fields follow the destination
@@ -96,14 +96,14 @@ request.body satisfies shared Payload;
 `&expr` creates borrowed access when the destination expects `&T`.
 
 ```ds
-class Box {
+class Widget {
     value: int32 = 0;
 }
 
-let box = new Box();
-let borrow: &Box = &box;
+let box = new Widget();
+let borrow: &Widget = &box;
 
-borrow satisfies &Box;
+borrow satisfies &Widget;
 ```
 
 ### address expression can create raw pointers
@@ -111,12 +111,12 @@ borrow satisfies &Box;
 `&expr` creates raw access when the destination expects `*T`.
 
 ```ds
-class Box {
+class Widget {
     value: int32 = 0;
 }
 
-let box = new Box();
-let pointer: *Box = &box;
+let box = new Widget();
+let pointer: *Widget = &box;
 
-pointer satisfies *Box;
+pointer satisfies *Widget;
 ```

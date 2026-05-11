@@ -1,19 +1,19 @@
-# Limits
+# Restrictions
 
 ## managed
 
 ### noManaged rejects managed allocations
 
-`@noManaged` forbids managed allocations inside the annotated body.
+`@noManaged` forbids managed allocation inside the annotated body.
 
 ```ds:main.ds
-class Box {
+class Widget {
     value: number = 0;
 }
 
 @noManaged
 function run(): void {
-    let value = new Box();
+    let value = new Widget();
 }
 ```
 
@@ -37,24 +37,24 @@ function run(): void {
 
 ### noHeap rejects managed allocations
 
-`@noHeap` forbids managed allocations inside the annotated body.
+`@noHeap` forbids managed allocation inside the annotated body.
 
 ```ds:main.ds
-class Box {
+class Widget {
     value: number = 0;
 }
 
 @noHeap
 function run(): void {
-    let value = new Box();
+    let value = new Widget();
 }
 ```
 
 - contains: managed memory is disabled
 
-### noHeap rejects raw heap allocations
+### noHeap rejects allocator use
 
-`@noHeap` forbids raw allocator use inside the annotated body.
+`@noHeap` forbids allocator use inside the annotated body.
 
 ```ds:main.ds
 @noHeap
@@ -72,12 +72,13 @@ function run(): void {
 `@noManaged` forbids managed types in signatures.
 
 ```ds:main.ds
-class Box {
+class Widget {
     value: number = 0;
 }
 
 @noManaged
-function take(value: Box): void {}
+function take(value: Widget): void {
+}
 ```
 
 - contains: managed memory is disabled
@@ -87,13 +88,13 @@ function take(value: Box): void {}
 `@noManaged` forbids managed return types.
 
 ```ds:main.ds
-class Box {
+class Widget {
     value: number = 0;
 }
 
 @noManaged
-function make(): Box {
-    return new Box();
+function make(): Widget {
+    return new Widget();
 }
 ```
 
