@@ -1,0 +1,105 @@
+import { Array } from "core";
+import type { PlatformError } from "../error/index.ds";
+
+/// Environment variable.
+export struct EnvironmentVariable {
+    /// Variable name.
+    name: string;
+    /// Variable value.
+    value: string;
+}
+
+/// Raw environment variable.
+export struct RawEnvironmentVariable {
+    /// Variable name bytes.
+    name: uint8[];
+    /// Variable value bytes.
+    value: uint8[];
+}
+
+/// Read an environment variable.
+@binding("destack.process.environment.get", {
+    effect: "external",
+    requires: ["process.environment.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function getEnvironment(
+    name: &readonly string,
+): Result<^string | undefined, PlatformError>;
+
+/// List environment variables.
+@binding("destack.process.environment.list", {
+    effect: "external",
+    requires: ["process.environment.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function listEnvironment(): Result<^Array<EnvironmentVariable>, PlatformError>;
+
+/// Set an environment variable.
+@binding("destack.process.environment.set", {
+    effect: "external",
+    requires: ["process.environment.write"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function setEnvironment(
+    name: &readonly string,
+    value: &readonly string,
+): Result<void, PlatformError>;
+
+/// Remove an environment variable.
+@binding("destack.process.environment.remove", {
+    effect: "external",
+    requires: ["process.environment.write"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function removeEnvironment(name: &readonly string): Result<void, PlatformError>;
+
+/// Read a raw Unix environment variable.
+@binding("destack.process.environment.getRaw", {
+    effect: "external",
+    requires: ["process.environment.read"],
+    families: ["unix"],
+    simulation: true,
+})
+export declare function getRawEnvironment(
+    name: &readonly [uint8],
+): Result<^Array<uint8> | undefined, PlatformError>;
+
+/// List raw Unix environment variables.
+@binding("destack.process.environment.listRaw", {
+    effect: "external",
+    requires: ["process.environment.read"],
+    families: ["unix"],
+    simulation: true,
+})
+export declare function listRawEnvironment(): Result<
+    ^Array<RawEnvironmentVariable>,
+    PlatformError
+>;
+
+/// Set a raw Unix environment variable.
+@binding("destack.process.environment.setRaw", {
+    effect: "external",
+    requires: ["process.environment.write"],
+    families: ["unix"],
+    simulation: true,
+})
+export declare function setRawEnvironment(
+    name: &readonly [uint8],
+    value: &readonly [uint8],
+): Result<void, PlatformError>;
+
+/// Remove a raw Unix environment variable.
+@binding("destack.process.environment.removeRaw", {
+    effect: "external",
+    requires: ["process.environment.write"],
+    families: ["unix"],
+    simulation: true,
+})
+export declare function removeRawEnvironment(
+    name: &readonly [uint8],
+): Result<void, PlatformError>;

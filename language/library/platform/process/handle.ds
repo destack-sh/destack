@@ -1,0 +1,27 @@
+import type { PlatformError } from "../error/index.ds";
+import { ProcessHandle } from "../resource/index.ds";
+import { ProcessId } from "./identity.ds";
+
+/// Process handle open flags.
+export newtype ProcessOpenFlags = uint32;
+
+/// Open the process for status queries.
+export const PROCESS_OPEN_QUERY: ProcessOpenFlags = ProcessOpenFlags(0x1);
+
+/// Open the process for waiting.
+export const PROCESS_OPEN_WAIT: ProcessOpenFlags = ProcessOpenFlags(0x2);
+
+/// Open the process for signal delivery.
+export const PROCESS_OPEN_SIGNAL: ProcessOpenFlags = ProcessOpenFlags(0x4);
+
+/// Open one process handle for an existing process id.
+@binding("destack.process.handle.open", {
+    effect: "external",
+    requires: ["process.handle"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function openProcess(
+    pid: ProcessId,
+    flags: ProcessOpenFlags,
+): Result<ProcessHandle, PlatformError>;

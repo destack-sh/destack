@@ -1,6 +1,6 @@
 import { Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
-import { ProcessId } from "../process/ids.ds";
+import { ProcessId } from "../process/identity.ds";
 import { TtyHandle } from "../resource/index.ds";
 
 /// Termios set-attributes timing selector.

@@ -18,8 +18,8 @@ export newtype ListenerHandle = ResourceId;
 /// Handle for a spawned process.
 export newtype ProcessHandle = ResourceId;
 
-/// Handle for a process file descriptor style object.
-export newtype ProcessFdHandle = ResourceId;
+/// Handle for a Windows job object.
+export newtype JobHandle = ResourceId;
 
 /// Handle for a scheduled timer.
 export newtype TimerHandle = ResourceId;
@@ -110,9 +110,6 @@ export newtype TtyHandle = ResourceId;
 
 /// Handle for a signal subscription.
 export newtype SignalHandle = ResourceId;
-
-/// Handle for a signalfd style signal queue descriptor.
-export newtype SignalFdHandle = ResourceId;
 
 /// Handle transferred through ancillary transport.
 export newtype TransferredHandle = ResourceId;

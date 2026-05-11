@@ -1,0 +1,11 @@
+import { Array } from "core";
+import type { PlatformError } from "../error/index.ds";
+
+/// Return the process argument vector.
+@binding("destack.process.argument.list", {
+    effect: "external",
+    requires: ["process.arguments"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function listArguments(): Result<^Array<^string>, PlatformError>;

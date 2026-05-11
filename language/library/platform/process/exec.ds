@@ -1,48 +1,51 @@
-import { Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
-import { DirectoryHandle, FileHandle } from "../resource/index.ds";
 import { Path } from "../fs/path.ds";
+import { DirectoryHandle, FileHandle } from "../resource/index.ds";
+import { EnvironmentVariable } from "./environment.ds";
 
-/// Flags for `execat` operations.
-export newtype ExecAtFlags = uint32;
+/// Exec flags.
+export newtype ExecFlags = uint32;
+
+/// Allow an empty path when the host supports handle-relative exec.
+export const EXEC_EMPTY_PATH: ExecFlags = ExecFlags(0x1);
 
 /// Replace the current process image with a command path.
 @binding("destack.process.exec.path", {
     effect: "external",
     requires: ["process.exec"],
-    families: ["windows", "unix"],
+    families: ["unix"],
     simulation: true,
 })
 export declare function exec(
-    command: Path,
-    arguments: Slice<string>,
-    environment: Slice<string>,
+    command: &readonly Path,
+    arguments: &readonly [string],
+    environment: &readonly [EnvironmentVariable],
 ): Result<void, PlatformError>;
 
 /// Replace the current process image using a directory-relative path.
-@binding("destack.process.exec.pathat", {
+@binding("destack.process.exec.at", {
     effect: "external",
     requires: ["process.exec"],
-    families: ["windows", "unix"],
+    families: ["unix"],
     simulation: true,
 })
-export declare function execat(
+export declare function execAt(
     directory: DirectoryHandle,
-    path: Path,
-    arguments: Slice<string>,
-    environment: Slice<string>,
-    flags: ExecAtFlags,
+    path: &readonly Path,
+    arguments: &readonly [string],
+    environment: &readonly [EnvironmentVariable],
+    flags: ExecFlags,
 ): Result<void, PlatformError>;
 
 /// Replace the current process image using an executable file handle.
-@binding("destack.process.exec.fexec", {
+@binding("destack.process.exec.file", {
     effect: "external",
     requires: ["process.exec"],
-    families: ["windows", "unix"],
+    families: ["unix"],
     simulation: true,
 })
-export declare function fexec(
+export declare function execFile(
     executable: FileHandle,
-    arguments: Slice<string>,
-    environment: Slice<string>,
+    arguments: &readonly [string],
+    environment: &readonly [EnvironmentVariable],
 ): Result<void, PlatformError>;

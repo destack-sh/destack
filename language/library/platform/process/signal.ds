@@ -1,7 +1,7 @@
-import { Slice } from "core";
+import { Array } from "core";
 import type { PlatformError } from "../error/index.ds";
-import { SignalHandle } from "../resource/index.ds";
-import { ProcessId } from "./ids.ds";
+import { ProcessHandle, SignalHandle } from "../resource/index.ds";
+import { ProcessId } from "./identity.ds";
 
 /// Signal number for process control.
 export newtype Signal = uint32;
@@ -20,90 +20,106 @@ export enum SignalMaskHow {
 export struct SignalEvent {
     /// Signal number observed by the runtime.
     signal: Signal;
-    /// Process id associated with the signal when provided by the platform.
-    pid: ProcessId;
+    /// Process id associated with the signal.
+    pid?: ProcessId;
 }
 
 /// Send a signal to a target process.
-@binding("destack.process.signals.kill", {
+@binding("destack.process.signal.send", {
     effect: "external",
     requires: ["process.signal.send"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function kill(pid: ProcessId, signal: Signal): Result<void, PlatformError>;
+export declare function sendSignal(pid: ProcessId, signal: Signal): Result<void, PlatformError>;
+
+/// Send a signal to a target process handle.
+@binding("destack.process.signal.handle", {
+    effect: "external",
+    requires: ["process.signal.send"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function signalProcess(
+    process: ProcessHandle,
+    signal: Signal,
+): Result<void, PlatformError>;
 
 /// Subscribe to one signal value.
-@binding("destack.process.signals.signalSubscribe", {
+@binding("destack.process.signal.subscribe", {
     effect: "external",
     requires: ["process.signal.receive"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function signalSubscribe(signal: Signal): Result<SignalHandle, PlatformError>;
+export declare function subscribeSignal(signal: Signal): Result<SignalHandle, PlatformError>;
 
 /// Remove a signal subscription handle.
-@binding("destack.process.signals.signalUnsubscribe", {
+@binding("destack.process.signal.unsubscribe", {
     effect: "external",
     requires: ["process.signal.receive"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function signalUnsubscribe(handle: SignalHandle): Result<void, PlatformError>;
+export declare function unsubscribeSignal(handle: SignalHandle): Result<void, PlatformError>;
 
 /// Receive the next signal event from a subscription.
-@binding("destack.process.signals.signalReceive", {
+@binding("destack.process.signal.receive", {
     effect: "external",
     requires: ["process.signal.receive"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function signalReceive(handle: SignalHandle): Result<SignalEvent, PlatformError>;
+export declare function receiveSignal(handle: SignalHandle): Result<SignalEvent, PlatformError>;
 
 /// Poll one signal event without blocking.
-@binding("destack.process.signals.signalTryReceive", {
+@binding("destack.process.signal.tryReceive", {
     effect: "external",
     requires: ["process.signal.receive"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function signalTryReceive(handle: SignalHandle): Result<SignalEvent, PlatformError>;
+export declare function tryReceiveSignal(handle: SignalHandle): Result<SignalEvent, PlatformError>;
 
 /// Read the current thread signal mask.
-@binding("destack.process.signals.signalMaskRead", {
+@binding("destack.process.signal.mask", {
     effect: "external",
     requires: ["process.signal.receive"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function signalMaskRead(): Result<Signal[], PlatformError>;
+export declare function getSignalMask(): Result<^Array<Signal>, PlatformError>;
 
 /// Update the current thread signal mask.
-@binding("destack.process.signals.signalMaskUpdate", {
+@binding("destack.process.signal.setMask", {
     effect: "external",
     requires: ["process.signal.receive"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function signalMaskUpdate(
+export declare function setSignalMask(
     how: SignalMaskHow,
-    signals: Slice<Signal>,
+    signals: &readonly [Signal],
 ): Result<void, PlatformError>;
 
 /// Wait for one signal from a requested set.
-@binding("destack.process.signals.signalWait", {
+@binding("destack.process.signal.wait", {
     effect: "external",
     requires: ["process.signal.receive"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function signalWait(signals: Slice<Signal>): Result<SignalEvent, PlatformError>;
+export declare function waitSignal(
+    signals: &readonly [Signal],
+): Result<SignalEvent, PlatformError>;
 
 /// Poll one signal from a requested set without blocking.
-@binding("destack.process.signals.signalTryWait", {
+@binding("destack.process.signal.tryWait", {
     effect: "external",
     requires: ["process.signal.receive"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function signalTryWait(signals: Slice<Signal>): Result<SignalEvent, PlatformError>;
+export declare function tryWaitSignal(
+    signals: &readonly [Signal],
+): Result<SignalEvent, PlatformError>;
