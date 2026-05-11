@@ -1,0 +1,29 @@
+import type { PlatformError } from "../error/index.ds";
+import { SharedMemoryHandle } from "../resource/index.ds";
+
+/// Wait on one shared-memory futex word.
+@binding("destack.ipc.futex.wait", {
+    effect: "external",
+    requires: ["ipc.futex", "ipc.memory"],
+    platforms: ["linux"],
+    simulation: true,
+})
+export declare function waitFutex(
+    memory: SharedMemoryHandle,
+    offset: uint64,
+    expected: uint32,
+    timeoutNanoseconds?: uint64,
+): Result<void, PlatformError>;
+
+/// Wake futex waiters for one shared-memory word.
+@binding("destack.ipc.futex.wake", {
+    effect: "external",
+    requires: ["ipc.futex", "ipc.memory"],
+    platforms: ["linux"],
+    simulation: true,
+})
+export declare function wakeFutex(
+    memory: SharedMemoryHandle,
+    offset: uint64,
+    count: uint32,
+): Result<uint32, PlatformError>;

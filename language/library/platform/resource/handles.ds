@@ -39,6 +39,9 @@ export newtype SharedMemoryHandle = ResourceId;
 /// Handle for an IPC semaphore.
 export newtype SemaphoreHandle = ResourceId;
 
+/// Handle for an IPC event counter.
+export newtype IpcEventHandle = ResourceId;
+
 /// Handle for a readiness poll instance.
 export newtype PollHandle = ResourceId;
 
