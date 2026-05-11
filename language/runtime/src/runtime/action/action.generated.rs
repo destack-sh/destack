@@ -109,10 +109,6 @@ pub enum HostAction {
     DeviceRead,
     /// `device.write`.
     DeviceWrite,
-    /// `env.read`.
-    EnvRead,
-    /// `env.write`.
-    EnvWrite,
     /// `ffi.call`.
     FfiCall,
     /// `ffi.load`.
@@ -195,18 +191,18 @@ pub enum HostAction {
     InputWrite,
     /// `ipc.event`.
     IpcEvent,
-    /// `ipc.fd.pass`.
-    IpcFdPass,
     /// `ipc.futex`.
     IpcFutex,
+    /// `ipc.handle.pass`.
+    IpcHandlePass,
+    /// `ipc.memory`.
+    IpcMemory,
     /// `ipc.message`.
     IpcMessage,
     /// `ipc.pipe`.
     IpcPipe,
     /// `ipc.semaphore`.
     IpcSemaphore,
-    /// `ipc.shared.memory`.
-    IpcSharedMemory,
     /// `ipc.unix`.
     IpcUnix,
     /// `io.completion`.
@@ -347,14 +343,32 @@ pub enum HostAction {
     OsSysinfo,
     /// `process.affinity`.
     ProcessAffinity,
+    /// `process.arguments`.
+    ProcessArguments,
+    /// `process.cgroup.read`.
+    ProcessCgroupRead,
+    /// `process.cgroup.write`.
+    ProcessCgroupWrite,
+    /// `process.environment.read`.
+    ProcessEnvironmentRead,
+    /// `process.environment.write`.
+    ProcessEnvironmentWrite,
     /// `process.handle`.
     ProcessHandle,
     /// `process.exec`.
     ProcessExec,
+    /// `process.exit`.
+    ProcessExit,
     /// `process.identity.read`.
     ProcessIdentityRead,
     /// `process.identity.write`.
     ProcessIdentityWrite,
+    /// `process.job`.
+    ProcessJob,
+    /// `process.limit.read`.
+    ProcessLimitRead,
+    /// `process.limit.write`.
+    ProcessLimitWrite,
     /// `process.namespace`.
     ProcessNamespace,
     /// `process.priority`.
@@ -363,20 +377,16 @@ pub enum HostAction {
     ProcessScheduler,
     /// `process.spawn`.
     ProcessSpawn,
-    /// `process.spawn.actions`.
-    ProcessSpawnActions,
     /// `process.stdio`.
     ProcessStdio,
-    /// `process.cgroup`.
-    ProcessCgroup,
-    /// `process.run`.
-    ProcessRun,
     /// `process.session`.
     ProcessSession,
     /// `process.signal.receive`.
     ProcessSignalReceive,
     /// `process.signal.send`.
     ProcessSignalSend,
+    /// `process.umask`.
+    ProcessUmask,
     /// `process.wait`.
     ProcessWait,
     /// `process.workdir.read`.
@@ -516,8 +526,6 @@ impl HostAction {
         Self::DeviceControl,
         Self::DeviceRead,
         Self::DeviceWrite,
-        Self::EnvRead,
-        Self::EnvWrite,
         Self::FfiCall,
         Self::FfiLoad,
         Self::FfiPointer,
@@ -559,12 +567,12 @@ impl HostAction {
         Self::InputText,
         Self::InputWrite,
         Self::IpcEvent,
-        Self::IpcFdPass,
         Self::IpcFutex,
+        Self::IpcHandlePass,
+        Self::IpcMemory,
         Self::IpcMessage,
         Self::IpcPipe,
         Self::IpcSemaphore,
-        Self::IpcSharedMemory,
         Self::IpcUnix,
         Self::IoCompletion,
         Self::IoControl,
@@ -635,21 +643,28 @@ impl HostAction {
         Self::OsPower,
         Self::OsSysinfo,
         Self::ProcessAffinity,
+        Self::ProcessArguments,
+        Self::ProcessCgroupRead,
+        Self::ProcessCgroupWrite,
+        Self::ProcessEnvironmentRead,
+        Self::ProcessEnvironmentWrite,
         Self::ProcessHandle,
         Self::ProcessExec,
+        Self::ProcessExit,
         Self::ProcessIdentityRead,
         Self::ProcessIdentityWrite,
+        Self::ProcessJob,
+        Self::ProcessLimitRead,
+        Self::ProcessLimitWrite,
         Self::ProcessNamespace,
         Self::ProcessPriority,
         Self::ProcessScheduler,
         Self::ProcessSpawn,
-        Self::ProcessSpawnActions,
         Self::ProcessStdio,
-        Self::ProcessCgroup,
-        Self::ProcessRun,
         Self::ProcessSession,
         Self::ProcessSignalReceive,
         Self::ProcessSignalSend,
+        Self::ProcessUmask,
         Self::ProcessWait,
         Self::ProcessWorkdirRead,
         Self::ProcessWorkdirWrite,
@@ -748,8 +763,6 @@ impl HostAction {
             Self::DeviceControl => "device.control",
             Self::DeviceRead => "device.read",
             Self::DeviceWrite => "device.write",
-            Self::EnvRead => "env.read",
-            Self::EnvWrite => "env.write",
             Self::FfiCall => "ffi.call",
             Self::FfiLoad => "ffi.load",
             Self::FfiPointer => "ffi.pointer",
@@ -791,12 +804,12 @@ impl HostAction {
             Self::InputText => "input.text",
             Self::InputWrite => "input.write",
             Self::IpcEvent => "ipc.event",
-            Self::IpcFdPass => "ipc.fd.pass",
             Self::IpcFutex => "ipc.futex",
+            Self::IpcHandlePass => "ipc.handle.pass",
+            Self::IpcMemory => "ipc.memory",
             Self::IpcMessage => "ipc.message",
             Self::IpcPipe => "ipc.pipe",
             Self::IpcSemaphore => "ipc.semaphore",
-            Self::IpcSharedMemory => "ipc.shared.memory",
             Self::IpcUnix => "ipc.unix",
             Self::IoCompletion => "io.completion",
             Self::IoControl => "io.control",
@@ -867,21 +880,28 @@ impl HostAction {
             Self::OsPower => "os.power",
             Self::OsSysinfo => "os.sysinfo",
             Self::ProcessAffinity => "process.affinity",
+            Self::ProcessArguments => "process.arguments",
+            Self::ProcessCgroupRead => "process.cgroup.read",
+            Self::ProcessCgroupWrite => "process.cgroup.write",
+            Self::ProcessEnvironmentRead => "process.environment.read",
+            Self::ProcessEnvironmentWrite => "process.environment.write",
             Self::ProcessHandle => "process.handle",
             Self::ProcessExec => "process.exec",
+            Self::ProcessExit => "process.exit",
             Self::ProcessIdentityRead => "process.identity.read",
             Self::ProcessIdentityWrite => "process.identity.write",
+            Self::ProcessJob => "process.job",
+            Self::ProcessLimitRead => "process.limit.read",
+            Self::ProcessLimitWrite => "process.limit.write",
             Self::ProcessNamespace => "process.namespace",
             Self::ProcessPriority => "process.priority",
             Self::ProcessScheduler => "process.scheduler",
             Self::ProcessSpawn => "process.spawn",
-            Self::ProcessSpawnActions => "process.spawn.actions",
             Self::ProcessStdio => "process.stdio",
-            Self::ProcessCgroup => "process.cgroup",
-            Self::ProcessRun => "process.run",
             Self::ProcessSession => "process.session",
             Self::ProcessSignalReceive => "process.signal.receive",
             Self::ProcessSignalSend => "process.signal.send",
+            Self::ProcessUmask => "process.umask",
             Self::ProcessWait => "process.wait",
             Self::ProcessWorkdirRead => "process.workdir.read",
             Self::ProcessWorkdirWrite => "process.workdir.write",
@@ -986,8 +1006,6 @@ impl HostAction {
             "device.control" => Some(Self::DeviceControl),
             "device.read" => Some(Self::DeviceRead),
             "device.write" => Some(Self::DeviceWrite),
-            "env.read" => Some(Self::EnvRead),
-            "env.write" => Some(Self::EnvWrite),
             "ffi.call" => Some(Self::FfiCall),
             "ffi.load" => Some(Self::FfiLoad),
             "ffi.pointer" => Some(Self::FfiPointer),
@@ -1029,12 +1047,12 @@ impl HostAction {
             "input.text" => Some(Self::InputText),
             "input.write" => Some(Self::InputWrite),
             "ipc.event" => Some(Self::IpcEvent),
-            "ipc.fd.pass" => Some(Self::IpcFdPass),
             "ipc.futex" => Some(Self::IpcFutex),
+            "ipc.handle.pass" => Some(Self::IpcHandlePass),
+            "ipc.memory" => Some(Self::IpcMemory),
             "ipc.message" => Some(Self::IpcMessage),
             "ipc.pipe" => Some(Self::IpcPipe),
             "ipc.semaphore" => Some(Self::IpcSemaphore),
-            "ipc.shared.memory" => Some(Self::IpcSharedMemory),
             "ipc.unix" => Some(Self::IpcUnix),
             "io.completion" => Some(Self::IoCompletion),
             "io.control" => Some(Self::IoControl),
@@ -1105,21 +1123,28 @@ impl HostAction {
             "os.power" => Some(Self::OsPower),
             "os.sysinfo" => Some(Self::OsSysinfo),
             "process.affinity" => Some(Self::ProcessAffinity),
+            "process.arguments" => Some(Self::ProcessArguments),
+            "process.cgroup.read" => Some(Self::ProcessCgroupRead),
+            "process.cgroup.write" => Some(Self::ProcessCgroupWrite),
+            "process.environment.read" => Some(Self::ProcessEnvironmentRead),
+            "process.environment.write" => Some(Self::ProcessEnvironmentWrite),
             "process.handle" => Some(Self::ProcessHandle),
             "process.exec" => Some(Self::ProcessExec),
+            "process.exit" => Some(Self::ProcessExit),
             "process.identity.read" => Some(Self::ProcessIdentityRead),
             "process.identity.write" => Some(Self::ProcessIdentityWrite),
+            "process.job" => Some(Self::ProcessJob),
+            "process.limit.read" => Some(Self::ProcessLimitRead),
+            "process.limit.write" => Some(Self::ProcessLimitWrite),
             "process.namespace" => Some(Self::ProcessNamespace),
             "process.priority" => Some(Self::ProcessPriority),
             "process.scheduler" => Some(Self::ProcessScheduler),
             "process.spawn" => Some(Self::ProcessSpawn),
-            "process.spawn.actions" => Some(Self::ProcessSpawnActions),
             "process.stdio" => Some(Self::ProcessStdio),
-            "process.cgroup" => Some(Self::ProcessCgroup),
-            "process.run" => Some(Self::ProcessRun),
             "process.session" => Some(Self::ProcessSession),
             "process.signal.receive" => Some(Self::ProcessSignalReceive),
             "process.signal.send" => Some(Self::ProcessSignalSend),
+            "process.umask" => Some(Self::ProcessUmask),
             "process.wait" => Some(Self::ProcessWait),
             "process.workdir.read" => Some(Self::ProcessWorkdirRead),
             "process.workdir.write" => Some(Self::ProcessWorkdirWrite),
