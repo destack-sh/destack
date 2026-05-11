@@ -1,5 +1,5 @@
 use crate::error::GeneratorValidationIssue;
-use crate::platform::model::{BindingCatalog, BindingType, CatalogBindingScope};
+use crate::platform::model::{BindingCatalog, BindingType, CatalogBindingProvider};
 
 /// Normalize one binding catalog into one deterministic canonical shape.
 pub(crate) fn normalize_binding_catalog(mut catalog: BindingCatalog) -> BindingCatalog {
@@ -99,18 +99,18 @@ fn collect_validation_issues(catalog: &BindingCatalog) -> Vec<GeneratorValidatio
     let mut issues = Vec::new();
 
     for (domain, bindings) in catalog {
-        // enforce one scope family per module
-        let has_host_scope = bindings
+        // enforce one provider family per module
+        let has_host_provider = bindings
             .values()
-            .any(|binding| binding.scope != CatalogBindingScope::Runtime);
-        let has_runtime_scope = bindings
+            .any(|binding| binding.provider != CatalogBindingProvider::Runtime);
+        let has_runtime_provider = bindings
             .values()
-            .any(|binding| binding.scope == CatalogBindingScope::Runtime);
-        if has_host_scope && has_runtime_scope {
+            .any(|binding| binding.provider == CatalogBindingProvider::Runtime);
+        if has_host_provider && has_runtime_provider {
             issues.push(GeneratorValidationIssue::domain(
-                "mixed_scope",
+                "mixed_provider",
                 domain,
-                "module mixes host and runtime scopes",
+                "module mixes host and runtime providers",
             ));
         }
 
@@ -201,8 +201,8 @@ mod tests {
     use crate::error::GeneratorValidationIssue;
     use crate::platform::model::{
         BindingCatalog, BindingEntry, BindingField, BindingParameter, BindingTaggedUnionVariant,
-        BindingType, CatalogBindingAffinity, CatalogBindingBlocking, CatalogBindingReplayKind,
-        CatalogBindingScope, CatalogBindingSimulation, CatalogEffectClass, CatalogReplayPayload,
+        BindingType, CatalogBindingAffinity, CatalogBindingProvider, CatalogBindingReplayKind,
+        CatalogBindingSimulation, CatalogEffectClass, CatalogReplayPayload,
     };
 
     use super::{collect_validation_issues, normalize_binding_catalog};
@@ -258,10 +258,10 @@ mod tests {
                 replay_kind: CatalogBindingReplayKind::BindingCall,
                 replay_payload: CatalogReplayPayload::ResultsOnly,
                 requires: vec!["test.read".to_string()],
-                host_platforms: vec!["linux".to_string()],
-                scope: CatalogBindingScope::Runtime,
-                blocking: CatalogBindingBlocking::Never,
-                affinity: CatalogBindingAffinity::Any,
+                platforms: vec!["linux".to_string()],
+                hosts: Vec::new(),
+                provider: CatalogBindingProvider::Runtime,
+                affinity: CatalogBindingAffinity::None,
                 simulation: CatalogBindingSimulation::Unsupported,
             },
         );
@@ -304,10 +304,10 @@ mod tests {
                 replay_kind: CatalogBindingReplayKind::BindingCall,
                 replay_payload: CatalogReplayPayload::ResultsOnly,
                 requires: vec!["test.read".to_string()],
-                host_platforms: vec!["linux".to_string()],
-                scope: CatalogBindingScope::Runtime,
-                blocking: CatalogBindingBlocking::Never,
-                affinity: CatalogBindingAffinity::Any,
+                platforms: vec!["linux".to_string()],
+                hosts: Vec::new(),
+                provider: CatalogBindingProvider::Runtime,
+                affinity: CatalogBindingAffinity::None,
                 simulation: CatalogBindingSimulation::Unsupported,
             },
         );
@@ -326,23 +326,23 @@ mod tests {
         );
     }
 
-    /// Reject modules that mix host and runtime scopes.
+    /// Reject modules that mix host and runtime providers.
     #[test]
-    fn test_collect_validation_issues_reports_mixed_scope() {
+    fn test_collect_validation_issues_reports_mixed_provider() {
         let mut catalog: BindingCatalog = BTreeMap::new();
         let mut domain = BTreeMap::new();
         domain.insert(
             "destack.test.host".to_string(),
-            minimal_binding(CatalogBindingScope::Host),
+            minimal_binding(CatalogBindingProvider::Host),
         );
         domain.insert(
             "destack.test.runtime".to_string(),
-            minimal_binding(CatalogBindingScope::Runtime),
+            minimal_binding(CatalogBindingProvider::Runtime),
         );
         catalog.insert("test".to_string(), domain);
 
         let issues = collect_validation_issues(&catalog);
-        assert!(issues.iter().any(|issue| issue.code == "mixed_scope"));
+        assert!(issues.iter().any(|issue| issue.code == "mixed_provider"));
     }
 
     /// Reject tagged unions that contain no variants.
@@ -350,7 +350,7 @@ mod tests {
     fn test_collect_validation_issues_reports_empty_tagged_union() {
         let mut catalog: BindingCatalog = BTreeMap::new();
         let mut domain = BTreeMap::new();
-        let mut binding = minimal_binding(CatalogBindingScope::Runtime);
+        let mut binding = minimal_binding(CatalogBindingProvider::Runtime);
         binding.return_binding = BindingType::TaggedUnion {
             name: "Empty".to_string(),
             domain: "test".to_string(),
@@ -372,7 +372,7 @@ mod tests {
     fn test_collect_validation_issues_reports_duplicate_variants() {
         let mut catalog: BindingCatalog = BTreeMap::new();
         let mut domain = BTreeMap::new();
-        let mut binding = minimal_binding(CatalogBindingScope::Runtime);
+        let mut binding = minimal_binding(CatalogBindingProvider::Runtime);
         binding.return_binding = BindingType::TaggedUnion {
             name: "Duplicate".to_string(),
             domain: "test".to_string(),
@@ -394,7 +394,7 @@ mod tests {
         assert!(issues.iter().any(|issue| issue.code == "duplicate_variant"));
     }
 
-    fn minimal_binding(scope: CatalogBindingScope) -> BindingEntry {
+    fn minimal_binding(provider: CatalogBindingProvider) -> BindingEntry {
         BindingEntry {
             implementation_name: "binding".to_string(),
             documentation: None,
@@ -413,10 +413,10 @@ mod tests {
             replay_kind: CatalogBindingReplayKind::BindingCall,
             replay_payload: CatalogReplayPayload::ResultsOnly,
             requires: vec!["test.read".to_string()],
-            host_platforms: vec!["linux".to_string()],
-            scope,
-            blocking: CatalogBindingBlocking::Never,
-            affinity: CatalogBindingAffinity::Any,
+            platforms: vec!["linux".to_string()],
+            hosts: Vec::new(),
+            provider,
+            affinity: CatalogBindingAffinity::None,
             simulation: CatalogBindingSimulation::Unsupported,
         }
     }

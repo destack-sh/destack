@@ -1,7 +1,7 @@
 use std::collections::{BTreeSet, HashSet};
 use std::str::FromStr;
 
-use destack_artifact::Platform;
+use destack_artifact::{Host, Platform};
 use destack_compiler::Compiler;
 use destack_core::StringPool;
 use destack_dir::{
@@ -15,7 +15,7 @@ use super::domain::qualify_platform_implementation_name;
 use crate::context::GeneratorContext;
 use crate::platform::model::{
     BindingCatalog, BindingEntry, BindingParameter, BindingReturn, BindingTypeContext,
-    CatalogBindingAffinity, CatalogBindingBlocking, CatalogBindingReplayKind, CatalogBindingScope,
+    CatalogBindingAffinity, CatalogBindingProvider, CatalogBindingReplayKind,
     CatalogBindingSimulation, CatalogEffectClass, CatalogEntropyKind, CatalogReplayPayload,
     CatalogReplayPolicy, binding_type_symbols, collect_binding_params, collect_binding_return,
     format_declared_signature,
@@ -36,23 +36,23 @@ struct BindingRecord {
     params: Vec<BindingParameter>,
     /// Return binding type for generated wrappers.
     return_binding: BindingReturn,
-    /// Effect classification for replay and policy.
+    /// Effect kind for replay and policy.
     effect_class: CatalogEffectClass,
     /// Replay routing for the binding.
     replay_kind: CatalogBindingReplayKind,
     /// Replay payload policy for recorded bindings.
     replay_payload: CatalogReplayPayload,
-    /// Required platform capabilities for this binding.
+    /// Required host actions for this binding.
     requires: Vec<String>,
-    /// Host platforms where this binding is supported.
-    host_platforms: Vec<String>,
-    /// Platform scope for this binding.
-    scope: CatalogBindingScope,
-    /// Blocking behavior for this binding.
-    blocking: CatalogBindingBlocking,
-    /// Affinity behavior for this binding.
+    /// Platforms where this binding is supported.
+    platforms: Vec<String>,
+    /// Hosts where this binding is supported.
+    hosts: Vec<String>,
+    /// Provider that implements this binding.
+    provider: CatalogBindingProvider,
+    /// Execution context required by this binding.
     affinity: CatalogBindingAffinity,
-    /// Simulation capability for this binding.
+    /// Simulation support for this binding.
     simulation: CatalogBindingSimulation,
 }
 
@@ -65,17 +65,17 @@ struct BindingDecorator {
     effect_class: CatalogEffectClass,
     /// Optional replay payload override.
     replay_payload: CatalogReplayPayload,
-    /// Required platform capabilities for this binding.
+    /// Required host actions for this binding.
     requires: Vec<String>,
-    /// Host platforms where this binding is supported.
-    host_platforms: Vec<String>,
-    /// Platform scope for this binding.
-    scope: CatalogBindingScope,
-    /// Blocking behavior for this binding.
-    blocking: CatalogBindingBlocking,
-    /// Affinity behavior for this binding.
+    /// Platforms where this binding is supported.
+    platforms: Vec<String>,
+    /// Hosts where this binding is supported.
+    hosts: Vec<String>,
+    /// Provider that implements this binding.
+    provider: CatalogBindingProvider,
+    /// Execution context required by this binding.
     affinity: CatalogBindingAffinity,
-    /// Simulation capability for this binding.
+    /// Simulation support for this binding.
     simulation: CatalogBindingSimulation,
 }
 
@@ -239,9 +239,9 @@ pub(crate) fn collect_platform_bindings(
                 binding.effect_class,
                 binding.replay_payload,
                 binding.requires,
-                binding.host_platforms,
-                binding.scope,
-                binding.blocking,
+                binding.platforms,
+                binding.hosts,
+                binding.provider,
                 binding.affinity,
                 binding.simulation,
             ) {
@@ -270,9 +270,9 @@ fn binding_from_node(
     effect_class: CatalogEffectClass,
     replay_payload: CatalogReplayPayload,
     requires: Vec<String>,
-    host_platforms: Vec<String>,
-    scope: CatalogBindingScope,
-    blocking: CatalogBindingBlocking,
+    platforms: Vec<String>,
+    hosts: Vec<String>,
+    provider: CatalogBindingProvider,
     affinity: CatalogBindingAffinity,
     simulation: CatalogBindingSimulation,
 ) -> Option<BindingRecord> {
@@ -293,9 +293,9 @@ fn binding_from_node(
         effect_class,
         replay_payload,
         requires,
-        host_platforms,
-        scope,
-        blocking,
+        platforms,
+        hosts,
+        provider,
         affinity,
         simulation,
     })
@@ -319,9 +319,9 @@ fn insert_binding(domains: &mut BindingCatalog, record: BindingRecord) {
         replay_kind: record.replay_kind,
         replay_payload: record.replay_payload,
         requires: record.requires,
-        host_platforms: record.host_platforms,
-        scope: record.scope,
-        blocking: record.blocking,
+        platforms: record.platforms,
+        hosts: record.hosts,
+        provider: record.provider,
         affinity: record.affinity,
         simulation: record.simulation,
     };
@@ -335,9 +335,9 @@ fn insert_binding(domains: &mut BindingCatalog, record: BindingRecord) {
             || existing.replay_kind != entry.replay_kind
             || existing.replay_payload != entry.replay_payload
             || existing.requires != entry.requires
-            || existing.host_platforms != entry.host_platforms
-            || existing.scope != entry.scope
-            || existing.blocking != entry.blocking
+            || existing.platforms != entry.platforms
+            || existing.hosts != entry.hosts
+            || existing.provider != entry.provider
             || existing.affinity != entry.affinity
             || existing.simulation != entry.simulation)
     {
@@ -489,7 +489,7 @@ fn decorator_binding_argument(
 
     let argument = tree.get::<Argument>(arguments[1]);
     let value_id = argument.value();
-    let spec = parse_effect_spec(tree, value_id, strings);
+    let spec = parse_binding_spec(tree, value_id, strings);
 
     // return the payload
     BindingDecorator {
@@ -497,55 +497,54 @@ fn decorator_binding_argument(
         effect_class: spec.effect_class,
         replay_payload: spec.replay_payload,
         requires: spec.requires,
-        host_platforms: spec.host_platforms,
-        scope: spec.scope,
-        blocking: spec.blocking,
+        platforms: spec.platforms,
+        hosts: spec.hosts,
+        provider: spec.provider,
         affinity: spec.affinity,
         simulation: spec.simulation,
     }
 }
 
-/// Parsed effect options for bindings.
-struct BindingEffectSpec {
-    /// Effect classification for the binding.
+/// Parsed options for bindings.
+struct BindingSpec {
+    /// Effect kind for the binding.
     effect_class: CatalogEffectClass,
     /// Replay payload policy for recorded bindings.
     replay_payload: CatalogReplayPayload,
-    /// Required platform capabilities for this binding.
+    /// Required host actions for this binding.
     requires: Vec<String>,
-    /// Host platforms where this binding is supported.
-    host_platforms: Vec<String>,
-    /// Platform scope for this binding.
-    scope: CatalogBindingScope,
-    /// Blocking behavior for this binding.
-    blocking: CatalogBindingBlocking,
-    /// Affinity behavior for this binding.
+    /// Platforms where this binding is supported.
+    platforms: Vec<String>,
+    /// Hosts where this binding is supported.
+    hosts: Vec<String>,
+    /// Provider that implements this binding.
+    provider: CatalogBindingProvider,
+    /// Execution context required by this binding.
     affinity: CatalogBindingAffinity,
-    /// Simulation capability for this binding.
+    /// Simulation support for this binding.
     simulation: CatalogBindingSimulation,
 }
 
-/// Parse effect options from a binding decorator.
-fn parse_effect_spec(
+/// Parse binding options from a binding decorator.
+fn parse_binding_spec(
     tree: &dir::Tree,
     value_id: dir::LocalNodeId<Expression>,
     strings: &StringPool,
-) -> BindingEffectSpec {
+) -> BindingSpec {
     // require an object literal payload
     let expression = tree.get::<Expression>(value_id);
     let Expression::ObjectExpression { properties } = expression else {
         panic!("@binding options must be an object literal");
     };
 
-    // collect effect properties
+    // collect binding properties
+    let mut provider = None;
     let mut effect = None;
     let mut replay = None;
-    let mut log = None;
-    let mut payload = None;
-    let mut capabilities = Vec::new();
-    let mut host_platforms = Vec::new();
-    let mut scope = None;
-    let mut blocking = None;
+    let mut requires = Vec::new();
+    let mut platforms = Vec::new();
+    let mut families = Vec::new();
+    let mut hosts = Vec::new();
     let mut affinity = None;
     let mut simulation = None;
 
@@ -562,11 +561,11 @@ fn parse_effect_spec(
             continue;
         };
         match key.as_str() {
-            "capabilities" => {
-                capabilities = parse_capabilities_list(tree, *value_id, strings);
-            }
-            "platforms" => {
-                host_platforms = parse_host_platforms_list(tree, *value_id, strings);
+            "provider" => {
+                let Some(value) = scalar_string_literal(tree, *value_id, strings) else {
+                    panic!("@binding provider must be a string literal");
+                };
+                provider = Some(value);
             }
             "effect" => {
                 let Some(value) = scalar_string_literal(tree, *value_id, strings) else {
@@ -580,29 +579,17 @@ fn parse_effect_spec(
                 };
                 replay = Some(value);
             }
-            "log" => {
-                let Some(value) = scalar_string_literal(tree, *value_id, strings) else {
-                    panic!("@binding log must be a string literal");
-                };
-                log = Some(value);
+            "requires" => {
+                requires = parse_required_actions(tree, *value_id, strings);
             }
-            "payload" => {
-                let Some(value) = scalar_string_literal(tree, *value_id, strings) else {
-                    panic!("@binding payload must be a string literal");
-                };
-                payload = Some(value);
+            "platforms" => {
+                platforms = parse_platforms(tree, *value_id, strings);
             }
-            "scope" => {
-                let Some(value) = scalar_string_literal(tree, *value_id, strings) else {
-                    panic!("@binding scope must be a string literal");
-                };
-                scope = Some(value);
+            "families" => {
+                families = parse_platform_families(tree, *value_id, strings);
             }
-            "blocking" => {
-                let Some(value) = scalar_string_literal(tree, *value_id, strings) else {
-                    panic!("@binding blocking must be a string literal");
-                };
-                blocking = Some(value);
+            "hosts" => {
+                hosts = parse_hosts(tree, *value_id, strings);
             }
             "affinity" => {
                 let Some(value) = scalar_string_literal(tree, *value_id, strings) else {
@@ -611,8 +598,8 @@ fn parse_effect_spec(
                 affinity = Some(value);
             }
             "simulation" => {
-                let Some(value) = scalar_string_literal(tree, *value_id, strings) else {
-                    panic!("@binding simulation must be a string literal");
+                let Some(value) = scalar_bool_literal(tree, *value_id) else {
+                    panic!("@binding simulation must be a boolean literal");
                 };
                 simulation = Some(value);
             }
@@ -622,161 +609,121 @@ fn parse_effect_spec(
         }
     }
 
-    // require explicit effect classification and replay policy
+    // require explicit effect kind
     if effect.is_none() {
-        panic!("@binding requires an explicit effect classification");
-    }
-    if replay.is_none() {
-        panic!("@binding requires an explicit replay policy");
+        panic!("@binding requires an explicit effect");
     }
 
-    // build the effect classification
-    let replay = replay.as_deref().unwrap_or_default();
-    let effect_class = build_effect_class(effect.as_deref(), replay);
-    let replay_payload = parse_replay_payload(payload.as_deref());
-    let scope = parse_binding_scope(scope.as_deref());
-    let blocking = parse_binding_blocking(blocking.as_deref());
+    // build the effect kind
+    let (effect_class, replay_payload) = build_effect_class(effect.as_deref(), replay.as_deref());
+    let provider = parse_binding_provider(provider.as_deref());
     let affinity = parse_binding_affinity(affinity.as_deref());
-    let simulation = parse_binding_simulation(simulation.as_deref());
+    let simulation = parse_binding_simulation(simulation);
 
-    if log.is_some() {
-        panic!("@binding log is runtime-owned and should not be specified");
-    }
-    if payload.is_some()
-        && !matches!(
-            effect_class,
-            CatalogEffectClass::External {
-                replay: CatalogReplayPolicy::Recordable
-            }
-        )
-    {
-        panic!("@binding payload requires a recordable external effect");
-    }
-    if capabilities.is_empty() {
-        panic!("@binding capabilities must include at least one capability");
+    if requires.is_empty() {
+        panic!("@binding requires must include at least one action");
     }
 
-    BindingEffectSpec {
+    // merge concrete platforms and family selectors
+    let platforms = merge_platforms_and_families(platforms, families);
+
+    BindingSpec {
         effect_class,
         replay_payload,
-        requires: capabilities,
-        host_platforms,
-        scope,
-        blocking,
+        requires,
+        platforms,
+        hosts,
+        provider,
         affinity,
         simulation,
     }
 }
 
-/// Parse a binding scope from a string.
-fn parse_binding_scope(value: Option<&str>) -> CatalogBindingScope {
+/// Parse a binding provider from a string.
+fn parse_binding_provider(value: Option<&str>) -> CatalogBindingProvider {
     match value {
-        Some("host") => CatalogBindingScope::Host,
-        Some("runtime") => CatalogBindingScope::Runtime,
+        Some("runtime") => CatalogBindingProvider::Runtime,
         Some(value) => {
-            panic!("unsupported @binding scope {value}");
+            panic!("unsupported @binding provider {value}");
         }
-        None => {
-            panic!("@binding requires an explicit scope classification");
-        }
-    }
-}
-
-/// Parse a binding blocking behavior from a string.
-fn parse_binding_blocking(value: Option<&str>) -> CatalogBindingBlocking {
-    match value {
-        Some("always") => CatalogBindingBlocking::Always,
-        Some("never") => CatalogBindingBlocking::Never,
-        Some("sometimes") => CatalogBindingBlocking::Sometimes,
-        Some(value) => {
-            panic!("unsupported @binding blocking value {value}");
-        }
-        None => {
-            panic!("@binding requires an explicit blocking classification");
-        }
+        None => CatalogBindingProvider::Host,
     }
 }
 
 /// Parse a binding affinity from a string.
 fn parse_binding_affinity(value: Option<&str>) -> CatalogBindingAffinity {
     match value {
-        Some("any") => CatalogBindingAffinity::Any,
-        Some("eventLoop") => CatalogBindingAffinity::EventLoop,
-        Some("owner") => CatalogBindingAffinity::Owner,
-        Some("processMain") => CatalogBindingAffinity::ProcessMain,
+        Some("worker") => CatalogBindingAffinity::Worker,
+        Some("main") => CatalogBindingAffinity::Main,
         Some(value) => {
             panic!("unsupported @binding affinity value {value}");
         }
-        None => {
-            panic!("@binding requires an explicit affinity classification");
-        }
+        None => CatalogBindingAffinity::None,
     }
 }
 
-/// Parse a binding simulation capability from a string.
-fn parse_binding_simulation(value: Option<&str>) -> CatalogBindingSimulation {
+/// Parse simulation support from a binding option.
+fn parse_binding_simulation(value: Option<bool>) -> CatalogBindingSimulation {
     match value {
-        Some("unsupported") => CatalogBindingSimulation::Unsupported,
-        Some("stub") => CatalogBindingSimulation::Stub,
-        Some("model") => CatalogBindingSimulation::Model,
-        Some(value) => {
-            panic!("unsupported @binding simulation value {value}");
-        }
-        None => {
-            panic!("@binding requires an explicit simulation classification");
-        }
+        Some(true) => CatalogBindingSimulation::Supported,
+        Some(false) | None => CatalogBindingSimulation::Unsupported,
     }
 }
 
-/// Build an effect class from optional effect and replay names.
-fn build_effect_class(effect: Option<&str>, replay: &str) -> CatalogEffectClass {
-    // parse replay policy
-    let replay = match replay {
-        "recordable" => CatalogReplayPolicy::Recordable,
-        "nonrecordable" => CatalogReplayPolicy::NonRecordable,
-        value => {
-            panic!("unsupported @binding replay policy {value}");
-        }
-    };
-
-    // map effect to the classification
+/// Build an effect class and replay payload from binding effect facts.
+fn build_effect_class(
+    effect: Option<&str>,
+    replay: Option<&str>,
+) -> (CatalogEffectClass, CatalogReplayPayload) {
     match effect {
         None => {
-            panic!("@binding requires an explicit effect classification");
+            panic!("@binding requires an explicit effect");
         }
         Some("pure") => {
-            if replay != CatalogReplayPolicy::NonRecordable {
-                panic!("pure bindings must use replay: nonrecordable");
+            if replay.is_some() {
+                panic!("pure bindings cannot define replay");
             }
-            CatalogEffectClass::Pure
+            (CatalogEffectClass::Pure, CatalogReplayPayload::ResultsOnly)
         }
         Some("deterministic") => {
-            if replay != CatalogReplayPolicy::NonRecordable {
-                panic!("deterministic bindings must use replay: nonrecordable");
+            if replay.is_some() {
+                panic!("deterministic bindings cannot define replay");
             }
-            CatalogEffectClass::Deterministic
+            (
+                CatalogEffectClass::Deterministic,
+                CatalogReplayPayload::ResultsOnly,
+            )
         }
-        Some("external" | "io") => CatalogEffectClass::External { replay },
+        Some("external") => build_external_effect_class(replay),
         Some(value) => {
             panic!("unsupported @binding effect {value}");
         }
     }
 }
 
-/// Parse a replay payload policy from a string.
-fn parse_replay_payload(value: Option<&str>) -> CatalogReplayPayload {
-    match value {
-        None => CatalogReplayPayload::ResultsOnly,
-        Some("results") => CatalogReplayPayload::ResultsOnly,
-        Some("argumentsAndResults") => CatalogReplayPayload::ArgumentsAndResults,
+/// Build an external effect class from replay facts.
+fn build_external_effect_class(replay: Option<&str>) -> (CatalogEffectClass, CatalogReplayPayload) {
+    match replay {
+        Some("forbidden") => (
+            CatalogEffectClass::External {
+                replay: CatalogReplayPolicy::NonRecordable,
+            },
+            CatalogReplayPayload::ResultsOnly,
+        ),
+        None => (
+            CatalogEffectClass::External {
+                replay: CatalogReplayPolicy::Recordable,
+            },
+            CatalogReplayPayload::ResultsOnly,
+        ),
         Some(value) => {
-            panic!("unsupported @binding payload {value}");
+            panic!("unsupported @binding replay {value}");
         }
     }
 }
 
-/// Parse required platform capabilities from a decorator value.
-fn parse_capabilities_list(
+/// Parse required host actions from a decorator value.
+fn parse_required_actions(
     tree: &dir::Tree,
     value_id: dir::LocalNodeId<Expression>,
     strings: &StringPool,
@@ -793,31 +740,31 @@ fn parse_capabilities_list(
             elements
         }
         _ => {
-            panic!("@binding capabilities must be a string or an array of strings");
+            panic!("@binding requires must be a string or an array of strings");
         }
     };
 
-    // parse capability names and reject duplicates
+    // parse action names and reject duplicates
     let mut parsed = Vec::with_capacity(elements.len());
     let mut seen = BTreeSet::new();
     for argument_id in elements {
         let argument = tree.get::<Argument>(*argument_id);
-        let capability_id = argument.value();
-        let capability = scalar_string_literal(tree, capability_id, strings).unwrap_or_else(|| {
-            panic!("@binding capabilities must contain only string literals");
+        let action_id = argument.value();
+        let action = scalar_string_literal(tree, action_id, strings).unwrap_or_else(|| {
+            panic!("@binding requires must contain only string literals");
         });
-        validate_capability_name(&capability);
-        if !seen.insert(capability.clone()) {
-            panic!("@binding capabilities cannot contain duplicate names: {capability}");
+        validate_action_name(&action);
+        if !seen.insert(action.clone()) {
+            panic!("@binding requires cannot contain duplicate names: {action}");
         }
-        parsed.push(capability);
+        parsed.push(action);
     }
 
     parsed
 }
 
-/// Parse host platforms from a decorator value.
-fn parse_host_platforms_list(
+/// Parse platforms from a decorator value.
+fn parse_platforms(
     tree: &dir::Tree,
     value_id: dir::LocalNodeId<Expression>,
     strings: &StringPool,
@@ -825,7 +772,7 @@ fn parse_host_platforms_list(
     // accept a single string as shorthand
     if let Some(value) = scalar_string_literal(tree, value_id, strings) {
         let mut parsed = BTreeSet::new();
-        parse_host_platform_name(&value, &mut parsed);
+        parse_platform_name(&value, &mut parsed);
         return parsed.into_iter().collect();
     }
 
@@ -840,7 +787,7 @@ fn parse_host_platforms_list(
         }
     };
 
-    // parse and normalize host platform names
+    // parse and normalize platform names
     let mut parsed = BTreeSet::new();
     for argument_id in elements {
         let argument = tree.get::<Argument>(*argument_id);
@@ -848,31 +795,24 @@ fn parse_host_platforms_list(
         let platform = scalar_string_literal(tree, platform_id, strings).unwrap_or_else(|| {
             panic!("@binding platforms must contain only string literals");
         });
-        parse_host_platform_name(&platform, &mut parsed);
+        parse_platform_name(&platform, &mut parsed);
     }
 
     parsed.into_iter().collect()
 }
 
-/// Parse one host platform selector into canonical platform names.
-fn parse_host_platform_name(name: &str, parsed: &mut BTreeSet<String>) {
+/// Parse one platform tag into canonical platform names.
+fn parse_platform_name(name: &str, parsed: &mut BTreeSet<String>) {
     let normalized = name.trim().to_ascii_lowercase();
     if normalized.is_empty() {
-        panic!("@binding platforms names cannot be empty");
+        panic!("@binding platform names cannot be empty");
     }
 
-    if normalized == "unix" {
-        append_unix_platform_selector(parsed);
-        return;
-    }
-
-    if normalized == "bsd" {
-        panic!("unsupported @binding platforms value {name}: bsd hosts are no longer supported");
-    }
-
-    // parse the platform selector through the target platform enum
     let platform = Platform::from_str(&normalized)
         .unwrap_or_else(|_| panic!("unsupported @binding platforms value {name}"));
+    if matches!(platform, Platform::Unknown | Platform::None) {
+        panic!("unsupported @binding platforms value {name}: use a concrete platform tag");
+    }
 
     // require canonical tags only: aliases are rejected with a correction
     let canonical = platform.canonical_tag();
@@ -883,7 +823,67 @@ fn parse_host_platform_name(name: &str, parsed: &mut BTreeSet<String>) {
     parsed.insert(canonical.to_string());
 }
 
-/// Append all canonical supported Unix host platform tags.
+/// Parse platform families from a decorator value.
+fn parse_platform_families(
+    tree: &dir::Tree,
+    value_id: dir::LocalNodeId<Expression>,
+    strings: &StringPool,
+) -> Vec<String> {
+    let mut families = BTreeSet::new();
+    parse_string_list(tree, value_id, strings, "@binding families", |family| {
+        parse_platform_family_name(&family, &mut families)
+    });
+
+    families.into_iter().collect()
+}
+
+/// Parse one platform family selector.
+fn parse_platform_family_name(name: &str, parsed: &mut BTreeSet<String>) {
+    let normalized = name.trim().to_ascii_lowercase();
+    if normalized.is_empty() {
+        panic!("@binding family names cannot be empty");
+    }
+
+    match normalized.as_str() {
+        "windows" => {
+            parsed.insert(normalized);
+        }
+        "unix" => {
+            parsed.insert(normalized);
+        }
+        value => {
+            panic!("unsupported @binding families value {value}");
+        }
+    }
+}
+
+/// Append all canonical platform tags in one family.
+fn append_platform_family(family: &str, parsed: &mut BTreeSet<String>) {
+    match family {
+        "windows" => append_windows_platform_selector(parsed),
+        "unix" => append_unix_platform_selector(parsed),
+        value => {
+            panic!("unsupported @binding families value {value}");
+        }
+    }
+}
+
+/// Merge platform tags with expanded platform family tags.
+fn merge_platforms_and_families(platforms: Vec<String>, families: Vec<String>) -> Vec<String> {
+    let mut parsed = BTreeSet::from_iter(platforms);
+    for family in families {
+        append_platform_family(&family, &mut parsed);
+    }
+
+    parsed.into_iter().collect()
+}
+
+/// Append all canonical supported Windows platform tags.
+fn append_windows_platform_selector(parsed: &mut BTreeSet<String>) {
+    parsed.insert(Platform::Windows.canonical_tag().to_string());
+}
+
+/// Append all canonical supported Unix platform tags.
 fn append_unix_platform_selector(parsed: &mut BTreeSet<String>) {
     parsed.insert(Platform::MacOS.canonical_tag().to_string());
     parsed.insert(Platform::Linux.canonical_tag().to_string());
@@ -891,35 +891,99 @@ fn append_unix_platform_selector(parsed: &mut BTreeSet<String>) {
     parsed.insert(Platform::Android.canonical_tag().to_string());
 }
 
-/// Validate one capability name in canonical dotted form.
-fn validate_capability_name(capability: &str) {
-    if capability.trim().is_empty() {
-        panic!("@binding capability names cannot be empty");
+/// Parse hosts from a decorator value.
+fn parse_hosts(
+    tree: &dir::Tree,
+    value_id: dir::LocalNodeId<Expression>,
+    strings: &StringPool,
+) -> Vec<String> {
+    let mut parsed = BTreeSet::new();
+    parse_string_list(tree, value_id, strings, "@binding hosts", |host| {
+        parse_host_name(&host, &mut parsed)
+    });
+
+    parsed.into_iter().collect()
+}
+
+/// Parse one host tag into its canonical name.
+fn parse_host_name(name: &str, parsed: &mut BTreeSet<String>) {
+    let normalized = name.trim().to_ascii_lowercase();
+    if normalized.is_empty() {
+        panic!("@binding host names cannot be empty");
     }
 
-    let segments = capability.split('.').collect::<Vec<_>>();
+    let host = Host::from_str(&normalized)
+        .unwrap_or_else(|_| panic!("unsupported @binding hosts value {name}"));
+
+    let canonical = host.canonical_tag();
+    if canonical != normalized {
+        panic!("unsupported @binding hosts value {name}: use canonical tag {canonical}");
+    }
+
+    parsed.insert(canonical.to_string());
+}
+
+/// Parse a string or string array decorator value.
+fn parse_string_list(
+    tree: &dir::Tree,
+    value_id: dir::LocalNodeId<Expression>,
+    strings: &StringPool,
+    label: &str,
+    mut parse: impl FnMut(String),
+) {
+    if let Some(value) = scalar_string_literal(tree, value_id, strings) {
+        parse(value);
+        return;
+    }
+
+    let value = tree.get::<Expression>(value_id);
+    let elements = match value {
+        Expression::ArrayExpression { elements } | Expression::TupleExpression { elements } => {
+            elements
+        }
+        _ => {
+            panic!("{label} must be a string or an array of strings");
+        }
+    };
+
+    for argument_id in elements {
+        let argument = tree.get::<Argument>(*argument_id);
+        let value_id = argument.value();
+        let value = scalar_string_literal(tree, value_id, strings)
+            .unwrap_or_else(|| panic!("{label} must contain only string literals"));
+        parse(value);
+    }
+}
+
+/// Validate one action name in canonical dotted form.
+fn validate_action_name(action: &str) {
+    if action.trim().is_empty() {
+        panic!("@binding action names cannot be empty");
+    }
+
+    let segments = action.split('.').collect::<Vec<_>>();
     if segments.len() < 2 {
-        panic!("@binding capability names must use dotted hierarchy");
+        panic!("@binding action names must use dotted hierarchy");
     }
 
     for segment in segments {
         if segment.is_empty() {
-            panic!("@binding capability names cannot contain empty segments");
+            panic!("@binding action names cannot contain empty segments");
         }
 
         let mut chars = segment.chars();
         let Some(first) = chars.next() else {
-            panic!("@binding capability names cannot contain empty segments");
+            panic!("@binding action names cannot contain empty segments");
         };
         if !first.is_ascii_lowercase() {
-            panic!("@binding capability segments must start with lowercase letters");
+            panic!("@binding action segments must start with lowercase letters");
         }
 
         for character in chars {
             if character.is_ascii_alphanumeric() {
                 continue;
             }
-            panic!("@binding capability names support only alphanumeric characters");
+            panic!("@binding action names support only alphanumeric characters");
         }
     }
 }
@@ -960,8 +1024,6 @@ fn validate_binding_extern_name(extern_name: &str) {
     }
 }
 
-// log kind validation happens in parse_effect_spec
-
 /// Parse a property key string from a binding options object.
 fn parse_option_key(
     tree: &dir::Tree,
@@ -996,6 +1058,19 @@ fn scalar_string_literal(
         return None;
     };
     Some(strings.get(*value_id).to_string())
+}
+
+/// Parse a boolean literal from a scalar expression.
+fn scalar_bool_literal(tree: &dir::Tree, value_id: dir::LocalNodeId<Expression>) -> Option<bool> {
+    let value = tree.get::<Expression>(value_id);
+    let Expression::ScalarLiteral { value } = value else {
+        return None;
+    };
+    let ScalarLiteral::Boolean(value) = value else {
+        return None;
+    };
+
+    Some(*value)
 }
 
 #[cfg(test)]

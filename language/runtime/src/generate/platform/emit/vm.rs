@@ -1,5 +1,5 @@
 use crate::platform::model::{
-    CatalogBindingReplayKind, CatalogBindingScope, CatalogEffectClass, CatalogEntropyKind,
+    CatalogBindingProvider, CatalogBindingReplayKind, CatalogEffectClass, CatalogEntropyKind,
     CatalogReplayPolicy,
 };
 
@@ -379,7 +379,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
                 CatalogBindingReplayKind::BindingCall => {
                     if uses_binding_replay {
                         let replay_fn = codegen.vm_replay_fn_name(binding.extern_name);
-                        if binding.entry.scope == CatalogBindingScope::Runtime {
+                        if binding.entry.provider == CatalogBindingProvider::Runtime {
                             output.push_str(&format!(
                                 "                let _binding_hook_guard = binding.on_before_binding({})?;\n",
                                 binding.const_name
@@ -399,7 +399,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
                     } else {
                         let call = codegen.render_vm_world_dispatch(
                             &binding.const_name,
-                            binding.entry.scope,
+                            binding.entry.provider,
                             binding.entry.simulation,
                             implementation_fn_name,
                             &invoke_args,
@@ -419,7 +419,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
                         | CatalogEntropyKind::TimeReadWall => {
                             let call = codegen.render_vm_world_dispatch(
                                 &binding.const_name,
-                                binding.entry.scope,
+                                binding.entry.provider,
                                 binding.entry.simulation,
                                 implementation_fn_name,
                                 &invoke_args,
@@ -441,7 +441,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
                         CatalogEntropyKind::RandomStreamCreate => {
                             let call = codegen.render_vm_world_dispatch(
                                 &binding.const_name,
-                                binding.entry.scope,
+                                binding.entry.provider,
                                 binding.entry.simulation,
                                 implementation_fn_name,
                                 &invoke_args,
@@ -472,7 +472,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
                             );
                             let call = codegen.render_vm_world_dispatch(
                                 &binding.const_name,
-                                binding.entry.scope,
+                                binding.entry.provider,
                                 binding.entry.simulation,
                                 implementation_fn_name,
                                 &invoke_args,
@@ -513,7 +513,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
                             let call = codegen
                                 .render_vm_world_dispatch(
                                     &binding.const_name,
-                                    binding.entry.scope,
+                                    binding.entry.provider,
                                     binding.entry.simulation,
                                     implementation_fn_name,
                                     &invoke_args,

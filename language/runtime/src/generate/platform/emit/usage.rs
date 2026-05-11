@@ -5,7 +5,7 @@ use destack_dir::{EnumBackingType, IntegerType};
 use super::ModuleBindings;
 use super::replay::{collect_replay_named_types, collect_replay_vm_named_types};
 use crate::platform::model::{
-    BindingType, CatalogBindingReplayKind, CatalogBindingScope, CatalogBindingSimulation,
+    BindingType, CatalogBindingProvider, CatalogBindingReplayKind, CatalogBindingSimulation,
     CatalogEffectClass, CatalogReplayPayload, CatalogReplayPolicy,
 };
 
@@ -132,14 +132,14 @@ impl RenderUsage {
             .any(|entry| entry.return_binding != BindingType::Void);
         let uses_world_dispatch = bindings
             .values()
-            .any(|entry| entry.scope != CatalogBindingScope::Runtime);
+            .any(|entry| entry.provider != CatalogBindingProvider::Runtime);
         let uses_simulation_dispatch = bindings.values().any(|entry| {
-            entry.scope != CatalogBindingScope::Runtime
+            entry.provider != CatalogBindingProvider::Runtime
                 && entry.simulation != CatalogBindingSimulation::Unsupported
         });
         let uses_runtime_dispatch = bindings
             .values()
-            .any(|entry| entry.scope == CatalogBindingScope::Runtime);
+            .any(|entry| entry.provider == CatalogBindingProvider::Runtime);
 
         Self {
             vm_usage: VmDecodeUsage::collect(bindings),

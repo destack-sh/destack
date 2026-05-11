@@ -2,53 +2,39 @@ use std::collections::BTreeMap;
 
 use destack_dir::EnumBackingType;
 
-/// Platform scope classification for bindings.
+/// Provider that implements one binding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum CatalogBindingScope {
-    /// Binding executes through direct host platform operations.
+pub(crate) enum CatalogBindingProvider {
+    /// Binding executes through direct platform operations.
     Host,
     /// Binding executes entirely inside runtime policy and state.
     Runtime,
 }
 
-/// Blocking behavior classification for bindings.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum CatalogBindingBlocking {
-    /// Binding always blocks under normal operation.
-    Always,
-    /// Binding never blocks and returns immediately.
-    Never,
-    /// Binding may block depending on flags, readiness, or host state.
-    Sometimes,
-}
-
-/// Affinity classification for bindings.
+/// Execution context required by one binding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CatalogBindingAffinity {
-    /// Binding is callable from any execution context.
-    Any,
-    /// Binding requires the worker event-loop context.
-    EventLoop,
-    /// Binding requires the creating execution context.
-    Owner,
+    /// Binding has no execution context requirement.
+    None,
+    /// Binding requires the same worker context.
+    Worker,
     /// Binding requires the process main context.
-    ProcessMain,
+    Main,
 }
 
-/// Simulation capability classification for bindings.
+/// Simulation support for one binding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CatalogBindingSimulation {
-    /// Binding cannot execute in simulation world.
+    /// Binding cannot execute in a simulation world.
     Unsupported,
-    /// Binding supports simulation routing through a stub backend.
-    Stub,
-    /// Binding supports simulation routing through a modeled backend.
-    Model,
+    /// Binding can execute in a simulation world.
+    Supported,
 }
+
 /// Replay routing for generated bindings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CatalogBindingReplayKind {
-    /// Binding call replay behavior.
+    /// Binding call replay route.
     BindingCall,
     /// Entropy bindings with specialized replay.
     Entropy(CatalogEntropyKind),
@@ -70,7 +56,7 @@ pub(crate) enum CatalogEntropyKind {
     RandomReadU64,
 }
 
-/// Replay behavior for external bindings.
+/// Replay policy for external bindings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CatalogReplayPolicy {
     /// Record the call for replay and return replayed values in replay execution.
@@ -88,7 +74,7 @@ pub(crate) enum CatalogReplayPayload {
     ArgumentsAndResults,
 }
 
-/// Effect classification for external bindings.
+/// Effect kind for external bindings.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CatalogEffectClass {
     /// No observable side effects.
@@ -97,7 +83,7 @@ pub(crate) enum CatalogEffectClass {
     Deterministic,
     /// External side effects governed by replay policy.
     External {
-        /// Replay behavior for the effect.
+        /// Replay policy for the effect.
         replay: CatalogReplayPolicy,
     },
 }
@@ -117,23 +103,23 @@ pub(crate) struct BindingEntry {
     pub return_binding: BindingType,
     /// Whether the binding returns a Result wrapper.
     pub return_is_result: bool,
-    /// Effect classification for replay and policy.
+    /// Effect kind for replay and policy.
     pub effect_class: CatalogEffectClass,
     /// Replay routing for the binding.
     pub replay_kind: CatalogBindingReplayKind,
-    /// Replay payload capability for recorded bindings.
+    /// Replay payload action for recorded bindings.
     pub replay_payload: CatalogReplayPayload,
-    /// Required platform capabilities for this binding.
+    /// Required host actions for this binding.
     pub requires: Vec<String>,
-    /// Host platforms where this binding is supported.
-    pub host_platforms: Vec<String>,
-    /// Platform scope for this binding.
-    pub scope: CatalogBindingScope,
-    /// Blocking behavior for this binding.
-    pub blocking: CatalogBindingBlocking,
-    /// Affinity behavior for this binding.
+    /// Platforms where this binding is supported.
+    pub platforms: Vec<String>,
+    /// Hosts where this binding is supported.
+    pub hosts: Vec<String>,
+    /// Provider that implements this binding.
+    pub provider: CatalogBindingProvider,
+    /// Execution context required by this binding.
     pub affinity: CatalogBindingAffinity,
-    /// Simulation capability for this binding.
+    /// Simulation support for this binding.
     pub simulation: CatalogBindingSimulation,
 }
 

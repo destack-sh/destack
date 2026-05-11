@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use destack_artifact::{
-    ArtifactKey, DiskCacheStore, EmitFormat, EnvironmentStamp, Platform, ProfileFlags, ProfileKey,
-    Runtime,
+    ArtifactKey, DiskCacheStore, EmitFormat, EnvironmentStamp, Host, Platform, ProfileFlags,
+    ProfileKey, Runtime,
 };
 use destack_compiler::{Compiler, CompilerOptions};
 use destack_linter::Linter;
@@ -21,8 +21,7 @@ use crate::platform::collect::{
     module_platform_domain, normalize_binding_catalog, validate_binding_catalog,
 };
 use crate::platform::emit::{
-    RenderSpec, generate_platform_capability_kind, render_platform_bindings_index,
-    render_test_harness,
+    RenderSpec, generate_host_actions, render_platform_bindings_index, render_test_harness,
 };
 use crate::platform::model::{
     BindingCatalog, BindingEntry, BindingType, ConstantCatalog, ConstantEntry, ModuleAbiTypes,
@@ -322,7 +321,8 @@ impl RuntimeGenerator {
         ProfileKey::new(
             EmitFormat::Native,
             Runtime::Destack,
-            self.host_platform(),
+            self.target_platform(),
+            Some(self.target_host()),
             None,
             None,
             None,
@@ -335,40 +335,52 @@ impl RuntimeGenerator {
         )
     }
 
-    /// Resolve the host platform for binding generation.
-    fn host_platform(&self) -> Platform {
+    /// Resolve the target platform for binding generation.
+    fn target_platform(&self) -> Option<Platform> {
         if cfg!(target_os = "windows") {
-            return Platform::Windows;
+            return Some(Platform::Windows);
         }
         if cfg!(target_os = "macos") {
-            return Platform::MacOS;
+            return Some(Platform::MacOS);
         }
         if cfg!(target_os = "linux") {
-            return Platform::Linux;
+            return Some(Platform::Linux);
         }
         if cfg!(target_os = "fuchsia") {
-            return Platform::Fuchsia;
+            return Some(Platform::Fuchsia);
         }
         if cfg!(target_os = "redox") {
-            return Platform::Redox;
+            return Some(Platform::Redox);
         }
         if cfg!(target_os = "hermit") {
-            return Platform::Hermit;
+            return Some(Platform::Hermit);
         }
         if cfg!(target_os = "ios") {
-            return Platform::IOS;
+            return Some(Platform::IOS);
         }
         if cfg!(target_os = "android") {
-            return Platform::Android;
+            return Some(Platform::Android);
         }
         if cfg!(target_os = "wasi") {
-            return Platform::Wasi;
+            return None;
         }
         if cfg!(target_os = "emscripten") {
-            return Platform::Emscripten;
+            return None;
         }
 
-        Platform::Universal
+        None
+    }
+
+    /// Resolve the target host for binding generation.
+    fn target_host(&self) -> Host {
+        if cfg!(target_os = "wasi") {
+            return Host::Wasi;
+        }
+        if cfg!(target_os = "emscripten") {
+            return Host::Emscripten;
+        }
+
+        Host::Native
     }
 
     /// Collect and render bindings for all platform modules.
@@ -607,8 +619,8 @@ impl RuntimeGenerator {
             self.remove_simulation_stubs(module);
         }
 
-        // stale layout
-        self.remove_legacy_impl(module);
+        // removed runtime scaffold
+        self.remove_runtime_scaffold(module);
     }
 
     /// Write generated binding output for one module.
@@ -672,18 +684,18 @@ impl RuntimeGenerator {
         });
     }
 
-    /// Remove the legacy nested implementation scaffold.
-    fn remove_legacy_impl(&self, module: &ModuleSpec) {
-        let legacy_impl_dir = module.layout.dir.join("runtime");
+    /// Remove the old nested runtime scaffold.
+    fn remove_runtime_scaffold(&self, module: &ModuleSpec) {
+        let runtime_scaffold_dir = module.layout.dir.join("runtime");
 
-        if !legacy_impl_dir.exists() {
+        if !runtime_scaffold_dir.exists() {
             return;
         }
 
-        fs::remove_dir_all(&legacy_impl_dir).unwrap_or_else(|error| {
+        fs::remove_dir_all(&runtime_scaffold_dir).unwrap_or_else(|error| {
             panic!(
                 "failed to remove stale runtime implementation directory {}: {error}",
-                legacy_impl_dir.display()
+                runtime_scaffold_dir.display()
             )
         });
     }
@@ -732,8 +744,8 @@ impl RuntimeGenerator {
             options.refresh_stubs,
         );
 
-        // regenerate runtime capability kinds from intrinsic capability source of truth
-        generate_platform_capability_kind();
+        // regenerate runtime actions from intrinsic action source of truth
+        generate_host_actions();
 
         Ok(())
     }

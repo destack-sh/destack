@@ -528,9 +528,8 @@ mod tests {
     use std::collections::BTreeMap;
 
     use crate::platform::model::{
-        BindingParameter, CatalogBindingAffinity, CatalogBindingBlocking, CatalogBindingReplayKind,
-        CatalogBindingScope, CatalogBindingSimulation, CatalogEffectClass, CatalogReplayPayload,
-        CatalogReplayPolicy,
+        BindingParameter, CatalogBindingAffinity, CatalogBindingProvider, CatalogBindingReplayKind,
+        CatalogBindingSimulation, CatalogEffectClass, CatalogReplayPayload, CatalogReplayPolicy,
     };
 
     use super::render_test_harness;
@@ -566,10 +565,10 @@ mod tests {
                 },
                 replay_payload: CatalogReplayPayload::ResultsOnly,
                 requires: Vec::new(),
-                host_platforms: Vec::new(),
-                scope: CatalogBindingScope::Host,
-                blocking: CatalogBindingBlocking::Never,
-                affinity: CatalogBindingAffinity::Any,
+                platforms: Vec::new(),
+                hosts: Vec::new(),
+                provider: CatalogBindingProvider::Host,
+                affinity: CatalogBindingAffinity::None,
                 replay_kind: CatalogBindingReplayKind::BindingCall,
                 simulation: CatalogBindingSimulation::Unsupported,
             },
@@ -701,10 +700,10 @@ impl<Native, Vm> HarnessValue<Native, Vm> {
                 },
                 replay_payload: CatalogReplayPayload::ResultsOnly,
                 requires: Vec::new(),
-                host_platforms: Vec::new(),
-                scope: CatalogBindingScope::Host,
-                blocking: CatalogBindingBlocking::Never,
-                affinity: CatalogBindingAffinity::Any,
+                platforms: Vec::new(),
+                hosts: Vec::new(),
+                provider: CatalogBindingProvider::Host,
+                affinity: CatalogBindingAffinity::None,
                 replay_kind: CatalogBindingReplayKind::BindingCall,
                 simulation: CatalogBindingSimulation::Unsupported,
             },

@@ -224,8 +224,8 @@ impl<'a> PlatformFileWriter<'a> {
             self.remove_simulation_stubs(module);
         }
 
-        // stale layout
-        self.remove_legacy_impl(module);
+        // removed runtime scaffold
+        self.remove_runtime_scaffold(module);
     }
 
     /// Write generated binding output for one module.
@@ -289,18 +289,18 @@ impl<'a> PlatformFileWriter<'a> {
         });
     }
 
-    /// Remove the legacy nested implementation scaffold.
-    fn remove_legacy_impl(&self, module: &ModuleSpec) {
-        let legacy_impl_dir = module.layout.dir.join("runtime");
+    /// Remove the old nested runtime scaffold.
+    fn remove_runtime_scaffold(&self, module: &ModuleSpec) {
+        let runtime_scaffold_dir = module.layout.dir.join("runtime");
 
-        if !legacy_impl_dir.exists() {
+        if !runtime_scaffold_dir.exists() {
             return;
         }
 
-        fs::remove_dir_all(&legacy_impl_dir).unwrap_or_else(|error| {
+        fs::remove_dir_all(&runtime_scaffold_dir).unwrap_or_else(|error| {
             panic!(
                 "failed to remove stale runtime implementation directory {}: {error}",
-                legacy_impl_dir.display()
+                runtime_scaffold_dir.display()
             )
         });
     }

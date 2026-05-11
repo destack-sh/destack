@@ -1,6 +1,6 @@
 mod abi;
+mod action;
 mod binding;
-mod capability;
 mod codec;
 mod codegen;
 mod descriptor;
@@ -16,7 +16,7 @@ mod usage;
 mod vm;
 mod write;
 
-pub(crate) use capability::*;
+pub(crate) use action::*;
 pub(crate) use harness::*;
 pub(crate) use index::*;
 pub(crate) use spec::*;

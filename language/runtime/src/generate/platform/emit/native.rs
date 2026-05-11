@@ -1,5 +1,5 @@
 use crate::platform::model::{
-    BindingType, CatalogBindingReplayKind, CatalogBindingScope, CatalogEffectClass,
+    BindingType, CatalogBindingProvider, CatalogBindingReplayKind, CatalogEffectClass,
     CatalogEntropyKind, CatalogReplayPolicy,
 };
 
@@ -102,7 +102,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             match replay_kind {
                 CatalogBindingReplayKind::BindingCall => {
                     if uses_binding_replay {
-                        if entry.scope == CatalogBindingScope::Runtime {
+                        if entry.provider == CatalogBindingProvider::Runtime {
                             output.push_str(&format!(
                                 "        let _binding_hook_guard = context.on_before_binding({})?;\n",
                                 binding.const_name
@@ -114,14 +114,14 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
                             ));
                         }
                         if args.is_empty() {
-                            if entry.scope == CatalogBindingScope::Runtime {
+                            if entry.provider == CatalogBindingProvider::Runtime {
                                 output.push_str(&format!("        {replay_fn_name}(context)\n"));
                             } else {
                                 output.push_str(&format!(
                                     "        {replay_fn_name}(context, world)\n"
                                 ));
                             }
-                        } else if entry.scope == CatalogBindingScope::Runtime {
+                        } else if entry.provider == CatalogBindingProvider::Runtime {
                             output.push_str(&format!(
                                 "        {replay_fn_name}(context, {})\n",
                                 args.join(", ")
@@ -135,7 +135,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
                     } else {
                         let call = codegen.render_native_world_dispatch(
                             &binding.const_name,
-                            entry.scope,
+                            entry.provider,
                             binding.entry.simulation,
                             implementation_fn_name,
                             &args,
@@ -157,7 +157,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
                             output.push_str("            || {\n");
                             let call = codegen.render_native_world_dispatch(
                                 &binding.const_name,
-                                entry.scope,
+                                entry.provider,
                                 binding.entry.simulation,
                                 implementation_fn_name,
                                 &args,
@@ -178,7 +178,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
                             output.push_str("            || {\n");
                             let call = codegen.render_native_world_dispatch(
                                 &binding.const_name,
-                                entry.scope,
+                                entry.provider,
                                 binding.entry.simulation,
                                 implementation_fn_name,
                                 &args,
@@ -204,7 +204,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
                             output.push_str("            || {\n");
                             let call = codegen.render_native_world_dispatch(
                                 &binding.const_name,
-                                entry.scope,
+                                entry.provider,
                                 binding.entry.simulation,
                                 implementation_fn_name,
                                 &args,
@@ -231,7 +231,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
                             output.push_str("            || {\n");
                             let call = codegen.render_native_world_dispatch(
                                 &binding.const_name,
-                                entry.scope,
+                                entry.provider,
                                 binding.entry.simulation,
                                 implementation_fn_name,
                                 &args,
