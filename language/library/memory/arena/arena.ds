@@ -1,0 +1,37 @@
+import { todo } from "destack:error";
+import { type Lifetime, type ReadonlyBorrowed, type Space } from "../form.ds";
+import { Bump } from "./bump.ds";
+
+/// Typed arena for values with a shared lifetime.
+export struct Arena<T, L: Lifetime, S: Space = "local"> {
+    /// The backing bump allocator.
+    bump: Bump<S>;
+
+    /// The number of allocated values.
+    length: usize = 0;
+}
+
+export extension<T, L: Lifetime, S: Space = "local"> of Arena<T, L, S> {
+    /// Create an arena backed by `bump`.
+    static new(bump: Bump<S>): Arena<T, L, S> {
+        Arena {
+            bump,
+            length: 0,
+        }
+    }
+
+    /// Allocate `value` in this arena.
+    alloc(this: &exclusive Arena<T, L, S>, value: ^T): ReadonlyBorrowed<T, L> {
+        todo("Arena.alloc")
+    }
+
+    /// Return the number of allocated values.
+    get size(): usize {
+        this.length
+    }
+
+    /// Drop all values allocated in this arena.
+    clear(this: &exclusive Arena<T, L, S>): void {
+        todo("Arena.clear")
+    }
+}

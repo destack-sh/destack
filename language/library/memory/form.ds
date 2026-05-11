@@ -1,11 +1,8 @@
 /// Builtin lifetime root for static storage.
 export type StaticLifetime = "static";
 
-/// Builtin lifetime root for traced managed storage.
-export type ManagedLifetime = "managed";
-
 /// Lifetime marker for borrowed validity.
-export type Lifetime = StaticLifetime | ManagedLifetime | intrinsic;
+export type Lifetime = StaticLifetime | intrinsic;
 
 /// Concrete memory space tag kind.
 export type Space = intrinsic;
@@ -28,8 +25,19 @@ export newtype Form<
     A: Access = "mutable",
 > = intrinsic;
 
-/// Unique typed heap storage for `T`.
+/// Unique traced heap handle for `T`.
+///
+/// `Unique<T>` owns one heap allocation and is the low-level storage handle behind types such as `Box<T>`.
+/// It is compiler-known because tracing, drop, and move checking must understand the handle.
+@languageItem("Unique")
 export newtype Unique<T> = intrinsic;
+
+/// Erased runtime value for interface constraint `T`.
+///
+/// `Any<T>` stores an erased value pointer and dispatch table.
+/// It is compiler-known because static interface constraints are specialized by default, while `Any<T>` explicitly requests runtime erasure.
+@languageItem("Any")
+export newtype Any<T> = intrinsic;
 
 /// Managed/default value form for `T` in the ambient place.
 export type Managed<T> = Form<BaseOf<T>, "managed", PlaceOr<T, "ambient">>;

@@ -1,6 +1,5 @@
 export {
     type StaticLifetime,
-    type ManagedLifetime,
     type Lifetime,
     type Space,
     type Place,
@@ -8,6 +7,7 @@ export {
     type Access,
     type Form,
     type Unique,
+    type Any,
     type Managed,
     type Borrowed,
     type ReadonlyBorrowed,
@@ -48,26 +48,39 @@ export {
 } from "./form.ds";
 export { Box } from "./box.ds";
 export {
-    type AllocationLayout,
+    AllocationLayout,
     type AllocationErrorKind,
-    type AllocationError,
-    type Allocation,
+    AllocationError,
+    Allocation,
     type Allocator,
     defaultAllocator,
 } from "./allocator.ds";
-export { type Copy, type Clone, type Send, type Sync } from "./capability.ds";
+export { type Copy, type Clone, type Send, type Sync, type Unpin, type Zeroable } from "./capability.ds";
+export { Pin } from "./pin.ds";
 export { type Drop, ManuallyDrop, drop } from "./drop.ds";
 export { type Dispose, type AsyncDispose } from "./dispose.ds";
+export * as arena from "./arena";
 export * as arc from "./arc";
+export * as cell from "./cell";
+export * as cow from "./cow";
 export * as rc from "./rc";
 export {
+    NonNull,
+    copy,
+    copyNonOverlapping,
+    dropInPlace,
     memcpy,
     memmove,
     memset,
     memcmp,
     prefetchRead,
     prefetchWrite,
+    read,
+    replace,
+    swap,
     transmute,
+    write,
+    writeBytes,
     ptrOffsetFrom,
     rawEq,
 } from "./raw.ds";

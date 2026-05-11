@@ -1,2 +1,2 @@
-export { Rc, RcBox } from "./rc.ds";
+export { Rc } from "./rc.ds";
 export { Weak } from "./weak.ds";

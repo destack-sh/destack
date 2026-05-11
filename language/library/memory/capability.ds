@@ -2,7 +2,24 @@
 export newtype interface Copy {}
 
 /// Mark a type as explicitly cloneable.
-export newtype interface Clone {}
+export newtype interface Clone {
+    /// Clone this value.
+    clone(): this;
+}
+
+export extension<T> of T implements Clone
+where T implements Copy {
+    /// Clone this copyable value.
+    clone(): T {
+        this
+    }
+}
+
+/// Mark a type as safe to move out of pinned storage.
+export newtype interface Unpin {}
+
+/// Mark a type as valid when all bytes are zero.
+export newtype interface Zeroable {}
 
 /// Mark a type as safe to send across Workers.
 export newtype interface Send {}

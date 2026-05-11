@@ -1,0 +1,106 @@
+import { todo } from "destack:error";
+import { type Dereference } from "destack:ops";
+import { type Dispose } from "../dispose.ds";
+import { type NonNull } from "../raw.ds";
+import { Cell, type UnsafeCell } from "./cell.ds";
+
+/// Runtime-checked interior mutable storage.
+export struct RefCell<T> {
+    /// The active borrow state.
+    state: Cell<int32>;
+
+    /// The stored value storage.
+    storage: UnsafeCell<T>;
+}
+
+export extension<T> of RefCell<T> {
+    /// Create a ref cell containing `value`.
+    static new(value: T): RefCell<T> {
+        RefCell {
+            state: Cell.new(0),
+            storage: UnsafeCell.new(value),
+        }
+    }
+
+    /// Borrow the value for shared readonly access.
+    borrow(this: &readonly RefCell<T>): Ref<T> {
+        todo("RefCell.borrow")
+    }
+
+    /// Try to borrow the value for shared readonly access.
+    tryBorrow(this: &readonly RefCell<T>): Ref<T> | undefined {
+        todo("RefCell.tryBorrow")
+    }
+
+    /// Borrow the value for exclusive access.
+    borrowExclusive(this: &readonly RefCell<T>): ExclusiveRef<T> {
+        todo("RefCell.borrowExclusive")
+    }
+
+    /// Try to borrow the value for exclusive access.
+    tryBorrowExclusive(this: &readonly RefCell<T>): ExclusiveRef<T> | undefined {
+        todo("RefCell.tryBorrowExclusive")
+    }
+
+    /// Replace the stored value and return the old value.
+    replace(this: &readonly RefCell<T>, value: T): T {
+        todo("RefCell.replace")
+    }
+
+    /// Swap two ref cells.
+    swap(this: &readonly RefCell<T>, other: &readonly RefCell<T>): void {
+        todo("RefCell.swap")
+    }
+
+    /// Borrow the stored value with exclusive access.
+    getExclusive(this: &exclusive RefCell<T>): &exclusive T {
+        todo("RefCell.getExclusive")
+    }
+
+    /// Move out the stored value.
+    intoInner(this: ^RefCell<T>): ^T {
+        todo("RefCell.intoInner")
+    }
+}
+
+/// Active readonly ref cell borrow.
+export struct Ref<T> {
+    /// The borrowed cell.
+    cell: NonNull<RefCell<T>>;
+}
+
+extension<T> of Ref<T> implements Dispose, Dereference<"readonly"> {
+    /// The projected result form.
+    type Output = &readonly T;
+
+    /// Release this borrow.
+    dispose(): void {
+        todo("Ref.dispose")
+    }
+
+    /// Borrow the protected value.
+    dereference(): this.Output {
+        todo("Ref.dereference")
+    }
+}
+
+/// Active exclusive ref cell borrow.
+export struct ExclusiveRef<T> {
+    /// The borrowed cell.
+    cell: NonNull<RefCell<T>>;
+}
+
+extension<T> of ExclusiveRef<T> implements Dispose, Dereference<"exclusive"> {
+    /// The projected result form.
+    type Output = &exclusive T;
+
+    /// Release this borrow.
+    dispose(): void {
+        todo("ExclusiveRef.dispose")
+    }
+
+    /// Borrow the protected value.
+    dereference(): this.Output {
+        todo("ExclusiveRef.dereference")
+    }
+}

@@ -1,16 +1,55 @@
+import { type Zeroable } from "./capability.ds";
+
 /// Storage for `T` whose lifetime may not have started.
 export newtype MaybeUninit<T> = intrinsic;
 
 export extension<T> of MaybeUninit<T> {
+    /// Create initialized storage for `value`.
+    @intrinsic("memory.init.new")
+    static new(value: ^T): MaybeUninit<T>;
+
     /// Create uninitialized storage for `T`.
     @intrinsic("memory.init.uninit")
     static uninit(): MaybeUninit<T>;
+
+    /// Create zeroed storage for `T`.
+    @intrinsic("memory.init.zeroed")
+    static zeroed(): MaybeUninit<T>
+    where T implements Zeroable;
 
     /// Initialize this storage with `value`.
     @intrinsic("memory.init.write")
     write(this: &exclusive MaybeUninit<T>, value: ^T): &exclusive T;
 
+    /// Return a raw pointer to the storage.
+    @intrinsic("memory.init.asPointer")
+    asPointer(this: &MaybeUninit<T>): *T;
+
+    /// Return an exclusive raw pointer to the storage.
+    @intrinsic("memory.init.asExclusivePointer")
+    asExclusivePointer(this: &exclusive MaybeUninit<T>): *T;
+
+    /// Borrow initialized storage.
+    @intrinsic("memory.init.assumeInitReference")
+    assumeInitReference(this: &MaybeUninit<T>): &T;
+
+    /// Borrow initialized storage with readonly access.
+    @intrinsic("memory.init.assumeInitReadonlyReference")
+    assumeInitReadonlyReference(this: &readonly MaybeUninit<T>): &readonly T;
+
+    /// Borrow initialized storage with exclusive access.
+    @intrinsic("memory.init.assumeInitExclusiveReference")
+    assumeInitExclusiveReference(this: &exclusive MaybeUninit<T>): &exclusive T;
+
     /// Move initialized storage out as `T`.
     @intrinsic("memory.init.assumeInit")
     assumeInit(this: ^MaybeUninit<T>): ^T;
+
+    /// Copy initialized storage out without ending this storage.
+    @intrinsic("memory.init.assumeInitRead")
+    assumeInitRead(this: &MaybeUninit<T>): ^T;
+
+    /// Drop initialized storage in place.
+    @intrinsic("memory.init.assumeInitDrop")
+    assumeInitDrop(this: &exclusive MaybeUninit<T>): void;
 }

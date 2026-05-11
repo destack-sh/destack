@@ -1,17 +1,43 @@
 import { todo } from "destack:error";
+import { type NonNull } from "../raw.ds";
 import { type Arc } from "./arc.ds";
-import { type ArcBox } from "./arc.ds";
+import { type ArcAllocation } from "./arc.ds";
 
 /// Weak shared reference-counted handle.
 export struct Weak<T> {
-    /// The control block.
-    control: *ArcBox<T>;
+    /// The allocation.
+    allocation?: NonNull<ArcAllocation<T>>;
 }
 
 extension<T> of Weak<T> {
+    /// Create a weak handle without an allocation.
+    static new(): Weak<T> {
+        Weak { allocation: undefined }
+    }
+
+    /// Create a weak handle from a raw value pointer.
+    static fromRaw(pointer: NonNull<T>): Weak<T> {
+        todo("Weak.fromRaw")
+    }
+
     /// Try to upgrade this weak handle.
     upgrade(): Arc<T> | undefined {
         todo("Weak.upgrade")
+    }
+
+    /// Return the raw pointer to the referenced value.
+    asPointer(): NonNull<T> | undefined {
+        todo("Weak.asPointer")
+    }
+
+    /// Move this handle into a raw value pointer.
+    intoRaw(this: ^Weak<T>): NonNull<T> | undefined {
+        todo("Weak.intoRaw")
+    }
+
+    /// Return whether this weak handle points to the same allocation as `other`.
+    ptrEq(other: Weak<T>): boolean {
+        todo("Weak.ptrEq")
     }
 
     /// Return the strong reference count.
