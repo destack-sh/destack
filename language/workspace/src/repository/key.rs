@@ -37,6 +37,9 @@ pub(crate) fn profile_key_for_target(
     let platform = profile_config
         .and_then(|profile| profile.platform)
         .unwrap_or(target.platform);
+    let host = profile_config
+        .and_then(|profile| profile.host)
+        .unwrap_or(target.host);
 
     // comptime environment
     let env = profile_config
@@ -71,6 +74,7 @@ pub(crate) fn profile_key_for_target(
         emit,
         runtime,
         platform,
+        host,
         target.target_arch.clone(),
         target.target_vendor.clone(),
         target.target_abi.clone(),

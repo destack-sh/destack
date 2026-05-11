@@ -38,14 +38,14 @@ impl Runtime {
     }
 }
 
-/// Operating system or target platform.
+/// Operating system component of a target.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize,
 )]
 pub enum Platform {
-    /// Web browser.
+    /// Unknown operating system.
     #[default]
-    Web,
+    Unknown,
     /// Windows.
     Windows,
     /// macOS.
@@ -76,14 +76,8 @@ pub enum Platform {
     IOS,
     /// Android.
     Android,
-    /// WASI.
-    Wasi,
-    /// Emscripten.
-    Emscripten,
-    /// Bare metal.
-    BareMetal,
-    /// Portable or unknown.
-    Universal,
+    /// No operating system.
+    None,
 }
 
 impl std::str::FromStr for Platform {
@@ -91,7 +85,7 @@ impl std::str::FromStr for Platform {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "web" | "browser" => Ok(Self::Web),
+            "unknown" => Ok(Self::Unknown),
             "windows" | "win32" | "win" => Ok(Self::Windows),
             "macos" | "darwin" | "mac" => Ok(Self::MacOS),
             "linux" => Ok(Self::Linux),
@@ -107,10 +101,7 @@ impl std::str::FromStr for Platform {
             "hermit" | "hermitos" => Ok(Self::Hermit),
             "ios" => Ok(Self::IOS),
             "android" => Ok(Self::Android),
-            "wasi" => Ok(Self::Wasi),
-            "emscripten" | "emscripten-wasm" => Ok(Self::Emscripten),
-            "bare_metal" | "bare-metal" | "baremetal" | "none" => Ok(Self::BareMetal),
-            "universal" | "portable" | "any" => Ok(Self::Universal),
+            "none" => Ok(Self::None),
             _ => Err(()),
         }
     }
@@ -120,7 +111,7 @@ impl Platform {
     /// Return the canonical lowercase tag for this platform.
     pub fn canonical_tag(&self) -> &'static str {
         match self {
-            Self::Web => "web",
+            Self::Unknown => "unknown",
             Self::Windows => "windows",
             Self::MacOS => "macos",
             Self::Linux => "linux",
@@ -136,26 +127,13 @@ impl Platform {
             Self::Hermit => "hermit",
             Self::IOS => "ios",
             Self::Android => "android",
-            Self::Wasi => "wasi",
-            Self::Emscripten => "emscripten",
-            Self::BareMetal => "baremetal",
-            Self::Universal => "universal",
+            Self::None => "none",
         }
     }
 
     /// Parse from a string value.
     pub fn parse(s: &str) -> Option<Self> {
         s.parse().ok()
-    }
-
-    /// Whether this platform is a web platform.
-    pub fn is_web(&self) -> bool {
-        matches!(self, Self::Web)
-    }
-
-    /// Whether this platform is a WASM target.
-    pub fn is_wasm(&self) -> bool {
-        matches!(self, Self::Wasi | Self::Emscripten)
     }
 
     /// Whether this is a mobile platform.
@@ -181,17 +159,8 @@ impl Platform {
         )
     }
 
-    /// Whether this is a bare metal platform.
-    pub fn is_bare_metal(&self) -> bool {
-        matches!(self, Self::BareMetal)
-    }
-
     /// Return the target family tag used by `import.meta.target.family`.
     pub fn family_tag(&self) -> &'static str {
-        if self.is_web() {
-            return "web";
-        }
-
         if matches!(self, Self::Windows) {
             return "windows";
         }
@@ -200,16 +169,12 @@ impl Platform {
             return "unix";
         }
 
-        if self.is_wasm() {
-            return "wasm";
-        }
-
-        if self.is_bare_metal() {
+        if matches!(self, Self::None) {
             return "bare-metal";
         }
 
-        if matches!(self, Self::Universal) {
-            return "universal";
+        if matches!(self, Self::Unknown) {
+            return "unknown";
         }
 
         "other"
@@ -233,10 +198,80 @@ impl Platform {
             Self::Hermit => Some("hermit"),
             Self::IOS => Some("ios"),
             Self::Android => Some("android"),
+            Self::None => Some("none"),
+            Self::Unknown => None,
+        }
+    }
+}
+
+/// Host environment that provides target imports and ambient effects.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize,
+)]
+pub enum Host {
+    /// Unknown host environment.
+    #[default]
+    Unknown,
+    /// Native host environment.
+    Native,
+    /// Browser host environment.
+    Browser,
+    /// WASI host environment.
+    Wasi,
+    /// Emscripten host environment.
+    Emscripten,
+    /// Freestanding target without host imports.
+    Freestanding,
+}
+
+impl std::str::FromStr for Host {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "unknown" => Ok(Self::Unknown),
+            "native" => Ok(Self::Native),
+            "browser" | "web" => Ok(Self::Browser),
+            "wasi" => Ok(Self::Wasi),
+            "emscripten" | "emscripten-wasm" => Ok(Self::Emscripten),
+            "freestanding" | "bare-metal" | "bare_metal" | "baremetal" | "none" => {
+                Ok(Self::Freestanding)
+            }
+            _ => Err(()),
+        }
+    }
+}
+
+impl Host {
+    /// Return the canonical lowercase tag for this host.
+    pub fn canonical_tag(&self) -> &'static str {
+        match self {
+            Self::Unknown => "unknown",
+            Self::Native => "native",
+            Self::Browser => "browser",
+            Self::Wasi => "wasi",
+            Self::Emscripten => "emscripten",
+            Self::Freestanding => "freestanding",
+        }
+    }
+
+    /// Parse from a string value.
+    pub fn parse(s: &str) -> Option<Self> {
+        s.parse().ok()
+    }
+
+    /// Whether this host is a WebAssembly host environment.
+    pub fn is_wasm(&self) -> bool {
+        matches!(self, Self::Browser | Self::Wasi | Self::Emscripten)
+    }
+
+    /// Resolve the target triple system component for host-defined targets.
+    pub fn triple_system_component(&self) -> Option<&'static str> {
+        match self {
             Self::Wasi => Some("wasi"),
             Self::Emscripten => Some("emscripten"),
-            Self::BareMetal => Some("none"),
-            Self::Web | Self::Universal => None,
+            Self::Freestanding => Some("none"),
+            Self::Unknown | Self::Native | Self::Browser => None,
         }
     }
 }

@@ -1,10 +1,9 @@
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use destack_artifact::{EmitFormat, Platform, Runtime, TargetAbi, TargetArch, TargetVendor};
+use destack_artifact::{EmitFormat, Host, Platform, Runtime, TargetAbi, TargetArch, TargetVendor};
 use destack_source::TargetId;
 use serde::Deserialize;
-
-use indexmap::IndexMap;
 
 use crate::{CompilerOptions, PolicyOptions, PolicyOptionsJson};
 
@@ -26,7 +25,7 @@ const DEFAULT_TARGET_OUT_DIR: &str = "dist";
 ///
 /// Can be constructed from `destack.json` or programmatically.
 /// This is the type used by compiler/codegen, independent of config parsing.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct Target {
     /// Target name (e.g., "web", "wasm", "dev").
     pub name: String,
@@ -63,7 +62,7 @@ pub struct Target {
     /// Root directory for preserved module paths.
     pub preserve_modules_root: Option<PathBuf>,
     /// Manual chunk assignments keyed by chunk name.
-    pub manual_chunks: IndexMap<String, Vec<String>>,
+    pub manual_chunks: BTreeMap<String, Vec<String>>,
     /// Whether to only honor explicit manual chunk declarations.
     pub only_explicit_manual_chunks: bool,
     /// Dependency and resolution options.
@@ -82,10 +81,10 @@ pub struct Target {
     pub emit: EmitFormat,
     /// Runtime execution contract.
     pub runtime: Runtime,
-    /// Runtime version for selecting versioned libs.
-    pub runtime_version: Option<String>,
-    /// Target platform / operating system.
+    /// Target operating system.
     pub platform: Platform,
+    /// Target host environment.
+    pub host: Host,
     /// Target architecture for native codegen (e.g., "x86_64", "aarch64").
     pub target_arch: Option<TargetArch>,
     /// Target vendor for native codegen (e.g., "apple", "pc", "unknown").
@@ -188,91 +187,6 @@ pub struct Target {
     pub declaration_dir: Option<PathBuf>,
 }
 
-impl std::hash::Hash for Target {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.name.hash(state);
-        self.discovery.hash(state);
-        self.entry.hash(state);
-        self.globals.hash(state);
-        self.tree.hash(state);
-        self.derive.hash(state);
-        self.include.hash(state);
-        self.exclude.hash(state);
-        self.module.hash(state);
-        self.es_target.hash(state);
-        self.profile.hash(state);
-        self.modes.hash(state);
-        self.assembly.hash(state);
-        self.preserve_modules.hash(state);
-        self.preserve_modules_root.hash(state);
-        self.only_explicit_manual_chunks.hash(state);
-        self.bundle_dependencies.hash(state);
-        self.bundle_assets.hash(state);
-        self.bundle_output.hash(state);
-        self.minify.hash(state);
-        self.app.hash(state);
-        self.policy.hash(state);
-        self.emit.hash(state);
-        self.runtime.hash(state);
-        self.runtime_version.hash(state);
-        self.platform.hash(state);
-        self.target_arch.hash(state);
-        self.target_vendor.hash(state);
-        self.target_abi.hash(state);
-        self.cpu.hash(state);
-        self.cpu_features.hash(state);
-        self.native_output.hash(state);
-        self.linker.hash(state);
-        self.linker_flavor.hash(state);
-        self.link_args.hash(state);
-        self.sysroot.hash(state);
-        self.library_search_paths.hash(state);
-        self.libraries.hash(state);
-        self.framework_search_paths.hash(state);
-        self.frameworks.hash(state);
-        self.rpath.hash(state);
-        self.runpath.hash(state);
-        self.entry_symbol.hash(state);
-        self.export_symbols.hash(state);
-        self.symbol_visibility.hash(state);
-        self.version_script.hash(state);
-        self.linker_script.hash(state);
-        self.position_independent.hash(state);
-        self.crt.hash(state);
-        self.soname.hash(state);
-        self.install_name.hash(state);
-        self.declaration.hash(state);
-        self.source_map_mode.hash(state);
-        self.optimize.hash(state);
-        self.optimize_level.hash(state);
-        self.unroll_threshold.hash(state);
-        self.inline_budget_scale_percent.hash(state);
-        self.lto_mode.hash(state);
-        self.float_math.hash(state);
-        self.debug_info.hash(state);
-        self.runtime_options.hash(state);
-        self.panic.hash(state);
-        self.unwind.hash(state);
-        self.strip.hash(state);
-        self.safety_preset.hash(state);
-        self.overflow_checks.hash(state);
-        self.bounds_checks.hash(state);
-        self.null_checks.hash(state);
-        self.division_checks.hash(state);
-        self.shift_checks.hash(state);
-        self.check_failure.hash(state);
-        self.out_dir.hash(state);
-        self.out_file.hash(state);
-        self.declaration_dir.hash(state);
-
-        self.manual_chunks.len().hash(state);
-        for (name, modules) in &self.manual_chunks {
-            name.hash(state);
-            modules.hash(state);
-        }
-    }
-}
-
 impl Default for Target {
     fn default() -> Self {
         Self::native("default")
@@ -322,7 +236,8 @@ impl Target {
         target.emit = EmitFormat::Js;
         target.runtime = Runtime::Js;
         target.runtime_options.environment = Runtime::Js;
-        target.platform = Platform::Universal;
+        target.platform = Platform::Unknown;
+        target.host = Host::Unknown;
         target.declaration = true;
 
         target
@@ -334,7 +249,8 @@ impl Target {
         target.emit = EmitFormat::Ts;
         target.runtime = Runtime::Js;
         target.runtime_options.environment = Runtime::Js;
-        target.platform = Platform::Universal;
+        target.platform = Platform::Unknown;
+        target.host = Host::Unknown;
 
         target
     }
@@ -345,7 +261,8 @@ impl Target {
         target.emit = EmitFormat::Html;
         target.runtime = Runtime::Js;
         target.runtime_options.environment = Runtime::Js;
-        target.platform = Platform::Web;
+        target.platform = Platform::Unknown;
+        target.host = Host::Browser;
 
         target
     }
@@ -356,7 +273,8 @@ impl Target {
         target.emit = EmitFormat::Wasm;
         target.runtime = Runtime::Destack;
         target.runtime_options.environment = Runtime::Destack;
-        target.platform = Platform::Web;
+        target.platform = Platform::Unknown;
+        target.host = Host::Browser;
         target.optimize = true;
 
         target
@@ -368,7 +286,8 @@ impl Target {
         target.emit = EmitFormat::Wasm;
         target.runtime = Runtime::Destack;
         target.runtime_options.environment = Runtime::Destack;
-        target.platform = Platform::Wasi;
+        target.platform = Platform::Unknown;
+        target.host = Host::Wasi;
         target.optimize = true;
 
         target
@@ -380,7 +299,8 @@ impl Target {
         target.emit = EmitFormat::Native;
         target.runtime = Runtime::Destack;
         target.runtime_options.environment = Runtime::Destack;
-        target.platform = Platform::Universal;
+        target.platform = Platform::Unknown;
+        target.host = Host::Native;
         target.optimize = true;
 
         target
@@ -394,7 +314,8 @@ impl Target {
     /// Create a new target with the given name and native freestanding output.
     pub fn native_freestanding(name: impl Into<String>) -> Self {
         let mut target = Self::native(name);
-        target.platform = Platform::BareMetal;
+        target.platform = Platform::None;
+        target.host = Host::Freestanding;
 
         target
     }
@@ -402,7 +323,8 @@ impl Target {
     /// Create a new target with the given name and native embedded output.
     pub fn native_embedded(name: impl Into<String>) -> Self {
         let mut target = Self::native(name);
-        target.platform = Platform::BareMetal;
+        target.platform = Platform::None;
+        target.host = Host::Freestanding;
 
         target
     }
@@ -549,7 +471,10 @@ impl Target {
     /// Resolve a target triple string from the target configuration.
     pub fn resolved_target_triple(&self) -> Option<String> {
         let target_arch = self.target_arch.as_ref()?;
-        let os = self.platform.triple_os_component()?;
+        let os = self
+            .platform
+            .triple_os_component()
+            .or_else(|| self.host.triple_system_component())?;
 
         let vendor = self
             .target_vendor
@@ -633,15 +558,15 @@ impl Target {
         self
     }
 
-    /// Set the runtime version.
-    pub fn with_runtime_version(mut self, runtime_version: impl Into<String>) -> Self {
-        self.runtime_version = Some(runtime_version.into());
-        self
-    }
-
     /// Set the platform.
     pub fn with_platform(mut self, platform: Platform) -> Self {
         self.platform = platform;
+        self
+    }
+
+    /// Set the host environment.
+    pub fn with_host(mut self, host: Host) -> Self {
+        self.host = host;
         self
     }
 
@@ -928,10 +853,10 @@ pub struct TargetOptions {
     pub emit: EmitFormat,
     /// Runtime execution contract.
     pub runtime: Runtime,
-    /// Runtime version for selecting versioned libs.
-    pub runtime_version: Option<String>,
-    /// Target platform / operating system.
+    /// Target operating system.
     pub platform: Platform,
+    /// Target host environment.
+    pub host: Host,
     /// Target architecture for native codegen.
     pub target_arch: Option<TargetArch>,
     /// Target vendor for native codegen.
@@ -1011,7 +936,7 @@ pub struct TargetOptions {
     /// Root directory for preserved module paths.
     pub preserve_modules_root: Option<PathBuf>,
     /// Manual chunk assignments keyed by chunk name.
-    pub manual_chunks: IndexMap<String, Vec<String>>,
+    pub manual_chunks: BTreeMap<String, Vec<String>>,
     /// Whether to only honor explicit manual chunk declarations.
     pub only_explicit_manual_chunks: bool,
     /// Dependency and resolution options.
@@ -1078,8 +1003,8 @@ impl Default for TargetOptions {
             exclude: Vec::new(),
             emit: EmitFormat::default(),
             runtime: Runtime::default(),
-            runtime_version: None,
-            platform: Platform::default(),
+            platform: Platform::Unknown,
+            host: Host::Unknown,
             target_arch: None,
             target_vendor: None,
             target_abi: None,
@@ -1117,7 +1042,7 @@ impl Default for TargetOptions {
             assembly: BundleMode::default(),
             preserve_modules: false,
             preserve_modules_root: None,
-            manual_chunks: IndexMap::new(),
+            manual_chunks: BTreeMap::new(),
             only_explicit_manual_chunks: false,
             bundle_dependencies: BundleDependencyOptions::default(),
             bundle_assets: BundleAssetOptions::default(),
@@ -1180,8 +1105,8 @@ impl TargetOptions {
             exclude: self.exclude.clone(),
             emit: self.emit,
             runtime: self.runtime,
-            runtime_version: self.runtime_version.clone(),
             platform: self.platform,
+            host: self.host,
             target_arch: self.target_arch.clone(),
             target_vendor: self.target_vendor.clone(),
             target_abi: self.target_abi.clone(),
@@ -1249,7 +1174,10 @@ impl TargetOptions {
     }
 
     /// Derive target options from JSON and base runtime options.
-    pub fn from_json_with_runtime(json: &TargetJson, base_runtime: &RuntimeOptions) -> Self {
+    pub fn from_json_with_runtime(
+        json: &TargetJson,
+        base_runtime: &RuntimeOptions,
+    ) -> Result<Self, String> {
         Self::from_json_with_runtime_and_policy(json, base_runtime, &PolicyOptions::default())
     }
 
@@ -1258,7 +1186,7 @@ impl TargetOptions {
         json: &TargetJson,
         base_runtime: &RuntimeOptions,
         base_policy: &PolicyOptions,
-    ) -> Self {
+    ) -> Result<Self, String> {
         // derive entry points
         let entry: Vec<PathBuf> = json
             .entry
@@ -1340,8 +1268,20 @@ impl TargetOptions {
         let default_float_math = safety_preset
             .map(|preset| preset.float_math_policy())
             .unwrap_or_default();
+        let host = json
+            .host
+            .as_deref()
+            .map(parse_target_host)
+            .transpose()?
+            .unwrap_or_default();
+        let platform = json
+            .platform
+            .as_deref()
+            .map(parse_target_platform)
+            .transpose()?
+            .unwrap_or_else(|| default_platform_for_host(host));
 
-        Self {
+        Ok(Self {
             discovery,
             entry,
             globals,
@@ -1351,12 +1291,8 @@ impl TargetOptions {
             exclude: json.exclude.clone().unwrap_or_default(),
             emit,
             runtime: runtime_options.environment,
-            runtime_version: None,
-            platform: json
-                .platform
-                .as_deref()
-                .and_then(Platform::parse)
-                .unwrap_or_default(),
+            platform,
+            host,
             target_arch: json.arch.as_deref().and_then(TargetArch::parse),
             target_vendor: json.vendor.as_deref().and_then(TargetVendor::parse),
             target_abi: json.env.as_deref().and_then(TargetAbi::parse),
@@ -1467,13 +1403,33 @@ impl TargetOptions {
                 .check_failure
                 .map(CheckFailurePolicy::from)
                 .unwrap_or_default(),
-        }
+        })
     }
 }
 
-impl From<&TargetJson> for TargetOptions {
-    fn from(json: &TargetJson) -> Self {
+impl TryFrom<&TargetJson> for TargetOptions {
+    type Error = String;
+
+    fn try_from(json: &TargetJson) -> Result<Self, Self::Error> {
         Self::from_json_with_runtime(json, &RuntimeOptions::default())
+    }
+}
+
+/// Parse one target platform from a config value.
+fn parse_target_platform(value: &str) -> Result<Platform, String> {
+    Platform::parse(value).ok_or_else(|| format!("unsupported target platform '{value}'"))
+}
+
+/// Parse one target host from a config value.
+fn parse_target_host(value: &str) -> Result<Host, String> {
+    Host::parse(value).ok_or_else(|| format!("unsupported target host '{value}'"))
+}
+
+/// Resolve the implied operating system for one host.
+fn default_platform_for_host(host: Host) -> Platform {
+    match host {
+        Host::Freestanding => Platform::None,
+        _ => Platform::Unknown,
     }
 }
 
@@ -1505,8 +1461,10 @@ pub struct TargetJson {
     pub emit: Option<EmitFormatJson>,
     /// Runtime environment shorthand or full runtime configuration.
     pub runtime: Option<RuntimeConfigJson>,
-    /// Host platform or packaging surface (e.g., web, ios, android, macos, linux, windows).
+    /// Target operating system.
     pub platform: Option<String>,
+    /// Host environment that provides imports and ambient effects.
+    pub host: Option<String>,
     /// Target architecture for native codegen (e.g., "x86_64", "aarch64").
     pub arch: Option<String>,
     /// Target vendor for native codegen (e.g., "apple", "pc", "unknown").
@@ -1585,7 +1543,7 @@ pub struct TargetJson {
     /// Root directory for preserved module paths.
     pub preserve_modules_root: Option<String>,
     /// Manual chunk assignments keyed by chunk name.
-    pub manual_chunks: Option<IndexMap<String, Vec<String>>>,
+    pub manual_chunks: Option<BTreeMap<String, Vec<String>>>,
     /// Whether to only honor explicit manual chunk declarations.
     pub only_explicit_manual_chunks: Option<bool>,
     /// Dependency and resolution options.

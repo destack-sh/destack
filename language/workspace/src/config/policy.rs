@@ -25,11 +25,11 @@ pub enum PolicyAccess {
     Deny,
 }
 
-/// Policy backend used for allowed runtime effects.
+/// Runtime world used for allowed effects.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub enum PolicyBackend {
+pub enum PolicyWorld {
     /// Execute against the live host.
     #[default]
     Host,
@@ -93,8 +93,8 @@ pub struct PolicyRule {
     pub resource: String,
     /// Access outcome selected by this rule.
     pub access: PolicyAccess,
-    /// Backend selected when access is allowed.
-    pub backend: Option<PolicyBackend>,
+    /// World selected when access is allowed.
+    pub world: Option<PolicyWorld>,
 }
 
 /// Static policy configuration.
@@ -137,9 +137,9 @@ impl PolicyOptions {
             }
 
             // deny rules
-            if rule.access == PolicyAccess::Deny && rule.backend.is_some() {
+            if rule.access == PolicyAccess::Deny && rule.world.is_some() {
                 return Err(format!(
-                    "policy.rules[{index}].backend is only valid when access is allow"
+                    "policy.rules[{index}].world is only valid when access is allow"
                 ));
             }
         }
@@ -256,14 +256,14 @@ pub struct PolicyRuleJson {
     pub resource: String,
     /// Access outcome selected by this rule.
     pub access: PolicyAccess,
-    /// Backend selected when access is allowed.
-    pub backend: Option<PolicyBackend>,
+    /// World selected when access is allowed.
+    pub world: Option<PolicyWorld>,
 }
 
 impl From<&PolicyRuleJson> for PolicyRule {
     fn from(value: &PolicyRuleJson) -> Self {
-        let backend = match value.access {
-            PolicyAccess::Allow => Some(value.backend.unwrap_or_default()),
+        let world = match value.access {
+            PolicyAccess::Allow => Some(value.world.unwrap_or_default()),
             PolicyAccess::Deny => None,
         };
 
@@ -273,7 +273,7 @@ impl From<&PolicyRuleJson> for PolicyRule {
             action: value.action.clone(),
             resource: value.resource.clone(),
             access: value.access,
-            backend,
+            world,
         }
     }
 }
@@ -312,9 +312,9 @@ impl PolicyOptionsJson {
                 }
 
                 // deny rules
-                if rule.access == PolicyAccess::Deny && rule.backend.is_some() {
+                if rule.access == PolicyAccess::Deny && rule.world.is_some() {
                     return Err(format!(
-                        "policy.rules[{index}].backend is only valid when access is allow"
+                        "policy.rules[{index}].world is only valid when access is allow"
                     ));
                 }
             }

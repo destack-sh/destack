@@ -2,7 +2,7 @@ use destack_core::stable_hash_key_value_128;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    EmitFormat, HostEnvironmentKey, Platform, Runtime, TargetAbi, TargetArch, TargetVendor,
+    EmitFormat, Host, HostEnvironmentKey, Platform, Runtime, TargetAbi, TargetArch, TargetVendor,
     normalize_profile_keys,
 };
 
@@ -36,6 +36,8 @@ pub struct ProfileKey {
     pub runtime: Runtime,
     /// Target platform for the profile.
     pub platform: Platform,
+    /// Target host environment for the profile.
+    pub host: Host,
     /// Target architecture for the profile.
     pub target_arch: Option<TargetArch>,
     /// Target vendor for the profile.
@@ -63,6 +65,7 @@ impl ProfileKey {
         emit: EmitFormat,
         runtime: Runtime,
         platform: Platform,
+        host: Host,
         target_arch: Option<TargetArch>,
         target_vendor: Option<TargetVendor>,
         target_abi: Option<TargetAbi>,
@@ -81,6 +84,7 @@ impl ProfileKey {
             emit,
             runtime,
             platform,
+            host,
             target_arch,
             target_vendor,
             target_abi,
