@@ -274,7 +274,7 @@
         "@vscode/test-electron": "^2.5.2",
         "esbuild": "^0.25.9",
         "mocha": "^11.7.4",
-        "typescript": "~5.5.4",
+        "typescript": "~5.9.3",
         "vsce": "^2.15.0",
         "vscode": "^1.1.37",
         "vscode-languageclient": "^9.0.1",
