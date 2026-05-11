@@ -16,8 +16,8 @@ macro_rules! binding {
 macro_rules! native_binding_set {
     ($vis:vis $name:ident, $label:expr, [$( $binding:expr ),* $(,)?]) => {
         #[doc = "Native binding set for a platform domain."]
-        $vis const $name: $crate::runtime::bindings::NativeBindingSet =
-            $crate::runtime::bindings::NativeBindingSet {
+        $vis const $name: $crate::runtime::binding::NativeBindingSet =
+            $crate::runtime::binding::NativeBindingSet {
                 name: $label,
                 bindings: &[$($binding),*],
             };
@@ -29,8 +29,8 @@ macro_rules! native_binding_set {
 macro_rules! vm_binding_set {
     ($vis:vis $name:ident, $label:expr, $install:expr $(,)?) => {
         #[doc = "VM binding set for a platform domain."]
-        $vis const $name: $crate::runtime::bindings::VmBindingSet =
-            $crate::runtime::bindings::VmBindingSet {
+        $vis const $name: $crate::runtime::binding::VmBindingSet =
+            $crate::runtime::binding::VmBindingSet {
                 name: $label,
                 install: $install,
             };

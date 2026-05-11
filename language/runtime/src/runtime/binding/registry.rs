@@ -4,16 +4,14 @@ use destack_vm as vm;
 use destack_vm::Isolate;
 use parking_lot::RwLock;
 
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform;
-use crate::runtime::bindings::{
-    BindingDescriptor, BindingId, BindingPolicy, NativeBinding, NativeBindingSet,
+use crate::runtime::action::HostActionSet;
+use crate::runtime::binding::{
+    BindingAccess, BindingDescriptor, BindingId, NativeBinding, NativeBindingSet, VmBindingSet,
 };
-use crate::runtime::capability::PlatformCapabilitySet;
 use crate::runtime::{BindingCallContext, enter_binding_call_context};
-use destack_workspace::RuntimeOptions;
-
-use crate::runtime::bindings::VmBindingSet;
-use destack_workspace::ExecutionMode;
+use destack_workspace::{ExecutionMode, RuntimeOptions};
 
 /// Registry for runtime bindings and shims.
 #[derive(Debug)]
@@ -26,8 +24,8 @@ pub struct BindingRegistry {
     native_by_id: HashMap<BindingId, NativeBinding>,
     /// Native binding metadata for linking.
     native_bindings: Vec<NativeBinding>,
-    /// Policy configuration for runtime bindings.
-    policy: RwLock<BindingPolicy>,
+    /// Access policy for runtime bindings.
+    access: RwLock<BindingAccess>,
 }
 
 impl BindingRegistry {
@@ -38,37 +36,30 @@ impl BindingRegistry {
             descriptor_by_id: HashMap::new(),
             native_by_id: HashMap::new(),
             native_bindings: Vec::new(),
-            policy: RwLock::new(BindingPolicy::new(ExecutionMode::Fast)),
+            access: RwLock::new(BindingAccess::new(ExecutionMode::Fast)),
         }
     }
 
-    /// Borrow the live binding policy state.
-    pub fn policy(&self) -> &RwLock<BindingPolicy> {
-        &self.policy
+    /// Borrow the live binding access.
+    pub fn access(&self) -> &RwLock<BindingAccess> {
+        &self.access
     }
 
-    /// Set the binding policy for this registry.
-    pub fn set_policy(&mut self, policy: BindingPolicy) {
-        // store the binding policy
-        *self.policy.write() = policy;
+    /// Set the binding access for this registry.
+    pub fn set_access(&mut self, access: BindingAccess) {
+        *self.access.write() = access;
     }
 
-    /// Apply runtime defaults to binding policy without loading control rules.
+    /// Apply runtime defaults to binding access without loading control rules.
     pub fn apply_runtime_defaults(&mut self, options: &RuntimeOptions) {
-        let mut policy = self.policy.write();
-        policy.apply_runtime_defaults(options);
+        let mut access = self.access.write();
+        access.apply_runtime_defaults(options);
     }
 
-    /// Apply a capability set to policy checks and recompile descriptor decisions.
-    pub fn set_capabilities(&mut self, capabilities: PlatformCapabilitySet) {
-        let mut policy = self.policy.write();
-        policy.set_capabilities(capabilities);
-    }
-
-    /// Set capability requirement enforcement mode and recompile descriptor decisions.
-    pub fn set_capability_requirements_enforced(&mut self, is_enforced: bool) {
-        let mut policy = self.policy.write();
-        policy.set_capability_requirements_enforced(is_enforced);
+    /// Apply one allowed action set to binding access checks.
+    pub fn set_allowed_actions(&mut self, actions: HostActionSet) {
+        let mut access = self.access.write();
+        access.set_allowed_actions(actions);
     }
 
     /// Install default VM bindings into a VM isolate.
@@ -82,10 +73,12 @@ impl BindingRegistry {
     }
 
     /// Install default native bindings for the runtime.
-    pub fn install_native_defaults(&mut self) {
+    pub fn install_native_defaults(&mut self) -> RuntimeResult<()> {
         for set in platform::PLATFORM_NATIVE_BINDINGS {
-            self.install_native_binding_set(set);
+            self.install_native_binding_set(set)?;
         }
+
+        Ok(())
     }
 
     /// Install a binding set into a VM isolate.
@@ -95,23 +88,28 @@ impl BindingRegistry {
         isolate: &mut Isolate,
         set: &VmBindingSet,
     ) -> vm::Result<()> {
-        // dispatch to the binding set install hook
+        // install through the binding set hook
         (set.install)(self, isolate)
     }
 
     /// Install a native binding set into the registry.
-    pub(crate) fn install_native_binding_set(&mut self, set: &NativeBindingSet) {
+    pub(crate) fn install_native_binding_set(
+        &mut self,
+        set: &NativeBindingSet,
+    ) -> RuntimeResult<()> {
         for binding in set.bindings {
-            self.register_native_binding(*binding);
+            self.register_native_binding(*binding)?;
         }
+
+        Ok(())
     }
 
     /// Register native binding metadata.
-    pub(crate) fn register_native_binding(&mut self, binding: NativeBinding) {
+    pub(crate) fn register_native_binding(&mut self, binding: NativeBinding) -> RuntimeResult<()> {
         if let Some(existing) = self.descriptor_by_id.get(&binding.spec.id)
             && *existing != binding.spec
         {
-            panic!("binding id collision for {}", binding.spec.name);
+            return Err(binding_collision_error(binding.spec.name));
         }
 
         if let Some(existing) = self.native_by_id.get(&binding.spec.id) {
@@ -119,15 +117,18 @@ impl BindingRegistry {
                 || existing.symbol != binding.symbol
                 || existing.function != binding.function
             {
-                panic!("native binding id collision for {}", binding.spec.name);
+                return Err(binding_collision_error(binding.spec.name));
             }
-            return;
+
+            return Ok(());
         }
 
         self.descriptor_by_id.insert(binding.spec.id, binding.spec);
         self.descriptors.push(binding.spec);
         self.native_by_id.insert(binding.spec.id, binding);
         self.native_bindings.push(binding);
+
+        Ok(())
     }
 
     /// Register a VM binding handler with metadata.
@@ -181,4 +182,12 @@ impl BindingRegistry {
     pub fn native_bindings(&self) -> &[NativeBinding] {
         &self.native_bindings
     }
+}
+
+/// Return one binding id collision error.
+fn binding_collision_error(name: &str) -> Box<RuntimeError> {
+    RuntimeError::Internal {
+        message: format!("binding id collision for {name}"),
+    }
+    .boxed()
 }

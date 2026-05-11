@@ -1,5 +1,5 @@
 use crate::diagnostic::{RuntimeResult, RuntimeStatus};
-use crate::runtime::bindings::BindingDescriptor;
+use crate::runtime::binding::BindingDescriptor;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
 
 /// Native binding metadata for typed platform calls.
