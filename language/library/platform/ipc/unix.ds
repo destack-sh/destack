@@ -1,48 +1,53 @@
-import { Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
 import { SocketHandle, TransferredHandle } from "../resource/index.ds";
+import { MessageFlags } from "../net/socket.ds";
 
-/// Peer credentials for one unix-domain socket endpoint.
-export struct UnixPeerCredentials {
+/// Unix peer credentials.
+export struct UnixCredentials {
     /// Peer process identifier when available.
-    pid: uint32 | void;
+    pid?: uint32;
     /// Peer user identifier.
     uid: uint32;
     /// Peer group identifier.
     gid: uint32;
 }
 
-/// Received unix ancillary payload.
-export struct UnixReceiveAncillary {
-    /// Received payload bytes.
+/// Unix message receive result.
+export struct UnixMessage {
+    /// Payload bytes copied into the caller buffer.
     bytes: uint64;
-    /// Received transferred handles.
-    handles: Array<TransferredHandle>;
+    /// Transferred handles copied into the caller buffer.
+    handleCount: uint64;
+    /// Message flags returned by the host.
+    flags: MessageFlags;
     /// Peer credentials when available.
-    credentials: UnixPeerCredentials | void;
+    credentials?: UnixCredentials;
 }
 
-/// Send payload and transferred handles.
+/// Send one Unix-domain socket message with transferred handles.
 @binding("destack.ipc.unix.send", {
     effect: "external",
-    requires: ["ipc.unix", "ipc.fd.pass"],
+    requires: ["ipc.unix", "ipc.handle.pass"],
     families: ["unix"],
     simulation: true,
 })
-export declare function unixSend(
+export declare function sendUnixMessage(
     socket: SocketHandle,
-    payload: Slice<uint8>,
-    handles: Slice<TransferredHandle>,
+    payload: &readonly [uint8],
+    handles: &readonly [TransferredHandle],
+    flags: MessageFlags,
 ): Result<uint64, PlatformError>;
 
-/// Receive payload and transferred handles.
+/// Receive one Unix-domain socket message with transferred handles.
 @binding("destack.ipc.unix.receive", {
     effect: "external",
-    requires: ["ipc.unix", "ipc.fd.pass"],
+    requires: ["ipc.unix", "ipc.handle.pass"],
     families: ["unix"],
     simulation: true,
 })
-export declare function unixReceive(
+export declare function receiveUnixMessage(
     socket: SocketHandle,
-    maxHandles: uint32,
-): Result<UnixReceiveAncillary, PlatformError>;
+    payload: &[uint8],
+    handles: &[TransferredHandle],
+    flags: MessageFlags,
+): Result<UnixMessage, PlatformError>;

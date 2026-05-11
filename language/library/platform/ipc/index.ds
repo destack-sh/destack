@@ -1,6 +1,7 @@
-
-export * from "./pipe.ds";
-export * from "./unix.ds";
-export * from "./shared_memory.ds";
-export * from "./sync.ds";
+export * from "./event.ds";
+export * from "./futex.ds";
+export * from "./memory.ds";
 export * from "./message.ds";
+export * from "./pipe.ds";
+export * from "./semaphore.ds";
+export * from "./unix.ds";

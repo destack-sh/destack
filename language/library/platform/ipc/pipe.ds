@@ -1,8 +1,16 @@
-import { Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
 import { PipeHandle } from "../resource/index.ds";
 
-/// Pair of pipe handles.
+/// Pipe creation flags.
+export newtype PipeFlags = uint32;
+
+/// Create the pipe endpoints in nonblocking mode.
+export const PIPE_NONBLOCK: PipeFlags = PipeFlags(0x1);
+
+/// Create the pipe endpoints as close-on-exec or non-inheritable.
+export const PIPE_CLOEXEC: PipeFlags = PipeFlags(0x2);
+
+/// Pair of anonymous pipe endpoints.
 export struct PipePair {
     /// Read endpoint.
     read: PipeHandle;
@@ -10,14 +18,14 @@ export struct PipePair {
     write: PipeHandle;
 }
 
-/// Create one unnamed pipe pair.
-@binding("destack.ipc.pipe.open", {
+/// Create one anonymous pipe pair.
+@binding("destack.ipc.pipe.create", {
     effect: "external",
     requires: ["ipc.pipe"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function pipeOpen(flags: uint32): Result<PipePair, PlatformError>;
+export declare function createPipe(flags: PipeFlags): Result<PipePair, PlatformError>;
 
 /// Close one pipe endpoint.
 @binding("destack.ipc.pipe.close", {
@@ -26,28 +34,28 @@ export declare function pipeOpen(flags: uint32): Result<PipePair, PlatformError>
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function pipeClose(handle: PipeHandle): Result<void, PlatformError>;
+export declare function closePipe(pipe: PipeHandle): Result<void, PlatformError>;
 
-/// Read bytes from a pipe endpoint.
+/// Read bytes from one pipe endpoint.
 @binding("destack.ipc.pipe.read", {
     effect: "external",
     requires: ["ipc.pipe"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function pipeRead(
-    handle: PipeHandle,
-    buffer: Slice<uint8>,
+export declare function readPipe(
+    pipe: PipeHandle,
+    buffer: &[uint8],
 ): Result<uint64, PlatformError>;
 
-/// Write bytes to a pipe endpoint.
+/// Write bytes to one pipe endpoint.
 @binding("destack.ipc.pipe.write", {
     effect: "external",
     requires: ["ipc.pipe"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function pipeWrite(
-    handle: PipeHandle,
-    buffer: Slice<uint8>,
+export declare function writePipe(
+    pipe: PipeHandle,
+    bytes: &readonly [uint8],
 ): Result<uint64, PlatformError>;

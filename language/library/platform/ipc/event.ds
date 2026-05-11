@@ -1,0 +1,53 @@
+import type { PlatformError } from "../error/index.ds";
+import { IpcEventHandle } from "../resource/index.ds";
+
+/// Event counter creation flags.
+export newtype EventFlags = uint32;
+
+/// Create the event counter in nonblocking mode.
+export const EVENT_NONBLOCK: EventFlags = EventFlags(0x1);
+
+/// Create the event counter as close-on-exec.
+export const EVENT_CLOEXEC: EventFlags = EventFlags(0x2);
+
+/// Create one Linux event counter.
+@binding("destack.ipc.event.create", {
+    effect: "external",
+    requires: ["ipc.event"],
+    platforms: ["linux"],
+    simulation: true,
+})
+export declare function createEvent(
+    initial: uint64,
+    flags: EventFlags,
+): Result<IpcEventHandle, PlatformError>;
+
+/// Close one event counter handle.
+@binding("destack.ipc.event.close", {
+    effect: "external",
+    requires: ["ipc.event"],
+    platforms: ["linux"],
+    simulation: true,
+})
+export declare function closeEvent(event: IpcEventHandle): Result<void, PlatformError>;
+
+/// Read one event counter value.
+@binding("destack.ipc.event.read", {
+    effect: "external",
+    requires: ["ipc.event"],
+    platforms: ["linux"],
+    simulation: true,
+})
+export declare function readEvent(event: IpcEventHandle): Result<uint64, PlatformError>;
+
+/// Add one value to an event counter.
+@binding("destack.ipc.event.write", {
+    effect: "external",
+    requires: ["ipc.event"],
+    platforms: ["linux"],
+    simulation: true,
+})
+export declare function writeEvent(
+    event: IpcEventHandle,
+    value: uint64,
+): Result<void, PlatformError>;

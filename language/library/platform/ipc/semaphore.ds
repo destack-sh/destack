@@ -1,0 +1,86 @@
+import type { PlatformError } from "../error/index.ds";
+import { SemaphoreHandle } from "../resource/index.ds";
+
+/// Semaphore creation flags.
+export newtype SemaphoreFlags = uint32;
+
+/// Create the semaphore only when it does not already exist.
+export const SEMAPHORE_CREATE_EXCLUSIVE: SemaphoreFlags = SemaphoreFlags(0x1);
+
+/// Semaphore creation options.
+export struct SemaphoreOptions {
+    /// Initial semaphore count.
+    initial: uint32;
+    /// Maximum semaphore count where the host requires it.
+    maximum?: uint32;
+    /// Creation flags.
+    flags: SemaphoreFlags;
+}
+
+/// Create one named semaphore.
+@binding("destack.ipc.semaphore.create", {
+    effect: "external",
+    requires: ["ipc.semaphore"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function createSemaphore(
+    name: &readonly string,
+    options: SemaphoreOptions,
+): Result<SemaphoreHandle, PlatformError>;
+
+/// Open one named semaphore.
+@binding("destack.ipc.semaphore.open", {
+    effect: "external",
+    requires: ["ipc.semaphore"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function openSemaphore(
+    name: &readonly string,
+    flags: SemaphoreFlags,
+): Result<SemaphoreHandle, PlatformError>;
+
+/// Close one semaphore handle.
+@binding("destack.ipc.semaphore.close", {
+    effect: "external",
+    requires: ["ipc.semaphore"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function closeSemaphore(
+    semaphore: SemaphoreHandle,
+): Result<void, PlatformError>;
+
+/// Remove one named semaphore.
+@binding("destack.ipc.semaphore.remove", {
+    effect: "external",
+    requires: ["ipc.semaphore"],
+    families: ["unix"],
+    simulation: true,
+})
+export declare function removeSemaphore(name: &readonly string): Result<void, PlatformError>;
+
+/// Wait for one semaphore count.
+@binding("destack.ipc.semaphore.wait", {
+    effect: "external",
+    requires: ["ipc.semaphore"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function waitSemaphore(
+    semaphore: SemaphoreHandle,
+    timeoutNanoseconds?: uint64,
+): Result<void, PlatformError>;
+
+/// Increment one semaphore count.
+@binding("destack.ipc.semaphore.post", {
+    effect: "external",
+    requires: ["ipc.semaphore"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function postSemaphore(
+    semaphore: SemaphoreHandle,
+    count: uint32,
+): Result<void, PlatformError>;

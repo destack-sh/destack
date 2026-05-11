@@ -1,71 +1,87 @@
-import { Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
 import { MessageQueueHandle } from "../resource/index.ds";
 
+/// Message queue creation flags.
+export newtype MessageQueueFlags = uint32;
+
+/// Create the queue only when it does not already exist.
+export const MESSAGE_QUEUE_CREATE_EXCLUSIVE: MessageQueueFlags = MessageQueueFlags(0x1);
+
+/// Message queue open options.
+export struct MessageQueueOpenOptions {
+    /// Open or creation flags.
+    flags: MessageQueueFlags;
+    /// File mode for a newly created queue.
+    mode: uint32;
+    /// Maximum queued messages.
+    maxMessages: uint32;
+    /// Maximum bytes per message.
+    maxMessageBytes: uint32;
+}
+
 /// Message queue receive result.
-export struct MessageQueueReceive {
-    /// Number of payload bytes copied into the caller buffer.
+export struct MessageQueueMessage {
+    /// Payload bytes copied into the caller buffer.
     bytes: uint32;
-    /// Priority value for the received message.
+    /// Message priority.
     priority: uint32;
 }
 
-/// Open or create a message queue.
-@binding("destack.ipc.message.queueOpen", {
+/// Open or create one POSIX message queue.
+@binding("destack.ipc.message.open", {
     effect: "external",
     requires: ["ipc.message"],
-    families: ["windows", "unix"],
+    families: ["unix"],
     simulation: true,
 })
-export declare function messageQueueOpen(
-    name: string,
-    flags: uint32,
-    mode: uint32,
-    maxMessages: uint32,
-    maxMessageBytes: uint32,
+export declare function openMessageQueue(
+    name: &readonly string,
+    options: MessageQueueOpenOptions,
 ): Result<MessageQueueHandle, PlatformError>;
 
-/// Close a message queue.
-@binding("destack.ipc.message.queueClose", {
+/// Close one message queue handle.
+@binding("destack.ipc.message.close", {
     effect: "external",
     requires: ["ipc.message"],
-    families: ["windows", "unix"],
+    families: ["unix"],
     simulation: true,
 })
-export declare function messageQueueClose(handle: MessageQueueHandle): Result<void, PlatformError>;
+export declare function closeMessageQueue(
+    queue: MessageQueueHandle,
+): Result<void, PlatformError>;
 
-/// Remove a named message queue.
-@binding("destack.ipc.message.queueUnlink", {
+/// Remove one named message queue.
+@binding("destack.ipc.message.remove", {
     effect: "external",
     requires: ["ipc.message"],
-    families: ["windows", "unix"],
+    families: ["unix"],
     simulation: true,
 })
-export declare function messageQueueUnlink(name: string): Result<void, PlatformError>;
+export declare function removeMessageQueue(name: &readonly string): Result<void, PlatformError>;
 
 /// Send one message to a queue.
-@binding("destack.ipc.message.queueSend", {
+@binding("destack.ipc.message.send", {
     effect: "external",
     requires: ["ipc.message"],
-    families: ["windows", "unix"],
+    families: ["unix"],
     simulation: true,
 })
-export declare function messageQueueSend(
-    handle: MessageQueueHandle,
+export declare function sendMessageQueue(
+    queue: MessageQueueHandle,
     priority: uint32,
-    timeoutNs: uint64,
-    payload: Slice<uint8>,
+    payload: &readonly [uint8],
+    timeoutNanoseconds?: uint64,
 ): Result<void, PlatformError>;
 
 /// Receive one message from a queue.
-@binding("destack.ipc.message.queueReceive", {
+@binding("destack.ipc.message.receive", {
     effect: "external",
     requires: ["ipc.message"],
-    families: ["windows", "unix"],
+    families: ["unix"],
     simulation: true,
 })
-export declare function messageQueueReceive(
-    handle: MessageQueueHandle,
-    timeoutNs: uint64,
-    buffer: Slice<uint8>,
-): Result<MessageQueueReceive, PlatformError>;
+export declare function receiveMessageQueue(
+    queue: MessageQueueHandle,
+    buffer: &[uint8],
+    timeoutNanoseconds?: uint64,
+): Result<MessageQueueMessage, PlatformError>;
