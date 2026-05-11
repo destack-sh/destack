@@ -277,6 +277,66 @@ fn test_pin_promotes_young_reference() {
     assert_eq!(bytes, &[1, 2, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
 }
 
+/// Pinning an interior young reference preserves its byte offset.
+#[test]
+fn test_pin_promotes_interior_young_reference() {
+    let options = tiny_heap_options();
+    let allocator = test_allocator(&options);
+    let layout = test_layout(8, ReferenceMap::empty());
+    let mut heap =
+        HeapSpace::with_options(allocator, &options).expect("explicit heap options should build");
+    let reference = heap
+        .allocate(
+            &heap.allocation_layout(layout.allocation()),
+            Payload::Bytes(&[1, 2, 3, 4, 5, 6, 7, 8]),
+        )
+        .expect("heap allocation should succeed");
+    let interior = HeapReference::new(reference.offset() + 3);
+
+    let interior = heap.pin(interior).expect("pin should succeed");
+    let location = heap
+        .resolve_location(interior)
+        .expect("interior pin should resolve");
+
+    assert_eq!(location.byte_offset, 3);
+    assert_eq!(
+        heap.pins.references().collect::<Vec<_>>(),
+        vec![location.base]
+    );
+    assert!(is_mature(&heap, interior));
+
+    heap.unpin(interior).expect("interior unpin should succeed");
+
+    assert!(heap.pins.references().next().is_none());
+}
+
+/// Minor collection rewrites interior young roots without losing their offset.
+#[test]
+fn test_collect_minor_rewrites_interior_roots() {
+    let options = tiny_heap_options();
+    let allocator = test_allocator(&options);
+    let layout = test_layout(8, ReferenceMap::empty());
+    let mut heap =
+        HeapSpace::with_options(allocator, &options).expect("explicit heap options should build");
+    let reference = heap
+        .allocate(
+            &heap.allocation_layout(layout.allocation()),
+            Payload::Bytes(&[1, 2, 3, 4, 5, 6, 7, 8]),
+        )
+        .expect("heap allocation should succeed");
+    let mut roots = [HeapReference::new(reference.offset() + 5)];
+
+    heap.collect_minor(&mut roots)
+        .expect("young collection should succeed");
+    let location = heap
+        .resolve_location(roots[0])
+        .expect("rewritten interior root should resolve");
+
+    assert_eq!(location.byte_offset, 5);
+    assert!(is_mature(&heap, roots[0]));
+    assert!(!heap.is_live(reference));
+}
+
 /// Pinned mature roots should keep young children alive during minor collection.
 #[test]
 fn test_collect_minor_traces_pinned_roots() {
