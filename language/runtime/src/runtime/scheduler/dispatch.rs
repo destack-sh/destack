@@ -3,7 +3,7 @@ use crate::diagnostic::RuntimeResult;
 use crate::runtime::poller::{
     HostPoller, PollerEvent, PollerEventPayload, PollerEventSource, PollerProcessStatus,
 };
-use crate::runtime::time::{Nanos, WorldInstant};
+use crate::runtime::time::{Instant, Nanos};
 use crate::runtime::{DropCounts, DropReason};
 
 use super::EventLoop;
@@ -95,10 +95,10 @@ impl EventLoop {
     }
 
     /// Return the next wall deadline when any timer can become runnable.
-    pub fn next_deadline(&self, wall_now: Nanos, mono_now: Nanos) -> Option<WorldInstant> {
+    pub fn next_deadline(&self, wall_now: Nanos, mono_now: Nanos) -> Option<Instant> {
         // ready timers are runnable immediately
         if self.has_dispatchable_ready_timers() {
-            return Some(WorldInstant::from_nanos(wall_now));
+            return Some(Instant::from_nanos(wall_now));
         }
 
         // map wall and monotonic timer deadlines into one wall-clock wakeup
@@ -106,12 +106,12 @@ impl EventLoop {
         let (wall_deadline, mono_deadline) = queue.next_deadlines();
         let wall_deadline = wall_deadline
             .filter(|deadline| *deadline > wall_now)
-            .map(WorldInstant::from_nanos);
+            .map(Instant::from_nanos);
         let mono_deadline = mono_deadline
             .filter(|deadline| *deadline > mono_now)
             .map(|deadline| {
                 let delta = deadline.saturating_sub(mono_now);
-                WorldInstant::from_nanos(wall_now.saturating_add(delta))
+                Instant::from_nanos(wall_now.saturating_add(delta))
             });
 
         match (wall_deadline, mono_deadline) {
@@ -125,7 +125,7 @@ impl EventLoop {
     /// Return the timeout until the next timer is ready in any clock domain.
     pub fn timeout_until_next_timer(&self, wall_now: Nanos, mono_now: Nanos) -> Option<Nanos> {
         self.next_deadline(wall_now, mono_now)
-            .map(|deadline| deadline.saturating_sub(WorldInstant::from_nanos(wall_now)))
+            .map(|deadline| deadline.saturating_sub(Instant::from_nanos(wall_now)))
     }
 
     /// Record one or more drops observed by the event loop.

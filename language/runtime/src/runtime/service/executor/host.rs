@@ -5,11 +5,8 @@ use std::thread::ThreadId;
 use crate::diagnostic::RuntimeResult;
 #[cfg(target_os = "macos")]
 use crate::host::os::apple::ingress::r#loop::is_process_main_context;
-#[cfg(target_os = "macos")]
 use crate::platform::core::{self as core_platform};
-#[cfg(windows)]
-use crate::platform::core::{self as core_platform};
-use crate::runtime::process::ExecutionAffinity;
+use crate::runtime::thread::ExecutionAffinity;
 
 #[cfg(target_os = "macos")]
 use super::super::unix::call_process_main_thread;
@@ -43,10 +40,10 @@ pub(crate) struct HostExecutor {
 
 impl HostExecutor {
     /// Create one host-loop-bound executor.
-    pub(crate) fn new(name: &str, host_loop: ExecutionAffinity) -> Self {
-        assert_host_loop_affinity(host_loop);
+    pub(crate) fn new(name: &str, host_loop: ExecutionAffinity) -> RuntimeResult<Self> {
+        validate_host_loop_affinity(host_loop)?;
 
-        Self {
+        Ok(Self {
             name: name.to_string(),
             host_loop,
             thread_id: OnceLock::new(),
@@ -55,7 +52,7 @@ impl HostExecutor {
             windows_queue: windows_loop_queue(),
             #[cfg(windows)]
             windows_thread_id: OnceLock::new(),
-        }
+        })
     }
 
     /// Execute one callback on the configured host loop, marshalling when needed.
@@ -160,8 +157,8 @@ impl HostExecutor {
     }
 }
 
-/// Require one host-loop-compatible runtime affinity.
-fn assert_host_loop_affinity(host_loop: ExecutionAffinity) {
+/// Validate one host-loop-compatible runtime affinity.
+fn validate_host_loop_affinity(host_loop: ExecutionAffinity) -> RuntimeResult<()> {
     match host_loop {
         #[cfg(target_os = "macos")]
         ExecutionAffinity::MainThread => {}
@@ -171,9 +168,14 @@ fn assert_host_loop_affinity(host_loop: ExecutionAffinity) {
 
         #[cfg(windows)]
         ExecutionAffinity::WindowsMta => {
-            panic!("host-loop executor cannot use windows MTA affinity");
+            return Err(core_platform::invalid_argument(
+                "execution.affinity",
+                "host-loop executor cannot use windows MTA affinity",
+            ));
         }
     }
+
+    Ok(())
 }
 
 #[cfg(windows)]

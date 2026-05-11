@@ -11,7 +11,7 @@ use parking_lot::Mutex;
 
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core as core_platform;
-use crate::runtime::process::{ExecutionPolicy, start_with_policy};
+use crate::runtime::thread::{ExecutionPolicy, start_with_policy};
 
 use super::state::{ExecutorFailure, ExecutorFailureKind, ExecutorState};
 
@@ -138,7 +138,11 @@ impl PeriodicExecutor {
         state: Arc<ExecutorState>,
     ) {
         if thread_id.set(thread::current().id()).is_err() {
-            panic!("periodic executor thread id was already initialized");
+            state.mark_failed(ExecutorFailure::new(
+                ExecutorFailureKind::BootstrapPanic,
+                format!("periodic executor {name} thread id was already initialized"),
+            ));
+            return;
         }
 
         let mut tasks = HashMap::<u64, PeriodicTask>::new();
@@ -311,10 +315,7 @@ impl PeriodicExecutor {
 impl Drop for PeriodicExecutor {
     /// Shut down the periodic executor thread.
     fn drop(&mut self) {
-        // request shutdown when the thread is still alive
-        if self.sender.send(PeriodicExecutorCommand::Shutdown).is_err() {
-            // the periodic executor already exited
-        }
+        let _ = self.sender.send(PeriodicExecutorCommand::Shutdown);
 
         // avoid joining from the periodic executor thread itself
         let is_current_thread = self
@@ -345,15 +346,9 @@ impl Drop for PeriodicExecutor {
 impl Drop for PeriodicTaskHandle {
     /// Unregister one periodic callback.
     fn drop(&mut self) {
-        if self
-            .sender
-            .send(PeriodicExecutorCommand::Unregister {
-                task_id: self.task_id,
-            })
-            .is_err()
-        {
-            // the periodic executor already exited
-        }
+        let _ = self.sender.send(PeriodicExecutorCommand::Unregister {
+            task_id: self.task_id,
+        });
     }
 }
 

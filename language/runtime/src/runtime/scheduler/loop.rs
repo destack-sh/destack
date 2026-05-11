@@ -12,7 +12,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::{HostEvent, HostEventKind};
 use crate::platform::{PlatformError, ResourceId};
 use crate::runtime::engine::{ContinuationImage, Engine};
-use crate::runtime::memory::RootSink;
+use crate::runtime::heap::RootSink;
 use crate::runtime::poller::{PollerEvent, PollerToken};
 use crate::runtime::{DropCounts, ExecutionContext, ExecutionContextId};
 
@@ -285,7 +285,7 @@ impl EventLoop {
             .boxed());
         }
 
-        // reject unsupported admission limits until task admission lands
+        // reject unsupported access limits until task throttling lands
         if options.task_limit.is_some() {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(
                 "options.scheduler.task_limit",

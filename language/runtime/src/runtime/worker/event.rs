@@ -1,11 +1,11 @@
 use std::collections::{HashMap, VecDeque};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use parking_lot::{Condvar, Mutex as ParkingMutex};
+use parking_lot::{Condvar, Mutex};
 
-/// Runtime-owned retained event-log state for one event lane.
+/// Runtime-owned retained event-log state for one event stream.
 #[derive(Debug)]
 pub struct RuntimeEventLog<T> {
     /// The sequence for the first retained live record.
@@ -54,28 +54,17 @@ impl<T> RuntimeStreamRegistry<T> {
 
     /// Register one live stream value.
     pub fn register(&self, stream_id: u64, stream: Arc<T>) {
-        self.streams
-            .lock()
-            .unwrap_or_else(|error| error.into_inner())
-            .insert(stream_id, stream);
+        self.streams.lock().insert(stream_id, stream);
     }
 
     /// Unregister one live stream value.
     pub fn unregister(&self, stream_id: u64) -> Option<Arc<T>> {
-        self.streams
-            .lock()
-            .unwrap_or_else(|error| error.into_inner())
-            .remove(&stream_id)
+        self.streams.lock().remove(&stream_id)
     }
 
     /// Return one snapshot of the live stream values.
     pub fn snapshot(&self) -> Vec<Arc<T>> {
-        self.streams
-            .lock()
-            .unwrap_or_else(|error| error.into_inner())
-            .values()
-            .cloned()
-            .collect()
+        self.streams.lock().values().cloned().collect()
     }
 }
 
@@ -89,10 +78,7 @@ pub struct RuntimeSnapshotCache<T> {
 impl<T> RuntimeSnapshotCache<T> {
     /// Initialize the cache when no baseline exists yet.
     pub fn initialize(&self, snapshot: T) -> bool {
-        let mut cached_snapshot = self
-            .snapshot
-            .lock()
-            .unwrap_or_else(|error| error.into_inner());
+        let mut cached_snapshot = self.snapshot.lock();
 
         // preserve the existing baseline once publication has started
         if cached_snapshot.is_some() {
@@ -105,20 +91,14 @@ impl<T> RuntimeSnapshotCache<T> {
 
     /// Replace the cache with one fresh baseline.
     pub fn reset(&self, snapshot: T) {
-        let mut cached_snapshot = self
-            .snapshot
-            .lock()
-            .unwrap_or_else(|error| error.into_inner());
+        let mut cached_snapshot = self.snapshot.lock();
 
         *cached_snapshot = Some(snapshot);
     }
 
     /// Replace the cache and return one delta built from the previous baseline.
     pub fn replace<R>(&self, snapshot: T, build_delta: impl FnOnce(&T, &T) -> R) -> Option<R> {
-        let mut cached_snapshot = self
-            .snapshot
-            .lock()
-            .unwrap_or_else(|error| error.into_inner());
+        let mut cached_snapshot = self.snapshot.lock();
         let Some(previous_snapshot) = cached_snapshot.as_ref() else {
             *cached_snapshot = Some(snapshot);
             return None;
@@ -134,7 +114,7 @@ impl<T> RuntimeSnapshotCache<T> {
 #[derive(Debug)]
 pub struct RuntimeEventQueue<T> {
     /// Pending events for this queue.
-    events: ParkingMutex<VecDeque<T>>,
+    events: Mutex<VecDeque<T>>,
     /// Wake primitive for blocking readers.
     wake: Condvar,
     /// Whether this queue has been closed.
@@ -145,7 +125,7 @@ impl<T> Default for RuntimeEventQueue<T> {
     /// Build one empty event queue.
     fn default() -> Self {
         Self {
-            events: ParkingMutex::new(VecDeque::new()),
+            events: Mutex::new(VecDeque::new()),
             wake: Condvar::new(),
             is_closed: AtomicBool::new(false),
         }
