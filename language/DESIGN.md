@@ -390,19 +390,21 @@ Destack supports richer sequence forms beyond the classic dynamic arrays - `T[]`
 Unfortunately, not much syntax was left here, so we had to adopt the slightly non-TS-y syntax forms of `[T]` and `[T; N]`.
 (This is also why `.ds` does not support `.ts`-style array tuples `[A, B]`; tuples must be explicit `(A, B)`)
 
-| Forms | Meaning |
-|------|---------|
-| `T[]`, `Array<T>` | Dynamic, homogeneous, dense managed array |
-| `[T]`, `Slice<T>` | Runtime-length homogeneous view into dense storage |
-| `[T; N]`, `FixedArray<T, N>` | Fixed, owned sequence of values |
-| `(A, B)` | Sequence of heterogeneous, owned values |
+| Forms | Representation | Meaning |
+|------|----------------|---------|
+| `T[]`, `Array<T>` | Collection class | Growable, homogeneous, dense sequence with capacity |
+| `[T]`, `Slice<T>` | Slice header | Pointer plus length, no capacity |
+| `[T; N]`, `FixedArray<T, N>` | Inline array | Exactly `N` elements stored in the value |
+| `(A, B)` | Inline product | Heterogeneous sequence of owned values |
 
 Dynamic arrays are managed objects with identity, while slices, fixed arrays, and tuples are semantically `struct`s (value/view forms).
-Unlike JavaScript, Destack does not permit holes in arrays or any other sequences, and indexing into `T[]` therefore returns `T`, not `T | undefined` (out-of-bounds indexing traps or errors depending on compiler options).
+Unlike Rust, Destack's `[T]` is sized and a first-class slice _value_, more akin to Go's slice header than Rust's unsized slice.
+Also, unlike JavaScript, Destack does not permit holes in arrays or any other sequences, and indexing into `T[]` therefore returns `T`, not `T | undefined` (out-of-bounds indexing traps or errors depending on compiler options).
 
 ```ds
 let xs: int32[] = [1, 2, 3];
 let ys: Array<int32> = [1, 2, 3];
+let zs: [int32] = [1, 2, 3];
 ```
 
 Fixed arrays are homogeneous arrays whose length is statically known and part of the type.
@@ -2104,6 +2106,9 @@ process(^user);           // owned value
 Dispatch resolution uses the actual form during overload resolution, so container interfaces like `Iterable<T>` can support ordinary TypeScript iteration and borrowed iteration without adding Rust-style method family explosion (if they don't need want to):
 
 ```ds
+declare type Point = { x: number; y: number };
+declare const points: Array<Point>;
+
 // ordinary "managed" iteration
 for (const point of points) {
     point satisfies Point;
