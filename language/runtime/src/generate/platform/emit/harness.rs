@@ -529,7 +529,7 @@ mod tests {
 
     use crate::platform::model::{
         BindingParameter, CatalogBindingAffinity, CatalogBindingProvider, CatalogBindingReplayKind,
-        CatalogBindingSimulation, CatalogEffectClass, CatalogReplayPayload, CatalogReplayPolicy,
+        CatalogBindingSimulation, CatalogEffect, CatalogReplayPayload, CatalogReplayPolicy,
     };
 
     use super::render_test_harness;
@@ -560,7 +560,7 @@ mod tests {
                 return_binding: BindingType::Void,
                 return_is_result: true,
                 signature: "destack.os.intent.shareText".to_string(),
-                effect_class: CatalogEffectClass::External {
+                effect: CatalogEffect::External {
                     replay: CatalogReplayPolicy::NonRecordable,
                 },
                 replay_payload: CatalogReplayPayload::ResultsOnly,
@@ -695,7 +695,7 @@ impl<Native, Vm> HarnessValue<Native, Vm> {
                 return_binding: BindingType::Void,
                 return_is_result: true,
                 signature: "destack.display.window.setAspectRatio".to_string(),
-                effect_class: CatalogEffectClass::External {
+                effect: CatalogEffect::External {
                     replay: CatalogReplayPolicy::NonRecordable,
                 },
                 replay_payload: CatalogReplayPayload::ResultsOnly,

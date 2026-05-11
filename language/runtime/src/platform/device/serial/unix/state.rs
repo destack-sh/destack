@@ -223,7 +223,7 @@ pub(super) fn close_serial_resource(
     }
 
     if !binding.worker().resources.remove_and_finalize(
-        &binding.world(),
+        binding.world(),
         handle.0,
         Some(binding.engine()),
     ) {

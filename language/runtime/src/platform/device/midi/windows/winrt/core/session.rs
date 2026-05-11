@@ -13,7 +13,7 @@ use crate::platform::device::{
     MidiPortDirectionFlags,
 };
 use crate::runtime::control::queue::BoundedQueue;
-use crate::runtime::process::service::executor::periodic::PeriodicTaskHandle;
+use crate::runtime::service::executor::periodic::PeriodicTaskHandle;
 
 use super::super::service::{WinRtNativeEventRegistry, WinRtService};
 

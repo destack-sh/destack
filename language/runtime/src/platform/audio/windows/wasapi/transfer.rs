@@ -16,7 +16,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::audio::{AudioStreamStateKind, core as audio_core};
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, start_with_policy};
+use crate::runtime::{ExecutionMode, ExecutionPolicy, start_with_policy};
 
 use crate::platform::audio as audio_types;
 use windows_sys::Win32::Foundation::{
@@ -36,7 +36,7 @@ pub(super) fn spawn_worker(
     start_with_policy(
         "destack-audio-wasapi-transfer",
         "destack.audio.stream.open",
-        ExecutionPolicy::instance(ExecutionMode::Loop),
+        ExecutionPolicy::resource(ExecutionMode::Loop),
         move || {
             // initialize one COM apartment for this worker thread
             if initialize_com().is_err() {

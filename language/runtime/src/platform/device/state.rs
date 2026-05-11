@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::resource::{ResourceFinalizer, ResourceId};
-use crate::runtime::process::service::ServiceHandle;
+use crate::runtime::service::ServiceHandle;
 
 #[cfg(target_os = "linux")]
 use super::bluetooth::{LinuxBluetoothService, linux_bluetooth_service};

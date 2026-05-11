@@ -5,7 +5,7 @@ use crate::platform::abi::NativeSlice;
 use crate::platform::audio::{AudioEvent, AudioEventDeliveryMode, AudioEventSubscriptionOptions};
 use crate::platform::resource::{AudioEventHandle, ResourceEntry, ResourceKind};
 use crate::platform::{PlatformError, core as core_platform};
-use crate::runtime::{BindingCallContext, RuntimeScheduledCallbackControl};
+use crate::runtime::{BindingCallContext, WorkerCallbackControl};
 
 use super::super::constants::{
     AUDIO_EVENT_RESOURCE_LABEL, EVENT_SUBSCRIBE_BACKEND, EVENT_SUBSCRIBE_INTERRUPTION,
@@ -199,21 +199,17 @@ fn register_stream_poll_callback(
     let runtime_state = Arc::clone(runtime_state);
     let live_stream = Arc::clone(stream);
     let weak_stream = Arc::downgrade(stream);
-    let callback = ctx.worker().schedule_runtime_callback(
-        ctx,
-        poll_interval_ns,
-        Some(poll_interval_ns),
-        move |binding| {
+    let callback =
+        ctx.schedule_worker_callback(poll_interval_ns, Some(poll_interval_ns), move |binding| {
             let Some(stream) = weak_stream.upgrade() else {
-                return Ok(RuntimeScheduledCallbackControl::Cancel);
+                return Ok(WorkerCallbackControl::Cancel);
             };
 
             let now = host_monotonic_nanos();
             refresh_stream_events_for_stream(binding, &runtime_state, &stream, now)?;
 
-            Ok(RuntimeScheduledCallbackControl::Keep)
-        },
-    )?;
+            Ok(WorkerCallbackControl::Keep)
+        })?;
 
     // store the callback handle after successful registration
     let mut state = live_stream
@@ -321,7 +317,7 @@ pub(crate) unsafe fn open_event_stream(
             state.poll_callback.take()
         };
         if let Some(poll_callback) = poll_callback {
-            let _ = ctx.worker().cancel_runtime_callback(ctx, poll_callback);
+            let _ = ctx.cancel_worker_callback(poll_callback);
         }
 
         unregister_event_stream(&runtime_state, stream.stream_id);
@@ -357,7 +353,7 @@ pub(crate) unsafe fn close_event_stream(
         state.poll_callback.take()
     };
     if let Some(poll_callback) = poll_callback {
-        ctx.worker().cancel_runtime_callback(ctx, poll_callback)?;
+        ctx.cancel_worker_callback(poll_callback)?;
     }
 
     unregister_event_stream(&runtime_state, stream.stream_id);

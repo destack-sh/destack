@@ -9,7 +9,7 @@ use crate::platform::runtime::{
     WorldResourceId, WorldResourceIdVm, WorldViewHandle,
 };
 use crate::runtime::control::{ControlHandleId, ControlSnapshotFormat};
-use crate::runtime::observe::ObservationSubscriptionId;
+use crate::runtime::trace::ObservationSubscriptionId;
 use crate::runtime::world::{
     BranchId as WorldBranchId, CheckpointId as WorldCheckpointId, ImageId as WorldImageId,
     Revision as WorldRevision, WorldResourceId as LogicalWorldResourceId, WorldSnapshot,

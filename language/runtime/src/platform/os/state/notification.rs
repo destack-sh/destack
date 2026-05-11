@@ -37,7 +37,7 @@ pub(crate) fn notification_event_open(
     let handle = binding
         .worker()
         .resources
-        .insert(&binding.world(), entry, Some(binding.engine()));
+        .insert(binding.world(), entry, Some(binding.engine()));
 
     Ok(resource::NotificationEventHandle(handle))
 }
@@ -52,7 +52,7 @@ pub(crate) fn notification_event_close(
         binding
             .worker()
             .resources
-            .remove(&binding.world(), handle.0, Some(binding.engine()));
+            .remove(binding.world(), handle.0, Some(binding.engine()));
 
     let Some(entry) = removed else {
         return Err(invalid_handle("unknown notification event stream handle"));

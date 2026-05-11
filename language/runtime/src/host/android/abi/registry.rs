@@ -3,7 +3,7 @@ use std::sync::OnceLock;
 use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
 
-use super::bindings::AndroidHostBindings;
+use super::binding::AndroidHostBindings;
 use crate::host::{HostSessionHandle, HostSessionId, HostSessionRegistry, HostStatus, Platform};
 
 /// Shared Android bindings registry state.
@@ -87,7 +87,7 @@ pub(crate) fn resolve_android_bindings(
 mod tests {
     use super::ANDROID_BINDINGS_REGISTRY;
     use crate::host::HostStatus;
-    use crate::host::os::android::abi::bindings::AndroidHostBindings;
+    use crate::host::os::android::abi::binding::AndroidHostBindings;
     use crate::host::os::android::tests::{
         callback_test_lock, register_android_bindings, register_android_runtime,
     };

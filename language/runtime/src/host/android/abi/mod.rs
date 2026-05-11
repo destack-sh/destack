@@ -1,6 +1,6 @@
 pub mod background;
 #[path = "bindings.generated.rs"]
-pub(crate) mod bindings;
+pub(crate) mod binding;
 pub mod bluetooth;
 #[path = "bridge.generated.rs"]
 pub mod bridge;

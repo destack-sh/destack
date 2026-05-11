@@ -5,7 +5,7 @@ use super::types::{
     HostBackgroundTaskOptions, HostBackgroundTriggerTestRequest, HostBackgroundTriggerTestResponse,
     HostBackgroundUnregisterRequest,
 };
-use crate::host::apple::abi::bindings::invoke_ios_binding_callback;
+use crate::host::apple::abi::binding::invoke_ios_binding_callback;
 
 /// The host callback for `status`.
 pub(crate) type IosHostBackgroundStatusCallback =

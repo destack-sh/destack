@@ -37,17 +37,16 @@ use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::{NativeArray, PlatformError, resource};
 use crate::runtime::BindingCallContext;
 #[cfg(unix)]
-use crate::runtime::process::service::Service;
+use crate::runtime::WorkerId;
+use crate::runtime::service::ProcessSubscriberRegistry;
 #[cfg(unix)]
-use crate::runtime::process::service::executor::periodic::{
-    PeriodicTaskHandle, open_periodic_task,
-};
+use crate::runtime::service::Service;
+#[cfg(unix)]
+use crate::runtime::service::executor::periodic::{PeriodicTaskHandle, open_periodic_task};
 #[cfg(target_os = "linux")]
-use crate::runtime::process::start_with_policy;
+use crate::runtime::start_with_policy;
 #[cfg(unix)]
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy};
-#[cfg(unix)]
-use crate::runtime::{ProcessSubscriberRegistry, WorkerId};
+use crate::runtime::{ExecutionMode, ExecutionPolicy};
 
 /// Resource-table label for opened input-monitor entries.
 const INPUT_MONITOR_RESOURCE_LABEL: &str = "input.monitor";
@@ -292,12 +291,12 @@ impl UnixInputMonitorService {
 
 #[cfg(target_os = "linux")]
 impl Service for UnixInputMonitorService {
-    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Loop);
+    const POLICY: ExecutionPolicy = ExecutionPolicy::process(ExecutionMode::Loop);
 }
 
 #[cfg(not(target_os = "linux"))]
 impl Service for UnixInputMonitorService {
-    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Polling);
+    const POLICY: ExecutionPolicy = ExecutionPolicy::process(ExecutionMode::Polling);
 }
 
 /// Return one shared unix input monitor service.
@@ -850,7 +849,7 @@ fn spawn_unix_monitor_worker(
     let handle = start_with_policy(
         "destack-input-unix-monitor",
         "destack.input.event.monitorOpen",
-        ExecutionPolicy::global(ExecutionMode::Loop),
+        ExecutionPolicy::process(ExecutionMode::Loop),
         move || {
             let mut known_linux_paths = HashMap::new();
 
@@ -1383,7 +1382,7 @@ pub(crate) unsafe fn destack_input_monitor_close(
 
     // remove and finalize monitor resource
     let removed = binding.worker().resources.remove_and_finalize(
-        &binding.world(),
+        binding.world(),
         handle.0,
         Some(binding.engine()),
     );
@@ -1440,7 +1439,7 @@ pub(crate) unsafe fn destack_input_monitor_open(
         .with_label(INPUT_MONITOR_RESOURCE_LABEL)
         .with_payload(resolved_binding);
     let handle = resource::InputMonitorHandle(binding.worker().resources.insert(
-        &binding.world(),
+        binding.world(),
         entry,
         Some(binding.engine()),
     ));

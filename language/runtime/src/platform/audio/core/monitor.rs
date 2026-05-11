@@ -5,11 +5,9 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::{
     AudioBackend, AudioEventDeliveryMode, AudioEventSource, backend as audio_backend,
 };
-use crate::runtime::process::service::executor::periodic::{
-    PeriodicTaskHandle, open_periodic_task,
-};
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, Service};
-use crate::runtime::{ProcessSubscriberRegistry, WorkerId};
+use crate::runtime::service::executor::periodic::{PeriodicTaskHandle, open_periodic_task};
+use crate::runtime::service::{ProcessSubscriberRegistry, Service};
+use crate::runtime::{ExecutionMode, ExecutionPolicy, WorkerId};
 
 use super::constants::host_monotonic_nanos;
 use super::event::publish::publish_device_events_from_snapshot;
@@ -351,7 +349,7 @@ impl AudioMonitorService {
 }
 
 impl Service for AudioMonitorService {
-    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
+    const POLICY: ExecutionPolicy = ExecutionPolicy::process(ExecutionMode::Inline);
 }
 
 /// Return one shared process-global audio monitor service.

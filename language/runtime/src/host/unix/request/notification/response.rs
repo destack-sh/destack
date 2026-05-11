@@ -17,7 +17,8 @@ use crate::platform::os::abi_generated::{
     NotificationInteractedPayloadValue, NotificationRequestValue,
 };
 use crate::platform::os::notification::runtime;
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, Service, WorkerLoop};
+use crate::runtime::service::Service;
+use crate::runtime::{ExecutionMode, ExecutionPolicy, WorkerLoop};
 
 /// The Unix notification response interface.
 const UNIX_NOTIFICATION_INTERFACE: &str = "org.freedesktop.Notifications";
@@ -124,7 +125,7 @@ impl UnixNotificationResponseService {
 }
 
 impl Service for UnixNotificationResponseService {
-    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Loop);
+    const POLICY: ExecutionPolicy = ExecutionPolicy::process(ExecutionMode::Loop);
 }
 
 /// Register one active Unix notification response route.

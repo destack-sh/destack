@@ -17,9 +17,9 @@ use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::abi_generated::{
     CalendarDescriptorValue, CalendarEventDraftValue, CalendarEventQueryValue, CalendarEventValue,
 };
-use crate::runtime::process::service::executor::thread::ServiceThreadExecutor;
-use crate::runtime::process::service::registry::global_service;
-use crate::runtime::process::{ExecutionAffinity, ExecutionMode, ExecutionPolicy};
+use crate::runtime::service::executor::thread::ServiceThreadExecutor;
+use crate::runtime::service::registry::global_service;
+use crate::runtime::{ExecutionAffinity, ExecutionMode, ExecutionPolicy};
 
 /// The Windows epoch offset from 1601 to 1970 in 100ns ticks.
 pub(super) const WINDOWS_EPOCH_OFFSET_100NS: u64 = 116_444_736_000_000_000;
@@ -35,8 +35,8 @@ pub(crate) struct WindowsCalendarService {
 
 impl WindowsCalendarService {
     /// The execution policy for the Windows calendar service.
-    pub(crate) const POLICY: ExecutionPolicy =
-        ExecutionPolicy::global(ExecutionMode::Thread).with_affinity(ExecutionAffinity::WindowsMta);
+    pub(crate) const POLICY: ExecutionPolicy = ExecutionPolicy::process(ExecutionMode::Thread)
+        .with_affinity(ExecutionAffinity::WindowsMta);
 
     /// List calendars through the Windows appointment store.
     pub(crate) fn list_calendars(

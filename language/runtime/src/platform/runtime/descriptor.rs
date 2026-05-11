@@ -14,9 +14,8 @@ use crate::platform::runtime::{
 use crate::runtime;
 use crate::runtime::control::{ObservationEntry, SnapshotEntry, WorldViewEntry};
 use crate::runtime::engine::Image;
-use crate::runtime::observe::{ObservationCategory, ObservationRecord};
 use crate::runtime::scheduler::EventLoopSnapshot;
-use crate::runtime::trace::{Outcome, TraceRecord};
+use crate::runtime::trace::{ObservationCategory, ObservationRecord, Outcome, TraceRecord};
 use crate::runtime::world::{Revision, RevisionState, World, WorldEdge, WorldEntity, WorldImage};
 use postcard::to_allocvec;
 
@@ -146,7 +145,7 @@ impl RuntimeDescriptorCodec {
 
         Ok(RuntimeDescriptorValue {
             id: RuntimeHandleCodec::encode_runtime_id(runtime_id)?,
-            primary_worker_id: RuntimeHandleCodec::encode_worker_id(runtime.primary_worker_id)?,
+            default_worker_id: RuntimeHandleCodec::encode_worker_id(runtime.default_worker_id)?,
             name: Self::owned_name(image.runtime_name(runtime_id)?),
             worker_count,
             labels: Self::owned_labels(labels.clone()),
@@ -195,7 +194,7 @@ impl RuntimeDescriptorCodec {
 
         Ok(RuntimeDescriptorValue {
             id: RuntimeHandleCodec::encode_runtime_id(runtime.runtime_id())?,
-            primary_worker_id: RuntimeHandleCodec::encode_worker_id(runtime.primary_worker_id())?,
+            default_worker_id: RuntimeHandleCodec::encode_worker_id(runtime.default_worker_id())?,
             name: Self::owned_name(runtime.name()),
             worker_count,
             labels: Self::owned_labels(labels),

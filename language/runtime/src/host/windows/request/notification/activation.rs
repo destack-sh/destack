@@ -13,7 +13,8 @@ use crate::platform::os::abi_generated::{
     NotificationInteractedPayloadValue, NotificationRequestValue,
 };
 use crate::platform::os::notification::runtime;
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, Service};
+use crate::runtime::service::Service;
+use crate::runtime::{ExecutionMode, ExecutionPolicy};
 
 use super::core::{
     ActiveWindowsNotification, ActiveWindowsNotificationRegistry,
@@ -45,7 +46,7 @@ impl WindowsNotificationActivationService {
 }
 
 impl Service for WindowsNotificationActivationService {
-    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
+    const POLICY: ExecutionPolicy = ExecutionPolicy::process(ExecutionMode::Inline);
 }
 
 /// Return the shared Windows notification activation service.

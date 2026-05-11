@@ -5,7 +5,7 @@ use super::types::{
     HostMediaImportPathResponse, HostMediaListRequest, HostMediaListResponse,
     HostMediaReadResponse,
 };
-use crate::host::android::abi::bindings::invoke_android_binding_callback;
+use crate::host::android::abi::binding::invoke_android_binding_callback;
 use crate::platform::abi::NativeStringRef;
 
 /// The host callback for `list`.

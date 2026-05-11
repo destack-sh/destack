@@ -20,7 +20,7 @@ use crate::platform::device::{
     MidiPortDirection, MidiPortDirectionFlags, MidiProtocol,
 };
 use crate::runtime::control::queue::BoundedQueue;
-use crate::runtime::process::service::executor::periodic::PeriodicTaskHandle;
+use crate::runtime::service::executor::periodic::PeriodicTaskHandle;
 
 use super::super::service::WinMmService;
 use super::native::release_input_callback_context;

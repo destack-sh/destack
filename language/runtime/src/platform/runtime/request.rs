@@ -11,7 +11,7 @@ use crate::runtime::control::inspect::{
     BranchListFilter, CheckpointListFilter, EdgeListFilter, EntityListFilter, ImageListFilter,
     ResourceListFilter, RevisionListFilter, RuntimeListFilter, WorkerListFilter,
 };
-use crate::runtime::observe::ObservationOptions;
+use crate::runtime::trace::ObservationOptions;
 use destack_workspace::{ExecutionMode, RandomMode, RuntimeOptions, TimeMode};
 
 use super::RuntimeHandleCodec;

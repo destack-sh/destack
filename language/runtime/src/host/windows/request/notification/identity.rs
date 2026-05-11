@@ -36,9 +36,9 @@ use crate::host::os::windows::identity::{
 use crate::platform::PlatformError;
 use crate::platform::core::windows_known_folder_path;
 use crate::platform::diagnostic::PlatformErrorCode;
-use crate::runtime::process::service::executor::thread::ServiceThreadExecutor;
-use crate::runtime::process::service::spawn_service_thread;
-use crate::runtime::process::{ExecutionAffinity, ExecutionMode, ExecutionPolicy, Service};
+use crate::runtime::service::executor::thread::ServiceThreadExecutor;
+use crate::runtime::service::{Service, spawn_service_thread};
+use crate::runtime::{ExecutionAffinity, ExecutionMode, ExecutionPolicy};
 
 use super::core::{
     WINDOWS_NOTIFICATION_ACTIVATOR_FACTORY, WINDOWS_NOTIFICATION_APP_ID_MAX_LENGTH,
@@ -91,7 +91,7 @@ pub(super) struct WindowsNotificationComServerState {
 
 /// The execution policy for the Windows notification COM service.
 const WINDOWS_NOTIFICATION_COM_POLICY: ExecutionPolicy =
-    ExecutionPolicy::global(ExecutionMode::Thread).with_affinity(ExecutionAffinity::WindowsMta);
+    ExecutionPolicy::process(ExecutionMode::Thread).with_affinity(ExecutionAffinity::WindowsMta);
 
 impl Service for WindowsNotificationComService {
     const POLICY: ExecutionPolicy = WINDOWS_NOTIFICATION_COM_POLICY;

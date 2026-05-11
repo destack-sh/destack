@@ -16,9 +16,10 @@ use crate::platform::thread::{
 use crate::platform::{
     PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, abi as platform_abi,
 };
-use crate::runtime::bindings::{
-    BindingAffinity, BindingDescriptor, BindingProvider, BindingRegistry, BindingReplayKind,
-    BindingReplayPolicy, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+use crate::runtime::binding::{
+    BindingAffinity, BindingDescriptor, BindingEffect, BindingProvider, BindingRegistry,
+    BindingReplayKind, BindingReplayPayload, NativeBinding, NativeBindingSet, RuntimeWorld,
+    native_call,
 };
 use crate::runtime::with_binding_call_context;
 use crate::{binding, vm_binding_set};
@@ -434,95 +435,96 @@ fn encode_destack_thread_wait_address_wake_one_result(
 }
 
 /// Binding descriptor for destack.thread.local.create.
-pub(crate) const THREAD_LOCAL_CREATE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.thread.local.create",
-        "export function localCreate(): Result<ThreadLocalKey, PlatformError>",
-        BindingReplayPolicy::NonRecordable,
-        BindingReplayKind::BindingCall,
-        &["thread.local"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("thread")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const THREAD_LOCAL_CREATE: BindingDescriptor = BindingDescriptor::new(
+    "destack.thread.local.create",
+    "export function localCreate(): Result<ThreadLocalKey, PlatformError>",
+    BindingEffect::ExternalNonRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["thread.local"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("thread")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.thread.local.delete.
-pub(crate) const THREAD_LOCAL_DELETE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.thread.local.delete",
-        "export function localDelete(key: ThreadLocalKey): Result<void, PlatformError>",
-        BindingReplayPolicy::NonRecordable,
-        BindingReplayKind::BindingCall,
-        &["thread.local"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("thread")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const THREAD_LOCAL_DELETE: BindingDescriptor = BindingDescriptor::new(
+    "destack.thread.local.delete",
+    "export function localDelete(key: ThreadLocalKey): Result<void, PlatformError>",
+    BindingEffect::ExternalNonRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["thread.local"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("thread")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.thread.local.get.
-pub(crate) const THREAD_LOCAL_GET: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.thread.local.get",
-        "export function localGet(key: ThreadLocalKey): Result<uint64, PlatformError>",
-        BindingReplayPolicy::NonRecordable,
-        BindingReplayKind::BindingCall,
-        &["thread.local"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("thread")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const THREAD_LOCAL_GET: BindingDescriptor = BindingDescriptor::new(
+    "destack.thread.local.get",
+    "export function localGet(key: ThreadLocalKey): Result<uint64, PlatformError>",
+    BindingEffect::ExternalNonRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["thread.local"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("thread")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.thread.local.set.
-pub(crate) const THREAD_LOCAL_SET: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.thread.local.set",
-        "export function localSet(key: ThreadLocalKey, value: uint64): Result<void, PlatformError>",
-        BindingReplayPolicy::NonRecordable,
-        BindingReplayKind::BindingCall,
-        &["thread.local"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("thread")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const THREAD_LOCAL_SET: BindingDescriptor = BindingDescriptor::new(
+    "destack.thread.local.set",
+    "export function localSet(key: ThreadLocalKey, value: uint64): Result<void, PlatformError>",
+    BindingEffect::ExternalNonRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["thread.local"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("thread")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.thread.sched.getAffinity.
-pub(crate) const THREAD_SCHED_GET_AFFINITY: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.thread.sched.getAffinity",
-        "export function getAffinity(handle: ThreadHandle): Result<ThreadCpuSet, PlatformError>",
-        BindingReplayPolicy::NonRecordable,
-        BindingReplayKind::BindingCall,
-        &["thread.sched"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("thread")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const THREAD_SCHED_GET_AFFINITY: BindingDescriptor = BindingDescriptor::new(
+    "destack.thread.sched.getAffinity",
+    "export function getAffinity(handle: ThreadHandle): Result<ThreadCpuSet, PlatformError>",
+    BindingEffect::ExternalNonRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["thread.sched"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("thread")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.thread.sched.getPriority.
-pub(crate) const THREAD_SCHED_GET_PRIORITY: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.thread.sched.getPriority",
-        "export function getPriority(handle: ThreadHandle): Result<int32, PlatformError>",
-        BindingReplayPolicy::NonRecordable,
-        BindingReplayKind::BindingCall,
-        &["thread.sched"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("thread")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const THREAD_SCHED_GET_PRIORITY: BindingDescriptor = BindingDescriptor::new(
+    "destack.thread.sched.getPriority",
+    "export function getPriority(handle: ThreadHandle): Result<int32, PlatformError>",
+    BindingEffect::ExternalNonRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["thread.sched"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("thread")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.thread.sched.setAffinity.
-pub(crate) const THREAD_SCHED_SET_AFFINITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const THREAD_SCHED_SET_AFFINITY: BindingDescriptor = BindingDescriptor::new(
     "destack.thread.sched.setAffinity",
     "export function setAffinity(handle: ThreadHandle, cpus: ThreadCpuSet): Result<void, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
+    BindingEffect::ExternalNonRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["thread.sched"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -531,11 +533,12 @@ pub(crate) const THREAD_SCHED_SET_AFFINITY: BindingDescriptor = BindingDescripto
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.thread.sched.setPriority.
-pub(crate) const THREAD_SCHED_SET_PRIORITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const THREAD_SCHED_SET_PRIORITY: BindingDescriptor = BindingDescriptor::new(
     "destack.thread.sched.setPriority",
     "export function setPriority(handle: ThreadHandle, priority: int32): Result<void, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
+    BindingEffect::ExternalNonRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["thread.sched"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -544,39 +547,40 @@ pub(crate) const THREAD_SCHED_SET_PRIORITY: BindingDescriptor = BindingDescripto
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.thread.spawn.detach.
-pub(crate) const THREAD_SPAWN_DETACH: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.thread.spawn.detach",
-        "export function detach(handle: ThreadHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::NonRecordable,
-        BindingReplayKind::BindingCall,
-        &["thread.spawn"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("thread")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const THREAD_SPAWN_DETACH: BindingDescriptor = BindingDescriptor::new(
+    "destack.thread.spawn.detach",
+    "export function detach(handle: ThreadHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalNonRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["thread.spawn"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("thread")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.thread.spawn.join.
-pub(crate) const THREAD_SPAWN_JOIN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.thread.spawn.join",
-        "export function join(handle: ThreadHandle): Result<uint64, PlatformError>",
-        BindingReplayPolicy::NonRecordable,
-        BindingReplayKind::BindingCall,
-        &["thread.spawn"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("thread")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const THREAD_SPAWN_JOIN: BindingDescriptor = BindingDescriptor::new(
+    "destack.thread.spawn.join",
+    "export function join(handle: ThreadHandle): Result<uint64, PlatformError>",
+    BindingEffect::ExternalNonRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["thread.spawn"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("thread")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.thread.spawn.start.
-pub(crate) const THREAD_SPAWN_START: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const THREAD_SPAWN_START: BindingDescriptor = BindingDescriptor::new(
     "destack.thread.spawn.start",
     "export function spawn(entry: ThreadEntryHandle, argument: uint64, options: ThreadOptions): Result<ThreadHandle, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
+    BindingEffect::ExternalNonRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["thread.spawn"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -585,11 +589,12 @@ pub(crate) const THREAD_SPAWN_START: BindingDescriptor = BindingDescriptor::exte
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.thread.wait.addressWait.
-pub(crate) const THREAD_WAIT_ADDRESS_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const THREAD_WAIT_ADDRESS_WAIT: BindingDescriptor = BindingDescriptor::new(
     "destack.thread.wait.addressWait",
     "export function addressWait(address: uint64, expected: uint32, timeoutNs: uint64): Result<void, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
+    BindingEffect::ExternalNonRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["thread.wait"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -598,32 +603,32 @@ pub(crate) const THREAD_WAIT_ADDRESS_WAIT: BindingDescriptor = BindingDescriptor
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.thread.wait.addressWakeAll.
-pub(crate) const THREAD_WAIT_ADDRESS_WAKE_ALL: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.thread.wait.addressWakeAll",
-        "export function addressWakeAll(address: uint64): Result<void, PlatformError>",
-        BindingReplayPolicy::NonRecordable,
-        BindingReplayKind::BindingCall,
-        &["thread.wait"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("thread")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const THREAD_WAIT_ADDRESS_WAKE_ALL: BindingDescriptor = BindingDescriptor::new(
+    "destack.thread.wait.addressWakeAll",
+    "export function addressWakeAll(address: uint64): Result<void, PlatformError>",
+    BindingEffect::ExternalNonRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["thread.wait"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("thread")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.thread.wait.addressWakeOne.
-pub(crate) const THREAD_WAIT_ADDRESS_WAKE_ONE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.thread.wait.addressWakeOne",
-        "export function addressWakeOne(address: uint64): Result<void, PlatformError>",
-        BindingReplayPolicy::NonRecordable,
-        BindingReplayKind::BindingCall,
-        &["thread.wait"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("thread")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const THREAD_WAIT_ADDRESS_WAKE_ONE: BindingDescriptor = BindingDescriptor::new(
+    "destack.thread.wait.addressWakeOne",
+    "export function addressWakeOne(address: uint64): Result<void, PlatformError>",
+    BindingEffect::ExternalNonRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["thread.wait"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("thread")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Native binding set for thread.
 pub(crate) const THREAD_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

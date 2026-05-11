@@ -35,7 +35,7 @@ pub(crate) fn close(binding: &BindingCallContext, handle: DocumentHandle) -> Run
         binding
             .worker()
             .resources
-            .remove(&binding.world(), handle.0, Some(binding.engine()));
+            .remove(binding.world(), handle.0, Some(binding.engine()));
 
     let Some(entry) = removed else {
         return Err(invalid_handle("unknown document handle"));
@@ -174,7 +174,7 @@ pub(super) fn open_document_path(
     let handle = binding
         .worker()
         .resources
-        .insert(&binding.world(), entry, Some(binding.engine()));
+        .insert(binding.world(), entry, Some(binding.engine()));
 
     Ok(DocumentHandle(handle))
 }

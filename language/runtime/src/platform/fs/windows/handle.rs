@@ -35,7 +35,7 @@ pub(crate) unsafe fn destack_fs_close(
     let entry = binding
         .worker()
         .resources
-        .remove(&binding.world(), handle.0, Some(binding.engine()))
+        .remove(binding.world(), handle.0, Some(binding.engine()))
         .ok_or_else(|| {
             RuntimeError::from(PlatformError::invalid_argument_value(
                 "handle",
@@ -105,7 +105,7 @@ pub(crate) unsafe fn destack_fs_dup(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = FileHandle(resource_id);
     }
@@ -169,7 +169,7 @@ pub(crate) unsafe fn destack_fs_dup2(
         binding
             .worker()
             .resources
-            .remove(&binding.world(), target.0, Some(binding.engine()))
+            .remove(binding.world(), target.0, Some(binding.engine()))
     {
         entry.finalize(target.0);
     }
@@ -183,7 +183,7 @@ pub(crate) unsafe fn destack_fs_dup2(
         })
         .with_finalizer(HandleFinalizer::new(duplicated));
     binding.worker().resources.insert_with_id(
-        &binding.world(),
+        binding.world(),
         target.0,
         entry,
         Some(binding.engine()),
@@ -215,7 +215,7 @@ pub(crate) unsafe fn destack_fs_closedir(
     let entry = binding
         .worker()
         .resources
-        .remove(&binding.world(), handle.0, Some(binding.engine()))
+        .remove(binding.world(), handle.0, Some(binding.engine()))
         .ok_or_else(|| {
             RuntimeError::from(PlatformError::invalid_argument_value(
                 "handle",
@@ -490,7 +490,7 @@ pub(crate) unsafe fn destack_fs_dirfd(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), resource, Some(binding.engine()));
+            .insert(binding.world(), resource, Some(binding.engine()));
     unsafe {
         *out = FileHandle(resource_id);
     }

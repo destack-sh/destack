@@ -15,8 +15,7 @@ use crate::platform::audio::{
     AudioStreamConfig, AudioStreamDescriptor, AudioStreamFlags, AudioStreamRequirementFlags,
     AudioStreamState, AudioStreamStatusFlags, AudioStreamTiming, backend as audio_backend,
 };
-use crate::runtime::BindingCallContext;
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, start_with_policy};
+use crate::runtime::{BindingCallContext, ExecutionMode, ExecutionPolicy, start_with_policy};
 
 use super::constants::{
     DEVICE_CAPABILITY_BIT_EXACT_PCM, MIN_STREAM_PERIOD_FRAMES, STREAM_FLAG_NON_INTERLEAVED,
@@ -370,7 +369,7 @@ pub(crate) fn build_synthetic_stream_worker(stream: Arc<AudioStreamHostState>) -
     let worker_result = start_with_policy(
         "destack-audio-synthetic-stream",
         "destack.audio.stream.open",
-        ExecutionPolicy::instance(ExecutionMode::Polling),
+        ExecutionPolicy::resource(ExecutionMode::Polling),
         move || {
             let period_frames_u32 = stream.period_frames.max(MIN_STREAM_PERIOD_FRAMES);
             let period_frames = period_frames_u32 as usize;

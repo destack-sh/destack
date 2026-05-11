@@ -20,9 +20,9 @@ use crate::platform::random::{
 use crate::platform::{
     PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice, abi as platform_abi,
 };
-use crate::runtime::bindings::{
-    BindingAffinity, BindingDescriptor, BindingProvider, BindingRegistry, BindingReplayKind,
-    BindingReplayPolicy, NativeBinding, NativeBindingSet, native_call,
+use crate::runtime::binding::{
+    BindingAffinity, BindingDescriptor, BindingEffect, BindingProvider, BindingRegistry,
+    BindingReplayKind, BindingReplayPayload, NativeBinding, NativeBindingSet, native_call,
 };
 use crate::runtime::random::RandomStreamId;
 use crate::runtime::trace::{EntropyKind, TraceError};
@@ -497,94 +497,96 @@ struct RandomStreamSplitReplayRecord {
 }
 
 /// Binding descriptor for destack.random.secure.bytes.
-pub(crate) const RANDOM_SECURE_BYTES: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.random.secure.bytes",
-        "export function secureBytes(buffer: Slice<uint8>): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::Entropy(EntropyKind::RandomReadBytes),
-        &["random.secure"],
-        BindingProvider::Runtime,
-        BindingAffinity::None,
-    )
-    .with_namespace("random")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const RANDOM_SECURE_BYTES: BindingDescriptor = BindingDescriptor::new(
+    "destack.random.secure.bytes",
+    "export function secureBytes(buffer: Slice<uint8>): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::Entropy(EntropyKind::RandomReadBytes),
+    BindingReplayPayload::Results,
+    &["random.secure"],
+    BindingProvider::Runtime,
+    BindingAffinity::None,
+)
+.with_namespace("random")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.random.secure.bytesTry.
-pub(crate) const RANDOM_SECURE_BYTES_TRY: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.random.secure.bytesTry",
-        "export function secureBytesTry(buffer: Slice<uint8>): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::Entropy(EntropyKind::RandomReadBytes),
-        &["random.secure"],
-        BindingProvider::Runtime,
-        BindingAffinity::None,
-    )
-    .with_namespace("random")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const RANDOM_SECURE_BYTES_TRY: BindingDescriptor = BindingDescriptor::new(
+    "destack.random.secure.bytesTry",
+    "export function secureBytesTry(buffer: Slice<uint8>): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::Entropy(EntropyKind::RandomReadBytes),
+    BindingReplayPayload::Results,
+    &["random.secure"],
+    BindingProvider::Runtime,
+    BindingAffinity::None,
+)
+.with_namespace("random")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.random.secure.metadata.
-pub(crate) const RANDOM_SECURE_METADATA: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.random.secure.metadata",
-        "export function secureMetadata(): Result<SecureRandomMetadata, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["random.secure"],
-        BindingProvider::Runtime,
-        BindingAffinity::None,
-    )
-    .with_namespace("random")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const RANDOM_SECURE_METADATA: BindingDescriptor = BindingDescriptor::new(
+    "destack.random.secure.metadata",
+    "export function secureMetadata(): Result<SecureRandomMetadata, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["random.secure"],
+    BindingProvider::Runtime,
+    BindingAffinity::None,
+)
+.with_namespace("random")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.random.stream.create.
-pub(crate) const RANDOM_STREAM_CREATE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.random.stream.create",
-        "export function stream(): Result<RandomStream, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::Entropy(EntropyKind::RandomStreamCreate),
-        &["random.deterministic"],
-        BindingProvider::Runtime,
-        BindingAffinity::None,
-    )
-    .with_namespace("random")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
-
-/// Binding descriptor for destack.random.stream.export.
-pub(crate) const RANDOM_STREAM_EXPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
-    "destack.random.stream.export",
-    "export function streamExport(stream: RandomStream): Result<RandomStreamState, PlatformError>",
-    BindingReplayPolicy::Recordable,
-    BindingReplayKind::BindingCall,
+pub(crate) const RANDOM_STREAM_CREATE: BindingDescriptor = BindingDescriptor::new(
+    "destack.random.stream.create",
+    "export function stream(): Result<RandomStream, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::Entropy(EntropyKind::RandomStreamCreate),
+    BindingReplayPayload::Results,
     &["random.deterministic"],
     BindingProvider::Runtime,
     BindingAffinity::None,
 )
-    .with_namespace("random")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+.with_namespace("random")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+
+/// Binding descriptor for destack.random.stream.export.
+pub(crate) const RANDOM_STREAM_EXPORT: BindingDescriptor = BindingDescriptor::new(
+    "destack.random.stream.export",
+    "export function streamExport(stream: RandomStream): Result<RandomStreamState, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["random.deterministic"],
+    BindingProvider::Runtime,
+    BindingAffinity::None,
+)
+.with_namespace("random")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.random.stream.fillBytes.
-pub(crate) const RANDOM_STREAM_FILL_BYTES: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.random.stream.fillBytes",
-        "export function fillBytes(buffer: Slice<uint8>): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::Entropy(EntropyKind::RandomReadBytes),
-        &["random.deterministic"],
-        BindingProvider::Runtime,
-        BindingAffinity::None,
-    )
-    .with_namespace("random")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const RANDOM_STREAM_FILL_BYTES: BindingDescriptor = BindingDescriptor::new(
+    "destack.random.stream.fillBytes",
+    "export function fillBytes(buffer: Slice<uint8>): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::Entropy(EntropyKind::RandomReadBytes),
+    BindingReplayPayload::Results,
+    &["random.deterministic"],
+    BindingProvider::Runtime,
+    BindingAffinity::None,
+)
+.with_namespace("random")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.random.stream.fillBytesFrom.
-pub(crate) const RANDOM_STREAM_FILL_BYTES_FROM: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const RANDOM_STREAM_FILL_BYTES_FROM: BindingDescriptor = BindingDescriptor::new(
     "destack.random.stream.fillBytesFrom",
     "export function fillBytesFrom(stream: RandomStream, buffer: Slice<uint8>): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::Entropy(EntropyKind::RandomReadBytes),
+    BindingReplayPayload::Results,
     &["random.deterministic"],
     BindingProvider::Runtime,
     BindingAffinity::None,
@@ -593,11 +595,12 @@ pub(crate) const RANDOM_STREAM_FILL_BYTES_FROM: BindingDescriptor = BindingDescr
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.random.stream.import.
-pub(crate) const RANDOM_STREAM_IMPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const RANDOM_STREAM_IMPORT: BindingDescriptor = BindingDescriptor::new(
     "destack.random.stream.import",
     "export function streamImport(stream: RandomStream, state: RandomStreamState): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["random.deterministic"],
     BindingProvider::Runtime,
     BindingAffinity::None,
@@ -606,73 +609,74 @@ pub(crate) const RANDOM_STREAM_IMPORT: BindingDescriptor = BindingDescriptor::ex
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.random.stream.in.
-pub(crate) const RANDOM_STREAM_IN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.random.stream.in",
-        "export function streamIn(domain: RandomStreamDomain): Result<RandomStream, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::Entropy(EntropyKind::RandomStreamCreate),
-        &["random.deterministic"],
-        BindingProvider::Runtime,
-        BindingAffinity::None,
-    )
-    .with_namespace("random")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
-
-/// Binding descriptor for destack.random.stream.jump.
-pub(crate) const RANDOM_STREAM_JUMP: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
-    "destack.random.stream.jump",
-    "export function streamJump(stream: RandomStream, jump: uint64): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
-    BindingReplayKind::BindingCall,
+pub(crate) const RANDOM_STREAM_IN: BindingDescriptor = BindingDescriptor::new(
+    "destack.random.stream.in",
+    "export function streamIn(domain: RandomStreamDomain): Result<RandomStream, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::Entropy(EntropyKind::RandomStreamCreate),
+    BindingReplayPayload::Results,
     &["random.deterministic"],
     BindingProvider::Runtime,
     BindingAffinity::None,
 )
-    .with_namespace("random")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+.with_namespace("random")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+
+/// Binding descriptor for destack.random.stream.jump.
+pub(crate) const RANDOM_STREAM_JUMP: BindingDescriptor = BindingDescriptor::new(
+    "destack.random.stream.jump",
+    "export function streamJump(stream: RandomStream, jump: uint64): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["random.deterministic"],
+    BindingProvider::Runtime,
+    BindingAffinity::None,
+)
+.with_namespace("random")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.random.stream.nextU64.
-pub(crate) const RANDOM_STREAM_NEXT_U64: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.random.stream.nextU64",
-        "export function nextU64(): Result<uint64, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::Entropy(EntropyKind::RandomReadU64),
-        &["random.deterministic"],
-        BindingProvider::Runtime,
-        BindingAffinity::None,
-    )
-    .with_namespace("random")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const RANDOM_STREAM_NEXT_U64: BindingDescriptor = BindingDescriptor::new(
+    "destack.random.stream.nextU64",
+    "export function nextU64(): Result<uint64, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::Entropy(EntropyKind::RandomReadU64),
+    BindingReplayPayload::Results,
+    &["random.deterministic"],
+    BindingProvider::Runtime,
+    BindingAffinity::None,
+)
+.with_namespace("random")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.random.stream.nextU64From.
-pub(crate) const RANDOM_STREAM_NEXT_U64_FROM: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.random.stream.nextU64From",
-        "export function nextU64From(stream: RandomStream): Result<uint64, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::Entropy(EntropyKind::RandomReadU64),
-        &["random.deterministic"],
-        BindingProvider::Runtime,
-        BindingAffinity::None,
-    )
-    .with_namespace("random")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const RANDOM_STREAM_NEXT_U64_FROM: BindingDescriptor = BindingDescriptor::new(
+    "destack.random.stream.nextU64From",
+    "export function nextU64From(stream: RandomStream): Result<uint64, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::Entropy(EntropyKind::RandomReadU64),
+    BindingReplayPayload::Results,
+    &["random.deterministic"],
+    BindingProvider::Runtime,
+    BindingAffinity::None,
+)
+.with_namespace("random")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.random.stream.split.
-pub(crate) const RANDOM_STREAM_SPLIT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.random.stream.split",
-        "export function streamSplit(parent: RandomStream): Result<RandomStream, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["random.deterministic"],
-        BindingProvider::Runtime,
-        BindingAffinity::None,
-    )
-    .with_namespace("random")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const RANDOM_STREAM_SPLIT: BindingDescriptor = BindingDescriptor::new(
+    "destack.random.stream.split",
+    "export function streamSplit(parent: RandomStream): Result<RandomStream, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["random.deterministic"],
+    BindingProvider::Runtime,
+    BindingAffinity::None,
+)
+.with_namespace("random")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Native binding set for random.
 pub(crate) const RANDOM_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

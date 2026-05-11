@@ -14,7 +14,7 @@ use crate::platform::display::{WindowEvent, WindowEventOpenOptions, options as d
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::{NativeArray, core as core_platform, resource};
 use crate::runtime::BindingCallContext;
-use crate::runtime::bindings::BindingAffinity;
+use crate::runtime::binding::BindingAffinity;
 /// Return the next window event available to one stream.
 fn next_window_event(
     binding: &BindingCallContext,
@@ -103,7 +103,7 @@ pub(crate) unsafe fn window_event_open(
     });
 
     let resource_id = binding.worker().resources.insert(
-        &binding.world(),
+        binding.world(),
         ResourceEntry::new(ResourceKind::Window)
             .with_label(win32_core::WINDOW_EVENT_RESOURCE_LABEL)
             .with_binding_affinity(BindingAffinity::Worker)
@@ -137,7 +137,7 @@ pub(crate) unsafe fn window_event_close(
     let removed = binding
         .worker()
         .resources
-        .remove(&binding.world(), handle.0, Some(binding.engine()))
+        .remove(binding.world(), handle.0, Some(binding.engine()))
         .is_some();
 
     if !removed {

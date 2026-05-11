@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use crate::runtime::BindingCallContext;
-use crate::runtime::process::service::executor::inline::InlineExecutor;
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, Service};
+use crate::runtime::service::Service;
+use crate::runtime::service::executor::inline::InlineExecutor;
+use crate::runtime::{BindingCallContext, ExecutionMode, ExecutionPolicy};
 
 use super::runtime::WaylandRuntimeState;
 
@@ -39,7 +39,7 @@ impl WaylandDisplayService {
 }
 
 impl Service for WaylandDisplayService {
-    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
+    const POLICY: ExecutionPolicy = ExecutionPolicy::process(ExecutionMode::Inline);
 }
 
 /// Return one shared wayland display service.

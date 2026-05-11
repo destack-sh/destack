@@ -209,7 +209,7 @@ fn render_bridge_file(platform: HostPlatform, lanes: &[CallbackLane]) -> String 
     }
 
     output.push_str(&format!(
-        "use crate::host::{module_segment}::abi::bindings::{}HostBindings;\n",
+        "use crate::host::{module_segment}::abi::binding::{}HostBindings;\n",
         platform.rust_name()
     ));
     output.push_str(&format!(

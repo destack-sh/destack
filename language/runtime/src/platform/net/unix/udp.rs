@@ -40,7 +40,7 @@ pub(crate) unsafe fn destack_net_udp_socket(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = SocketHandle(resource_id);
     }

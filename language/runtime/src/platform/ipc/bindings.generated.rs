@@ -19,9 +19,10 @@ use crate::platform::ipc::{
 use crate::platform::{
     PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice, abi as platform_abi,
 };
-use crate::runtime::bindings::{
-    BindingAffinity, BindingDescriptor, BindingProvider, BindingRegistry, BindingReplayKind,
-    BindingReplayPolicy, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+use crate::runtime::binding::{
+    BindingAffinity, BindingDescriptor, BindingEffect, BindingProvider, BindingRegistry,
+    BindingReplayKind, BindingReplayPayload, NativeBinding, NativeBindingSet, RuntimeWorld,
+    native_call,
 };
 use crate::runtime::trace::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
@@ -923,24 +924,26 @@ struct IpcUnixSendReplayRecord {
 }
 
 /// Binding descriptor for destack.ipc.message.queueClose.
-pub(crate) const IPC_MESSAGE_QUEUE_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const IPC_MESSAGE_QUEUE_CLOSE: BindingDescriptor = BindingDescriptor::new(
     "destack.ipc.message.queueClose",
     "export function messageQueueClose(handle: MessageQueueHandle): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["ipc.message"],
     BindingProvider::Host,
     BindingAffinity::None,
 )
-    .with_namespace("ipc")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+.with_namespace("ipc")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.ipc.message.queueOpen.
-pub(crate) const IPC_MESSAGE_QUEUE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const IPC_MESSAGE_QUEUE_OPEN: BindingDescriptor = BindingDescriptor::new(
     "destack.ipc.message.queueOpen",
     "export function messageQueueOpen(name: string, flags: uint32, mode: uint32, maxMessages: uint32, maxMessageBytes: uint32): Result<MessageQueueHandle, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["ipc.message"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -949,11 +952,12 @@ pub(crate) const IPC_MESSAGE_QUEUE_OPEN: BindingDescriptor = BindingDescriptor::
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.ipc.message.queueReceive.
-pub(crate) const IPC_MESSAGE_QUEUE_RECEIVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const IPC_MESSAGE_QUEUE_RECEIVE: BindingDescriptor = BindingDescriptor::new(
     "destack.ipc.message.queueReceive",
     "export function messageQueueReceive(handle: MessageQueueHandle, timeoutNs: uint64, buffer: Slice<uint8>): Result<MessageQueueReceive, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["ipc.message"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -962,11 +966,12 @@ pub(crate) const IPC_MESSAGE_QUEUE_RECEIVE: BindingDescriptor = BindingDescripto
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.ipc.message.queueSend.
-pub(crate) const IPC_MESSAGE_QUEUE_SEND: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const IPC_MESSAGE_QUEUE_SEND: BindingDescriptor = BindingDescriptor::new(
     "destack.ipc.message.queueSend",
     "export function messageQueueSend(handle: MessageQueueHandle, priority: uint32, timeoutNs: uint64, payload: Slice<uint8>): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["ipc.message"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -975,53 +980,54 @@ pub(crate) const IPC_MESSAGE_QUEUE_SEND: BindingDescriptor = BindingDescriptor::
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.ipc.message.queueUnlink.
-pub(crate) const IPC_MESSAGE_QUEUE_UNLINK: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.ipc.message.queueUnlink",
-        "export function messageQueueUnlink(name: string): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["ipc.message"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("ipc")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const IPC_MESSAGE_QUEUE_UNLINK: BindingDescriptor = BindingDescriptor::new(
+    "destack.ipc.message.queueUnlink",
+    "export function messageQueueUnlink(name: string): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["ipc.message"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("ipc")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.ipc.pipe.close.
-pub(crate) const IPC_PIPE_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.ipc.pipe.close",
-        "export function pipeClose(handle: PipeHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["ipc.pipe"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("ipc")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const IPC_PIPE_CLOSE: BindingDescriptor = BindingDescriptor::new(
+    "destack.ipc.pipe.close",
+    "export function pipeClose(handle: PipeHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["ipc.pipe"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("ipc")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.ipc.pipe.open.
-pub(crate) const IPC_PIPE_OPEN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.ipc.pipe.open",
-        "export function pipeOpen(flags: uint32): Result<PipePair, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["ipc.pipe"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("ipc")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const IPC_PIPE_OPEN: BindingDescriptor = BindingDescriptor::new(
+    "destack.ipc.pipe.open",
+    "export function pipeOpen(flags: uint32): Result<PipePair, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["ipc.pipe"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("ipc")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.ipc.pipe.read.
-pub(crate) const IPC_PIPE_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const IPC_PIPE_READ: BindingDescriptor = BindingDescriptor::new(
     "destack.ipc.pipe.read",
     "export function pipeRead(handle: PipeHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["ipc.pipe"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -1030,11 +1036,12 @@ pub(crate) const IPC_PIPE_READ: BindingDescriptor = BindingDescriptor::external_
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.ipc.pipe.write.
-pub(crate) const IPC_PIPE_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const IPC_PIPE_WRITE: BindingDescriptor = BindingDescriptor::new(
     "destack.ipc.pipe.write",
     "export function pipeWrite(handle: PipeHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["ipc.pipe"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -1043,24 +1050,26 @@ pub(crate) const IPC_PIPE_WRITE: BindingDescriptor = BindingDescriptor::external
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.ipc.sharedMemory.close.
-pub(crate) const IPC_SHARED_MEMORY_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const IPC_SHARED_MEMORY_CLOSE: BindingDescriptor = BindingDescriptor::new(
     "destack.ipc.sharedMemory.close",
     "export function sharedMemoryClose(handle: SharedMemoryHandle): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["ipc.shared.memory"],
     BindingProvider::Host,
     BindingAffinity::None,
 )
-    .with_namespace("ipc")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+.with_namespace("ipc")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.ipc.sharedMemory.create.
-pub(crate) const IPC_SHARED_MEMORY_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const IPC_SHARED_MEMORY_CREATE: BindingDescriptor = BindingDescriptor::new(
     "destack.ipc.sharedMemory.create",
     "export function sharedMemoryCreate(name: string, size: uint64, flags: uint32): Result<SharedMemoryHandle, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["ipc.shared.memory"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -1069,11 +1078,12 @@ pub(crate) const IPC_SHARED_MEMORY_CREATE: BindingDescriptor = BindingDescriptor
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.ipc.sharedMemory.map.
-pub(crate) const IPC_SHARED_MEMORY_MAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const IPC_SHARED_MEMORY_MAP: BindingDescriptor = BindingDescriptor::new(
     "destack.ipc.sharedMemory.map",
     "export function sharedMemoryMap(handle: SharedMemoryHandle, offset: uint64, length: uint64, flags: uint32): Result<SharedMemoryMapping, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["ipc.shared.memory"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -1082,11 +1092,12 @@ pub(crate) const IPC_SHARED_MEMORY_MAP: BindingDescriptor = BindingDescriptor::e
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.ipc.sharedMemory.open.
-pub(crate) const IPC_SHARED_MEMORY_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const IPC_SHARED_MEMORY_OPEN: BindingDescriptor = BindingDescriptor::new(
     "destack.ipc.sharedMemory.open",
     "export function sharedMemoryOpen(name: string, flags: uint32): Result<SharedMemoryHandle, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["ipc.shared.memory"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -1095,11 +1106,12 @@ pub(crate) const IPC_SHARED_MEMORY_OPEN: BindingDescriptor = BindingDescriptor::
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.ipc.sharedMemory.unmap.
-pub(crate) const IPC_SHARED_MEMORY_UNMAP: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const IPC_SHARED_MEMORY_UNMAP: BindingDescriptor = BindingDescriptor::new(
     "destack.ipc.sharedMemory.unmap",
     "export function sharedMemoryUnmap(address: uint64, length: uint64): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["ipc.shared.memory"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -1108,11 +1120,12 @@ pub(crate) const IPC_SHARED_MEMORY_UNMAP: BindingDescriptor = BindingDescriptor:
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.ipc.sync.futexWait.
-pub(crate) const IPC_SYNC_FUTEX_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const IPC_SYNC_FUTEX_WAIT: BindingDescriptor = BindingDescriptor::new(
     "destack.ipc.sync.futexWait",
     "export function futexWait(sharedMemory: SharedMemoryHandle, offset: uint64, expected: uint32, timeoutNs: uint64): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["ipc.futex"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -1121,11 +1134,12 @@ pub(crate) const IPC_SYNC_FUTEX_WAIT: BindingDescriptor = BindingDescriptor::ext
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.ipc.sync.futexWake.
-pub(crate) const IPC_SYNC_FUTEX_WAKE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const IPC_SYNC_FUTEX_WAKE: BindingDescriptor = BindingDescriptor::new(
     "destack.ipc.sync.futexWake",
     "export function futexWake(sharedMemory: SharedMemoryHandle, offset: uint64, count: uint32): Result<uint32, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["ipc.futex"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -1134,11 +1148,12 @@ pub(crate) const IPC_SYNC_FUTEX_WAKE: BindingDescriptor = BindingDescriptor::ext
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.ipc.sync.semaphoreCreate.
-pub(crate) const IPC_SYNC_SEMAPHORE_CREATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const IPC_SYNC_SEMAPHORE_CREATE: BindingDescriptor = BindingDescriptor::new(
     "destack.ipc.sync.semaphoreCreate",
     "export function semaphoreCreate(name: string, initial: uint32, flags: uint32): Result<SemaphoreHandle, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["ipc.semaphore"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -1147,11 +1162,12 @@ pub(crate) const IPC_SYNC_SEMAPHORE_CREATE: BindingDescriptor = BindingDescripto
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.ipc.sync.semaphorePost.
-pub(crate) const IPC_SYNC_SEMAPHORE_POST: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const IPC_SYNC_SEMAPHORE_POST: BindingDescriptor = BindingDescriptor::new(
     "destack.ipc.sync.semaphorePost",
     "export function semaphorePost(handle: SemaphoreHandle, count: uint32): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["ipc.semaphore"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -1160,11 +1176,12 @@ pub(crate) const IPC_SYNC_SEMAPHORE_POST: BindingDescriptor = BindingDescriptor:
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.ipc.sync.semaphoreWait.
-pub(crate) const IPC_SYNC_SEMAPHORE_WAIT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const IPC_SYNC_SEMAPHORE_WAIT: BindingDescriptor = BindingDescriptor::new(
     "destack.ipc.sync.semaphoreWait",
     "export function semaphoreWait(handle: SemaphoreHandle, timeoutNs: uint64): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["ipc.semaphore"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -1173,11 +1190,12 @@ pub(crate) const IPC_SYNC_SEMAPHORE_WAIT: BindingDescriptor = BindingDescriptor:
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.ipc.unix.receive.
-pub(crate) const IPC_UNIX_RECEIVE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const IPC_UNIX_RECEIVE: BindingDescriptor = BindingDescriptor::new(
     "destack.ipc.unix.receive",
     "export function unixReceive(socket: SocketHandle, maxHandles: uint32): Result<UnixReceiveAncillary, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["ipc.unix", "ipc.fd.pass"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -1186,11 +1204,12 @@ pub(crate) const IPC_UNIX_RECEIVE: BindingDescriptor = BindingDescriptor::extern
     .with_platforms(&["android", "ios", "linux", "macos"]);
 
 /// Binding descriptor for destack.ipc.unix.send.
-pub(crate) const IPC_UNIX_SEND: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const IPC_UNIX_SEND: BindingDescriptor = BindingDescriptor::new(
     "destack.ipc.unix.send",
     "export function unixSend(socket: SocketHandle, payload: Slice<uint8>, handles: Slice<TransferredHandle>): Result<uint64, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["ipc.unix", "ipc.fd.pass"],
     BindingProvider::Host,
     BindingAffinity::None,

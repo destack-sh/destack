@@ -139,7 +139,7 @@ mod tests {
         HostBackgroundTaskOptions, HostBackgroundTriggerTestRequest,
         HostBackgroundTriggerTestResponse, HostBackgroundUnregisterRequest,
     };
-    use crate::host::os::android::abi::bindings::AndroidHostBindings;
+    use crate::host::os::android::abi::binding::AndroidHostBindings;
     use crate::host::os::android::abi::calendar::callbacks::AndroidHostCalendarCallbacks;
     use crate::host::os::android::abi::calendar::types::{
         HostCalendarEventCreateResponse, HostCalendarEventDraft, HostCalendarListResponse,

@@ -4,7 +4,7 @@ use crate::platform::{
     accessibility, audio, crypto, debug, device, display, error, ffi, fs, gpu, input, io, ipc,
     memory, net, os, process, random, resource, runtime, security, thread, time, tls, tty,
 };
-use crate::runtime::bindings::{NativeBindingSet, VmBindingSet};
+use crate::runtime::binding::{NativeBindingSet, VmBindingSet};
 
 /// Native binding sets for all platform domains.
 pub const PLATFORM_NATIVE_BINDINGS: &[NativeBindingSet] = &[

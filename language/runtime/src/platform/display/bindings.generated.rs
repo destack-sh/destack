@@ -129,9 +129,10 @@ use crate::platform::{
     NativeArray, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice,
     abi as platform_abi,
 };
-use crate::runtime::bindings::{
-    BindingAffinity, BindingDescriptor, BindingProvider, BindingRegistry, BindingReplayKind,
-    BindingReplayPolicy, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+use crate::runtime::binding::{
+    BindingAffinity, BindingDescriptor, BindingEffect, BindingProvider, BindingRegistry,
+    BindingReplayKind, BindingReplayPayload, NativeBinding, NativeBindingSet, RuntimeWorld,
+    native_call,
 };
 use crate::runtime::trace::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
@@ -11683,25 +11684,26 @@ struct DisplayWindowStateReplayRecord {
 }
 
 /// Binding descriptor for destack.display.backend.list.
-pub(crate) const DISPLAY_BACKEND_LIST: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.display.backend.list",
-        "export function backendList(): Result<Slice<DisplayBackendDescriptor>, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["display.read"],
-        BindingProvider::Host,
-        BindingAffinity::Worker,
-    )
-    .with_namespace("display")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const DISPLAY_BACKEND_LIST: BindingDescriptor = BindingDescriptor::new(
+    "destack.display.backend.list",
+    "export function backendList(): Result<Slice<DisplayBackendDescriptor>, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["display.read"],
+    BindingProvider::Host,
+    BindingAffinity::Worker,
+)
+.with_namespace("display")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.drag.begin.
-pub(crate) const DISPLAY_DRAG_BEGIN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_DRAG_BEGIN: BindingDescriptor = BindingDescriptor::new(
     "destack.display.drag.begin",
     "export function dragBegin(options: DisplayDragBeginOptions): Result<DisplayDragOperation, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
+    BindingEffect::ExternalNonRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -11710,11 +11712,12 @@ pub(crate) const DISPLAY_DRAG_BEGIN: BindingDescriptor = BindingDescriptor::exte
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.drag.sessionClose.
-pub(crate) const DISPLAY_DRAG_SESSION_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_DRAG_SESSION_CLOSE: BindingDescriptor = BindingDescriptor::new(
     "destack.display.drag.sessionClose",
     "export function dragSessionClose(session: DisplayDragSessionHandle): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window.events"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -11723,11 +11726,12 @@ pub(crate) const DISPLAY_DRAG_SESSION_CLOSE: BindingDescriptor = BindingDescript
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.drag.sessionReadBytes.
-pub(crate) const DISPLAY_DRAG_SESSION_READ_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_DRAG_SESSION_READ_BYTES: BindingDescriptor = BindingDescriptor::new(
     "destack.display.drag.sessionReadBytes",
     "export function dragSessionReadBytes(session: DisplayDragSessionHandle, itemIndex: uint32): Result<Slice<uint8>, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window.events"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -11736,11 +11740,12 @@ pub(crate) const DISPLAY_DRAG_SESSION_READ_BYTES: BindingDescriptor = BindingDes
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.drag.sessionReadPath.
-pub(crate) const DISPLAY_DRAG_SESSION_READ_PATH: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_DRAG_SESSION_READ_PATH: BindingDescriptor = BindingDescriptor::new(
     "destack.display.drag.sessionReadPath",
     "export function dragSessionReadPath(session: DisplayDragSessionHandle, itemIndex: uint32): Result<OsPath, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window.events"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -11749,11 +11754,12 @@ pub(crate) const DISPLAY_DRAG_SESSION_READ_PATH: BindingDescriptor = BindingDesc
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.drag.sessionReadText.
-pub(crate) const DISPLAY_DRAG_SESSION_READ_TEXT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_DRAG_SESSION_READ_TEXT: BindingDescriptor = BindingDescriptor::new(
     "destack.display.drag.sessionReadText",
     "export function dragSessionReadText(session: DisplayDragSessionHandle, itemIndex: uint32): Result<string, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window.events"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -11762,11 +11768,12 @@ pub(crate) const DISPLAY_DRAG_SESSION_READ_TEXT: BindingDescriptor = BindingDesc
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.drag.sessionSetOperation.
-pub(crate) const DISPLAY_DRAG_SESSION_SET_OPERATION: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_DRAG_SESSION_SET_OPERATION: BindingDescriptor = BindingDescriptor::new(
     "destack.display.drag.sessionSetOperation",
     "export function dragSessionSetOperation(session: DisplayDragSessionHandle, operation: DisplayDragOperation): Result<void, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
+    BindingEffect::ExternalNonRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window.events"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -11775,24 +11782,26 @@ pub(crate) const DISPLAY_DRAG_SESSION_SET_OPERATION: BindingDescriptor = Binding
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.frame.beginClose.
-pub(crate) const DISPLAY_FRAME_BEGIN_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_FRAME_BEGIN_CLOSE: BindingDescriptor = BindingDescriptor::new(
     "destack.display.frame.beginClose",
     "export function beginFrameClose(handle: DisplayBeginFrameHandle): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
 )
-    .with_namespace("display")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+.with_namespace("display")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.frame.beginOpen.
-pub(crate) const DISPLAY_FRAME_BEGIN_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_FRAME_BEGIN_OPEN: BindingDescriptor = BindingDescriptor::new(
     "destack.display.frame.beginOpen",
     "export function beginFrameOpen(options: DisplayBeginFrameOpenOptions): Result<DisplayBeginFrameHandle, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -11801,11 +11810,12 @@ pub(crate) const DISPLAY_FRAME_BEGIN_OPEN: BindingDescriptor = BindingDescriptor
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.frame.beginRead.
-pub(crate) const DISPLAY_FRAME_BEGIN_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_FRAME_BEGIN_READ: BindingDescriptor = BindingDescriptor::new(
     "destack.display.frame.beginRead",
     "export function beginFrameRead(handle: DisplayBeginFrameHandle, timeoutNs: uint64): Result<DisplayBeginFrameEvent, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -11814,11 +11824,12 @@ pub(crate) const DISPLAY_FRAME_BEGIN_READ: BindingDescriptor = BindingDescriptor
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.frame.beginReadBatch.
-pub(crate) const DISPLAY_FRAME_BEGIN_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_FRAME_BEGIN_READ_BATCH: BindingDescriptor = BindingDescriptor::new(
     "destack.display.frame.beginReadBatch",
     "export function beginFrameReadBatch(handle: DisplayBeginFrameHandle, maxEvents: uint32, timeoutNs: uint64): Result<DisplayBeginFrameEvent[], PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -11827,11 +11838,12 @@ pub(crate) const DISPLAY_FRAME_BEGIN_READ_BATCH: BindingDescriptor = BindingDesc
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.frame.beginTryRead.
-pub(crate) const DISPLAY_FRAME_BEGIN_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_FRAME_BEGIN_TRY_READ: BindingDescriptor = BindingDescriptor::new(
     "destack.display.frame.beginTryRead",
     "export function beginFrameTryRead(handle: DisplayBeginFrameHandle): Result<DisplayBeginFrameEvent, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -11840,11 +11852,12 @@ pub(crate) const DISPLAY_FRAME_BEGIN_TRY_READ: BindingDescriptor = BindingDescri
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.frame.beginTryReadBatch.
-pub(crate) const DISPLAY_FRAME_BEGIN_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_FRAME_BEGIN_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::new(
     "destack.display.frame.beginTryReadBatch",
     "export function beginFrameTryReadBatch(handle: DisplayBeginFrameHandle, maxEvents: uint32): Result<DisplayBeginFrameEvent[], PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -11853,25 +11866,26 @@ pub(crate) const DISPLAY_FRAME_BEGIN_TRY_READ_BATCH: BindingDescriptor = Binding
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.close.
-pub(crate) const DISPLAY_MONITOR_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.display.monitor.close",
-        "export function monitorClose(handle: DisplayHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["display.read"],
-        BindingProvider::Host,
-        BindingAffinity::Worker,
-    )
-    .with_namespace("display")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const DISPLAY_MONITOR_CLOSE: BindingDescriptor = BindingDescriptor::new(
+    "destack.display.monitor.close",
+    "export function monitorClose(handle: DisplayHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["display.read"],
+    BindingProvider::Host,
+    BindingAffinity::Worker,
+)
+.with_namespace("display")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.closestMode.
-pub(crate) const DISPLAY_MONITOR_CLOSEST_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_MONITOR_CLOSEST_MODE: BindingDescriptor = BindingDescriptor::new(
     "destack.display.monitor.closestMode",
     "export function monitorClosestMode(handle: DisplayHandle, requested: DisplayMode): Result<DisplayMode, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.mode"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -11880,11 +11894,12 @@ pub(crate) const DISPLAY_MONITOR_CLOSEST_MODE: BindingDescriptor = BindingDescri
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.colorState.
-pub(crate) const DISPLAY_MONITOR_COLOR_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_MONITOR_COLOR_STATE: BindingDescriptor = BindingDescriptor::new(
     "destack.display.monitor.colorState",
     "export function monitorColorState(handle: DisplayHandle): Result<DisplayColorState, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.read"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -11893,24 +11908,26 @@ pub(crate) const DISPLAY_MONITOR_COLOR_STATE: BindingDescriptor = BindingDescrip
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.currentMode.
-pub(crate) const DISPLAY_MONITOR_CURRENT_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_MONITOR_CURRENT_MODE: BindingDescriptor = BindingDescriptor::new(
     "destack.display.monitor.currentMode",
     "export function monitorCurrentMode(handle: DisplayHandle): Result<DisplayMode, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.mode"],
     BindingProvider::Host,
     BindingAffinity::Worker,
 )
-    .with_namespace("display")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+.with_namespace("display")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.descriptor.
-pub(crate) const DISPLAY_MONITOR_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_MONITOR_DESCRIPTOR: BindingDescriptor = BindingDescriptor::new(
     "destack.display.monitor.descriptor",
     "export function monitorDescriptor(handle: DisplayHandle): Result<DisplayDescriptor, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.read"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -11919,37 +11936,40 @@ pub(crate) const DISPLAY_MONITOR_DESCRIPTOR: BindingDescriptor = BindingDescript
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.desktopMode.
-pub(crate) const DISPLAY_MONITOR_DESKTOP_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_MONITOR_DESKTOP_MODE: BindingDescriptor = BindingDescriptor::new(
     "destack.display.monitor.desktopMode",
     "export function monitorDesktopMode(handle: DisplayHandle): Result<DisplayMode, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.mode"],
     BindingProvider::Host,
     BindingAffinity::Worker,
 )
-    .with_namespace("display")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+.with_namespace("display")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.eventClose.
-pub(crate) const DISPLAY_MONITOR_EVENT_CLOSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_MONITOR_EVENT_CLOSE: BindingDescriptor = BindingDescriptor::new(
     "destack.display.monitor.eventClose",
     "export function monitorEventClose(handle: DisplayEventHandle): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.read"],
     BindingProvider::Host,
     BindingAffinity::Worker,
 )
-    .with_namespace("display")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+.with_namespace("display")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.eventOpen.
-pub(crate) const DISPLAY_MONITOR_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_MONITOR_EVENT_OPEN: BindingDescriptor = BindingDescriptor::new(
     "destack.display.monitor.eventOpen",
     "export function monitorEventOpen(options: DisplayMonitorEventOpenOptions): Result<DisplayEventHandle, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.read"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -11958,11 +11978,12 @@ pub(crate) const DISPLAY_MONITOR_EVENT_OPEN: BindingDescriptor = BindingDescript
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.eventRead.
-pub(crate) const DISPLAY_MONITOR_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_MONITOR_EVENT_READ: BindingDescriptor = BindingDescriptor::new(
     "destack.display.monitor.eventRead",
     "export function monitorEventRead(handle: DisplayEventHandle, timeoutNs: uint64): Result<DisplayMonitorEvent, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.read"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -11971,11 +11992,12 @@ pub(crate) const DISPLAY_MONITOR_EVENT_READ: BindingDescriptor = BindingDescript
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.eventReadBatch.
-pub(crate) const DISPLAY_MONITOR_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_MONITOR_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::new(
     "destack.display.monitor.eventReadBatch",
     "export function monitorEventReadBatch(handle: DisplayEventHandle, maxEvents: uint32, timeoutNs: uint64): Result<DisplayMonitorEvent[], PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.read"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -11984,11 +12006,12 @@ pub(crate) const DISPLAY_MONITOR_EVENT_READ_BATCH: BindingDescriptor = BindingDe
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.eventTryRead.
-pub(crate) const DISPLAY_MONITOR_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_MONITOR_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::new(
     "destack.display.monitor.eventTryRead",
     "export function monitorEventTryRead(handle: DisplayEventHandle): Result<DisplayMonitorEvent, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.read"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -11997,11 +12020,12 @@ pub(crate) const DISPLAY_MONITOR_EVENT_TRY_READ: BindingDescriptor = BindingDesc
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.eventTryReadBatch.
-pub(crate) const DISPLAY_MONITOR_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_MONITOR_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::new(
     "destack.display.monitor.eventTryReadBatch",
     "export function monitorEventTryReadBatch(handle: DisplayEventHandle, maxEvents: uint32): Result<DisplayMonitorEvent[], PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.read"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12010,11 +12034,12 @@ pub(crate) const DISPLAY_MONITOR_EVENT_TRY_READ_BATCH: BindingDescriptor = Bindi
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.gammaRamp.
-pub(crate) const DISPLAY_MONITOR_GAMMA_RAMP: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_MONITOR_GAMMA_RAMP: BindingDescriptor = BindingDescriptor::new(
     "destack.display.monitor.gammaRamp",
     "export function monitorGammaRamp(handle: DisplayHandle): Result<DisplayGammaRamp, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.read"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12023,24 +12048,26 @@ pub(crate) const DISPLAY_MONITOR_GAMMA_RAMP: BindingDescriptor = BindingDescript
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.hdrMode.
-pub(crate) const DISPLAY_MONITOR_HDR_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_MONITOR_HDR_MODE: BindingDescriptor = BindingDescriptor::new(
     "destack.display.monitor.hdrMode",
     "export function monitorHdrMode(handle: DisplayHandle): Result<DisplayHdrMode, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.read"],
     BindingProvider::Host,
     BindingAffinity::Worker,
 )
-    .with_namespace("display")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+.with_namespace("display")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.list.
-pub(crate) const DISPLAY_MONITOR_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_MONITOR_LIST: BindingDescriptor = BindingDescriptor::new(
     "destack.display.monitor.list",
     "export function monitorList(request: DisplayMonitorListRequest): Result<Slice<DisplayDescriptor>, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.read"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12049,11 +12076,12 @@ pub(crate) const DISPLAY_MONITOR_LIST: BindingDescriptor = BindingDescriptor::ex
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.modes.
-pub(crate) const DISPLAY_MONITOR_MODES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_MONITOR_MODES: BindingDescriptor = BindingDescriptor::new(
     "destack.display.monitor.modes",
     "export function monitorModes(handle: DisplayHandle): Result<Slice<DisplayMode>, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.mode"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12062,11 +12090,12 @@ pub(crate) const DISPLAY_MONITOR_MODES: BindingDescriptor = BindingDescriptor::e
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.open.
-pub(crate) const DISPLAY_MONITOR_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_MONITOR_OPEN: BindingDescriptor = BindingDescriptor::new(
     "destack.display.monitor.open",
     "export function monitorOpen(id: string, options: DisplayMonitorOpenOptions): Result<DisplayHandle, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.read"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12075,11 +12104,12 @@ pub(crate) const DISPLAY_MONITOR_OPEN: BindingDescriptor = BindingDescriptor::ex
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.primary.
-pub(crate) const DISPLAY_MONITOR_PRIMARY: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_MONITOR_PRIMARY: BindingDescriptor = BindingDescriptor::new(
     "destack.display.monitor.primary",
     "export function monitorPrimary(request: DisplayMonitorListRequest): Result<DisplayHandle | void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.read"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12088,11 +12118,12 @@ pub(crate) const DISPLAY_MONITOR_PRIMARY: BindingDescriptor = BindingDescriptor:
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.setGammaRamp.
-pub(crate) const DISPLAY_MONITOR_SET_GAMMA_RAMP: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_MONITOR_SET_GAMMA_RAMP: BindingDescriptor = BindingDescriptor::new(
     "destack.display.monitor.setGammaRamp",
     "export function monitorSetGammaRamp(handle: DisplayHandle, ramp: DisplayGammaRamp): Result<void, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
+    BindingEffect::ExternalNonRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.mode"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12101,11 +12132,12 @@ pub(crate) const DISPLAY_MONITOR_SET_GAMMA_RAMP: BindingDescriptor = BindingDesc
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.setHdrMode.
-pub(crate) const DISPLAY_MONITOR_SET_HDR_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_MONITOR_SET_HDR_MODE: BindingDescriptor = BindingDescriptor::new(
     "destack.display.monitor.setHdrMode",
     "export function monitorSetHdrMode(handle: DisplayHandle, mode: DisplayHdrMode): Result<void, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
+    BindingEffect::ExternalNonRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.mode"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12114,11 +12146,12 @@ pub(crate) const DISPLAY_MONITOR_SET_HDR_MODE: BindingDescriptor = BindingDescri
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.monitor.setMode.
-pub(crate) const DISPLAY_MONITOR_SET_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_MONITOR_SET_MODE: BindingDescriptor = BindingDescriptor::new(
     "destack.display.monitor.setMode",
     "export function monitorSetMode(handle: DisplayHandle, mode: DisplayMode): Result<void, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
+    BindingEffect::ExternalNonRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.mode"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12127,25 +12160,26 @@ pub(crate) const DISPLAY_MONITOR_SET_MODE: BindingDescriptor = BindingDescriptor
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.beginMoveDrag.
-pub(crate) const DISPLAY_WINDOW_BEGIN_MOVE_DRAG: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.display.window.beginMoveDrag",
-        "export function windowBeginMoveDrag(window: WindowHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["display.window"],
-        BindingProvider::Host,
-        BindingAffinity::Worker,
-    )
-    .with_namespace("display")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const DISPLAY_WINDOW_BEGIN_MOVE_DRAG: BindingDescriptor = BindingDescriptor::new(
+    "destack.display.window.beginMoveDrag",
+    "export function windowBeginMoveDrag(window: WindowHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["display.window"],
+    BindingProvider::Host,
+    BindingAffinity::Worker,
+)
+.with_namespace("display")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.beginResizeDrag.
-pub(crate) const DISPLAY_WINDOW_BEGIN_RESIZE_DRAG: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_BEGIN_RESIZE_DRAG: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.beginResizeDrag",
     "export function windowBeginResizeDrag(window: WindowHandle, edge: WindowResizeEdge): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12154,11 +12188,12 @@ pub(crate) const DISPLAY_WINDOW_BEGIN_RESIZE_DRAG: BindingDescriptor = BindingDe
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.capabilities.
-pub(crate) const DISPLAY_WINDOW_CAPABILITIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_CAPABILITIES: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.capabilities",
     "export function windowCapabilities(window: WindowHandle): Result<DisplayBackendCapabilityFlags, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12167,25 +12202,26 @@ pub(crate) const DISPLAY_WINDOW_CAPABILITIES: BindingDescriptor = BindingDescrip
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.close.
-pub(crate) const DISPLAY_WINDOW_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.display.window.close",
-        "export function windowClose(window: WindowHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["display.window"],
-        BindingProvider::Host,
-        BindingAffinity::Worker,
-    )
-    .with_namespace("display")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const DISPLAY_WINDOW_CLOSE: BindingDescriptor = BindingDescriptor::new(
+    "destack.display.window.close",
+    "export function windowClose(window: WindowHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["display.window"],
+    BindingProvider::Host,
+    BindingAffinity::Worker,
+)
+.with_namespace("display")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.contentRect.
-pub(crate) const DISPLAY_WINDOW_CONTENT_RECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_CONTENT_RECT: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.contentRect",
     "export function windowContentRect(window: WindowHandle): Result<WindowLogicalRect, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12194,11 +12230,12 @@ pub(crate) const DISPLAY_WINDOW_CONTENT_RECT: BindingDescriptor = BindingDescrip
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.descriptor.
-pub(crate) const DISPLAY_WINDOW_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_DESCRIPTOR: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.descriptor",
     "export function windowDescriptor(window: WindowHandle): Result<WindowDescriptor, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12207,25 +12244,26 @@ pub(crate) const DISPLAY_WINDOW_DESCRIPTOR: BindingDescriptor = BindingDescripto
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.eventClose.
-pub(crate) const DISPLAY_WINDOW_EVENT_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.display.window.eventClose",
-        "export function windowEventClose(handle: WindowEventHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["display.window.events"],
-        BindingProvider::Host,
-        BindingAffinity::Worker,
-    )
-    .with_namespace("display")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const DISPLAY_WINDOW_EVENT_CLOSE: BindingDescriptor = BindingDescriptor::new(
+    "destack.display.window.eventClose",
+    "export function windowEventClose(handle: WindowEventHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["display.window.events"],
+    BindingProvider::Host,
+    BindingAffinity::Worker,
+)
+.with_namespace("display")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.eventOpen.
-pub(crate) const DISPLAY_WINDOW_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_EVENT_OPEN: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.eventOpen",
     "export function windowEventOpen(options: WindowEventOpenOptions): Result<WindowEventHandle, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window.events"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12234,11 +12272,12 @@ pub(crate) const DISPLAY_WINDOW_EVENT_OPEN: BindingDescriptor = BindingDescripto
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.eventRead.
-pub(crate) const DISPLAY_WINDOW_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_EVENT_READ: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.eventRead",
     "export function windowEventRead(handle: WindowEventHandle, timeoutNs: uint64): Result<WindowEvent, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window.events"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12247,11 +12286,12 @@ pub(crate) const DISPLAY_WINDOW_EVENT_READ: BindingDescriptor = BindingDescripto
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.eventReadBatch.
-pub(crate) const DISPLAY_WINDOW_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.eventReadBatch",
     "export function windowEventReadBatch(handle: WindowEventHandle, maxEvents: uint32, timeoutNs: uint64): Result<WindowEvent[], PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window.events"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12260,11 +12300,12 @@ pub(crate) const DISPLAY_WINDOW_EVENT_READ_BATCH: BindingDescriptor = BindingDes
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.eventTryRead.
-pub(crate) const DISPLAY_WINDOW_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.eventTryRead",
     "export function windowEventTryRead(handle: WindowEventHandle): Result<WindowEvent, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window.events"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12273,11 +12314,12 @@ pub(crate) const DISPLAY_WINDOW_EVENT_TRY_READ: BindingDescriptor = BindingDescr
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.eventTryReadBatch.
-pub(crate) const DISPLAY_WINDOW_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.eventTryReadBatch",
     "export function windowEventTryReadBatch(handle: WindowEventHandle, maxEvents: uint32): Result<WindowEvent[], PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window.events"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12286,25 +12328,26 @@ pub(crate) const DISPLAY_WINDOW_EVENT_TRY_READ_BATCH: BindingDescriptor = Bindin
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.focus.
-pub(crate) const DISPLAY_WINDOW_FOCUS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.display.window.focus",
-        "export function windowFocus(window: WindowHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["display.window"],
-        BindingProvider::Host,
-        BindingAffinity::Worker,
-    )
-    .with_namespace("display")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const DISPLAY_WINDOW_FOCUS: BindingDescriptor = BindingDescriptor::new(
+    "destack.display.window.focus",
+    "export function windowFocus(window: WindowHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["display.window"],
+    BindingProvider::Host,
+    BindingAffinity::Worker,
+)
+.with_namespace("display")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.framebufferSize.
-pub(crate) const DISPLAY_WINDOW_FRAMEBUFFER_SIZE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_FRAMEBUFFER_SIZE: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.framebufferSize",
     "export function windowFramebufferSize(window: WindowHandle): Result<WindowPhysicalSize, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12313,95 +12356,96 @@ pub(crate) const DISPLAY_WINDOW_FRAMEBUFFER_SIZE: BindingDescriptor = BindingDes
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.invalidate.
-pub(crate) const DISPLAY_WINDOW_INVALIDATE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.display.window.invalidate",
-        "export function windowInvalidate(window: WindowHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["display.window"],
-        BindingProvider::Host,
-        BindingAffinity::Worker,
-    )
-    .with_namespace("display")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const DISPLAY_WINDOW_INVALIDATE: BindingDescriptor = BindingDescriptor::new(
+    "destack.display.window.invalidate",
+    "export function windowInvalidate(window: WindowHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["display.window"],
+    BindingProvider::Host,
+    BindingAffinity::Worker,
+)
+.with_namespace("display")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.maximize.
-pub(crate) const DISPLAY_WINDOW_MAXIMIZE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.display.window.maximize",
-        "export function windowMaximize(window: WindowHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["display.window"],
-        BindingProvider::Host,
-        BindingAffinity::Worker,
-    )
-    .with_namespace("display")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const DISPLAY_WINDOW_MAXIMIZE: BindingDescriptor = BindingDescriptor::new(
+    "destack.display.window.maximize",
+    "export function windowMaximize(window: WindowHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["display.window"],
+    BindingProvider::Host,
+    BindingAffinity::Worker,
+)
+.with_namespace("display")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.minimize.
-pub(crate) const DISPLAY_WINDOW_MINIMIZE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.display.window.minimize",
-        "export function windowMinimize(window: WindowHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["display.window"],
-        BindingProvider::Host,
-        BindingAffinity::Worker,
-    )
-    .with_namespace("display")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const DISPLAY_WINDOW_MINIMIZE: BindingDescriptor = BindingDescriptor::new(
+    "destack.display.window.minimize",
+    "export function windowMinimize(window: WindowHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["display.window"],
+    BindingProvider::Host,
+    BindingAffinity::Worker,
+)
+.with_namespace("display")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.opacity.
-pub(crate) const DISPLAY_WINDOW_OPACITY: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.display.window.opacity",
-        "export function windowOpacity(window: WindowHandle): Result<float64, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["display.window"],
-        BindingProvider::Host,
-        BindingAffinity::Worker,
-    )
-    .with_namespace("display")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const DISPLAY_WINDOW_OPACITY: BindingDescriptor = BindingDescriptor::new(
+    "destack.display.window.opacity",
+    "export function windowOpacity(window: WindowHandle): Result<float64, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["display.window"],
+    BindingProvider::Host,
+    BindingAffinity::Worker,
+)
+.with_namespace("display")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.open.
-pub(crate) const DISPLAY_WINDOW_OPEN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.display.window.open",
-        "export function windowOpen(options: WindowOptions): Result<WindowHandle, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["display.window"],
-        BindingProvider::Host,
-        BindingAffinity::Worker,
-    )
-    .with_namespace("display")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const DISPLAY_WINDOW_OPEN: BindingDescriptor = BindingDescriptor::new(
+    "destack.display.window.open",
+    "export function windowOpen(options: WindowOptions): Result<WindowHandle, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["display.window"],
+    BindingProvider::Host,
+    BindingAffinity::Worker,
+)
+.with_namespace("display")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.raise.
-pub(crate) const DISPLAY_WINDOW_RAISE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.display.window.raise",
-        "export function windowRaise(window: WindowHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["display.window"],
-        BindingProvider::Host,
-        BindingAffinity::Worker,
-    )
-    .with_namespace("display")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const DISPLAY_WINDOW_RAISE: BindingDescriptor = BindingDescriptor::new(
+    "destack.display.window.raise",
+    "export function windowRaise(window: WindowHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["display.window"],
+    BindingProvider::Host,
+    BindingAffinity::Worker,
+)
+.with_namespace("display")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.renderState.
-pub(crate) const DISPLAY_WINDOW_RENDER_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_RENDER_STATE: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.renderState",
     "export function windowRenderState(window: WindowHandle): Result<WindowRenderState, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12410,11 +12454,12 @@ pub(crate) const DISPLAY_WINDOW_RENDER_STATE: BindingDescriptor = BindingDescrip
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.requestAttention.
-pub(crate) const DISPLAY_WINDOW_REQUEST_ATTENTION: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_REQUEST_ATTENTION: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.requestAttention",
     "export function windowRequestAttention(window: WindowHandle, level: WindowAttentionLevel): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12423,25 +12468,26 @@ pub(crate) const DISPLAY_WINDOW_REQUEST_ATTENTION: BindingDescriptor = BindingDe
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.restore.
-pub(crate) const DISPLAY_WINDOW_RESTORE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.display.window.restore",
-        "export function windowRestore(window: WindowHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["display.window"],
-        BindingProvider::Host,
-        BindingAffinity::Worker,
-    )
-    .with_namespace("display")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const DISPLAY_WINDOW_RESTORE: BindingDescriptor = BindingDescriptor::new(
+    "destack.display.window.restore",
+    "export function windowRestore(window: WindowHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["display.window"],
+    BindingProvider::Host,
+    BindingAffinity::Worker,
+)
+.with_namespace("display")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setAlwaysOnTop.
-pub(crate) const DISPLAY_WINDOW_SET_ALWAYS_ON_TOP: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_SET_ALWAYS_ON_TOP: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.setAlwaysOnTop",
     "export function windowSetAlwaysOnTop(window: WindowHandle, alwaysOnTop: boolean): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12450,11 +12496,12 @@ pub(crate) const DISPLAY_WINDOW_SET_ALWAYS_ON_TOP: BindingDescriptor = BindingDe
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setAspectRatio.
-pub(crate) const DISPLAY_WINDOW_SET_ASPECT_RATIO: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_SET_ASPECT_RATIO: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.setAspectRatio",
     "export function windowSetAspectRatio(window: WindowHandle, aspectRatio: WindowAspectRatio | void): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12463,11 +12510,12 @@ pub(crate) const DISPLAY_WINDOW_SET_ASPECT_RATIO: BindingDescriptor = BindingDes
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setChrome.
-pub(crate) const DISPLAY_WINDOW_SET_CHROME: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_SET_CHROME: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.setChrome",
     "export function windowSetChrome(window: WindowHandle, chrome: WindowChromeKind): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12476,11 +12524,12 @@ pub(crate) const DISPLAY_WINDOW_SET_CHROME: BindingDescriptor = BindingDescripto
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setCursorIcon.
-pub(crate) const DISPLAY_WINDOW_SET_CURSOR_ICON: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_SET_CURSOR_ICON: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.setCursorIcon",
     "export function windowSetCursorIcon(window: WindowHandle, icon: WindowCursorIcon): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12489,11 +12538,12 @@ pub(crate) const DISPLAY_WINDOW_SET_CURSOR_ICON: BindingDescriptor = BindingDesc
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setCursorMode.
-pub(crate) const DISPLAY_WINDOW_SET_CURSOR_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_SET_CURSOR_MODE: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.setCursorMode",
     "export function windowSetCursorMode(window: WindowHandle, mode: WindowCursorMode): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12502,11 +12552,12 @@ pub(crate) const DISPLAY_WINDOW_SET_CURSOR_MODE: BindingDescriptor = BindingDesc
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setCursorPosition.
-pub(crate) const DISPLAY_WINDOW_SET_CURSOR_POSITION: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_SET_CURSOR_POSITION: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.setCursorPosition",
     "export function windowSetCursorPosition(window: WindowHandle, position: WindowPosition): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12515,11 +12566,12 @@ pub(crate) const DISPLAY_WINDOW_SET_CURSOR_POSITION: BindingDescriptor = Binding
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setCursorVisible.
-pub(crate) const DISPLAY_WINDOW_SET_CURSOR_VISIBLE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_SET_CURSOR_VISIBLE: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.setCursorVisible",
     "export function windowSetCursorVisible(window: WindowHandle, visible: boolean): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12528,11 +12580,12 @@ pub(crate) const DISPLAY_WINDOW_SET_CURSOR_VISIBLE: BindingDescriptor = BindingD
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setDecorated.
-pub(crate) const DISPLAY_WINDOW_SET_DECORATED: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_SET_DECORATED: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.setDecorated",
     "export function windowSetDecorated(window: WindowHandle, decorated: boolean): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12541,11 +12594,12 @@ pub(crate) const DISPLAY_WINDOW_SET_DECORATED: BindingDescriptor = BindingDescri
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setIcons.
-pub(crate) const DISPLAY_WINDOW_SET_ICONS: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_SET_ICONS: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.setIcons",
     "export function windowSetIcons(window: WindowHandle, icons: WindowIconSet | void): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12554,11 +12608,12 @@ pub(crate) const DISPLAY_WINDOW_SET_ICONS: BindingDescriptor = BindingDescriptor
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setModal.
-pub(crate) const DISPLAY_WINDOW_SET_MODAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_SET_MODAL: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.setModal",
     "export function windowSetModal(window: WindowHandle, modal: boolean): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window.modal"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12567,11 +12622,12 @@ pub(crate) const DISPLAY_WINDOW_SET_MODAL: BindingDescriptor = BindingDescriptor
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setMode.
-pub(crate) const DISPLAY_WINDOW_SET_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_SET_MODE: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.setMode",
     "export function windowSetMode(window: WindowHandle, mode: WindowModeOptions): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12580,11 +12636,12 @@ pub(crate) const DISPLAY_WINDOW_SET_MODE: BindingDescriptor = BindingDescriptor:
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setMousePassthrough.
-pub(crate) const DISPLAY_WINDOW_SET_MOUSE_PASSTHROUGH: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_SET_MOUSE_PASSTHROUGH: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.setMousePassthrough",
     "export function windowSetMousePassthrough(window: WindowHandle, passthrough: boolean): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12593,11 +12650,12 @@ pub(crate) const DISPLAY_WINDOW_SET_MOUSE_PASSTHROUGH: BindingDescriptor = Bindi
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setOpacity.
-pub(crate) const DISPLAY_WINDOW_SET_OPACITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_SET_OPACITY: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.setOpacity",
     "export function windowSetOpacity(window: WindowHandle, opacity: float64): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12606,11 +12664,12 @@ pub(crate) const DISPLAY_WINDOW_SET_OPACITY: BindingDescriptor = BindingDescript
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setParent.
-pub(crate) const DISPLAY_WINDOW_SET_PARENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_SET_PARENT: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.setParent",
     "export function windowSetParent(window: WindowHandle, parent: WindowHandle | void): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window.parenting"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12619,11 +12678,12 @@ pub(crate) const DISPLAY_WINDOW_SET_PARENT: BindingDescriptor = BindingDescripto
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setPosition.
-pub(crate) const DISPLAY_WINDOW_SET_POSITION: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_SET_POSITION: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.setPosition",
     "export function windowSetPosition(window: WindowHandle, position: WindowPosition): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12632,11 +12692,12 @@ pub(crate) const DISPLAY_WINDOW_SET_POSITION: BindingDescriptor = BindingDescrip
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setResizable.
-pub(crate) const DISPLAY_WINDOW_SET_RESIZABLE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_SET_RESIZABLE: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.setResizable",
     "export function windowSetResizable(window: WindowHandle, resizable: boolean): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12645,11 +12706,12 @@ pub(crate) const DISPLAY_WINDOW_SET_RESIZABLE: BindingDescriptor = BindingDescri
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setSizeConstraints.
-pub(crate) const DISPLAY_WINDOW_SET_SIZE_CONSTRAINTS: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_SET_SIZE_CONSTRAINTS: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.setSizeConstraints",
     "export function windowSetSizeConstraints(window: WindowHandle, constraints: WindowSizeConstraints | void): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12658,11 +12720,12 @@ pub(crate) const DISPLAY_WINDOW_SET_SIZE_CONSTRAINTS: BindingDescriptor = Bindin
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setSizeLogical.
-pub(crate) const DISPLAY_WINDOW_SET_SIZE_LOGICAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_SET_SIZE_LOGICAL: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.setSizeLogical",
     "export function windowSetSizeLogical(window: WindowHandle, size: WindowLogicalSize): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12671,11 +12734,12 @@ pub(crate) const DISPLAY_WINDOW_SET_SIZE_LOGICAL: BindingDescriptor = BindingDes
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setSizePhysical.
-pub(crate) const DISPLAY_WINDOW_SET_SIZE_PHYSICAL: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_SET_SIZE_PHYSICAL: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.setSizePhysical",
     "export function windowSetSizePhysical(window: WindowHandle, size: WindowPhysicalSize): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12684,11 +12748,12 @@ pub(crate) const DISPLAY_WINDOW_SET_SIZE_PHYSICAL: BindingDescriptor = BindingDe
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setTaskbarVisible.
-pub(crate) const DISPLAY_WINDOW_SET_TASKBAR_VISIBLE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_SET_TASKBAR_VISIBLE: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.setTaskbarVisible",
     "export function windowSetTaskbarVisible(window: WindowHandle, visible: boolean): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12697,11 +12762,12 @@ pub(crate) const DISPLAY_WINDOW_SET_TASKBAR_VISIBLE: BindingDescriptor = Binding
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setTitle.
-pub(crate) const DISPLAY_WINDOW_SET_TITLE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_SET_TITLE: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.setTitle",
     "export function windowSetTitle(window: WindowHandle, title: string): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12710,11 +12776,12 @@ pub(crate) const DISPLAY_WINDOW_SET_TITLE: BindingDescriptor = BindingDescriptor
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setTransientFor.
-pub(crate) const DISPLAY_WINDOW_SET_TRANSIENT_FOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_SET_TRANSIENT_FOR: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.setTransientFor",
     "export function windowSetTransientFor(window: WindowHandle, transientFor: WindowHandle | void): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window.parenting"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12723,11 +12790,12 @@ pub(crate) const DISPLAY_WINDOW_SET_TRANSIENT_FOR: BindingDescriptor = BindingDe
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.setVisibility.
-pub(crate) const DISPLAY_WINDOW_SET_VISIBILITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const DISPLAY_WINDOW_SET_VISIBILITY: BindingDescriptor = BindingDescriptor::new(
     "destack.display.window.setVisibility",
     "export function windowSetVisibility(window: WindowHandle, visibility: WindowVisibility): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["display.window"],
     BindingProvider::Host,
     BindingAffinity::Worker,
@@ -12736,18 +12804,18 @@ pub(crate) const DISPLAY_WINDOW_SET_VISIBILITY: BindingDescriptor = BindingDescr
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.display.window.state.
-pub(crate) const DISPLAY_WINDOW_STATE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.display.window.state",
-        "export function windowState(window: WindowHandle): Result<WindowState, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["display.window"],
-        BindingProvider::Host,
-        BindingAffinity::Worker,
-    )
-    .with_namespace("display")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const DISPLAY_WINDOW_STATE: BindingDescriptor = BindingDescriptor::new(
+    "destack.display.window.state",
+    "export function windowState(window: WindowHandle): Result<WindowState, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["display.window"],
+    BindingProvider::Host,
+    BindingAffinity::Worker,
+)
+.with_namespace("display")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Native binding set for display.
 pub(crate) const DISPLAY_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

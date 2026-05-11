@@ -6,7 +6,7 @@ use super::ModuleBindings;
 use super::replay::{collect_replay_named_types, collect_replay_vm_named_types};
 use crate::platform::model::{
     BindingType, CatalogBindingProvider, CatalogBindingReplayKind, CatalogBindingSimulation,
-    CatalogEffectClass, CatalogReplayPayload, CatalogReplayPolicy,
+    CatalogEffect, CatalogReplayPayload, CatalogReplayPolicy,
 };
 
 /// Usage flags for native stub bindings.
@@ -93,11 +93,11 @@ impl RenderUsage {
     pub(crate) fn new(bindings: &ModuleBindings) -> Self {
         let uses_replay_policy = bindings
             .values()
-            .any(|entry| matches!(entry.effect_class, CatalogEffectClass::External { .. }));
+            .any(|entry| matches!(entry.effect, CatalogEffect::External { .. }));
         let uses_binding_replay = bindings.values().any(|entry| {
             matches!(
-                entry.effect_class,
-                CatalogEffectClass::External {
+                entry.effect,
+                CatalogEffect::External {
                     replay: CatalogReplayPolicy::Recordable
                 }
             ) && entry.replay_kind == CatalogBindingReplayKind::BindingCall
@@ -113,8 +113,8 @@ impl RenderUsage {
         });
         let uses_replay_payload = bindings.values().any(|entry| {
             matches!(
-                entry.effect_class,
-                CatalogEffectClass::External {
+                entry.effect,
+                CatalogEffect::External {
                     replay: CatalogReplayPolicy::Recordable
                 }
             ) && entry.replay_kind == CatalogBindingReplayKind::BindingCall
@@ -248,8 +248,8 @@ fn collect_vm_decode_usage(bindings: &ModuleBindings) -> VmDecodeUsage {
     let mut usage = VmDecodeUsage::default();
     for entry in bindings.values() {
         let uses_binding_replay = matches!(
-            entry.effect_class,
-            CatalogEffectClass::External {
+            entry.effect,
+            CatalogEffect::External {
                 replay: CatalogReplayPolicy::Recordable
             }
         ) && entry.replay_kind == CatalogBindingReplayKind::BindingCall;

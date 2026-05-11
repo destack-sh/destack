@@ -95,7 +95,7 @@ pub(crate) fn close_drag_session(
         binding
             .worker()
             .resources
-            .remove(&binding.world(), session.0, Some(binding.engine()));
+            .remove(binding.world(), session.0, Some(binding.engine()));
 
     if let Some(entry) = removed
         && entry.kind == ResourceKind::DisplayDragSession

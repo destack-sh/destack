@@ -4,7 +4,7 @@ use super::types::{
     HostTextInputCloseRequest, HostTextInputGeometryRequest, HostTextInputOpenRequest,
     HostTextInputStateRequest,
 };
-use crate::host::apple::abi::bindings::invoke_ios_binding_callback;
+use crate::host::apple::abi::binding::invoke_ios_binding_callback;
 
 /// The host callback for `open`.
 pub(crate) type IosHostTextOpenCallback =

@@ -156,7 +156,7 @@ pub(crate) fn close_tty_worker_resource(
     handle: resource::TtyHandle,
 ) -> RuntimeResult<()> {
     let removed = binding.worker().resources.remove_and_finalize(
-        &binding.world(),
+        binding.world(),
         handle.0,
         Some(binding.engine()),
     );

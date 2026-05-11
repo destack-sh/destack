@@ -3,7 +3,7 @@
 #![cfg_attr(not(target_os = "ios"), allow(dead_code))]
 
 use crate::host::apple::abi::background::callbacks::IosHostBackgroundCallbacks;
-use crate::host::apple::abi::bindings::IosHostBindings;
+use crate::host::apple::abi::binding::IosHostBindings;
 use crate::host::apple::abi::calendar::callbacks::IosHostCalendarCallbacks;
 use crate::host::apple::abi::contact::callbacks::IosHostContactCallbacks;
 use crate::host::apple::abi::document::callbacks::IosHostDocumentCallbacks;

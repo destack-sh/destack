@@ -12,8 +12,8 @@ use crate::platform::device::{
     MidiEventOverflowPolicy, MidiEventSubscriptionFlags, MidiPortDirection, MidiPortDirectionFlags,
     MidiProtocol, MidiProtocolFlags,
 };
+use crate::runtime::WorkerCallbackHandle;
 use crate::runtime::control::queue::BoundedQueue;
-use crate::runtime::process::RuntimeScheduledCallbackHandle;
 
 /// One resolved Android backend description.
 #[derive(Clone, Copy, Debug)]
@@ -77,7 +77,7 @@ pub(crate) struct AndroidEventRepository {
     /// Synthetic poll interval.
     pub(crate) poll_interval: Duration,
     /// Registered synthetic poll callback.
-    pub(crate) poll_callback: Option<RuntimeScheduledCallbackHandle>,
+    pub(crate) poll_callback: Option<WorkerCallbackHandle>,
     /// Pending event queue.
     pub(crate) queue: Arc<BoundedQueue<MidiEventValue>>,
     /// Next sequence number.

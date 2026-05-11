@@ -7,8 +7,9 @@ use std::sync::{Arc, Mutex};
 
 #[cfg(target_os = "macos")]
 use crate::platform::audio::core::codec::frame_bytes;
+use crate::runtime::service::Service;
 #[cfg(target_os = "macos")]
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, Service};
+use crate::runtime::{ExecutionMode, ExecutionPolicy};
 
 #[cfg(target_os = "macos")]
 use super::abi::{
@@ -62,7 +63,7 @@ impl CoreAudioLoopbackProbeService {
 
 #[cfg(target_os = "macos")]
 impl Service for CoreAudioLoopbackProbeService {
-    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
+    const POLICY: ExecutionPolicy = ExecutionPolicy::process(ExecutionMode::Inline);
 }
 
 /// Return the shared CoreAudio loopback probe service.

@@ -202,7 +202,7 @@ mod tests {
     use crate::platform::model::{
         BindingCatalog, BindingEntry, BindingField, BindingParameter, BindingTaggedUnionVariant,
         BindingType, CatalogBindingAffinity, CatalogBindingProvider, CatalogBindingReplayKind,
-        CatalogBindingSimulation, CatalogEffectClass, CatalogReplayPayload,
+        CatalogBindingSimulation, CatalogEffect, CatalogReplayPayload,
     };
 
     use super::{collect_validation_issues, normalize_binding_catalog};
@@ -254,7 +254,7 @@ mod tests {
                 }],
                 return_binding: BindingType::Void,
                 return_is_result: true,
-                effect_class: CatalogEffectClass::Deterministic,
+                effect: CatalogEffect::Deterministic,
                 replay_kind: CatalogBindingReplayKind::BindingCall,
                 replay_payload: CatalogReplayPayload::ResultsOnly,
                 requires: vec!["test.read".to_string()],
@@ -300,7 +300,7 @@ mod tests {
                 }],
                 return_binding: BindingType::Void,
                 return_is_result: true,
-                effect_class: CatalogEffectClass::Deterministic,
+                effect: CatalogEffect::Deterministic,
                 replay_kind: CatalogBindingReplayKind::BindingCall,
                 replay_payload: CatalogReplayPayload::ResultsOnly,
                 requires: vec!["test.read".to_string()],
@@ -409,7 +409,7 @@ mod tests {
                 }],
             },
             return_is_result: true,
-            effect_class: CatalogEffectClass::Deterministic,
+            effect: CatalogEffect::Deterministic,
             replay_kind: CatalogBindingReplayKind::BindingCall,
             replay_payload: CatalogReplayPayload::ResultsOnly,
             requires: vec!["test.read".to_string()],

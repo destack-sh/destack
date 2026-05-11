@@ -6,7 +6,7 @@ use std::os::fd::{AsRawFd, OwnedFd};
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, start_with_policy};
+use crate::runtime::{ExecutionMode, ExecutionPolicy, start_with_policy};
 
 /// Convert one optional deadline into one poll timeout in milliseconds.
 pub(super) fn poll_timeout_millis(deadline: Option<Instant>) -> i32 {
@@ -234,7 +234,7 @@ pub(super) fn start_event_runtime(
     let join_handle = start_with_policy(
         "destack-serial-event",
         "destack.device.serial.open",
-        ExecutionPolicy::instance(ExecutionMode::Loop),
+        ExecutionPolicy::resource(ExecutionMode::Loop),
         move || unix_serial_event_loop(resource, shutdown_read),
     )?;
 

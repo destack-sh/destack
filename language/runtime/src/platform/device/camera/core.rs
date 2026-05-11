@@ -205,7 +205,7 @@ pub(super) fn close_camera_device_resource(
     }
 
     if !binding.worker().resources.remove_and_finalize(
-        &binding.world(),
+        binding.world(),
         handle.0,
         Some(binding.engine()),
     ) {
@@ -231,7 +231,7 @@ pub(super) fn close_camera_stream_resource(
     }
 
     if !binding.worker().resources.remove_and_finalize(
-        &binding.world(),
+        binding.world(),
         handle.0,
         Some(binding.engine()),
     ) {
@@ -276,7 +276,7 @@ pub(super) fn close_camera_watch_resource(
     }
 
     if !binding.worker().resources.remove_and_finalize(
-        &binding.world(),
+        binding.world(),
         handle.0,
         Some(binding.engine()),
     ) {

@@ -102,7 +102,7 @@ fn register_stdio_tty(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     unsafe {
         out.write(resource::TtyHandle(resource_id));

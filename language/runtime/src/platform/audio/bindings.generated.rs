@@ -58,9 +58,10 @@ use crate::platform::audio::{
 use crate::platform::{
     PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice, abi as platform_abi,
 };
-use crate::runtime::bindings::{
-    BindingAffinity, BindingDescriptor, BindingProvider, BindingRegistry, BindingReplayKind,
-    BindingReplayPolicy, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+use crate::runtime::binding::{
+    BindingAffinity, BindingDescriptor, BindingEffect, BindingProvider, BindingRegistry,
+    BindingReplayKind, BindingReplayPayload, NativeBinding, NativeBindingSet, RuntimeWorld,
+    native_call,
 };
 use crate::runtime::trace::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
@@ -4327,39 +4328,40 @@ struct AudioStreamWritevReplayRecord {
 }
 
 /// Binding descriptor for destack.audio.backend.list.
-pub(crate) const AUDIO_BACKEND_LIST: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.audio.backend.list",
-        "export function backendList(): Result<Slice<AudioBackendDescriptor>, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["audio.device"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("audio")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const AUDIO_BACKEND_LIST: BindingDescriptor = BindingDescriptor::new(
+    "destack.audio.backend.list",
+    "export function backendList(): Result<Slice<AudioBackendDescriptor>, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["audio.device"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("audio")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.clock.now.
-pub(crate) const AUDIO_CLOCK_NOW: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.audio.clock.now",
-        "export function clockNow(domain: AudioClockDomain): Result<uint64, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["audio.control"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("audio")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const AUDIO_CLOCK_NOW: BindingDescriptor = BindingDescriptor::new(
+    "destack.audio.clock.now",
+    "export function clockNow(domain: AudioClockDomain): Result<uint64, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["audio.control"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("audio")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.clock.stream.
-pub(crate) const AUDIO_CLOCK_STREAM: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const AUDIO_CLOCK_STREAM: BindingDescriptor = BindingDescriptor::new(
     "destack.audio.clock.stream",
     "export function streamClock(handle: AudioStreamHandle, domain: AudioStreamClockDomain): Result<AudioClockSnapshot, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["audio.control"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4368,25 +4370,26 @@ pub(crate) const AUDIO_CLOCK_STREAM: BindingDescriptor = BindingDescriptor::exte
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.device.close.
-pub(crate) const AUDIO_DEVICE_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.audio.device.close",
-        "export function deviceClose(handle: AudioDeviceHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["audio.device"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("audio")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const AUDIO_DEVICE_CLOSE: BindingDescriptor = BindingDescriptor::new(
+    "destack.audio.device.close",
+    "export function deviceClose(handle: AudioDeviceHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["audio.device"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("audio")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.device.default.
-pub(crate) const AUDIO_DEVICE_DEFAULT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const AUDIO_DEVICE_DEFAULT: BindingDescriptor = BindingDescriptor::new(
     "destack.audio.device.default",
     "export function deviceDefault(direction: AudioDeviceDirection, backend: AudioBackend, backendPolicy: AudioBackendSelectionPolicy): Result<string, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["audio.device"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4395,11 +4398,12 @@ pub(crate) const AUDIO_DEVICE_DEFAULT: BindingDescriptor = BindingDescriptor::ex
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.device.descriptor.
-pub(crate) const AUDIO_DEVICE_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const AUDIO_DEVICE_DESCRIPTOR: BindingDescriptor = BindingDescriptor::new(
     "destack.audio.device.descriptor",
     "export function deviceDescriptor(handle: AudioDeviceHandle): Result<AudioDeviceDescriptor, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["audio.device"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4408,11 +4412,12 @@ pub(crate) const AUDIO_DEVICE_DESCRIPTOR: BindingDescriptor = BindingDescriptor:
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.device.list.
-pub(crate) const AUDIO_DEVICE_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const AUDIO_DEVICE_LIST: BindingDescriptor = BindingDescriptor::new(
     "destack.audio.device.list",
     "export function deviceList(request: AudioDeviceListRequest): Result<Slice<AudioDeviceDescriptor>, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["audio.device"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4421,11 +4426,12 @@ pub(crate) const AUDIO_DEVICE_LIST: BindingDescriptor = BindingDescriptor::exter
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.device.open.
-pub(crate) const AUDIO_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const AUDIO_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::new(
     "destack.audio.device.open",
     "export function deviceOpen(id: string, options: AudioDeviceOpenOptions): Result<AudioDeviceHandle, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["audio.device"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4434,11 +4440,12 @@ pub(crate) const AUDIO_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::exter
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.device.rescan.
-pub(crate) const AUDIO_DEVICE_RESCAN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const AUDIO_DEVICE_RESCAN: BindingDescriptor = BindingDescriptor::new(
     "destack.audio.device.rescan",
     "export function deviceRescan(backend: AudioBackend, backendPolicy: AudioBackendSelectionPolicy): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["audio.device.monitor"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4447,25 +4454,26 @@ pub(crate) const AUDIO_DEVICE_RESCAN: BindingDescriptor = BindingDescriptor::ext
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.event.close.
-pub(crate) const AUDIO_EVENT_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.audio.event.close",
-        "export function eventClose(handle: AudioEventHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["audio.device.monitor"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("audio")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const AUDIO_EVENT_CLOSE: BindingDescriptor = BindingDescriptor::new(
+    "destack.audio.event.close",
+    "export function eventClose(handle: AudioEventHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["audio.device.monitor"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("audio")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.event.open.
-pub(crate) const AUDIO_EVENT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const AUDIO_EVENT_OPEN: BindingDescriptor = BindingDescriptor::new(
     "destack.audio.event.open",
     "export function eventOpen(options: AudioEventSubscriptionOptions): Result<AudioEventHandle, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["audio.device.monitor"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4474,11 +4482,12 @@ pub(crate) const AUDIO_EVENT_OPEN: BindingDescriptor = BindingDescriptor::extern
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.event.read.
-pub(crate) const AUDIO_EVENT_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const AUDIO_EVENT_READ: BindingDescriptor = BindingDescriptor::new(
     "destack.audio.event.read",
     "export function eventRead(handle: AudioEventHandle, timeoutNs: uint64): Result<AudioEvent, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["audio.device.monitor"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4487,11 +4496,12 @@ pub(crate) const AUDIO_EVENT_READ: BindingDescriptor = BindingDescriptor::extern
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.event.readBatch.
-pub(crate) const AUDIO_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const AUDIO_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::new(
     "destack.audio.event.readBatch",
     "export function eventReadBatch(handle: AudioEventHandle, maxEvents: uint32, timeoutNs: uint64): Result<Slice<AudioEvent>, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["audio.device.monitor"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4500,25 +4510,26 @@ pub(crate) const AUDIO_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.event.tryRead.
-pub(crate) const AUDIO_EVENT_TRY_READ: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.audio.event.tryRead",
-        "export function eventTryRead(handle: AudioEventHandle): Result<AudioEvent, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["audio.device.monitor"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("audio")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const AUDIO_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::new(
+    "destack.audio.event.tryRead",
+    "export function eventTryRead(handle: AudioEventHandle): Result<AudioEvent, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["audio.device.monitor"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("audio")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.event.tryReadBatch.
-pub(crate) const AUDIO_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const AUDIO_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescriptor::new(
     "destack.audio.event.tryReadBatch",
     "export function eventTryReadBatch(handle: AudioEventHandle, maxEvents: uint32): Result<Slice<AudioEvent>, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["audio.device.monitor"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4527,25 +4538,26 @@ pub(crate) const AUDIO_EVENT_TRY_READ_BATCH: BindingDescriptor = BindingDescript
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.abort.
-pub(crate) const AUDIO_STREAM_ABORT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.audio.stream.abort",
-        "export function streamAbort(handle: AudioStreamHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["audio.stream"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("audio")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const AUDIO_STREAM_ABORT: BindingDescriptor = BindingDescriptor::new(
+    "destack.audio.stream.abort",
+    "export function streamAbort(handle: AudioStreamHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["audio.stream"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("audio")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.availability.
-pub(crate) const AUDIO_STREAM_AVAILABILITY: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const AUDIO_STREAM_AVAILABILITY: BindingDescriptor = BindingDescriptor::new(
     "destack.audio.stream.availability",
     "export function streamAvailability(handle: AudioStreamHandle): Result<AudioStreamAvailability, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["audio.control"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4554,25 +4566,26 @@ pub(crate) const AUDIO_STREAM_AVAILABILITY: BindingDescriptor = BindingDescripto
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.close.
-pub(crate) const AUDIO_STREAM_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.audio.stream.close",
-        "export function streamClose(handle: AudioStreamHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["audio.stream"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("audio")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const AUDIO_STREAM_CLOSE: BindingDescriptor = BindingDescriptor::new(
+    "destack.audio.stream.close",
+    "export function streamClose(handle: AudioStreamHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["audio.stream"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("audio")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.descriptor.
-pub(crate) const AUDIO_STREAM_DESCRIPTOR: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const AUDIO_STREAM_DESCRIPTOR: BindingDescriptor = BindingDescriptor::new(
     "destack.audio.stream.descriptor",
     "export function streamDescriptor(handle: AudioStreamHandle): Result<AudioStreamDescriptor, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["audio.control"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4581,11 +4594,12 @@ pub(crate) const AUDIO_STREAM_DESCRIPTOR: BindingDescriptor = BindingDescriptor:
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.drain.
-pub(crate) const AUDIO_STREAM_DRAIN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const AUDIO_STREAM_DRAIN: BindingDescriptor = BindingDescriptor::new(
     "destack.audio.stream.drain",
     "export function streamDrain(handle: AudioStreamHandle, timeoutNs: uint64): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["audio.playback"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4594,25 +4608,26 @@ pub(crate) const AUDIO_STREAM_DRAIN: BindingDescriptor = BindingDescriptor::exte
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.flush.
-pub(crate) const AUDIO_STREAM_FLUSH: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.audio.stream.flush",
-        "export function streamFlush(handle: AudioStreamHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["audio.control"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("audio")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const AUDIO_STREAM_FLUSH: BindingDescriptor = BindingDescriptor::new(
+    "destack.audio.stream.flush",
+    "export function streamFlush(handle: AudioStreamHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["audio.control"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("audio")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.open.
-pub(crate) const AUDIO_STREAM_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const AUDIO_STREAM_OPEN: BindingDescriptor = BindingDescriptor::new(
     "destack.audio.stream.open",
     "export function streamOpen(device: AudioDeviceHandle, config: AudioStreamConfig, options: AudioStreamOpenOptions): Result<AudioStreamHandle, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["audio.stream"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4621,11 +4636,12 @@ pub(crate) const AUDIO_STREAM_OPEN: BindingDescriptor = BindingDescriptor::exter
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.pause.
-pub(crate) const AUDIO_STREAM_PAUSE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const AUDIO_STREAM_PAUSE: BindingDescriptor = BindingDescriptor::new(
     "destack.audio.stream.pause",
     "export function streamPause(handle: AudioStreamHandle, pause: boolean): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["audio.stream"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4634,11 +4650,12 @@ pub(crate) const AUDIO_STREAM_PAUSE: BindingDescriptor = BindingDescriptor::exte
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.read.
-pub(crate) const AUDIO_STREAM_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const AUDIO_STREAM_READ: BindingDescriptor = BindingDescriptor::new(
     "destack.audio.stream.read",
     "export function streamRead(handle: AudioStreamHandle, maxBytes: uint32): Result<Slice<uint8>, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["audio.capture"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4647,11 +4664,12 @@ pub(crate) const AUDIO_STREAM_READ: BindingDescriptor = BindingDescriptor::exter
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.readv.
-pub(crate) const AUDIO_STREAM_READV: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const AUDIO_STREAM_READV: BindingDescriptor = BindingDescriptor::new(
     "destack.audio.stream.readv",
     "export function streamReadv(handle: AudioStreamHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["audio.capture"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4660,11 +4678,12 @@ pub(crate) const AUDIO_STREAM_READV: BindingDescriptor = BindingDescriptor::exte
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.setMute.
-pub(crate) const AUDIO_STREAM_SET_MUTE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const AUDIO_STREAM_SET_MUTE: BindingDescriptor = BindingDescriptor::new(
     "destack.audio.stream.setMute",
     "export function streamSetMute(handle: AudioStreamHandle, muted: boolean): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["audio.control"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4673,11 +4692,12 @@ pub(crate) const AUDIO_STREAM_SET_MUTE: BindingDescriptor = BindingDescriptor::e
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.setName.
-pub(crate) const AUDIO_STREAM_SET_NAME: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const AUDIO_STREAM_SET_NAME: BindingDescriptor = BindingDescriptor::new(
     "destack.audio.stream.setName",
     "export function streamSetName(handle: AudioStreamHandle, name: string): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["audio.control"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4686,11 +4706,12 @@ pub(crate) const AUDIO_STREAM_SET_NAME: BindingDescriptor = BindingDescriptor::e
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.setVolume.
-pub(crate) const AUDIO_STREAM_SET_VOLUME: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const AUDIO_STREAM_SET_VOLUME: BindingDescriptor = BindingDescriptor::new(
     "destack.audio.stream.setVolume",
     "export function streamSetVolume(handle: AudioStreamHandle, linearGain: float64): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["audio.control"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4699,25 +4720,26 @@ pub(crate) const AUDIO_STREAM_SET_VOLUME: BindingDescriptor = BindingDescriptor:
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.start.
-pub(crate) const AUDIO_STREAM_START: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.audio.stream.start",
-        "export function streamStart(handle: AudioStreamHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["audio.stream"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("audio")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const AUDIO_STREAM_START: BindingDescriptor = BindingDescriptor::new(
+    "destack.audio.stream.start",
+    "export function streamStart(handle: AudioStreamHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["audio.stream"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("audio")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.state.
-pub(crate) const AUDIO_STREAM_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const AUDIO_STREAM_STATE: BindingDescriptor = BindingDescriptor::new(
     "destack.audio.stream.state",
     "export function streamState(handle: AudioStreamHandle): Result<AudioStreamState, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["audio.control"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4726,25 +4748,26 @@ pub(crate) const AUDIO_STREAM_STATE: BindingDescriptor = BindingDescriptor::exte
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.stop.
-pub(crate) const AUDIO_STREAM_STOP: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.audio.stream.stop",
-        "export function streamStop(handle: AudioStreamHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["audio.stream"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("audio")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const AUDIO_STREAM_STOP: BindingDescriptor = BindingDescriptor::new(
+    "destack.audio.stream.stop",
+    "export function streamStop(handle: AudioStreamHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["audio.stream"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("audio")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.support.
-pub(crate) const AUDIO_STREAM_SUPPORT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const AUDIO_STREAM_SUPPORT: BindingDescriptor = BindingDescriptor::new(
     "destack.audio.stream.support",
     "export function streamSupport(device: AudioDeviceHandle, config: AudioStreamConfig, options: AudioStreamOpenOptions): Result<AudioStreamSupport, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["audio.stream"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4753,11 +4776,12 @@ pub(crate) const AUDIO_STREAM_SUPPORT: BindingDescriptor = BindingDescriptor::ex
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.timing.
-pub(crate) const AUDIO_STREAM_TIMING: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const AUDIO_STREAM_TIMING: BindingDescriptor = BindingDescriptor::new(
     "destack.audio.stream.timing",
     "export function streamTiming(handle: AudioStreamHandle): Result<AudioStreamTiming, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["audio.control"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4766,11 +4790,12 @@ pub(crate) const AUDIO_STREAM_TIMING: BindingDescriptor = BindingDescriptor::ext
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.tryRead.
-pub(crate) const AUDIO_STREAM_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const AUDIO_STREAM_TRY_READ: BindingDescriptor = BindingDescriptor::new(
     "destack.audio.stream.tryRead",
     "export function streamTryRead(handle: AudioStreamHandle, maxBytes: uint32): Result<Slice<uint8>, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["audio.capture"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4779,11 +4804,12 @@ pub(crate) const AUDIO_STREAM_TRY_READ: BindingDescriptor = BindingDescriptor::e
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.tryReadv.
-pub(crate) const AUDIO_STREAM_TRY_READV: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const AUDIO_STREAM_TRY_READV: BindingDescriptor = BindingDescriptor::new(
     "destack.audio.stream.tryReadv",
     "export function streamTryReadv(handle: AudioStreamHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["audio.capture"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4792,11 +4818,12 @@ pub(crate) const AUDIO_STREAM_TRY_READV: BindingDescriptor = BindingDescriptor::
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.tryWrite.
-pub(crate) const AUDIO_STREAM_TRY_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const AUDIO_STREAM_TRY_WRITE: BindingDescriptor = BindingDescriptor::new(
     "destack.audio.stream.tryWrite",
     "export function streamTryWrite(handle: AudioStreamHandle, data: Slice<uint8>): Result<uint64, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["audio.playback"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4805,11 +4832,12 @@ pub(crate) const AUDIO_STREAM_TRY_WRITE: BindingDescriptor = BindingDescriptor::
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.tryWritev.
-pub(crate) const AUDIO_STREAM_TRY_WRITEV: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const AUDIO_STREAM_TRY_WRITEV: BindingDescriptor = BindingDescriptor::new(
     "destack.audio.stream.tryWritev",
     "export function streamTryWritev(handle: AudioStreamHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["audio.playback"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4818,11 +4846,12 @@ pub(crate) const AUDIO_STREAM_TRY_WRITEV: BindingDescriptor = BindingDescriptor:
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.write.
-pub(crate) const AUDIO_STREAM_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const AUDIO_STREAM_WRITE: BindingDescriptor = BindingDescriptor::new(
     "destack.audio.stream.write",
     "export function streamWrite(handle: AudioStreamHandle, data: Slice<uint8>): Result<uint64, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["audio.playback"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4831,11 +4860,12 @@ pub(crate) const AUDIO_STREAM_WRITE: BindingDescriptor = BindingDescriptor::exte
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.writeAt.
-pub(crate) const AUDIO_STREAM_WRITE_AT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const AUDIO_STREAM_WRITE_AT: BindingDescriptor = BindingDescriptor::new(
     "destack.audio.stream.writeAt",
     "export function streamWriteAt(handle: AudioStreamHandle, data: Slice<uint8>, presentationTimeNs: uint64): Result<uint64, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["audio.playback.schedule"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4844,11 +4874,12 @@ pub(crate) const AUDIO_STREAM_WRITE_AT: BindingDescriptor = BindingDescriptor::e
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.writeAtv.
-pub(crate) const AUDIO_STREAM_WRITE_ATV: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const AUDIO_STREAM_WRITE_ATV: BindingDescriptor = BindingDescriptor::new(
     "destack.audio.stream.writeAtv",
     "export function streamWriteAtv(handle: AudioStreamHandle, buffers: Slice<Slice<uint8>>, presentationTimeNs: uint64): Result<uint64, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["audio.playback.schedule"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -4857,11 +4888,12 @@ pub(crate) const AUDIO_STREAM_WRITE_ATV: BindingDescriptor = BindingDescriptor::
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.audio.stream.writev.
-pub(crate) const AUDIO_STREAM_WRITEV: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const AUDIO_STREAM_WRITEV: BindingDescriptor = BindingDescriptor::new(
     "destack.audio.stream.writev",
     "export function streamWritev(handle: AudioStreamHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["audio.playback"],
     BindingProvider::Host,
     BindingAffinity::None,

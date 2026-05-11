@@ -20,9 +20,9 @@ use crate::platform::device::{
     MidiDataFormat, MidiEventSource, MidiPortDirection, MidiProtocol, MidiRecordFraming,
 };
 use crate::runtime::control::queue::BoundedQueue;
-use crate::runtime::process::service::executor::thread::ServiceThreadExecutor;
-use crate::runtime::process::service::{Service, spawn_service_thread};
-use crate::runtime::process::{ExecutionAffinity, ExecutionMode, ExecutionPolicy};
+use crate::runtime::service::executor::thread::ServiceThreadExecutor;
+use crate::runtime::service::{Service, spawn_service_thread};
+use crate::runtime::{ExecutionAffinity, ExecutionMode, ExecutionPolicy};
 
 use super::core::{
     WinRtEndpointInfo, WinRtEventDeliveryKind, WinRtEventRepository, WinRtTopologyState,
@@ -266,8 +266,8 @@ impl WinRtService {
 }
 
 impl Service for WinRtService {
-    const POLICY: ExecutionPolicy =
-        ExecutionPolicy::global(ExecutionMode::Thread).with_affinity(ExecutionAffinity::WindowsMta);
+    const POLICY: ExecutionPolicy = ExecutionPolicy::process(ExecutionMode::Thread)
+        .with_affinity(ExecutionAffinity::WindowsMta);
 }
 
 /// Map one WinRT error into one runtime error.

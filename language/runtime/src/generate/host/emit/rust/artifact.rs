@@ -147,7 +147,7 @@ fn render_callbacks(module: &HostAbiModule, platform: HostPlatform) -> String {
         output.push_str("use crate::platform::abi::NativeStringRef;\n");
     }
     output.push_str(&format!(
-        "use crate::host::{platform_segment}::abi::bindings::invoke_{platform_prefix}_binding_callback;\n\n",
+        "use crate::host::{platform_segment}::abi::binding::invoke_{platform_prefix}_binding_callback;\n\n",
         platform_segment = rust_host_module_segment(platform)
     ));
 
@@ -668,7 +668,7 @@ fn render_ffi(module: &HostAbiModule, platform: HostPlatform) -> String {
     }
     if !module.rust_capability_probes.is_empty() {
         output.push_str(&format!(
-            "use crate::host::{}::abi::bindings::resolve_{}_binding_callback;\n",
+            "use crate::host::{}::abi::binding::resolve_{}_binding_callback;\n",
             rust_host_module_segment(platform),
             platform.prefix()
         ));

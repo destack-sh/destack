@@ -10,8 +10,8 @@ use super::state::UnixSerialDescriptorInfo;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::runtime::control::queue::BoundedQueue;
-use crate::runtime::process::service::Service;
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, WorkerLoop};
+use crate::runtime::service::Service;
+use crate::runtime::{ExecutionMode, ExecutionPolicy, WorkerLoop};
 
 use super::super::core::SerialWatchEventState;
 
@@ -188,7 +188,7 @@ impl UnixSerialWatchService {
 }
 
 impl Service for UnixSerialWatchService {
-    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Loop);
+    const POLICY: ExecutionPolicy = ExecutionPolicy::process(ExecutionMode::Loop);
 }
 
 /// Build one linux serial monitor error.

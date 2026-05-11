@@ -5,7 +5,7 @@ use parking_lot::Mutex;
 
 use super::codec::read_adapter_descriptors;
 use super::core::*;
-use crate::runtime::process::{RuntimeScheduledCallbackControl, RuntimeScheduledCallbackHandle};
+use crate::runtime::{WorkerCallbackControl, WorkerCallbackHandle};
 
 /// One adapter-watch event queue capacity.
 const BLUETOOTH_ADAPTER_EVENT_QUEUE_CAPACITY: usize = 64;
@@ -27,8 +27,8 @@ struct AndroidBluetoothAdapterWatchState {
     event_state: Mutex<BluetoothEventState>,
     /// The last known adapter snapshot.
     known_adapters: BTreeMap<String, BluetoothAdapterDescriptorValue>,
-    /// The active runtime callback when registered.
-    callback_handle: Option<RuntimeScheduledCallbackHandle>,
+    /// The active worker callback when registered.
+    callback_handle: Option<WorkerCallbackHandle>,
     /// Whether the watch has begun teardown.
     is_closed: bool,
 }
@@ -109,11 +109,10 @@ fn adapter_watch_resource(
 fn register_adapter_watch_callback(
     binding: &BindingCallContext,
     state: &Arc<Mutex<AndroidBluetoothAdapterWatchState>>,
-) -> RuntimeResult<RuntimeScheduledCallbackHandle> {
+) -> RuntimeResult<WorkerCallbackHandle> {
     let state = Arc::downgrade(state);
 
-    binding.worker().schedule_runtime_callback(
-        binding,
+    binding.schedule_worker_callback(
         BLUETOOTH_ADAPTER_POLL_INTERVAL_NS,
         Some(BLUETOOTH_ADAPTER_POLL_INTERVAL_NS),
         move |binding| poll_adapter_watch(binding, &state),
@@ -124,13 +123,13 @@ fn register_adapter_watch_callback(
 fn poll_adapter_watch(
     binding: &BindingCallContext,
     state: &Weak<Mutex<AndroidBluetoothAdapterWatchState>>,
-) -> RuntimeResult<RuntimeScheduledCallbackControl> {
+) -> RuntimeResult<WorkerCallbackControl> {
     let Some(state) = state.upgrade() else {
-        return Ok(RuntimeScheduledCallbackControl::Cancel);
+        return Ok(WorkerCallbackControl::Cancel);
     };
     let mut state = state.lock();
     if state.is_closed {
-        return Ok(RuntimeScheduledCallbackControl::Cancel);
+        return Ok(WorkerCallbackControl::Cancel);
     }
 
     // synthetic topology refresh
@@ -142,12 +141,12 @@ fn poll_adapter_watch(
         Err(_) => {
             state.is_closed = true;
             state.event_queue.close();
-            return Ok(RuntimeScheduledCallbackControl::Cancel);
+            return Ok(WorkerCallbackControl::Cancel);
         }
     };
     state.refresh(adapters);
 
-    Ok(RuntimeScheduledCallbackControl::Keep)
+    Ok(WorkerCallbackControl::Keep)
 }
 
 /// Open one Android bluetooth adapter watch stream.
@@ -191,7 +190,7 @@ pub(crate) unsafe fn destack_device_bluetooth_adapter_watch_open(
     let handle = binding
         .worker()
         .resources
-        .insert(&binding.world(), entry, Some(binding.engine()));
+        .insert(binding.world(), entry, Some(binding.engine()));
 
     unsafe {
         out.write(resource::BluetoothAdapterWatchHandle(handle));
@@ -218,9 +217,7 @@ pub(crate) unsafe fn destack_device_bluetooth_adapter_watch_close(
         };
 
         if let Some(callback_handle) = callback_handle {
-            binding
-                .worker()
-                .cancel_runtime_callback(binding, callback_handle)?;
+            binding.cancel_worker_callback(callback_handle)?;
         }
     }
 

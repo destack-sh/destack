@@ -10,11 +10,9 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::device::CameraDeviceDescriptorValue;
 use crate::runtime::control::queue::BoundedQueue;
-use crate::runtime::process::service::Service;
-use crate::runtime::process::service::executor::periodic::{
-    PeriodicTaskHandle, open_periodic_task,
-};
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy};
+use crate::runtime::service::Service;
+use crate::runtime::service::executor::periodic::{PeriodicTaskHandle, open_periodic_task};
+use crate::runtime::{ExecutionMode, ExecutionPolicy};
 
 use super::super::core::CameraWatchEventState;
 
@@ -170,7 +168,7 @@ impl LinuxCameraWatchService {
 }
 
 impl Service for LinuxCameraWatchService {
-    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Polling);
+    const POLICY: ExecutionPolicy = ExecutionPolicy::process(ExecutionMode::Polling);
 }
 
 /// Publish one snapshot delta into one watch queue.

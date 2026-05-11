@@ -4,7 +4,7 @@ use crate::platform::audio::core as audio_core;
 use crate::platform::audio::core::monitor::AudioMonitorHandle;
 use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::{PlatformError, core as core_platform};
-use crate::runtime::process::service::windows::WindowsRegisteredWait;
+use crate::runtime::service::windows::WindowsRegisteredWait;
 
 use std::ffi::c_void;
 use std::ptr;

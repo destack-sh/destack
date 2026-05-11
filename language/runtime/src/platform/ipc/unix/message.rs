@@ -31,7 +31,7 @@ pub(crate) unsafe fn destack_ipc_message_queue_close(
     {
         // remove one queue resource and close it through the registered finalizer
         let removed = binding.worker().resources.remove_and_finalize(
-            &binding.world(),
+            binding.world(),
             handle.0,
             Some(binding.engine()),
         );

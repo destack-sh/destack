@@ -181,7 +181,7 @@ pub(super) fn register_pipe_handle(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     resource::PipeHandle(resource_id)
 }
@@ -201,7 +201,7 @@ pub(super) fn register_shared_memory_handle(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     resource::SharedMemoryHandle(resource_id)
 }
@@ -221,7 +221,7 @@ pub(super) fn register_semaphore_handle(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     resource::SemaphoreHandle(resource_id)
 }

@@ -37,9 +37,10 @@ use crate::platform::{
     NativeArray, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice,
     abi as platform_abi,
 };
-use crate::runtime::bindings::{
-    BindingAffinity, BindingDescriptor, BindingProvider, BindingRegistry, BindingReplayKind,
-    BindingReplayPolicy, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+use crate::runtime::binding::{
+    BindingAffinity, BindingDescriptor, BindingEffect, BindingProvider, BindingRegistry,
+    BindingReplayKind, BindingReplayPayload, NativeBinding, NativeBindingSet, RuntimeWorld,
+    native_call,
 };
 use crate::runtime::trace::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
@@ -5050,25 +5051,26 @@ struct FsXattrSetxattrBytesReplayRecord {
 }
 
 /// Binding descriptor for destack.fs.attrs.access.
-pub(crate) const FS_ATTRS_ACCESS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.attrs.access",
-        "export function access(path: OsPath, mode: AccessMode): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.metadata"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_ATTRS_ACCESS: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.attrs.access",
+    "export function access(path: OsPath, mode: AccessMode): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.metadata"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.accessat.
-pub(crate) const FS_ATTRS_ACCESSAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_ATTRS_ACCESSAT: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.attrs.accessat",
     "export function accessat(dir: DirectoryHandle, path: OsPath, mode: AccessMode, flags: AtFlags): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.metadata"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5077,52 +5079,54 @@ pub(crate) const FS_ATTRS_ACCESSAT: BindingDescriptor = BindingDescriptor::exter
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.chmod.
-pub(crate) const FS_ATTRS_CHMOD: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.attrs.chmod",
-        "export function chmod(path: OsPath, mode: FileMode): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.chmod"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_ATTRS_CHMOD: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.attrs.chmod",
+    "export function chmod(path: OsPath, mode: FileMode): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.chmod"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.chown.
-pub(crate) const FS_ATTRS_CHOWN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_ATTRS_CHOWN: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.attrs.chown",
     "export function chown(path: OsPath, uid: uint32, gid: uint32): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.chown"],
     BindingProvider::Host,
     BindingAffinity::None,
 )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.fchmod.
-pub(crate) const FS_ATTRS_FCHMOD: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.attrs.fchmod",
-        "export function fchmod(handle: FileHandle, mode: FileMode): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.chmod"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_ATTRS_FCHMOD: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.attrs.fchmod",
+    "export function fchmod(handle: FileHandle, mode: FileMode): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.chmod"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.fchmodat.
-pub(crate) const FS_ATTRS_FCHMODAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_ATTRS_FCHMODAT: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.attrs.fchmodat",
     "export function fchmodat(dir: DirectoryHandle, path: OsPath, mode: FileMode, flags: AtFlags): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.chmod"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5131,11 +5135,12 @@ pub(crate) const FS_ATTRS_FCHMODAT: BindingDescriptor = BindingDescriptor::exter
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.fchown.
-pub(crate) const FS_ATTRS_FCHOWN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_ATTRS_FCHOWN: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.attrs.fchown",
     "export function fchown(handle: FileHandle, uid: uint32, gid: uint32): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.chown"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5144,11 +5149,12 @@ pub(crate) const FS_ATTRS_FCHOWN: BindingDescriptor = BindingDescriptor::externa
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.fchownat.
-pub(crate) const FS_ATTRS_FCHOWNAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_ATTRS_FCHOWNAT: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.attrs.fchownat",
     "export function fchownat(dir: DirectoryHandle, path: OsPath, uid: uint32, gid: uint32, flags: AtFlags): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.chown"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5157,11 +5163,12 @@ pub(crate) const FS_ATTRS_FCHOWNAT: BindingDescriptor = BindingDescriptor::exter
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.futimes.
-pub(crate) const FS_ATTRS_FUTIMES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_ATTRS_FUTIMES: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.attrs.futimes",
     "export function futimes(handle: FileHandle, atimeNs: uint64, mtimeNs: uint64): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.metadata"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5170,11 +5177,12 @@ pub(crate) const FS_ATTRS_FUTIMES: BindingDescriptor = BindingDescriptor::extern
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.lutimes.
-pub(crate) const FS_ATTRS_LUTIMES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_ATTRS_LUTIMES: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.attrs.lutimes",
     "export function lutimes(path: OsPath, atimeNs: uint64, mtimeNs: uint64): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.metadata"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5183,11 +5191,12 @@ pub(crate) const FS_ATTRS_LUTIMES: BindingDescriptor = BindingDescriptor::extern
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.utimensat.
-pub(crate) const FS_ATTRS_UTIMENSAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_ATTRS_UTIMENSAT: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.attrs.utimensat",
     "export function utimensat(dir: DirectoryHandle, path: OsPath, atimeNs: uint64, mtimeNs: uint64, flags: AtFlags): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.metadata"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5196,11 +5205,12 @@ pub(crate) const FS_ATTRS_UTIMENSAT: BindingDescriptor = BindingDescriptor::exte
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.attrs.utimes.
-pub(crate) const FS_ATTRS_UTIMES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_ATTRS_UTIMES: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.attrs.utimes",
     "export function utimes(path: OsPath, atimeNs: uint64, mtimeNs: uint64): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.metadata"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5209,53 +5219,54 @@ pub(crate) const FS_ATTRS_UTIMES: BindingDescriptor = BindingDescriptor::externa
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.dir.closedir.
-pub(crate) const FS_DIR_CLOSEDIR: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.dir.closedir",
-        "export function closedir(handle: DirectoryHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.handle"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_DIR_CLOSEDIR: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.dir.closedir",
+    "export function closedir(handle: DirectoryHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.handle"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.dir.dirfd.
-pub(crate) const FS_DIR_DIRFD: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.dir.dirfd",
-        "export function dirfd(handle: DirectoryHandle): Result<FileHandle, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.handle"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_DIR_DIRFD: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.dir.dirfd",
+    "export function dirfd(handle: DirectoryHandle): Result<FileHandle, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.handle"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.dir.mkdir.
-pub(crate) const FS_DIR_MKDIR: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.dir.mkdir",
-        "export function mkdir(path: OsPath, mode: FileMode): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.write"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_DIR_MKDIR: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.dir.mkdir",
+    "export function mkdir(path: OsPath, mode: FileMode): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.write"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.dir.mkdirat.
-pub(crate) const FS_DIR_MKDIRAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_DIR_MKDIRAT: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.dir.mkdirat",
     "export function mkdirat(dir: DirectoryHandle, path: OsPath, mode: FileMode): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.write"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5264,109 +5275,110 @@ pub(crate) const FS_DIR_MKDIRAT: BindingDescriptor = BindingDescriptor::external
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.dir.mkdtemp.
-pub(crate) const FS_DIR_MKDTEMP: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.dir.mkdtemp",
-        "export function mkdtemp(template: OsPath): Result<OsPath, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.temp"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_DIR_MKDTEMP: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.dir.mkdtemp",
+    "export function mkdtemp(template: OsPath): Result<OsPath, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.temp"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.dir.opendir.
-pub(crate) const FS_DIR_OPENDIR: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.dir.opendir",
-        "export function opendir(path: OsPath): Result<DirectoryHandle, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.read"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_DIR_OPENDIR: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.dir.opendir",
+    "export function opendir(path: OsPath): Result<DirectoryHandle, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.read"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.dir.readdir.
-pub(crate) const FS_DIR_READDIR: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.dir.readdir",
-        "export function readdir(handle: DirectoryHandle): Result<Dirent[], PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.read"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_DIR_READDIR: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.dir.readdir",
+    "export function readdir(handle: DirectoryHandle): Result<Dirent[], PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.read"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.dir.readdirNext.
-pub(crate) const FS_DIR_READDIR_NEXT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.dir.readdirNext",
-        "export function readdirNext(handle: DirectoryHandle): Result<DirentNext, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.read"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_DIR_READDIR_NEXT: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.dir.readdirNext",
+    "export function readdirNext(handle: DirectoryHandle): Result<DirentNext, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.read"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.dir.rewinddir.
-pub(crate) const FS_DIR_REWINDDIR: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.dir.rewinddir",
-        "export function rewinddir(handle: DirectoryHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.read"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_DIR_REWINDDIR: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.dir.rewinddir",
+    "export function rewinddir(handle: DirectoryHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.read"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.dir.rmdir.
-pub(crate) const FS_DIR_RMDIR: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.dir.rmdir",
-        "export function rmdir(path: OsPath): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.write"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_DIR_RMDIR: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.dir.rmdir",
+    "export function rmdir(path: OsPath): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.write"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.close.
-pub(crate) const FS_FILE_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.file.close",
-        "export function close(handle: FileHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.handle"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_FILE_CLOSE: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.file.close",
+    "export function close(handle: FileHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.handle"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.copyFileRange.
-pub(crate) const FS_FILE_COPY_FILE_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_FILE_COPY_FILE_RANGE: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.file.copyFileRange",
     "export function copyFileRange(src: FileHandle, srcOffset: FileOffset, dst: FileHandle, dstOffset: FileOffset, length: FileSize): Result<uint64, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.read", "fs.write"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5375,25 +5387,26 @@ pub(crate) const FS_FILE_COPY_FILE_RANGE: BindingDescriptor = BindingDescriptor:
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.dup.
-pub(crate) const FS_FILE_DUP: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.file.dup",
-        "export function dup(handle: FileHandle): Result<FileHandle, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.handle"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_FILE_DUP: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.file.dup",
+    "export function dup(handle: FileHandle): Result<FileHandle, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.handle"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.dup2.
-pub(crate) const FS_FILE_DUP2: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_FILE_DUP2: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.file.dup2",
     "export function dup2(handle: FileHandle, target: FileHandle): Result<FileHandle, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.handle"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5402,11 +5415,12 @@ pub(crate) const FS_FILE_DUP2: BindingDescriptor = BindingDescriptor::external_w
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.dup3.
-pub(crate) const FS_FILE_DUP3: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_FILE_DUP3: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.file.dup3",
     "export function dup3(handle: FileHandle, target: FileHandle, flags: OpenFlags): Result<FileHandle, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.handle"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5415,11 +5429,12 @@ pub(crate) const FS_FILE_DUP3: BindingDescriptor = BindingDescriptor::external_w
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.fadvise.
-pub(crate) const FS_FILE_FADVISE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_FILE_FADVISE: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.file.fadvise",
     "export function fadvise(handle: FileHandle, offset: FileOffset, length: FileSize, advice: FileAdvice): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.metadata"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5428,11 +5443,12 @@ pub(crate) const FS_FILE_FADVISE: BindingDescriptor = BindingDescriptor::externa
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.fallocate.
-pub(crate) const FS_FILE_FALLOCATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_FILE_FALLOCATE: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.file.fallocate",
     "export function fallocate(handle: FileHandle, offset: FileOffset, length: FileSize, flags: AllocFlags): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.write"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5441,93 +5457,96 @@ pub(crate) const FS_FILE_FALLOCATE: BindingDescriptor = BindingDescriptor::exter
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.fdatasync.
-pub(crate) const FS_FILE_FDATASYNC: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.file.fdatasync",
-        "export function fdatasync(handle: FileHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.sync"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_FILE_FDATASYNC: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.file.fdatasync",
+    "export function fdatasync(handle: FileHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.sync"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.fsync.
-pub(crate) const FS_FILE_FSYNC: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.file.fsync",
-        "export function fsync(handle: FileHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.sync"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_FILE_FSYNC: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.file.fsync",
+    "export function fsync(handle: FileHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.sync"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.ftruncate.
-pub(crate) const FS_FILE_FTRUNCATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_FILE_FTRUNCATE: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.file.ftruncate",
     "export function ftruncate(handle: FileHandle, size: FileOffset): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.write"],
     BindingProvider::Host,
     BindingAffinity::None,
 )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.getFdFlags.
-pub(crate) const FS_FILE_GET_FD_FLAGS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.file.getFdFlags",
-        "export function getFdFlags(handle: FileHandle): Result<FdFlags, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.handle"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_FILE_GET_FD_FLAGS: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.file.getFdFlags",
+    "export function getFdFlags(handle: FileHandle): Result<FdFlags, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.handle"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.getStatusFlags.
-pub(crate) const FS_FILE_GET_STATUS_FLAGS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.file.getStatusFlags",
-        "export function getStatusFlags(handle: FileHandle): Result<StatusFlags, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.handle"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_FILE_GET_STATUS_FLAGS: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.file.getStatusFlags",
+    "export function getStatusFlags(handle: FileHandle): Result<StatusFlags, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.handle"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.lock.
-pub(crate) const FS_FILE_LOCK: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_FILE_LOCK: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.file.lock",
     "export function lock(handle: FileHandle, flags: FileLockFlags): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.lock"],
     BindingProvider::Host,
     BindingAffinity::None,
 )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.open.
-pub(crate) const FS_FILE_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_FILE_OPEN: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.file.open",
     "export function open(path: OsPath, flags: OpenFlags, mode: FileMode): Result<FileHandle, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.read", "fs.write"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5536,11 +5555,12 @@ pub(crate) const FS_FILE_OPEN: BindingDescriptor = BindingDescriptor::external_w
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.openat.
-pub(crate) const FS_FILE_OPENAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_FILE_OPENAT: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.file.openat",
     "export function openat(dir: DirectoryHandle, path: OsPath, flags: OpenFlags, mode: FileMode): Result<FileHandle, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.read", "fs.write"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5549,11 +5569,12 @@ pub(crate) const FS_FILE_OPENAT: BindingDescriptor = BindingDescriptor::external
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.openat2.
-pub(crate) const FS_FILE_OPENAT2: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_FILE_OPENAT2: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.file.openat2",
     "export function openat2(dir: DirectoryHandle, path: OsPath, how: OpenOptions): Result<FileHandle, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.read", "fs.write"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5562,11 +5583,12 @@ pub(crate) const FS_FILE_OPENAT2: BindingDescriptor = BindingDescriptor::externa
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.pread.
-pub(crate) const FS_FILE_PREAD: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_FILE_PREAD: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.file.pread",
     "export function pread(handle: FileHandle, buffer: Slice<uint8>, offset: FileOffset): Result<uint64, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.read"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5575,11 +5597,12 @@ pub(crate) const FS_FILE_PREAD: BindingDescriptor = BindingDescriptor::external_
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.preadv.
-pub(crate) const FS_FILE_PREADV: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_FILE_PREADV: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.file.preadv",
     "export function preadv(handle: FileHandle, buffers: Slice<Slice<uint8>>, offset: FileOffset): Result<uint64, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.read"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5588,11 +5611,12 @@ pub(crate) const FS_FILE_PREADV: BindingDescriptor = BindingDescriptor::external
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.preadv2.
-pub(crate) const FS_FILE_PREADV2: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_FILE_PREADV2: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.file.preadv2",
     "export function preadv2(handle: FileHandle, buffers: Slice<Slice<uint8>>, offset: FileOffset, flags: ReadWriteFlags): Result<uint64, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.read"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5601,11 +5625,12 @@ pub(crate) const FS_FILE_PREADV2: BindingDescriptor = BindingDescriptor::externa
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.pwrite.
-pub(crate) const FS_FILE_PWRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_FILE_PWRITE: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.file.pwrite",
     "export function pwrite(handle: FileHandle, buffer: Slice<uint8>, offset: FileOffset): Result<uint64, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.write"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5614,11 +5639,12 @@ pub(crate) const FS_FILE_PWRITE: BindingDescriptor = BindingDescriptor::external
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.pwritev.
-pub(crate) const FS_FILE_PWRITEV: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_FILE_PWRITEV: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.file.pwritev",
     "export function pwritev(handle: FileHandle, buffers: Slice<Slice<uint8>>, offset: FileOffset): Result<uint64, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.write"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5627,11 +5653,12 @@ pub(crate) const FS_FILE_PWRITEV: BindingDescriptor = BindingDescriptor::externa
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.pwritev2.
-pub(crate) const FS_FILE_PWRITEV2: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_FILE_PWRITEV2: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.file.pwritev2",
     "export function pwritev2(handle: FileHandle, buffers: Slice<Slice<uint8>>, offset: FileOffset, flags: ReadWriteFlags): Result<uint64, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.write"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5640,24 +5667,26 @@ pub(crate) const FS_FILE_PWRITEV2: BindingDescriptor = BindingDescriptor::extern
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.read.
-pub(crate) const FS_FILE_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_FILE_READ: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.file.read",
     "export function read(handle: FileHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.read"],
     BindingProvider::Host,
     BindingAffinity::None,
 )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.readv.
-pub(crate) const FS_FILE_READV: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_FILE_READV: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.file.readv",
     "export function readv(handle: FileHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.read"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5666,11 +5695,12 @@ pub(crate) const FS_FILE_READV: BindingDescriptor = BindingDescriptor::external_
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.seek.
-pub(crate) const FS_FILE_SEEK: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_FILE_SEEK: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.file.seek",
     "export function seek(handle: FileHandle, offset: FileOffset, whence: SeekWhence): Result<FileOffset, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.handle"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5679,11 +5709,12 @@ pub(crate) const FS_FILE_SEEK: BindingDescriptor = BindingDescriptor::external_w
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.sendfile.
-pub(crate) const FS_FILE_SENDFILE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_FILE_SENDFILE: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.file.sendfile",
     "export function sendfile(socket: SocketHandle, file: FileHandle, offset: FileOffset, length: FileSize): Result<uint64, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.read", "fs.write"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5692,24 +5723,26 @@ pub(crate) const FS_FILE_SENDFILE: BindingDescriptor = BindingDescriptor::extern
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.setFdFlags.
-pub(crate) const FS_FILE_SET_FD_FLAGS: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_FILE_SET_FD_FLAGS: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.file.setFdFlags",
     "export function setFdFlags(handle: FileHandle, flags: FdFlags): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.handle"],
     BindingProvider::Host,
     BindingAffinity::None,
 )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.setStatusFlags.
-pub(crate) const FS_FILE_SET_STATUS_FLAGS: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_FILE_SET_STATUS_FLAGS: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.file.setStatusFlags",
     "export function setStatusFlags(handle: FileHandle, flags: StatusFlags): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.handle"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5718,11 +5751,12 @@ pub(crate) const FS_FILE_SET_STATUS_FLAGS: BindingDescriptor = BindingDescriptor
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.splice.
-pub(crate) const FS_FILE_SPLICE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_FILE_SPLICE: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.file.splice",
     "export function splice(source: ResourceId, sourceCursor: SpliceCursor, target: ResourceId, targetCursor: SpliceCursor, length: FileSize, flags: SpliceFlags): Result<uint64, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["io.zero.copy"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5731,11 +5765,12 @@ pub(crate) const FS_FILE_SPLICE: BindingDescriptor = BindingDescriptor::external
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.syncFileRange.
-pub(crate) const FS_FILE_SYNC_FILE_RANGE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_FILE_SYNC_FILE_RANGE: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.file.syncFileRange",
     "export function syncFileRange(handle: FileHandle, offset: FileOffset, length: FileSize, flags: SyncFlags): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.sync"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5744,25 +5779,26 @@ pub(crate) const FS_FILE_SYNC_FILE_RANGE: BindingDescriptor = BindingDescriptor:
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.syncfs.
-pub(crate) const FS_FILE_SYNCFS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.file.syncfs",
-        "export function syncfs(handle: FileHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.sync"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_FILE_SYNCFS: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.file.syncfs",
+    "export function syncfs(handle: FileHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.sync"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.tee.
-pub(crate) const FS_FILE_TEE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_FILE_TEE: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.file.tee",
     "export function tee(sourcePipe: PipeHandle, targetPipe: PipeHandle, length: FileSize, flags: SpliceFlags): Result<uint64, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["io.zero.copy"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5771,25 +5807,26 @@ pub(crate) const FS_FILE_TEE: BindingDescriptor = BindingDescriptor::external_wi
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.truncate.
-pub(crate) const FS_FILE_TRUNCATE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.file.truncate",
-        "export function truncate(path: OsPath, size: FileOffset): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.write"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_FILE_TRUNCATE: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.file.truncate",
+    "export function truncate(path: OsPath, size: FileOffset): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.write"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.vmsplice.
-pub(crate) const FS_FILE_VMSPLICE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_FILE_VMSPLICE: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.file.vmsplice",
     "export function vmsplice(pipe: PipeHandle, buffers: Slice<Slice<uint8>>, flags: SpliceFlags): Result<uint64, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["io.zero.copy"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5798,11 +5835,12 @@ pub(crate) const FS_FILE_VMSPLICE: BindingDescriptor = BindingDescriptor::extern
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.write.
-pub(crate) const FS_FILE_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_FILE_WRITE: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.file.write",
     "export function write(handle: FileHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.write"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5811,11 +5849,12 @@ pub(crate) const FS_FILE_WRITE: BindingDescriptor = BindingDescriptor::external_
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.file.writev.
-pub(crate) const FS_FILE_WRITEV: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_FILE_WRITEV: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.file.writev",
     "export function writev(handle: FileHandle, buffers: Slice<Slice<uint8>>): Result<uint64, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.write"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5824,11 +5863,12 @@ pub(crate) const FS_FILE_WRITEV: BindingDescriptor = BindingDescriptor::external
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.mmap.madvise.
-pub(crate) const FS_MMAP_MADVISE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_MMAP_MADVISE: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.mmap.madvise",
     "export function madvise(mapping: Slice<uint8>, advice: MmapAdvice): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.mmap"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5837,11 +5877,12 @@ pub(crate) const FS_MMAP_MADVISE: BindingDescriptor = BindingDescriptor::externa
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.mmap.mmapAnonymous.
-pub(crate) const FS_MMAP_MMAP_ANONYMOUS: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_MMAP_MMAP_ANONYMOUS: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.mmap.mmapAnonymous",
     "export function mmapAnonymous(length: FileSize, prot: MmapProt, flags: MmapFlags): Result<Slice<uint8>, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.mmap"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5850,11 +5891,12 @@ pub(crate) const FS_MMAP_MMAP_ANONYMOUS: BindingDescriptor = BindingDescriptor::
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.mmap.mmapFile.
-pub(crate) const FS_MMAP_MMAP_FILE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_MMAP_MMAP_FILE: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.mmap.mmapFile",
     "export function mmapFile(handle: FileHandle, offset: FileOffset, length: FileSize, prot: MmapProt, flags: MmapFlags): Result<Slice<uint8>, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.mmap"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5863,24 +5905,26 @@ pub(crate) const FS_MMAP_MMAP_FILE: BindingDescriptor = BindingDescriptor::exter
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.mmap.mprotect.
-pub(crate) const FS_MMAP_MPROTECT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_MMAP_MPROTECT: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.mmap.mprotect",
     "export function mprotect(mapping: Slice<uint8>, prot: MmapProt): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.mmap"],
     BindingProvider::Host,
     BindingAffinity::None,
 )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.mmap.msync.
-pub(crate) const FS_MMAP_MSYNC: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_MMAP_MSYNC: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.mmap.msync",
     "export function msync(mapping: Slice<uint8>, flags: MmapSyncFlags): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.mmap"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5889,25 +5933,26 @@ pub(crate) const FS_MMAP_MSYNC: BindingDescriptor = BindingDescriptor::external_
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.mmap.munmap.
-pub(crate) const FS_MMAP_MUNMAP: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.mmap.munmap",
-        "export function munmap(mapping: Slice<uint8>): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.mmap"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_MMAP_MUNMAP: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.mmap.munmap",
+    "export function munmap(mapping: Slice<uint8>): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.mmap"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.path.copyfile.
-pub(crate) const FS_PATH_COPYFILE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_PATH_COPYFILE: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.path.copyfile",
     "export function copyfile(from: OsPath, to: OsPath, flags: CopyFlags): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.read", "fs.write"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5916,25 +5961,26 @@ pub(crate) const FS_PATH_COPYFILE: BindingDescriptor = BindingDescriptor::extern
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.path.link.
-pub(crate) const FS_PATH_LINK: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.path.link",
-        "export function link(existingPath: OsPath, newPath: OsPath): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.link"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_PATH_LINK: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.path.link",
+    "export function link(existingPath: OsPath, newPath: OsPath): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.link"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.path.linkat.
-pub(crate) const FS_PATH_LINKAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_PATH_LINKAT: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.path.linkat",
     "export function linkat(existingDir: DirectoryHandle, existingPath: OsPath, newDir: DirectoryHandle, newPath: OsPath, flags: AtFlags): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.link"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5943,25 +5989,26 @@ pub(crate) const FS_PATH_LINKAT: BindingDescriptor = BindingDescriptor::external
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.path.mkfifo.
-pub(crate) const FS_PATH_MKFIFO: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.path.mkfifo",
-        "export function mkfifo(path: OsPath, mode: FileMode): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.special"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos"]);
+pub(crate) const FS_PATH_MKFIFO: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.path.mkfifo",
+    "export function mkfifo(path: OsPath, mode: FileMode): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.special"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos"]);
 
 /// Binding descriptor for destack.fs.path.mkfifoat.
-pub(crate) const FS_PATH_MKFIFOAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_PATH_MKFIFOAT: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.path.mkfifoat",
     "export function mkfifoat(dir: DirectoryHandle, path: OsPath, mode: FileMode): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.special"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5970,11 +6017,12 @@ pub(crate) const FS_PATH_MKFIFOAT: BindingDescriptor = BindingDescriptor::extern
     .with_platforms(&["android", "ios", "linux", "macos"]);
 
 /// Binding descriptor for destack.fs.path.mknod.
-pub(crate) const FS_PATH_MKNOD: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_PATH_MKNOD: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.path.mknod",
     "export function mknod(path: OsPath, mode: FileMode, device: NodeDevice): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.special"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5983,11 +6031,12 @@ pub(crate) const FS_PATH_MKNOD: BindingDescriptor = BindingDescriptor::external_
     .with_platforms(&["android", "ios", "linux", "macos"]);
 
 /// Binding descriptor for destack.fs.path.mknodat.
-pub(crate) const FS_PATH_MKNODAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_PATH_MKNODAT: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.path.mknodat",
     "export function mknodat(dir: DirectoryHandle, path: OsPath, mode: FileMode, device: NodeDevice): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.special"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -5996,66 +6045,68 @@ pub(crate) const FS_PATH_MKNODAT: BindingDescriptor = BindingDescriptor::externa
     .with_platforms(&["android", "ios", "linux", "macos"]);
 
 /// Binding descriptor for destack.fs.path.readlink.
-pub(crate) const FS_PATH_READLINK: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.path.readlink",
-        "export function readlink(path: OsPath): Result<OsPath, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.read"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
-
-/// Binding descriptor for destack.fs.path.readlinkat.
-pub(crate) const FS_PATH_READLINKAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
-    "destack.fs.path.readlinkat",
-    "export function readlinkat(dir: DirectoryHandle, path: OsPath): Result<OsPath, PlatformError>",
-    BindingReplayPolicy::Recordable,
+pub(crate) const FS_PATH_READLINK: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.path.readlink",
+    "export function readlink(path: OsPath): Result<OsPath, PlatformError>",
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.read"],
     BindingProvider::Host,
     BindingAffinity::None,
 )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+
+/// Binding descriptor for destack.fs.path.readlinkat.
+pub(crate) const FS_PATH_READLINKAT: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.path.readlinkat",
+    "export function readlinkat(dir: DirectoryHandle, path: OsPath): Result<OsPath, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.read"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.path.realpath.
-pub(crate) const FS_PATH_REALPATH: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.path.realpath",
-        "export function realpath(path: OsPath): Result<OsPath, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.metadata"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_PATH_REALPATH: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.path.realpath",
+    "export function realpath(path: OsPath): Result<OsPath, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.metadata"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.path.rename.
-pub(crate) const FS_PATH_RENAME: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.path.rename",
-        "export function rename(from: OsPath, to: OsPath): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.write"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_PATH_RENAME: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.path.rename",
+    "export function rename(from: OsPath, to: OsPath): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.write"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.path.renameat.
-pub(crate) const FS_PATH_RENAMEAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_PATH_RENAMEAT: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.path.renameat",
     "export function renameat(fromDir: DirectoryHandle, from: OsPath, toDir: DirectoryHandle, to: OsPath): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.write"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -6064,11 +6115,12 @@ pub(crate) const FS_PATH_RENAMEAT: BindingDescriptor = BindingDescriptor::extern
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.path.renameat2.
-pub(crate) const FS_PATH_RENAMEAT2: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_PATH_RENAMEAT2: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.path.renameat2",
     "export function renameat2(fromDir: DirectoryHandle, from: OsPath, toDir: DirectoryHandle, to: OsPath, flags: RenameFlags): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.write"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -6077,11 +6129,12 @@ pub(crate) const FS_PATH_RENAMEAT2: BindingDescriptor = BindingDescriptor::exter
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.path.symlink.
-pub(crate) const FS_PATH_SYMLINK: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_PATH_SYMLINK: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.path.symlink",
     "export function symlink(target: OsPath, path: OsPath, kind: SymlinkType): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.link"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -6090,11 +6143,12 @@ pub(crate) const FS_PATH_SYMLINK: BindingDescriptor = BindingDescriptor::externa
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.path.symlinkat.
-pub(crate) const FS_PATH_SYMLINKAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_PATH_SYMLINKAT: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.path.symlinkat",
     "export function symlinkat(target: OsPath, dir: DirectoryHandle, path: OsPath, kind: SymlinkType): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.link"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -6103,25 +6157,26 @@ pub(crate) const FS_PATH_SYMLINKAT: BindingDescriptor = BindingDescriptor::exter
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.path.unlink.
-pub(crate) const FS_PATH_UNLINK: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.path.unlink",
-        "export function unlink(path: OsPath): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.write"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_PATH_UNLINK: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.path.unlink",
+    "export function unlink(path: OsPath): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.write"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.path.unlinkat.
-pub(crate) const FS_PATH_UNLINKAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_PATH_UNLINKAT: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.path.unlinkat",
     "export function unlinkat(dir: DirectoryHandle, path: OsPath, flags: AtFlags): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.write"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -6130,67 +6185,68 @@ pub(crate) const FS_PATH_UNLINKAT: BindingDescriptor = BindingDescriptor::extern
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.stat.fstat.
-pub(crate) const FS_STAT_FSTAT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.stat.fstat",
-        "export function fstat(handle: FileHandle): Result<Stat, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.metadata"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_STAT_FSTAT: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.stat.fstat",
+    "export function fstat(handle: FileHandle): Result<Stat, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.metadata"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.stat.fstatfs.
-pub(crate) const FS_STAT_FSTATFS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.stat.fstatfs",
-        "export function fstatfs(handle: FileHandle): Result<StatFs, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.metadata"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_STAT_FSTATFS: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.stat.fstatfs",
+    "export function fstatfs(handle: FileHandle): Result<StatFs, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.metadata"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.stat.lstat.
-pub(crate) const FS_STAT_LSTAT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.stat.lstat",
-        "export function lstat(path: OsPath): Result<Stat, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.metadata"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_STAT_LSTAT: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.stat.lstat",
+    "export function lstat(path: OsPath): Result<Stat, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.metadata"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.stat.path.
-pub(crate) const FS_STAT_PATH: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.stat.path",
-        "export function stat(path: OsPath): Result<Stat, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.metadata"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_STAT_PATH: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.stat.path",
+    "export function stat(path: OsPath): Result<Stat, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.metadata"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.stat.pathat.
-pub(crate) const FS_STAT_PATHAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_STAT_PATHAT: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.stat.pathat",
     "export function statat(dir: DirectoryHandle, path: OsPath, flags: AtFlags): Result<Stat, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.metadata"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -6199,25 +6255,26 @@ pub(crate) const FS_STAT_PATHAT: BindingDescriptor = BindingDescriptor::external
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.stat.pathfs.
-pub(crate) const FS_STAT_PATHFS: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.stat.pathfs",
-        "export function statfs(path: OsPath): Result<StatFs, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.metadata"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_STAT_PATHFS: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.stat.pathfs",
+    "export function statfs(path: OsPath): Result<StatFs, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.metadata"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.stat.pathx.
-pub(crate) const FS_STAT_PATHX: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_STAT_PATHX: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.stat.pathx",
     "export function statx(dir: DirectoryHandle, path: OsPath, flags: StatxFlags, mask: StatxMask): Result<Statx, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.metadata"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -6226,11 +6283,12 @@ pub(crate) const FS_STAT_PATHX: BindingDescriptor = BindingDescriptor::external_
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.watch.open.
-pub(crate) const FS_WATCH_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_WATCH_OPEN: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.watch.open",
     "export function watch(path: OsPath, options: WatchOptions): Result<WatchHandle, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.watch"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -6239,39 +6297,40 @@ pub(crate) const FS_WATCH_OPEN: BindingDescriptor = BindingDescriptor::external_
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.watch.openClose.
-pub(crate) const FS_WATCH_OPEN_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.watch.openClose",
-        "export function watchClose(handle: WatchHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.watch"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_WATCH_OPEN_CLOSE: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.watch.openClose",
+    "export function watchClose(handle: WatchHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.watch"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.watch.openRead.
-pub(crate) const FS_WATCH_OPEN_READ: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.watch.openRead",
-        "export function watchRead(handle: WatchHandle): Result<WatchBatch, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.watch"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_WATCH_OPEN_READ: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.watch.openRead",
+    "export function watchRead(handle: WatchHandle): Result<WatchBatch, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.watch"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.watch.openat.
-pub(crate) const FS_WATCH_OPENAT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_WATCH_OPENAT: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.watch.openat",
     "export function watchat(directory: DirectoryHandle, path: OsPath, options: WatchOptions): Result<WatchHandle, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.watch"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -6280,24 +6339,26 @@ pub(crate) const FS_WATCH_OPENAT: BindingDescriptor = BindingDescriptor::externa
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.fgetxattr.
-pub(crate) const FS_XATTR_FGETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_XATTR_FGETXATTR: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.xattr.fgetxattr",
     "export function fgetxattr(handle: FileHandle, name: string): Result<uint8[], PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.xattr"],
     BindingProvider::Host,
     BindingAffinity::None,
 )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.fgetxattrBytes.
-pub(crate) const FS_XATTR_FGETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_XATTR_FGETXATTR_BYTES: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.xattr.fgetxattrBytes",
     "export function fgetxattrBytes(handle: FileHandle, name: Slice<uint8>): Result<uint8[], PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.xattr"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -6306,52 +6367,54 @@ pub(crate) const FS_XATTR_FGETXATTR_BYTES: BindingDescriptor = BindingDescriptor
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.flistxattr.
-pub(crate) const FS_XATTR_FLISTXATTR: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.xattr.flistxattr",
-        "export function flistxattr(handle: FileHandle): Result<string[], PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.xattr"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
-
-/// Binding descriptor for destack.fs.xattr.flistxattrBytes.
-pub(crate) const FS_XATTR_FLISTXATTR_BYTES: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.xattr.flistxattrBytes",
-        "export function flistxattrBytes(handle: FileHandle): Result<uint8[][], PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.xattr"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
-
-/// Binding descriptor for destack.fs.xattr.fremovexattr.
-pub(crate) const FS_XATTR_FREMOVEXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
-    "destack.fs.xattr.fremovexattr",
-    "export function fremovexattr(handle: FileHandle, name: string): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+pub(crate) const FS_XATTR_FLISTXATTR: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.xattr.flistxattr",
+    "export function flistxattr(handle: FileHandle): Result<string[], PlatformError>",
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.xattr"],
     BindingProvider::Host,
     BindingAffinity::None,
 )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+
+/// Binding descriptor for destack.fs.xattr.flistxattrBytes.
+pub(crate) const FS_XATTR_FLISTXATTR_BYTES: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.xattr.flistxattrBytes",
+    "export function flistxattrBytes(handle: FileHandle): Result<uint8[][], PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.xattr"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+
+/// Binding descriptor for destack.fs.xattr.fremovexattr.
+pub(crate) const FS_XATTR_FREMOVEXATTR: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.xattr.fremovexattr",
+    "export function fremovexattr(handle: FileHandle, name: string): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.xattr"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.fremovexattrBytes.
-pub(crate) const FS_XATTR_FREMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_XATTR_FREMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.xattr.fremovexattrBytes",
     "export function fremovexattrBytes(handle: FileHandle, name: Slice<uint8>): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.xattr"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -6360,11 +6423,12 @@ pub(crate) const FS_XATTR_FREMOVEXATTR_BYTES: BindingDescriptor = BindingDescrip
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.fsetxattr.
-pub(crate) const FS_XATTR_FSETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_XATTR_FSETXATTR: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.xattr.fsetxattr",
     "export function fsetxattr(handle: FileHandle, name: string, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.xattr"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -6373,11 +6437,12 @@ pub(crate) const FS_XATTR_FSETXATTR: BindingDescriptor = BindingDescriptor::exte
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.fsetxattrBytes.
-pub(crate) const FS_XATTR_FSETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_XATTR_FSETXATTR_BYTES: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.xattr.fsetxattrBytes",
     "export function fsetxattrBytes(handle: FileHandle, name: Slice<uint8>, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.xattr"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -6386,25 +6451,26 @@ pub(crate) const FS_XATTR_FSETXATTR_BYTES: BindingDescriptor = BindingDescriptor
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.getxattr.
-pub(crate) const FS_XATTR_GETXATTR: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.xattr.getxattr",
-        "export function getxattr(path: OsPath, name: string): Result<uint8[], PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.xattr"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_XATTR_GETXATTR: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.xattr.getxattr",
+    "export function getxattr(path: OsPath, name: string): Result<uint8[], PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.xattr"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.getxattrBytes.
-pub(crate) const FS_XATTR_GETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_XATTR_GETXATTR_BYTES: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.xattr.getxattrBytes",
     "export function getxattrBytes(path: OsPath, name: Slice<uint8>): Result<uint8[], PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.xattr"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -6413,25 +6479,26 @@ pub(crate) const FS_XATTR_GETXATTR_BYTES: BindingDescriptor = BindingDescriptor:
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.lgetxattr.
-pub(crate) const FS_XATTR_LGETXATTR: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.xattr.lgetxattr",
-        "export function lgetxattr(path: OsPath, name: string): Result<uint8[], PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.xattr"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_XATTR_LGETXATTR: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.xattr.lgetxattr",
+    "export function lgetxattr(path: OsPath, name: string): Result<uint8[], PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.xattr"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.lgetxattrBytes.
-pub(crate) const FS_XATTR_LGETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_XATTR_LGETXATTR_BYTES: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.xattr.lgetxattrBytes",
     "export function lgetxattrBytes(path: OsPath, name: Slice<uint8>): Result<uint8[], PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.xattr"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -6440,81 +6507,82 @@ pub(crate) const FS_XATTR_LGETXATTR_BYTES: BindingDescriptor = BindingDescriptor
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.listxattr.
-pub(crate) const FS_XATTR_LISTXATTR: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.xattr.listxattr",
-        "export function listxattr(path: OsPath): Result<string[], PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.xattr"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_XATTR_LISTXATTR: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.xattr.listxattr",
+    "export function listxattr(path: OsPath): Result<string[], PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.xattr"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.listxattrBytes.
-pub(crate) const FS_XATTR_LISTXATTR_BYTES: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.xattr.listxattrBytes",
-        "export function listxattrBytes(path: OsPath): Result<uint8[][], PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.xattr"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_XATTR_LISTXATTR_BYTES: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.xattr.listxattrBytes",
+    "export function listxattrBytes(path: OsPath): Result<uint8[][], PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.xattr"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.llistxattr.
-pub(crate) const FS_XATTR_LLISTXATTR: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.xattr.llistxattr",
-        "export function llistxattr(path: OsPath): Result<string[], PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.xattr"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_XATTR_LLISTXATTR: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.xattr.llistxattr",
+    "export function llistxattr(path: OsPath): Result<string[], PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.xattr"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.llistxattrBytes.
-pub(crate) const FS_XATTR_LLISTXATTR_BYTES: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.xattr.llistxattrBytes",
-        "export function llistxattrBytes(path: OsPath): Result<uint8[][], PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.xattr"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_XATTR_LLISTXATTR_BYTES: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.xattr.llistxattrBytes",
+    "export function llistxattrBytes(path: OsPath): Result<uint8[][], PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.xattr"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.lremovexattr.
-pub(crate) const FS_XATTR_LREMOVEXATTR: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.xattr.lremovexattr",
-        "export function lremovexattr(path: OsPath, name: string): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.xattr"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_XATTR_LREMOVEXATTR: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.xattr.lremovexattr",
+    "export function lremovexattr(path: OsPath, name: string): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.xattr"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.lremovexattrBytes.
-pub(crate) const FS_XATTR_LREMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_XATTR_LREMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.xattr.lremovexattrBytes",
     "export function lremovexattrBytes(path: OsPath, name: Slice<uint8>): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.xattr"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -6523,11 +6591,12 @@ pub(crate) const FS_XATTR_LREMOVEXATTR_BYTES: BindingDescriptor = BindingDescrip
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.lsetxattr.
-pub(crate) const FS_XATTR_LSETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_XATTR_LSETXATTR: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.xattr.lsetxattr",
     "export function lsetxattr(path: OsPath, name: string, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.xattr"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -6536,11 +6605,12 @@ pub(crate) const FS_XATTR_LSETXATTR: BindingDescriptor = BindingDescriptor::exte
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.lsetxattrBytes.
-pub(crate) const FS_XATTR_LSETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_XATTR_LSETXATTR_BYTES: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.xattr.lsetxattrBytes",
     "export function lsetxattrBytes(path: OsPath, name: Slice<uint8>, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.xattr"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -6549,25 +6619,26 @@ pub(crate) const FS_XATTR_LSETXATTR_BYTES: BindingDescriptor = BindingDescriptor
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.removexattr.
-pub(crate) const FS_XATTR_REMOVEXATTR: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.fs.xattr.removexattr",
-        "export function removexattr(path: OsPath, name: string): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["fs.xattr"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("fs")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const FS_XATTR_REMOVEXATTR: BindingDescriptor = BindingDescriptor::new(
+    "destack.fs.xattr.removexattr",
+    "export function removexattr(path: OsPath, name: string): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["fs.xattr"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("fs")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.removexattrBytes.
-pub(crate) const FS_XATTR_REMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_XATTR_REMOVEXATTR_BYTES: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.xattr.removexattrBytes",
     "export function removexattrBytes(path: OsPath, name: Slice<uint8>): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.xattr"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -6576,11 +6647,12 @@ pub(crate) const FS_XATTR_REMOVEXATTR_BYTES: BindingDescriptor = BindingDescript
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.setxattr.
-pub(crate) const FS_XATTR_SETXATTR: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_XATTR_SETXATTR: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.xattr.setxattr",
     "export function setxattr(path: OsPath, name: string, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.xattr"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -6589,11 +6661,12 @@ pub(crate) const FS_XATTR_SETXATTR: BindingDescriptor = BindingDescriptor::exter
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.fs.xattr.setxattrBytes.
-pub(crate) const FS_XATTR_SETXATTR_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const FS_XATTR_SETXATTR_BYTES: BindingDescriptor = BindingDescriptor::new(
     "destack.fs.xattr.setxattrBytes",
     "export function setxattrBytes(path: OsPath, name: Slice<uint8>, value: Slice<uint8>, flags: XattrFlags): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["fs.xattr"],
     BindingProvider::Host,
     BindingAffinity::None,

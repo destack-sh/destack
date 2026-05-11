@@ -15,7 +15,7 @@ use crate::platform::core as core_platform;
 #[cfg(target_os = "linux")]
 use crate::platform::diagnostic::PlatformErrorCode;
 #[cfg(target_os = "linux")]
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, start_with_policy};
+use crate::runtime::{ExecutionMode, ExecutionPolicy, start_with_policy};
 #[cfg(target_os = "linux")]
 #[cfg(target_os = "linux")]
 use std::ffi::CString;
@@ -70,7 +70,7 @@ pub(crate) fn start_native_device_event_monitor() -> RuntimeResult<Box<dyn Audio
         let handle = start_with_policy(
             "destack-audio-alsa-monitor",
             "destack.audio.event.open",
-            ExecutionPolicy::global(ExecutionMode::Loop),
+            ExecutionPolicy::process(ExecutionMode::Loop),
             move || run_monitor_thread(stop_signal, ready_sender),
         )?;
 

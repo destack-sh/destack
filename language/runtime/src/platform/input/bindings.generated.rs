@@ -90,9 +90,10 @@ use crate::platform::{
     NativeArray, PlatformError, RuntimeStatus, VmAggregateCodec, VmArray, VmSlice,
     abi as platform_abi,
 };
-use crate::runtime::bindings::{
-    BindingAffinity, BindingDescriptor, BindingProvider, BindingRegistry, BindingReplayKind,
-    BindingReplayPolicy, NativeBinding, NativeBindingSet, RuntimeWorld, native_call,
+use crate::runtime::binding::{
+    BindingAffinity, BindingDescriptor, BindingEffect, BindingProvider, BindingRegistry,
+    BindingReplayKind, BindingReplayPayload, NativeBinding, NativeBindingSet, RuntimeWorld,
+    native_call,
 };
 use crate::runtime::trace::TraceError;
 use crate::runtime::{BindingCallContext, with_binding_call_context};
@@ -7575,52 +7576,54 @@ struct InputTouchStateReplayRecord {
 }
 
 /// Binding descriptor for destack.input.clipboard.clear.
-pub(crate) const INPUT_CLIPBOARD_CLEAR: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.input.clipboard.clear",
-        "export function clipboardClear(): Result<void, PlatformError>",
-        BindingReplayPolicy::NonRecordable,
-        BindingReplayKind::BindingCall,
-        &["input.clipboard.write"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("input")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const INPUT_CLIPBOARD_CLEAR: BindingDescriptor = BindingDescriptor::new(
+    "destack.input.clipboard.clear",
+    "export function clipboardClear(): Result<void, PlatformError>",
+    BindingEffect::ExternalNonRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["input.clipboard.write"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("input")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.clipboard.hasText.
-pub(crate) const INPUT_CLIPBOARD_HAS_TEXT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.input.clipboard.hasText",
-        "export function clipboardHasText(): Result<boolean, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["input.clipboard.read"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("input")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
-
-/// Binding descriptor for destack.input.clipboard.listItems.
-pub(crate) const INPUT_CLIPBOARD_LIST_ITEMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
-    "destack.input.clipboard.listItems",
-    "export function clipboardListItems(): Result<Slice<ClipboardItemDescriptor>, PlatformError>",
-    BindingReplayPolicy::Recordable,
+pub(crate) const INPUT_CLIPBOARD_HAS_TEXT: BindingDescriptor = BindingDescriptor::new(
+    "destack.input.clipboard.hasText",
+    "export function clipboardHasText(): Result<boolean, PlatformError>",
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.clipboard.read"],
     BindingProvider::Host,
     BindingAffinity::None,
 )
-    .with_namespace("input")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+.with_namespace("input")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+
+/// Binding descriptor for destack.input.clipboard.listItems.
+pub(crate) const INPUT_CLIPBOARD_LIST_ITEMS: BindingDescriptor = BindingDescriptor::new(
+    "destack.input.clipboard.listItems",
+    "export function clipboardListItems(): Result<Slice<ClipboardItemDescriptor>, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["input.clipboard.read"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("input")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.clipboard.readItemBytes.
-pub(crate) const INPUT_CLIPBOARD_READ_ITEM_BYTES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_CLIPBOARD_READ_ITEM_BYTES: BindingDescriptor = BindingDescriptor::new(
     "destack.input.clipboard.readItemBytes",
     "export function clipboardReadItemBytes(itemIndex: uint32, representationIndex: uint32): Result<Slice<uint8>, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.clipboard.read"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -7629,11 +7632,12 @@ pub(crate) const INPUT_CLIPBOARD_READ_ITEM_BYTES: BindingDescriptor = BindingDes
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.clipboard.readItemPath.
-pub(crate) const INPUT_CLIPBOARD_READ_ITEM_PATH: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_CLIPBOARD_READ_ITEM_PATH: BindingDescriptor = BindingDescriptor::new(
     "destack.input.clipboard.readItemPath",
     "export function clipboardReadItemPath(itemIndex: uint32, representationIndex: uint32): Result<OsPath, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.clipboard.read"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -7642,11 +7646,12 @@ pub(crate) const INPUT_CLIPBOARD_READ_ITEM_PATH: BindingDescriptor = BindingDesc
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.clipboard.readItemText.
-pub(crate) const INPUT_CLIPBOARD_READ_ITEM_TEXT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_CLIPBOARD_READ_ITEM_TEXT: BindingDescriptor = BindingDescriptor::new(
     "destack.input.clipboard.readItemText",
     "export function clipboardReadItemText(itemIndex: uint32, representationIndex: uint32): Result<string, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.clipboard.read"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -7655,66 +7660,68 @@ pub(crate) const INPUT_CLIPBOARD_READ_ITEM_TEXT: BindingDescriptor = BindingDesc
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.clipboard.readText.
-pub(crate) const INPUT_CLIPBOARD_READ_TEXT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.input.clipboard.readText",
-        "export function clipboardReadText(): Result<string, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["input.clipboard.read"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("input")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const INPUT_CLIPBOARD_READ_TEXT: BindingDescriptor = BindingDescriptor::new(
+    "destack.input.clipboard.readText",
+    "export function clipboardReadText(): Result<string, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["input.clipboard.read"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("input")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.clipboard.sequence.
-pub(crate) const INPUT_CLIPBOARD_SEQUENCE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.input.clipboard.sequence",
-        "export function clipboardSequence(): Result<uint64, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["input.clipboard.read"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("input")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const INPUT_CLIPBOARD_SEQUENCE: BindingDescriptor = BindingDescriptor::new(
+    "destack.input.clipboard.sequence",
+    "export function clipboardSequence(): Result<uint64, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["input.clipboard.read"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("input")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.clipboard.writeItems.
-pub(crate) const INPUT_CLIPBOARD_WRITE_ITEMS: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_CLIPBOARD_WRITE_ITEMS: BindingDescriptor = BindingDescriptor::new(
     "destack.input.clipboard.writeItems",
     "export function clipboardWriteItems(items: Slice<ClipboardItem>): Result<void, PlatformError>",
-    BindingReplayPolicy::NonRecordable,
+    BindingEffect::ExternalNonRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.clipboard.write"],
     BindingProvider::Host,
     BindingAffinity::None,
 )
-    .with_namespace("input")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+.with_namespace("input")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.clipboard.writeText.
-pub(crate) const INPUT_CLIPBOARD_WRITE_TEXT: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.input.clipboard.writeText",
-        "export function clipboardWriteText(text: string): Result<void, PlatformError>",
-        BindingReplayPolicy::NonRecordable,
-        BindingReplayKind::BindingCall,
-        &["input.clipboard.write"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("input")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const INPUT_CLIPBOARD_WRITE_TEXT: BindingDescriptor = BindingDescriptor::new(
+    "destack.input.clipboard.writeText",
+    "export function clipboardWriteText(text: string): Result<void, PlatformError>",
+    BindingEffect::ExternalNonRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["input.clipboard.write"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("input")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.device.capabilities.
-pub(crate) const INPUT_DEVICE_CAPABILITIES: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_DEVICE_CAPABILITIES: BindingDescriptor = BindingDescriptor::new(
     "destack.input.device.capabilities",
     "export function capabilities(handle: InputDeviceHandle): Result<InputDeviceCapabilities, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.read"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -7723,81 +7730,82 @@ pub(crate) const INPUT_DEVICE_CAPABILITIES: BindingDescriptor = BindingDescripto
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.device.close.
-pub(crate) const INPUT_DEVICE_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.input.device.close",
-        "export function close(handle: InputDeviceHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["input.read"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("input")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const INPUT_DEVICE_CLOSE: BindingDescriptor = BindingDescriptor::new(
+    "destack.input.device.close",
+    "export function close(handle: InputDeviceHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["input.read"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("input")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.device.list.
-pub(crate) const INPUT_DEVICE_LIST: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.input.device.list",
-        "export function list(): Result<Slice<InputDeviceDescriptor>, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["input.read"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("input")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const INPUT_DEVICE_LIST: BindingDescriptor = BindingDescriptor::new(
+    "destack.input.device.list",
+    "export function list(): Result<Slice<InputDeviceDescriptor>, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["input.read"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("input")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.device.open.
-pub(crate) const INPUT_DEVICE_OPEN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.input.device.open",
-        "export function open(id: string): Result<InputDeviceHandle, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["input.read"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("input")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const INPUT_DEVICE_OPEN: BindingDescriptor = BindingDescriptor::new(
+    "destack.input.device.open",
+    "export function open(id: string): Result<InputDeviceHandle, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["input.read"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("input")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.event.monitorClose.
-pub(crate) const INPUT_EVENT_MONITOR_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.input.event.monitorClose",
-        "export function monitorClose(handle: InputMonitorHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["input.read"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("input")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const INPUT_EVENT_MONITOR_CLOSE: BindingDescriptor = BindingDescriptor::new(
+    "destack.input.event.monitorClose",
+    "export function monitorClose(handle: InputMonitorHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["input.read"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("input")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.event.monitorOpen.
-pub(crate) const INPUT_EVENT_MONITOR_OPEN: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.input.event.monitorOpen",
-        "export function monitorOpen(): Result<InputMonitorHandle, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["input.read"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("input")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const INPUT_EVENT_MONITOR_OPEN: BindingDescriptor = BindingDescriptor::new(
+    "destack.input.event.monitorOpen",
+    "export function monitorOpen(): Result<InputMonitorHandle, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["input.read"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("input")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.event.monitorRead.
-pub(crate) const INPUT_EVENT_MONITOR_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_EVENT_MONITOR_READ: BindingDescriptor = BindingDescriptor::new(
     "destack.input.event.monitorRead",
     "export function monitorRead(handle: InputMonitorHandle): Result<InputMonitorEvent, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.read"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -7806,11 +7814,12 @@ pub(crate) const INPUT_EVENT_MONITOR_READ: BindingDescriptor = BindingDescriptor
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.event.monitorTryRead.
-pub(crate) const INPUT_EVENT_MONITOR_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_EVENT_MONITOR_TRY_READ: BindingDescriptor = BindingDescriptor::new(
     "destack.input.event.monitorTryRead",
     "export function monitorTryRead(handle: InputMonitorHandle): Result<InputMonitorEvent, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.read"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -7819,25 +7828,26 @@ pub(crate) const INPUT_EVENT_MONITOR_TRY_READ: BindingDescriptor = BindingDescri
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.event.read.
-pub(crate) const INPUT_EVENT_READ: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.input.event.read",
-        "export function read(handle: InputDeviceHandle): Result<InputEvent, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["input.read"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("input")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const INPUT_EVENT_READ: BindingDescriptor = BindingDescriptor::new(
+    "destack.input.event.read",
+    "export function read(handle: InputDeviceHandle): Result<InputEvent, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["input.read"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("input")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.event.readBatch.
-pub(crate) const INPUT_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::new(
     "destack.input.event.readBatch",
     "export function readBatch(handle: InputDeviceHandle, maxEvents: uint32): Result<InputEvent[], PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.read"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -7846,11 +7856,12 @@ pub(crate) const INPUT_EVENT_READ_BATCH: BindingDescriptor = BindingDescriptor::
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.event.setExclusiveGrab.
-pub(crate) const INPUT_EVENT_SET_EXCLUSIVE_GRAB: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_EVENT_SET_EXCLUSIVE_GRAB: BindingDescriptor = BindingDescriptor::new(
     "destack.input.event.setExclusiveGrab",
     "export function setExclusiveGrab(handle: InputDeviceHandle, enable: boolean): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.grab"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -7859,11 +7870,12 @@ pub(crate) const INPUT_EVENT_SET_EXCLUSIVE_GRAB: BindingDescriptor = BindingDesc
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.event.setReadMode.
-pub(crate) const INPUT_EVENT_SET_READ_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_EVENT_SET_READ_MODE: BindingDescriptor = BindingDescriptor::new(
     "destack.input.event.setReadMode",
     "export function setReadMode(handle: InputDeviceHandle, mode: InputReadMode): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.control"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -7872,25 +7884,26 @@ pub(crate) const INPUT_EVENT_SET_READ_MODE: BindingDescriptor = BindingDescripto
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.event.tryRead.
-pub(crate) const INPUT_EVENT_TRY_READ: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.input.event.tryRead",
-        "export function tryRead(handle: InputDeviceHandle): Result<InputEvent, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["input.read"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("input")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const INPUT_EVENT_TRY_READ: BindingDescriptor = BindingDescriptor::new(
+    "destack.input.event.tryRead",
+    "export function tryRead(handle: InputDeviceHandle): Result<InputEvent, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["input.read"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("input")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.gamepad.setLight.
-pub(crate) const INPUT_GAMEPAD_SET_LIGHT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_GAMEPAD_SET_LIGHT: BindingDescriptor = BindingDescriptor::new(
     "destack.input.gamepad.setLight",
     "export function gamepadSetLight(handle: InputDeviceHandle, red: uint8, green: uint8, blue: uint8): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.control"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -7899,11 +7912,12 @@ pub(crate) const INPUT_GAMEPAD_SET_LIGHT: BindingDescriptor = BindingDescriptor:
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.gamepad.setMotionSensorSampleRate.
-pub(crate) const INPUT_GAMEPAD_SET_MOTION_SENSOR_SAMPLE_RATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_GAMEPAD_SET_MOTION_SENSOR_SAMPLE_RATE: BindingDescriptor = BindingDescriptor::new(
     "destack.input.gamepad.setMotionSensorSampleRate",
     "export function gamepadSetMotionSensorSampleRate(handle: InputDeviceHandle, sampleRateHz: float64): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.control"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -7912,11 +7926,12 @@ pub(crate) const INPUT_GAMEPAD_SET_MOTION_SENSOR_SAMPLE_RATE: BindingDescriptor 
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.gamepad.setMotionSensorsEnabled.
-pub(crate) const INPUT_GAMEPAD_SET_MOTION_SENSORS_ENABLED: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_GAMEPAD_SET_MOTION_SENSORS_ENABLED: BindingDescriptor = BindingDescriptor::new(
     "destack.input.gamepad.setMotionSensorsEnabled",
     "export function gamepadSetMotionSensorsEnabled(handle: InputDeviceHandle, enabled: boolean): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.control"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -7925,11 +7940,12 @@ pub(crate) const INPUT_GAMEPAD_SET_MOTION_SENSORS_ENABLED: BindingDescriptor = B
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.gamepad.setPlayerIndex.
-pub(crate) const INPUT_GAMEPAD_SET_PLAYER_INDEX: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_GAMEPAD_SET_PLAYER_INDEX: BindingDescriptor = BindingDescriptor::new(
     "destack.input.gamepad.setPlayerIndex",
     "export function gamepadSetPlayerIndex(handle: InputDeviceHandle, playerIndex: uint8): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.control"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -7938,11 +7954,12 @@ pub(crate) const INPUT_GAMEPAD_SET_PLAYER_INDEX: BindingDescriptor = BindingDesc
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.gamepad.state.
-pub(crate) const INPUT_GAMEPAD_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_GAMEPAD_STATE: BindingDescriptor = BindingDescriptor::new(
     "destack.input.gamepad.state",
     "export function gamepadState(handle: InputDeviceHandle): Result<InputGamepadState, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.read"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -7951,11 +7968,12 @@ pub(crate) const INPUT_GAMEPAD_STATE: BindingDescriptor = BindingDescriptor::ext
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.haptics.effects.
-pub(crate) const INPUT_HAPTICS_EFFECTS: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_HAPTICS_EFFECTS: BindingDescriptor = BindingDescriptor::new(
     "destack.input.haptics.effects",
     "export function hapticsEffects(handle: InputDeviceHandle): Result<InputHapticEffectType[], PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.haptics"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -7964,11 +7982,12 @@ pub(crate) const INPUT_HAPTICS_EFFECTS: BindingDescriptor = BindingDescriptor::e
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.haptics.play.
-pub(crate) const INPUT_HAPTICS_PLAY: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_HAPTICS_PLAY: BindingDescriptor = BindingDescriptor::new(
     "destack.input.haptics.play",
     "export function hapticsPlay(handle: InputDeviceHandle, effect: InputHapticEffectType, parameters: InputHapticEffectParameters): Result<InputHapticsResult, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.haptics"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -7977,25 +7996,26 @@ pub(crate) const INPUT_HAPTICS_PLAY: BindingDescriptor = BindingDescriptor::exte
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.haptics.stop.
-pub(crate) const INPUT_HAPTICS_STOP: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.input.haptics.stop",
-        "export function hapticsStop(handle: InputDeviceHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["input.haptics"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("input")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const INPUT_HAPTICS_STOP: BindingDescriptor = BindingDescriptor::new(
+    "destack.input.haptics.stop",
+    "export function hapticsStop(handle: InputDeviceHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["input.haptics"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("input")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.keyboard.layout.
-pub(crate) const INPUT_KEYBOARD_LAYOUT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_KEYBOARD_LAYOUT: BindingDescriptor = BindingDescriptor::new(
     "destack.input.keyboard.layout",
     "export function keyboardLayout(handle: InputDeviceHandle): Result<InputKeyboardLayoutInfo, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.read"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -8004,11 +8024,12 @@ pub(crate) const INPUT_KEYBOARD_LAYOUT: BindingDescriptor = BindingDescriptor::e
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.keyboard.state.
-pub(crate) const INPUT_KEYBOARD_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_KEYBOARD_STATE: BindingDescriptor = BindingDescriptor::new(
     "destack.input.keyboard.state",
     "export function keyboardState(handle: InputDeviceHandle): Result<InputKeyboardState, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.read"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -8017,11 +8038,12 @@ pub(crate) const INPUT_KEYBOARD_STATE: BindingDescriptor = BindingDescriptor::ex
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.pointer.capture.
-pub(crate) const INPUT_POINTER_CAPTURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_POINTER_CAPTURE: BindingDescriptor = BindingDescriptor::new(
     "destack.input.pointer.capture",
     "export function pointerCapture(handle: InputDeviceHandle, target: InputWindowTarget, enabled: boolean): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.grab"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -8030,11 +8052,12 @@ pub(crate) const INPUT_POINTER_CAPTURE: BindingDescriptor = BindingDescriptor::e
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.pointer.relativeState.
-pub(crate) const INPUT_POINTER_RELATIVE_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_POINTER_RELATIVE_STATE: BindingDescriptor = BindingDescriptor::new(
     "destack.input.pointer.relativeState",
     "export function pointerRelativeState(handle: InputDeviceHandle): Result<InputPointerState, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.read"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -8043,11 +8066,12 @@ pub(crate) const INPUT_POINTER_RELATIVE_STATE: BindingDescriptor = BindingDescri
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.pointer.setGrabMode.
-pub(crate) const INPUT_POINTER_SET_GRAB_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_POINTER_SET_GRAB_MODE: BindingDescriptor = BindingDescriptor::new(
     "destack.input.pointer.setGrabMode",
     "export function pointerSetGrabMode(handle: InputDeviceHandle, target: InputWindowTarget, mode: InputPointerGrabMode): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.grab"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -8056,11 +8080,12 @@ pub(crate) const INPUT_POINTER_SET_GRAB_MODE: BindingDescriptor = BindingDescrip
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.pointer.setRelativeMode.
-pub(crate) const INPUT_POINTER_SET_RELATIVE_MODE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_POINTER_SET_RELATIVE_MODE: BindingDescriptor = BindingDescriptor::new(
     "destack.input.pointer.setRelativeMode",
     "export function pointerSetRelativeMode(handle: InputDeviceHandle, enabled: boolean): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.control"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -8069,11 +8094,12 @@ pub(crate) const INPUT_POINTER_SET_RELATIVE_MODE: BindingDescriptor = BindingDes
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.pointer.state.
-pub(crate) const INPUT_POINTER_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_POINTER_STATE: BindingDescriptor = BindingDescriptor::new(
     "destack.input.pointer.state",
     "export function pointerState(handle: InputDeviceHandle): Result<InputPointerState, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.read"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -8082,11 +8108,12 @@ pub(crate) const INPUT_POINTER_STATE: BindingDescriptor = BindingDescriptor::ext
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.pointer.warp.
-pub(crate) const INPUT_POINTER_WARP: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_POINTER_WARP: BindingDescriptor = BindingDescriptor::new(
     "destack.input.pointer.warp",
     "export function pointerWarp(handle: InputDeviceHandle, target: InputWindowTarget, x: float64, y: float64): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.control"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -8095,11 +8122,12 @@ pub(crate) const INPUT_POINTER_WARP: BindingDescriptor = BindingDescriptor::exte
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.rawhid.getFeature.
-pub(crate) const INPUT_RAWHID_GET_FEATURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_RAWHID_GET_FEATURE: BindingDescriptor = BindingDescriptor::new(
     "destack.input.rawhid.getFeature",
     "export function rawHidGetFeature(handle: InputDeviceHandle, reportId: uint8, maxBytes: uint32): Result<Slice<uint8>, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.control"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -8108,11 +8136,12 @@ pub(crate) const INPUT_RAWHID_GET_FEATURE: BindingDescriptor = BindingDescriptor
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.rawhid.read.
-pub(crate) const INPUT_RAWHID_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_RAWHID_READ: BindingDescriptor = BindingDescriptor::new(
     "destack.input.rawhid.read",
     "export function rawHidRead(handle: InputDeviceHandle, maxBytes: uint32, timeoutNs: uint64): Result<InputRawHidReport, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.read"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -8121,11 +8150,12 @@ pub(crate) const INPUT_RAWHID_READ: BindingDescriptor = BindingDescriptor::exter
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.rawhid.setFeature.
-pub(crate) const INPUT_RAWHID_SET_FEATURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_RAWHID_SET_FEATURE: BindingDescriptor = BindingDescriptor::new(
     "destack.input.rawhid.setFeature",
     "export function rawHidSetFeature(handle: InputDeviceHandle, reportId: uint8, data: Slice<uint8>): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.control"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -8134,11 +8164,12 @@ pub(crate) const INPUT_RAWHID_SET_FEATURE: BindingDescriptor = BindingDescriptor
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.rawhid.tryRead.
-pub(crate) const INPUT_RAWHID_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_RAWHID_TRY_READ: BindingDescriptor = BindingDescriptor::new(
     "destack.input.rawhid.tryRead",
     "export function rawHidTryRead(handle: InputDeviceHandle, maxBytes: uint32): Result<InputRawHidReport, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.read"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -8147,11 +8178,12 @@ pub(crate) const INPUT_RAWHID_TRY_READ: BindingDescriptor = BindingDescriptor::e
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.rawhid.write.
-pub(crate) const INPUT_RAWHID_WRITE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_RAWHID_WRITE: BindingDescriptor = BindingDescriptor::new(
     "destack.input.rawhid.write",
     "export function rawHidWrite(handle: InputDeviceHandle, reportId: uint8, data: Slice<uint8>): Result<uint32, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.write"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -8160,11 +8192,12 @@ pub(crate) const INPUT_RAWHID_WRITE: BindingDescriptor = BindingDescriptor::exte
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.sensor.configure.
-pub(crate) const INPUT_SENSOR_CONFIGURE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_SENSOR_CONFIGURE: BindingDescriptor = BindingDescriptor::new(
     "destack.input.sensor.configure",
     "export function sensorConfigure(handle: InputDeviceHandle, kind: InputSensorKind, config: InputSensorConfig): Result<InputSensorEffectiveConfig, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.control"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -8173,11 +8206,12 @@ pub(crate) const INPUT_SENSOR_CONFIGURE: BindingDescriptor = BindingDescriptor::
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.sensor.list.
-pub(crate) const INPUT_SENSOR_LIST: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_SENSOR_LIST: BindingDescriptor = BindingDescriptor::new(
     "destack.input.sensor.list",
     "export function sensorList(handle: InputDeviceHandle): Result<InputSensorDescriptor[], PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.read"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -8186,11 +8220,12 @@ pub(crate) const INPUT_SENSOR_LIST: BindingDescriptor = BindingDescriptor::exter
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.sensor.read.
-pub(crate) const INPUT_SENSOR_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_SENSOR_READ: BindingDescriptor = BindingDescriptor::new(
     "destack.input.sensor.read",
     "export function sensorRead(handle: InputDeviceHandle, kind: InputSensorKind): Result<InputSensorSample, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.read"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -8199,11 +8234,12 @@ pub(crate) const INPUT_SENSOR_READ: BindingDescriptor = BindingDescriptor::exter
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.sensor.tryRead.
-pub(crate) const INPUT_SENSOR_TRY_READ: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_SENSOR_TRY_READ: BindingDescriptor = BindingDescriptor::new(
     "destack.input.sensor.tryRead",
     "export function sensorTryRead(handle: InputDeviceHandle, kind: InputSensorKind): Result<InputSensorSample, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.read"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -8212,25 +8248,26 @@ pub(crate) const INPUT_SENSOR_TRY_READ: BindingDescriptor = BindingDescriptor::e
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.text.close.
-pub(crate) const INPUT_TEXT_CLOSE: BindingDescriptor =
-    BindingDescriptor::external_with_requires_and_dispatch(
-        "destack.input.text.close",
-        "export function textClose(session: InputTextSessionHandle): Result<void, PlatformError>",
-        BindingReplayPolicy::Recordable,
-        BindingReplayKind::BindingCall,
-        &["input.text"],
-        BindingProvider::Host,
-        BindingAffinity::None,
-    )
-    .with_namespace("input")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+pub(crate) const INPUT_TEXT_CLOSE: BindingDescriptor = BindingDescriptor::new(
+    "destack.input.text.close",
+    "export function textClose(session: InputTextSessionHandle): Result<void, PlatformError>",
+    BindingEffect::ExternalRecordable,
+    BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
+    &["input.text"],
+    BindingProvider::Host,
+    BindingAffinity::None,
+)
+.with_namespace("input")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.text.getGeometry.
-pub(crate) const INPUT_TEXT_GET_GEOMETRY: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_TEXT_GET_GEOMETRY: BindingDescriptor = BindingDescriptor::new(
     "destack.input.text.getGeometry",
     "export function textGetGeometry(session: InputTextSessionHandle): Result<InputTextGeometry, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.text"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -8239,11 +8276,12 @@ pub(crate) const INPUT_TEXT_GET_GEOMETRY: BindingDescriptor = BindingDescriptor:
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.text.open.
-pub(crate) const INPUT_TEXT_OPEN: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_TEXT_OPEN: BindingDescriptor = BindingDescriptor::new(
     "destack.input.text.open",
     "export function textOpen(config: InputTextSessionConfig, state: InputTextSessionState): Result<InputTextSessionHandle, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.text"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -8252,11 +8290,12 @@ pub(crate) const INPUT_TEXT_OPEN: BindingDescriptor = BindingDescriptor::externa
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.text.readEvent.
-pub(crate) const INPUT_TEXT_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_TEXT_READ_EVENT: BindingDescriptor = BindingDescriptor::new(
     "destack.input.text.readEvent",
     "export function textReadEvent(session: InputTextSessionHandle): Result<InputTextSessionEvent, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.text"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -8265,11 +8304,12 @@ pub(crate) const INPUT_TEXT_READ_EVENT: BindingDescriptor = BindingDescriptor::e
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.text.setGeometry.
-pub(crate) const INPUT_TEXT_SET_GEOMETRY: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_TEXT_SET_GEOMETRY: BindingDescriptor = BindingDescriptor::new(
     "destack.input.text.setGeometry",
     "export function textSetGeometry(session: InputTextSessionHandle, geometry: InputTextGeometry): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.text"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -8278,11 +8318,12 @@ pub(crate) const INPUT_TEXT_SET_GEOMETRY: BindingDescriptor = BindingDescriptor:
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.text.setState.
-pub(crate) const INPUT_TEXT_SET_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_TEXT_SET_STATE: BindingDescriptor = BindingDescriptor::new(
     "destack.input.text.setState",
     "export function textSetState(session: InputTextSessionHandle, state: InputTextSessionState): Result<void, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.text"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -8291,11 +8332,12 @@ pub(crate) const INPUT_TEXT_SET_STATE: BindingDescriptor = BindingDescriptor::ex
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.text.tryReadEvent.
-pub(crate) const INPUT_TEXT_TRY_READ_EVENT: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_TEXT_TRY_READ_EVENT: BindingDescriptor = BindingDescriptor::new(
     "destack.input.text.tryReadEvent",
     "export function textTryReadEvent(session: InputTextSessionHandle): Result<InputTextSessionEvent, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.text"],
     BindingProvider::Host,
     BindingAffinity::None,
@@ -8304,17 +8346,18 @@ pub(crate) const INPUT_TEXT_TRY_READ_EVENT: BindingDescriptor = BindingDescripto
     .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Binding descriptor for destack.input.touch.state.
-pub(crate) const INPUT_TOUCH_STATE: BindingDescriptor = BindingDescriptor::external_with_requires_and_dispatch(
+pub(crate) const INPUT_TOUCH_STATE: BindingDescriptor = BindingDescriptor::new(
     "destack.input.touch.state",
     "export function touchState(handle: InputDeviceHandle): Result<InputTouchState, PlatformError>",
-    BindingReplayPolicy::Recordable,
+    BindingEffect::ExternalRecordable,
     BindingReplayKind::BindingCall,
+    BindingReplayPayload::Results,
     &["input.read"],
     BindingProvider::Host,
     BindingAffinity::None,
 )
-    .with_namespace("input")
-    .with_platforms(&["android", "ios", "linux", "macos", "windows"]);
+.with_namespace("input")
+.with_platforms(&["android", "ios", "linux", "macos", "windows"]);
 
 /// Native binding set for input.
 pub(crate) const INPUT_NATIVE_BINDINGS: NativeBindingSet = NativeBindingSet {

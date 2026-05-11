@@ -168,7 +168,7 @@ pub(super) fn register_pty_pair(
             descriptor: controller_descriptor,
         });
     let controller_id = binding.worker().resources.insert(
-        &binding.world(),
+        binding.world(),
         controller_entry,
         Some(binding.engine()),
     );
@@ -183,7 +183,7 @@ pub(super) fn register_pty_pair(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), worker_entry, Some(binding.engine()));
+            .insert(binding.world(), worker_entry, Some(binding.engine()));
 
     PtyPair {
         controller: resource::PtyHandle(controller_id),

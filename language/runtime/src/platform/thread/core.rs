@@ -200,7 +200,7 @@ pub(crate) fn insert_thread_resource<T: Send + Sync + 'static>(
     binding
         .worker()
         .resources
-        .insert(&binding.world(), entry, Some(binding.engine()))
+        .insert(binding.world(), entry, Some(binding.engine()))
 }
 
 /// Resolve one shared resource payload from the runtime table.
@@ -234,7 +234,7 @@ pub(crate) fn take_thread_resource<T: Send + Sync + 'static>(
         binding
             .worker()
             .resources
-            .remove(&binding.world(), handle, Some(binding.engine()))
+            .remove(binding.world(), handle, Some(binding.engine()))
     else {
         return Err(invalid_handle_error(field, kind));
     };

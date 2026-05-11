@@ -167,7 +167,7 @@ fn register_socket_pair(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), first_entry, Some(binding.engine()));
+            .insert(binding.world(), first_entry, Some(binding.engine()));
 
     // register the second socket
     let second_entry = ResourceEntry::new(ResourceKind::Socket)
@@ -177,7 +177,7 @@ fn register_socket_pair(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), second_entry, Some(binding.engine()));
+            .insert(binding.world(), second_entry, Some(binding.engine()));
 
     // write the pair output
     unsafe {
@@ -351,7 +351,7 @@ pub(crate) unsafe fn destack_net_uds_connect(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = SocketHandle(resource_id);
     }
@@ -424,7 +424,7 @@ pub(crate) unsafe fn destack_net_uds_listen(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = ListenerHandle(resource_id);
     }

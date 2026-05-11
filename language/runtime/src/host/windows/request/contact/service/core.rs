@@ -15,9 +15,9 @@ use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::abi_generated::{
     ContactDraftValue, ContactPageValue, ContactQueryValue, ContactValue,
 };
-use crate::runtime::process::service::executor::thread::ServiceThreadExecutor;
-use crate::runtime::process::service::registry::global_service;
-use crate::runtime::process::{ExecutionAffinity, ExecutionMode, ExecutionPolicy};
+use crate::runtime::service::executor::thread::ServiceThreadExecutor;
+use crate::runtime::service::registry::global_service;
+use crate::runtime::{ExecutionAffinity, ExecutionMode, ExecutionPolicy};
 
 /// One process-global Windows contact service.
 pub(crate) struct WindowsContactService {
@@ -27,8 +27,8 @@ pub(crate) struct WindowsContactService {
 
 impl WindowsContactService {
     /// The execution policy for the Windows contact service.
-    pub(crate) const POLICY: ExecutionPolicy =
-        ExecutionPolicy::global(ExecutionMode::Thread).with_affinity(ExecutionAffinity::WindowsMta);
+    pub(crate) const POLICY: ExecutionPolicy = ExecutionPolicy::process(ExecutionMode::Thread)
+        .with_affinity(ExecutionAffinity::WindowsMta);
 
     /// List contacts through the Windows contact store.
     pub(crate) fn list_contacts(

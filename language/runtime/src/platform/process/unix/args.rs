@@ -14,7 +14,7 @@ pub(crate) unsafe fn destack_process_args(
         return Err(RuntimeError::from(PlatformError::null_pointer("out")).boxed());
     }
     // collect argument strings into call-local storage
-    let args = binding.platform_args();
+    let args = binding.process_args();
     let mut values = Vec::with_capacity(args.len());
     for argument in args {
         values.push(binding.store_string(argument));

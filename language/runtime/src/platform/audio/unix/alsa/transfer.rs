@@ -4,7 +4,7 @@ use std::sync::Arc;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::core::codec::clamp_audio_scalar;
 use crate::platform::audio::{AudioStreamStateKind, AudioStreamStatusFlags, core as audio_core};
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, start_with_policy};
+use crate::runtime::{ExecutionMode, ExecutionPolicy, start_with_policy};
 
 use super::abi::{AlsaPcm, AlsaSignedFrames, AlsaUnsignedFrames};
 use super::core::{AlsaLibrary, AlsaStreamRuntime, recover_pcm, wait_for_pcm_ready};
@@ -18,7 +18,7 @@ pub(super) fn spawn_worker(
     start_with_policy(
         "destack-audio-alsa-transfer",
         "destack.audio.stream.open",
-        ExecutionPolicy::instance(ExecutionMode::Loop),
+        ExecutionPolicy::resource(ExecutionMode::Loop),
         move || {
             let Some(library) = alsa_library() else {
                 return;

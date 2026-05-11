@@ -49,7 +49,7 @@ pub(crate) unsafe fn destack_net_uds_connect(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = SocketHandle(resource_id);
     }
@@ -123,7 +123,7 @@ pub(crate) unsafe fn destack_net_uds_listen(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = ListenerHandle(resource_id);
     }
@@ -155,7 +155,7 @@ pub(crate) unsafe fn destack_net_uds_accept(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
     unsafe {
         *out = SocketHandle(resource_id);
     }

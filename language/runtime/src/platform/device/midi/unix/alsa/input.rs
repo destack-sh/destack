@@ -14,9 +14,8 @@ use crate::platform::device::{
     MidiPortListOptions, MidiProtocol, MidiVirtualInputCreateOptions,
 };
 use crate::platform::resource;
-use crate::runtime::BindingCallContext;
 use crate::runtime::control::queue::BoundedQueue;
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, start_with_policy};
+use crate::runtime::{BindingCallContext, ExecutionMode, ExecutionPolicy, start_with_policy};
 
 use super::abi::{POLLIN, SND_SEQ_OPEN_DUPLEX, poll, pollfd, snd_seq_event_t};
 use super::core::{
@@ -359,7 +358,7 @@ fn spawn_input_reader(
     start_with_policy(
         "destack-midi-alsa-input",
         "destack.device.midi.input.reader",
-        ExecutionPolicy::instance(ExecutionMode::Loop),
+        ExecutionPolicy::resource(ExecutionMode::Loop),
         move || {
             let raw_handle = raw_handle as *mut super::abi::snd_seq_t;
             let Some(raw_handle) = (!raw_handle.is_null()).then_some(raw_handle) else {

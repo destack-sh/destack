@@ -18,7 +18,7 @@ pub(crate) unsafe fn monitor_close(
     let removed = binding
         .worker()
         .resources
-        .remove(&binding.world(), handle.0, Some(binding.engine()))
+        .remove(binding.world(), handle.0, Some(binding.engine()))
         .is_some();
 
     // report unknown handles after resource removal

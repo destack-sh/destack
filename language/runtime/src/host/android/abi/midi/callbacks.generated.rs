@@ -4,7 +4,7 @@ use super::types::{
     AndroidHostMidiEventHeader, AndroidHostMidiInputRecordHeader, AndroidHostMidiOpenedPortHeader,
     AndroidHostMidiOutputRecordHeader, AndroidHostMidiPortDescriptorHeader,
 };
-use crate::host::android::abi::bindings::invoke_android_binding_callback;
+use crate::host::android::abi::binding::invoke_android_binding_callback;
 use crate::platform::abi::{NativeSlice, NativeStringRef};
 
 /// The host callback for `describe_backend`.

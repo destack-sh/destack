@@ -5,7 +5,7 @@ use std::sync::OnceLock;
 use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
 
-use super::bindings::IosHostBindings;
+use super::binding::IosHostBindings;
 use crate::host::{HostSessionHandle, HostSessionId, HostSessionRegistry, HostStatus, Platform};
 
 /// Shared iOS bindings registry state.

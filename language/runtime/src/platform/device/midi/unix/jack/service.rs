@@ -7,7 +7,8 @@ use parking_lot::Mutex;
 use crate::diagnostic::RuntimeResult;
 use crate::platform::core::{self as core_platform};
 use crate::platform::device::MidiEventSource;
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, Service, start_with_policy};
+use crate::runtime::service::Service;
+use crate::runtime::{ExecutionMode, ExecutionPolicy, start_with_policy};
 
 use super::core::{
     JackClientHandle, JackEndpointInfo, JackTopologyState, activate_client, jack_error,
@@ -97,7 +98,7 @@ impl Drop for JackService {
 }
 
 impl Service for JackService {
-    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
+    const POLICY: ExecutionPolicy = ExecutionPolicy::process(ExecutionMode::Inline);
 }
 
 /// Return the shared JACK MIDI service.
@@ -248,7 +249,7 @@ fn spawn_monitor_thread(
     start_with_policy(
         "destack-midi-jack-monitor",
         "destack.device.midi.jack.monitor.spawn",
-        ExecutionPolicy::global(ExecutionMode::Loop),
+        ExecutionPolicy::process(ExecutionMode::Loop),
         move || {
             loop {
                 // wait for the next callback or teardown request

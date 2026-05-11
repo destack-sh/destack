@@ -10,7 +10,8 @@ use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::notification::runtime;
 use crate::platform::os::notification::storage::read_notification_record;
 use crate::platform::os::notification::wrapper::DESKTOP_NOTIFICATION_IDENTIFIER_ENV;
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, Service};
+use crate::runtime::service::Service;
+use crate::runtime::{ExecutionMode, ExecutionPolicy};
 
 use super::schedule::{cancel_scheduled_notification, notification_trigger_repeats};
 
@@ -53,7 +54,7 @@ impl LinuxNotificationLaunchService {
 }
 
 impl Service for LinuxNotificationLaunchService {
-    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
+    const POLICY: ExecutionPolicy = ExecutionPolicy::process(ExecutionMode::Inline);
 }
 
 /// Remove Linux notification backend state for one runtime.

@@ -478,7 +478,7 @@ pub(crate) fn try_open_test_serial(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     Ok(Some(resource::SerialPortHandle(resource_id)))
 }
@@ -513,7 +513,7 @@ pub(crate) fn close_test_serial_resource(
     }
 
     if !binding.worker().resources.remove_and_finalize(
-        &binding.world(),
+        binding.world(),
         handle.0,
         Some(binding.engine()),
     ) {

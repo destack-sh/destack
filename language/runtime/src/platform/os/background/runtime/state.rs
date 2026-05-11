@@ -6,7 +6,8 @@ use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
 
 use crate::host::HostSessionId;
-use crate::runtime::process::{ExecutionMode, ExecutionPolicy, Service};
+use crate::runtime::service::Service;
+use crate::runtime::{ExecutionMode, ExecutionPolicy};
 
 use super::launch::desktop_background_registry_launch_marker_state;
 
@@ -112,7 +113,7 @@ impl DesktopBackgroundRuntimeService {
 }
 
 impl Service for DesktopBackgroundRuntimeService {
-    const POLICY: ExecutionPolicy = ExecutionPolicy::global(ExecutionMode::Inline);
+    const POLICY: ExecutionPolicy = ExecutionPolicy::process(ExecutionMode::Inline);
 }
 
 /// Run one callback with external background scheduler side effects disabled.

@@ -537,7 +537,7 @@ pub(crate) fn certificate_delete(
         binding
             .worker()
             .resources
-            .remove(&binding.world(), handle.0, Some(binding.engine()))
+            .remove(binding.world(), handle.0, Some(binding.engine()))
     else {
         return Err(core_platform::io_not_found(
             "destack.crypto.certificate.delete",

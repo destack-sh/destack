@@ -121,7 +121,7 @@ pub(crate) unsafe fn window_open(
         context
             .worker()
             .resources
-            .insert(&context.world(), entry, Some(context.engine()));
+            .insert(context.world(), entry, Some(context.engine()));
     let window_handle = resource::WindowHandle(resource_id);
     let runtime_state = appkit::core::runtime_state(context);
     let host_state_for_delegate = Arc::clone(&host_state);

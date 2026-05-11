@@ -31,24 +31,20 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
         let mut binding_imports = vec![
             "BindingAffinity",
             "BindingDescriptor",
+            "BindingEffect",
+            "BindingReplayKind",
+            "BindingReplayPayload",
             "BindingRegistry",
             "NativeBinding",
             "NativeBindingSet",
             "BindingProvider",
             "native_call",
         ];
-        if usage.uses_replay_policy {
-            binding_imports.push("BindingReplayKind");
-            binding_imports.push("BindingReplayPolicy");
-        }
-        if usage.uses_replay_payload_type {
-            binding_imports.push("BindingReplayPayload");
-        }
         if usage.uses_world_dispatch {
             binding_imports.push("RuntimeWorld");
         }
         self.output.push_str(&format!(
-            "use crate::runtime::bindings::{{{}}};\n",
+            "use crate::runtime::binding::{{{}}};\n",
             binding_imports.join(", ")
         ));
         if usage.uses_entropy_replay_kind {

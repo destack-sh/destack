@@ -36,8 +36,7 @@ pub(crate) use crate::platform::os::{
 pub(crate) use crate::platform::resource::{self, ResourceEntry, ResourceKind};
 pub(crate) use crate::platform::{PlatformError, fs};
 pub(crate) use crate::runtime::action::HostAction;
-pub(crate) use crate::runtime::process::RuntimeScheduledCallbackHandle;
-pub(crate) use crate::runtime::{BindingCallContext, RuntimeEventQueue};
+pub(crate) use crate::runtime::{BindingCallContext, RuntimeEventQueue, WorkerCallbackHandle};
 pub(crate) use destack_core::{Capture, CaptureMode};
 pub(crate) use parking_lot::{Mutex, RwLock};
 

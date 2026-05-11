@@ -13,10 +13,8 @@ use crate::diagnostic::RuntimeResult;
 use crate::platform::audio::core as audio_core;
 use crate::platform::audio::core::monitor::AudioMonitorHandle;
 use crate::platform::core as core_platform;
-use crate::runtime::process::service::executor::thread::ServiceThreadExecutor;
-use crate::runtime::process::{
-    ExecutionAffinity, ExecutionMode, ExecutionPolicy, spawn_service_thread,
-};
+use crate::runtime::service::executor::thread::ServiceThreadExecutor;
+use crate::runtime::{ExecutionAffinity, ExecutionMode, ExecutionPolicy, spawn_service_thread};
 
 use crate::platform::audio as audio_types;
 use windows_sys::Win32::Media::Audio::{EDataFlow, ERole, IMMDeviceEnumerator};
@@ -63,7 +61,8 @@ impl AudioMonitorHandle for WasapiDeviceMonitor {
 pub(crate) fn start_native_device_event_monitor() -> RuntimeResult<Box<dyn AudioMonitorHandle>> {
     let executor = spawn_service_thread(
         "destack-audio-wasapi-monitor",
-        ExecutionPolicy::global(ExecutionMode::Thread).with_affinity(ExecutionAffinity::WindowsMta),
+        ExecutionPolicy::process(ExecutionMode::Thread)
+            .with_affinity(ExecutionAffinity::WindowsMta),
         build_monitor_state,
     )?;
 

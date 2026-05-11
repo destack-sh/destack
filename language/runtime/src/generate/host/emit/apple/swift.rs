@@ -1483,7 +1483,7 @@ fn render_swift_request_handler(output: &mut String, module: &HostModule, reques
     push_swift_doc_comment(
         output,
         &format!(
-            "Handle one runtime callback asking to {}.",
+            "Handle one worker callback asking to {}.",
             request
                 .documentation()
                 .trim()

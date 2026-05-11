@@ -4,7 +4,7 @@
 
 use crate::host::HostSessionHandle;
 use crate::host::android::abi::background::callbacks::AndroidHostBackgroundCallbacks;
-use crate::host::android::abi::bindings::AndroidHostBindings;
+use crate::host::android::abi::binding::AndroidHostBindings;
 use crate::host::android::abi::calendar::callbacks::AndroidHostCalendarCallbacks;
 use crate::host::android::abi::contact::callbacks::AndroidHostContactCallbacks;
 use crate::host::android::abi::document::callbacks::AndroidHostDocumentCallbacks;

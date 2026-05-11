@@ -135,7 +135,7 @@ pub(crate) unsafe fn destack_device_bluetooth_scan_open(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     out.write(resource::BluetoothScanHandle(resource_id));
 

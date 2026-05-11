@@ -489,7 +489,7 @@ pub(crate) unsafe fn destack_device_usb_watch_open(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     unsafe {
         out.write(resource::UsbWatchHandle(resource_id));
@@ -518,7 +518,7 @@ pub(crate) unsafe fn destack_device_usb_watch_close(
     }
 
     if !binding.worker().resources.remove_and_finalize(
-        &binding.world(),
+        binding.world(),
         handle.0,
         Some(binding.engine()),
     ) {
@@ -639,7 +639,7 @@ pub(crate) unsafe fn destack_device_usb_open(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     unsafe {
         out.write(resource::UsbDeviceHandle(resource_id));

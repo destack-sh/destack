@@ -1166,7 +1166,7 @@ pub(crate) fn store_close(
         binding
             .worker()
             .resources
-            .remove(&binding.world(), handle.0, Some(binding.engine()))
+            .remove(binding.world(), handle.0, Some(binding.engine()))
     else {
         return Err(handle_not_found(
             "destack.crypto.store.close",
@@ -1478,7 +1478,7 @@ fn insert_store_resource(
         binding
             .worker()
             .resources
-            .insert(&binding.world(), entry, Some(binding.engine()));
+            .insert(binding.world(), entry, Some(binding.engine()));
 
     resource::CryptoStoreHandle(resource_id)
 }
