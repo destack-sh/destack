@@ -13,7 +13,7 @@ use crate::platform::os::document::{
     DOCUMENT_PICK_OPERATION, document_descriptor_value_from_path, validate_document_pick_options,
     validated_document_extensions,
 };
-use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
+use crate::runtime::action::{HostAction, HostActionSet};
 
 /// The desktop portal bus name.
 const DESKTOP_PORTAL_BUS_NAME: &str = "org.freedesktop.portal.Desktop";
@@ -38,18 +38,18 @@ const PORTAL_FILTER_PATTERN: u32 = 0;
 /// The portal file-filter kind for MIME types.
 const PORTAL_FILTER_MIME_TYPE: u32 = 1;
 
-/// Return dynamic Unix document request capabilities.
-pub(crate) fn request_capabilities() -> PlatformCapabilitySet {
-    let mut capabilities = PlatformCapabilitySet::new();
+/// Return dynamic Unix document request actions.
+pub(crate) fn request_actions() -> HostActionSet {
+    let mut actions = HostActionSet::new();
 
     // expose desktop document picking only when the portal file chooser is reachable
     if desktop_portal_file_chooser_is_available() {
-        capabilities.insert_capability(PlatformCapability::OsDocumentPick);
-        capabilities.insert_capability(PlatformCapability::OsDocumentControl);
-        capabilities.insert_capability(PlatformCapability::OsDocumentWrite);
+        actions.insert_action(HostAction::OsDocumentPick);
+        actions.insert_action(HostAction::OsDocumentControl);
+        actions.insert_action(HostAction::OsDocumentWrite);
     }
 
-    capabilities
+    actions
 }
 
 /// Submit one Unix desktop document request through the active backend.

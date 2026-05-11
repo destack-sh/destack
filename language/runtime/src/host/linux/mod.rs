@@ -1,6 +1,8 @@
 #[cfg(any(test, target_os = "linux"))]
 pub(crate) mod abi;
 #[cfg(target_os = "linux")]
+mod action;
+#[cfg(target_os = "linux")]
 mod adapter;
 #[cfg(any(test, target_os = "linux"))]
 pub(crate) mod ingress;

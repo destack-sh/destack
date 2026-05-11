@@ -15,4 +15,4 @@ mod media;
 #[cfg(all(unix, not(target_vendor = "apple")))]
 pub(crate) mod notification;
 
-pub(crate) use dispatch::{request_capabilities, submit_request};
+pub(crate) use dispatch::{request_actions, submit_request};

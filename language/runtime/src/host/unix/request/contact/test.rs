@@ -1,14 +1,11 @@
 use crate::diagnostic::RuntimeResult;
 use crate::host::os::linux::submit_test_contact_request;
 use crate::host::{HostRequest, HostRequestOutcome, RequestContext};
-use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
+use crate::runtime::action::{HostAction, HostActionSet};
 
-/// Return dynamic Unix contact capabilities for Linux tests.
-pub(crate) fn request_capabilities() -> PlatformCapabilitySet {
-    PlatformCapabilitySet::from_capabilities([
-        PlatformCapability::OsContactRead,
-        PlatformCapability::OsContactWrite,
-    ])
+/// Return dynamic Unix contact actions for Linux tests.
+pub(crate) fn request_actions() -> HostActionSet {
+    HostActionSet::from_actions([HostAction::OsContactRead, HostAction::OsContactWrite])
 }
 
 /// Submit one Linux contact request through the active test lane.

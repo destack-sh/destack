@@ -1,4 +1,4 @@
-mod capability;
+mod action;
 #[cfg(all(not(test), target_os = "linux"))]
 mod linux;
 #[cfg(all(test, target_os = "linux"))]
@@ -19,4 +19,4 @@ pub(crate) use test::submit_calendar_request;
 ))]
 pub(crate) use unsupported::submit_calendar_request;
 
-pub(crate) use capability::{desktop_capabilities, request_capabilities};
+pub(crate) use action::{desktop_actions, request_actions};

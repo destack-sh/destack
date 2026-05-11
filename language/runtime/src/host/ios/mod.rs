@@ -1,7 +1,7 @@
 #[cfg(target_os = "ios")]
-mod adapter;
+mod action;
 #[cfg(target_os = "ios")]
-mod capability;
+mod adapter;
 #[cfg(target_os = "ios")]
 pub(crate) mod request;
 #[cfg(all(test, target_os = "ios"))]

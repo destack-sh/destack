@@ -16,7 +16,7 @@ use crate::host::core::request::{
 use crate::host::core::target::{default_compile_target_parts, host_options_for_target};
 use crate::host::operation::HostOperation;
 use crate::host::policy::require_declared_request;
-use crate::runtime::capability::{PlatformCapability, PlatformCapabilityId, PlatformCapabilitySet};
+use crate::runtime::action::{HostAction, HostActionId, HostActionSet};
 use crate::runtime::poller::PollerWakeHandle;
 use crate::runtime::world::RuntimeId;
 
@@ -37,8 +37,8 @@ pub struct Session {
     /// Session-scoped request id allocator for outbound host requests.
     next_host_request_id: AtomicU64,
 
-    /// Static host capability set reported by the host adapter.
-    adapter_capabilities: PlatformCapabilitySet,
+    /// Static host action set reported by the host adapter.
+    adapter_actions: HostActionSet,
     /// Resolved host integration options for this runtime target.
     host_options: PlatformHostOptions,
     /// Resolved OS runtime options for host-backed services.
@@ -57,11 +57,8 @@ impl std::fmt::Debug for Session {
                 "registration_runtime_id",
                 &self.registration_guard.host_session_id(),
             )
-            .field("adapter_capability_count", &self.adapter_capabilities.len())
-            .field(
-                "session_capability_count",
-                &self.session_capabilities().len(),
-            )
+            .field("adapter_action_count", &self.adapter_actions.len())
+            .field("session_action_count", &self.session_actions().len())
             .field(
                 "event_queue_capacity",
                 &self.host_options.event_queue_capacity,
@@ -133,7 +130,7 @@ impl Session {
             .and_then(|capacity| usize::try_from(capacity).ok());
         queue.configure_capacity(queue_capacity);
 
-        let adapter_capabilities = adapter.static_capabilities();
+        let adapter_actions = adapter.static_actions();
         Self {
             adapter,
             queue,
@@ -142,7 +139,7 @@ impl Session {
             host_session_id,
             is_native_ingress_enabled,
             next_host_request_id: AtomicU64::new(1),
-            adapter_capabilities,
+            adapter_actions,
             host_options,
             os_options,
             app_declaration,
@@ -215,32 +212,31 @@ impl Session {
         self.adapter.platform()
     }
 
-    /// Return effective host capabilities reported by the host adapter and session wiring.
-    pub fn host_capabilities(&self) -> PlatformCapabilitySet {
-        let session_capabilities = self.session_capabilities();
+    /// Return effective host actions reported by the host adapter and session wiring.
+    pub fn host_actions(&self) -> HostActionSet {
+        let session_actions = self.session_actions();
 
-        merge_capabilities(self.adapter_capabilities.clone(), session_capabilities)
+        merge_actions(self.adapter_actions.clone(), session_actions)
     }
 
-    /// Return the static host capabilities reported by this host adapter.
-    pub fn adapter_capabilities(&self) -> &PlatformCapabilitySet {
-        &self.adapter_capabilities
+    /// Return the static host actions reported by this host adapter.
+    pub fn adapter_actions(&self) -> &HostActionSet {
+        &self.adapter_actions
     }
 
-    /// Return the dynamic session capabilities reported by the active host adapter.
-    pub fn session_capabilities(&self) -> PlatformCapabilitySet {
-        self.adapter.session_capabilities(self.host_session_id)
+    /// Return the dynamic session actions reported by the active host adapter.
+    pub fn session_actions(&self) -> HostActionSet {
+        self.adapter.session_actions(self.host_session_id)
     }
 
-    /// Return whether the host adapter and session wiring report one host capability id.
-    pub fn has_host_capability_id(&self, capability_id: PlatformCapabilityId) -> bool {
-        self.adapter_capabilities.contains_id(capability_id)
-            || self.session_capabilities().contains_id(capability_id)
+    /// Return whether the host adapter and session wiring report one host action id.
+    pub fn has_host_action_id(&self, action_id: HostActionId) -> bool {
+        self.adapter_actions.contains_id(action_id) || self.session_actions().contains_id(action_id)
     }
 
-    /// Return whether shell and session wiring report one host capability.
-    pub fn has_host_capability(&self, capability: PlatformCapability) -> bool {
-        self.has_host_capability_id(capability.id())
+    /// Return whether the host adapter and session wiring report one host action.
+    pub fn has_host_action(&self, action: HostAction) -> bool {
+        self.has_host_action_id(action.id())
     }
 
     /// Submit one normalized runtime-owned host request through the active session.
@@ -359,15 +355,12 @@ impl Session {
     }
 }
 
-/// Merge one static and one dynamic capability set into one effective set.
-fn merge_capabilities(
-    static_capabilities: PlatformCapabilitySet,
-    dynamic_capabilities: PlatformCapabilitySet,
-) -> PlatformCapabilitySet {
-    let mut merged = static_capabilities;
+/// Merge one static and one dynamic action set into one effective set.
+fn merge_actions(static_actions: HostActionSet, dynamic_actions: HostActionSet) -> HostActionSet {
+    let mut merged = static_actions;
 
-    for capability_id in dynamic_capabilities.iter() {
-        merged.insert_id(*capability_id);
+    for action_id in dynamic_actions.iter() {
+        merged.insert_id(*action_id);
     }
 
     merged
@@ -389,7 +382,7 @@ mod tests {
     use crate::host::{HostRequestResult, HostSessionId};
     use crate::platform::os::abi_generated::DocumentPickOptionsValue;
     use crate::platform::os::{NotificationPermissionState, Permission, PermissionState};
-    use crate::runtime::capability::PlatformCapabilitySet;
+    use crate::runtime::action::HostActionSet;
 
     /// Test host adapter that records request submissions.
     #[derive(Debug)]
@@ -406,14 +399,14 @@ mod tests {
             self.platform
         }
 
-        /// Return one empty static capability set for focused request tests.
-        fn static_capabilities(&self) -> PlatformCapabilitySet {
-            PlatformCapabilitySet::new()
+        /// Return one empty static action set for focused request tests.
+        fn static_actions(&self) -> HostActionSet {
+            HostActionSet::new()
         }
 
-        /// Return one empty session capability set for focused request tests.
-        fn session_capabilities(&self, _runtime_id: HostSessionId) -> PlatformCapabilitySet {
-            PlatformCapabilitySet::new()
+        /// Return one empty session action set for focused request tests.
+        fn session_actions(&self, _runtime_id: HostSessionId) -> HostActionSet {
+            HostActionSet::new()
         }
 
         /// Submit one request and return one deterministic test payload.

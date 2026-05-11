@@ -1,15 +1,15 @@
 use crate::host::HostAdapter;
 use crate::host::os::windows::WindowsHost;
-use crate::runtime::capability::PlatformCapability;
+use crate::runtime::action::HostAction;
 
-/// Report the static Windows host capabilities.
+/// Report the static Windows host actions.
 #[test]
-fn test_windows_host_reports_static_capabilities() {
+fn test_windows_host_reports_static_actions() {
     let host = WindowsHost::new();
-    let capabilities = host.static_capabilities();
+    let actions = host.static_actions();
 
-    assert!(capabilities.contains_capability(PlatformCapability::OsLifecycleRead));
-    assert!(capabilities.contains_capability(PlatformCapability::OsIntentRead));
-    assert!(capabilities.contains_capability(PlatformCapability::OsPower));
-    assert!(capabilities.contains_capability(PlatformCapability::OsPermissionRead));
+    assert!(actions.contains_action(HostAction::OsLifecycleRead));
+    assert!(actions.contains_action(HostAction::OsIntentRead));
+    assert!(actions.contains_action(HostAction::OsPower));
+    assert!(actions.contains_action(HostAction::OsPermissionRead));
 }

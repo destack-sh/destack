@@ -10,7 +10,7 @@ const NOTIFICATION_BUS_NAME: &str = "org.freedesktop.Notifications";
 const NOTIFICATION_OBJECT_PATH: &str = "/org/freedesktop/Notifications";
 /// The freedesktop notification interface name.
 const NOTIFICATION_INTERFACE: &str = "org.freedesktop.Notifications";
-/// The freedesktop actions capability name.
+/// The freedesktop actions action name.
 const NOTIFICATION_CAPABILITY_ACTIONS: &str = "actions";
 
 /// Return whether one freedesktop notification host is reachable on the session bus.
@@ -20,11 +20,11 @@ pub(super) fn unix_notification_server_available() -> bool {
 
 /// Return whether the active notification server supports freedesktop actions.
 pub(super) fn unix_notification_supports_actions() -> RuntimeResult<bool> {
-    let capabilities = unix_notification_capabilities()?;
+    let actions = unix_notification_capabilities()?;
 
-    Ok(capabilities
+    Ok(actions
         .iter()
-        .any(|capability| capability == NOTIFICATION_CAPABILITY_ACTIONS))
+        .any(|action| action == NOTIFICATION_CAPABILITY_ACTIONS))
 }
 
 /// Close one freedesktop notification by server identifier.
@@ -68,7 +68,7 @@ pub(super) fn close_notification(server_id: u32) -> RuntimeResult<()> {
     Ok(())
 }
 
-/// Return notification server capabilities from the freedesktop host.
+/// Return notification server actions from the freedesktop host.
 fn unix_notification_capabilities() -> RuntimeResult<Vec<String>> {
     let connection = Connection::session().map_err(|error| {
         RuntimeError::from(PlatformError::generic(
@@ -90,15 +90,13 @@ fn unix_notification_capabilities() -> RuntimeResult<Vec<String>> {
         ))
         .boxed()
     })?;
-    let capabilities = proxy.call("GetCapabilities", &()).map_err(|error| {
+    let actions = proxy.call("GetCapabilities", &()).map_err(|error| {
         RuntimeError::from(PlatformError::generic(
             Some(PlatformErrorCode::Generic),
-            format!(
-                "destack.os.notification could not query Unix notification capabilities: {error}"
-            ),
+            format!("destack.os.notification could not query Unix notification actions: {error}"),
         ))
         .boxed()
     })?;
 
-    Ok(capabilities)
+    Ok(actions)
 }

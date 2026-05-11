@@ -79,7 +79,7 @@ pub(crate) fn default_compile_target_parts() -> (Platform, Arc<dyn HostAdapter>,
         target_os = "macos",
         windows,
     )))]
-    return (Platform::Universal, Arc::new(UnsupportedHost::new()), None);
+    return (Platform::Unknown, Arc::new(UnsupportedHost::new()), None);
 }
 
 /// Return host event queue options for one compile target platform.

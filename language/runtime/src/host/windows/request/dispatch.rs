@@ -2,32 +2,32 @@ use crate::diagnostic::RuntimeResult;
 use crate::host::{HostRequest, HostRequestOutcome, HostRequestResult, RequestContext};
 use crate::platform::core::not_supported;
 use crate::platform::os::PermissionEntry;
-use crate::runtime::capability::{PlatformCapability, PlatformCapabilitySet};
+use crate::runtime::action::{HostAction, HostActionSet};
 
-/// Return dynamic Windows request capabilities.
-pub(crate) fn request_capabilities() -> PlatformCapabilitySet {
-    let mut capabilities = PlatformCapabilitySet::from_capabilities([
-        PlatformCapability::OsBackgroundControl,
-        PlatformCapability::OsBackgroundRead,
-        PlatformCapability::OsCalendarRead,
-        PlatformCapability::OsCalendarWrite,
-        PlatformCapability::OsContactRead,
-        PlatformCapability::OsContactWrite,
-        PlatformCapability::OsDocumentControl,
-        PlatformCapability::OsDocumentPick,
-        PlatformCapability::OsDocumentWrite,
-        PlatformCapability::OsIntentWrite,
-        PlatformCapability::OsLocationRead,
-        PlatformCapability::OsLocationWatch,
-        PlatformCapability::OsMediaRead,
-        PlatformCapability::OsMediaWrite,
+/// Return dynamic Windows request actions.
+pub(crate) fn request_actions() -> HostActionSet {
+    let mut actions = HostActionSet::from_actions([
+        HostAction::OsBackgroundControl,
+        HostAction::OsBackgroundRead,
+        HostAction::OsCalendarRead,
+        HostAction::OsCalendarWrite,
+        HostAction::OsContactRead,
+        HostAction::OsContactWrite,
+        HostAction::OsDocumentControl,
+        HostAction::OsDocumentPick,
+        HostAction::OsDocumentWrite,
+        HostAction::OsIntentWrite,
+        HostAction::OsLocationRead,
+        HostAction::OsLocationWatch,
+        HostAction::OsMediaRead,
+        HostAction::OsMediaWrite,
     ]);
-    capabilities.extend_capabilities([
-        PlatformCapability::OsNotificationPermission,
-        PlatformCapability::OsNotificationPost,
+    actions.extend_actions([
+        HostAction::OsNotificationPermission,
+        HostAction::OsNotificationPost,
     ]);
 
-    capabilities
+    actions
 }
 
 /// Submit one normalized Windows host request.
@@ -67,7 +67,7 @@ pub(crate) fn submit_request(
         return Ok(outcome);
     }
 
-    // otherwise handle Windows-specific request lanes
+    // otherwise handle Windows-specific requests
     match request {
         HostRequest::OsIntentCanOpenUrl { url } => Ok(HostRequestOutcome::immediate(
             HostRequestResult::Bool(super::intent::windows_can_open_url(&url)?),

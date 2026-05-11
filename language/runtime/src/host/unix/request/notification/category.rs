@@ -3,7 +3,7 @@ use crate::host::core::error::not_supported;
 use crate::platform::os::NotificationActionStyle;
 use crate::platform::os::abi_generated::{NotificationActionValue, NotificationCategoryValue};
 
-use super::capability::unix_notification_supports_actions;
+use super::action::unix_notification_supports_actions;
 
 /// Validate Unix notification categories against the supported freedesktop action model.
 pub(super) fn set_categories(categories: &[NotificationCategoryValue]) -> RuntimeResult<()> {
