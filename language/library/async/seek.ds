@@ -1,0 +1,9 @@
+import { type AsyncResult } from "destack:error";
+import { type IoError } from "destack:error";
+import { type SeekFrom } from "destack:sync";
+
+/// Asynchronous seekable byte stream.
+export interface AsyncSeeker {
+    /// Seek to a new stream position.
+    seek(from: SeekFrom): AsyncResult<uint64, IoError>;
+}

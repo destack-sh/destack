@@ -1,0 +1,49 @@
+import { todo } from "destack:error";
+import { type Dispose } from "destack:memory";
+import { type Dereference } from "destack:ops";
+import { type Atomic } from "./atomic.ds";
+
+/// Mutual exclusion lock.
+export class Mutex<T> {
+    /// The lock state.
+    state: Atomic<uint32>;
+
+    /// The protected value.
+    value: T;
+
+    /// Create a mutex protecting `value`.
+    constructor(value: T) {
+        this.value = value
+    }
+
+    /// Lock this mutex, blocking the current worker.
+    lock(): MutexGuard<T> {
+        todo("Mutex.lock")
+    }
+
+    /// Try to lock this mutex without blocking.
+    tryLock(): MutexGuard<T> | undefined {
+        todo("Mutex.tryLock")
+    }
+}
+
+/// Active mutex lock guard.
+export struct MutexGuard<T> {
+    /// The locked mutex.
+    mutex: *Mutex<T>;
+}
+
+extension<T> of MutexGuard<T> implements Dispose, Dereference<"exclusive"> {
+    /// The projected result form.
+    type Output = &exclusive T;
+
+    /// Unlock this guard.
+    dispose(): void {
+        todo("MutexGuard.dispose")
+    }
+
+    /// Borrow the protected value.
+    dereference(): this.Output {
+        todo("MutexGuard.dereference")
+    }
+}

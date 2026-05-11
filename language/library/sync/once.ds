@@ -1,0 +1,49 @@
+import { todo } from "destack:error";
+import { type Result } from "destack:error";
+import { type MaybeUninit } from "destack:memory";
+import { type Atomic } from "./atomic.ds";
+
+/// One-time execution state.
+export class Once {
+    /// The execution state.
+    state: Atomic<uint32>;
+
+    /// Run `body` once.
+    call(body: () => void): void {
+        todo("Once.call")
+    }
+
+    /// Return true after the body has completed.
+    isCompleted(): boolean {
+        todo("Once.isCompleted")
+    }
+}
+
+/// One-time initialized cell.
+export class OnceCell<T> {
+    /// The initialization state.
+    state: Atomic<uint32>;
+
+    /// The stored value.
+    value: MaybeUninit<T>;
+
+    /// Get the initialized value.
+    get(): &readonly T | undefined {
+        todo("OnceCell.get")
+    }
+
+    /// Set the value once.
+    set(value: ^T): Result<void, ^T> {
+        todo("OnceCell.set")
+    }
+
+    /// Get the value or initialize it.
+    getOrInit(init: () => T): &readonly T {
+        todo("OnceCell.getOrInit")
+    }
+
+    /// Move the value out when initialized.
+    take(this: &exclusive OnceCell<T>): T | undefined {
+        todo("OnceCell.take")
+    }
+}

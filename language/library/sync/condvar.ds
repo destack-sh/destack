@@ -1,0 +1,23 @@
+import { todo } from "destack:error";
+import { type MutexGuard } from "./mutex.ds";
+
+/// Condition variable paired with a mutex.
+export class Condvar {
+    /// Create a condition variable.
+    constructor() {}
+
+    /// Wait and reacquire the mutex before returning.
+    wait<T>(guard: ^MutexGuard<T>): MutexGuard<T> {
+        todo("Condvar.wait")
+    }
+
+    /// Wake one waiting worker.
+    notifyOne(): void {
+        todo("Condvar.notifyOne")
+    }
+
+    /// Wake all waiting workers.
+    notifyAll(): void {
+        todo("Condvar.notifyAll")
+    }
+}

@@ -1,0 +1,46 @@
+import { todo } from "destack:error";
+import { type Dispose } from "destack:memory";
+import { type Dereference } from "destack:ops";
+import { type Promise } from "./promise.ds";
+
+/// Asynchronous mutual exclusion lock.
+export class AsyncMutex<T> {
+    /// The protected value.
+    value: T;
+
+    /// Create an async mutex protecting `value`.
+    constructor(value: T) {
+        this.value = value
+    }
+
+    /// Lock this mutex by suspending the current task.
+    lock(): Promise<AsyncMutexGuard<T>> {
+        todo("AsyncMutex.lock")
+    }
+
+    /// Try to lock this mutex without suspending.
+    tryLock(): AsyncMutexGuard<T> | undefined {
+        todo("AsyncMutex.tryLock")
+    }
+}
+
+/// Active async mutex guard.
+export struct AsyncMutexGuard<T> {
+    /// The locked mutex.
+    mutex: *AsyncMutex<T>;
+}
+
+extension<T> of AsyncMutexGuard<T> implements Dispose, Dereference<"exclusive"> {
+    /// The projected result form.
+    type Output = &exclusive T;
+
+    /// Unlock this guard.
+    dispose(): void {
+        todo("AsyncMutexGuard.dispose")
+    }
+
+    /// Borrow the protected value.
+    dereference(): this.Output {
+        todo("AsyncMutexGuard.dereference")
+    }
+}

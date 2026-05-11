@@ -1,0 +1,31 @@
+import { todo } from "destack:error";
+import { type Send } from "destack:memory";
+import {
+    type AsyncReceiver,
+    type AsyncSender,
+    type ChannelOptions,
+    type Receiver,
+    type Sender,
+} from "./channel.ds";
+
+/// Create a local blocking multi-producer multi-consumer channel.
+export function channel<T>(options?: ChannelOptions): (Sender<T>, Receiver<T>) {
+    todo("mpmc.channel")
+}
+
+/// Create a shared blocking multi-producer multi-consumer channel.
+export function sharedChannel<T: Send>(options?: ChannelOptions): (Sender<T>, Receiver<T>) {
+    todo("mpmc.sharedChannel")
+}
+
+/// Create a local suspending multi-producer multi-consumer channel.
+export function asyncChannel<T>(options?: ChannelOptions): (AsyncSender<T>, AsyncReceiver<T>) {
+    todo("mpmc.async")
+}
+
+/// Create a shared suspending multi-producer multi-consumer channel.
+export function sharedAsyncChannel<T: Send>(
+    options?: ChannelOptions,
+): (AsyncSender<T>, AsyncReceiver<T>) {
+    todo("mpmc.sharedAsyncChannel")
+}

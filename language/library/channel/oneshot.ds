@@ -1,0 +1,23 @@
+import { todo } from "destack:error";
+import { type Send } from "destack:memory";
+import { type AsyncReceiver, type AsyncSender, type Receiver, type Sender } from "./channel.ds";
+
+/// Create a local blocking one-shot channel.
+export function channel<T>(): (Sender<T>, Receiver<T>) {
+    todo("oneshot.channel")
+}
+
+/// Create a shared blocking one-shot channel.
+export function sharedChannel<T: Send>(): (Sender<T>, Receiver<T>) {
+    todo("oneshot.sharedChannel")
+}
+
+/// Create a local suspending one-shot channel.
+export function asyncChannel<T>(): (AsyncSender<T>, AsyncReceiver<T>) {
+    todo("oneshot.async")
+}
+
+/// Create a shared suspending one-shot channel.
+export function sharedAsyncChannel<T: Send>(): (AsyncSender<T>, AsyncReceiver<T>) {
+    todo("oneshot.sharedAsyncChannel")
+}

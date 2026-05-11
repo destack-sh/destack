@@ -1,0 +1,8 @@
+import { type AsyncResult } from "destack:error";
+import { type IoError } from "destack:error";
+
+/// Asynchronous byte reader.
+export interface AsyncReader {
+    /// Read bytes into `buffer`.
+    read(buffer: &exclusive [uint8]): AsyncResult<usize, IoError>;
+}

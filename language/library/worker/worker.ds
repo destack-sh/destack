@@ -1,0 +1,66 @@
+import { type Promise } from "destack:async";
+import { todo } from "destack:error";
+import { type AsyncResult } from "destack:error";
+import { type Send } from "destack:memory";
+
+/// Worker spawn options.
+export interface WorkerOptions {
+    /// Human-readable worker name.
+    name?: string;
+
+    /// Initial stack size in bytes.
+    stackSize?: usize;
+}
+
+/// Entry function for a worker.
+export type WorkerEntry<T, R> = (message: T) => R | Promise<R>;
+
+/// Isolated worker.
+export class Worker<T, R> {
+    /// The worker id.
+    id: uint64;
+
+    /// Send one message and wait for a reply.
+    request(message: T): AsyncResult<R, unknown> {
+        todo("Worker.request")
+    }
+
+    /// Send one message without waiting for a reply.
+    post(message: T): void {
+        todo("Worker.post")
+    }
+
+    /// Request worker shutdown.
+    terminate(): Promise<void> {
+        todo("Worker.terminate")
+    }
+}
+
+/// Pool of homogeneous workers.
+export class WorkerPool<T, R> {
+    /// The workers in this pool.
+    workers: Worker<T, R>[];
+
+    /// Send one request to an available worker.
+    request(message: T): AsyncResult<R, unknown> {
+        todo("WorkerPool.request")
+    }
+
+    /// Request shutdown for every worker.
+    terminate(): Promise<void> {
+        todo("WorkerPool.terminate")
+    }
+}
+
+/// Spawn one worker.
+export function spawn<T: Send, R: Send>(
+    entry: WorkerEntry<T, R>,
+    options?: WorkerOptions,
+): Worker<T, R> {
+    todo("worker.spawn")
+}
+
+/// Return the current worker id.
+export function current(): uint64 {
+    todo("worker.current")
+}

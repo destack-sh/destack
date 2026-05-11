@@ -1,0 +1,80 @@
+import { todo } from "destack:error";
+import { type Dispose } from "destack:memory";
+import { type Dereference } from "destack:ops";
+import { type Atomic } from "./atomic.ds";
+
+/// Reader-writer lock.
+export class RwLock<T> {
+    /// The lock state.
+    state: Atomic<uint32>;
+
+    /// The protected value.
+    value: T;
+
+    /// Create a reader-writer lock protecting `value`.
+    constructor(value: T) {
+        this.value = value
+    }
+
+    /// Lock this value for shared reading.
+    read(): RwLockReadGuard<T> {
+        todo("RwLock.read")
+    }
+
+    /// Try to lock this value for shared reading.
+    tryRead(): RwLockReadGuard<T> | undefined {
+        todo("RwLock.tryRead")
+    }
+
+    /// Lock this value for exclusive writing.
+    write(): RwLockWriteGuard<T> {
+        todo("RwLock.write")
+    }
+
+    /// Try to lock this value for exclusive writing.
+    tryWrite(): RwLockWriteGuard<T> | undefined {
+        todo("RwLock.tryWrite")
+    }
+}
+
+/// Active readonly lock guard.
+export struct RwLockReadGuard<T> {
+    /// The locked value.
+    lock: *RwLock<T>;
+}
+
+extension<T> of RwLockReadGuard<T> implements Dispose, Dereference<"readonly"> {
+    /// The projected result form.
+    type Output = &readonly T;
+
+    /// Release this guard.
+    dispose(): void {
+        todo("RwLockReadGuard.dispose")
+    }
+
+    /// Borrow the protected value.
+    dereference(): this.Output {
+        todo("RwLockReadGuard.dereference")
+    }
+}
+
+/// Active exclusive lock guard.
+export struct RwLockWriteGuard<T> {
+    /// The locked value.
+    lock: *RwLock<T>;
+}
+
+extension<T> of RwLockWriteGuard<T> implements Dispose, Dereference<"exclusive"> {
+    /// The projected result form.
+    type Output = &exclusive T;
+
+    /// Release this guard.
+    dispose(): void {
+        todo("RwLockWriteGuard.dispose")
+    }
+
+    /// Borrow the protected value.
+    dereference(): this.Output {
+        todo("RwLockWriteGuard.dereference")
+    }
+}

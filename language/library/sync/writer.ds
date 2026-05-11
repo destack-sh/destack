@@ -1,0 +1,11 @@
+import { type Result } from "destack:error";
+import { type IoError } from "destack:error";
+
+/// Byte writer.
+export interface Writer {
+    /// Write bytes from `buffer`.
+    write(buffer: &readonly [uint8]): Result<usize, IoError>;
+
+    /// Flush buffered writes.
+    flush(): Result<void, IoError>;
+}
