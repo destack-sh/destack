@@ -1,8 +1,8 @@
 use destack_core::{Capture, CaptureMode, SnapshotCodec};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::bindings::{BindingDescriptor, BindingReplayKind, BindingReplayPayload};
-use crate::runtime::time::WorldInstant;
+use crate::runtime::binding::{BindingDescriptor, BindingReplayKind, BindingReplayPayload};
+use crate::runtime::time::Instant;
 use crate::runtime::trace::{
     BindingCallEvent, EntropyEvent, Outcome, TraceCursor, TraceCursorImage, TraceHeader, TraceLog,
     TraceLogImage, TraceRecord, TraceSequence,
@@ -102,7 +102,7 @@ pub struct Trace {
     /// Trace log backing store.
     log: TraceLog,
     /// Trace cursor for log playback.
-    reader: Option<TraceCursor>,
+    reader: Option<Mutex<TraceCursor>>,
     /// Trace ordering validator.
     validator: Mutex<Validator>,
     /// Scratch buffer for trace payload encoding.
@@ -118,7 +118,7 @@ impl Trace {
     /// Create trace state with one existing log and execution mode.
     pub fn from_log(mode: ExecutionMode, log: TraceLog) -> Self {
         let reader = match mode {
-            ExecutionMode::Replay => Some(log.reader()),
+            ExecutionMode::Replay => Some(Mutex::new(log.reader())),
             _ => None,
         };
 
@@ -159,7 +159,10 @@ impl Trace {
 
     /// Capture one materialized trace image.
     pub(crate) fn capture_image(&self) -> TraceImage {
-        let cursor = self.reader.as_ref().map(TraceCursor::capture_image);
+        let cursor = self
+            .reader
+            .as_ref()
+            .map(|reader| reader.lock().capture_image());
         let validator = self.validator.lock().clone();
 
         TraceImage {
@@ -236,7 +239,7 @@ impl Trace {
         // restore the reader cursor when replay is active
         match (&self.reader, image.cursor) {
             (Some(reader), Some(cursor_image)) => {
-                reader.restore_image(cursor_image)?;
+                reader.lock().restore_image(cursor_image)?;
             }
             (None, None) => {}
             _ => {
@@ -349,7 +352,7 @@ impl Trace {
             .reader
             .as_ref()
             .ok_or_else(|| Self::trace_mismatch_error("replay"))?;
-        let Some(event) = reader.next_event()? else {
+        let Some(event) = reader.lock().next_event()? else {
             return Ok(None);
         };
 
@@ -366,7 +369,7 @@ impl Trace {
             .as_ref()
             .ok_or_else(|| Self::trace_mismatch_error("replay"))?;
 
-        Ok(reader.sequence())
+        Ok(reader.lock().sequence())
     }
 
     /// Seek the active reader cursor to one sequence boundary.
@@ -376,7 +379,7 @@ impl Trace {
             .as_ref()
             .ok_or_else(|| Self::trace_mismatch_error("replay"))?;
 
-        reader.seek_sequence(sequence)
+        reader.lock().seek_sequence(sequence)
     }
 
     /// Record a binding call payload for replay.
@@ -416,17 +419,12 @@ impl Trace {
     }
 
     /// Record one virtual-time advance outcome.
-    pub fn record_time_advance(&self, deadline: WorldInstant) -> RuntimeResult<()> {
+    pub fn record_time_advance(&self, deadline: Instant) -> RuntimeResult<()> {
         self.record_outcome(Outcome::TimeAdvance(deadline))
     }
 
-    /// Record one explicit trace anchor label and return its assigned sequence number.
-    pub fn label(&self, label: impl Into<String>) -> RuntimeResult<TraceSequence> {
-        self.record_anchor(label.into())
-    }
-
     /// Read the next virtual-time advance outcome from replay.
-    pub fn next_time_advance(&self) -> RuntimeResult<WorldInstant> {
+    pub fn next_time_advance(&self) -> RuntimeResult<Instant> {
         let event = self.next_required_record("time")?;
         let TraceRecord::Outcome(Outcome::TimeAdvance(deadline)) = event else {
             return Err(Self::trace_mismatch_error("time"));
@@ -435,10 +433,7 @@ impl Trace {
     }
 
     /// Resolve one requested virtual-time advance under the active replay mode.
-    pub fn resolve_time_advance(
-        &self,
-        requested_deadline: WorldInstant,
-    ) -> RuntimeResult<WorldInstant> {
+    pub fn resolve_time_advance(&self, requested_deadline: Instant) -> RuntimeResult<Instant> {
         match self.mode() {
             // fast, deterministic, and record use the local scheduler decision
             ExecutionMode::Fast | ExecutionMode::Deterministic | ExecutionMode::Record => {

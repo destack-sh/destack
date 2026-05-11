@@ -5,13 +5,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::trace::{
-    TraceCheckpointIndex, TraceCursor, TraceHeader, TraceRecord, TraceSegmentIndex, TraceTrailer,
+    TraceCheckpointIndex, TraceChunkIndex, TraceCursor, TraceHeader, TraceRecord, TraceTrailer,
 };
 use crate::runtime::world::BranchId;
 use destack_core::{FNV_OFFSET_BASIS_128, fnv1a_128_update};
 use postcard::experimental::serialized_size;
 
-use super::chunk::{TraceBlock, TraceSegment};
+use super::chunk::{TraceChunk, TraceChunkChain};
 
 /// Default maximum number of events in a chunk.
 const DEFAULT_MAX_EVENTS_PER_CHUNK: usize = 1024;
@@ -42,26 +42,26 @@ impl TraceSequence {
 /// One mutable tail for a live trace log.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(super) struct TraceTail {
-    /// The current mutable active segment.
-    active: TraceSegment,
-    /// The completed local segments not yet folded into shared history.
-    sealed: Vec<TraceSegment>,
+    /// The current mutable active chunk.
+    active: TraceChunk,
+    /// The completed local chunks not yet folded into shared history.
+    sealed: Vec<TraceChunk>,
 }
 
 impl TraceTail {
-    /// Create one empty tail at the given segment index and sequence.
+    /// Create one empty tail at the given chunk index and sequence.
     fn new(index: u32, sequence_start: TraceSequence) -> Self {
         Self {
-            active: TraceSegment::new(index, sequence_start),
+            active: TraceChunk::new(index, sequence_start),
             sealed: Vec::new(),
         }
     }
 
-    /// Return the number of materialized tail segments.
-    fn segment_count(&self) -> usize {
-        let active_segment_count = usize::from(!self.active.is_empty());
+    /// Return the number of materialized tail chunks.
+    fn chunk_count(&self) -> usize {
+        let active_chunk_count = usize::from(!self.active.is_empty());
 
-        self.sealed.len() + active_segment_count
+        self.sealed.len() + active_chunk_count
     }
 }
 
@@ -72,16 +72,16 @@ pub(super) struct TraceState {
     header: TraceHeader,
     /// Trace log trailer metadata.
     trailer: TraceTrailer,
-    /// Maximum number of events per segment.
+    /// Maximum number of events per chunk.
     max_events_per_chunk: usize,
-    /// Maximum segment size in bytes.
+    /// Maximum chunk size in bytes.
     max_chunk_bytes: u64,
     /// Next sequence number to assign.
     next_sequence: TraceSequence,
-    /// Next segment offset for trailer entries.
+    /// Next chunk offset for trailer entries.
     next_offset: u64,
-    /// Shared immutable segment history.
-    head: Option<Arc<TraceBlock>>,
+    /// Shared immutable chunk history.
+    head: Option<Arc<TraceChunkChain>>,
     /// Mutable local append frontier.
     tail: TraceTail,
 }
@@ -102,42 +102,42 @@ impl TraceState {
         &self.trailer
     }
 
-    /// Return the number of shared immutable segments.
-    pub(super) fn head_segment_count(&self) -> usize {
+    /// Return the number of shared immutable chunks.
+    pub(super) fn head_chunk_count(&self) -> usize {
         self.head
             .as_ref()
-            .map(|block| block.segment_count as usize)
+            .map(|chain| chain.chunk_count as usize)
             .unwrap_or(0)
     }
 
     /// Return the shared immutable trace head.
-    pub(super) fn head(&self) -> Option<&Arc<TraceBlock>> {
+    pub(super) fn head(&self) -> Option<&Arc<TraceChunkChain>> {
         self.head.as_ref()
     }
 
-    /// Return the sealed local tail segments.
-    pub(super) fn sealed_tail(&self) -> &[TraceSegment] {
+    /// Return the sealed local tail chunks.
+    pub(super) fn sealed_tail(&self) -> &[TraceChunk] {
         &self.tail.sealed
     }
 
-    /// Return the active mutable segment when it stores events.
-    pub(super) fn active_segment(&self) -> Option<&TraceSegment> {
+    /// Return the active mutable chunk when it stores events.
+    pub(super) fn active_chunk(&self) -> Option<&TraceChunk> {
         (!self.tail.active.is_empty()).then_some(&self.tail.active)
     }
 
-    /// Return the total number of visible segments.
-    pub(super) fn segment_count(&self) -> usize {
-        self.head_segment_count() + self.tail.segment_count()
+    /// Return the total number of visible chunks.
+    pub(super) fn chunk_count(&self) -> usize {
+        self.head_chunk_count() + self.tail.chunk_count()
     }
 
-    /// Return the next segment index for one new active segment.
-    fn next_segment_index(&self) -> u32 {
-        self.segment_count() as u32
+    /// Return the next chunk index for one new active chunk.
+    fn next_chunk_index(&self) -> u32 {
+        self.chunk_count() as u32
     }
 
-    /// Append one trailer entry for the active segment if needed.
+    /// Append one trailer entry for the active chunk if needed.
     fn ensure_active_trailer_entry(&mut self) {
-        // skip empty active segments
+        // skip empty active chunks
         if self.tail.active.is_empty() {
             return;
         }
@@ -145,16 +145,16 @@ impl TraceState {
         let active_index = self.tail.active.header.index;
         let is_entry_present = self
             .trailer
-            .segments
+            .chunks
             .last()
             .is_some_and(|entry| entry.index == active_index);
 
-        // keep one trailer entry per materialized segment
+        // keep one trailer entry per materialized chunk
         if is_entry_present {
             return;
         }
 
-        self.trailer.segments.push(TraceSegmentIndex {
+        self.trailer.chunks.push(TraceChunkIndex {
             index: active_index,
             offset: self.next_offset,
             length: 0,
@@ -162,9 +162,9 @@ impl TraceState {
         });
     }
 
-    /// Refresh the trailer entry for the active segment.
+    /// Refresh the trailer entry for the active chunk.
     fn update_active_trailer_entry(&mut self) {
-        let Some(entry) = self.trailer.segments.last_mut() else {
+        let Some(entry) = self.trailer.chunks.last_mut() else {
             return;
         };
 
@@ -172,32 +172,32 @@ impl TraceState {
         entry.checksum = self.tail.active.header.checksum;
     }
 
-    /// Finalize one non-empty active segment into the local sealed tail.
-    fn seal_active_segment(&mut self, next_sequence_start: TraceSequence) {
-        // skip sealing empty segments
+    /// Finalize one non-empty active chunk into the local sealed tail.
+    fn seal_active_chunk(&mut self, next_sequence_start: TraceSequence) {
+        // skip sealing empty chunks
         if self.tail.active.is_empty() {
-            self.tail.active = TraceSegment::new(self.next_segment_index(), next_sequence_start);
+            self.tail.active = TraceChunk::new(self.next_chunk_index(), next_sequence_start);
             return;
         }
 
-        // keep the trailer synchronized before moving the segment
+        // keep the trailer synchronized before moving the chunk
         self.update_active_trailer_entry();
         self.next_offset = self
             .next_offset
             .saturating_add(self.tail.active.header.byte_length);
 
-        let next_index = self.next_segment_index();
-        let sealed_segment = std::mem::replace(
+        let next_index = self.next_chunk_index();
+        let sealed_chunk = std::mem::replace(
             &mut self.tail.active,
-            TraceSegment::new(next_index, next_sequence_start),
+            TraceChunk::new(next_index, next_sequence_start),
         );
-        self.tail.sealed.push(sealed_segment);
+        self.tail.sealed.push(sealed_chunk);
     }
 
     /// Fold the local sealed tail into shared immutable history.
     fn materialize_tail(&mut self) {
-        // keep the active segment synchronized before materialization
-        self.seal_active_segment(self.next_sequence);
+        // keep the active chunk synchronized before materialization
+        self.seal_active_chunk(self.next_sequence);
 
         // nothing to do when the local tail is already empty
         if self.tail.sealed.is_empty() {
@@ -205,12 +205,12 @@ impl TraceState {
         }
 
         let parent = self.head.clone();
-        let segments = std::mem::take(&mut self.tail.sealed);
-        let block = Arc::new(TraceBlock::new(parent, segments));
-        let next_index = block.segment_count;
+        let chunks = std::mem::take(&mut self.tail.sealed);
+        let chain = Arc::new(TraceChunkChain::new(parent, chunks));
+        let next_index = chain.chunk_count;
 
-        self.head = Some(block);
-        self.tail.active = TraceSegment::new(next_index, self.next_sequence);
+        self.head = Some(chain);
+        self.tail.active = TraceChunk::new(next_index, self.next_sequence);
     }
 }
 
@@ -221,16 +221,16 @@ pub(crate) struct TraceLogImage {
     header: TraceHeader,
     /// Trace log trailer metadata.
     trailer: TraceTrailer,
-    /// Maximum number of events per segment.
+    /// Maximum number of events per chunk.
     max_events_per_chunk: usize,
-    /// Maximum segment size in bytes.
+    /// Maximum chunk size in bytes.
     max_chunk_bytes: u64,
     /// Next sequence number to assign.
     next_sequence: TraceSequence,
-    /// Next segment offset for trailer entries.
+    /// Next chunk offset for trailer entries.
     next_offset: u64,
-    /// Shared immutable segment history for this branch image.
-    head: Option<Arc<TraceBlock>>,
+    /// Shared immutable chunk history for this branch image.
+    head: Option<Arc<TraceChunkChain>>,
 }
 
 #[allow(dead_code)]
@@ -250,11 +250,11 @@ impl TraceLogImage {
         self.next_sequence
     }
 
-    /// Return the total number of stored segments.
-    pub(super) fn segment_count(&self) -> usize {
+    /// Return the total number of stored chunks.
+    pub(super) fn chunk_count(&self) -> usize {
         self.head
             .as_ref()
-            .map(|block| block.segment_count as usize)
+            .map(|chain| chain.chunk_count as usize)
             .unwrap_or(0)
     }
 
@@ -271,7 +271,7 @@ impl TraceLogImage {
     pub(crate) fn extends_head_of(&self, other: &Self) -> bool {
         match (&self.head, &other.head) {
             (_, None) => true,
-            (Some(left), Some(right)) => TraceBlock::contains(left, right),
+            (Some(left), Some(right)) => TraceChunkChain::contains(left, right),
             (None, Some(_)) => false,
         }
     }
@@ -326,7 +326,7 @@ impl TraceLog {
         let state = self.state.lock();
         let mut trailer = state.trailer.clone();
 
-        trailer.log_hash = compute_log_hash(&trailer.segments, &trailer.checkpoints);
+        trailer.log_hash = compute_log_hash(&trailer.chunks, &trailer.checkpoints);
         trailer
     }
 
@@ -359,7 +359,7 @@ impl TraceLog {
     pub(crate) fn image(&self) -> TraceLogImage {
         let mut state = self.state.lock();
 
-        // materialize the current tail so captured images share immutable blocks
+        // materialize the current tail so captured images share immutable chains
         state.materialize_tail();
 
         TraceLogImage {
@@ -378,7 +378,7 @@ impl TraceLog {
         let mut current = self.state.lock();
 
         // restore one fresh empty tail after the captured immutable history
-        let tail = TraceTail::new(image.segment_count() as u32, image.next_sequence);
+        let tail = TraceTail::new(image.chunk_count() as u32, image.next_sequence);
 
         *current = TraceState {
             header: image.header,
@@ -406,7 +406,7 @@ impl TraceLog {
         let sequence = state.next_sequence;
         state.next_sequence = state.next_sequence.next();
 
-        // rotate the active segment before appending when it is full
+        // rotate the active chunk before appending when it is full
         let is_rotation_required = !state.tail.active.is_empty()
             && state.tail.active.should_rotate_for_event(
                 encoded_len,
@@ -414,15 +414,15 @@ impl TraceLog {
                 state.max_chunk_bytes,
             );
         if is_rotation_required {
-            state.seal_active_segment(sequence);
+            state.seal_active_chunk(sequence);
         }
 
-        // append the encoded event to the active segment
-        let segment = &mut state.tail.active;
-        let start = segment.data.len();
+        // append the encoded event to the active chunk
+        let chunk = &mut state.tail.active;
+        let start = chunk.data.len();
         let end = start + encoded_len as usize;
-        segment.data.resize(end, 0);
-        let encoded_len = postcard::to_slice(&event, &mut segment.data[start..end])
+        chunk.data.resize(end, 0);
+        let encoded_len = postcard::to_slice(&event, &mut chunk.data[start..end])
             .map_err(|_| {
                 RuntimeError::TraceEncodeFailed {
                     name: "event".to_string(),
@@ -432,14 +432,14 @@ impl TraceLog {
             .len();
         let encoded_end = start + encoded_len;
 
-        segment.update_checksum_for_range(start, encoded_end);
-        segment.data.truncate(encoded_end);
-        segment.header.byte_length = segment.data.len() as u64;
-        segment.event_lengths.push(encoded_len as u32);
-        segment.header.event_count = segment.event_lengths.len() as u32;
-        segment.header.sequence_end = sequence;
+        chunk.update_checksum_for_range(start, encoded_end);
+        chunk.data.truncate(encoded_end);
+        chunk.header.byte_length = chunk.data.len() as u64;
+        chunk.event_lengths.push(encoded_len as u32);
+        chunk.header.event_count = chunk.event_lengths.len() as u32;
+        chunk.header.sequence_end = sequence;
 
-        // keep trailer metadata aligned with the active segment
+        // keep trailer metadata aligned with the active chunk
         state.ensure_active_trailer_entry();
         state.update_active_trailer_entry();
 
@@ -472,15 +472,15 @@ impl TraceLog {
 }
 
 pub(super) fn compute_log_hash(
-    segments: &[TraceSegmentIndex],
+    chunks: &[TraceChunkIndex],
     checkpoints: &[TraceCheckpointIndex],
 ) -> u128 {
     let mut hash = FNV_OFFSET_BASIS_128;
-    for segment in segments {
-        hash = fnv1a_128_update(hash, &segment.index.to_le_bytes());
-        hash = fnv1a_128_update(hash, &segment.offset.to_le_bytes());
-        hash = fnv1a_128_update(hash, &segment.length.to_le_bytes());
-        hash = fnv1a_128_update(hash, &segment.checksum.to_le_bytes());
+    for chunk in chunks {
+        hash = fnv1a_128_update(hash, &chunk.index.to_le_bytes());
+        hash = fnv1a_128_update(hash, &chunk.offset.to_le_bytes());
+        hash = fnv1a_128_update(hash, &chunk.length.to_le_bytes());
+        hash = fnv1a_128_update(hash, &chunk.checksum.to_le_bytes());
     }
 
     for checkpoint in checkpoints {
@@ -500,7 +500,7 @@ mod tests {
     use std::sync::Arc;
 
     use super::*;
-    use crate::runtime::time::WorldInstant;
+    use crate::runtime::time::Instant;
     use crate::runtime::trace::{EnvironmentConfig, Outcome, TraceRecord};
     use crate::runtime::world::{CheckpointId, Revision};
 
@@ -513,16 +513,14 @@ mod tests {
     #[test]
     fn test_image_materializes_shared_history() {
         let log = TraceLog::new(test_trace_header());
-        log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(
-            WorldInstant::new(1),
-        )))
-        .expect("record tick");
+        log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(Instant::new(1))))
+            .expect("record tick");
 
         let snapshot = log.image();
         let state = log.state.lock();
 
-        assert_eq!(snapshot.segment_count(), 1);
-        assert_eq!(state.head_segment_count(), 1);
+        assert_eq!(snapshot.chunk_count(), 1);
+        assert_eq!(state.head_chunk_count(), 1);
         assert!(state.tail.active.is_empty());
         assert!(state.tail.sealed.is_empty());
         assert!(Arc::ptr_eq(
@@ -535,17 +533,13 @@ mod tests {
     #[test]
     fn test_record_after_image_keeps_shared_head() {
         let log = TraceLog::new(test_trace_header());
-        log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(
-            WorldInstant::new(1),
-        )))
-        .expect("record first tick");
+        log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(Instant::new(1))))
+            .expect("record first tick");
         let snapshot = log.image();
         let snapshot_head = snapshot.head.clone().expect("snapshot head");
 
-        log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(
-            WorldInstant::new(2),
-        )))
-        .expect("record second tick");
+        log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(Instant::new(2))))
+            .expect("record second tick");
 
         let state = log.state.lock();
         assert!(Arc::ptr_eq(
@@ -597,25 +591,21 @@ mod tests {
     #[test]
     fn test_restore_image_keeps_cursor_validation_consistent() {
         let log = TraceLog::new(test_trace_header());
-        log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(
-            WorldInstant::new(1),
-        )))
-        .expect("record first tick");
-        let cursor = log.reader();
+        log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(Instant::new(1))))
+            .expect("record first tick");
+        let mut cursor = log.reader();
         let cursor_image = cursor.capture_image();
         let image = log.image();
 
-        log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(
-            WorldInstant::new(2),
-        )))
-        .expect("record second tick");
+        log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(Instant::new(2))))
+            .expect("record second tick");
         log.restore_image(image);
         cursor.restore_image(cursor_image).expect("restore cursor");
 
         let event = cursor.next_event().expect("read restored event");
         match event {
             Some(TraceRecord::Outcome(Outcome::TimeAdvance(deadline))) => {
-                assert_eq!(deadline, WorldInstant::new(1));
+                assert_eq!(deadline, Instant::new(1));
             }
             other => panic!("unexpected restored event: {other:?}"),
         }
@@ -632,16 +622,12 @@ mod tests {
     #[test]
     fn test_cursor_seek_sequence_repositions_reader() {
         let log = TraceLog::new(test_trace_header());
-        log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(
-            WorldInstant::new(1),
-        )))
-        .expect("record first tick");
-        log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(
-            WorldInstant::new(2),
-        )))
-        .expect("record second tick");
+        log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(Instant::new(1))))
+            .expect("record first tick");
+        log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(Instant::new(2))))
+            .expect("record second tick");
 
-        let cursor = log.reader();
+        let mut cursor = log.reader();
         cursor
             .seek_sequence(TraceSequence::new(1))
             .expect("seek cursor");
@@ -649,7 +635,7 @@ mod tests {
         let event = cursor.next_event().expect("read sought event");
         match event {
             Some(TraceRecord::Outcome(Outcome::TimeAdvance(deadline))) => {
-                assert_eq!(deadline, WorldInstant::new(2));
+                assert_eq!(deadline, Instant::new(2));
             }
             other => panic!("unexpected sought event: {other:?}"),
         }

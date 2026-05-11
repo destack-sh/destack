@@ -2,10 +2,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::RuntimeError;
 use crate::platform::PlatformError;
-use crate::runtime::bindings::{BindingEngine, BindingId, CodecId};
+use crate::runtime::binding::{BindingEngine, BindingId, CodecId};
 use crate::runtime::random::RandomStreamId;
 use crate::runtime::scheduler::{MicrotaskId, TaskId};
-use crate::runtime::time::WorldInstant;
+use crate::runtime::time::Instant;
 use crate::runtime::world::Command;
 use crate::runtime::{RuntimeId, RuntimeImage, WorkerId, WorkerImage};
 use destack_vm as vm;
@@ -13,7 +13,8 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 /// One authoritative replay record.
-#[allow(clippy::large_enum_variant)] // NOTE #Performance #Cleanup: trace entropy payloads are intentionally inline for now
+// NOTE #Performance: trace entropy payloads stay inline for replay locality
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TraceRecord {
     /// One input that entered the world.
@@ -25,11 +26,12 @@ pub enum TraceRecord {
 }
 
 /// One observed outcome that replay cannot derive.
-#[allow(clippy::large_enum_variant)] // NOTE #Performance #Cleanup: trace entropy payloads are intentionally inline for now
+// NOTE #Performance: trace entropy payloads stay inline for replay locality
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Outcome {
     /// One virtual-world time advance outcome.
-    TimeAdvance(WorldInstant),
+    TimeAdvance(Instant),
     /// Entropy outcome for time and random nondeterminism.
     Entropy(EntropyEvent),
     /// External binding call payload or result.
@@ -40,6 +42,8 @@ pub enum Outcome {
         runtime_id: RuntimeId,
         /// The created runtime name.
         runtime_name: String,
+        /// The created runtime labels.
+        runtime_labels: BTreeMap<String, String>,
         /// Captured runtime metadata for the created runtime.
         runtime: Arc<RuntimeImage>,
         /// Captured workers keyed by worker identifier.
@@ -53,6 +57,8 @@ pub enum Outcome {
         worker_id: WorkerId,
         /// The created worker name.
         worker_name: String,
+        /// The created worker labels.
+        worker_labels: BTreeMap<String, String>,
         /// Captured worker metadata for the created worker.
         worker: Arc<WorkerImage>,
     },
@@ -63,6 +69,8 @@ pub enum Outcome {
 pub struct SpawnedWorkerImage {
     /// The created worker name.
     pub name: String,
+    /// The created worker labels.
+    pub labels: BTreeMap<String, String>,
     /// The captured worker payload.
     pub image: Arc<WorkerImage>,
 }
@@ -130,12 +138,12 @@ pub enum TraceError {
         /// Fully qualified binding name.
         name: String,
     },
-    /// Capability-violation runtime error payload.
-    CapabilityViolation {
+    /// Action-violation runtime error payload.
+    HostActionDenied {
         /// Fully qualified binding name.
         name: String,
-        /// Missing required capability.
-        capability: String,
+        /// Missing required action.
+        action: String,
     },
     /// Affinity-violation runtime error payload.
     AffinityViolation {
@@ -197,9 +205,9 @@ impl From<&RuntimeError> for TraceError {
             RuntimeError::Platform(error) => Self::Platform(error.as_ref().clone()),
             RuntimeError::BindingNotFound { name } => Self::BindingNotFound { name: name.clone() },
             RuntimeError::PolicyViolation { name } => Self::PolicyViolation { name: name.clone() },
-            RuntimeError::CapabilityViolation { name, capability } => Self::CapabilityViolation {
+            RuntimeError::HostActionDenied { name, action } => Self::HostActionDenied {
                 name: name.clone(),
-                capability: capability.clone(),
+                action: action.clone(),
             },
             RuntimeError::AffinityViolation { name, affinity } => Self::AffinityViolation {
                 name: name.clone(),
@@ -244,8 +252,8 @@ impl From<TraceError> for RuntimeError {
             TraceError::Platform(error) => Self::Platform(error.boxed()),
             TraceError::BindingNotFound { name } => Self::BindingNotFound { name },
             TraceError::PolicyViolation { name } => Self::PolicyViolation { name },
-            TraceError::CapabilityViolation { name, capability } => {
-                Self::CapabilityViolation { name, capability }
+            TraceError::HostActionDenied { name, action } => {
+                Self::HostActionDenied { name, action }
             }
             TraceError::AffinityViolation { name, affinity } => {
                 Self::AffinityViolation { name, affinity }

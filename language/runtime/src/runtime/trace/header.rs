@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::runtime::bindings::BindingReplayPayload;
+use crate::runtime::binding::BindingReplayPayload;
 use crate::runtime::trace::TraceSequence;
 use crate::runtime::world::{BranchId, CheckpointId, Revision};
 use destack_workspace::{ExecutionMode, RandomMode, TimeMode};
@@ -69,41 +69,41 @@ pub struct EnvironmentConfig {
     pub locale: Option<String>,
 }
 
-/// Header metadata for one trace segment.
+/// Header metadata for one trace chunk.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TraceSegmentHeader {
-    /// Segment index in the stream.
+pub struct TraceChunkHeader {
+    /// Chunk index in the stream.
     pub index: u32,
-    /// First sequence number in the segment.
+    /// First sequence number in the chunk.
     pub sequence_start: TraceSequence,
-    /// Last sequence number in the segment.
+    /// Last sequence number in the chunk.
     pub sequence_end: TraceSequence,
-    /// Number of events stored in the segment.
+    /// Number of events stored in the chunk.
     pub event_count: u32,
-    /// Byte length of the segment payload.
+    /// Byte length of the chunk payload.
     pub byte_length: u64,
-    /// Checksum for the segment payload.
+    /// Checksum for the chunk payload.
     pub checksum: u64,
 }
 
-/// Segment metadata for random access.
+/// Chunk metadata for random access.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TraceSegmentIndex {
-    /// Segment index in the stream.
+pub struct TraceChunkIndex {
+    /// Chunk index in the stream.
     pub index: u32,
-    /// Byte offset of the segment in the log.
+    /// Byte offset of the chunk in the log.
     pub offset: u64,
-    /// Byte length of the segment payload.
+    /// Byte length of the chunk payload.
     pub length: u64,
-    /// Segment checksum.
+    /// Chunk checksum.
     pub checksum: u64,
 }
 
 /// Trailer metadata for a trace log.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct TraceTrailer {
-    /// Index entries for segments in the log.
-    pub segments: Vec<TraceSegmentIndex>,
+    /// Index entries for chunks in the log.
+    pub chunks: Vec<TraceChunkIndex>,
     /// Index entries for external checkpoints.
     pub checkpoints: Vec<TraceCheckpointIndex>,
     /// Hash of the entire log stream.
