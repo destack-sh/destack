@@ -12,15 +12,6 @@ use super::{
     ObservationSubscriptionId,
 };
 
-/// Live cursor state for one observation subscription.
-#[derive(Debug, Clone, Copy)]
-struct ObservationSubscription {
-    /// Filter options for this subscription.
-    options: ObservationOptions,
-    /// Next sequence visible through this subscription.
-    next_sequence: ObservationSequence,
-}
-
 /// World-owned observation stream kept separate from causal trace.
 #[derive(Debug, Default)]
 pub struct Observations {
@@ -181,4 +172,13 @@ impl Observations {
 
         Ok(batch)
     }
+}
+
+/// Live cursor state for one observation subscription.
+#[derive(Debug, Clone, Copy)]
+struct ObservationSubscription {
+    /// Filter options for this subscription.
+    options: ObservationOptions,
+    /// Next sequence visible through this subscription.
+    next_sequence: ObservationSequence,
 }

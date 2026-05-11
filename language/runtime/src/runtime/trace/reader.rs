@@ -1,47 +1,45 @@
 use std::sync::Arc;
 
-use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::trace::codec::decode_event;
 use crate::runtime::trace::log::{TraceSequence, TraceState, compute_log_hash};
 use crate::runtime::trace::{TraceRecord, TraceTrailer};
 use crate::runtime::world::BranchId;
 
-use super::chunk::{TraceBlock, TraceSegment};
+use super::chunk::{TraceChunk, TraceChunkChain};
 
-/// One cached immutable block range for one cursor.
+/// One cached immutable chain range for one cursor.
 #[derive(Debug)]
-struct TraceBlockRange {
-    /// The first global segment index stored in this block.
-    start_segment: usize,
-    /// The shared immutable block.
-    block: Arc<TraceBlock>,
+struct TraceChunkRange {
+    /// First global chunk index stored in this chain node.
+    start_chunk: usize,
+    /// Shared immutable chunk chain.
+    chain: Arc<TraceChunkChain>,
 }
 
-/// Cached immutable block path for one trace cursor.
+/// Cached immutable chunk chain path for one trace cursor.
 #[derive(Debug, Default)]
-struct TraceBlockCache {
-    /// The current shared head block this cache was built from.
-    head: Option<Arc<TraceBlock>>,
-    /// The shared history blocks in oldest-to-newest order.
-    blocks: Vec<TraceBlockRange>,
+struct TraceChunkCache {
+    /// Current shared head chain this cache was built from.
+    head: Option<Arc<TraceChunkChain>>,
+    /// Shared history ranges in oldest-to-newest order.
+    ranges: Vec<TraceChunkRange>,
 }
 
 /// Trace cursor state.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 struct TraceReadCursor {
-    /// Current segment index.
-    read_segment: usize,
-    /// Current event index inside the segment.
+    /// Current chunk index.
+    read_chunk: usize,
+    /// Current event index inside the chunk.
     read_index: usize,
-    /// Current byte offset inside the segment payload.
+    /// Current byte offset inside the chunk payload.
     read_offset: usize,
     /// Next expected sequence number.
     next_sequence: TraceSequence,
-    /// Last segment index that was validated.
-    validated_segment: Option<usize>,
+    /// Last chunk index that was validated.
+    validated_chunk: Option<usize>,
 }
 
 /// Durable cursor state for one trace cursor.
@@ -59,35 +57,35 @@ pub(crate) struct TraceCursorImage {
 #[derive(Debug)]
 pub struct TraceCursor {
     /// Shared live trace-log state.
-    state: Arc<Mutex<TraceState>>,
+    state: Arc<parking_lot::Mutex<TraceState>>,
     /// Cursor state for this reader.
-    cursor: Mutex<TraceReadCursor>,
-    /// Cached shared block path for segment reads.
-    block_cache: Mutex<TraceBlockCache>,
+    cursor: TraceReadCursor,
+    /// Cached shared chain path for chunk reads.
+    chunk_cache: TraceChunkCache,
 }
 
 impl TraceCursor {
     /// Create a trace cursor for the given trace-log state.
-    pub(super) fn new(state: Arc<Mutex<TraceState>>) -> Self {
+    pub(super) fn new(state: Arc<parking_lot::Mutex<TraceState>>) -> Self {
         Self {
             state,
-            cursor: Mutex::new(TraceReadCursor {
-                read_segment: 0,
+            cursor: TraceReadCursor {
+                read_chunk: 0,
                 read_index: 0,
                 read_offset: 0,
                 next_sequence: TraceSequence::new(0),
-                validated_segment: None,
-            }),
-            block_cache: Mutex::new(TraceBlockCache::default()),
+                validated_chunk: None,
+            },
+            chunk_cache: TraceChunkCache::default(),
         }
     }
 
     /// Read the next recorded trace record if available.
-    pub(crate) fn next_event(&self) -> RuntimeResult<Option<TraceRecord>> {
+    pub(crate) fn next_event(&mut self) -> RuntimeResult<Option<TraceRecord>> {
         // validate the live trailer hash before consuming one event
         let state = self.state.lock();
         let trailer = state.trailer();
-        let log_hash = compute_log_hash(&trailer.segments, &trailer.checkpoints);
+        let log_hash = compute_log_hash(&trailer.chunks, &trailer.checkpoints);
         if trailer.log_hash != 0 && trailer.log_hash != log_hash {
             return Err(RuntimeError::TraceMismatch {
                 name: "log_hash".to_string(),
@@ -95,52 +93,49 @@ impl TraceCursor {
             .boxed());
         }
 
-        // refresh the shared block cache for this visible head
-        let mut block_cache = self.block_cache.lock();
-        self.sync_block_cache(&state, &mut block_cache);
+        // refresh the shared chunk cache for this visible head
+        Self::sync_chunk_cache(&state, &mut self.chunk_cache);
 
-        // read the next event by advancing across the visible segments
-        let mut cursor = self.cursor.lock();
+        // read the next event by advancing across the visible chunks
+        let cursor = &mut self.cursor;
 
-        while cursor.read_segment < state.segment_count() {
-            let segment_index = cursor.read_segment;
-            let segment = self
-                .segment(&state, &block_cache, segment_index)
-                .ok_or_else(|| {
-                    RuntimeError::InconsistentImage {
-                        detail: format!("trace segment {segment_index} is missing"),
-                    }
-                    .boxed()
-                })?;
+        while cursor.read_chunk < state.chunk_count() {
+            let chunk_index = cursor.read_chunk;
+            let chunk = Self::chunk(&state, &self.chunk_cache, chunk_index).ok_or_else(|| {
+                RuntimeError::InconsistentImage {
+                    detail: format!("trace chunk {chunk_index} is missing"),
+                }
+                .boxed()
+            })?;
 
-            // validate one segment the first time this cursor reads it
-            if cursor.validated_segment != Some(segment_index) {
-                validate_segment(segment, trailer)?;
-                cursor.validated_segment = Some(segment_index);
+            // validate one chunk the first time this cursor reads it
+            if cursor.validated_chunk != Some(chunk_index) {
+                validate_chunk(chunk, trailer)?;
+                cursor.validated_chunk = Some(chunk_index);
             }
 
-            // decode the next event from the current segment
-            if cursor.read_index < segment.event_lengths.len() {
+            // decode the next event from the current chunk
+            if cursor.read_index < chunk.event_lengths.len() {
                 let sequence = cursor.next_sequence;
-                if cursor.read_index == 0 && segment.header.sequence_start != sequence {
+                if cursor.read_index == 0 && chunk.header.sequence_start != sequence {
                     return Err(RuntimeError::TraceMismatch {
                         name: "sequence".to_string(),
                     }
                     .boxed());
                 }
 
-                let event_length = segment.event_lengths[cursor.read_index] as usize;
+                let event_length = chunk.event_lengths[cursor.read_index] as usize;
                 let start = cursor.read_offset;
                 let end = start + event_length;
-                let encoded = &segment.data[start..end];
-                let event = decode_event(encoded).map_err(|_| {
+                let encoded = &chunk.data[start..end];
+                let event = postcard::from_bytes(encoded).map_err(|_| {
                     RuntimeError::TraceDecodeFailed {
                         name: "event".to_string(),
                     }
                     .boxed()
                 })?;
-                if cursor.read_index + 1 == segment.event_lengths.len()
-                    && segment.header.sequence_end != sequence
+                if cursor.read_index + 1 == chunk.event_lengths.len()
+                    && chunk.header.sequence_end != sequence
                 {
                     return Err(RuntimeError::TraceMismatch {
                         name: "sequence".to_string(),
@@ -155,8 +150,8 @@ impl TraceCursor {
                 return Ok(Some(event));
             }
 
-            // otherwise advance into the next segment
-            cursor.read_segment += 1;
+            // otherwise advance into the next chunk
+            cursor.read_chunk += 1;
             cursor.read_index = 0;
             cursor.read_offset = 0;
         }
@@ -166,18 +161,17 @@ impl TraceCursor {
 
     /// Capture the reader cursor state.
     pub(crate) fn capture_image(&self) -> TraceCursorImage {
-        let cursor = *self.cursor.lock();
         let state = self.state.lock();
 
         TraceCursorImage {
             branch_id: state.branch_id(),
             upper_bound: state.next_sequence(),
-            cursor,
+            cursor: self.cursor,
         }
     }
 
     /// Restore the reader cursor state.
-    pub(crate) fn restore_image(&self, image: TraceCursorImage) -> RuntimeResult<()> {
+    pub(crate) fn restore_image(&mut self, image: TraceCursorImage) -> RuntimeResult<()> {
         let state = self.state.lock();
         if state.branch_id() != image.branch_id {
             return Err(RuntimeError::TraceMismatch {
@@ -198,23 +192,19 @@ impl TraceCursor {
             .boxed());
         }
 
-        let mut cursor = self.cursor.lock();
-        *cursor = image.cursor;
-
-        // drop the cached block path so the next read rebuilds against the restored head
-        let mut block_cache = self.block_cache.lock();
-        *block_cache = TraceBlockCache::default();
+        self.cursor = image.cursor;
+        self.chunk_cache = TraceChunkCache::default();
 
         Ok(())
     }
 
     /// Return the next sequence visible through this cursor.
     pub(crate) fn sequence(&self) -> TraceSequence {
-        self.cursor.lock().next_sequence
+        self.cursor.next_sequence
     }
 
     /// Seek this cursor to one sequence boundary.
-    pub(crate) fn seek_sequence(&self, sequence: TraceSequence) -> RuntimeResult<()> {
+    pub(crate) fn seek_sequence(&mut self, sequence: TraceSequence) -> RuntimeResult<()> {
         // reject seeks beyond the visible log tail
         let state = self.state.lock();
         if sequence.get() > state.next_sequence().get() {
@@ -224,21 +214,18 @@ impl TraceCursor {
             .boxed());
         }
 
-        // refresh the shared block cache before scanning from the start
-        let mut block_cache = self.block_cache.lock();
-        self.sync_block_cache(&state, &mut block_cache);
-
-        let mut cursor = self.cursor.lock();
-        *cursor = self.seek_segment(&state, &block_cache, sequence)?;
+        // refresh the shared chunk cache before scanning from the start
+        Self::sync_chunk_cache(&state, &mut self.chunk_cache);
+        self.cursor = Self::seek_chunk(&state, &self.chunk_cache, sequence)?;
 
         Ok(())
     }
 
-    /// Rebuild the cached block path when the shared head changes.
-    fn sync_block_cache(&self, state: &TraceState, cache: &mut TraceBlockCache) {
+    /// Rebuild the cached chunk path when the shared head changes.
+    fn sync_chunk_cache(state: &TraceState, cache: &mut TraceChunkCache) {
         let Some(head) = state.head() else {
             cache.head = None;
-            cache.blocks.clear();
+            cache.ranges.clear();
             return;
         };
 
@@ -250,157 +237,155 @@ impl TraceCursor {
             return;
         }
 
-        let mut blocks = Vec::new();
+        let mut chains = Vec::new();
         let mut current = Some(head.clone());
 
         // collect newest-to-oldest first
-        while let Some(block) = current {
-            current = block.parent.clone();
-            blocks.push(block);
+        while let Some(chain) = current {
+            current = chain.parent.clone();
+            chains.push(chain);
         }
 
         // reverse into oldest-to-newest order for sequential reads
-        blocks.reverse();
+        chains.reverse();
 
-        let mut next_start_segment = 0usize;
-        let blocks = blocks
+        let mut next_start_chunk = 0usize;
+        let ranges = chains
             .into_iter()
-            .map(|block| {
-                let range = TraceBlockRange {
-                    start_segment: next_start_segment,
-                    block: block.clone(),
+            .map(|chain| {
+                let range = TraceChunkRange {
+                    start_chunk: next_start_chunk,
+                    chain: chain.clone(),
                 };
-                next_start_segment += block.segments.len();
+                next_start_chunk += chain.chunks.len();
                 range
             })
             .collect();
 
         cache.head = Some(head.clone());
-        cache.blocks = blocks;
+        cache.ranges = ranges;
     }
 
-    /// Return one visible segment by stable global index.
-    fn segment<'a>(
-        &self,
+    /// Return one visible chunk by stable global index.
+    fn chunk<'a>(
         state: &'a TraceState,
-        cache: &'a TraceBlockCache,
+        cache: &'a TraceChunkCache,
         index: usize,
-    ) -> Option<&'a TraceSegment> {
+    ) -> Option<&'a TraceChunk> {
         // read shared immutable history first
-        for block in &cache.blocks {
-            let block_end = block.start_segment + block.block.segments.len();
+        for range in &cache.ranges {
+            let range_end = range.start_chunk + range.chain.chunks.len();
 
-            if index < block_end {
-                return block.block.segments.get(index - block.start_segment);
+            if index < range_end {
+                return range.chain.chunks.get(index - range.start_chunk);
             }
         }
 
-        let segment_index = index.saturating_sub(state.head_segment_count());
+        let chunk_index = index.saturating_sub(state.head_chunk_count());
 
-        if segment_index < state.sealed_tail().len() {
-            return state.sealed_tail().get(segment_index);
+        if chunk_index < state.sealed_tail().len() {
+            return state.sealed_tail().get(chunk_index);
         }
 
-        if segment_index == state.sealed_tail().len() {
-            return state.active_segment();
+        if chunk_index == state.sealed_tail().len() {
+            return state.active_chunk();
         }
 
         None
     }
 
-    /// Seek one cursor directly to the segment containing the requested sequence.
-    fn seek_segment(
-        &self,
+    /// Seek one cursor directly to the chunk containing the requested sequence.
+    fn seek_chunk(
         state: &TraceState,
-        cache: &TraceBlockCache,
+        cache: &TraceChunkCache,
         sequence: TraceSequence,
     ) -> RuntimeResult<TraceReadCursor> {
         // shared immutable history
-        for block in &cache.blocks {
-            for (local_segment_index, segment) in block.block.segments.iter().enumerate() {
-                if !sequence_in_segment(sequence, segment) {
+        for range in &cache.ranges {
+            for (local_chunk_index, chunk) in range.chain.chunks.iter().enumerate() {
+                if !sequence_in_chunk(sequence, chunk) {
                     continue;
                 }
 
-                let read_segment = block.start_segment + local_segment_index;
-                let segment_offset = sequence_offset_in_segment(sequence, segment)?;
+                let read_chunk = range.start_chunk + local_chunk_index;
+                let chunk_offset = sequence_offset_in_chunk(sequence, chunk)?;
 
                 return Ok(TraceReadCursor {
-                    read_segment,
-                    read_index: segment_offset.0,
-                    read_offset: segment_offset.1,
+                    read_chunk,
+                    read_index: chunk_offset.0,
+                    read_offset: chunk_offset.1,
                     next_sequence: sequence,
-                    validated_segment: None,
+                    validated_chunk: None,
                 });
             }
         }
 
-        let tail_start = state.head_segment_count();
+        let tail_start = state.head_chunk_count();
 
         // local sealed tail
-        for (local_segment_index, segment) in state.sealed_tail().iter().enumerate() {
-            if !sequence_in_segment(sequence, segment) {
+        for (local_chunk_index, chunk) in state.sealed_tail().iter().enumerate() {
+            if !sequence_in_chunk(sequence, chunk) {
                 continue;
             }
 
-            let read_segment = tail_start + local_segment_index;
-            let segment_offset = sequence_offset_in_segment(sequence, segment)?;
+            let read_chunk = tail_start + local_chunk_index;
+            let chunk_offset = sequence_offset_in_chunk(sequence, chunk)?;
 
             return Ok(TraceReadCursor {
-                read_segment,
-                read_index: segment_offset.0,
-                read_offset: segment_offset.1,
+                read_chunk,
+                read_index: chunk_offset.0,
+                read_offset: chunk_offset.1,
                 next_sequence: sequence,
-                validated_segment: None,
+                validated_chunk: None,
             });
         }
 
         // active tail
-        if let Some(segment) = state.active_segment()
-            && sequence_in_segment(sequence, segment)
+        if let Some(chunk) = state.active_chunk()
+            && sequence_in_chunk(sequence, chunk)
         {
-            let read_segment = tail_start + state.sealed_tail().len();
-            let segment_offset = sequence_offset_in_segment(sequence, segment)?;
+            let read_chunk = tail_start + state.sealed_tail().len();
+            let chunk_offset = sequence_offset_in_chunk(sequence, chunk)?;
 
             return Ok(TraceReadCursor {
-                read_segment,
-                read_index: segment_offset.0,
-                read_offset: segment_offset.1,
+                read_chunk,
+                read_index: chunk_offset.0,
+                read_offset: chunk_offset.1,
                 next_sequence: sequence,
-                validated_segment: None,
+                validated_chunk: None,
             });
         }
 
         // fall through to the visible end boundary
         Ok(TraceReadCursor {
-            read_segment: state.segment_count(),
+            read_chunk: state.chunk_count(),
             read_index: 0,
             read_offset: 0,
             next_sequence: state.next_sequence(),
-            validated_segment: None,
+            validated_chunk: None,
         })
     }
 }
 
-/// Return whether one sequence falls within one segment.
-fn sequence_in_segment(sequence: TraceSequence, segment: &TraceSegment) -> bool {
-    if segment.event_lengths.is_empty() {
+/// Return whether one sequence falls within one chunk.
+fn sequence_in_chunk(sequence: TraceSequence, chunk: &TraceChunk) -> bool {
+    if chunk.event_lengths.is_empty() {
         return false;
     }
 
     let sequence_value = sequence.get();
-    let sequence_start = segment.header.sequence_start.get();
-    let sequence_end = segment.header.sequence_end.get();
+    let sequence_start = chunk.header.sequence_start.get();
+    let sequence_end = chunk.header.sequence_end.get();
 
     sequence_value >= sequence_start && sequence_value <= sequence_end
 }
 
-/// Return the event index and byte offset for one sequence inside one segment.
-fn sequence_offset_in_segment(
+/// Return the event index and byte offset for one sequence inside one chunk.
+fn sequence_offset_in_chunk(
     sequence: TraceSequence,
-    segment: &TraceSegment,
+    chunk: &TraceChunk,
 ) -> RuntimeResult<(usize, usize)> {
-    let sequence_start = segment.header.sequence_start.get();
+    let sequence_start = chunk.header.sequence_start.get();
     let sequence_value = sequence.get();
     let relative_index = sequence_value.checked_sub(sequence_start).ok_or_else(|| {
         RuntimeError::TraceMismatch {
@@ -410,7 +395,7 @@ fn sequence_offset_in_segment(
     })? as usize;
 
     let read_offset =
-        segment
+        chunk
             .event_lengths
             .iter()
             .take(relative_index)
@@ -426,35 +411,35 @@ fn sequence_offset_in_segment(
     Ok((relative_index, read_offset))
 }
 
-/// Validate segment integrity against stored metadata.
-fn validate_segment(segment: &TraceSegment, trailer: &TraceTrailer) -> RuntimeResult<()> {
-    if segment.header.event_count as usize != segment.event_lengths.len() {
+/// Validate chunk integrity against stored metadata.
+fn validate_chunk(chunk: &TraceChunk, trailer: &TraceTrailer) -> RuntimeResult<()> {
+    if chunk.header.event_count as usize != chunk.event_lengths.len() {
         return Err(RuntimeError::TraceMismatch {
             name: "chunk_events".to_string(),
         }
         .boxed());
     }
-    if segment.header.byte_length as usize != segment.data.len() {
+    if chunk.header.byte_length as usize != chunk.data.len() {
         return Err(RuntimeError::TraceMismatch {
             name: "chunk_length".to_string(),
         }
         .boxed());
     }
-    let total_event_bytes: usize = segment
+    let total_event_bytes: usize = chunk
         .event_lengths
         .iter()
         .map(|value| *value as usize)
         .sum();
-    if total_event_bytes != segment.data.len() {
+    if total_event_bytes != chunk.data.len() {
         return Err(RuntimeError::TraceMismatch {
             name: "chunk_offsets".to_string(),
         }
         .boxed());
     }
 
-    // validate the segment payload checksum
-    let checksum = segment.payload_checksum();
-    if checksum != segment.header.checksum {
+    // validate the chunk payload checksum
+    let checksum = chunk.payload_checksum();
+    if checksum != chunk.header.checksum {
         return Err(RuntimeError::TraceMismatch {
             name: "chunk_checksum".to_string(),
         }
@@ -463,22 +448,22 @@ fn validate_segment(segment: &TraceSegment, trailer: &TraceTrailer) -> RuntimeRe
 
     // validate the corresponding trailer entry
     let entry = trailer
-        .segments
+        .chunks
         .iter()
-        .find(|entry| entry.index == segment.header.index)
+        .find(|entry| entry.index == chunk.header.index)
         .ok_or_else(|| {
             RuntimeError::TraceMismatch {
                 name: "chunk_index".to_string(),
             }
             .boxed()
         })?;
-    if entry.length != segment.header.byte_length {
+    if entry.length != chunk.header.byte_length {
         return Err(RuntimeError::TraceMismatch {
             name: "chunk_length".to_string(),
         }
         .boxed());
     }
-    if entry.checksum != segment.header.checksum {
+    if entry.checksum != chunk.header.checksum {
         return Err(RuntimeError::TraceMismatch {
             name: "chunk_checksum".to_string(),
         }

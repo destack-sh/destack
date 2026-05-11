@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::platform::{ResourceBacking, ResourceCapture, ResourcePortability};
-use crate::runtime::time::WorldInstant;
+use crate::runtime::time::Instant;
 use crate::runtime::world::{Moment, WorldResourceId};
 use crate::runtime::{RuntimeId, WorkerId};
 
@@ -51,9 +51,9 @@ pub enum ObservationCategory {
     Runtime,
     /// Topology mutation and graph diagnostics.
     Topology,
-    /// Resource lifecycle and capability diagnostics.
+    /// Resource lifecycle and action diagnostics.
     Resource,
-    /// Scheduler and execution-lane diagnostics.
+    /// Scheduler diagnostics.
     Scheduler,
     /// General diagnostic and policy notices.
     Diagnostic,
@@ -298,7 +298,7 @@ impl Observation {
     }
 
     /// Create one worker-scoped structured-annotation observation.
-    pub fn agent_annotations<K, V>(
+    pub fn worker_annotations<K, V>(
         category: ObservationCategory,
         runtime_id: Option<RuntimeId>,
         worker_id: WorkerId,
@@ -420,7 +420,7 @@ impl Observation {
     }
 
     /// Create one scheduler-advanced-time observation.
-    pub fn scheduler_advanced_time(deadline: WorldInstant) -> Self {
+    pub fn scheduler_advanced_time(deadline: Instant) -> Self {
         Self::annotations(
             ObservationCategory::Scheduler,
             ObservationScope::world(),
