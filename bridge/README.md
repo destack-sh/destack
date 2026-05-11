@@ -1,6 +1,9 @@
 # Bridge
 
-Destack bridge into and out of the existing universe.
+Destack bridges are intentionally narrow.
+The first bridge surface is TypeScript and WebAssembly for the JavaScript and web world, Rust for native integration, and Python for scripting and data workflows.
+The C ABI and shared Rust core are infrastructure for those bridges, not product bridges themselves.
+Editor integrations live here for now because they share grammar and release wiring with the bridge area.
 
 ## Projects
 
@@ -9,19 +12,13 @@ Destack bridge into and out of the existing universe.
 | [`core`](core/README.md) | Experimental | Shared Rust bridge core used by language clients and bindings |
 | [`capi`](capi/README.md) | Experimental | Minimal C ABI bridge surface for FFI language clients |
 | [`typescript`](typescript/README.md) | Alpha | Primary runtime client package published as `@destack/runtime` |
-| [`napi`](napi/README.md) | Experimental | Node-API bindings package and crate |
-| [`wasm`](wasm/README.md) | Experimental | WebAssembly bindings package and crate |
 | [`rust`](rust/README.md) | Experimental | Rust client crate published as `destack` |
 | [`python`](python/README.md) | Experimental | Python client package published as `destack` |
-| [`go`](go/README.md) | Experimental | Go client module intended for `go.destack.sh/destack` |
-| [`dotnet`](dotnet/README.md) | Experimental | .NET client intended for NuGet as `Destack` |
-| [`java`](java/README.md) | Experimental | Java client intended for Maven Central as `industries.symbol.destack:destack-java` |
-| [`ruby`](ruby/README.md) | Experimental | Ruby client intended for RubyGems as `destack` |
-| [`dart`](dart/README.md) | Experimental | Dart client intended for pub.dev as `destack` |
-| [`elixir`](elixir/README.md) | Experimental | Elixir client intended for Hex as `destack` |
-| [`swift`](swift/README.md) | Experimental | Swift client intended for Swift Package Manager as `Destack` |
 | [`vscode`](vscode/README.md) | Experimental | VS Code extension and language support |
 | [`zed`](zed/README.md) | Experimental | Zed extension integration |
+
+The `napi` and `wasm` packages are TypeScript bridge backends.
+They are maintained as implementation packages for `typescript`, not first-class bridge products.
 
 ## Commands
 

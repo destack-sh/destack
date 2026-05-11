@@ -196,19 +196,6 @@ jobs:
       - name: Check Bridge
         run: just bridge/full --pin-destack-revision "${GITHUB_SHA}"
 
-  bridge-swift-build:
-    name: Bridge Swift Build
-    runs-on: macos-latest
-    timeout-minutes: 30
-    steps:
-      - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-        with:
-          persist-credentials: false
-
-      - name: Build Bridge Swift
-        run: cd bridge/swift && swift build
-
   language-fuzz:
     name: Language Fuzz
     runs-on: ubuntu-latest
@@ -274,7 +261,6 @@ jobs:
       - service-check
       - app-check
       - bridge-check
-      - bridge-swift-build
       - runtime-android-check
       - runtime-ios-check
       - runtime-linux-check

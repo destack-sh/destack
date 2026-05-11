@@ -45,16 +45,6 @@
       "name": "@destack/cli-win32-x64-msvc",
       "version": "0.55.4",
     },
-    "bridge/bun": {
-      "name": "@destack/bun",
-      "version": "0.55.4",
-      "dependencies": {
-        "@destack/napi": "0.55.4",
-      },
-      "devDependencies": {
-        "@types/bun": "1.2.18",
-      },
-    },
     "bridge/napi": {
       "name": "@destack/napi",
       "version": "0.55.4",
@@ -81,19 +71,6 @@
       "version": "0.55.4",
       "dependencies": {
         "@destack/runtime": "0.55.4",
-      },
-    },
-    "bridge/vite": {
-      "name": "@destack/vite",
-      "version": "0.55.4",
-      "dependencies": {
-        "@destack/napi": "workspace:*",
-      },
-      "devDependencies": {
-        "vite": "^7.0.0",
-      },
-      "peerDependencies": {
-        "vite": "^7.0.0",
       },
     },
     "bridge/vscode": {
@@ -180,8 +157,6 @@
   "packages": {
     "@destack/builtin": ["@destack/builtin@workspace:language/builtin"],
 
-    "@destack/bun": ["@destack/bun@workspace:bridge/bun"],
-
     "@destack/cli": ["@destack/cli@workspace:app/cli"],
 
     "@destack/cli-darwin-arm64": ["@destack/cli-darwin-arm64@workspace:app/cli/npm-darwin-arm64"],
@@ -207,8 +182,6 @@
     "@destack/site": ["@destack/site@workspace:platform/site"],
 
     "@destack/test": ["@destack/test@workspace:library/test"],
-
-    "@destack/vite": ["@destack/vite@workspace:bridge/vite"],
 
     "@destack/wasm": ["@destack/wasm@workspace:bridge/wasm"],
 

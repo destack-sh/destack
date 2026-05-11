@@ -17,15 +17,15 @@ _run-rust-test *args:
 
 # --- setup ---
 
-# install bridge language toolchains for this host
+# validate supported bridge toolchains for this host
 install-toolchain:
     bash scripts/language-bridge-toolchain.sh install
 
-# inspect bridge language toolchain readiness on this host
+# inspect supported bridge toolchain readiness on this host
 doctor-toolchain:
     bash scripts/language-bridge-toolchain.sh doctor
 
-# ensure bridge language toolchains are present, optionally auto install with DESTACK_AUTO_INSTALL_TOOLCHAINS=1
+# ensure supported bridge toolchains are present
 ensure-toolchain:
     bash scripts/language-bridge-toolchain.sh ensure
 
@@ -135,7 +135,7 @@ test-zed:
     cd zed && cargo build --target wasm32-wasip2 --release
     bun ../language/grammar/scripts/check-overlay.mjs
 
-# test language bridges
+# test supported language bridge clients
 test-language-bridges:
     just ensure-toolchain
     bash scripts/test-language-bridges.sh
@@ -212,126 +212,6 @@ publish-pypi dry="--dry-run":
         rm -r python/aliases/destack-py/dist; \
     fi
 
-# publish nuget package dry by default
-publish-nuget dry="--dry-run":
-    bash scripts/publish-nuget.sh "{{dry}}"
-
-# publish maven package dry by default
-publish-maven dry="--dry-run":
-    (cd java && mvn -q -DskipTests package)
-    @if [ "{{dry}}" = "--dry-run" ]; then \
-        echo "Dry run: built java package"; \
-    else \
-        if [ -z "${MAVEN_REPOSITORY_USERNAME:-}" ]; then \
-            echo "missing MAVEN_REPOSITORY_USERNAME env var for live maven publish"; \
-            exit 1; \
-        fi; \
-        if [ -z "${MAVEN_REPOSITORY_PASSWORD:-}" ]; then \
-            echo "missing MAVEN_REPOSITORY_PASSWORD env var for live maven publish"; \
-            exit 1; \
-        fi; \
-        if [ -z "${MAVEN_GPG_KEY_ID:-}" ]; then \
-            echo "missing MAVEN_GPG_KEY_ID env var for live maven publish"; \
-            exit 1; \
-        fi; \
-        maven_gpg_private_key="${MAVEN_GPG_PRIVATE_KEY:-}"; \
-        if [ -z "${maven_gpg_private_key}" ] && [ -n "${MAVEN_GPG_PRIVATE_KEY_FILE:-}" ]; then \
-            if [ ! -f "${MAVEN_GPG_PRIVATE_KEY_FILE}" ]; then \
-                echo "missing MAVEN_GPG_PRIVATE_KEY_FILE path: ${MAVEN_GPG_PRIVATE_KEY_FILE}"; \
-                exit 1; \
-            fi; \
-            maven_gpg_private_key="$(cat "${MAVEN_GPG_PRIVATE_KEY_FILE}")"; \
-        fi; \
-        settings_path=".maven-settings.xml"; \
-        printf '%s\n' \
-            '<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">' \
-            '  <servers>' \
-            "    <server><id>central</id><username>${MAVEN_REPOSITORY_USERNAME}</username><password>${MAVEN_REPOSITORY_PASSWORD}</password></server>" \
-            '  </servers>' \
-            '</settings>' > "${settings_path}"; \
-        if [ -n "${maven_gpg_private_key}" ]; then \
-            printf '%s\n' "${maven_gpg_private_key}" | gpg --batch --import; \
-        fi; \
-        (cd java && mvn -q -DskipTests -P release-signing -Dgpg.keyname="${MAVEN_GPG_KEY_ID}" -Dgpg.passphrase="${MAVEN_GPG_PASSPHRASE:-}" --settings "../${settings_path}" deploy); \
-        rm -f "${settings_path}"; \
-    fi
-
-# publish rubygems package dry by default
-publish-rubygems dry="--dry-run":
-    (cd ruby && gem build destack.gemspec >/dev/null)
-    @if [ "{{dry}}" = "--dry-run" ]; then \
-        echo "Dry run: built ruby gem"; \
-    else \
-        if [ -z "${RUBYGEMS_API_KEY:-}" ] && [ ! -f "${HOME}/.gem/credentials" ]; then \
-            echo "missing rubygems credentials, set RUBYGEMS_API_KEY or configure ~/.gem/credentials"; \
-            exit 1; \
-        fi; \
-        version="$(cat ../VERSION.txt)"; \
-        if [ -n "${RUBYGEMS_API_KEY:-}" ]; then \
-            GEM_HOST_API_KEY="${RUBYGEMS_API_KEY}" gem push "ruby/destack-${version}.gem"; \
-        else \
-            gem push "ruby/destack-${version}.gem"; \
-        fi; \
-    fi
-    @version="$(cat ../VERSION.txt)"; \
-    if [ -f "ruby/destack-${version}.gem" ]; then \
-        rm "ruby/destack-${version}.gem"; \
-    fi
-
-# publish hex package dry by default
-publish-hex dry="--dry-run":
-    (cd elixir && mix local.hex --force)
-    @if [ "{{dry}}" = "--dry-run" ]; then \
-        (cd elixir && mix hex.build); \
-        echo "Dry run: built hex package"; \
-    else \
-        if [ -z "${HEX_API_KEY:-}" ]; then \
-            echo "missing HEX_API_KEY env var for live hex publish"; \
-            exit 1; \
-        fi; \
-        (cd elixir && HEX_API_KEY="${HEX_API_KEY}" mix hex.publish package --yes); \
-    fi
-
-# publish pub.dev package dry by default
-publish-pub dry="--dry-run":
-    @if [ "{{dry}}" = "--dry-run" ]; then \
-        (cd dart && dart pub publish --dry-run); \
-    elif [ "${DESTACK_PUB_USE_OIDC:-0}" = "1" ]; then \
-        (cd dart && dart pub publish --force); \
-    else \
-        pub_credentials_path=""; \
-        if [ -n "${XDG_CONFIG_HOME:-}" ]; then \
-            pub_credentials_path="${XDG_CONFIG_HOME}/dart/pub-credentials.json"; \
-        else \
-            pub_credentials_path="${HOME}/.config/dart/pub-credentials.json"; \
-        fi; \
-        if [ "$(uname -s)" = "Darwin" ]; then \
-            pub_credentials_path="${HOME}/Library/Application Support/dart/pub-credentials.json"; \
-        fi; \
-        if [ -n "${PUB_DEV_CREDENTIALS_JSON:-}" ]; then \
-            mkdir -p "$(dirname "${pub_credentials_path}")"; \
-            printf '%s' "${PUB_DEV_CREDENTIALS_JSON}" > "${pub_credentials_path}"; \
-        fi; \
-        if [ ! -f "${pub_credentials_path}" ] && [ -f "${HOME}/.pub-cache/credentials.json" ]; then \
-            pub_credentials_path="${HOME}/.pub-cache/credentials.json"; \
-        fi; \
-        if [ ! -f "${pub_credentials_path}" ]; then \
-            echo "missing pub.dev credentials, set PUB_DEV_CREDENTIALS_JSON or run dart pub login"; \
-            exit 1; \
-        fi; \
-        (cd dart && dart pub publish --force); \
-    fi
-
-# publish swift package dry by default
-publish-swift dry="--dry-run":
-    (cd swift && swift package describe >/dev/null)
-    @if [ "{{dry}}" = "--dry-run" ]; then \
-        echo "Dry run: validated swift package manifest"; \
-    else \
-        version="$(cat ../VERSION.txt)"; \
-        echo "SwiftPM package publishing is tag based, push tag v${version} to publish"; \
-    fi
-
 # publish vscode extension dry by default
 publish-vscode dry="--dry-run":
     cd vscode && bun run package
@@ -354,10 +234,4 @@ publish dry="--dry-run":
     just publish-npm "{{dry}}"
     just publish-cargo "{{dry}}"
     just publish-pypi "{{dry}}"
-    just publish-nuget "{{dry}}"
-    just publish-maven "{{dry}}"
-    just publish-rubygems "{{dry}}"
-    just publish-hex "{{dry}}"
-    just publish-pub "{{dry}}"
-    just publish-swift "{{dry}}"
     just publish-vscode "{{dry}}"

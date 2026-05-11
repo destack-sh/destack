@@ -161,10 +161,6 @@ for workflow_file in "${nightly_file}" "${release_file}"; do
 		echo "$(basename "${workflow_file}") missing language-resolver-windows-check full lane" >&2
 		exit 1
 	fi
-	if ! rg -n "^  bridge-swift-build:" "${workflow_file}" >/dev/null; then
-		echo "$(basename "${workflow_file}") missing bridge-swift-build full lane" >&2
-		exit 1
-	fi
 done
 
 # nightly should publish the rolling canary prerelease from main
