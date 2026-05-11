@@ -1,6 +1,11 @@
-import { todo } from "destack:error";
+import { todo, type Result } from "destack:error";
 import { type Dereference } from "destack:ops";
+import { type AllocationError } from "./allocator.ds";
+import { type Clone, type Unpin, type Zeroable } from "./capability.ds";
 import { type Access, type Unique, type WithAccess } from "./form.ds";
+import { type MaybeUninit } from "./init.ds";
+import { type Pin } from "./pin.ds";
+import { type NonNull } from "./raw.ds";
 
 /// A uniquely owned heap allocation.
 export newtype Box<T> = Unique<T>;
@@ -14,13 +19,85 @@ extension<T, A: Access = "readonly"> of Box<T> implements Dereference<A> {
         todo("Box.new")
     }
 
+    /// Try to allocate `value` on the heap.
+    static tryNew(value: ^T): Result<Box<T>, AllocationError> {
+        todo("Box.tryNew")
+    }
+
+    /// Allocate uninitialized storage on the heap.
+    static newUninit(): Box<MaybeUninit<T>> {
+        todo("Box.newUninit")
+    }
+
+    /// Try to allocate uninitialized storage on the heap.
+    static tryNewUninit(): Result<Box<MaybeUninit<T>>, AllocationError> {
+        todo("Box.tryNewUninit")
+    }
+
+    /// Allocate zeroed storage on the heap.
+    static newZeroed(): Box<MaybeUninit<T>>
+    where T implements Zeroable {
+        todo("Box.newZeroed")
+    }
+
+    /// Try to allocate zeroed storage on the heap.
+    static tryNewZeroed(): Result<Box<MaybeUninit<T>>, AllocationError>
+    where T implements Zeroable {
+        todo("Box.tryNewZeroed")
+    }
+
+    /// Create a box from its unique heap handle.
+    static fromUnique(unique: Unique<T>): Box<T> {
+        todo("Box.fromUnique")
+    }
+
+    /// Allocate and pin `value` on the heap.
+    static pin(value: ^T): Pin<Box<T>> {
+        todo("Box.pin")
+    }
+
+    /// Try to allocate and pin `value` on the heap.
+    static tryPin(value: ^T): Result<Pin<Box<T>>, AllocationError> {
+        todo("Box.tryPin")
+    }
+
     /// Move the value out of this box.
-    into(this: ^Box<T>): ^T {
-        todo("Box.into")
+    intoInner(this: ^Box<T>): ^T {
+        todo("Box.intoInner")
+    }
+
+    /// Move this box into its unique heap handle.
+    intoUnique(this: ^Box<T>): Unique<T> {
+        todo("Box.intoUnique")
+    }
+
+    /// Return the raw pointer to the boxed value.
+    asPointer(): NonNull<T> {
+        todo("Box.asPointer")
+    }
+
+    /// Borrow the boxed value with readonly access.
+    asReference(): &readonly T {
+        todo("Box.asReference")
+    }
+
+    /// Borrow the boxed value with exclusive access.
+    asExclusive(this: &exclusive Box<T>): &exclusive T {
+        todo("Box.asExclusive")
     }
 
     /// Borrow the boxed value.
     dereference(): this.Output {
         todo("Box.dereference")
+    }
+}
+
+extension<T> of Box<T> implements Unpin {}
+
+extension<T> of Box<T> implements Clone
+where T implements Clone {
+    /// Clone the boxed value into a new box.
+    clone(): Box<T> {
+        todo("Box.clone")
     }
 }

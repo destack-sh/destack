@@ -1,0 +1,60 @@
+import { todo } from "destack:error";
+import { type Clone } from "../capability.ds";
+import { type BaseOf } from "../form.ds";
+
+/// Borrowed copy-on-write value.
+export struct CowBorrowed<T> {
+    /// The borrowed value.
+    value: T;
+}
+
+/// Owned copy-on-write value.
+export struct CowOwned<T> {
+    /// The owned value.
+    value: T;
+}
+
+/// Copy-on-write value.
+@derive(Tagged)
+export newtype Cow<Borrowed, Owned = ^BaseOf<Borrowed>> =
+    | CowBorrowed<Borrowed>
+    | CowOwned<Owned>;
+
+extension<Borrowed, Owned = ^BaseOf<Borrowed>> of Cow<Borrowed, Owned> {
+    /// Create a borrowed copy-on-write value.
+    static borrowed(value: Borrowed): Cow<Borrowed, Owned> {
+        todo("Cow.borrowed")
+    }
+
+    /// Create an owned copy-on-write value.
+    static owned(value: Owned): Cow<Borrowed, Owned> {
+        todo("Cow.owned")
+    }
+
+    /// Return whether this value is borrowed.
+    isBorrowed(): boolean {
+        todo("Cow.isBorrowed")
+    }
+
+    /// Return whether this value is owned.
+    isOwned(): boolean {
+        todo("Cow.isOwned")
+    }
+
+    /// Borrow the value.
+    borrow(): Borrowed {
+        todo("Cow.borrow")
+    }
+
+    /// Borrow owned storage, cloning first if needed.
+    toExclusive(this: &exclusive Cow<Borrowed, Owned>): &exclusive Owned
+    where BaseOf<Borrowed> implements Clone {
+        todo("Cow.toExclusive")
+    }
+
+    /// Move or clone this value into owned storage.
+    intoOwned(this: ^Cow<Borrowed, Owned>): Owned
+    where BaseOf<Borrowed> implements Clone {
+        todo("Cow.intoOwned")
+    }
+}

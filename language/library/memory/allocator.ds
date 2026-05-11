@@ -1,19 +1,21 @@
-import { type Result } from "destack:error";
+import { todo, type Result } from "destack:error";
+import { alignOf, sizeOf } from "destack:reflect";
 import { type Space, type WithSpace } from "./form.ds";
+import { type NonNull } from "./raw.ds";
 
 /// Layout requested from an allocator.
 export struct AllocationLayout {
     /// The requested size in bytes.
     size: usize;
     /// The required alignment in bytes.
-    align: usize;
+    alignment: usize;
 }
 
 /// Failure kind returned by an allocator.
 export type AllocationErrorKind =
     | "outOfMemory"
     | "invalidLayout"
-    | "unsupported";
+    | "unsupportedLayout";
 
 /// Allocation failure.
 export struct AllocationError {
@@ -23,10 +25,49 @@ export struct AllocationError {
     message?: string;
 }
 
+export extension of AllocationLayout {
+    /// Create an allocation layout.
+    static new(size: usize, alignment: usize): AllocationLayout {
+        AllocationLayout { size, alignment }
+    }
+
+    /// Try to create an allocation layout.
+    static tryNew(size: usize, alignment: usize): Result<AllocationLayout, AllocationError> {
+        todo("AllocationLayout.tryNew")
+    }
+
+    /// Return the layout of one `T`.
+    static fromType<T>(): AllocationLayout {
+        AllocationLayout {
+            size: sizeOf<T>(),
+            alignment: alignOf<T>(),
+        }
+    }
+
+    /// Return the layout of `length` contiguous `T` values.
+    static array<T>(length: usize): AllocationLayout {
+        AllocationLayout {
+            size: sizeOf<T>() * length,
+            alignment: alignOf<T>(),
+        }
+    }
+
+    /// Try to return the layout of `length` contiguous `T` values.
+    static tryArray<T>(length: usize): Result<AllocationLayout, AllocationError> {
+        todo("AllocationLayout.tryArray")
+    }
+
+    /// Return the size rounded up to this layout's alignment.
+    paddedSize(): usize {
+        const mask = this.alignment - 1;
+        (this.size + mask) & ~mask
+    }
+}
+
 /// Raw allocation in space `S`, viewed as elements of `T`.
 export newtype Allocation<T = uint8, S: Space = "local"> = {
     /// The allocated pointer.
-    pointer: WithSpace<*T, S>;
+    pointer: WithSpace<NonNull<T>, S>;
     /// The allocated layout.
     layout: AllocationLayout;
 };
@@ -36,11 +77,23 @@ export newtype interface Allocator<S: Space = "local"> {
     /// Allocate raw memory.
     allocate<T = uint8>(layout: AllocationLayout): Result<Allocation<T, S>, AllocationError>;
 
+    /// Allocate zero-filled raw memory.
+    allocateZeroed<T = uint8>(layout: AllocationLayout): Result<Allocation<T, S>, AllocationError>;
+
     /// Free raw memory.
     deallocate<T>(allocation: Allocation<T, S>): void;
 
-    /// Resize raw memory.
-    resize<T>(allocation: Allocation<T, S>, layout: AllocationLayout): Result<Allocation<T, S>, AllocationError>;
+    /// Grow raw memory to a larger layout.
+    grow<T>(
+        allocation: Allocation<T, S>,
+        layout: AllocationLayout,
+    ): Result<Allocation<T, S>, AllocationError>;
+
+    /// Shrink raw memory to a smaller layout.
+    shrink<T>(
+        allocation: Allocation<T, S>,
+        layout: AllocationLayout,
+    ): Result<Allocation<T, S>, AllocationError>;
 }
 
 /// Return the default allocator for space `S`.

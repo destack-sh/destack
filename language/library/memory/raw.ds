@@ -1,3 +1,88 @@
+/// Non-null raw pointer.
+export newtype NonNull<T> = *T;
+
+export extension<T> of NonNull<T> {
+    /// Return a well-aligned dangling pointer.
+    @intrinsic("ptr.nonNull.dangling")
+    static dangling(): NonNull<T>;
+
+    /// Return a non-null pointer when `pointer` is not null.
+    @intrinsic("ptr.nonNull.fromRaw")
+    static fromRaw(pointer: *T): NonNull<T> | undefined;
+
+    /// Create a non-null pointer without checking `pointer`.
+    @intrinsic("ptr.nonNull.unchecked")
+    static unchecked(pointer: *T): NonNull<T>;
+
+    /// Return the raw pointer.
+    @intrinsic("ptr.nonNull.asPointer")
+    asPointer(): *T;
+
+    /// Borrow the pointed-to value.
+    @intrinsic("ptr.nonNull.asReference")
+    asReference(): &T;
+
+    /// Borrow the pointed-to value with readonly access.
+    @intrinsic("ptr.nonNull.asReadonlyReference")
+    asReadonlyReference(): &readonly T;
+
+    /// Borrow the pointed-to value with exclusive access.
+    @intrinsic("ptr.nonNull.asExclusive")
+    asExclusive(): &exclusive T;
+
+    /// Cast this pointer to another element type.
+    @intrinsic("ptr.nonNull.cast")
+    cast<U>(): NonNull<U>;
+
+    /// Offset this pointer by `count` elements.
+    @intrinsic("ptr.nonNull.offset")
+    offset(count: int): NonNull<T>;
+
+    /// Return the element offset from `origin` to this pointer.
+    @intrinsic("ptr.nonNull.offsetFrom")
+    offsetFrom(origin: NonNull<T>): int;
+
+    /// Read a value from this pointer.
+    @intrinsic("ptr.nonNull.read")
+    read(): ^T;
+
+    /// Write a value to this pointer.
+    @intrinsic("ptr.nonNull.write")
+    write(value: ^T): void;
+
+    /// Replace the pointed-to value.
+    @intrinsic("ptr.nonNull.replace")
+    replace(value: ^T): ^T;
+
+    /// Swap the pointed-to values.
+    @intrinsic("ptr.nonNull.swap")
+    swap(other: NonNull<T>): void;
+
+    /// Drop the pointed-to value in place.
+    @intrinsic("ptr.nonNull.dropInPlace")
+    dropInPlace(): void;
+}
+
+/// Read a value from `source`.
+@intrinsic("ptr.read")
+export declare function read<T>(source: *T): ^T;
+
+/// Write `value` into `destination`.
+@intrinsic("ptr.write")
+export declare function write<T>(destination: *T, value: ^T): void;
+
+/// Replace the value at `destination`.
+@intrinsic("ptr.replace")
+export declare function replace<T>(destination: *T, value: ^T): ^T;
+
+/// Swap the values at `a` and `b`.
+@intrinsic("ptr.swap")
+export declare function swap<T>(a: *T, b: *T): void;
+
+/// Drop the value at `destination`.
+@intrinsic("ptr.dropInPlace")
+export declare function dropInPlace<T>(destination: *T): void;
+
 /// Copy non-overlapping bytes from `source` to `destination`.
 @intrinsic("memcpy")
 export declare function memcpy(destination: *void, source: *void, length: usize): void;
@@ -13,6 +98,18 @@ export declare function memset(destination: *void, value: uint8, length: usize):
 /// Compare raw bytes lexicographically.
 @intrinsic("memcmp")
 export declare function memcmp(a: *void, b: *void, length: usize): int32;
+
+/// Copy `count` values from `source` to `destination`, allowing overlap.
+@intrinsic("ptr.copy")
+export declare function copy<T>(destination: *T, source: *T, count: usize): void;
+
+/// Copy `count` values from `source` to `destination` without overlap.
+@intrinsic("ptr.copyNonOverlapping")
+export declare function copyNonOverlapping<T>(destination: *T, source: *T, count: usize): void;
+
+/// Fill `count` values at `destination` with byte `value`.
+@intrinsic("ptr.writeBytes")
+export declare function writeBytes<T>(destination: *T, value: uint8, count: usize): void;
 
 /// Hint that `address` will be read soon.
 @intrinsic("prefetch.read")

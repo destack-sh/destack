@@ -1,0 +1,77 @@
+import { todo } from "destack:error";
+import { type Copy } from "../capability.ds";
+
+/// Unsafe interior mutable storage.
+@languageItem("UnsafeCell")
+export newtype UnsafeCell<T> = intrinsic;
+
+export extension<T> of UnsafeCell<T> {
+    /// Create unsafe interior mutable storage.
+    static new(value: T): UnsafeCell<T> {
+        todo("UnsafeCell.new")
+    }
+
+    /// Return a raw pointer to the stored value.
+    get(this: &readonly UnsafeCell<T>): *T {
+        todo("UnsafeCell.get")
+    }
+
+    /// Borrow the stored value with exclusive access.
+    getExclusive(this: &exclusive UnsafeCell<T>): &exclusive T {
+        todo("UnsafeCell.getExclusive")
+    }
+
+    /// Move out the stored value.
+    intoInner(this: ^UnsafeCell<T>): ^T {
+        todo("UnsafeCell.intoInner")
+    }
+}
+
+/// Interior mutable storage for copyable values.
+export struct Cell<T> {
+    /// The stored value storage.
+    storage: UnsafeCell<T>;
+}
+
+export extension<T> of Cell<T> {
+    /// Create a cell containing `value`.
+    static new(value: T): Cell<T> {
+        Cell { storage: UnsafeCell.new(value) }
+    }
+
+    /// Copy the stored value.
+    get(this: &readonly Cell<T>): T
+    where T implements Copy {
+        todo("Cell.get")
+    }
+
+    /// Return a raw pointer to the stored value.
+    asPointer(this: &readonly Cell<T>): *T {
+        todo("Cell.asPointer")
+    }
+
+    /// Borrow the stored value with exclusive access.
+    getExclusive(this: &exclusive Cell<T>): &exclusive T {
+        todo("Cell.getExclusive")
+    }
+
+    /// Replace the stored value.
+    set(this: &readonly Cell<T>, value: T): void {
+        todo("Cell.set")
+    }
+
+    /// Replace the stored value and return the old value.
+    replace(this: &readonly Cell<T>, value: T): T {
+        todo("Cell.replace")
+    }
+
+    /// Swap two cells.
+    swap(this: &readonly Cell<T>, other: &readonly Cell<T>): void {
+        todo("Cell.swap")
+    }
+
+    /// Move out the stored value.
+    intoInner(this: ^Cell<T>): ^T {
+        todo("Cell.intoInner")
+    }
+}

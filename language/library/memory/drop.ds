@@ -15,6 +15,26 @@ export extension<T> of ManuallyDrop<T> {
     /// Move the wrapped value out.
     @intrinsic("memory.manuallyDrop.intoInner")
     intoInner(this: ^ManuallyDrop<T>): ^T;
+
+    /// Move the wrapped value out through an exclusive borrow.
+    @intrinsic("memory.manuallyDrop.take")
+    take(this: &exclusive ManuallyDrop<T>): ^T;
+
+    /// Borrow the wrapped value.
+    @intrinsic("memory.manuallyDrop.asReference")
+    asReference(this: &ManuallyDrop<T>): &T;
+
+    /// Borrow the wrapped value with readonly access.
+    @intrinsic("memory.manuallyDrop.asReadonlyReference")
+    asReadonlyReference(this: &readonly ManuallyDrop<T>): &readonly T;
+
+    /// Borrow the wrapped value with exclusive access.
+    @intrinsic("memory.manuallyDrop.asExclusive")
+    asExclusive(this: &exclusive ManuallyDrop<T>): &exclusive T;
+
+    /// Drop the wrapped value.
+    @intrinsic("memory.manuallyDrop.dropInner")
+    dropInner(this: ^ManuallyDrop<T>): void;
 }
 
 /// End ownership of `value` at this point.

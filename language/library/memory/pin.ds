@@ -1,0 +1,50 @@
+import { todo } from "destack:error";
+import { type Dereference } from "destack:ops";
+import { type Unpin } from "./capability.ds";
+
+/// Address-stable storage wrapper.
+@languageItem("Pin")
+export newtype Pin<T> = intrinsic;
+
+export extension<T> of Pin<T> implements Dereference<"readonly"> {
+    /// The projected result form.
+    type Output = &readonly T;
+
+    /// Pin a movable root.
+    static new(value: T): Pin<T>
+    where T implements Unpin {
+        todo("Pin.new")
+    }
+
+    /// Pin `value` without proving that its address is stable.
+    static unchecked(value: T): Pin<T> {
+        todo("Pin.unchecked")
+    }
+
+    /// Move out the pinned root when it is movable.
+    intoInner(this: ^Pin<T>): T
+    where T implements Unpin {
+        todo("Pin.intoInner")
+    }
+
+    /// Borrow the pinned root with readonly access.
+    asReference(): &readonly T {
+        todo("Pin.asReference")
+    }
+
+    /// Project this pinned root into pinned exclusive access.
+    asPinnedExclusive(this: &exclusive Pin<T>): Pin<&exclusive T> {
+        todo("Pin.asPinnedExclusive")
+    }
+
+    /// Borrow the pinned root with exclusive access when it is movable.
+    asExclusive(this: &exclusive Pin<T>): &exclusive T
+    where T implements Unpin {
+        todo("Pin.asExclusive")
+    }
+
+    /// Borrow the pinned root.
+    dereference(): this.Output {
+        todo("Pin.dereference")
+    }
+}
