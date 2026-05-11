@@ -1,54 +1,48 @@
 use serde::{Deserialize, Serialize};
 
-/// Compiler known builtin symbols.
+/// Compiler known ambient symbols.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[allow(clippy::upper_case_acronyms)]
 pub enum WellKnownSymbol {
-    /// Builtin Array constructor symbol.
+    /// Ambient Array constructor symbol.
     Array,
-    /// Builtin FixedArray type alias symbol.
+    /// Ambient FixedArray type alias symbol.
     FixedArray,
-    /// Builtin ReadonlyArray constructor symbol.
+    /// Ambient ReadonlyArray type alias symbol.
     ReadonlyArray,
-    /// Builtin Map constructor symbol.
+    /// Ambient Map constructor symbol.
     Map,
-    /// Builtin Set constructor symbol.
+    /// Ambient Set constructor symbol.
     Set,
-    /// Builtin Record type symbol.
+    /// Ambient Record type alias symbol.
     Record,
-    /// Builtin Slice type symbol.
+    /// Ambient Slice type alias symbol.
     Slice,
-    /// Builtin Object constructor symbol.
-    Object,
-    /// Builtin Function constructor symbol.
-    Function,
-    /// Builtin eval function symbol.
-    Eval,
-    /// Builtin String constructor symbol.
+    /// Ambient String constructor symbol.
     String,
-    /// Builtin Number constructor symbol.
+    /// Ambient Number namespace symbol.
     Number,
-    /// Builtin Boolean constructor symbol.
-    Boolean,
-    /// Builtin BigInt constructor symbol.
+    /// Ambient BigInt namespace symbol.
     BigInt,
-    /// Builtin Proxy constructor symbol.
-    Proxy,
-    /// Builtin Reflect namespace symbol.
+    /// Ambient Function constructor symbol.
+    Function,
+    /// Ambient eval function symbol.
+    Eval,
+    /// Ambient Reflect namespace class symbol.
     Reflect,
-    /// Builtin Promise constructor symbol.
+    /// Ambient Promise constructor symbol.
     Promise,
-    /// Builtin Iterable type symbol.
+    /// Ambient Iterable interface symbol.
     Iterable,
-    /// Builtin Iterator type symbol.
+    /// Ambient Iterator interface symbol.
     Iterator,
-    /// Builtin AsyncIterable type symbol.
+    /// Ambient AsyncIterable interface symbol.
     AsyncIterable,
-    /// Builtin AsyncIterator type symbol.
+    /// Ambient AsyncIterator interface symbol.
     AsyncIterator,
-    /// Builtin Symbol constructor symbol.
+    /// Ambient Symbol constructor symbol.
     Symbol,
-    /// Builtin Vector type symbol.
+    /// Ambient Vector type symbol.
     Vector,
 }
 
@@ -63,14 +57,11 @@ impl WellKnownSymbol {
             WellKnownSymbol::Set => "Set",
             WellKnownSymbol::Record => "Record",
             WellKnownSymbol::Slice => "Slice",
-            WellKnownSymbol::Object => "Object",
-            WellKnownSymbol::Function => "Function",
-            WellKnownSymbol::Eval => "eval",
             WellKnownSymbol::String => "String",
             WellKnownSymbol::Number => "Number",
-            WellKnownSymbol::Boolean => "Boolean",
             WellKnownSymbol::BigInt => "BigInt",
-            WellKnownSymbol::Proxy => "Proxy",
+            WellKnownSymbol::Function => "Function",
+            WellKnownSymbol::Eval => "eval",
             WellKnownSymbol::Reflect => "Reflect",
             WellKnownSymbol::Promise => "Promise",
             WellKnownSymbol::Iterable => "Iterable",
@@ -92,14 +83,11 @@ impl WellKnownSymbol {
             WellKnownSymbol::Set,
             WellKnownSymbol::Record,
             WellKnownSymbol::Slice,
-            WellKnownSymbol::Object,
-            WellKnownSymbol::Function,
-            WellKnownSymbol::Eval,
             WellKnownSymbol::String,
             WellKnownSymbol::Number,
-            WellKnownSymbol::Boolean,
             WellKnownSymbol::BigInt,
-            WellKnownSymbol::Proxy,
+            WellKnownSymbol::Function,
+            WellKnownSymbol::Eval,
             WellKnownSymbol::Reflect,
             WellKnownSymbol::Promise,
             WellKnownSymbol::Iterable,
@@ -121,28 +109,6 @@ pub enum WellKnownSymbolKey {
     SymbolIterator,
     /// Symbol key for Symbol.asyncIterator.
     SymbolAsyncIterator,
-    /// Symbol key for Symbol.hasInstance.
-    SymbolHasInstance,
-    /// Symbol key for Symbol.isConcatSpreadable.
-    SymbolIsConcatSpreadable,
-    /// Symbol key for Symbol.match.
-    SymbolMatch,
-    /// Symbol key for Symbol.matchAll.
-    SymbolMatchAll,
-    /// Symbol key for Symbol.replace.
-    SymbolReplace,
-    /// Symbol key for Symbol.search.
-    SymbolSearch,
-    /// Symbol key for Symbol.species.
-    SymbolSpecies,
-    /// Symbol key for Symbol.split.
-    SymbolSplit,
-    /// Symbol key for Symbol.toPrimitive.
-    SymbolToPrimitive,
-    /// Symbol key for Symbol.toStringTag.
-    SymbolToStringTag,
-    /// Symbol key for Symbol.unscopables.
-    SymbolUnscopables,
     /// Symbol key for Symbol.dispose.
     SymbolDispose,
     /// Symbol key for Symbol.asyncDispose.
@@ -155,17 +121,6 @@ impl WellKnownSymbolKey {
         match self {
             WellKnownSymbolKey::SymbolIterator => "iterator",
             WellKnownSymbolKey::SymbolAsyncIterator => "asyncIterator",
-            WellKnownSymbolKey::SymbolHasInstance => "hasInstance",
-            WellKnownSymbolKey::SymbolIsConcatSpreadable => "isConcatSpreadable",
-            WellKnownSymbolKey::SymbolMatch => "match",
-            WellKnownSymbolKey::SymbolMatchAll => "matchAll",
-            WellKnownSymbolKey::SymbolReplace => "replace",
-            WellKnownSymbolKey::SymbolSearch => "search",
-            WellKnownSymbolKey::SymbolSpecies => "species",
-            WellKnownSymbolKey::SymbolSplit => "split",
-            WellKnownSymbolKey::SymbolToPrimitive => "toPrimitive",
-            WellKnownSymbolKey::SymbolToStringTag => "toStringTag",
-            WellKnownSymbolKey::SymbolUnscopables => "unscopables",
             WellKnownSymbolKey::SymbolDispose => "dispose",
             WellKnownSymbolKey::SymbolAsyncDispose => "asyncDispose",
         }
@@ -176,17 +131,6 @@ impl WellKnownSymbolKey {
         match self {
             WellKnownSymbolKey::SymbolIterator => "Symbol.iterator",
             WellKnownSymbolKey::SymbolAsyncIterator => "Symbol.asyncIterator",
-            WellKnownSymbolKey::SymbolHasInstance => "Symbol.hasInstance",
-            WellKnownSymbolKey::SymbolIsConcatSpreadable => "Symbol.isConcatSpreadable",
-            WellKnownSymbolKey::SymbolMatch => "Symbol.match",
-            WellKnownSymbolKey::SymbolMatchAll => "Symbol.matchAll",
-            WellKnownSymbolKey::SymbolReplace => "Symbol.replace",
-            WellKnownSymbolKey::SymbolSearch => "Symbol.search",
-            WellKnownSymbolKey::SymbolSpecies => "Symbol.species",
-            WellKnownSymbolKey::SymbolSplit => "Symbol.split",
-            WellKnownSymbolKey::SymbolToPrimitive => "Symbol.toPrimitive",
-            WellKnownSymbolKey::SymbolToStringTag => "Symbol.toStringTag",
-            WellKnownSymbolKey::SymbolUnscopables => "Symbol.unscopables",
             WellKnownSymbolKey::SymbolDispose => "Symbol.dispose",
             WellKnownSymbolKey::SymbolAsyncDispose => "Symbol.asyncDispose",
         }
@@ -202,17 +146,6 @@ impl WellKnownSymbolKey {
         const ALL: &[WellKnownSymbolKey] = &[
             WellKnownSymbolKey::SymbolIterator,
             WellKnownSymbolKey::SymbolAsyncIterator,
-            WellKnownSymbolKey::SymbolHasInstance,
-            WellKnownSymbolKey::SymbolIsConcatSpreadable,
-            WellKnownSymbolKey::SymbolMatch,
-            WellKnownSymbolKey::SymbolMatchAll,
-            WellKnownSymbolKey::SymbolReplace,
-            WellKnownSymbolKey::SymbolSearch,
-            WellKnownSymbolKey::SymbolSpecies,
-            WellKnownSymbolKey::SymbolSplit,
-            WellKnownSymbolKey::SymbolToPrimitive,
-            WellKnownSymbolKey::SymbolToStringTag,
-            WellKnownSymbolKey::SymbolUnscopables,
             WellKnownSymbolKey::SymbolDispose,
             WellKnownSymbolKey::SymbolAsyncDispose,
         ];
