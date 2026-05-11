@@ -1,0 +1,26 @@
+import { todo } from "destack:error";
+import { type Rc } from "./rc.ds";
+import { type RcBox } from "./rc.ds";
+
+/// Weak local reference-counted handle.
+export struct Weak<T> {
+    /// The control block.
+    control: *RcBox<T>;
+}
+
+extension<T> of Weak<T> {
+    /// Try to upgrade this weak handle.
+    upgrade(): Rc<T> | undefined {
+        todo("Weak.upgrade")
+    }
+
+    /// Return the strong reference count.
+    strongCount(): usize {
+        todo("Weak.strongCount")
+    }
+
+    /// Return the weak reference count.
+    weakCount(): usize {
+        todo("Weak.weakCount")
+    }
+}

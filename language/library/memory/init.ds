@@ -1,0 +1,16 @@
+/// Storage for `T` whose lifetime may not have started.
+export newtype MaybeUninit<T> = intrinsic;
+
+export extension<T> of MaybeUninit<T> {
+    /// Create uninitialized storage for `T`.
+    @intrinsic("memory.init.uninit")
+    static uninit(): MaybeUninit<T>;
+
+    /// Initialize this storage with `value`.
+    @intrinsic("memory.init.write")
+    write(this: &exclusive MaybeUninit<T>, value: ^T): &exclusive T;
+
+    /// Move initialized storage out as `T`.
+    @intrinsic("memory.init.assumeInit")
+    assumeInit(this: ^MaybeUninit<T>): ^T;
+}

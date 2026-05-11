@@ -1,0 +1,26 @@
+import { todo } from "destack:error";
+import { type Arc } from "./arc.ds";
+import { type ArcBox } from "./arc.ds";
+
+/// Weak shared reference-counted handle.
+export struct Weak<T> {
+    /// The control block.
+    control: *ArcBox<T>;
+}
+
+extension<T> of Weak<T> {
+    /// Try to upgrade this weak handle.
+    upgrade(): Arc<T> | undefined {
+        todo("Weak.upgrade")
+    }
+
+    /// Return the strong reference count.
+    strongCount(): usize {
+        todo("Weak.strongCount")
+    }
+
+    /// Return the weak reference count.
+    weakCount(): usize {
+        todo("Weak.weakCount")
+    }
+}

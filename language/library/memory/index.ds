@@ -46,6 +46,7 @@ export {
     type AsExclusiveBorrowed,
     type AsRaw,
 } from "./form.ds";
+export { Box } from "./box.ds";
 export {
     type AllocationLayout,
     type AllocationErrorKind,
@@ -55,8 +56,10 @@ export {
     defaultAllocator,
 } from "./allocator.ds";
 export { type Copy, type Clone, type Send, type Sync } from "./capability.ds";
-export { type Drop, drop } from "./drop.ds";
+export { type Drop, ManuallyDrop, drop } from "./drop.ds";
 export { type Dispose, type AsyncDispose } from "./dispose.ds";
+export * as arc from "./arc";
+export * as rc from "./rc";
 export {
     memcpy,
     memmove,
@@ -68,3 +71,4 @@ export {
     ptrOffsetFrom,
     rawEq,
 } from "./raw.ds";
+export * from "./init.ds";

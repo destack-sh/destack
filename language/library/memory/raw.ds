@@ -1,63 +1,35 @@
-import { intrinsic } from "../core/decorator/intrinsic.ds";
-
-/// Copy memory from source to destination (non-overlapping).
-///
-/// Copies `length` bytes from `source` to `destination`.
-/// The memory regions must not overlap; use `memmove` for overlapping regions.
+/// Copy non-overlapping bytes from `source` to `destination`.
 @intrinsic("memcpy")
-export declare function memcpy(destination: *void, source: *void, length: int): void;
+export declare function memcpy(destination: *void, source: *void, length: usize): void;
 
-/// Move memory (handles overlapping regions).
-///
-/// Copies `length` bytes from `source` to `destination`.
-/// Correctly handles overlapping memory regions.
+/// Copy bytes from `source` to `destination`, allowing overlap.
 @intrinsic("memmove")
-export declare function memmove(destination: *void, source: *void, length: int): void;
+export declare function memmove(destination: *void, source: *void, length: usize): void;
 
-/// Set memory to a byte value.
-///
-/// Sets `length` bytes starting at `destination` to `value`.
+/// Fill bytes at `destination` with `value`.
 @intrinsic("memset")
-export declare function memset(destination: *void, value: int32, length: int): void;
+export declare function memset(destination: *void, value: uint8, length: usize): void;
 
-/// Compare memory regions.
-///
-/// Compares `length` bytes of `a` and `b`.
-/// Returns negative if a < b, zero if equal, positive if a > b.
+/// Compare raw bytes lexicographically.
 @intrinsic("memcmp")
-export declare function memcmp(a: *void, b: *void, length: int): int32;
+export declare function memcmp(a: *void, b: *void, length: usize): int32;
 
-/// Prefetch memory for reading.
-///
-/// Hints to the CPU that the memory at `address` will be read soon.
-/// May improve performance by loading data into cache ahead of time.
+/// Hint that `address` will be read soon.
 @intrinsic("prefetch.read")
 export declare function prefetchRead(address: *void): void;
 
-/// Prefetch memory for writing.
-///
-/// Hints to the CPU that the memory at `address` will be written soon.
-/// May improve performance by loading data into cache with write intent.
+/// Hint that `address` will be written soon.
 @intrinsic("prefetch.write")
 export declare function prefetchWrite(address: *void): void;
 
-/// Reinterpret bytes as a different type.
-///
-/// Reinterprets the bits of `value` as type `U` without any conversion.
-/// Both types must have the same size. This is an unchecked operation.
+/// Reinterpret `value` as `U` without conversion.
 @intrinsic("transmute")
 export declare function transmute<T, U>(value: T): U;
 
-/// Compute byte offset between two pointers.
-///
-/// Returns the signed byte offset from `start` to `end`.
-/// Result is (end - start) in bytes.
+/// Return the byte offset from `start` to `end`.
 @intrinsic("ptr_offset_from")
 export declare function ptrOffsetFrom(start: *void, end: *void): int;
 
-/// Compare values byte-wise.
-///
-/// Compares two values by their raw byte representation.
-/// Returns true if all bytes are identical.
+/// Return whether two values have identical raw bytes.
 @intrinsic("raw_eq")
 export declare function rawEq<T>(a: T, b: T): boolean;
