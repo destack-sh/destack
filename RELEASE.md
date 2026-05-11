@@ -146,17 +146,9 @@ GitHub Actions uses the `release` environment for the CI path.
 | Key | Kind | Required when | Purpose |
 |-----|------|---------------|---------|
 | `CARGO_TOKEN` | Secret | Always | crates.io publishing |
-| `NUGET_PUBLISH_USERNAME` | Variable | Always | NuGet trusted publishing identity |
-| `MAVEN_REPOSITORY_USERNAME` | Secret | Always | Maven Central portal username |
-| `MAVEN_REPOSITORY_PASSWORD` | Secret | Always | Maven Central portal password |
-| `MAVEN_GPG_PRIVATE_KEY` | Secret | Always | Armored private key for Maven signing |
-| `MAVEN_GPG_PASSPHRASE` | Secret | Always | Passphrase for Maven signing key |
-| `MAVEN_GPG_KEY_ID` | Variable | Always | Key id used by Maven GPG plugin |
 | `RELEASE_GPG_PRIVATE_KEY` | Secret | Always | Armored private key for release artifact signatures |
 | `RELEASE_GPG_PASSPHRASE` | Secret | Always | Passphrase for release artifact signing key |
 | `RELEASE_GPG_KEY_ID` | Variable | Always | Key id used for release artifact signatures |
-| `RUBYGEMS_OIDC_ROLE` | Variable | Always | RubyGems trusted publishing role |
-| `HEX_API_KEY` | Secret | Always | Hex publishing |
 | `VSCE_PAT` | Secret | Always | VS Code extension publishing |
 | `RELEASE_PUBLISH_ZED` | Variable | Optional | Enables zed registry publish on release tags |
 | `ZED_GITHUB_TOKEN` | Secret | `RELEASE_PUBLISH_ZED == true` | GitHub token for the zed registry PR lane |

@@ -4,13 +4,11 @@
     "version": "0.1.0",
     "type": "module",
     "scripts": {
-        "dev": "bun --hot src/main.ds",
-        "start": "NODE_ENV=production bun src/main.ds"
-    },
-    "dependencies": {
-        "@destack/bun": "0.55.4"
+        "dev": "destack run --watch src/main.ds",
+        "start": "destack run src/main.ds"
     },
     "devDependencies": {
+        "@destack/cli": "0.55.4",
         "@types/bun": "1.2.18"
     }
 }

@@ -1,1 +1,1 @@
-preload = ["./bridge/bun/src/register.ts"]
+preload = []

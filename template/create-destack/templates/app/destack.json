@@ -5,16 +5,14 @@
   "private": true,
   "type": "module",
   "packageManager": "bun@1.2.18",
-  "dependencies": {
-    "@destack/bun": "0.55.4"
-  },
   "devDependencies": {
+    "@destack/cli": "0.55.4",
     "@types/bun": "1.2.18"
   },
   "tasks": {
-    "dev": "bun --hot src/main.ds",
+    "dev": "destack run --watch src/main.ds",
     "start": {
-      "command": "bun src/main.ds",
+      "command": "destack run src/main.ds",
       "env": {
         "NODE_ENV": "production"
       }

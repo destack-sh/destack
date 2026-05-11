@@ -88,7 +88,7 @@ A production `destack.sh/install` endpoint should serve or redirect to `install.
 
 ## ci publish prerequisites
 
-The `release.yml` publish job requires trusted publishing to stay enabled for npm, NuGet, RubyGems, and pub.dev.
+The `release.yml` publish job requires trusted publishing to stay enabled for npm and PyPI.
 The job stages npm binaries from `release-cli-assets` and then publishes npm packages through `just publish ""`.
 If `RELEASE_PUBLISH_ZED` is enabled for tag releases, the job also requires `ZED_GITHUB_TOKEN` and `ZED_REGISTRY_PUSH_TO`.
 The create-release lane signs `manifest.json` and `SHA256SUMS` with the dedicated `RELEASE_GPG_*` key.
