@@ -92,9 +92,9 @@ const view = &readonly value
 const view = &readonly value;
 ```
 
-### owned reference operator
+### owned value operator
 
-Owned references keep `^` tight to the operand.
+Owned values keep `^` tight to the operand.
 
 ```ds
 const owned = ^value

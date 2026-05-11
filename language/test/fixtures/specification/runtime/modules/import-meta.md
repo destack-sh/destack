@@ -4,15 +4,6 @@
 
 Module metadata available via `import.meta`.
 
-### output is a known union
-
-`import.meta.output` returns the output format for the profile.
-
-```ds
-const output = import.meta.output;
-output satisfies "js" | "ts" | "wasm" | "native";
-```
-
 ### runtime is a known union
 
 `import.meta.runtime` returns the runtime for the profile.
@@ -61,8 +52,7 @@ platform satisfies Platform;
 const family = import.meta.target.family;
 family satisfies "web" | "windows" | "unix" | "wasm" | "bare-metal" | "universal" | "other";
 
-const vendor: string = import.meta.target.vendor;
-const env: string | undefined = import.meta.target.env;
+const vendor: string | undefined = import.meta.target.vendor;
 const abi: string | undefined = import.meta.target.abi;
 const arch: string | undefined = import.meta.target.arch;
 ```
@@ -90,14 +80,11 @@ const path: string | undefined = import.meta.path;
 const dir: string | undefined = import.meta.dir;
 ```
 
-### env exposes strings and helper fields
+### env exposes configured strings
 
-`import.meta.env` exposes string values and helpers.
+`import.meta.env` exposes configured string values.
 
 ```ds
-const mode: "development" | "production" | "test" | undefined = import.meta.env.NODE_ENV;
-const dev: boolean = import.meta.env.DEV;
-const prod: boolean = import.meta.env.PROD;
-const test: boolean = import.meta.env.TEST;
+
 const value: string | undefined = import.meta.env.CUSTOM_KEY;
 ```

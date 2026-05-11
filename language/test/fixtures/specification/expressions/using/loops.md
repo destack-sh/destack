@@ -82,7 +82,7 @@ interface AsyncIterator<T> {
 }
 
 interface AsyncIterable<T> {
-    [Symbol.asyncIterator](): AsyncIterator<T>;
+    asyncIterator(): AsyncIterator<T>;
 }
 
 declare function connections(): AsyncIterable<Connection>;

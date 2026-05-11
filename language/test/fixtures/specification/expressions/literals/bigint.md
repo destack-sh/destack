@@ -15,6 +15,15 @@ const x: bigint = 42n;
 
 ## BigInt members
 
+### BigInt parses strings
+
+BigInt can parse decimal text.
+
+```ds
+const value = BigInt.parse("42");
+value satisfies bigint;
+```
+
 ### bigint toString resolves
 
 Bigint literals expose BigInt standard members.
