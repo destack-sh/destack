@@ -10,7 +10,7 @@ use crate::{
     DependencyItem, EnumField, Expression, FunctionRole, GenericArgument, GenericParameter,
     IfCondition, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, MatchCase, Member,
     Node, NodeType, NodeVisitor, NodeVisitorOptions, Parameter, Pattern, PatternField, Property,
-    Provenance, ProvenanceId, ProvenanceReason, TupleElement, TypeExpression, TypeMember,
+    ProvenanceMetadata, ProvenanceId, ProvenanceReason, TupleElement, TypeExpression, TypeMember,
     WhereClause, walk_argument, walk_block, walk_declaration, walk_declarator, walk_decorator,
     walk_dependency_item, walk_enum_field, walk_expression, walk_generic_argument,
     walk_generic_parameter, walk_match_case, walk_member, walk_parameter, walk_pattern,
@@ -140,7 +140,7 @@ pub struct Tree {
     /// (Main data is in BindingTable, but indexed here for efficiency since *every* node needs a scope.)
     scopes_by_node_id: Vec<(LocalScopeId, LocalScopeMark)>,
     /// Provenance metadata for all nodes.
-    provenance: Provenance,
+    provenance: ProvenanceMetadata,
     /// The alias node id by AST node id.
     alias_node_id_by_source_id: BTreeMap<u32, u32>,
     /// The alias node id by DIR node id.
@@ -203,9 +203,9 @@ impl Tree {
 
             parent_id_by_node_id: Vec::with_capacity(capacity),
             scopes_by_node_id: Vec::with_capacity(capacity),
-            provenance: Provenance {
+            provenance: ProvenanceMetadata {
                 provenance_by_node_id: Vec::with_capacity(capacity),
-                ..Provenance::default()
+                ..ProvenanceMetadata::default()
             },
             alias_node_id_by_source_id: BTreeMap::new(),
             alias_node_id_by_node_id: BTreeMap::new(),

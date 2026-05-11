@@ -46,7 +46,7 @@ pub struct ProvenanceRecord {
 
 /// Provenance metadata for one DIR tree.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct Provenance {
+pub struct ProvenanceMetadata {
     /// The provenance id for each DIR node id.
     pub provenance_by_node_id: Vec<ProvenanceId>,
     /// Canonical provenance records.
@@ -55,7 +55,7 @@ pub struct Provenance {
     pub record_by_source_id: BTreeMap<u32, Vec<ProvenanceId>>,
 }
 
-impl Provenance {
+impl ProvenanceMetadata {
     /// Create one direct source-backed provenance record.
     pub fn create_source(&mut self, source_id: u32) -> ProvenanceId {
         self.create(source_id, None, None)
