@@ -15,10 +15,6 @@ pub const SUITE_JSON_FILE_NAME: &str = "suite.json";
 pub enum ConformanceDomain {
     /// The ECMA compatibility domain.
     Ecma,
-    /// The Web API compatibility domain.
-    Web,
-    /// The Node API compatibility domain.
-    Node,
     /// The formatter compatibility domain.
     Formatter,
 }
@@ -28,8 +24,6 @@ impl ConformanceDomain {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Ecma => "ecma",
-            Self::Web => "web",
-            Self::Node => "node",
             Self::Formatter => "formatter",
         }
     }
@@ -484,19 +478,19 @@ mod tests {
     #[test]
     fn test_validate_accepts_nested_domain_layout() {
         let metadata = SuiteMetadata {
-            id: "web.fetch".to_string(),
-            domain: ConformanceDomain::Web,
-            suite: "fetch".to_string(),
-            title: "Web Fetch".to_string(),
+            id: "formatter.oxfmt".to_string(),
+            domain: ConformanceDomain::Formatter,
+            suite: "oxfmt".to_string(),
+            title: "Formatter Oxfmt".to_string(),
             origin: OriginMetadata {
                 kind: OriginKind::Git,
-                repo: "https://github.com/web-platform-tests/wpt".to_string(),
-                ref_: "master".to_string(),
+                repo: "https://github.com/oxc-project/oxc".to_string(),
+                ref_: "main".to_string(),
             },
             fetch: FetchMetadata::default(),
         };
 
-        let result = metadata.validate(Path::new("fixtures/conformance/web/fetch"));
+        let result = metadata.validate(Path::new("fixtures/conformance/formatter/oxfmt"));
         assert!(result.is_ok());
     }
 }

@@ -194,8 +194,7 @@ fn apply_oxfmt_options_line(options_line: &str, options: &mut FormatterOptions) 
                     };
                 }
             }
-            "singleQuote" | "trailingComma" | "bracketSpacing" | "arrowParens"
-            | "quoteProps" => {}
+            "singleQuote" | "trailingComma" | "bracketSpacing" | "arrowParens" | "quoteProps" => {}
             "endOfLine" => {
                 options.line_ending = match value_string {
                     "lf" => LineEnding::LineFeed,

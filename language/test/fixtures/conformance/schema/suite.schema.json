@@ -49,16 +49,6 @@
           "const": "ecma"
         },
         {
-          "description": "The Web API compatibility domain.",
-          "type": "string",
-          "const": "web"
-        },
-        {
-          "description": "The Node API compatibility domain.",
-          "type": "string",
-          "const": "node"
-        },
-        {
           "description": "The formatter compatibility domain.",
           "type": "string",
           "const": "formatter"

@@ -21,7 +21,7 @@ The language suite taxonomy is:
 | **Smoke** | Correctness | Quick | `fixtures/smoke/` | Broad sanity checks for parser and compiler flows |
 | **Emit** | Correctness | Standalone | `fixtures/emit/` | Emitted output matches curated snapshots |
 | **Specification** | Correctness | Quick | `fixtures/specification/` | First-party language semantics and diagnostics |
-| **Conformance** | Conformance | Mixed | `fixtures/conformance/` | External compatibility suites organized by domain, with `ecma` remaining corpus-first and `web` and `node` becoming feature-first |
+| **Conformance** | Conformance | Mixed | `fixtures/conformance/` | External parser and formatter corpora used as regression inputs, not product compatibility targets |
 | **Query** | Correctness | Quick | `fixtures/query/` | Query-layer IDE behavior |
 | **LSP** | Correctness | Quick | `fixtures/lsp/` | Applied editor scenarios over the real in-process LSP server |
 | **Resolver** | Correctness | Quick | crate local tests | Module path resolution |
@@ -43,32 +43,6 @@ The shared conformance catalog is generated from `suite.json` and `status.json`.
 | ecma | test262 | ECMA Test262 | ignore 7 | 0e808c74fbec780646434cad17bb22dc52461003 |
 | ecma | v8 | ECMA V8 | none | main |
 | formatter | oxfmt | Formatter Oxfmt | known-fail-idempotence 4, ignore 12 | 8c3607060b7432d51bcd0b049cb77bed473d35e3 |
-| node | crypto | node:crypto | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
-| node | fs | node:fs | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
-| node | net | node:net | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
-| node | os | node:os | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
-| node | path | node:path | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
-| node | process | node:process | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
-| node | random | node:random | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
-| node | streams | node:streams | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
-| node | thread | node:thread | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
-| node | time | node:time | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
-| node | tls | node:tls | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
-| node | tty | node:tty | translated 10, excluded 3 | 7547e795ef700e1808702fc2851a0dcc3395a065 |
-| node | url | node:url | none | 7547e795ef700e1808702fc2851a0dcc3395a065 |
-| web | bluetooth | Bluetooth | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
-| web | encoding | Encoding | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
-| web | fetch | fetch | translated 20, excluded 11 | 55d076dca564300616a75eec5ec696e805c7bc3b |
-| web | fileapi | FileAPI | translated 5 | 55d076dca564300616a75eec5ec696e805c7bc3b |
-| web | filesystem-access | File System Access | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
-| web | indexeddb | IndexedDB | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
-| web | streams | Streams | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
-| web | url | URL | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
-| web | webaudio | WebAudio | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
-| web | webcrypto | WebCrypto | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
-| web | webgpu | WebGPU | none | 9726cfe2893834c4bb42b435638c4e7362f4c258 |
-| web | webserial | WebSerial | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
-| web | workers | Workers | none | 55d076dca564300616a75eec5ec696e805c7bc3b |
 <!-- end:conformance-catalog -->
 
 ## Gates

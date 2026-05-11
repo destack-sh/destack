@@ -1,5 +1,5 @@
 name: Setup Language Check
-description: Install shared toolchains and caches for language check lanes
+description: Install shared toolchains for language check lanes
 
 inputs:
   rust_components:
@@ -19,21 +19,3 @@ runs:
       with:
         rust_components: ${{ inputs.rust_components }}
         install_js_dependencies: ${{ inputs.install_js_dependencies }}
-
-    - name: Restore Parser Conformance Cache
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
-      with:
-        path: |
-          language/test/fixtures/parser/conformance/test262
-          language/test/fixtures/parser/conformance/babel
-          language/test/fixtures/parser/conformance/swc
-          language/test/fixtures/parser/conformance/biome
-        key: ${{ runner.os }}-language-conformance-${{ hashFiles('language/test/fixtures/parser/conformance/*-fetch.sh') }}
-
-    - name: Restore Formatter Conformance Cache
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
-      with:
-        path: |
-          language/test/fixtures/formatter/conformance/staging/prettier
-          language/test/fixtures/formatter/conformance/staging/oxfmt
-        key: ${{ runner.os }}-language-formatter-conformance-${{ hashFiles('language/test/fixtures/formatter/conformance/*-fetch.sh') }}
