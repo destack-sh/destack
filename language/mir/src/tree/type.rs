@@ -91,19 +91,12 @@ impl AddressSpace {
 pub enum ReferenceKind {
     /// GC-managed reference.
     Managed,
-    /// Explicit ownership reference.
-    Owned,
+    /// Unique typed heap reference.
+    Unique,
     /// Borrowed reference.
     Borrowed,
     /// Raw pointer reference.
     Raw,
-}
-
-impl ReferenceKind {
-    /// Whether this reference kind is affine.
-    pub fn is_affine(self) -> bool {
-        matches!(self, ReferenceKind::Owned)
-    }
 }
 
 /// Copy property of a type.
@@ -194,9 +187,14 @@ pub enum Type {
         /// The stored value type.
         value: TypeReference,
     },
+    /// Runtime-erased value satisfying one lowered interface contract.
+    Any {
+        /// The lowered interface contract type.
+        interface: TypeReference,
+    },
     /// Reference with explicit kind and access.
     Reference {
-        /// The reference kind (managed, owned, borrowed, raw).
+        /// The reference kind (managed, unique, borrowed, raw).
         kind: ReferenceKind,
         /// Lifetime roots for borrowed references.
         lifetime: Lifetime,
@@ -253,6 +251,15 @@ pub enum Type {
         /// Copy of this newtype.
         copy: Copy,
     },
+    /// Tagged union value.
+    Union {
+        /// The tag value type.
+        tag: TypeReference,
+        /// The variants keyed by tag value.
+        variants: Vec<UnionVariant>,
+        /// Copy of this union type.
+        copy: Copy,
+    },
 
     /// Fixed-width SIMD vector.
     Vector {
@@ -276,7 +283,7 @@ pub enum Type {
     },
     /// Reference-like view into tensor-shaped memory.
     TensorView {
-        /// The reference kind (managed, owned, borrowed, raw).
+        /// The reference kind (managed, unique, borrowed, raw).
         kind: ReferenceKind,
         /// Lifetime roots for borrowed tensor views.
         lifetime: Lifetime,
@@ -311,6 +318,15 @@ pub enum Type {
         /// The bare function signature.
         signature: TypeReference,
     },
+}
+
+/// One tagged union variant.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct UnionVariant {
+    /// The numeric tag value selecting this variant.
+    pub tag: u64,
+    /// The variant value type.
+    pub ty: TypeReference,
 }
 
 impl Node for Type {
@@ -501,40 +517,35 @@ impl Type {
             // atomic cells are storage, not freely copied values
             Type::Atomic { .. } => Copy::No,
 
-            // references depend on ownership
-            Type::Reference { kind, .. } => {
-                if kind.is_affine() {
-                    Copy::No
-                } else {
-                    Copy::Yes
-                }
-            }
+            // erased values may own hidden payloads
+            Type::Any { .. } => Copy::No,
 
-            // slices depend on ownership like thin references
-            Type::Slice { kind, .. } => {
-                if kind.is_affine() {
-                    Copy::No
-                } else {
-                    Copy::Yes
-                }
-            }
+            // unique references carry ownership of typed heap storage
+            Type::Reference { kind, .. } => match kind {
+                ReferenceKind::Unique => Copy::No,
+                ReferenceKind::Managed | ReferenceKind::Borrowed | ReferenceKind::Raw => Copy::Yes,
+            },
+
+            // unique slices carry ownership of typed heap storage
+            Type::Slice { kind, .. } => match kind {
+                ReferenceKind::Unique => Copy::No,
+                ReferenceKind::Managed | ReferenceKind::Borrowed | ReferenceKind::Raw => Copy::Yes,
+            },
 
             // aggregates have explicit copy
             Type::Array { copy, .. }
             | Type::Tuple { copy, .. }
             | Type::Struct { copy, .. }
             | Type::Newtype { copy, .. }
+            | Type::Union { copy, .. }
             | Type::Vector { copy, .. }
             | Type::Tensor { copy, .. } => *copy,
 
-            // tensor references behave like references
-            Type::TensorView { kind, .. } => {
-                if kind.is_affine() {
-                    Copy::No
-                } else {
-                    Copy::Yes
-                }
-            }
+            // unique tensor views carry ownership of typed heap storage
+            Type::TensorView { kind, .. } => match kind {
+                ReferenceKind::Unique => Copy::No,
+                ReferenceKind::Managed | ReferenceKind::Borrowed | ReferenceKind::Raw => Copy::Yes,
+            },
 
             // callable metadata and values are trivially copyable
             Type::FunctionSignature { .. }

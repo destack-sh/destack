@@ -5,27 +5,135 @@ use crate::{
 };
 use destack_core::StringPool;
 
-/// Formats richer reference and builtin types canonically.
+/// Formats pointer-sized builtin types canonically.
 #[test]
-fn test_format_reference_and_builtin_types() {
+fn test_format_pointer_sized_builtin_types() {
     assert_format(
         r#"
-function pointerSized(value0: isize, value1: usize, value2: typeDescriptor, value3: typeId, value4: ref?<int32, managed>, value5: ref<int32, raw, space(shared)>, value6: ref<int32, raw, space(gpu)>, value7: ref<int32, owned, readonly>, value8: ref<int32, borrowed, lifetime(0)>, value9: slice<int32, borrowed, lifetime(0)>, value10: tensorView<int32, borrowed, lifetime(0), (4, 4)>, value11: ref<int32, borrowed, lifetime(static)>): ref?<int32, managed> {
-entry0(value0: isize, value1: usize, value2: typeDescriptor, value3: typeId, value4: ref?<int32, managed>, value5: ref<int32, raw, space(shared)>, value6: ref<int32, raw, space(gpu)>, value7: ref<int32, owned, readonly>, value8: ref<int32, borrowed, lifetime(0)>, value9: slice<int32, borrowed, lifetime(0)>, value10: tensorView<int32, borrowed, lifetime(0), (4, 4)>, value11: ref<int32, borrowed, lifetime(static)>):
-    return value4
+function pointerSized(value0: isize, value1: usize, value2: typeDescriptor, value3: typeId): usize {
+entry0(value0: isize, value1: usize, value2: typeDescriptor, value3: typeId):
+    return value1
 }
 "#,
     );
 }
 
-/// Formats aggregate and callable type forms canonically.
+/// Formats managed and unique reference kinds canonically.
 #[test]
-fn test_format_aggregate_and_callable_types() {
+fn test_format_managed_and_unique_references() {
     assert_format(
         r#"
-function shapes(value0: (int32, float64, boolean), value1: int32[10], value2: (int32, int32) -> int64, value3: (int32) => int32, value4: { x: int32, y: float64 }): { x: int32, y: float64 } {
-entry0(value0: (int32, float64, boolean), value1: int32[10], value2: (int32, int32) -> int64, value3: (int32) => int32, value4: { x: int32, y: float64 }):
-    return value4
+function refs(value0: ref?<int32, managed>, value1: ref<int32, unique, readonly>): ref?<int32, managed> {
+entry0(value0: ref?<int32, managed>, value1: ref<int32, unique, readonly>):
+    return value0
+}
+"#,
+    );
+}
+
+/// Formats raw address spaces canonically.
+#[test]
+fn test_format_raw_address_spaces() {
+    assert_format(
+        r#"
+function rawSpaces(value0: ref<int32, raw, space(shared)>, value1: ref<int32, raw, space(gpu)>): ref<int32, raw, space(shared)> {
+entry0(value0: ref<int32, raw, space(shared)>, value1: ref<int32, raw, space(gpu)>):
+    return value0
+}
+"#,
+    );
+}
+
+/// Formats parameter borrow lifetimes canonically.
+#[test]
+fn test_format_parameter_borrow_lifetime() {
+    assert_format(
+        r#"
+function borrowParam(value0: ref<int32, borrowed, lifetime(0)>): ref<int32, borrowed, lifetime(0)> {
+entry0(value0: ref<int32, borrowed, lifetime(0)>):
+    return value0
+}
+"#,
+    );
+}
+
+/// Formats static borrow lifetimes canonically.
+#[test]
+fn test_format_static_borrow_lifetime() {
+    assert_format(
+        r#"
+function staticBorrow(value0: ref<int32, borrowed, lifetime(static)>): ref<int32, borrowed, lifetime(static)> {
+entry0(value0: ref<int32, borrowed, lifetime(static)>):
+    return value0
+}
+"#,
+    );
+}
+
+/// Formats borrowed shaped views canonically.
+#[test]
+fn test_format_borrowed_shaped_views() {
+    assert_format(
+        r#"
+function views(value0: slice<int32, borrowed, lifetime(0)>, value1: tensorView<int32, borrowed, lifetime(0), (4, 4)>): void {
+entry0(value0: slice<int32, borrowed, lifetime(0)>, value1: tensorView<int32, borrowed, lifetime(0), (4, 4)>):
+    return
+}
+"#,
+    );
+}
+
+/// Formats tuple and array type forms canonically.
+#[test]
+fn test_format_tuple_and_array_types() {
+    assert_format(
+        r#"
+function sequences(value0: (int32, float64, boolean), value1: int32[10]): (int32, float64, boolean) {
+entry0(value0: (int32, float64, boolean), value1: int32[10]):
+    return value0
+}
+"#,
+    );
+}
+
+/// Formats callable type forms canonically.
+#[test]
+fn test_format_callable_types() {
+    assert_format(
+        r#"
+function callbacks(value0: (int32, int32) -> int64, value1: (int32) => int32): (int32) => int32 {
+entry0(value0: (int32, int32) -> int64, value1: (int32) => int32):
+    return value1
+}
+"#,
+    );
+}
+
+/// Formats structural type forms canonically.
+#[test]
+fn test_format_structural_types() {
+    assert_format(
+        r#"
+function point(value0: { x: int32, y: float64 }): { x: int32, y: float64 } {
+entry0(value0: { x: int32, y: float64 }):
+    return value0
+}
+"#,
+    );
+}
+
+/// Formats erased Any type forms canonically.
+#[test]
+fn test_format_any_types() {
+    assert_format(
+        r#"
+type Writer {
+    write: () -> uint32;
+}
+
+function erased(value0: any<Writer>): any<Writer> {
+entry0(value0: any<Writer>):
+    return value0
 }
 "#,
     );

@@ -9,15 +9,14 @@ use crate::{
 
 /// Memory allocation restrictions for a function.
 ///
-/// This allows marking functions as realtime-safe (no managed allocations)
-/// or heap-free.
+/// This allows marking functions as managed-allocation-free or heap-free.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum AllocationMode {
     /// No restrictions on allocation.
     #[default]
     Any,
-    /// Managed allocation forbidden (realtime-safe).
-    /// Only `RawAlloc`, `RawFree`, and `StackAlloc` are allowed.
+    /// Managed allocation forbidden.
+    /// Unique, raw, and stack allocation are still allowed.
     NoManaged,
     /// No heap allocation.
     /// Only `StackAlloc` is allowed.

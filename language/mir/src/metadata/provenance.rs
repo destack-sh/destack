@@ -3,14 +3,14 @@ use serde::{Deserialize, Serialize};
 
 /// Provenance and source-tracking metadata for MIR nodes.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct Provenance {
+pub struct ProvenanceMetadata {
     /// Maps MIR node id to one typed provenance record.
     pub provenance_by_node_id: Vec<Option<ProvenanceId>>,
     /// Canonical typed provenance records.
     pub record_by_id: Vec<ProvenanceRecord>,
 }
 
-impl Provenance {
+impl ProvenanceMetadata {
     /// Create a new empty provenance table.
     pub fn new() -> Self {
         Self::default()

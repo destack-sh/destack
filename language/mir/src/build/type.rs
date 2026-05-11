@@ -3,7 +3,7 @@ use destack_core::StringId;
 use crate::build::ModuleBuilder;
 use crate::{
     Access, AddressSpace, Copy, Field, FloatType, Lifetime, LocalNodeId, ReferenceKind,
-    TensorDimension, TensorLayout, Type, TypeReference,
+    TensorDimension, TensorLayout, Type, TypeReference, UnionVariant,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -87,6 +87,13 @@ impl ModuleBuilder {
         self.tree.insert_type(Type::TypeId)
     }
 
+    /// Create an erased interface value type.
+    pub fn type_any(&mut self, interface: LocalNodeId<Type>) -> LocalNodeId<Type> {
+        self.tree.insert_type(Type::Any {
+            interface: interface.into(),
+        })
+    }
+
     /// Create a reference type.
     pub fn type_reference(
         &mut self,
@@ -139,37 +146,6 @@ impl ModuleBuilder {
             AddressSpace::Local,
             false,
         )
-    }
-
-    /// Create an owning handle type.
-    pub fn type_owned_reference(
-        &mut self,
-        pointee: LocalNodeId<Type>,
-        access: Access,
-    ) -> LocalNodeId<Type> {
-        self.type_reference(
-            ReferenceKind::Owned,
-            pointee,
-            access,
-            AddressSpace::Local,
-            false,
-        )
-    }
-
-    /// Create an owning mutable handle type.
-    pub fn type_owned_reference_mutable(
-        &mut self,
-        pointee: LocalNodeId<Type>,
-    ) -> LocalNodeId<Type> {
-        self.type_owned_reference(pointee, Access::Mutable)
-    }
-
-    /// Create an owning readonly handle type.
-    pub fn type_owned_reference_readonly(
-        &mut self,
-        pointee: LocalNodeId<Type>,
-    ) -> LocalNodeId<Type> {
-        self.type_owned_reference(pointee, Access::Readonly)
     }
 
     /// Create a raw pointer type (manual memory management).
@@ -254,6 +230,26 @@ impl ModuleBuilder {
         pointee: LocalNodeId<Type>,
     ) -> LocalNodeId<Type> {
         self.type_managed_reference_nullable_with_access(pointee, Access::Mutable)
+    }
+
+    /// Create a unique typed heap reference.
+    pub fn type_unique_reference(&mut self, pointee: LocalNodeId<Type>) -> LocalNodeId<Type> {
+        self.type_unique_reference_with_access(pointee, Access::Mutable)
+    }
+
+    /// Create a unique typed heap reference with explicit access.
+    pub fn type_unique_reference_with_access(
+        &mut self,
+        pointee: LocalNodeId<Type>,
+        access: Access,
+    ) -> LocalNodeId<Type> {
+        self.type_reference(
+            ReferenceKind::Unique,
+            pointee,
+            access,
+            AddressSpace::Local,
+            false,
+        )
     }
 
     /// Create a vector type.
@@ -368,6 +364,25 @@ impl ModuleBuilder {
         copy: Copy,
     ) -> LocalNodeId<Type> {
         self.tree.insert_type(Type::Struct { fields, copy })
+    }
+
+    /// Create a union type with explicit copy.
+    pub fn type_union(
+        &mut self,
+        tag: LocalNodeId<Type>,
+        variants: Vec<(u64, LocalNodeId<Type>)>,
+        copy: Copy,
+    ) -> LocalNodeId<Type> {
+        let variants = variants
+            .into_iter()
+            .map(|(tag, ty)| UnionVariant { tag, ty: ty.into() })
+            .collect();
+
+        self.tree.insert_type(Type::Union {
+            tag: tag.into(),
+            variants,
+            copy,
+        })
     }
 
     /// Create a field definition for a struct type.

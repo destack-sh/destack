@@ -2,7 +2,7 @@ use destack_core::StringId;
 
 use crate::{
     Access, AddressSpace, Attribute, Copy, Field, FloatType, Lifetime, LocalNodeId, ReferenceKind,
-    TensorDimension, TensorLayout, Type, TypeReference,
+    TensorDimension, TensorLayout, Type, TypeReference, UnionVariant,
 };
 
 /// Interning key for struct fields.
@@ -50,6 +50,8 @@ pub(super) enum TypeKey {
     TypeId,
     /// Atomic storage cell type.
     Atomic { value: TypeReference },
+    /// Runtime-erased interface value.
+    Any { interface: TypeReference },
     /// Reference/pointer type.
     Reference {
         kind: ReferenceKind,
@@ -85,6 +87,12 @@ pub(super) enum TypeKey {
     },
     /// Nominal newtype wrapper.
     Newtype { inner: TypeReference, copy: Copy },
+    /// Tagged union.
+    Union {
+        tag: TypeReference,
+        variants: Vec<UnionVariant>,
+        copy: Copy,
+    },
     /// Fixed-width SIMD vector.
     Vector {
         element: TypeReference,
@@ -136,6 +144,9 @@ impl TypeKey {
             Type::TypeDescriptor => TypeKey::TypeDescriptor,
             Type::TypeId => TypeKey::TypeId,
             Type::Atomic { value } => TypeKey::Atomic { value: *value },
+            Type::Any { interface } => TypeKey::Any {
+                interface: *interface,
+            },
 
             Type::Reference {
                 kind,
@@ -187,6 +198,15 @@ impl TypeKey {
             },
             Type::Newtype { inner, copy } => TypeKey::Newtype {
                 inner: *inner,
+                copy: *copy,
+            },
+            Type::Union {
+                tag,
+                variants,
+                copy,
+            } => TypeKey::Union {
+                tag: *tag,
+                variants: variants.clone(),
                 copy: *copy,
             },
             Type::Vector {

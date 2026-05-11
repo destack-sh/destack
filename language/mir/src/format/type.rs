@@ -212,6 +212,9 @@ fn format_type_inner<'a>(
         Type::Atomic { value } => {
             write!(f, [token("atomic"), token("<"), value, token(">")])
         }
+        Type::Any { interface } => {
+            write!(f, [token("any"), token("<"), interface, token(">")])
+        }
         Type::Reference {
             kind,
             lifetime,
@@ -224,7 +227,7 @@ fn format_type_inner<'a>(
             let ref_token = if *is_nullable { "ref?<" } else { "ref<" };
             let kind_token = match kind {
                 ReferenceKind::Managed => "managed",
-                ReferenceKind::Owned => "owned",
+                ReferenceKind::Unique => "unique",
                 ReferenceKind::Borrowed => "borrowed",
                 ReferenceKind::Raw => "raw",
             };
@@ -273,7 +276,7 @@ fn format_type_inner<'a>(
         } => {
             let kind_token = match kind {
                 ReferenceKind::Managed => None,
-                ReferenceKind::Owned => Some("owned"),
+                ReferenceKind::Unique => Some("unique"),
                 ReferenceKind::Borrowed => Some("borrowed"),
                 ReferenceKind::Raw => Some("raw"),
             };
@@ -327,6 +330,29 @@ fn format_type_inner<'a>(
         }
         Type::Newtype { inner, copy: _ } => {
             write!(f, [token("newtype"), token("<"), inner, token(">")])
+        }
+        Type::Union {
+            tag,
+            variants,
+            copy: _,
+        } => {
+            write!(f, [token("union"), token("<")])?;
+            write!(f, [tag, token(";"), space()])?;
+            for (index, variant) in variants.iter().enumerate() {
+                if index > 0 {
+                    write!(f, [token(","), space()])?;
+                }
+                write!(
+                    f,
+                    [
+                        text(&variant.tag.to_string()),
+                        token(":"),
+                        space(),
+                        variant.ty
+                    ]
+                )?;
+            }
+            write!(f, [token(">")])
         }
         Type::Vector {
             element,
@@ -485,7 +511,7 @@ fn format_view_header<'a>(
 ) -> FormatResult<()> {
     let kind_token = match kind {
         ReferenceKind::Managed => "managed",
-        ReferenceKind::Owned => "owned",
+        ReferenceKind::Unique => "unique",
         ReferenceKind::Borrowed => "borrowed",
         ReferenceKind::Raw => "raw",
     };

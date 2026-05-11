@@ -142,6 +142,12 @@ impl<'a> FunctionBuilder<'a> {
                 .copied()
                 .map(|element| concrete_type_reference(element, "tuple field type"))
                 .unwrap_or_else(|| panic!("field index out of bounds")),
+            Type::Union { .. } => self
+                .tree
+                .type_layout(aggregate_type)
+                .and_then(|layout| layout.fields.get(index as usize))
+                .map(|field| field.ty)
+                .unwrap_or_else(|| panic!("field index out of bounds")),
             Type::Callable { .. } => panic!("field access does not support callable"),
             _ => panic!("field access expects struct or tuple"),
         }
@@ -230,7 +236,7 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Allocate heap storage.
-    /// Returns a managed or owned reference type.
+    /// Returns a managed or unique reference type.
     pub fn new_(&mut self, layout: LocalNodeId<Type>, result_type: LocalNodeId<Type>) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::New {

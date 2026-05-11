@@ -2,7 +2,7 @@ use destack_source::Span;
 
 use crate::{
     Access, AddressSpace, Attribute, Copy, Field, FieldSpan, Lifetime, LifetimeOrigin, LocalNodeId,
-    ReferenceKind, TensorDimension, TensorLayout, Type, TypeDeclarationSpans, Value,
+    ReferenceKind, TensorDimension, TensorLayout, Type, TypeDeclarationSpans, UnionVariant, Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -98,6 +98,41 @@ impl Parser {
                     self.eat_token(TokenType::GreaterThan)?;
                     Type::Atomic {
                         value: value.into(),
+                    }
+                } else if token_text == "any" {
+                    self.bump();
+                    self.eat_token(TokenType::LessThan)?;
+                    let interface = self.parse_type()?;
+                    self.eat_token(TokenType::GreaterThan)?;
+                    Type::Any {
+                        interface: interface.into(),
+                    }
+                } else if token_text == "union" {
+                    self.bump();
+                    self.eat_token(TokenType::LessThan)?;
+                    let tag = self.parse_type()?.into();
+                    self.eat_token(TokenType::Semicolon)?;
+                    let mut variants = Vec::new();
+                    while !self.peek_token(TokenType::GreaterThan) {
+                        let tag_value = self.parse_int_literal()?;
+                        if tag_value < 0 {
+                            return Err(ParseError::invalid("negative union tag", self.pos()));
+                        }
+                        self.eat_token(TokenType::Colon)?;
+                        let ty = self.parse_type()?.into();
+                        variants.push(UnionVariant {
+                            tag: tag_value as u64,
+                            ty,
+                        });
+                        if !self.eat_token_maybe(TokenType::Comma) {
+                            break;
+                        }
+                    }
+                    self.eat_token(TokenType::GreaterThan)?;
+                    Type::Union {
+                        tag,
+                        variants,
+                        copy: Copy::default(),
                     }
                 } else if let Some(alias_id) = self.type_alias_map.get(&token_text).copied() {
                     self.bump();
@@ -427,7 +462,7 @@ impl Parser {
         let kind = match kind_token.ty {
             TokenType::Ownership | TokenType::Identifier => match kind_text {
                 "managed" => ReferenceKind::Managed,
-                "owned" => ReferenceKind::Owned,
+                "unique" => ReferenceKind::Unique,
                 "borrowed" => ReferenceKind::Borrowed,
                 "raw" => ReferenceKind::Raw,
                 _ => {
@@ -535,12 +570,12 @@ impl Parser {
             if matches!(qualifier.ty, TokenType::Ownership | TokenType::Identifier) {
                 match qualifier_text {
                     "managed" => kind = ReferenceKind::Managed,
-                    "owned" => kind = ReferenceKind::Owned,
+                    "unique" => kind = ReferenceKind::Unique,
                     "borrowed" => kind = ReferenceKind::Borrowed,
                     "raw" => kind = ReferenceKind::Raw,
                     _ => {}
                 }
-                if matches!(qualifier_text, "managed" | "owned" | "borrowed" | "raw") {
+                if matches!(qualifier_text, "managed" | "unique" | "borrowed" | "raw") {
                     self.bump();
                     continue;
                 }
