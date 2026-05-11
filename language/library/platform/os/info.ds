@@ -22,119 +22,38 @@ export struct LoadAverage {
     fifteen: float64;
 }
 
-/// System information bindings.
 /// Read host system information.
-///
-/// Return one normalized system-information payload.
-/// Topology and capacity fields are sampled from host APIs at call time.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses sysconf/sysinfo-style APIs on Unix and GlobalMemoryStatusEx plus processor APIs on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.sysinfo`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.info.systemSnapshot", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.sysinfo"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["os.sysinfo"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function systemSnapshot(): Result<SystemSnapshot, PlatformError>;
 
 /// Read host uptime.
-///
-/// Return host uptime in nanoseconds from system boot.
-/// Uptime source follows host monotonic uptime facilities.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses clock_gettime style uptime on Unix and GetTickCount64 style uptime on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.sysinfo`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.info.uptimeNs", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.sysinfo"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["os.sysinfo"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function uptimeNs(): Result<uint64, PlatformError>;
 
 /// Read host load averages.
-///
-/// Return host load averages over one, five, and fifteen minute windows.
-/// Values reflect host scheduler accounting and may be unavailable on some kernels.
-///
-/// # Platform
-/// Unix only.
-/// Uses getloadavg style interfaces or kernel load-average exports.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.sysinfo`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.info.loadAverage", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.sysinfo"],
-    platforms: ["unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["os.sysinfo"],
+    families: ["unix"],
+    simulation: true,
 })
 export declare function loadAverage(): Result<LoadAverage, PlatformError>;
 
 /// Read host boot time.
-///
-/// Return the Unix timestamp for host boot time in nanoseconds.
-/// Timestamp origin and precision follow host timekeeping interfaces.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses boot-time sysctl or procfs style sources on Unix and boot-time system info on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.sysinfo`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.info.bootTimeUnixNs", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.sysinfo"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["os.sysinfo"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function bootTimeUnixNs(): Result<uint64, PlatformError>;

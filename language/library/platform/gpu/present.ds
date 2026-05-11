@@ -41,26 +41,26 @@ export enum GpuCompositeAlphaMode {
     Inherit = 4,
 }
 
-/// Surface timing capability bitset.
+/// Surface timing action bitset.
 export newtype GpuSurfaceTimingCapabilityFlags = uint32;
 
-/// Timing capability bit for presentation streams.
+/// Timing action bit for presentation streams.
 export const GPU_SURFACE_TIMING_CAP_PRESENTATION_STREAM: GpuSurfaceTimingCapabilityFlags =
     GpuSurfaceTimingCapabilityFlags(0x1);
-/// Timing capability bit for actual presented timestamps.
+/// Timing action bit for actual presented timestamps.
 export const GPU_SURFACE_TIMING_CAP_PRESENTED_TIMESTAMP: GpuSurfaceTimingCapabilityFlags =
     GpuSurfaceTimingCapabilityFlags(0x2);
-/// Timing capability bit for refresh-interval reporting.
+/// Timing action bit for refresh-interval reporting.
 export const GPU_SURFACE_TIMING_CAP_REFRESH_INTERVAL: GpuSurfaceTimingCapabilityFlags =
     GpuSurfaceTimingCapabilityFlags(0x4);
-/// Timing capability bit for compositor-latency reporting.
+/// Timing action bit for compositor-latency reporting.
 export const GPU_SURFACE_TIMING_CAP_COMPOSITOR_LATENCY: GpuSurfaceTimingCapabilityFlags =
     GpuSurfaceTimingCapabilityFlags(0x8);
-/// Timing capability bit for requested presentation timestamps.
+/// Timing action bit for requested presentation timestamps.
 export const GPU_SURFACE_TIMING_CAP_DESIRED_PRESENTATION_TIMESTAMP: GpuSurfaceTimingCapabilityFlags =
     GpuSurfaceTimingCapabilityFlags(0x10);
 
-/// Surface capabilities snapshot.
+/// Surface actions snapshot.
 export struct GpuSurfaceCapabilities {
     /// Supported surface texture usages.
     usages: GpuTextureUsageMask;
@@ -74,7 +74,7 @@ export struct GpuSurfaceCapabilities {
     colorSpaces: Slice<DisplayColorSpace>;
     /// Supported output HDR policy modes.
     hdrModes: Slice<DisplayHdrMode>;
-    /// Supported presentation timing capabilities.
+    /// Supported presentation timing actions.
     timingCapabilityMask: GpuSurfaceTimingCapabilityFlags;
     /// Minimum supported desired maximum frame latency when the backend exposes one bound.
     minDesiredMaximumFrameLatency: uint32 | void;
@@ -264,92 +264,33 @@ export struct GpuSurfacePresentationOpenOptions {
     overflowPolicy: GpuPresentationOverflowPolicy;
 }
 
-/// Present bindings.
 /// Open a present surface.
-///
-/// Open a present surface bound to a window.
-/// Surface lifetime is independent from device lifetime.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses swapchain-surface or layer surface creation APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `gpu.present`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.gpu.present.surfaceOpen", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["gpu.present"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["gpu.present"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function surfaceOpen(window: WindowHandle): Result<GpuSurfaceHandle, PlatformError>;
 
 /// Close a present surface.
-///
-/// Close a present surface and release host compositor resources.
-/// Surface handle becomes invalid after close.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses surface destroy operations on host backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.present`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.gpu.present.surfaceClose", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["gpu.present"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["gpu.present"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function surfaceClose(surface: GpuSurfaceHandle): Result<void, PlatformError>;
 
 /// Open a presentation stream for a surface.
-///
-/// Open a presentation stream for a present surface.
-/// Presentation events report results and timing data when the surface exposes presentation telemetry.
-/// Backends can collapse `Superseded` into `Dropped` when they do not expose that distinction.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses DXGI frame statistics, Metal drawable presentation handlers, and Vulkan presentation timing extensions where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.present`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.gpu.present.surfacePresentationOpen", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["gpu.present"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["gpu.present"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function surfacePresentationOpen(
     surface: GpuSurfaceHandle,
@@ -357,61 +298,24 @@ export declare function surfacePresentationOpen(
 ): Result<GpuSurfacePresentationHandle, PlatformError>;
 
 /// Close a presentation stream.
-///
-/// Close a presentation stream and release host routing resources.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses DXGI statistics teardown, Metal drawable handler release, and Vulkan timing-stream cleanup.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.present`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.gpu.present.surfacePresentationClose", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["gpu.present"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["gpu.present"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function surfacePresentationClose(
     handle: GpuSurfacePresentationHandle,
 ): Result<void, PlatformError>;
 
-/// Read surface capabilities for an adapter.
-///
-/// Query a surface and adapter pair for compatible formats and present modes.
-/// Color-space, HDR, timing, and frame-latency results are part of the same negotiation snapshot.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style surface capabilities query APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.present`.
-///
-/// # Replay
-/// External, nonrecordable.
+/// Read surface actions for an adapter.
 @binding("destack.gpu.present.surfaceCapabilities", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["gpu.present"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["gpu.present"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function surfaceCapabilities(
     surface: GpuSurfaceHandle,
@@ -419,31 +323,12 @@ export declare function surfaceCapabilities(
 ): Result<GpuSurfaceCapabilities, PlatformError>;
 
 /// Configure a present surface.
-///
-/// Configure a present surface with explicit dimensions and presentation behavior.
-/// Color space, HDR policy, HDR metadata, and `desiredMaximumFrameLatency` are negotiated here when supported.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses swapchain or layer configuration APIs on Vulkan, Metal, and DXGI.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `gpu.present`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.gpu.present.surfaceConfigure", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["gpu.present"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["gpu.present"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function surfaceConfigure(
     device: GpuDeviceHandle,
@@ -452,93 +337,34 @@ export declare function surfaceConfigure(
 ): Result<void, PlatformError>;
 
 /// Remove the active configuration from a present surface.
-///
-/// Remove the active configuration from a present surface and release configured resources.
-/// Surface must be configured again before the next frame acquisition.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style surface unconfigure operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `gpu.present`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.gpu.present.surfaceUnconfigure", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["gpu.present"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["gpu.present"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function surfaceUnconfigure(surface: GpuSurfaceHandle): Result<void, PlatformError>;
 
 /// Read a present surface status snapshot.
-///
-/// Read the current surface configuration and lifecycle state.
-/// After `display.windowRenderState(...)` or `renderStateChanged` reports `SurfaceLost`, use this result to choose recovery.
-/// `Unconfigured` or `Outdated` means reconfigure the current surface, while `Lost` means reopen it.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU surface configuration state, DXGI swapchain state, CAMetalLayer drawable state, and Vulkan WSI surface state queries.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.present`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.gpu.present.surfaceStatus", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["gpu.present"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["gpu.present"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function surfaceStatus(
     surface: GpuSurfaceHandle,
 ): Result<GpuSurfaceStatusInfo, PlatformError>;
 
 /// Wait for a presentation event.
-///
-/// Wait for the next event from a presentation stream.
-/// Use `surfaceFrameId` to match each event to an earlier `surfaceAcquire(...)` result.
-/// When `beginFrameId` is present, it can also be matched to a scheduled begin frame.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses DXGI frame statistics waits, Metal drawable presentation callbacks, and Vulkan presentation timing waits.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.present`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.gpu.present.surfacePresentationRead", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["gpu.present"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["gpu.present"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function surfacePresentationRead(
     handle: GpuSurfacePresentationHandle,
@@ -546,63 +372,24 @@ export declare function surfacePresentationRead(
 ): Result<GpuSurfacePresentationEvent, PlatformError>;
 
 /// Poll a presentation event without blocking.
-///
-/// Poll a pending event from a presentation stream without waiting.
-/// Empty queue state is reported through ioWouldBlock.
-/// Use `surfaceFrameId` to match each event to an earlier `surfaceAcquire(...)` result.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses nonblocking DXGI frame statistics, Metal drawable callbacks, and Vulkan presentation timing polling.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.present`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.gpu.present.surfacePresentationTryRead", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["gpu.present"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["gpu.present"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function surfacePresentationTryRead(
     handle: GpuSurfacePresentationHandle,
 ): Result<GpuSurfacePresentationEvent, PlatformError>;
 
 /// Wait for a batch of presentation events.
-///
-/// Wait for pending events from a presentation stream and return up to `maxEvents` events.
-/// Use `surfaceFrameId` to match each event to an earlier `surfaceAcquire(...)` result.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses DXGI frame statistics waits, Metal drawable callback queues, and Vulkan presentation timing waits.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.present`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.gpu.present.surfacePresentationReadBatch", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["gpu.present"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["gpu.present"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function surfacePresentationReadBatch(
     handle: GpuSurfacePresentationHandle,
@@ -611,31 +398,12 @@ export declare function surfacePresentationReadBatch(
 ): Result<Array<GpuSurfacePresentationEvent>, PlatformError>;
 
 /// Poll a batch of presentation events without blocking.
-///
-/// Poll pending events from a presentation stream and return up to `maxEvents` events.
-/// Use `surfaceFrameId` to match each event to an earlier `surfaceAcquire(...)` result.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses nonblocking DXGI frame statistics, Metal drawable callback queues, and Vulkan presentation timing polling.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.present`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.gpu.present.surfacePresentationTryReadBatch", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["gpu.present"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["gpu.present"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function surfacePresentationTryReadBatch(
     handle: GpuSurfacePresentationHandle,
@@ -643,34 +411,12 @@ export declare function surfacePresentationTryReadBatch(
 ): Result<Array<GpuSurfacePresentationEvent>, PlatformError>;
 
 /// Acquire one presentable surface texture.
-///
-/// Acquire a surface texture for rendering the next frame.
-/// The returned status indicates whether presentation can proceed or whether reconfiguration is required.
-/// When no texture is present, `texture` and `surfaceFrameId` are void.
-/// `Outdated` means reconfigure this surface, while `Lost` means close and reopen it.
-/// Begin-frame scheduling itself is owned by `display.frame`, not surface acquisition.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style next-image acquisition APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `gpu.present`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.gpu.present.surfaceAcquire", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["gpu.present"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["gpu.present"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function surfaceAcquire(
     surface: GpuSurfaceHandle,
@@ -678,32 +424,12 @@ export declare function surfaceAcquire(
 ): Result<GpuSurfaceFrame, PlatformError>;
 
 /// Present one acquired frame to one surface.
-///
-/// Present a previously acquired frame on a configured surface.
-/// The `surfaceFrameId` must match an outstanding successful `surfaceAcquire(...)` result.
-/// Pass `beginFrameId` for cross-thread correlation and `desiredPresentationTimestampNs` when timed presentation is supported.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses swapchain present APIs on Vulkan, Metal layer present, or DXGI present.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `gpu.present`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.gpu.present.surfacePresent", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["gpu.present"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["gpu.present"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function surfacePresent(
     surface: GpuSurfaceHandle,

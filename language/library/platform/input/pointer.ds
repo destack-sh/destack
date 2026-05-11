@@ -147,96 +147,34 @@ export enum InputPointerGrabMode {
     Locked = 2,
 }
 
-/// Input pointer bindings.
 /// Read one absolute pointer state snapshot.
-///
-/// Return one current pointer position and button state snapshot for one opened pointer-capable device.
-/// Position values follow the coordinate space reported in the snapshot.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific pointer state queries from evdev or libinput-style streams on Unix.
-/// Uses raw-input or console pointer state snapshots on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `input.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.input.pointer.state", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["input.read"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["input.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function pointerState(
     handle: InputDeviceHandle,
 ): Result<InputPointerState, PlatformError>;
 
 /// Read one relative pointer state snapshot.
-///
-/// Return one relative motion and button state snapshot for one opened pointer-capable device.
-/// Relative mode must be enabled before this lane becomes readable.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend pointer snapshots plus runtime-managed relative baselines.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `input.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.input.pointer.relativeState", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["input.read"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["input.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function pointerRelativeState(
     handle: InputDeviceHandle,
 ): Result<InputPointerState, PlatformError>;
 
 /// Enable or disable relative pointer mode.
-///
-/// Toggle relative pointer mode for one opened pointer-capable device.
-/// Relative mode semantics follow backend pointer-lock behavior.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where relative mode is unavailable.
-/// Uses backend-specific relative mode toggles for active input endpoints.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `input.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.input.pointer.setRelativeMode", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["input.control"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["input.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function pointerSetRelativeMode(
     handle: InputDeviceHandle,
@@ -244,31 +182,11 @@ export declare function pointerSetRelativeMode(
 ): Result<void, PlatformError>;
 
 /// Set pointer grab mode.
-///
-/// Apply one grab mode for one opened pointer-capable device and one optional window target.
-/// Grab modes can confine or lock pointer movement depending on backend support and target scope.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where one grab mode or one window scope is unavailable.
-/// Uses backend-specific pointer grab or lock primitives for global or window-scoped paths.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `input.grab`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.input.pointer.setGrabMode", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["input.grab"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["input.grab"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function pointerSetGrabMode(
     handle: InputDeviceHandle,
@@ -277,31 +195,11 @@ export declare function pointerSetGrabMode(
 ): Result<void, PlatformError>;
 
 /// Enable or disable pointer capture.
-///
-/// Toggle pointer capture for one opened pointer-capable device and one optional window target.
-/// Captured pointers can continue delivering events outside focused bounds when supported for that target scope.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where capture or one window scope is unavailable.
-/// Uses backend-specific pointer capture primitives for global or window-scoped paths.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `input.grab`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.input.pointer.capture", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["input.grab"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["input.grab"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function pointerCapture(
     handle: InputDeviceHandle,
@@ -310,31 +208,11 @@ export declare function pointerCapture(
 ): Result<void, PlatformError>;
 
 /// Warp pointer position.
-///
-/// Set one pointer position for one opened pointer-capable device and one optional window target.
-/// Warped coordinates are interpreted in backend-native window or surface space for the selected target scope.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where pointer warping or one window scope is unavailable.
-/// Uses backend-specific pointer warp operations for global or window-scoped paths.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `input.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.input.pointer.warp", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["input.control"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["input.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function pointerWarp(
     handle: InputDeviceHandle,

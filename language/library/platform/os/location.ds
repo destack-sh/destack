@@ -47,146 +47,50 @@ export struct LocationSample {
     timestampUnixNs: uint64;
 }
 
-/// Location bindings.
 /// Read whether host location services are enabled.
-///
-/// Read global host location-service availability before per-runtime authorization checks.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host location service-status APIs.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.location.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.location.servicesEnabled", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.location.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["os.location.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function locationServicesEnabled(): Result<boolean, PlatformError>;
 
 /// Read last known location sample.
-///
-/// Read one cached location sample from the host location service.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses CoreLocation on Apple platforms, FusedLocationProvider or LocationManager on Android, and Geolocator on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.location.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.location.lastKnown", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.location.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["os.location.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function locationLastKnown(): Result<LocationSample, PlatformError>;
 
 /// Open location watch stream.
-///
-/// Open one location watch stream with one selected update policy.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host location subscription APIs.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.location.watch`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.location.watchOpen", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.location.watch"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["os.location.watch"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function locationWatchOpen(
     options: LocationWatchOptions,
 ): Result<LocationWatchHandle, PlatformError>;
 
 /// Close location watch stream.
-///
-/// Close one location watch stream and release host subscription resources.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host location unsubscription APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.location.watch`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.location.watchClose", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.location.watch"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["os.location.watch"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function locationWatchClose(handle: LocationWatchHandle): Result<void, PlatformError>;
 
 /// Wait for one location sample.
-///
-/// Wait for one location sample from one opened location watch stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host location update queues.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `os.location.watch`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.location.watchRead", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.location.watch"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["os.location.watch"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function locationWatchRead(
     handle: LocationWatchHandle,
@@ -194,30 +98,11 @@ export declare function locationWatchRead(
 ): Result<LocationSample, PlatformError>;
 
 /// Poll one location sample without blocking.
-///
-/// Poll one location sample from one opened location watch stream without waiting.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses nonblocking host location update queue reads.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.location.watch`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.location.watchTryRead", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.location.watch"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["os.location.watch"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function locationWatchTryRead(
     handle: LocationWatchHandle,

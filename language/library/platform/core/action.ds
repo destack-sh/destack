@@ -1,5 +1,5 @@
-/// Capability names for platform binding policy and sandboxing.
-export type PlatformCapability =
+/// Action names for platform binding policy and sandboxing.
+export type HostAction =
     | "audio.capture"
     | "audio.control"
     | "audio.device"
@@ -224,16 +224,3 @@ export type PlatformCapability =
     | "tty.size"
     | "tty.termios"
     | "tty.write";
-
-/// Require one or more platform capabilities.
-///
-/// ```
-/// @require("fs.read")
-/// declare function readFile(...): ...
-/// ```
-///
-/// ```
-/// @require("fs.read", "net.listen")
-/// declare function startServer(...): ...
-/// ```
-export newtype require = (...PlatformCapability[]);

@@ -200,13 +200,9 @@ export struct LockOptions {
 /// Open one filesystem entry as a file handle.
 @binding("destack.fs.file.open", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.read", "fs.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.read", "fs.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function open(
     entry: Entry,
@@ -216,13 +212,9 @@ export declare function open(
 /// Read bytes from an open file into an output buffer.
 @binding("destack.fs.file.read", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function read(
     file: FileHandle,
@@ -233,13 +225,9 @@ export declare function read(
 /// Write bytes to an open file from an input buffer.
 @binding("destack.fs.file.write", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function write(
     file: FileHandle,
@@ -250,13 +238,9 @@ export declare function write(
 /// Read bytes from an open file into multiple output buffers.
 @binding("destack.fs.file.readMany", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function readMany(
     file: FileHandle,
@@ -267,13 +251,9 @@ export declare function readMany(
 /// Write bytes to an open file from multiple input buffers.
 @binding("destack.fs.file.writeMany", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function writeMany(
     file: FileHandle,
@@ -284,13 +264,9 @@ export declare function writeMany(
 /// Reposition an open file and return the new offset.
 @binding("destack.fs.file.seek", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.handle"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.handle"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function seek(
     file: FileHandle,
@@ -301,52 +277,36 @@ export declare function seek(
 /// Truncate an open file to the requested size.
 @binding("destack.fs.file.truncate", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function truncate(file: FileHandle, size: FileSize): Result<void, PlatformError>;
 
 /// Synchronize file contents and metadata with storage.
 @binding("destack.fs.file.sync", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.sync"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.sync"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function sync(file: FileHandle): Result<void, PlatformError>;
 
 /// Synchronize file contents with storage.
 @binding("destack.fs.file.syncData", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.sync"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.sync"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function syncData(file: FileHandle): Result<void, PlatformError>;
 
 /// Synchronize one byte range with storage.
 @binding("destack.fs.file.syncRange", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.sync"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.sync"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function syncRange(
     file: FileHandle,
@@ -357,13 +317,9 @@ export declare function syncRange(
 /// Copy bytes between two open files.
 @binding("destack.fs.file.copyRange", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.read", "fs.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.read", "fs.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function copyRange(
     source: FileHandle,
@@ -375,13 +331,9 @@ export declare function copyRange(
 /// Clone bytes between two open files.
 @binding("destack.fs.file.cloneRange", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.read", "fs.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.read", "fs.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function cloneRange(
     source: FileHandle,
@@ -393,13 +345,9 @@ export declare function cloneRange(
 /// Allocate, release, or reshape storage for one byte range.
 @binding("destack.fs.file.allocate", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function allocate(
     file: FileHandle,
@@ -410,13 +358,9 @@ export declare function allocate(
 /// Provide access pattern advice for one byte range.
 @binding("destack.fs.file.advise", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.metadata"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.metadata"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function advise(
     file: FileHandle,
@@ -427,25 +371,17 @@ export declare function advise(
 /// Apply or release one advisory file lock.
 @binding("destack.fs.file.lock", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.lock"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.lock"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function lock(file: FileHandle, options: LockOptions): Result<void, PlatformError>;
 
 /// Duplicate an open file handle into a new owned resource.
 @binding("destack.fs.file.duplicate", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.handle"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.handle"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function duplicate(file: FileHandle): Result<FileHandle, PlatformError>;

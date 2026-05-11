@@ -35,60 +35,20 @@ export struct ReverseLookupName {
 }
 
 /// Resolve a host and service query into raw socket addresses.
-///
-/// Resolve the requested host and service to one or more socket addresses.
-/// Name-service order, search domains, and canonicalization follow host resolver policy.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses getaddrinfo(3) on Unix and GetAddrInfoW on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.dns`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.resolve.lookup", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.dns"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["net.dns"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function resolve(query: ResolveQuery): Result<Array<SocketAddress>, PlatformError>;
 
 /// Reverse lookup a raw socket address into host and service names.
-///
-/// Resolve a socket address back to host and service names.
-/// Reverse lookup policy and name formatting follow host resolver behavior.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses getnameinfo(3) on Unix and GetNameInfoW on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.dns`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.resolve.reverseLookup", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.dns"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["net.dns"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function reverseLookup(
     address: SocketAddress,

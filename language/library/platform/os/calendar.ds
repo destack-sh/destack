@@ -236,146 +236,55 @@ export struct CalendarEventQuery {
     includeRecurrenceInstances: boolean;
 }
 
-/// Calendar bindings.
 /// List host calendars.
-///
-/// Enumerate readable host calendars and return descriptor metadata.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses EventKit on Apple platforms, CalendarContract on Android, and calendar provider APIs on desktop hosts.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.calendar.read`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.calendar.list", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.calendar.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.calendar.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function calendarList(): Result<Array<CalendarDescriptor>, PlatformError>;
 
 /// List host calendar events.
-///
-/// Enumerate host calendar events over one selected UTC time range.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host calendar query APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.calendar.read`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.calendar.eventList", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.calendar.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.calendar.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function calendarEventList(
     query: CalendarEventQuery,
 ): Result<Array<CalendarEvent>, PlatformError>;
 
 /// Read one host calendar event.
-///
-/// Read one host calendar event payload by stable identifier.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host calendar read APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.calendar.read`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.calendar.eventRead", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.calendar.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.calendar.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function calendarEventRead(id: string): Result<CalendarEvent, PlatformError>;
 
 /// Create one calendar event.
-///
-/// Create one host calendar event and return its stable identifier.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host calendar-write APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.calendar.write`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.calendar.eventCreate", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.calendar.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.calendar.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function calendarEventCreate(event: CalendarEventDraft): Result<string, PlatformError>;
 
 /// Update one calendar event.
-///
-/// Update one existing host calendar event by identifier.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host calendar-write APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.calendar.write`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.calendar.eventUpdate", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.calendar.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.calendar.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function calendarEventUpdate(
     id: string,
@@ -383,29 +292,11 @@ export declare function calendarEventUpdate(
 ): Result<void, PlatformError>;
 
 /// Delete one calendar event.
-///
-/// Delete one existing host calendar event by identifier.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host calendar-delete APIs where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.calendar.write`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.calendar.eventDelete", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.calendar.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.calendar.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function calendarEventDelete(id: string): Result<void, PlatformError>;

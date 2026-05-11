@@ -144,63 +144,23 @@ export struct InputGamepadState {
     motion: InputGamepadMotionState | void;
 }
 
-/// Input gamepad bindings.
 /// Read one gamepad state snapshot.
-///
-/// Return one full gamepad state snapshot for one opened gamepad-capable device.
-/// Snapshot fields mirror backend-standardized gamepad semantics for axes, buttons, touches, battery, and motion metadata.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where gamepad snapshots are unavailable.
-/// Uses backend-specific gamepad state APIs with normalized axes, buttons, touch contacts, battery metadata, and motion sensors when available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `input.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.input.gamepad.state", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["input.read"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["input.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function gamepadState(
     handle: InputDeviceHandle,
 ): Result<InputGamepadState, PlatformError>;
 
 /// Set one gamepad player index.
-///
-/// Apply one player index hint for one opened gamepad-capable device.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where player-index assignment is unavailable.
-/// Uses backend-specific gamepad player-index assignment APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `input.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.input.gamepad.setPlayerIndex", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["input.control"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["input.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function gamepadSetPlayerIndex(
     handle: InputDeviceHandle,
@@ -208,30 +168,11 @@ export declare function gamepadSetPlayerIndex(
 ): Result<void, PlatformError>;
 
 /// Set one gamepad light color.
-///
-/// Apply one rgb light color for one opened gamepad-capable device when supported.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where gamepad light control is unavailable.
-/// Uses backend-specific gamepad light-control APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `input.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.input.gamepad.setLight", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["input.control"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["input.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function gamepadSetLight(
     handle: InputDeviceHandle,
@@ -241,29 +182,11 @@ export declare function gamepadSetLight(
 ): Result<void, PlatformError>;
 
 /// Enable or disable gamepad motion sensors.
-///
-/// Toggle motion sensor delivery for one opened gamepad-capable device when supported.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where motion sensors are unavailable.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `input.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.input.gamepad.setMotionSensorsEnabled", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["input.control"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["input.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function gamepadSetMotionSensorsEnabled(
     handle: InputDeviceHandle,
@@ -271,29 +194,11 @@ export declare function gamepadSetMotionSensorsEnabled(
 ): Result<void, PlatformError>;
 
 /// Set the gamepad motion sensor sample rate.
-///
-/// Apply one motion sensor sample rate hint in hertz for one opened gamepad-capable device when supported.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where configurable motion sensors are unavailable.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `input.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.input.gamepad.setMotionSensorSampleRate", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["input.control"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["input.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function gamepadSetMotionSensorSampleRate(
     handle: InputDeviceHandle,

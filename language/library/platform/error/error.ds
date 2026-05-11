@@ -388,8 +388,8 @@ export struct PlatformErrorContextSecurity {
     kind: "security";
     /// Optional syscall or host API name.
     syscall?: string;
-    /// Optional capability name.
-    capability?: string;
+    /// Optional action name.
+    action?: string;
     /// Optional policy name.
     policy?: string;
 }
@@ -514,31 +514,11 @@ export newtype PlatformError = {
 };
 
 /// Error bindings for runtime error propagation.
-/// Take a runtime platform error by id.
-///
-/// Reads and consumes one stored platform error entry by id.
-/// Removes the entry from the runtime error store after a successful read.
-///
-/// # Platform
-/// Managed by the runtime platform layer rather than an OS-specific syscall.
-/// Uses no direct syscall: reads and clears one runtime error-store entry.
-///
-/// # Errors
-/// Returns `invalidArgument` or `generic`.
-///
-/// # Security
-/// Requires `diagnostic.read`.
-///
-/// # Replay
-/// Deterministic.
 @binding("destack.error.error.takePlatformError", {
     effect: "deterministic",
-    replay: "nonrecordable",
-    capabilities: ["diagnostic.read"],
-    platforms: ["windows", "unix", "wasi"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "any",
+    requires: ["diagnostic.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
 })
 export declare function takePlatformError(errorId: uint64): Result<PlatformError, PlatformError>;

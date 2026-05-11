@@ -683,33 +683,12 @@ export struct GpuTextureInfo {
     dimension: GpuTextureDimension;
 }
 
-/// GPU resource bindings.
 /// Create a GPU buffer.
-///
-/// Create a buffer resource on a logical device with explicit size and usage flags.
-/// Allocation placement and memory domain are host backend decisions.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style buffer creation operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.memory`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.resource.bufferCreate", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.memory"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.memory"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function bufferCreate(
     device: GpuDeviceHandle,
@@ -717,60 +696,20 @@ export declare function bufferCreate(
 ): Result<GpuBufferHandle, PlatformError>;
 
 /// Destroy a GPU buffer.
-///
-/// Destroy a buffer resource and release host backend memory references.
-/// Outstanding use of the buffer is host-undefined and must be synchronized by callers.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style buffer destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.memory`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.resource.bufferDestroy", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.memory"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.memory"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function bufferDestroy(handle: GpuBufferHandle): Result<void, PlatformError>;
 
 /// Write a byte range to a GPU buffer.
-///
-/// Write a byte range into a buffer resource from host memory.
-/// Host staging and synchronization behavior follow backend upload semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style upload or mapped-write paths on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.memory`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.resource.bufferWrite", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.memory"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.memory"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function bufferWrite(
     handle: GpuBufferHandle,
@@ -779,31 +718,11 @@ export declare function bufferWrite(
 ): Result<void, PlatformError>;
 
 /// Read a byte range from a GPU buffer.
-///
-/// Read a byte range from a buffer resource into host-visible memory.
-/// Readback can stall based on backend synchronization and transfer state.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style readback or mapped-read paths on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.memory`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.resource.bufferRead", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.memory"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.memory"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function bufferRead(
     handle: GpuBufferHandle,
@@ -812,31 +731,11 @@ export declare function bufferRead(
 ): Result<Slice<uint8>, PlatformError>;
 
 /// Map a buffer range.
-///
-/// Map a host-visible byte range for direct CPU access.
-/// Mapping coherence and cache behavior follow host backend memory rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style buffer map operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.memory`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.resource.bufferMap", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.memory"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.memory"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function bufferMap(
     handle: GpuBufferHandle,
@@ -846,89 +745,29 @@ export declare function bufferMap(
 ): Result<GpuMappedBufferRange, PlatformError>;
 
 /// Unmap a mapped buffer.
-///
-/// Unmap a previously mapped buffer range and flush host synchronization as required.
-/// Visibility of writes follows backend memory model semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style buffer unmap operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.memory`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.resource.bufferUnmap", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.memory"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.memory"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function bufferUnmap(handle: GpuBufferHandle): Result<void, PlatformError>;
 
 /// Read a buffer metadata snapshot.
-///
-/// Read the current metadata snapshot for a buffer resource.
-/// Snapshot values remain stable except map state, which can change asynchronously.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style buffer property query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.memory`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.resource.bufferInfo", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.memory"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.memory"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function bufferInfo(handle: GpuBufferHandle): Result<GpuBufferInfo, PlatformError>;
 
 /// Create a texture resource.
-///
-/// Create a texture resource with explicit dimensions, format, and usage flags.
-/// Allocation placement and tiling are host backend decisions.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style texture creation operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.memory`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.resource.textureCreate", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.memory"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.memory"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function textureCreate(
     device: GpuDeviceHandle,
@@ -936,89 +775,29 @@ export declare function textureCreate(
 ): Result<GpuTextureHandle, PlatformError>;
 
 /// Destroy a texture resource.
-///
-/// Destroy a texture resource and release host backend memory references.
-/// Outstanding use of the texture must be synchronized by callers.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style texture destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.memory`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.resource.textureDestroy", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.memory"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.memory"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function textureDestroy(handle: GpuTextureHandle): Result<void, PlatformError>;
 
 /// Read a texture metadata snapshot.
-///
-/// Read the current metadata snapshot for a texture resource.
-/// Snapshot values remain stable for the texture lifetime.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style texture property query operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.memory`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.resource.textureInfo", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.memory"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.memory"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function textureInfo(handle: GpuTextureHandle): Result<GpuTextureInfo, PlatformError>;
 
 /// Create a texture view.
-///
-/// Create a view of a texture resource for bindings and render attachments.
-/// View range and dimension are validated against the source texture descriptor.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style texture-view creation operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.memory`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.resource.textureViewCreate", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.memory"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.memory"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function textureViewCreate(
     texture: GpuTextureHandle,
@@ -1026,60 +805,20 @@ export declare function textureViewCreate(
 ): Result<GpuTextureViewHandle, PlatformError>;
 
 /// Destroy a texture view.
-///
-/// Destroy a texture view and release backend view resources.
-/// The texture-view handle becomes invalid after destroy.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style texture-view destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.memory`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.resource.textureViewDestroy", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.memory"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.memory"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function textureViewDestroy(handle: GpuTextureViewHandle): Result<void, PlatformError>;
 
 /// Create a sampler resource.
-///
-/// Create a sampler resource with explicit filter and address mode selections.
-/// Sampler state maps to host backend sampler descriptors.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style sampler creation operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.memory`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.resource.samplerCreate", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.memory"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.memory"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function samplerCreate(
     device: GpuDeviceHandle,
@@ -1087,60 +826,20 @@ export declare function samplerCreate(
 ): Result<GpuSamplerHandle, PlatformError>;
 
 /// Destroy a sampler resource.
-///
-/// Destroy a sampler resource and release host backend references.
-/// The sampler handle becomes invalid after destroy.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style sampler destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.memory`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.resource.samplerDestroy", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.memory"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.memory"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function samplerDestroy(handle: GpuSamplerHandle): Result<void, PlatformError>;
 
 /// Create an external texture resource.
-///
-/// Create an external texture from one or more texture views and explicit color-conversion metadata.
-/// Plane count and plane formats must match the selected external-texture format.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU or Dawn-style external-texture creation paths on supported backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.memory`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.resource.externalTextureCreate", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.memory"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.memory"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function externalTextureCreate(
     device: GpuDeviceHandle,
@@ -1149,31 +848,11 @@ export declare function externalTextureCreate(
 ): Result<GpuExternalTextureHandle, PlatformError>;
 
 /// Destroy an external texture resource.
-///
-/// Destroy an external texture and release backend conversion and view state.
-/// The external-texture handle becomes invalid after destroy.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU or Dawn-style external-texture destroy operations on supported backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.memory`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.resource.externalTextureDestroy", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.memory"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.memory"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function externalTextureDestroy(
     handle: GpuExternalTextureHandle,

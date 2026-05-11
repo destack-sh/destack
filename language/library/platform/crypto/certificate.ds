@@ -177,32 +177,12 @@ export struct CryptoCertificateVerifyResult {
 }
 
 /// Certificate bindings for runtime store certificates.
-/// Import one certificate into one store.
-///
-/// Parse and import one certificate blob into one store and return one certificate handle.
-/// Import visibility and persistence are enforced by runtime store policies.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software certificate parsing and verification, plus host trust stores: Security.framework keychain and trust settings on Apple, and Crypt32 or CNG stores on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.certificate.write`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.certificate.import", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.certificate.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.certificate.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function certificateImport(
     store: CryptoStoreHandle,
@@ -211,30 +191,12 @@ export declare function certificateImport(
 ): Result<CryptoCertificateHandle, PlatformError>;
 
 /// Export one certificate from one handle.
-///
-/// Serialize one certificate handle into the requested encoding format.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software certificate parsing and verification, plus host trust stores: Security.framework keychain and trust settings on Apple, and Crypt32 or CNG stores on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.certificate.read`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.certificate.export", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.certificate.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.certificate.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function certificateExport(
     handle: CryptoCertificateHandle,
@@ -242,91 +204,35 @@ export declare function certificateExport(
 ): Result<Slice<uint8>, PlatformError>;
 
 /// Return one certificate descriptor.
-///
-/// Query one certificate handle and return normalized identity and validity metadata.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software certificate parsing and verification, plus host trust stores: Security.framework keychain and trust settings on Apple, and Crypt32 or CNG stores on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.certificate.read`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.certificate.descriptor", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.certificate.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.certificate.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function certificateDescriptor(
     handle: CryptoCertificateHandle,
 ): Result<CryptoCertificateDescriptor, PlatformError>;
 
 /// Verify one certificate chain against one trust policy.
-///
-/// Build and verify one certificate path for the requested purpose and verification time.
-/// Chain building and policy evaluation follow runtime trust engine behavior.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software certificate parsing and verification, plus host trust stores: Security.framework keychain and trust settings on Apple, and Crypt32 or CNG stores on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.certificate.read`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.certificate.verify", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.certificate.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.certificate.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function certificateVerify(
     request: CryptoCertificateVerifyRequest,
 ): Result<CryptoCertificateVerifyResult, PlatformError>;
 
 /// Delete one certificate from one store when allowed.
-///
-/// Remove one certificate object and invalidate the handle.
-/// Deletion permissions and persistence are enforced by runtime store policies.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL software certificate parsing and verification, plus host trust stores: Security.framework keychain and trust settings on Apple, and Crypt32 or CNG stores on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.certificate.write`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.certificate.delete", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.certificate.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.certificate.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function certificateDelete(handle: CryptoCertificateHandle): Result<void, PlatformError>;

@@ -127,88 +127,30 @@ export struct IntentOpenOptions {
     includeCustomAction: boolean;
 }
 
-/// Host intent bindings.
 /// Open one host intent stream.
-///
-/// Open one inbound host intent stream for activation and share payload events.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime host intent bridges where the active host integrates activation or share ingress.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.intent.write`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.intent.open", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.intent.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["os.intent.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function intentOpen(options: IntentOpenOptions): Result<IntentHandle, PlatformError>;
 
 /// Close one host intent stream.
-///
-/// Close one opened host intent stream and release host callback routing resources.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime host intent bridge unregistration where the active host exposes one inbound stream.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.intent.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.intent.close", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.intent.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["os.intent.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function intentClose(handle: IntentHandle): Result<void, PlatformError>;
 
 /// Wait for one inbound intent event.
-///
-/// Wait for one queued inbound intent event from one opened intent stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime host intent queues where the active host delivers activation or share ingress.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `os.intent.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.intent.read", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.intent.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["os.intent.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function intentRead(
     handle: IntentHandle,
@@ -216,142 +158,50 @@ export declare function intentRead(
 ): Result<IntentEvent, PlatformError>;
 
 /// Poll one inbound intent event without blocking.
-///
-/// Poll one queued inbound intent event from one opened intent stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses runtime host intent queues where the active host delivers activation or share ingress.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.intent.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.intent.tryRead", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.intent.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["os.intent.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function intentTryRead(handle: IntentHandle): Result<IntentEvent, PlatformError>;
 
 /// Query whether host can route one URL target.
-///
-/// Ask host routing policy whether one URL target can be opened.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host routing queries where the current target exposes them and launcher discovery elsewhere.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.intent.write`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.intent.canOpenUrl", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.intent.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["os.intent.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function intentCanOpenUrl(url: string): Result<boolean, PlatformError>;
 
 /// Request host to open one URL target.
-///
-/// Ask host shell or app framework to open one URL with default routing.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host default URL routing where the current target exposes it.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.intent.write`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.intent.openUrl", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.intent.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.intent.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function intentOpenUrl(url: string): Result<void, PlatformError>;
 
 /// Request host to open one file path target.
-///
-/// Ask host shell or app framework to open one file path with default routing.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host default path routing where the current target exposes it.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.intent.write`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.intent.openPath", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.intent.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.intent.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function intentOpenPath(path: Path): Result<void, PlatformError>;
 
 /// Share one text payload through host share routing.
-///
-/// Ask host share infrastructure to present one text payload to target applications.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host share routing where the current target exposes it.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.intent.write`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.intent.shareText", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.intent.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.intent.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function intentShareText(
     text: string,
@@ -359,30 +209,12 @@ export declare function intentShareText(
 ): Result<void, PlatformError>;
 
 /// Share file paths through host share routing.
-///
-/// Ask host share infrastructure to present one file list to target applications.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host share routing where the current target exposes it.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.intent.write`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.intent.sharePaths", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.intent.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.intent.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function intentSharePaths(
     paths: Array<Path>,

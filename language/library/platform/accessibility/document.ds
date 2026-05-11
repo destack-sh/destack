@@ -365,31 +365,12 @@ export newtype AccessibilityDocumentResponse =
     | AccessibilityDocumentStyleRunsResponse
     | AccessibilityDocumentEmbeddedObjectsResponse;
 
-/// Accessibility text-document bindings.
 /// Open one inbound document-query stream for one window.
-///
-/// Deliver assistive-technology text and range queries for published document nodes in the window.
-///
-/// # Platform
-/// Android, Unix, and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `accessibility.publish`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.accessibility.document.open", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["accessibility.publish"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["accessibility.publish"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function documentOpen(
     window: WindowHandle,
@@ -397,57 +378,20 @@ export declare function documentOpen(
 ): Result<AccessibilityDocumentHandle, PlatformError>;
 
 /// Close one inbound document-query stream.
-///
-/// Close the query stream and discard queued requests.
-///
-/// # Platform
-/// Android, Unix, and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `accessibility.publish`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.accessibility.document.close", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["accessibility.publish"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["accessibility.publish"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function documentClose(handle: AccessibilityDocumentHandle): Result<void, PlatformError>;
 
 /// Wait for one document query.
-///
-/// Wait for one pending document query.
-/// Timeout uses nanoseconds in the runtime monotonic domain.
-///
-/// # Platform
-/// Android, Unix, and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `accessibility.publish`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.accessibility.document.read", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["accessibility.publish"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["accessibility.publish"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function documentRead(
     handle: AccessibilityDocumentHandle,
@@ -455,59 +399,22 @@ export declare function documentRead(
 ): Result<AccessibilityDocumentQuery, PlatformError>;
 
 /// Poll one document query without blocking.
-///
-/// Poll one pending document query and return immediately when the queue is empty.
-/// Empty queue state is reported through ioWouldBlock.
-///
-/// # Platform
-/// Android, Unix, and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `accessibility.publish`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.accessibility.document.tryRead", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["accessibility.publish"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["accessibility.publish"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function documentTryRead(
     handle: AccessibilityDocumentHandle,
 ): Result<AccessibilityDocumentQuery, PlatformError>;
 
 /// Respond to one document query.
-///
-/// Send one response for one earlier document query on the same stream.
-///
-/// # Platform
-/// Android, Unix, and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `accessibility.publish`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.accessibility.document.respond", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["accessibility.publish"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["accessibility.publish"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function documentRespond(
     handle: AccessibilityDocumentHandle,
@@ -515,30 +422,11 @@ export declare function documentRespond(
 ): Result<void, PlatformError>;
 
 /// Publish one advanced text-document snapshot for one node.
-///
-/// Publish rich document text structure for one node that needs more than the base accessibility text state.
-/// This extension covers large editors, document viewers, and other nodes that must expose text runs and boundaries to assistive technologies.
-///
-/// # Platform
-/// Android, Unix, and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `accessibility.publish`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.accessibility.document.set", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["accessibility.publish"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["accessibility.publish"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function documentSet(
     window: WindowHandle,
@@ -547,29 +435,11 @@ export declare function documentSet(
 ): Result<void, PlatformError>;
 
 /// Clear the advanced text-document snapshot for one node.
-///
-/// Remove previously published rich document text structure for the node.
-///
-/// # Platform
-/// Android, Unix, and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `accessibility.publish`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.accessibility.document.clear", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["accessibility.publish"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["accessibility.publish"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function documentClear(
     window: WindowHandle,

@@ -133,90 +133,32 @@ export newtype MidiEvent =
     | MidiPortChangedEvent
     | MidiBackendDisconnectedEvent;
 
-/// MIDI event bindings.
 /// Open one MIDI topology event subscription.
-///
-/// Open one backend event subscription for MIDI topology changes.
-/// Subscription routing and queue depth follow host backend behavior.
-///
-/// # Platform
-/// Android, Unix, Windows, and iOS.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.midi.observe`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.midi.event.open", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.midi.observe"],
-    platforms: ["android", "windows", "unix", "ios"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.midi.observe"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function eventOpen(
     options: MidiEventSubscriptionOptions,
 ): Result<MidiEventHandle, PlatformError>;
 
 /// Close one MIDI topology event subscription.
-///
-/// Close one MIDI event subscription and release backend notification resources.
-/// Pending events are discarded.
-///
-/// # Platform
-/// Android, Unix, Windows, and iOS.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.midi.observe`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.midi.event.close", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.midi.observe"],
-    platforms: ["android", "windows", "unix", "ios"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.midi.observe"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function eventClose(handle: MidiEventHandle): Result<void, PlatformError>;
 
 /// Wait for one MIDI topology event.
-///
-/// Wait for one pending event from one subscription queue.
-/// Timeout uses nanoseconds in the runtime monotonic domain.
-///
-/// # Platform
-/// Android, Unix, Windows, and iOS.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.midi.observe`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.midi.event.read", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.midi.observe"],
-    platforms: ["android", "windows", "unix", "ios"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.midi.observe"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function eventRead(
     handle: MidiEventHandle,
@@ -224,30 +166,11 @@ export declare function eventRead(
 ): Result<MidiEvent, PlatformError>;
 
 /// Wait for one batch of MIDI topology events.
-///
-/// Wait for pending events from one subscription queue and return up to `maxEvents`.
-/// Timeout uses nanoseconds in the runtime monotonic domain.
-///
-/// # Platform
-/// Android, Unix, Windows, and iOS.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.midi.observe`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.midi.event.readBatch", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.midi.observe"],
-    platforms: ["android", "windows", "unix", "ios"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.midi.observe"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function eventReadBatch(
     handle: MidiEventHandle,
@@ -256,58 +179,20 @@ export declare function eventReadBatch(
 ): Result<Slice<MidiEvent>, PlatformError>;
 
 /// Poll one MIDI topology event without blocking.
-///
-/// Poll one pending event from one subscription queue.
-/// Empty queue state is reported through ioWouldBlock.
-///
-/// # Platform
-/// Android, Unix, Windows, and iOS.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.midi.observe`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.midi.event.tryRead", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.midi.observe"],
-    platforms: ["android", "windows", "unix", "ios"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["device.midi.observe"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function eventTryRead(handle: MidiEventHandle): Result<MidiEvent, PlatformError>;
 
 /// Poll one batch of MIDI topology events without blocking.
-///
-/// Poll pending events from one subscription queue and return up to `maxEvents`.
-/// Empty queue state is reported through ioWouldBlock.
-///
-/// # Platform
-/// Android, Unix, Windows, and iOS.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.midi.observe`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.midi.event.tryReadBatch", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.midi.observe"],
-    platforms: ["android", "windows", "unix", "ios"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["device.midi.observe"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function eventTryReadBatch(
     handle: MidiEventHandle,

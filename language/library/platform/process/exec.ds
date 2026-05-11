@@ -7,31 +7,11 @@ import { Path } from "../fs/path.ds";
 export newtype ExecAtFlags = uint32;
 
 /// Replace the current process image with a command path.
-///
-/// Replace the current process image in-place by executing the given command path.
-/// This call does not return on success and preserves host exec semantics for inherited descriptors.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses execve(2) on Unix and process-replacement emulation with CreateProcessW plus exit on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.exec`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.process.exec.path", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["process.exec"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["process.exec"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function exec(
     command: Path,
@@ -40,31 +20,11 @@ export declare function exec(
 ): Result<void, PlatformError>;
 
 /// Replace the current process image using a directory-relative path.
-///
-/// Replace the current process image in-place by executing a directory-relative target.
-/// Flag behavior follows host exec-at semantics and may reject unsupported combinations.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses execveat(2) on Unix where available and runtime fallback or `notSupported` on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.exec`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.process.exec.pathat", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["process.exec"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["process.exec"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function execat(
     directory: DirectoryHandle,
@@ -75,31 +35,11 @@ export declare function execat(
 ): Result<void, PlatformError>;
 
 /// Replace the current process image using an executable file handle.
-///
-/// Replace the current process image in-place from an already-open executable descriptor.
-/// Descriptor validity, executable format, and permission checks are enforced by the host kernel.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses fexecve(2) on Unix where available and runtime fallback or `notSupported` on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioInvalidData, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.exec`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.process.exec.fexec", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["process.exec"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["process.exec"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function fexec(
     executable: FileHandle,

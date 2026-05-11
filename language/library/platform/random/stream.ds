@@ -21,176 +21,56 @@ export struct RandomStreamState {
 }
 
 /// Allocate a deterministic random stream identifier.
-///
-/// Create one runtime-managed deterministic PRNG stream.
-/// Stream seeding follows runtime determinism and replay policy.
-///
-/// # Platform
-/// Runtime-level operation available on all native runtime targets.
-/// Uses runtime deterministic PRNG state.
-///
-/// # Errors
-/// Returns randomUnavailable, notSupported.
-///
-/// # Security
-/// Requires `random.deterministic`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.random.stream.create", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["random.deterministic"],
-    platforms: ["windows", "unix"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "any",
+    requires: ["random.deterministic"],
+    families: ["windows", "unix"],
+    provider: "runtime",
 })
 export declare function stream(): Result<RandomStream, PlatformError>;
 
 /// Allocate a deterministic random stream in one domain.
-///
-/// Create one runtime-managed deterministic PRNG stream in the requested domain.
-/// Domain assignment controls stream inheritance and replay grouping behavior.
-///
-/// # Platform
-/// Runtime-level operation available on all native runtime targets.
-/// Uses runtime deterministic PRNG state.
-///
-/// # Errors
-/// Returns randomUnavailable, invalidArgument, notSupported.
-///
-/// # Security
-/// Requires `random.deterministic`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.random.stream.in", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["random.deterministic"],
-    platforms: ["windows", "unix"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "any",
+    requires: ["random.deterministic"],
+    families: ["windows", "unix"],
+    provider: "runtime",
 })
 export declare function streamIn(domain: RandomStreamDomain): Result<RandomStream, PlatformError>;
 
 /// Split a deterministic stream into one child stream.
-///
-/// Derive one child stream from one parent stream using deterministic split semantics.
-/// Parent and child sequences remain stable for replay in one runtime version.
-///
-/// # Platform
-/// Runtime-level operation available on all native runtime targets.
-/// Uses runtime deterministic PRNG split logic.
-///
-/// # Errors
-/// Returns randomUnavailable, invalidArgument, notSupported.
-///
-/// # Security
-/// Requires `random.deterministic`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.random.stream.split", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["random.deterministic"],
-    platforms: ["windows", "unix"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "any",
+    requires: ["random.deterministic"],
+    families: ["windows", "unix"],
+    provider: "runtime",
 })
 export declare function streamSplit(parent: RandomStream): Result<RandomStream, PlatformError>;
 
 /// Advance a deterministic stream by one jump count.
-///
-/// Move one stream forward by a deterministic jump count without generating intermediate values.
-/// Jump semantics are runtime-defined and versioned for replay compatibility.
-///
-/// # Platform
-/// Runtime-level operation available on all native runtime targets.
-/// Uses runtime deterministic PRNG jump logic.
-///
-/// # Errors
-/// Returns randomUnavailable, invalidArgument, notSupported.
-///
-/// # Security
-/// Requires `random.deterministic`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.random.stream.jump", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["random.deterministic"],
-    platforms: ["windows", "unix"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "any",
+    requires: ["random.deterministic"],
+    families: ["windows", "unix"],
+    provider: "runtime",
 })
 export declare function streamJump(stream: RandomStream, jump: uint64): Result<void, PlatformError>;
 
 /// Export deterministic stream state.
-///
-/// Serialize one stream state into a versioned byte payload for checkpointing.
-/// State bytes are opaque to callers and validated on restore.
-///
-/// # Platform
-/// Runtime-level operation available on all native runtime targets.
-/// Uses runtime deterministic PRNG state serialization.
-///
-/// # Errors
-/// Returns randomUnavailable, invalidArgument, notSupported.
-///
-/// # Security
-/// Requires `random.deterministic`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.random.stream.export", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["random.deterministic"],
-    platforms: ["windows", "unix"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "any",
+    requires: ["random.deterministic"],
+    families: ["windows", "unix"],
+    provider: "runtime",
 })
 export declare function streamExport(stream: RandomStream): Result<RandomStreamState, PlatformError>;
 
 /// Import deterministic stream state.
-///
-/// Restore one stream state from a versioned byte payload.
-/// Restored state replaces the prior stream state atomically.
-///
-/// # Platform
-/// Runtime-level operation available on all native runtime targets.
-/// Uses runtime deterministic PRNG state deserialization.
-///
-/// # Errors
-/// Returns randomUnavailable, invalidArgument, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `random.deterministic`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.random.stream.import", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["random.deterministic"],
-    platforms: ["windows", "unix"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "any",
+    requires: ["random.deterministic"],
+    families: ["windows", "unix"],
+    provider: "runtime",
 })
 export declare function streamImport(
     stream: RandomStream,
@@ -198,118 +78,38 @@ export declare function streamImport(
 ): Result<void, PlatformError>;
 
 /// Return a deterministic random uint64 from the default stream.
-///
-/// Advance the default deterministic PRNG stream and return one value.
-/// Stream step behavior is stable for replay within one runtime version.
-///
-/// # Platform
-/// Runtime-level operation available on all native runtime targets.
-/// Uses runtime deterministic PRNG state.
-///
-/// # Errors
-/// Returns randomUnavailable, notSupported.
-///
-/// # Security
-/// Requires `random.deterministic`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.random.stream.nextU64", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["random.deterministic"],
-    platforms: ["windows", "unix"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "any",
+    requires: ["random.deterministic"],
+    families: ["windows", "unix"],
+    provider: "runtime",
 })
 export declare function nextU64(): Result<uint64, PlatformError>;
 
 /// Return a deterministic random uint64 from a specific stream.
-///
-/// Advance the selected deterministic PRNG stream and return one value.
-/// Stream step behavior is stable for replay within one runtime version.
-///
-/// # Platform
-/// Runtime-level operation available on all native runtime targets.
-/// Uses runtime deterministic PRNG state.
-///
-/// # Errors
-/// Returns randomUnavailable, notSupported.
-///
-/// # Security
-/// Requires `random.deterministic`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.random.stream.nextU64From", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["random.deterministic"],
-    platforms: ["windows", "unix"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "any",
+    requires: ["random.deterministic"],
+    families: ["windows", "unix"],
+    provider: "runtime",
 })
 export declare function nextU64From(stream: RandomStream): Result<uint64, PlatformError>;
 
 /// Fill a slice with deterministic random bytes from the default stream.
-///
-/// Advance the default stream to fill one mutable buffer.
-/// Buffer fill order is deterministic for a fixed stream state.
-///
-/// # Platform
-/// Runtime-level operation available on all native runtime targets.
-/// Uses runtime deterministic PRNG state.
-///
-/// # Errors
-/// Returns randomUnavailable, notSupported.
-///
-/// # Security
-/// Requires `random.deterministic`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.random.stream.fillBytes", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["random.deterministic"],
-    platforms: ["windows", "unix"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "any",
+    requires: ["random.deterministic"],
+    families: ["windows", "unix"],
+    provider: "runtime",
 })
 export declare function fillBytes(buffer: Slice<uint8>): Result<void, PlatformError>;
 
 /// Fill a slice with deterministic random bytes from a specific stream.
-///
-/// Advance the selected stream to fill one mutable buffer.
-/// Buffer fill order is deterministic for a fixed stream state.
-///
-/// # Platform
-/// Runtime-level operation available on all native runtime targets.
-/// Uses runtime deterministic PRNG state.
-///
-/// # Errors
-/// Returns randomUnavailable, notSupported.
-///
-/// # Security
-/// Requires `random.deterministic`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.random.stream.fillBytesFrom", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["random.deterministic"],
-    platforms: ["windows", "unix"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "any",
+    requires: ["random.deterministic"],
+    families: ["windows", "unix"],
+    provider: "runtime",
 })
 export declare function fillBytesFrom(
     stream: RandomStream,

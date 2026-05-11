@@ -60,26 +60,18 @@ export struct WatchBatch {
 /// Start watching one filesystem entry.
 @binding("destack.fs.watch.open", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.watch"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.watch"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function watch(entry: Entry, options: WatchOptions): Result<WatchHandle, PlatformError>;
 
 /// Read watch events into an output slice.
 @binding("destack.fs.watch.read", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.watch"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.watch"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function readWatch(
     watch: WatchHandle,

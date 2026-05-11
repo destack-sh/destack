@@ -112,31 +112,11 @@ export struct SocketPair {
 }
 
 /// Create a socket from a native family, type, and protocol.
-///
-/// Allocate a new socket endpoint with the requested family, type, and protocol number.
-/// Protocol defaults and socket limits are determined by the host kernel.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses socket(2) on Unix and WSASocketW on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.socket.open", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.control"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["net.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function socket(
     family: SocketFamily,
@@ -145,32 +125,11 @@ export declare function socket(
 ): Result<SocketHandle, PlatformError>;
 
 /// Create a connected socket pair.
-///
-/// Allocate two already-connected peer sockets for local full-duplex communication.
-/// `SocketFamily.Unspecified` creates one local AF_UNIX pair where supported, while `SocketFamily.IPv4` and `SocketFamily.IPv6` use one loopback transport pair.
-/// Pair creation semantics and descriptor inheritance follow host kernel behavior.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses socketpair(2) for `SocketFamily.Unspecified` and loopback-pair emulation for IP families.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.connect`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.socket.openPair", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.connect"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["net.connect"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function socketPair(
     family: SocketFamily,
@@ -179,31 +138,11 @@ export declare function socketPair(
 ): Result<SocketPair, PlatformError>;
 
 /// Connect to a remote socket address.
-///
-/// Connect the socket to a specific remote endpoint.
-/// Handshake progress and connection failure conditions follow host kernel connect semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses connect(2) on Unix and connect/WSAConnect on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.connect`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.socket.connect", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.connect"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["net.connect"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function connect(
     handle: SocketHandle,
@@ -211,89 +150,29 @@ export declare function connect(
 ): Result<void, PlatformError>;
 
 /// Close a socket handle.
-///
-/// Close the target socket descriptor.
-/// Close-on-pending-I/O behavior follows host kernel socket semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses close(2) on Unix and closesocket on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.close`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.socket.close", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.close"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["net.close"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function close(handle: SocketHandle): Result<void, PlatformError>;
 
 /// Read from a socket into the provided slice.
-///
-/// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
-/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses read(2)/recv(2) on Unix and recv on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.connect`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.socket.read", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.connect"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["net.connect"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function read(handle: SocketHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>;
 
 /// Read into multiple buffers.
-///
-/// Transfer bytes directly between caller buffers and host descriptors using short I/O semantics.
-/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses readv(2)/recvmsg(2) on Unix and WSARecv on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.connect`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.socket.readv", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.connect"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["net.connect"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function readv(
     handle: SocketHandle,
@@ -301,31 +180,11 @@ export declare function readv(
 ): Result<uint64, PlatformError>;
 
 /// Write to a socket from the provided slice.
-///
-/// Write data directly from caller provided buffers to the target descriptor using native transfer semantics.
-/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses write(2)/send(2) on Unix and send on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.connect`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.socket.write", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.connect"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["net.connect"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function write(
     handle: SocketHandle,
@@ -333,31 +192,11 @@ export declare function write(
 ): Result<uint64, PlatformError>;
 
 /// Write from multiple buffers.
-///
-/// Write data directly from caller provided buffers to the target descriptor using native transfer semantics.
-/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses writev(2)/sendmsg(2) on Unix and WSASend on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.connect`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.socket.writev", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.connect"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["net.connect"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function writev(
     handle: SocketHandle,
@@ -365,31 +204,11 @@ export declare function writev(
 ): Result<uint64, PlatformError>;
 
 /// Receive a message with ancillary data.
-///
-/// Receive a message with ancillary data via host kernel APIs.
-/// Caller controls descriptor and control payload extraction limits through `maxFds` and `maxControlBytes`.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses recvmsg(2) on Unix and WSARecvMsg on Windows where available.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.socket.recvMsg", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.control"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["net.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function recvMsg(
     handle: SocketHandle,
@@ -401,31 +220,11 @@ export declare function recvMsg(
 ): Result<SocketRecvMessage, PlatformError>;
 
 /// Send a message with ancillary data.
-///
-/// Send a message with ancillary data via host kernel APIs.
-/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses sendmsg(2) on Unix and WSASendMsg on Windows where available.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.socket.sendMsg", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.control"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["net.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function sendMsg(
     handle: SocketHandle,
@@ -434,31 +233,11 @@ export declare function sendMsg(
 ): Result<uint64, PlatformError>;
 
 /// Receive a packet from a remote socket address.
-///
-/// Receive one datagram and source address from a datagram socket.
-/// Source address decoding and flag reporting follow host kernel recvfrom semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses recvfrom(2) on Unix and recvfrom on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.udp`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.socket.recvFrom", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.udp"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["net.udp"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function recvFrom(
     handle: SocketHandle,
@@ -467,31 +246,11 @@ export declare function recvFrom(
 ): Result<SocketRecvFrom, PlatformError>;
 
 /// Send a packet to a remote socket address.
-///
-/// Send a packet to a remote socket address via host kernel APIs.
-/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses sendto(2) on Unix and sendto on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.udp`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.socket.sendTo", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.udp"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["net.udp"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function sendTo(
     handle: SocketHandle,
@@ -500,31 +259,11 @@ export declare function sendTo(
 ): Result<uint64, PlatformError>;
 
 /// Send multiple datagrams.
-///
-/// Send multiple datagrams via host kernel APIs with per-message metadata and address control.
-/// Partial transfers are preserved exactly as reported by the host, and callers must loop when full completion is required.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses sendmmsg(2) on linux and runtime loop fallback on other targets.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.udp`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.socket.sendMmsg", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.udp"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["net.udp"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function sendMmsg(
     handle: SocketHandle,
@@ -532,31 +271,11 @@ export declare function sendMmsg(
 ): Result<uint64, PlatformError>;
 
 /// Receive multiple datagrams.
-///
-/// Receive multiple datagrams via host kernel APIs with per-message metadata and ancillary extraction.
-/// Caller controls descriptor and control payload extraction limits through `maxFds` and `maxControlBytes`.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses recvmmsg(2) on linux and runtime loop fallback on other targets.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.udp`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.socket.recvMmsg", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.udp"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["net.udp"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function recvMmsg(
     handle: SocketHandle,
@@ -567,31 +286,11 @@ export declare function recvMmsg(
 ): Result<Array<SocketRecvMessage>, PlatformError>;
 
 /// Shut down a socket for reads, writes, or both.
-///
-/// Shut down read, write, or both directions on a connected socket.
-/// Half-close and peer-observed behavior follow host kernel shutdown semantics.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses shutdown(2) on Unix and shutdown on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.close`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.socket.shutdown", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.close"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["net.close"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function shutdown(
     handle: SocketHandle,
@@ -599,31 +298,11 @@ export declare function shutdown(
 ): Result<void, PlatformError>;
 
 /// Enable or disable nonblocking mode on a socket.
-///
-/// Enable or disable nonblocking mode on a socket descriptor.
-/// Subsequent I/O blocking behavior follows host kernel descriptor state.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses fcntl/ioctl on Unix and ioctlsocket on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.socket.setNonblocking", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.control"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["net.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function setNonblocking(
     handle: SocketHandle,

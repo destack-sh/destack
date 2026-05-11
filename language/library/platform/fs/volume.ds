@@ -58,38 +58,26 @@ export struct VolumeStatus {
 /// Read status for the volume containing an entry.
 @binding("destack.fs.volume.entry", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.metadata"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.metadata"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function entryVolume(entry: Entry): Result<VolumeStatus, PlatformError>;
 
 /// Read status for the volume containing an open file.
 @binding("destack.fs.volume.file", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.metadata"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.metadata"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function fileVolume(file: FileHandle): Result<VolumeStatus, PlatformError>;
 
 /// Synchronize the volume containing an open file.
 @binding("destack.fs.volume.sync", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.sync"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.sync"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function syncVolume(file: FileHandle): Result<void, PlatformError>;

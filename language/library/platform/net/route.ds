@@ -35,94 +35,28 @@ export struct RouteEntry {
 }
 
 /// List route table entries.
-///
-/// Reads the host route table and returns route entries for the selected family.
-/// Results are snapshots and may become stale immediately after the call.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses netlink route tables on Linux and route sockets on macOS.
-/// Returns `notSupported` on Unix targets without a route backend.
-/// Uses iphlpapi route tables on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netTimedOut, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `net.route.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.route.routeList", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.route.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["net.route.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function routeList(family: SocketFamily): Result<Array<RouteEntry>, PlatformError>;
 
 /// Add a route table entry.
-///
-/// Requests host route table insertion for the supplied entry.
-/// Host privilege and policy checks are enforced by the kernel.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses netlink route mutation on Linux and route sockets on macOS.
-/// Returns `notSupported` on Unix targets without a route backend.
-/// Uses iphlpapi route mutation APIs on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `net.route.write`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.route.routeAdd", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.route.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["net.route.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function routeAdd(route: RouteEntry): Result<void, PlatformError>;
 
 /// Remove a route table entry.
-///
-/// Requests host route table deletion for the supplied entry.
-/// Host privilege and policy checks are enforced by the kernel.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses netlink route mutation on Linux and route sockets on macOS.
-/// Returns `notSupported` on Unix targets without a route backend.
-/// Uses iphlpapi route mutation APIs on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `net.route.write`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.route.routeDelete", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.route.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["net.route.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function routeDelete(route: RouteEntry): Result<void, PlatformError>;

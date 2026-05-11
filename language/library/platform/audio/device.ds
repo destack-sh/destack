@@ -32,7 +32,7 @@ export enum AudioShareMode {
     Exclusive = 2,
 }
 
-/// Device capability flags.
+/// Device action flags.
 export newtype AudioDeviceCapabilityFlags = uint64;
 
 /// Audio sample format selector.
@@ -111,7 +111,7 @@ export struct AudioDeviceDescriptor {
     transport: string;
     /// Host backend for this device.
     backend: AudioBackend;
-    /// Device direction capability.
+    /// Device direction action.
     direction: AudioDeviceDirection;
     /// Whether this device is currently connected.
     connected: boolean;
@@ -123,7 +123,7 @@ export struct AudioDeviceDescriptor {
     isDefaultCapture: boolean;
     /// Whether this device is the default loopback endpoint.
     isDefaultLoopback: boolean;
-    /// Device-level capability flags.
+    /// Device-level action flags.
     /// These are coarse feature categories.
     /// Use `supported*` masks for lane-level support decisions.
     capabilityFlags: AudioDeviceCapabilityFlags;
@@ -167,33 +167,12 @@ export struct AudioDeviceDescriptor {
     shareModeMask: uint32;
 }
 
-/// Audio device bindings.
 /// Trigger one backend rescan.
-///
-/// Request one immediate backend device rescan.
-/// This allows recovery from stale backend snapshots after hotplug churn.
-///
-/// # Platform
-/// Unix and Windows.
-/// Mirrors libsoundio `soundio_force_device_scan` semantics and backend-native refresh flows.
-///
-/// # Errors
-/// Returns ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `audio.device.monitor`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.audio.device.rescan", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["audio.device.monitor"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["audio.device.monitor"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function deviceRescan(
     backend: AudioBackend,
@@ -201,63 +180,22 @@ export declare function deviceRescan(
 ): Result<void, PlatformError>;
 
 /// List available audio devices.
-///
-/// Enumerate host audio endpoints and return stable identifiers for later open operations.
-/// Device visibility and ordering follow host backend semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available device enumeration.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `audio.device`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.audio.device.list", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["audio.device"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["audio.device"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function deviceList(
     request: AudioDeviceListRequest,
 ): Result<Slice<AudioDeviceDescriptor>, PlatformError>;
 
 /// Read one default device identifier for the selected direction.
-///
-/// Resolve one default host audio endpoint for the selected direction and backend policy.
-/// Default selection can change asynchronously as host policy changes.
-///
-/// # Platform
-/// Unix and Windows.
-/// Mirrors cubeb and libsoundio default-endpoint query semantics.
-/// Mirrors SDL default logical-device routing behavior for playback and recording defaults.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `audio.device`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.audio.device.default", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["audio.device"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["audio.device"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function deviceDefault(
     direction: AudioDeviceDirection,
@@ -266,31 +204,11 @@ export declare function deviceDefault(
 ): Result<string, PlatformError>;
 
 /// Open one audio device endpoint.
-///
-/// Open one host audio endpoint for playback, capture, duplex, or loopback operation.
-/// Handle lifetime and exclusivity semantics follow host backend rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available endpoint open operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `audio.device`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.audio.device.open", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["audio.device"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["audio.device"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function deviceOpen(
     id: string,
@@ -298,62 +216,22 @@ export declare function deviceOpen(
 ): Result<AudioDeviceHandle, PlatformError>;
 
 /// Read metadata for one opened device endpoint.
-///
-/// Read one normalized snapshot for one opened device handle.
-/// Snapshot values are advisory and can change as host routes are updated.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available endpoint information query APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `audio.device`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.audio.device.descriptor", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["audio.device"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["audio.device"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function deviceDescriptor(
     handle: AudioDeviceHandle,
 ): Result<AudioDeviceDescriptor, PlatformError>;
 
 /// Close one audio device endpoint.
-///
-/// Close one opened audio endpoint and release host resources.
-/// Close semantics follow host backend teardown behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses ALSA, PulseAudio, PipeWire, CoreAudio, WASAPI, AAudio, OpenSL ES, JACK, and ASIO where available endpoint close operations.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `audio.device`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.audio.device.close", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["audio.device"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["audio.device"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function deviceClose(handle: AudioDeviceHandle): Result<void, PlatformError>;
 

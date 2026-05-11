@@ -12,32 +12,11 @@ export struct HostIdentity {
     architecture: string;
 }
 
-/// Host identity bindings.
 /// Read host identity.
-///
-/// Return one normalized host identity payload.
-/// Identity fields are sourced from host kernel and runtime normalization rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses uname and hostname APIs on Unix and host identity APIs on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.hostname`, `os.sysinfo`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.host.identity", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.hostname", "os.sysinfo"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["os.hostname", "os.sysinfo"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function hostIdentity(): Result<HostIdentity, PlatformError>;

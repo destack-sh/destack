@@ -29,179 +29,56 @@ export struct ProcessSchedulerConfig {
 }
 
 /// Read a process priority value.
-///
-/// Read the scheduler priority value for the target process identifier.
-/// Priority ranges and classes are host-defined.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses getpriority(2) on Unix and GetPriorityClass plus thread priority mapping on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.priority`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.process.sched.getPriority", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["process.priority"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["process.priority"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function getPriority(pid: ProcessId): Result<int32, PlatformError>;
 
 /// Set a process priority value.
-///
-/// Set the scheduler priority value for the target process identifier.
-/// Privilege checks and clamping are enforced by the host scheduler.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses setpriority(2) on Unix and SetPriorityClass or SetThreadPriority on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.priority`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.process.sched.setPriority", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["process.priority"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["process.priority"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function setPriority(pid: ProcessId, priority: int32): Result<void, PlatformError>;
 
 /// Read process CPU affinity.
-///
-/// Read the active logical-processor affinity set for the target process identifier.
-/// Unix targets always report group `0`.
-/// Windows reports group-local logical processors for the active process affinity.
-/// Newer Windows hosts use processor-group CPU-set masks when available and otherwise fall back to legacy single-group process affinity.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses sched_getaffinity(2) on Unix and process affinity APIs on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.affinity`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.process.sched.getAffinity", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["process.affinity"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["process.affinity"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function getAffinity(pid: ProcessId): Result<ThreadCpuSet, PlatformError>;
 
 /// Set process CPU affinity.
-///
-/// Set one logical-processor affinity set for the target process identifier.
-/// Unix targets require every entry to use group `0`.
-/// Newer Windows hosts apply processor-group CPU-set masks when available and otherwise fall back to legacy single-group process affinity.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses sched_setaffinity(2) on Unix and process affinity APIs on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.affinity`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.process.sched.setAffinity", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["process.affinity"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["process.affinity"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function setAffinity(pid: ProcessId, cpus: ThreadCpuSet): Result<void, PlatformError>;
 
 /// Read scheduler policy and priority for a process.
-///
-/// Read one process scheduler policy class and its priority details.
-/// Returned policy availability and numeric ranges are host-defined.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses sched_getscheduler plus sched_getparam on Unix and process scheduling class mapping on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.scheduler`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.process.sched.getScheduler", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["process.scheduler"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["process.scheduler"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function getScheduler(pid: ProcessId): Result<ProcessSchedulerConfig, PlatformError>;
 
 /// Set scheduler policy and priority for a process.
-///
-/// Set one process scheduler policy class with explicit priority and flags.
-/// Privilege checks and policy-specific clamping are enforced by the host scheduler.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses sched_setscheduler plus sched_setparam on Unix and process scheduling class mapping on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, processNotFound, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.scheduler`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.process.sched.setScheduler", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["process.scheduler"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["process.scheduler"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function setScheduler(
     pid: ProcessId,
@@ -209,30 +86,10 @@ export declare function setScheduler(
 ): Result<void, PlatformError>;
 
 /// Yield the current thread to the scheduler.
-///
-/// Yield one scheduler timeslice voluntarily from the current execution context.
-/// Yield ordering and wakeup behavior follow host scheduler semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses sched_yield(2) on Unix and SwitchToThread or Sleep(0) on Windows.
-///
-/// # Errors
-/// Returns processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.scheduler`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.process.sched.yieldNow", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["process.scheduler"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["process.scheduler"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function yieldNow(): Result<void, PlatformError>;

@@ -62,88 +62,33 @@ export struct MediaPage {
     hasMore: boolean;
 }
 
-/// Media bindings.
 /// List media assets.
-///
-/// Return one page of host media assets for one query.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses Photos framework on Apple platforms, MediaStore on Android, and host media-library bridges on desktop hosts.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.media.read`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.media.list", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.media.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.media.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function mediaList(query: MediaQuery): Result<MediaPage, PlatformError>;
 
 /// Read one media asset descriptor.
-///
-/// Read one host media asset descriptor by stable identifier.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host media-library read APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.media.read`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.media.read", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.media.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.media.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function mediaRead(id: string): Result<MediaAssetDescriptor, PlatformError>;
 
 /// Import one file path into host media library.
-///
-/// Import one file from one runtime-visible path and return one created media identifier.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host media-library write APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.media.write`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.media.importPath", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.media.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.media.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function mediaImportPath(
     path: Path,
@@ -151,29 +96,11 @@ export declare function mediaImportPath(
 ): Result<string, PlatformError>;
 
 /// Delete media assets by identifier.
-///
-/// Delete host media assets and return deleted asset count.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host media-library delete APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.media.write`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.media.delete", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.media.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.media.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function mediaDelete(ids: Array<string>): Result<uint32, PlatformError>;

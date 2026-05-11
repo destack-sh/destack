@@ -48,33 +48,11 @@ export struct InputTouchState {
     contacts: Array<InputTouchContactState>;
 }
 
-/// Input touch bindings.
 /// Read one touch state snapshot.
-///
-/// Return one current touch-contact snapshot for one opened touch-capable device.
-/// Contact ordering follows backend delivery order.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` where touch snapshots are unavailable.
-/// Uses backend-specific contact tables from evdev or libinput-style paths on Unix.
-/// Uses pointer-contact APIs on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `input.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.input.touch.state", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["input.read"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["input.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function touchState(handle: InputDeviceHandle): Result<InputTouchState, PlatformError>;

@@ -12,60 +12,20 @@ export struct ProcessLimit {
 }
 
 /// Read a process resource limit.
-///
-/// Read soft and hard limits for one host resource selector.
-/// Resource selector interpretation follows host kernel limit tables.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses getrlimit or prlimit on Unix and job-object limit queries on Windows where available.
-///
-/// # Errors
-/// Returns invalidArgument, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.run`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.process.limits.getLimit", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["process.run"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["process.run"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function getLimit(resource: ProcessLimitResource): Result<ProcessLimit, PlatformError>;
 
 /// Set a process resource limit.
-///
-/// Update soft and hard limits for one host resource selector.
-/// Privilege checks and hard-limit rules are enforced by the host kernel.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses setrlimit or prlimit on Unix and job-object limit updates on Windows where available.
-///
-/// # Errors
-/// Returns invalidArgument, processPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `process.run`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.process.limits.setLimit", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["process.run"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["process.run"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function setLimit(
     resource: ProcessLimitResource,

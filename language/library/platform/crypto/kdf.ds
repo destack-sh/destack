@@ -68,108 +68,43 @@ export struct CryptoArgon2idRequest {
     length: uint32;
 }
 
-/// Key-derivation bindings.
 /// Derive one key with HKDF.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL KDF primitives on Unix and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.kdf`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.kdf.hkdf", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.kdf"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.kdf"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function kdfHkdf(request: CryptoHkdfRequest): Result<Slice<uint8>, PlatformError>;
 
 /// Derive one key with PBKDF2.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL KDF primitives on Unix and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.kdf`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.kdf.pbkdf2", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.kdf"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.kdf"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function kdfPbkdf2(request: CryptoPbkdf2Request): Result<Slice<uint8>, PlatformError>;
 
 /// Derive one key with scrypt.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL KDF primitives on Unix and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.kdf`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.kdf.scrypt", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.kdf"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.kdf"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function kdfScrypt(request: CryptoScryptRequest): Result<Slice<uint8>, PlatformError>;
 
 /// Derive one key with Argon2id.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the crypto feature is unavailable.
-/// Uses OpenSSL KDF primitives on Unix and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `crypto.kdf`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.crypto.kdf.argon2id", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["crypto.kdf"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["crypto.kdf"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function kdfArgon2id(
     request: CryptoArgon2idRequest,

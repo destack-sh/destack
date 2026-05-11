@@ -68,112 +68,39 @@ export struct ClipboardItem {
     representations: Slice<ClipboardItemRepresentation>;
 }
 
-/// Clipboard bindings.
 /// Query whether text clipboard payload exists.
-///
-/// Return whether one text payload is currently available on the host clipboard.
-///
-/// # Platform
-/// Unix and Windows.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `input.clipboard.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.input.clipboard.hasText", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["input.clipboard.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["input.clipboard.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function clipboardHasText(): Result<boolean, PlatformError>;
 
 /// List clipboard items.
-///
-/// Return the itemized clipboard payload in provider order.
-///
-/// # Platform
-/// Unix and Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `input.clipboard.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.input.clipboard.listItems", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["input.clipboard.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["input.clipboard.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function clipboardListItems(): Result<Slice<ClipboardItemDescriptor>, PlatformError>;
 
 /// Read one text clipboard payload.
-///
-/// Read the preferred `text/plain` payload from the host clipboard.
-///
-/// # Platform
-/// Unix and Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `input.clipboard.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.input.clipboard.readText", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["input.clipboard.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["input.clipboard.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function clipboardReadText(): Result<string, PlatformError>;
 
 /// Read one text clipboard item representation.
-///
-/// Read one textual representation from one clipboard item.
-///
-/// # Platform
-/// Unix and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `input.clipboard.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.input.clipboard.readItemText", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["input.clipboard.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["input.clipboard.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function clipboardReadItemText(
     itemIndex: uint32,
@@ -181,29 +108,11 @@ export declare function clipboardReadItemText(
 ): Result<string, PlatformError>;
 
 /// Read one binary clipboard item representation.
-///
-/// Read one selected clipboard representation identified by item and representation index.
-///
-/// # Platform
-/// Unix and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `input.clipboard.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.input.clipboard.readItemBytes", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["input.clipboard.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["input.clipboard.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function clipboardReadItemBytes(
     itemIndex: uint32,
@@ -211,29 +120,11 @@ export declare function clipboardReadItemBytes(
 ): Result<Slice<uint8>, PlatformError>;
 
 /// Read one filesystem clipboard item representation.
-///
-/// Read one local filesystem representation from one clipboard item when the host exposes one path-based item.
-///
-/// # Platform
-/// Unix and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `input.clipboard.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.input.clipboard.readItemPath", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["input.clipboard.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["input.clipboard.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function clipboardReadItemPath(
     itemIndex: uint32,
@@ -241,109 +132,40 @@ export declare function clipboardReadItemPath(
 ): Result<Path, PlatformError>;
 
 /// Write one text clipboard payload.
-///
-/// Write one preferred `text/plain` payload into the host clipboard.
-///
-/// # Platform
-/// Unix and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `input.clipboard.write`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.input.clipboard.writeText", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["input.clipboard.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["input.clipboard.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function clipboardWriteText(text: string): Result<void, PlatformError>;
 
 /// Write clipboard items.
-///
-/// Replace the host clipboard contents with the supplied items and representations.
-///
-/// # Platform
-/// Unix and Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `input.clipboard.write`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.input.clipboard.writeItems", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["input.clipboard.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["input.clipboard.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function clipboardWriteItems(items: Slice<ClipboardItem>): Result<void, PlatformError>;
 
 /// Read clipboard sequence number.
-///
-/// Read one monotonic sequence marker for host clipboard contents.
-///
-/// # Platform
-/// Unix and Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `input.clipboard.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.input.clipboard.sequence", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["input.clipboard.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["input.clipboard.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function clipboardSequence(): Result<uint64, PlatformError>;
 
 /// Clear clipboard payload.
-///
-/// Clear current host clipboard ownership or payload contents.
-///
-/// # Platform
-/// Unix and Windows.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `input.clipboard.write`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.input.clipboard.clear", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["input.clipboard.write"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["input.clipboard.write"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function clipboardClear(): Result<void, PlatformError>;

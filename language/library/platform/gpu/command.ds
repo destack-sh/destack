@@ -212,33 +212,12 @@ export struct GpuBufferCopy {
     layout: GpuBufferCopyLayout;
 }
 
-/// GPU command bindings.
 /// Open a command encoder.
-///
-/// Open a command encoder for recording backend commands.
-/// Encoder lifecycle follows backend recording and submission semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style command-encoder creation APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.queue`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.encoderOpen", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.queue"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.queue"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandEncoderOpen(
     device: GpuDeviceHandle,
@@ -246,62 +225,22 @@ export declare function commandEncoderOpen(
 ): Result<GpuCommandEncoderHandle, PlatformError>;
 
 /// Close a command encoder.
-///
-/// Close a command encoder and release backend recording resources.
-/// The encoder handle becomes invalid after close.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style command encoder destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `gpu.queue`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.encoderClose", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.queue"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.queue"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandEncoderClose(
     handle: GpuCommandEncoderHandle,
 ): Result<void, PlatformError>;
 
 /// Finish one command encoder.
-///
-/// Finish one command encoder and produce one command buffer.
-/// The encoder handle becomes invalid after a successful finish.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style end command recording calls on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.queue`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.encoderFinish", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.queue"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.queue"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandEncoderFinish(
     handle: GpuCommandEncoderHandle,
@@ -309,62 +248,22 @@ export declare function commandEncoderFinish(
 ): Result<GpuCommandBufferHandle, PlatformError>;
 
 /// Destroy one command buffer.
-///
-/// Destroy a finished command buffer without submitting it.
-/// Submitted command buffers are consumed by `queueSubmit(...)` and do not need one separate destroy call.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses command-buffer destroy or release operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `gpu.queue`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.bufferDestroy", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.queue"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.queue"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandBufferDestroy(
     handle: GpuCommandBufferHandle,
 ): Result<void, PlatformError>;
 
 /// Open a render-bundle encoder.
-///
-/// Open a render-bundle encoder for pre-recording reusable draw commands.
-/// Bundle-encoder configuration defines attachment compatibility requirements.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style render-bundle or secondary-command-buffer creation APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.render`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.renderBundleEncoderOpen", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.render"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.render"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function renderBundleEncoderOpen(
     device: GpuDeviceHandle,
@@ -372,62 +271,22 @@ export declare function renderBundleEncoderOpen(
 ): Result<GpuRenderBundleEncoderHandle, PlatformError>;
 
 /// Close a render-bundle encoder without producing a bundle.
-///
-/// Close a bundle encoder and release recording resources.
-/// Any recorded commands are discarded.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style bundle-encoder destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `gpu.render`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.renderBundleEncoderClose", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.render"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.render"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function renderBundleEncoderClose(
     handle: GpuRenderBundleEncoderHandle,
 ): Result<void, PlatformError>;
 
 /// Finish one render-bundle encoder.
-///
-/// Finalize a render-bundle encoder and produce a reusable render bundle.
-/// The encoder handle becomes invalid after successful finish.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style bundle finalize operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.render`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.renderBundleEncoderFinish", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.render"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.render"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function renderBundleEncoderFinish(
     handle: GpuRenderBundleEncoderHandle,
@@ -435,32 +294,11 @@ export declare function renderBundleEncoderFinish(
 ): Result<GpuRenderBundleHandle, PlatformError>;
 
 /// Begin a compute pass.
-///
-/// Begin compute-pass encoding on a command encoder with optional timestamp writes.
-/// Returns a compute-pass handle for pass-scoped commands.
-/// Nested pass semantics follow backend command recording rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style begin compute pass commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.compute`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.computePassBegin", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.compute"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.compute"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandComputePassBegin(
     handle: GpuCommandEncoderHandle,
@@ -468,63 +306,22 @@ export declare function commandComputePassBegin(
 ): Result<GpuComputePassHandle, PlatformError>;
 
 /// End a compute pass.
-///
-/// End compute-pass encoding for an active compute-pass handle.
-/// Pass finalization follows backend validation behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style end compute pass commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.compute`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.computePassEnd", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.compute"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.compute"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandComputePassEnd(
     handle: GpuComputePassHandle,
 ): Result<void, PlatformError>;
 
 /// Begin a render pass.
-///
-/// Begin render-pass encoding on a command encoder with explicit attachments and optional query wiring.
-/// Attachment load, clear, timestamp, and occlusion behavior follow backend render pass semantics.
-/// Returns a render-pass handle for pass-scoped commands.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style begin render pass commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.render`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.renderPassBegin", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.render"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.render"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandRenderPassBegin(
     handle: GpuCommandEncoderHandle,
@@ -532,60 +329,20 @@ export declare function commandRenderPassBegin(
 ): Result<GpuRenderPassHandle, PlatformError>;
 
 /// End a render pass.
-///
-/// End render-pass encoding for an active render-pass handle.
-/// Pass finalization follows backend validation behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style end render pass commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.render`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.renderPassEnd", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.render"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.render"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandRenderPassEnd(handle: GpuRenderPassHandle): Result<void, PlatformError>;
 
 /// Insert explicit resource transitions.
-///
-/// Insert explicit buffer and texture transitions into a command encoder.
-/// Transition ordering and hazard tracking follow backend resource-state rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses wgpu-style explicit transition commands on Vulkan, Metal, D3D12, and OpenGL-class backends when supported.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.queue`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.transitionResources", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.queue"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.queue"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandTransitionResources(
     handle: GpuCommandEncoderHandle,
@@ -594,31 +351,11 @@ export declare function commandTransitionResources(
 ): Result<void, PlatformError>;
 
 /// Execute one batch of render bundles in the active render pass.
-///
-/// Execute recorded render bundles in-order within an active render pass.
-/// Bundle compatibility is validated against current render-pass configuration.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style execute-bundle commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.render`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.executeBundles", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.render"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.render"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandExecuteBundles(
     handle: GpuRenderPassHandle,
@@ -626,60 +363,20 @@ export declare function commandExecuteBundles(
 ): Result<void, PlatformError>;
 
 /// Destroy a render bundle.
-///
-/// Destroy a render-bundle object and release backend command storage.
-/// The bundle handle becomes invalid after destroy.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style render-bundle destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `gpu.render`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.renderBundleDestroy", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.render"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.render"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function renderBundleDestroy(handle: GpuRenderBundleHandle): Result<void, PlatformError>;
 
 /// Bind one render pipeline for one bundle encoder.
-///
-/// Bind one render pipeline in one render-bundle encoder.
-/// Binding state remains active for subsequent bundle draw commands.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style render-bundle pipeline bind commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.render`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.renderBundleSetPipeline", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.render"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.render"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function renderBundleSetPipeline(
     handle: GpuRenderBundleEncoderHandle,
@@ -687,31 +384,11 @@ export declare function renderBundleSetPipeline(
 ): Result<void, PlatformError>;
 
 /// Bind one bind group in one bundle encoder.
-///
-/// Bind one bind group at the requested index for bundle recording.
-/// Dynamic offsets are interpreted in backend-defined binding order.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style render-bundle bind-group commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.bind`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.renderBundleSetBindGroup", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.bind"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.bind"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function renderBundleSetBindGroup(
     handle: GpuRenderBundleEncoderHandle,
@@ -721,31 +398,11 @@ export declare function renderBundleSetBindGroup(
 ): Result<void, PlatformError>;
 
 /// Bind one vertex buffer in one bundle encoder.
-///
-/// Bind one vertex buffer slot with explicit byte range metadata.
-/// Vertex fetch semantics follow the bound render pipeline.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style render-bundle vertex-buffer bind commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.render`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.renderBundleSetVertexBuffer", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.render"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.render"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function renderBundleSetVertexBuffer(
     handle: GpuRenderBundleEncoderHandle,
@@ -756,31 +413,11 @@ export declare function renderBundleSetVertexBuffer(
 ): Result<void, PlatformError>;
 
 /// Bind one index buffer in one bundle encoder.
-///
-/// Bind one index buffer with explicit format and byte range metadata.
-/// Index fetch semantics follow backend draw-indexed contracts.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style render-bundle index-buffer bind commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.render`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.renderBundleSetIndexBuffer", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.render"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.render"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function renderBundleSetIndexBuffer(
     handle: GpuRenderBundleEncoderHandle,
@@ -791,31 +428,11 @@ export declare function renderBundleSetIndexBuffer(
 ): Result<void, PlatformError>;
 
 /// Encode one non-indexed draw in one bundle encoder.
-///
-/// Encode one non-indexed draw call with explicit vertex and instance ranges.
-/// Draw semantics follow backend bundle-encoding contracts.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style render-bundle draw commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.render`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.renderBundleDraw", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.render"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.render"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function renderBundleDraw(
     handle: GpuRenderBundleEncoderHandle,
@@ -826,31 +443,11 @@ export declare function renderBundleDraw(
 ): Result<void, PlatformError>;
 
 /// Encode one indexed draw in one bundle encoder.
-///
-/// Encode one indexed draw call with explicit index and instance ranges.
-/// Draw semantics follow backend bundle-encoding contracts.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style render-bundle indexed draw commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.render`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.renderBundleDrawIndexed", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.render"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.render"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function renderBundleDrawIndexed(
     handle: GpuRenderBundleEncoderHandle,
@@ -862,31 +459,11 @@ export declare function renderBundleDrawIndexed(
 ): Result<void, PlatformError>;
 
 /// Encode one indirect non-indexed draw range in one bundle encoder.
-///
-/// Encode one or more non-indexed draws loaded from one argument buffer.
-/// Indirect argument layout and alignment follow backend contracts.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style render-bundle draw-indirect commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.render`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.renderBundleDrawIndirect", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.render"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.render"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function renderBundleDrawIndirect(
     handle: GpuRenderBundleEncoderHandle,
@@ -897,31 +474,11 @@ export declare function renderBundleDrawIndirect(
 ): Result<void, PlatformError>;
 
 /// Encode one indirect indexed draw range in one bundle encoder.
-///
-/// Encode one or more indexed draws loaded from one argument buffer.
-/// Indirect argument layout and alignment follow backend contracts.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style render-bundle indexed draw-indirect commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.render`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.renderBundleDrawIndexedIndirect", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.render"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.render"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function renderBundleDrawIndexedIndirect(
     handle: GpuRenderBundleEncoderHandle,
@@ -932,31 +489,11 @@ export declare function renderBundleDrawIndexedIndirect(
 ): Result<void, PlatformError>;
 
 /// Insert one debug marker in one bundle encoder.
-///
-/// Insert one lightweight marker in one active render-bundle encoding scope.
-/// Marker visibility is backend-defined and intended for tooling.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style render-bundle marker commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `gpu.debug`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.renderBundleInsertDebugMarker", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.debug"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.debug"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function renderBundleInsertDebugMarker(
     handle: GpuRenderBundleEncoderHandle,
@@ -964,31 +501,11 @@ export declare function renderBundleInsertDebugMarker(
 ): Result<void, PlatformError>;
 
 /// Push one debug group in one bundle encoder.
-///
-/// Push one nested debug group in one render-bundle encoder scope.
-/// Groups must be balanced with matching pop operations.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style render-bundle debug-group push commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.debug`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.renderBundlePushDebugGroup", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.debug"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.debug"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function renderBundlePushDebugGroup(
     handle: GpuRenderBundleEncoderHandle,
@@ -996,62 +513,22 @@ export declare function renderBundlePushDebugGroup(
 ): Result<void, PlatformError>;
 
 /// Pop one debug group in one bundle encoder.
-///
-/// Pop one previously pushed debug group in one bundle-encoder scope.
-/// Pop fails when no matching group exists.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style render-bundle debug-group pop commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.debug`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.renderBundlePopDebugGroup", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.debug"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.debug"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function renderBundlePopDebugGroup(
     handle: GpuRenderBundleEncoderHandle,
 ): Result<void, PlatformError>;
 
 /// Bind one compute pipeline.
-///
-/// Bind one compute pipeline to one active compute pass for subsequent dispatch operations.
-/// Binding state remains active until changed or encoder reset.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style compute pipeline bind commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.compute`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.bindComputePipeline", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.compute"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.compute"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandBindComputePipeline(
     handle: GpuComputePassHandle,
@@ -1059,31 +536,11 @@ export declare function commandBindComputePipeline(
 ): Result<void, PlatformError>;
 
 /// Bind one render pipeline.
-///
-/// Bind one render pipeline to one active render pass for subsequent draw operations.
-/// Binding state remains active until changed or encoder reset.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style render pipeline bind commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.render`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.bindRenderPipeline", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.render"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.render"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandBindRenderPipeline(
     handle: GpuRenderPassHandle,
@@ -1091,31 +548,11 @@ export declare function commandBindRenderPipeline(
 ): Result<void, PlatformError>;
 
 /// Bind one bind group for one compute pass.
-///
-/// Bind one bind group at the requested index for one active compute pass.
-/// Dynamic offsets are interpreted in backend-defined order for dynamic bindings.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific compute-pass bind-group commands.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.bind`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.setComputeBindGroup", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.bind"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.bind"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandSetComputeBindGroup(
     handle: GpuComputePassHandle,
@@ -1125,31 +562,11 @@ export declare function commandSetComputeBindGroup(
 ): Result<void, PlatformError>;
 
 /// Bind one bind group for one render pass.
-///
-/// Bind one bind group at the requested index for one active render pass.
-/// Dynamic offsets are interpreted in backend-defined order for dynamic bindings.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific render-pass bind-group commands.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.bind`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.setRenderBindGroup", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.bind"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.bind"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandSetRenderBindGroup(
     handle: GpuRenderPassHandle,
@@ -1159,31 +576,11 @@ export declare function commandSetRenderBindGroup(
 ): Result<void, PlatformError>;
 
 /// Bind one vertex buffer for subsequent draw commands.
-///
-/// Bind one vertex buffer slot with explicit byte range metadata.
-/// Vertex fetch semantics follow the active render pipeline state.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style vertex-buffer bind commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.render`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.setVertexBuffer", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.render"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.render"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandSetVertexBuffer(
     handle: GpuRenderPassHandle,
@@ -1194,31 +591,11 @@ export declare function commandSetVertexBuffer(
 ): Result<void, PlatformError>;
 
 /// Bind one index buffer for subsequent indexed draw commands.
-///
-/// Bind one index buffer with explicit format and byte range metadata.
-/// Index fetch semantics follow backend draw-indexed contracts.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style index-buffer bind commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.render`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.setIndexBuffer", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.render"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.render"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandSetIndexBuffer(
     handle: GpuRenderPassHandle,
@@ -1229,31 +606,11 @@ export declare function commandSetIndexBuffer(
 ): Result<void, PlatformError>;
 
 /// Set viewport state for the active render pass.
-///
-/// Set a viewport rectangle and depth range for subsequent draw calls.
-/// Coordinate interpretation follows backend clip-space conventions.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style viewport state commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.render`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.setViewport", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.render"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.render"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandSetViewport(
     handle: GpuRenderPassHandle,
@@ -1266,31 +623,11 @@ export declare function commandSetViewport(
 ): Result<void, PlatformError>;
 
 /// Set a scissor rectangle for the active render pass.
-///
-/// Set a scissor rectangle that clips subsequent draw calls.
-/// Rectangle coordinates are expressed in framebuffer pixels.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style scissor state commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.render`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.setScissor", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.render"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.render"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandSetScissor(
     handle: GpuRenderPassHandle,
@@ -1301,31 +638,11 @@ export declare function commandSetScissor(
 ): Result<void, PlatformError>;
 
 /// Set a blend constant for the active render pass.
-///
-/// Set a blend constant used by blend factors that reference constant color.
-/// Constant color remains active until changed or render pass ends.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style blend-constant state commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.render`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.setBlendConstant", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.render"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.render"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandSetBlendConstant(
     handle: GpuRenderPassHandle,
@@ -1336,31 +653,11 @@ export declare function commandSetBlendConstant(
 ): Result<void, PlatformError>;
 
 /// Set a stencil-reference value for the active render pass.
-///
-/// Set a stencil-reference value consumed by stencil compare operations.
-/// The reference value remains active until changed or render pass ends.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style stencil-reference state commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.render`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.setStencilReference", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.render"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.render"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandSetStencilReference(
     handle: GpuRenderPassHandle,
@@ -1368,31 +665,11 @@ export declare function commandSetStencilReference(
 ): Result<void, PlatformError>;
 
 /// Insert one debug marker in one command-encoder scope.
-///
-/// Insert one lightweight debug marker in one active command-encoder scope.
-/// Marker visibility is backend-defined and intended for tooling.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style debug-marker insertion commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `gpu.debug`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.insertDebugMarker", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.debug"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.debug"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandInsertDebugMarker(
     handle: GpuCommandEncoderHandle,
@@ -1400,31 +677,11 @@ export declare function commandInsertDebugMarker(
 ): Result<void, PlatformError>;
 
 /// Push one debug group in one command-encoder scope.
-///
-/// Push one nested debug group in one active command-encoder scope.
-/// Groups must be balanced with matching pop operations.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style debug-group push commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.debug`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.pushDebugGroup", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.debug"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.debug"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandPushDebugGroup(
     handle: GpuCommandEncoderHandle,
@@ -1432,62 +689,22 @@ export declare function commandPushDebugGroup(
 ): Result<void, PlatformError>;
 
 /// Pop one debug group in one command-encoder scope.
-///
-/// Pop one previously pushed debug group in one active command-encoder scope.
-/// Pop fails when no matching group exists.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style debug-group pop commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.debug`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.popDebugGroup", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.debug"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.debug"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandPopDebugGroup(
     handle: GpuCommandEncoderHandle,
 ): Result<void, PlatformError>;
 
 /// Insert one debug marker in one compute-pass scope.
-///
-/// Insert one lightweight debug marker in one active compute-pass scope.
-/// Marker visibility is backend-defined and intended for tooling.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style compute-pass debug-marker insertion commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.debug`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.computePassInsertDebugMarker", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.debug"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.debug"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandComputePassInsertDebugMarker(
     handle: GpuComputePassHandle,
@@ -1495,31 +712,11 @@ export declare function commandComputePassInsertDebugMarker(
 ): Result<void, PlatformError>;
 
 /// Push one debug group in one compute-pass scope.
-///
-/// Push one nested debug group in one active compute-pass scope.
-/// Groups must be balanced with matching pop operations.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style compute-pass debug-group push commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.debug`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.computePassPushDebugGroup", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.debug"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.debug"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandComputePassPushDebugGroup(
     handle: GpuComputePassHandle,
@@ -1527,62 +724,22 @@ export declare function commandComputePassPushDebugGroup(
 ): Result<void, PlatformError>;
 
 /// Pop one debug group in one compute-pass scope.
-///
-/// Pop one previously pushed debug group in one active compute-pass scope.
-/// Pop fails when no matching group exists.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style compute-pass debug-group pop commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.debug`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.computePassPopDebugGroup", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.debug"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.debug"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandComputePassPopDebugGroup(
     handle: GpuComputePassHandle,
 ): Result<void, PlatformError>;
 
 /// Insert one debug marker in one render-pass scope.
-///
-/// Insert one lightweight debug marker in one active render-pass scope.
-/// Marker visibility is backend-defined and intended for tooling.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style render-pass debug-marker insertion commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.debug`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.renderPassInsertDebugMarker", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.debug"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.debug"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandRenderPassInsertDebugMarker(
     handle: GpuRenderPassHandle,
@@ -1590,31 +747,11 @@ export declare function commandRenderPassInsertDebugMarker(
 ): Result<void, PlatformError>;
 
 /// Push one debug group in one render-pass scope.
-///
-/// Push one nested debug group in one active render-pass scope.
-/// Groups must be balanced with matching pop operations.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style render-pass debug-group push commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.debug`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.renderPassPushDebugGroup", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.debug"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.debug"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandRenderPassPushDebugGroup(
     handle: GpuRenderPassHandle,
@@ -1622,62 +759,22 @@ export declare function commandRenderPassPushDebugGroup(
 ): Result<void, PlatformError>;
 
 /// Pop one debug group in one render-pass scope.
-///
-/// Pop one previously pushed debug group in one active render-pass scope.
-/// Pop fails when no matching group exists.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style render-pass debug-group pop commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.debug`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.renderPassPopDebugGroup", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.debug"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.debug"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandRenderPassPopDebugGroup(
     handle: GpuRenderPassHandle,
 ): Result<void, PlatformError>;
 
 /// Dispatch one compute workgroup grid.
-///
-/// Dispatch one compute workload with explicit workgroup counts.
-/// Grid interpretation follows backend compute pipeline contracts.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style dispatch commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.compute`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.dispatch", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.compute"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.compute"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandDispatch(
     handle: GpuComputePassHandle,
@@ -1687,31 +784,11 @@ export declare function commandDispatch(
 ): Result<void, PlatformError>;
 
 /// Dispatch one compute workload from one indirect buffer argument.
-///
-/// Dispatch one compute workload using dispatch dimensions loaded from one buffer.
-/// Buffer layout must match backend indirect-dispatch argument encoding.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style dispatch-indirect commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.compute`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.dispatchIndirect", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.compute"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.compute"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandDispatchIndirect(
     handle: GpuComputePassHandle,
@@ -1720,31 +797,11 @@ export declare function commandDispatchIndirect(
 ): Result<void, PlatformError>;
 
 /// Draw one non-indexed primitive range.
-///
-/// Encode one non-indexed draw call with explicit vertex and instance ranges.
-/// Vertex fetch and instance stepping follow backend render pipeline rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style draw commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.render`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.draw", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.render"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.render"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandDraw(
     handle: GpuRenderPassHandle,
@@ -1755,31 +812,11 @@ export declare function commandDraw(
 ): Result<void, PlatformError>;
 
 /// Draw one indexed primitive range.
-///
-/// Encode one indexed draw call with explicit index and instance ranges.
-/// Index format and base vertex behavior follow backend draw-indexed semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style indexed draw commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.render`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.drawIndexed", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.render"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.render"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandDrawIndexed(
     handle: GpuRenderPassHandle,
@@ -1791,31 +828,11 @@ export declare function commandDrawIndexed(
 ): Result<void, PlatformError>;
 
 /// Draw one indirect non-indexed command range.
-///
-/// Encode one or more non-indexed draw calls loaded from one argument buffer.
-/// Indirect argument layout and alignment follow backend draw-indirect contracts.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style draw-indirect commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.render`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.drawIndirect", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.render"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.render"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandDrawIndirect(
     handle: GpuRenderPassHandle,
@@ -1826,31 +843,11 @@ export declare function commandDrawIndirect(
 ): Result<void, PlatformError>;
 
 /// Draw one indirect indexed command range.
-///
-/// Encode one or more indexed draw calls loaded from one argument buffer.
-/// Indirect argument layout and alignment follow backend indexed draw-indirect contracts.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style indexed draw-indirect commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.render`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.drawIndexedIndirect", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.render"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.render"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandDrawIndexedIndirect(
     handle: GpuRenderPassHandle,
@@ -1861,32 +858,11 @@ export declare function commandDrawIndexedIndirect(
 ): Result<void, PlatformError>;
 
 /// Draw multiple indirect non-indexed command ranges.
-///
-/// Encode multiple non-indexed draws loaded from one argument buffer.
-/// Draw-count and argument layout follow backend multi-draw contracts.
-/// This operation is one optional feature lane and can return `notSupported`.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific multi-draw-indirect commands where exposed.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.render.multi.draw`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.multiDrawIndirect", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.render.multi.draw"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.render.multi.draw"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandMultiDrawIndirect(
     handle: GpuRenderPassHandle,
@@ -1897,32 +873,11 @@ export declare function commandMultiDrawIndirect(
 ): Result<void, PlatformError>;
 
 /// Draw multiple indirect indexed command ranges.
-///
-/// Encode multiple indexed draws loaded from one argument buffer.
-/// Draw-count and argument layout follow backend multi-draw contracts.
-/// This operation is one optional feature lane and can return `notSupported`.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific multi-draw-indexed-indirect commands where exposed.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.render.multi.draw`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.multiDrawIndexedIndirect", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.render.multi.draw"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.render.multi.draw"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandMultiDrawIndexedIndirect(
     handle: GpuRenderPassHandle,
@@ -1933,31 +888,11 @@ export declare function commandMultiDrawIndexedIndirect(
 ): Result<void, PlatformError>;
 
 /// Draw multiple indirect non-indexed command ranges with a host-visible count buffer.
-///
-/// Encode multiple non-indexed draws loaded from one argument buffer with draw count read from one count buffer.
-/// This operation requires one backend feature lane that enables indirect-count draws.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific multi-draw-indirect-count commands where exposed.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.render.multi.draw.count`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.multiDrawIndirectCount", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.render.multi.draw.count"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.render.multi.draw.count"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandMultiDrawIndirectCount(
     handle: GpuRenderPassHandle,
@@ -1970,31 +905,11 @@ export declare function commandMultiDrawIndirectCount(
 ): Result<void, PlatformError>;
 
 /// Draw multiple indirect indexed command ranges with a host-visible count buffer.
-///
-/// Encode multiple indexed draws loaded from one argument buffer with draw count read from one count buffer.
-/// This operation requires one backend feature lane that enables indirect-count draws.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses backend-specific multi-draw-indexed-indirect-count commands where exposed.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.render.multi.draw.count`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.multiDrawIndexedIndirectCount", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.render.multi.draw.count"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.render.multi.draw.count"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandMultiDrawIndexedIndirectCount(
     handle: GpuRenderPassHandle,
@@ -2007,31 +922,11 @@ export declare function commandMultiDrawIndexedIndirectCount(
 ): Result<void, PlatformError>;
 
 /// Copy one buffer range.
-///
-/// Encode one buffer-to-buffer copy command with explicit offsets and size.
-/// Copy constraints follow backend alignment and usage rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style copy buffer commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.memory`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.copyBuffer", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.memory"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.memory"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandCopyBuffer(
     handle: GpuCommandEncoderHandle,
@@ -2043,31 +938,11 @@ export declare function commandCopyBuffer(
 ): Result<void, PlatformError>;
 
 /// Clear one buffer range.
-///
-/// Encode one clear operation that writes zero to one buffer range.
-/// Offset and size alignment follow backend clear-buffer constraints.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style clear-buffer commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.memory`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.clearBuffer", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.memory"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.memory"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandClearBuffer(
     handle: GpuCommandEncoderHandle,
@@ -2077,31 +952,11 @@ export declare function commandClearBuffer(
 ): Result<void, PlatformError>;
 
 /// Copy one texture range to another texture.
-///
-/// Encode one texture-to-texture copy command with explicit source, destination, and extent metadata.
-/// Copy constraints follow backend format compatibility and alignment rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style copy texture commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.memory`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.copyTextureToTexture", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.memory"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.memory"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandCopyTextureToTexture(
     handle: GpuCommandEncoderHandle,
@@ -2111,31 +966,11 @@ export declare function commandCopyTextureToTexture(
 ): Result<void, PlatformError>;
 
 /// Copy one texture range into one buffer range.
-///
-/// Encode one texture-to-buffer copy command with explicit source texture metadata and destination buffer layout.
-/// Copy constraints follow backend format conversion and row alignment rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style copy texture to buffer commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.memory`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.copyTextureToBuffer", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.memory"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.memory"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandCopyTextureToBuffer(
     handle: GpuCommandEncoderHandle,
@@ -2145,31 +980,11 @@ export declare function commandCopyTextureToBuffer(
 ): Result<void, PlatformError>;
 
 /// Copy one buffer range into one texture range.
-///
-/// Encode one buffer-to-texture copy command with explicit source buffer layout and destination texture metadata.
-/// Copy constraints follow backend format conversion and row alignment rules.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style copy buffer to texture commands on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.memory`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.copyBufferToTexture", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.memory"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.memory"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function commandCopyBufferToTexture(
     handle: GpuCommandEncoderHandle,
@@ -2179,31 +994,11 @@ export declare function commandCopyBufferToTexture(
 ): Result<void, PlatformError>;
 
 /// Submit one command-buffer batch to one queue.
-///
-/// Submit one batch of finished command buffers to one queue with explicit submit options.
-/// Submitted command buffers are consumed by this call.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style queue submit APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `gpu.queue`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.queueSubmit", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.queue"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.queue"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function queueSubmit(
     queue: GpuQueueHandle,
@@ -2212,31 +1007,11 @@ export declare function queueSubmit(
 ): Result<void, PlatformError>;
 
 /// Write host bytes into one GPU buffer through one queue.
-///
-/// Upload one byte range into a destination buffer using backend queue upload operations.
-/// Data offset and size are interpreted in bytes.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style queue write-buffer operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.queue`, `gpu.memory`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.queueWriteBuffer", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.queue", "gpu.memory"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.queue", "gpu.memory"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function queueWriteBuffer(
     queue: GpuQueueHandle,
@@ -2248,31 +1023,11 @@ export declare function queueWriteBuffer(
 ): Result<void, PlatformError>;
 
 /// Write host bytes into one GPU texture through one queue.
-///
-/// Upload one texel payload into a destination texture using backend queue upload operations.
-/// Layout metadata controls row and image stride for source bytes.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style queue write-texture operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `gpu.queue`, `gpu.memory`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.queueWriteTexture", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.queue", "gpu.memory"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.queue", "gpu.memory"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function queueWriteTexture(
     queue: GpuQueueHandle,
@@ -2283,31 +1038,11 @@ export declare function queueWriteTexture(
 ): Result<void, PlatformError>;
 
 /// Wait for a queue to become idle.
-///
-/// Wait until one queue has no remaining submitted work.
-/// Wait semantics follow backend queue fence and idle behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style queue wait-idle or fence wait APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInterrupted, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.queue`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.command.queueWaitIdle", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.queue"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.queue"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function queueWaitIdle(
     queue: GpuQueueHandle,

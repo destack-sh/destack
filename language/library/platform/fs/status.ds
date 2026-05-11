@@ -192,13 +192,9 @@ export struct FileStatus {
 /// Read status for a filesystem entry.
 @binding("destack.fs.status.entry", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.metadata"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.metadata"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function entryStatus(
     entry: Entry,
@@ -208,13 +204,9 @@ export declare function entryStatus(
 /// Read status for an open file.
 @binding("destack.fs.status.file", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["fs.metadata"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["fs.metadata"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function fileStatus(
     file: FileHandle,

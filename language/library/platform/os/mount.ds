@@ -13,32 +13,11 @@ export struct MountEntry {
     hostFlags?: uint64;
 }
 
-/// Mount bindings.
 /// Enumerate mount table entries.
-///
-/// Return one snapshot of the current host mount table.
-/// Entry shape is normalized but field availability and flag bit layout are host-dependent.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses mount table APIs on Unix and volume enumeration APIs on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.mount`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.mount.list", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.mount"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["os.mount"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function mountList(): Result<Array<MountEntry>, PlatformError>;

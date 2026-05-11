@@ -1,0 +1,23 @@
+import { Slice } from "core";
+import type { HostAction } from "../core/action.ds";
+import type { PlatformError } from "../error/index.ds";
+
+export type { HostAction } from "../core/action.ds";
+
+/// List active actions.
+@binding("destack.security.action.list", {
+    effect: "deterministic",
+    requires: ["security.policy.read"],
+    families: ["windows", "unix"],
+    provider: "runtime",
+})
+export declare function actionList(): Result<Slice<HostAction>, PlatformError>;
+
+/// Check one action.
+@binding("destack.security.action.has", {
+    effect: "deterministic",
+    requires: ["security.policy.read"],
+    families: ["windows", "unix"],
+    provider: "runtime",
+})
+export declare function actionHas(action: HostAction): Result<boolean, PlatformError>;

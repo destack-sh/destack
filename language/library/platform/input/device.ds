@@ -75,29 +75,29 @@ export struct InputDeviceDescriptor {
     isSystem: boolean;
 }
 
-/// Input device capability kind.
+/// Input device action kind.
 export enum InputDeviceCapabilityKind {
-    /// Keyboard key and modifier capabilities.
+    /// Keyboard key and modifier actions.
     Keyboard = 1,
-    /// Pointer motion, button, and wheel capabilities.
+    /// Pointer motion, button, and wheel actions.
     Pointer = 2,
-    /// Touch contact capabilities.
+    /// Touch contact actions.
     Touch = 3,
-    /// Pen and stylus capabilities.
+    /// Pen and stylus actions.
     Pen = 4,
-    /// Gamepad and joystick capabilities.
+    /// Gamepad and joystick actions.
     Gamepad = 5,
-    /// Sensor capabilities.
+    /// Sensor actions.
     Sensor = 6,
-    /// Haptic actuator capabilities.
+    /// Haptic actuator actions.
     Haptics = 7,
-    /// Text input and composition capabilities.
+    /// Text input and composition actions.
     TextInput = 8,
 }
 
-/// Capability metadata origin kind.
+/// Action metadata origin kind.
 export enum InputCapabilityMetadataOrigin {
-    /// Metadata was read from backend capability tables.
+    /// Metadata was read from backend action tables.
     BackendDescriptor = 1,
     /// Metadata was derived from device summary fields.
     DeviceSummary = 2,
@@ -107,7 +107,7 @@ export enum InputCapabilityMetadataOrigin {
     Mixed = 255,
 }
 
-/// Capability metadata fidelity level.
+/// Action metadata fidelity level.
 export enum InputCapabilityMetadataFidelity {
     /// Metadata contains full backend detail for this field family.
     Full = 1,
@@ -117,7 +117,7 @@ export enum InputCapabilityMetadataFidelity {
     Minimal = 3,
 }
 
-/// Input axis capability entry.
+/// Input axis action entry.
 export struct InputAxisMetadata {
     /// Backend-native axis code.
     code: uint32;
@@ -133,7 +133,7 @@ export struct InputAxisMetadata {
     resolution: float64;
 }
 
-/// Input button capability entry.
+/// Input button action entry.
 export struct InputButtonMetadata {
     /// Backend-native button code.
     code: uint32;
@@ -141,19 +141,19 @@ export struct InputButtonMetadata {
     analog: boolean;
 }
 
-/// Full input device capability descriptor.
+/// Full input device action descriptor.
 export struct InputDeviceCapabilities {
-    /// High-level capability categories for the device.
+    /// High-level action categories for the device.
     kinds: Array<InputDeviceCapabilityKind>;
-    /// Axis capability entries when reported by backend.
+    /// Axis action entries when reported by backend.
     axes: Array<InputAxisMetadata>;
-    /// Button capability entries when reported by backend.
+    /// Button action entries when reported by backend.
     buttons: Array<InputButtonMetadata>;
-    /// Aggregate metadata origin for this capability snapshot.
+    /// Aggregate metadata origin for this action snapshot.
     metadataOrigin: InputCapabilityMetadataOrigin;
-    /// Aggregate axis metadata fidelity for this capability snapshot.
+    /// Aggregate axis metadata fidelity for this action snapshot.
     axisMetadataFidelity: InputCapabilityMetadataFidelity;
-    /// Aggregate button metadata fidelity for this capability snapshot.
+    /// Aggregate button metadata fidelity for this action snapshot.
     buttonMetadataFidelity: InputCapabilityMetadataFidelity;
     /// Whether relative-pointer mode can be enabled.
     supportsRelativePointer: boolean;
@@ -193,131 +193,40 @@ export struct InputDeviceCapabilities {
     supportsPenOrientationAngles: boolean;
 }
 
-/// Input device bindings.
 /// List available input devices.
-///
-/// Enumerate host input devices and return stable identifiers and typed device metadata.
-/// Device ordering and hotplug visibility follow host input subsystem semantics.
-///
-/// # Platform
-/// Unix and Windows.
-/// Returns operation-level `notSupported` on hosts that do not expose one discoverable input backend.
-/// Uses evdev device-node enumeration on Linux.
-/// Uses global-session and terminal discovery on macOS.
-/// Uses terminal input discovery on other Unix hosts.
-/// Uses console and raw-state discovery on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `input.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.input.device.list", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["input.read"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["input.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function list(): Result<Slice<InputDeviceDescriptor>, PlatformError>;
 
 /// Open one input device.
-///
-/// Open one input device endpoint for event reads and optional control operations.
-/// Exclusive-grab behavior and permission checks are host-defined.
-///
-/// # Platform
-/// Unix and Windows, with operation-level `notSupported` on hosts that do not expose one openable input backend.
-/// Uses evdev device-node open on Linux.
-/// Uses global-session or terminal-device open on macOS.
-/// Uses terminal-device open on other Unix hosts.
-/// Uses duplicated console-input handles or raw-state handles on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `input.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.input.device.open", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["input.read"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["input.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function open(id: string): Result<InputDeviceHandle, PlatformError>;
 
 /// Close one input device.
-///
-/// Close one opened input device endpoint and release host resources.
-/// Pending unread events are discarded according to host backend behavior.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses close(2) on Unix and CloseHandle on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock.
-///
-/// # Security
-/// Requires `input.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.input.device.close", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["input.read"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["input.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function close(handle: InputDeviceHandle): Result<void, PlatformError>;
 
-/// Query capabilities for one opened input device.
-///
-/// Return detailed axis, button, and feature capability metadata for one opened device.
-/// Metadata values are backend-derived and may be partially unavailable.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses evdev and libinput-style capability tables on Linux.
-/// Uses HID and raw-input capability queries on Windows.
-/// Uses backend capability tables when available.
-/// Falls back to deriving capabilities from available device summary metadata.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `input.read`.
-///
-/// # Replay
-/// External, recordable.
-@binding("destack.input.device.capabilities", {
+/// Query actions for one opened input device.
+@binding("destack.input.device.actions", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["input.read"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["input.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
-export declare function capabilities(
+export declare function actions(
     handle: InputDeviceHandle,
 ): Result<InputDeviceCapabilities, PlatformError>;

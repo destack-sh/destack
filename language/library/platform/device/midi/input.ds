@@ -29,62 +29,23 @@ export struct MidiInputRecord {
     data: Slice<uint8>;
 }
 
-/// MIDI input bindings.
 /// List available MIDI input endpoints.
-///
-/// Enumerate host MIDI input endpoints for one selected backend.
-/// Endpoint visibility and ordering follow host MIDI subsystem behavior.
-///
-/// # Platform
-/// Android, Unix, Windows, and iOS.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.midi.port`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.midi.input.port.list", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.midi.port"],
-    platforms: ["android", "windows", "unix", "ios"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.midi.port"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function inputPortList(
     options: MidiPortListOptions,
 ): Result<Slice<MidiPortDescriptor>, PlatformError>;
 
 /// Open one MIDI input endpoint.
-///
-/// Open one host MIDI input endpoint for queued transport-record reads.
-/// Endpoint open behavior follows host MIDI session policy and sharing semantics.
-///
-/// # Platform
-/// Android, Unix, Windows, and iOS.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.midi.port`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.midi.input.port.open", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.midi.port"],
-    platforms: ["android", "windows", "unix", "ios"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.midi.port"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function inputPortOpen(
     id: string,
@@ -92,89 +53,31 @@ export declare function inputPortOpen(
 ): Result<MidiInputPortHandle, PlatformError>;
 
 /// Describe one opened MIDI input endpoint.
-///
-/// Resolve the current descriptor for one opened MIDI input session.
-/// This returns the runtime-stable identity surface for the opened endpoint even when the original list row is no longer cached locally.
-///
-/// # Platform
-/// Android, Unix, Windows, and iOS.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.midi.port`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.midi.input.port.descriptor", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.midi.port"],
-    platforms: ["android", "windows", "unix", "ios"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.midi.port"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function inputPortDescriptor(
     handle: MidiInputPortHandle,
 ): Result<MidiPortDescriptor, PlatformError>;
 
 /// Close one opened MIDI input endpoint.
-///
-/// Close one opened MIDI input session and release host resources.
-///
-/// # Platform
-/// Android, Unix, Windows, and iOS.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.midi.port`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.midi.input.port.close", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.midi.port"],
-    platforms: ["android", "windows", "unix", "ios"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.midi.port"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function inputPortClose(handle: MidiInputPortHandle): Result<void, PlatformError>;
 
 /// Read one MIDI input record.
-///
-/// Wait for one queued inbound MIDI transport record from one opened input endpoint.
-/// Timeout uses nanoseconds in the runtime monotonic domain.
-/// Record framing and payload encoding follow the selected transport data format.
-/// Opened input sessions may later surface one loud backend failure on read if the host feed breaks after open.
-///
-/// # Platform
-/// Android, Unix, Windows, and iOS.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `device.midi.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.midi.input.read", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.midi.read"],
-    platforms: ["android", "windows", "unix", "ios"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.midi.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function inputRead(
     handle: MidiInputPortHandle,
@@ -182,32 +85,11 @@ export declare function inputRead(
 ): Result<MidiInputRecord, PlatformError>;
 
 /// Read one batch of MIDI input records.
-///
-/// Wait for queued inbound MIDI transport records from one opened input endpoint and return up to `maxRecords`.
-/// Timeout uses nanoseconds in the runtime monotonic domain.
-/// Record framing and payload encoding follow the selected transport data format.
-/// Opened input sessions may later surface one loud backend failure on read if the host feed breaks after open.
-///
-/// # Platform
-/// Android, Unix, Windows, and iOS.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `device.midi.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.midi.input.readBatch", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.midi.read"],
-    platforms: ["android", "windows", "unix", "ios"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.midi.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function inputReadBatch(
     handle: MidiInputPortHandle,
@@ -216,64 +98,22 @@ export declare function inputReadBatch(
 ): Result<Array<MidiInputRecord>, PlatformError>;
 
 /// Poll one MIDI input record without blocking.
-///
-/// Poll one pending inbound MIDI transport record from one opened input endpoint.
-/// Empty queue state is reported through ioWouldBlock.
-/// Record framing and payload encoding follow the selected transport data format.
-/// Opened input sessions may later surface one loud backend failure on read if the host feed breaks after open.
-///
-/// # Platform
-/// Android, Unix, Windows, and iOS.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.midi.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.midi.input.tryRead", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.midi.read"],
-    platforms: ["android", "windows", "unix", "ios"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["device.midi.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function inputTryRead(
     handle: MidiInputPortHandle,
 ): Result<MidiInputRecord, PlatformError>;
 
 /// Poll one batch of MIDI input records without blocking.
-///
-/// Poll pending inbound MIDI transport records from one opened input endpoint and return up to `maxRecords`.
-/// Empty queue state is reported through ioWouldBlock.
-/// Record framing and payload encoding follow the selected transport data format.
-/// Opened input sessions may later surface one loud backend failure on read if the host feed breaks after open.
-///
-/// # Platform
-/// Android, Unix, Windows, and iOS.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.midi.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.midi.input.tryReadBatch", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.midi.read"],
-    platforms: ["android", "windows", "unix", "ios"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["device.midi.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function inputTryReadBatch(
     handle: MidiInputPortHandle,
@@ -281,29 +121,11 @@ export declare function inputTryReadBatch(
 ): Result<Array<MidiInputRecord>, PlatformError>;
 
 /// Create one virtual MIDI input endpoint.
-///
-/// Create one host-visible virtual MIDI input endpoint and return one opened input handle for reads.
-///
-/// # Platform
-/// Android, Unix, Windows, and iOS.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.midi.virtual`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.midi.input.virtual.create", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.midi.virtual"],
-    platforms: ["android", "windows", "unix", "ios"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.midi.virtual"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function inputVirtualCreate(
     options: MidiVirtualInputCreateOptions,

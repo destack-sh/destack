@@ -143,172 +143,61 @@ export struct BackgroundTaskExpiredEvent {
 /// Background-task event payload.
 export newtype BackgroundEvent = BackgroundTaskReadyEvent | BackgroundTaskExpiredEvent;
 
-/// Background-task bindings.
 /// Read background-task scheduler status.
-///
-/// Read the current background-task scheduler status for this host runtime.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host scheduler bridges on supported desktop platforms.
-///
-/// # Errors
-/// Returns ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.background.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.background.status", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.background.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["os.background.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function backgroundStatus(): Result<BackgroundStatus, PlatformError>;
 
 /// List background-task registrations.
-///
-/// Enumerate background-task registrations for this runtime identity.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host background scheduler registration queries.
-///
-/// # Errors
-/// Returns ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.background.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.background.list", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.background.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["os.background.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function backgroundList(): Result<Array<BackgroundTaskDescriptor>, PlatformError>;
 
 /// Register one background task.
-///
-/// Create one background-task registration or resolve one existing identifier according to the selected registration policy.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host background scheduler registration APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.background.control`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.background.register", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.background.control"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.background.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function backgroundRegister(options: BackgroundTaskOptions): Result<void, PlatformError>;
 
 /// Unregister one background task.
-///
-/// Remove one background-task registration by identifier.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host background scheduler unregistration APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.background.control`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.background.unregister", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.background.control"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.background.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function backgroundUnregister(identifier: string): Result<void, PlatformError>;
 
 /// Trigger one background task for testing.
-///
-/// Ask the host scheduler to trigger one registered task immediately for development validation where supported.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host developer test hooks where available.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.background.control`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.background.triggerTest", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.background.control"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.background.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function backgroundTriggerTest(identifier: string): Result<boolean, PlatformError>;
 
 /// Report completion for one scheduled background-task execution.
-///
-/// Submit final execution status for one scheduled task execution token.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host background scheduler completion APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.background.control`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.background.complete", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.background.control"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.background.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function backgroundComplete(
     executionId: string,
@@ -316,90 +205,33 @@ export declare function backgroundComplete(
 ): Result<void, PlatformError>;
 
 /// Open one background-task event stream.
-///
-/// Open one event stream for task-ready and expiration callbacks.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host background scheduler callback bridges.
-///
-/// # Errors
-/// Returns ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.background.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.background.event.open", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.background.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["os.background.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function backgroundEventOpen(
     options: BackgroundEventOpenOptions,
 ): Result<BackgroundEventHandle, PlatformError>;
 
 /// Close one background-task event stream.
-///
-/// Close one opened event stream and release host callback routing resources.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host callback unregistration APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.background.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.background.event.close", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.background.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["os.background.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function backgroundEventClose(
     handle: BackgroundEventHandle,
 ): Result<void, PlatformError>;
 
 /// Wait for one background-task event.
-///
-/// Wait for one queued background-task event from one opened event stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host background event queues.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `os.background.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.background.event.read", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.background.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["os.background.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function backgroundEventRead(
     handle: BackgroundEventHandle,
@@ -407,30 +239,11 @@ export declare function backgroundEventRead(
 ): Result<BackgroundEvent, PlatformError>;
 
 /// Poll one background-task event without blocking.
-///
-/// Poll one queued background-task event from one opened event stream without waiting.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host nonblocking background event queue reads.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.background.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.background.event.tryRead", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.background.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["os.background.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function backgroundEventTryRead(
     handle: BackgroundEventHandle,

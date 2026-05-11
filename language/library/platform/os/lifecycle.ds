@@ -112,116 +112,39 @@ export newtype LifecycleEvent =
     | LifecycleLowPowerModeChangedEvent
     | LifecycleTerminateEvent;
 
-/// Lifecycle bindings.
 /// Read current lifecycle state.
-///
-/// Return the current runtime lifecycle state from the host integration layer.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host application lifecycle bridges on desktop and mobile platforms.
-///
-/// # Errors
-/// Returns ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.lifecycle.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.lifecycle.state", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.lifecycle.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["os.lifecycle.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function lifecycleState(): Result<LifecycleState, PlatformError>;
 
 /// Open lifecycle event stream.
-///
-/// Open one lifecycle event stream for runtime lifecycle transitions.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host application lifecycle callback bridges.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.lifecycle.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.lifecycle.open", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.lifecycle.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["os.lifecycle.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function lifecycleOpen(): Result<LifecycleEventHandle, PlatformError>;
 
 /// Close lifecycle event stream.
-///
-/// Close one lifecycle event stream and release host callback routing resources.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host callback unregistration APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.lifecycle.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.lifecycle.close", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.lifecycle.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["os.lifecycle.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function lifecycleClose(handle: LifecycleEventHandle): Result<void, PlatformError>;
 
 /// Wait for one lifecycle event.
-///
-/// Wait for one lifecycle event from one opened stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host lifecycle event queues.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `os.lifecycle.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.lifecycle.read", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.lifecycle.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["os.lifecycle.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function lifecycleRead(
     handle: LifecycleEventHandle,
@@ -229,30 +152,11 @@ export declare function lifecycleRead(
 ): Result<LifecycleEvent, PlatformError>;
 
 /// Poll one lifecycle event without blocking.
-///
-/// Poll one lifecycle event from one opened stream without waiting.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses nonblocking host lifecycle event queue reads.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.lifecycle.read`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.lifecycle.tryRead", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.lifecycle.read"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["os.lifecycle.read"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function lifecycleTryRead(
     handle: LifecycleEventHandle,

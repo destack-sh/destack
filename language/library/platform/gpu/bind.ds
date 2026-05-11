@@ -224,33 +224,12 @@ export struct GpuBindGroupOptions {
     flags: uint32;
 }
 
-/// GPU bind bindings.
 /// Create a bind group layout.
-///
-/// Create a bind group layout from ordered binding entries.
-/// Validation rules follow backend pipeline-layout contracts.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style bind-group or descriptor-set layout creation APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.bind`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.bind.groupLayoutCreate", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.bind"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.bind"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function bindGroupLayoutCreate(
     device: GpuDeviceHandle,
@@ -259,62 +238,22 @@ export declare function bindGroupLayoutCreate(
 ): Result<GpuBindGroupLayoutHandle, PlatformError>;
 
 /// Destroy a bind group layout.
-///
-/// Destroy a bind group layout and release backend descriptor-layout resources.
-/// The layout handle becomes invalid after destroy.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style layout destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `gpu.bind`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.bind.groupLayoutDestroy", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.bind"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.bind"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function bindGroupLayoutDestroy(
     handle: GpuBindGroupLayoutHandle,
 ): Result<void, PlatformError>;
 
 /// Create a pipeline layout.
-///
-/// Create a pipeline layout from ordered bind group layouts.
-/// Backend layout compatibility checks occur during creation.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style pipeline-layout creation APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.bind`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.bind.pipelineLayoutCreate", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.bind"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.bind"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function pipelineLayoutCreate(
     device: GpuDeviceHandle,
@@ -322,62 +261,22 @@ export declare function pipelineLayoutCreate(
 ): Result<GpuPipelineLayoutHandle, PlatformError>;
 
 /// Destroy a pipeline layout.
-///
-/// Destroy a pipeline layout and release backend layout resources.
-/// The layout handle becomes invalid after destroy.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style pipeline-layout destroy operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `gpu.bind`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.bind.pipelineLayoutDestroy", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.bind"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.bind"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function pipelineLayoutDestroy(
     handle: GpuPipelineLayoutHandle,
 ): Result<void, PlatformError>;
 
 /// Create a bind group.
-///
-/// Create a bind group from a layout and explicit resource entries.
-/// Resource compatibility is validated against the target layout.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style bind-group or descriptor-set allocation APIs on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `gpu.bind`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.bind.groupCreate", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.bind"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["gpu.bind"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function bindGroupCreate(
     device: GpuDeviceHandle,
@@ -387,30 +286,10 @@ export declare function bindGroupCreate(
 ): Result<GpuBindGroupHandle, PlatformError>;
 
 /// Destroy a bind group.
-///
-/// Destroy a bind group and release backend descriptor allocation resources.
-/// The bind group handle becomes invalid after destroy.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses WebGPU-style bind-group destroy or free operations on Vulkan, Metal, D3D12, and OpenGL-class backends.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `gpu.bind`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.gpu.bind.groupDestroy", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["gpu.bind"],
-    platforms: ["windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["gpu.bind"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function bindGroupDestroy(handle: GpuBindGroupHandle): Result<void, PlatformError>;

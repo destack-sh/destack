@@ -16,91 +16,36 @@ import {
     WorldHandle,
 } from "./types.ds";
 
-/// Low-level branch, revision, checkpoint, and image bindings.
 /// Return the active branch for one world.
-///
-/// Read the current active branch identifier for one live world.
-/// Worlds always execute on exactly one active branch at a time.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world lineage state only.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `runtime.lineage.read`.
-///
-/// # Replay
-/// Deterministic.
 @binding("destack.runtime.lineage.worldBranch", {
     effect: "deterministic",
-    replay: "nonrecordable",
-    capabilities: ["runtime.lineage.read"],
-    platforms: ["windows", "unix", "wasi"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "owner",
+    requires: ["runtime.lineage.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
 })
 export declare function worldBranch(world: WorldHandle): Result<BranchId, PlatformError>;
 
 /// Return the active revision for one world.
-///
-/// Read the current active revision identifier for one live world.
-/// The active revision reflects the current trace position and optional image materialization.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world lineage state only.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `runtime.lineage.read`.
-///
-/// # Replay
-/// Deterministic.
 @binding("destack.runtime.lineage.worldRevision", {
     effect: "deterministic",
-    replay: "nonrecordable",
-    capabilities: ["runtime.lineage.read"],
-    platforms: ["windows", "unix", "wasi"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "owner",
+    requires: ["runtime.lineage.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
 })
 export declare function worldRevision(world: WorldHandle): Result<RevisionId, PlatformError>;
 
 /// Describe one branch.
-///
-/// Return one branch descriptor for one branch identifier in one world lineage.
-/// Descriptors include the current head revision and branch labels.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world lineage state only.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `runtime.lineage.read`.
-///
-/// # Replay
-/// Deterministic.
 @binding("destack.runtime.lineage.branchDescribe", {
     effect: "deterministic",
-    replay: "nonrecordable",
-    capabilities: ["runtime.lineage.read"],
-    platforms: ["windows", "unix", "wasi"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "owner",
+    requires: ["runtime.lineage.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
 })
 export declare function branchDescribe(
     world: WorldHandle,
@@ -108,31 +53,13 @@ export declare function branchDescribe(
 ): Result<BranchDescriptor, PlatformError>;
 
 /// List branches in one world lineage.
-///
-/// Enumerate branch descriptors in stable branch-id order starting after the optional cursor.
-/// This is the low-level bulk enumeration surface for world branch heads.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world lineage state only.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `runtime.lineage.read`.
-///
-/// # Replay
-/// Deterministic.
 @binding("destack.runtime.lineage.branchList", {
     effect: "deterministic",
-    replay: "nonrecordable",
-    capabilities: ["runtime.lineage.read"],
-    platforms: ["windows", "unix", "wasi"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "owner",
+    requires: ["runtime.lineage.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
 })
 export declare function branchList(
     world: WorldHandle,
@@ -142,31 +69,13 @@ export declare function branchList(
 ): Result<Array<BranchDescriptor>, PlatformError>;
 
 /// Describe one revision.
-///
-/// Return one revision descriptor for one revision identifier in one world lineage.
-/// Descriptors include the captured trace sequence, clock instants, and optional image reference.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world lineage state only.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `runtime.lineage.read`.
-///
-/// # Replay
-/// Deterministic.
 @binding("destack.runtime.lineage.revisionDescribe", {
     effect: "deterministic",
-    replay: "nonrecordable",
-    capabilities: ["runtime.lineage.read"],
-    platforms: ["windows", "unix", "wasi"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "owner",
+    requires: ["runtime.lineage.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
 })
 export declare function revisionDescribe(
     world: WorldHandle,
@@ -174,31 +83,13 @@ export declare function revisionDescribe(
 ): Result<RevisionDescriptor, PlatformError>;
 
 /// List revisions in one world lineage.
-///
-/// Enumerate revision descriptors in stable revision-id order starting after the optional cursor.
-/// When one branch identifier is provided, only revisions from that branch are returned.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world lineage state only.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `runtime.lineage.read`.
-///
-/// # Replay
-/// Deterministic.
 @binding("destack.runtime.lineage.revisionList", {
     effect: "deterministic",
-    replay: "nonrecordable",
-    capabilities: ["runtime.lineage.read"],
-    platforms: ["windows", "unix", "wasi"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "owner",
+    requires: ["runtime.lineage.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
 })
 export declare function revisionList(
     world: WorldHandle,
@@ -208,31 +99,13 @@ export declare function revisionList(
 ): Result<Array<RevisionDescriptor>, PlatformError>;
 
 /// Create one checkpoint on the active branch.
-///
-/// Materialize one durable checkpoint at the world's current active revision.
-/// The checkpoint anchors one revision and may force image capture according to runtime policy.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world lineage and image capture logic.
-///
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `runtime.lineage.control`.
-///
-/// # Replay
-/// Deterministic.
 @binding("destack.runtime.lineage.checkpointCreate", {
     effect: "deterministic",
-    replay: "nonrecordable",
-    capabilities: ["runtime.lineage.control"],
-    platforms: ["windows", "unix", "wasi"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "sometimes",
-    affinity: "owner",
+    requires: ["runtime.lineage.control"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
 })
 export declare function checkpointCreate(
     world: WorldHandle,
@@ -241,31 +114,13 @@ export declare function checkpointCreate(
 ): Result<CheckpointId, PlatformError>;
 
 /// Describe one checkpoint.
-///
-/// Return one checkpoint descriptor for one checkpoint identifier in one world lineage.
-/// Descriptors include the anchored revision and checkpoint labels.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world lineage state only.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `runtime.lineage.read`.
-///
-/// # Replay
-/// Deterministic.
 @binding("destack.runtime.lineage.checkpointDescribe", {
     effect: "deterministic",
-    replay: "nonrecordable",
-    capabilities: ["runtime.lineage.read"],
-    platforms: ["windows", "unix", "wasi"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "owner",
+    requires: ["runtime.lineage.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
 })
 export declare function checkpointDescribe(
     world: WorldHandle,
@@ -273,31 +128,13 @@ export declare function checkpointDescribe(
 ): Result<CheckpointDescriptor, PlatformError>;
 
 /// List checkpoints in one world lineage.
-///
-/// Enumerate checkpoint descriptors in stable checkpoint-id order starting after the optional cursor.
-/// This is the low-level bulk enumeration surface for checkpoint tooling and inspection.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world lineage state only.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `runtime.lineage.read`.
-///
-/// # Replay
-/// Deterministic.
 @binding("destack.runtime.lineage.checkpointList", {
     effect: "deterministic",
-    replay: "nonrecordable",
-    capabilities: ["runtime.lineage.read"],
-    platforms: ["windows", "unix", "wasi"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "owner",
+    requires: ["runtime.lineage.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
 })
 export declare function checkpointList(
     world: WorldHandle,
@@ -307,31 +144,13 @@ export declare function checkpointList(
 ): Result<Array<CheckpointDescriptor>, PlatformError>;
 
 /// Rewind one world to one revision.
-///
-/// Restore one live world to the requested revision identifier.
-/// Rewind keeps the same live world handle while replacing its active revision and image state.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world restore and lineage control logic.
-///
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `runtime.lineage.control`.
-///
-/// # Replay
-/// Deterministic.
 @binding("destack.runtime.lineage.worldRewindRevision", {
     effect: "deterministic",
-    replay: "nonrecordable",
-    capabilities: ["runtime.lineage.control"],
-    platforms: ["windows", "unix", "wasi"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "sometimes",
-    affinity: "owner",
+    requires: ["runtime.lineage.control"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
 })
 export declare function worldRewindRevision(
     world: WorldHandle,
@@ -339,31 +158,13 @@ export declare function worldRewindRevision(
 ): Result<void, PlatformError>;
 
 /// Rewind one world to one checkpoint.
-///
-/// Restore one live world to the revision anchored by the requested checkpoint.
-/// Rewind keeps the same live world handle while replacing its active revision and image state.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world restore and lineage control logic.
-///
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `runtime.lineage.control`.
-///
-/// # Replay
-/// Deterministic.
 @binding("destack.runtime.lineage.worldRewindCheckpoint", {
     effect: "deterministic",
-    replay: "nonrecordable",
-    capabilities: ["runtime.lineage.control"],
-    platforms: ["windows", "unix", "wasi"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "sometimes",
-    affinity: "owner",
+    requires: ["runtime.lineage.control"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
 })
 export declare function worldRewindCheckpoint(
     world: WorldHandle,
@@ -371,31 +172,13 @@ export declare function worldRewindCheckpoint(
 ): Result<void, PlatformError>;
 
 /// Fork one child world from one revision.
-///
-/// Create one new world handle from one selected revision in the source world lineage.
-/// The forked world shares immutable lineage and image backing where possible and diverges only on later mutation.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world fork and lineage sharing logic.
-///
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `runtime.world.create`.
-///
-/// # Replay
-/// Deterministic.
 @binding("destack.runtime.lineage.worldFork", {
     effect: "deterministic",
-    replay: "nonrecordable",
-    capabilities: ["runtime.world.create"],
-    platforms: ["windows", "unix", "wasi"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "sometimes",
-    affinity: "owner",
+    requires: ["runtime.world.create"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
 })
 export declare function worldFork(
     world: WorldHandle,
@@ -405,60 +188,24 @@ export declare function worldFork(
 ): Result<WorldHandle, PlatformError>;
 
 /// Capture one image at the active revision.
-///
-/// Materialize one immutable image for the world's current active revision.
-/// Image capture may share lower-level heap and VM image backing with prior revisions.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world image capture logic.
-///
-/// # Errors
-/// Returns invalidArgument, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `runtime.snapshot.create`.
-///
-/// # Replay
-/// Deterministic.
 @binding("destack.runtime.lineage.imageCapture", {
     effect: "deterministic",
-    replay: "nonrecordable",
-    capabilities: ["runtime.snapshot.create"],
-    platforms: ["windows", "unix", "wasi"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "sometimes",
-    affinity: "owner",
+    requires: ["runtime.snapshot.create"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
 })
 export declare function imageCapture(world: WorldHandle): Result<ImageId, PlatformError>;
 
 /// Describe one image.
-///
-/// Return one image descriptor for one materialized image in one world lineage.
-/// Descriptors summarize the owning revision and optional shared backing size.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world lineage and image metadata only.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `runtime.snapshot.read`.
-///
-/// # Replay
-/// Deterministic.
 @binding("destack.runtime.lineage.imageDescribe", {
     effect: "deterministic",
-    replay: "nonrecordable",
-    capabilities: ["runtime.snapshot.read"],
-    platforms: ["windows", "unix", "wasi"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "owner",
+    requires: ["runtime.snapshot.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
 })
 export declare function imageDescribe(
     world: WorldHandle,
@@ -466,31 +213,13 @@ export declare function imageDescribe(
 ): Result<ImageDescriptor, PlatformError>;
 
 /// List images in one world lineage.
-///
-/// Enumerate image descriptors in stable image-id order starting after the optional cursor.
-/// This is the low-level bulk enumeration surface for materialized world images.
-///
-/// # Platform
-/// Runtime-managed on all targets.
-/// Uses world image metadata only.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, notSupported.
-///
-/// # Security
-/// Requires `runtime.snapshot.read`.
-///
-/// # Replay
-/// Deterministic.
 @binding("destack.runtime.lineage.imageList", {
     effect: "deterministic",
-    replay: "nonrecordable",
-    capabilities: ["runtime.snapshot.read"],
-    platforms: ["windows", "unix", "wasi"],
-    simulation: "unsupported",
-    scope: "runtime",
-    blocking: "never",
-    affinity: "owner",
+    requires: ["runtime.snapshot.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
 })
 export declare function imageList(
     world: WorldHandle,

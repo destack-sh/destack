@@ -2,30 +2,10 @@ import { Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
 
 /// Return the process argument vector.
-///
-/// Read the immutable argument list captured by the runtime at process startup.
-/// Argument decoding and quoting semantics follow the host process loader.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses startup argument capture from the host process loader.
-///
-/// # Errors
-/// Returns ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `process.run`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.process.args.list", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["process.run"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["process.run"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function args(): Result<Slice<string>, PlatformError>;

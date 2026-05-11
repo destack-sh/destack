@@ -2,31 +2,11 @@ import type { PlatformError } from "../error/index.ds";
 import { SocketHandle } from "../resource/index.ds";
 
 /// Enable or disable SO_REUSEADDR.
-///
-/// Enable or disable SO_REUSEADDR via host kernel APIs.
-/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses setsockopt(SO_REUSEADDR) on Unix and setsockopt on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.reuse.setReuseAddr", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.control"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["net.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function setReuseAddr(
     handle: SocketHandle,
@@ -34,31 +14,11 @@ export declare function setReuseAddr(
 ): Result<void, PlatformError>;
 
 /// Enable or disable SO_REUSEPORT.
-///
-/// Enable or disable SO_REUSEPORT via host kernel APIs.
-/// Return values and failures map directly to host contracts so higher layers can apply policy explicitly.
-///
-/// # Platform
-/// Unix only. This operation returns `notSupported` on Windows.
-/// Uses setsockopt(SO_REUSEPORT) on Unix and notSupported on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.reuse.setReusePort", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.control"],
-    platforms: ["unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["net.control"],
+    families: ["unix"],
+    simulation: true,
 })
 export declare function setReusePort(
     handle: SocketHandle,
@@ -66,59 +26,19 @@ export declare function setReusePort(
 ): Result<void, PlatformError>;
 
 /// Read SO_REUSEADDR.
-///
-/// Read the current SO_REUSEADDR value from the host socket option layer.
-/// The returned boolean reflects host option state at the instant of the call.
-///
-/// # Platform
-/// Unix and Windows. Operations return `notSupported` when the socket feature is unavailable.
-/// Uses getsockopt(SO_REUSEADDR) on Unix and getsockopt on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.reuse.getReuseAddr", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.control"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["net.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function getReuseAddr(handle: SocketHandle): Result<boolean, PlatformError>;
 
 /// Read SO_REUSEPORT.
-///
-/// Read the current SO_REUSEPORT value from the host socket option layer.
-/// The returned boolean reflects host option state at the instant of the call.
-///
-/// # Platform
-/// Unix only. This operation returns `notSupported` on Windows.
-/// Uses getsockopt(SO_REUSEPORT) on Unix and notSupported on Windows.
-///
-/// # Errors
-/// Returns netAddressNotAvailable, netConnectionRefused, netTimedOut, netConnectionReset, netBrokenPipe, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `net.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.net.reuse.getReusePort", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["net.control"],
-    platforms: ["unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["net.control"],
+    families: ["unix"],
+    simulation: true,
 })
 export declare function getReusePort(handle: SocketHandle): Result<boolean, PlatformError>;

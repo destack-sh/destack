@@ -363,7 +363,7 @@ export struct CameraControlState {
     torchMode?: CameraTorchMode;
 }
 
-/// Camera control capability descriptor.
+/// Camera control action descriptor.
 export struct CameraControlCapabilities {
     /// Supported exposure modes when exposed by the host.
     exposureModes?: Slice<CameraExposureMode>;
@@ -439,7 +439,7 @@ export struct CameraControlPatch {
     torchMode?: CameraTorchMode;
 }
 
-/// Camera stream capability descriptor.
+/// Camera stream action descriptor.
 export struct CameraStreamCapability {
     /// Stream configuration payload.
     config: CameraStreamConfig;
@@ -451,7 +451,7 @@ export struct CameraStreamCapability {
     colorSpaces: Slice<CameraColorSpace>;
     /// Supported dynamic-range modes for this stream configuration family.
     dynamicRanges: Slice<CameraDynamicRange>;
-    /// Control capability descriptor for this stream configuration.
+    /// Control action descriptor for this stream configuration.
     controls: CameraControlCapabilities;
 }
 
@@ -489,7 +489,7 @@ export struct CameraPhotoOptions {
     dynamicRange?: CameraDynamicRange;
 }
 
-/// Camera still-photo capability descriptor.
+/// Camera still-photo action descriptor.
 export struct CameraPhotoCapabilities {
     /// Supported still-photo options.
     options: Slice<CameraPhotoOptions>;
@@ -611,7 +611,7 @@ export struct CameraRecordingOptions {
     maximumBytes?: uint64;
 }
 
-/// Camera recording capability descriptor.
+/// Camera recording action descriptor.
 export struct CameraRecordingCapabilities {
     /// Supported recording container formats.
     containers: Slice<CameraRecordingContainer>;
@@ -692,120 +692,39 @@ export struct CameraDetachedEvent {
 /// Camera topology event.
 export newtype CameraWatchEvent = CameraAttachedEvent | CameraDetachedEvent;
 
-/// Camera bindings.
 /// List camera endpoints.
-///
-/// Enumerate camera endpoints that are currently reachable from the host media stack and return stable descriptor snapshots for them.
-/// Descriptor identity is topology based so callers can correlate enumeration, watch, and open results across stream lifetimes.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses Android CameraManager discovery, AVFoundation device discovery on iOS and macOS, V4L2 class camera discovery on Linux-class Unix, and Media Foundation device discovery on Windows.
-///
-/// # Errors
-/// Returns ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.device`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.camera.device.list", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.camera.device"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.camera.device"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function cameraDeviceList(): Result<Slice<CameraDeviceDescriptor>, PlatformError>;
 
 /// Open a camera topology watch stream.
-///
-/// Open a watch stream for camera endpoint attach and detach events.
-/// The stream reports device topology changes independently from any opened device or stream session.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses Android camera availability callbacks, media-device topology notifications on iOS, macOS, and Windows, and device monitor subscriptions on Linux-class Unix.
-///
-/// # Errors
-/// Returns ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.device`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.camera.device.watchOpen", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.camera.device"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.camera.device"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function cameraDeviceWatchOpen(): Result<CameraWatchHandle, PlatformError>;
 
 /// Close a camera topology watch stream.
-///
-/// Close one opened camera topology watch stream and release its host subscription state.
-/// Closing a watch does not affect any separately opened camera device or camera stream.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses Android camera-availability callback teardown, topology notification teardown on iOS, macOS, and Windows, and monitor teardown on Linux-class Unix.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.device`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.camera.device.watchClose", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.camera.device"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.camera.device"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function cameraDeviceWatchClose(handle: CameraWatchHandle): Result<void, PlatformError>;
 
 /// Read one camera topology event.
-///
-/// Wait for the next queued camera topology event from one opened watch stream.
-/// The returned event carries a full descriptor snapshot so attach consumers do not need a separate enumeration race.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses watch queues fed by Android camera availability callbacks, media-device topology callbacks on iOS, macOS, and Windows, and monitor events on Linux-class Unix.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `device.camera.device`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.camera.device.watchRead", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.camera.device"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.camera.device"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function cameraDeviceWatchRead(
     handle: CameraWatchHandle,
@@ -813,151 +732,51 @@ export declare function cameraDeviceWatchRead(
 ): Result<CameraWatchEvent, PlatformError>;
 
 /// Poll one camera topology event without blocking.
-///
-/// Read the next queued camera topology event from one opened watch stream without waiting.
-/// This operation only consumes already published attach or detach events.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses watch queues fed by Android camera availability callbacks, media-device topology callbacks on iOS, macOS, and Windows, and monitor events on Linux-class Unix.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.device`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.camera.device.watchTryRead", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.camera.device"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["device.camera.device"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function cameraDeviceWatchTryRead(
     handle: CameraWatchHandle,
 ): Result<CameraWatchEvent, PlatformError>;
 
 /// Open a camera endpoint.
-///
-/// Open one camera endpoint for capability discovery and stream creation.
-/// Opening a device establishes a control authority boundary that can outlive any individual stream session created from it.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses Android CameraDevice sessions, AVFoundation capture-device sessions on iOS and macOS, V4L2 style device nodes on Linux-class Unix, and Media Foundation capture sources on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.device`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.camera.device.open", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.camera.device"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.camera.device"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function cameraDeviceOpen(id: string): Result<CameraDeviceHandle, PlatformError>;
 
-/// List stream capabilities for one opened camera endpoint.
-///
-/// Enumerate stream capability descriptors for one opened camera endpoint.
-/// Each capability combines the stream configuration envelope with the control capability snapshot for that negotiated format family.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses Android CameraCharacteristics stream and control discovery, AVFoundation format negotiation on iOS and macOS, V4L2 format and control discovery on Linux-class Unix, and Media Foundation stream capability discovery on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.device`.
-///
-/// # Replay
-/// External, recordable.
+/// List stream actions for one opened camera endpoint.
 @binding("destack.device.camera.device.streamCapabilityList", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.camera.device"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.camera.device"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function cameraDeviceStreamCapabilityList(
     handle: CameraDeviceHandle,
 ): Result<Slice<CameraStreamCapability>, PlatformError>;
 
 /// Close a camera endpoint.
-///
-/// Close one opened camera endpoint and release its host resources.
-/// Closing a device also invalidates any stream handles that were created from that device session.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses Android CameraDevice close, AVFoundation capture-device session teardown on iOS and macOS, V4L2 device handle release on Linux-class Unix, and Media Foundation source teardown on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.device`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.camera.device.close", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.camera.device"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.camera.device"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function cameraDeviceClose(handle: CameraDeviceHandle): Result<void, PlatformError>;
 
 /// Open a camera stream.
-///
-/// Open one camera stream with an explicit stream configuration.
-/// The stream owns frame delivery state independently from device enumeration and topology watching.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses Android CameraCaptureSession plus ImageReader configuration, AVFoundation capture-output configuration on iOS and macOS, negotiated streaming queues on Linux-class Unix, and Media Foundation stream sinks on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.capture`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.camera.stream.open", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.camera.capture"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.camera.capture"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function cameraStreamOpen(
     device: CameraDeviceHandle,
@@ -965,118 +784,38 @@ export declare function cameraStreamOpen(
 ): Result<CameraStreamHandle, PlatformError>;
 
 /// Close a camera stream.
-///
-/// Close one opened camera stream and release its host resources.
-/// Closing a stream also terminates its frame queue and any pending frame waits owned by that stream session.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses Android capture-session teardown, AVFoundation stream-session teardown on iOS and macOS, queue teardown on Linux-class Unix, and Media Foundation stream teardown on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.capture`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.camera.stream.close", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.camera.capture"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.camera.capture"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function cameraStreamClose(handle: CameraStreamHandle): Result<void, PlatformError>;
 
 /// Start a camera stream.
-///
-/// Start one opened camera stream.
-/// Starting transitions the stream into active frame production without changing its negotiated format or control contract.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses Android repeating-request start, AVFoundation capture-session start on iOS and macOS, queue streaming start on Linux-class Unix, and Media Foundation source start on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.capture`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.camera.stream.start", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.camera.capture"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.camera.capture"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function cameraStreamStart(handle: CameraStreamHandle): Result<void, PlatformError>;
 
 /// Stop a camera stream.
-///
-/// Stop one running camera stream.
-/// Stopping halts frame production while preserving the stream handle for later restart or control queries.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses Android repeating-request stop, AVFoundation capture-session stop on iOS and macOS, queue streaming stop on Linux-class Unix, and Media Foundation source stop on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.capture`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.camera.stream.stop", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.camera.capture"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.camera.capture"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function cameraStreamStop(handle: CameraStreamHandle): Result<void, PlatformError>;
 
 /// Read one camera frame.
-///
-/// Wait for the next camera frame from one running stream.
-/// Frame payloads preserve timestamp, plane layout, and metadata exactly so higher layers can implement their own buffering and color policy.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses frame queues fed by Android ImageReader callbacks, AVFoundation sample-buffer callbacks on iOS and macOS, streaming buffer completion on Linux-class Unix, and Media Foundation sample delivery on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `device.camera.capture`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.camera.stream.read", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.camera.capture"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.camera.capture"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function cameraStreamRead(
     handle: CameraStreamHandle,
@@ -1084,249 +823,90 @@ export declare function cameraStreamRead(
 ): Result<CameraFrame, PlatformError>;
 
 /// Poll one camera frame without blocking.
-///
-/// Read the next queued camera frame from one running stream without waiting for new capture work.
-/// This operation only consumes frames that have already been published into the stream queue.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses frame queues fed by Android ImageReader callbacks, AVFoundation sample-buffer callbacks on iOS and macOS, streaming buffer completion on Linux-class Unix, and Media Foundation sample delivery on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.capture`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.camera.stream.tryRead", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.camera.capture"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    requires: ["device.camera.capture"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function cameraStreamTryRead(
     handle: CameraStreamHandle,
 ): Result<CameraFrame, PlatformError>;
 
 /// Read the active camera stream configuration.
-///
-/// Read the active stream configuration for one opened camera stream.
-/// The returned snapshot reflects the negotiated running format rather than only the originally requested configuration.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses Android capture-session format state, AVFoundation live stream-format queries on iOS and macOS, negotiated queue state on Linux-class Unix, and Media Foundation stream descriptors on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.capture`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.camera.stream.config", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.camera.capture"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.camera.capture"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function cameraStreamConfig(
     handle: CameraStreamHandle,
 ): Result<CameraStreamConfig, PlatformError>;
 
 /// Read camera control state.
-///
-/// Read the current control-state snapshot for one opened camera stream.
-/// State is grouped into one snapshot so callers can reason about interacting controls coherently rather than field by field.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses Android Camera2 capture-request state, AVFoundation live device-control reads on iOS and macOS, V4L2 class controls on Linux-class Unix, and Media Foundation camera controls on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.camera.stream.controlState", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.camera.control"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.camera.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function cameraStreamControlState(
     handle: CameraStreamHandle,
 ): Result<CameraControlState, PlatformError>;
 
-/// Read camera control capabilities.
-///
-/// Read the control-capability descriptor for one opened camera stream.
-/// Capability reporting groups modes and ranges into one structure so callers can validate patches before issuing them.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses Android CameraCharacteristics control discovery, AVFoundation control capability queries on iOS and macOS, V4L2 class control enumeration on Linux-class Unix, and Media Foundation camera control discovery on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
+/// Read camera control actions.
 @binding("destack.device.camera.stream.controlCapabilities", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.camera.control"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.camera.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function cameraStreamControlCapabilities(
     handle: CameraStreamHandle,
 ): Result<CameraControlCapabilities, PlatformError>;
 
 /// Apply camera control updates.
-///
-/// Apply one partial control patch to one opened camera stream.
-/// Fields that are omitted leave the corresponding control unchanged so callers can update related settings incrementally.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses Android Camera2 request updates, AVFoundation grouped control updates on iOS and macOS, V4L2 class controls on Linux-class Unix, and Media Foundation camera controls on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.control`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.camera.stream.configureControls", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.camera.control"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.camera.control"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function cameraStreamConfigureControls(
     handle: CameraStreamHandle,
     controls: CameraControlPatch,
 ): Result<void, PlatformError>;
 
-/// Read recording capabilities for one opened camera stream.
-///
-/// Read the recording capability descriptor for one opened camera stream.
-/// Recording capabilities stay separate from still-photo and live-frame capabilities because container, codec, audio, and pause support follow a different backend pipeline.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses Android Recorder or MediaCodec capture capability discovery, AVFoundation movie-output capability queries on iOS and macOS, V4L2 plus codec pipeline discovery on Linux-class Unix, and Media Foundation sink-writer capability discovery on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.capture`.
-///
-/// # Replay
-/// External, recordable.
+/// Read recording actions for one opened camera stream.
 @binding("destack.device.camera.stream.recordingCapabilities", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.camera.capture"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.camera.capture"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function cameraStreamRecordingCapabilities(
     handle: CameraStreamHandle,
 ): Result<CameraRecordingCapabilities, PlatformError>;
 
 /// Read recording state for one opened camera stream.
-///
-/// Read the current recording state snapshot for one opened camera stream.
-/// Recording state remains separate from stream control and still-photo state because recording has its own lifecycle and sink policy.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses Android recorder state, AVFoundation movie-output state on iOS and macOS, V4L2 plus codec recording state on Linux-class Unix, and Media Foundation recording state on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.capture`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.camera.stream.recordingState", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.camera.capture"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.camera.capture"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function cameraStreamRecordingState(
     handle: CameraStreamHandle,
 ): Result<CameraRecordingState, PlatformError>;
 
 /// Start recording from one opened camera stream.
-///
-/// Start one video recording using one recording options object.
-/// Recording is separate from frame reads because encoded capture has its own sink, codec, duration, and audio policy.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses Android recorder start with camera-session surfaces, AVFoundation movie-file or asset-writer start on iOS and macOS, V4L2 plus codec recording pipelines on Linux-class Unix, and Media Foundation sink-writer start on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.capture`, `audio.capture`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.device.camera.stream.startRecording", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["device.camera.capture", "audio.capture"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["device.camera.capture", "audio.capture"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function cameraStreamStartRecording(
     handle: CameraStreamHandle,
@@ -1334,93 +914,36 @@ export declare function cameraStreamStartRecording(
 ): Result<void, PlatformError>;
 
 /// Pause recording for one opened camera stream.
-///
-/// Pause one active recording on one opened camera stream.
-/// Backends that cannot pause recording report `notSupported` instead of synthesizing segmented output.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses Android recorder pause, AVFoundation movie-output pause or asset-writer pause on iOS and macOS where available, pipeline pause on Linux-class Unix when supported, and Media Foundation recording pause on Windows when supported.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.capture`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.device.camera.stream.pauseRecording", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["device.camera.capture"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["device.camera.capture"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function cameraStreamPauseRecording(
     handle: CameraStreamHandle,
 ): Result<void, PlatformError>;
 
 /// Resume recording for one opened camera stream.
-///
-/// Resume one paused recording on one opened camera stream.
-/// Resuming continues the active recording session rather than starting a new output file.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses Android recorder resume, AVFoundation movie-output resume or asset-writer resume on iOS and macOS where available, pipeline resume on Linux-class Unix when supported, and Media Foundation recording resume on Windows when supported.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `device.camera.capture`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.device.camera.stream.resumeRecording", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["device.camera.capture"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["device.camera.capture"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function cameraStreamResumeRecording(
     handle: CameraStreamHandle,
 ): Result<void, PlatformError>;
 
 /// Stop recording for one opened camera stream.
-///
-/// Stop one active recording on one opened camera stream and return the finalized recording descriptor.
-/// Stop finalizes encoded output and preserves the produced file path and encoded format metadata.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses Android recorder stop with finalized output metadata, AVFoundation movie-output or asset-writer finalize on iOS and macOS, V4L2 plus codec pipeline finalize on Linux-class Unix, and Media Foundation sink-writer finalize on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `device.camera.capture`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.device.camera.stream.stopRecording", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["device.camera.capture"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["device.camera.capture"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function cameraStreamStopRecording(
     handle: CameraStreamHandle,
@@ -1428,93 +951,33 @@ export declare function cameraStreamStopRecording(
 ): Result<CameraRecording, PlatformError>;
 
 /// Read still-photo state for one opened camera stream.
-///
-/// Read the current still-photo state snapshot for one opened camera stream.
-/// Still-photo state remains separate from stream control state because photo output commonly uses different size, flash, and encoding policy than the live stream itself.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses Android still-capture template state, AVFoundation live photo-output state on iOS and macOS, V4L2 plus codec still-image state on Linux-class Unix, and Media Foundation still-image state on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.capture`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.camera.stream.photoState", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.camera.capture"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.camera.capture"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function cameraStreamPhotoState(
     handle: CameraStreamHandle,
 ): Result<CameraPhotoState, PlatformError>;
 
-/// Read still-photo capabilities for one opened camera stream.
-///
-/// Read the still-photo capability descriptor for one opened camera stream.
-/// Photo capabilities are separated from stream capabilities because still capture commonly supports different formats, sizes, and flash policy than the video stream itself.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses Android CameraCharacteristics still-capture discovery, AVFoundation still-photo capability queries on iOS and macOS, V4L2 plus codec capability discovery on Linux-class Unix, and Media Foundation still-image capability discovery on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.camera.capture`.
-///
-/// # Replay
-/// External, recordable.
+/// Read still-photo actions for one opened camera stream.
 @binding("destack.device.camera.stream.photoCapabilities", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.camera.capture"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.camera.capture"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function cameraStreamPhotoCapabilities(
     handle: CameraStreamHandle,
 ): Result<CameraPhotoCapabilities, PlatformError>;
 
 /// Capture one still photo from one opened camera stream.
-///
-/// Capture one still photo using one still-photo settings object.
-/// Fields omitted from the settings object leave photo policy at host defaults, and still capture stays separate from streaming frame reads because photo output often uses different exposure, flash, resolution, and encoding policy than the live stream.
-///
-/// # Platform
-/// Android, iOS, macOS, Linux-class Unix, and Windows.
-/// Uses Android still-capture requests with ImageReader outputs, AVFoundation photo capture on iOS and macOS, V4L2 plus codec capture pipelines on Linux-class Unix, and Media Foundation still-image capture on Windows.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `device.camera.capture`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.camera.stream.takePhoto", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.camera.capture"],
-    platforms: ["android", "windows", "unix"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.camera.capture"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function cameraStreamTakePhoto(
     handle: CameraStreamHandle,

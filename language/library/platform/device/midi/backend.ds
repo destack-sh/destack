@@ -33,7 +33,7 @@ export enum MidiBackendSelectionPolicy {
     AllowFallback = 2,
 }
 
-/// MIDI backend capability flags.
+/// MIDI backend action flags.
 export newtype MidiBackendCapabilityFlags = uint64;
 
 /// MIDI backend descriptor.
@@ -46,7 +46,7 @@ export struct MidiBackendDescriptor {
     support: BackendSupport;
     /// Priority in default auto-selection order, or zero when auto does not consider this selector.
     priority: uint16;
-    /// Backend-level capability flags.
+    /// Backend-level action flags.
     capabilityFlags: MidiBackendCapabilityFlags;
     /// Supported transport data formats for this backend.
     supportedDataFormats: MidiDataFormatFlags;
@@ -81,30 +81,11 @@ export const MIDI_BACKEND_CAP_NATIVE_EVENT_FEED: MidiBackendCapabilityFlags =
 /// Backend supports Universal MIDI Packet transport.
 export const MIDI_BACKEND_CAP_UMP: MidiBackendCapabilityFlags = MidiBackendCapabilityFlags(0x40);
 
-/// MIDI backend bindings.
 /// List host MIDI backends.
-///
-/// Enumerate backend selectors, support state, and backend-level feature flags.
-///
-/// # Platform
-/// Android, Unix, Windows, and iOS.
-///
-/// # Errors
-/// Returns ioNotFound, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `device.midi.port`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.device.midi.backend.list", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["device.midi.port"],
-    platforms: ["android", "windows", "unix", "ios"],
-    simulation: "stub",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["device.midi.port"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function backendList(): Result<Slice<MidiBackendDescriptor>, PlatformError>;

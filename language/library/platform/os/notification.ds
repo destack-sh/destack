@@ -103,7 +103,7 @@ export struct NotificationCategory {
     /// Category identifier.
     id: string;
     /// Category actions.
-    actions: Array<NotificationAction>;
+    requires: Array<NotificationAction>;
 }
 
 /// Notification request payload.
@@ -206,32 +206,12 @@ export newtype NotificationEvent =
     | NotificationInteractedEvent
     | NotificationDismissedEvent;
 
-/// Host notification bindings.
 /// Read host notification permission state.
-///
-/// Return current host notification permission state for this runtime context.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host notification authorization APIs.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.notification.permission`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.notification.permissionState", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.notification.permission"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["os.notification.permission"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function notificationPermissionState(): Result<
     NotificationPermissionState,
@@ -239,30 +219,12 @@ export declare function notificationPermissionState(): Result<
 >;
 
 /// Open one notification-permission request transaction.
-///
-/// Start one host notification authorization request and return one transaction handle.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host notification permission request APIs where supported.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.notification.permission`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.notification.requestPermissionOpen", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.notification.permission"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.notification.permission"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function notificationRequestPermissionOpen(): Result<
     NotificationPermissionRequestHandle,
@@ -270,60 +232,24 @@ export declare function notificationRequestPermissionOpen(): Result<
 >;
 
 /// Close one notification-permission request transaction.
-///
-/// Close one notification-permission request transaction handle and release host routing state.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host notification callback unregistration and runtime resource cleanup.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.notification.permission`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.notification.requestPermissionClose", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.notification.permission"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.notification.permission"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function notificationRequestPermissionClose(
     handle: NotificationPermissionRequestHandle,
 ): Result<void, PlatformError>;
 
 /// Wait for one notification-permission result.
-///
-/// Wait for the completion of one earlier notification-permission transaction.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host notification permission completion queues and runtime transaction state.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.notification.permission`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.notification.requestPermissionRead", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.notification.permission"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.notification.permission"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function notificationRequestPermissionRead(
     handle: NotificationPermissionRequestHandle,
@@ -331,118 +257,45 @@ export declare function notificationRequestPermissionRead(
 ): Result<NotificationPermissionState, PlatformError>;
 
 /// Poll one notification-permission result without blocking.
-///
-/// Poll the completion of one earlier notification-permission transaction without waiting.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses nonblocking host notification permission completion queue reads.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.notification.permission`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.notification.requestPermissionTryRead", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.notification.permission"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.notification.permission"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function notificationRequestPermissionTryRead(
     handle: NotificationPermissionRequestHandle,
 ): Result<NotificationPermissionState, PlatformError>;
 
 /// Post host notification.
-///
-/// Submit one host notification request and return one host notification identifier.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host notification center APIs on each platform.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.notification.post`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.notification.post", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.notification.post"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.notification.post"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function notificationPost(request: NotificationRequest): Result<string, PlatformError>;
 
 /// Schedule host notification.
-///
-/// Schedule one host notification request for deferred delivery according to trigger policy.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host notification scheduling APIs on each platform.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.notification.post`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.notification.schedule", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.notification.post"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.notification.post"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function notificationSchedule(
     request: NotificationRequest,
 ): Result<string, PlatformError>;
 
 /// List pending scheduled notifications.
-///
-/// Enumerate pending notification requests owned by this runtime context.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host pending-notification query APIs.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.notification.post`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.notification.pendingList", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.notification.post"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["os.notification.post"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function notificationPendingList(): Result<
     Array<NotificationScheduledDescriptor>,
@@ -450,260 +303,97 @@ export declare function notificationPendingList(): Result<
 >;
 
 /// Cancel pending scheduled notification.
-///
-/// Cancel one pending scheduled host notification by identifier.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host scheduled-notification cancellation APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `os.notification.post`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.notification.pendingCancel", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.notification.post"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.notification.post"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function notificationPendingCancel(id: string): Result<void, PlatformError>;
 
 /// Cancel all pending scheduled notifications.
-///
-/// Cancel all pending scheduled notifications owned by this runtime context.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host scheduled-notification cancellation APIs.
-///
-/// # Errors
-/// Returns ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `os.notification.post`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.notification.pendingCancelAll", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.notification.post"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.notification.post"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function notificationPendingCancelAll(): Result<void, PlatformError>;
 
 /// Register notification categories.
-///
-/// Register host notification categories and actions for this runtime context.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host notification category registration APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioPermissionDenied, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.notification.post`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.notification.categorySet", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.notification.post"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.notification.post"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function notificationCategorySet(
     categories: Array<NotificationCategory>,
 ): Result<void, PlatformError>;
 
 /// List notification categories.
-///
-/// Enumerate registered host notification categories for this runtime context.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host notification category query APIs where available.
-///
-/// # Errors
-/// Returns ioPermissionDenied, ioWouldBlock, ioInvalidData, notSupported.
-///
-/// # Security
-/// Requires `os.notification.post`.
-///
-/// # Replay
-/// External, recordable.
 @binding("destack.os.notification.categoryList", {
     effect: "external",
-    replay: "recordable",
-    capabilities: ["os.notification.post"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    requires: ["os.notification.post"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function notificationCategoryList(): Result<Array<NotificationCategory>, PlatformError>;
 
 /// Cancel host notification.
-///
-/// Cancel one previously posted host notification by identifier.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host notification cancellation APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `os.notification.post`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.notification.cancel", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.notification.post"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.notification.post"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function notificationCancel(id: string): Result<void, PlatformError>;
 
 /// Cancel all host notifications for this runtime context.
-///
-/// Cancel all currently posted host notifications owned by this runtime context.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host notification cancellation APIs.
-///
-/// # Errors
-/// Returns ioPermissionDenied, notSupported.
-///
-/// # Security
-/// Requires `os.notification.post`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.notification.cancelAll", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.notification.post"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.notification.post"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function notificationCancelAll(): Result<void, PlatformError>;
 
 /// Open one notification event stream.
-///
-/// Open one event stream for delivered, interacted, and dismissed notification events.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host notification callback bridges.
-///
-/// # Errors
-/// Returns ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.notification.permission`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.notification.event.open", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.notification.permission"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.notification.permission"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function notificationEventOpen(
     options: NotificationEventOpenOptions,
 ): Result<NotificationEventHandle, PlatformError>;
 
 /// Close one notification event stream.
-///
-/// Close one opened event stream and release host callback routing resources.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host callback unregistration APIs.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.notification.permission`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.notification.event.close", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.notification.permission"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.notification.permission"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function notificationEventClose(
     handle: NotificationEventHandle,
 ): Result<void, PlatformError>;
 
 /// Wait for one notification event.
-///
-/// Wait for one queued notification event from one opened event stream.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host notification event queues.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, ioInterrupted, notSupported.
-///
-/// # Security
-/// Requires `os.notification.permission`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.notification.event.read", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.notification.permission"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "sometimes",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.notification.permission"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function notificationEventRead(
     handle: NotificationEventHandle,
@@ -711,30 +401,12 @@ export declare function notificationEventRead(
 ): Result<NotificationEvent, PlatformError>;
 
 /// Poll one notification event without blocking.
-///
-/// Poll one queued notification event from one opened event stream without waiting.
-///
-/// # Platform
-/// Unix and Windows.
-/// Uses host nonblocking notification event queue reads.
-///
-/// # Errors
-/// Returns invalidArgument, ioNotFound, ioWouldBlock, notSupported.
-///
-/// # Security
-/// Requires `os.notification.permission`.
-///
-/// # Replay
-/// External, nonrecordable.
 @binding("destack.os.notification.event.tryRead", {
     effect: "external",
-    replay: "nonrecordable",
-    capabilities: ["os.notification.permission"],
-    platforms: ["windows", "unix"],
-    simulation: "model",
-    scope: "host",
-    blocking: "never",
-    affinity: "any",
+    replay: "forbidden",
+    requires: ["os.notification.permission"],
+    families: ["windows", "unix"],
+    simulation: true,
 })
 export declare function notificationEventTryRead(
     handle: NotificationEventHandle,
