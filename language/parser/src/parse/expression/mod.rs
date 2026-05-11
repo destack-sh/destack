@@ -10,4 +10,3 @@ mod operator;
 mod tree;
 
 pub use common::{DECLARATION_START_TOKENS, PATTERN_START_TOKENS};
-pub(crate) use operator::TypeUnaryOperator;

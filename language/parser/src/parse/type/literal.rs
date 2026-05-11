@@ -1,9 +1,6 @@
 use crate::{ParseError, ParseResult, Parser};
 
-use crate::parse::expression::TypeUnaryOperator;
-use destack_ast::{
-    FloatType, IntegerType, Keyword, TokenType, TypeLiteral, UnaryOperator, VarianceBound,
-};
+use destack_ast::{FloatType, IntegerType, Keyword, TokenType, TypeLiteral, VarianceBound};
 
 impl Parser {
     /// Map identifier text to always-available type literals.
@@ -88,17 +85,6 @@ impl Parser {
         }
     }
 
-    /// Return whether one token can start an expression.
-    #[inline]
-    fn is_start_of_expression(&self, token_str: &str, token_type: TokenType) -> bool {
-        token_type == TokenType::OpenParenthesis
-            || token_type == TokenType::Identifier
-            || token_type == TokenType::Literal
-            || token_type == TokenType::OpenBrace && !self.flags.is_in_before_block()
-            || UnaryOperator::from_prefix_token(token_type).is_some()
-            || TypeUnaryOperator::from_prefix_token(token_str, token_type).is_some()
-    }
-
     /// Return the explicit width encoded in one type literal name.
     #[inline]
     fn type_width_maybe(&self, prefix: &'static str, target: &str) -> Option<u16> {
@@ -152,17 +138,6 @@ impl Parser {
         let next_str = self.get_span_str(next.span);
         let next_next_str =
             (next_next_type != TokenType::End).then(|| self.get_span_str(next_next.span));
-
-        // `!` means `never` unless another expression follows
-        if next_type == TokenType::Not {
-            if let Some(next_next_str) = next_next_str
-                && self.is_start_of_expression(next_next_str, next_next_type)
-            {
-                // do nothing
-            } else {
-                return Ok(TypeLiteral::Never);
-            }
-        }
 
         // regular single-token type literals like `boolean` or `uint32`
         match next_str {

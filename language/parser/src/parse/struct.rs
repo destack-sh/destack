@@ -770,4 +770,26 @@ struct Foo {
             assert_eq!(parser.get_span_str(implements_span), "Qux");
         });
     }
+
+    #[test]
+    fn test_parse_struct_negative_implements_type() {
+        let mut test = TestParser::new("struct Node implements !Unpin {}");
+        let mut parser = test.prepare();
+
+        let start = parser.span_start();
+        let struct_id = parser
+            .eat_struct_or_class(&start, DeclarationHeader::default(), false)
+            .unwrap();
+
+        test.assert_no_errors(&parser);
+
+        assert_node!(parser.tree, struct_id, Declaration::Struct(StructDeclaration { implements_types, .. }) => {
+            assert_eq!(implements_types.len(), 1);
+            assert_node!(parser.tree, implements_types[0], TypeExpression::Not { target_type } => {
+                assert_node!(parser.tree, *target_type, TypeExpression::Reference { path, .. } => {
+                    assert_path!(parser, *path, "Unpin");
+                });
+            });
+        });
+    }
 }

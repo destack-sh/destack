@@ -74,7 +74,6 @@ fn test_parse_type_unary_prefix_operator_span() {
     });
 }
 
-#[test]
 fn test_parse_typescript_type_expression_keeps_shared_as_identifier() {
     let mut test = TestParser::new_with_language("shared Value", LanguageType::TypeScript);
     let mut parser = test.prepare();
@@ -89,6 +88,31 @@ fn test_parse_typescript_type_expression_keeps_shared_as_identifier() {
     let next_span = parser.peek().unwrap().span;
     assert_eq!(parser.get_span_str(next_span), "Value");
     test.assert_no_errors(&parser);
+}
+
+#[test]
+fn test_parse_type_not_operator_span() {
+    let mut test = TestParser::new("type T = !Unpin");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
+
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            let unary_id = *value;
+            assert_node!(parser.tree, *value, TypeExpression::Not { target_type } => {
+                assert_node!(parser.tree, *target_type, TypeExpression::Reference { path, generic_arguments } => {
+                    assert!(generic_arguments.is_empty());
+                    assert_path!(parser, *path, "Unpin");
+                });
+            });
+
+            let main_span = parser
+                .tree
+                .get_main_span(unary_id)
+                .expect("expected type unary operator span");
+            assert_eq!(parser.get_span_str(main_span), "!");
+        });
+    });
 }
 
 #[test]
