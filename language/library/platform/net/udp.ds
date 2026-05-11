@@ -1,278 +1,115 @@
-import { Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
-import { SocketAddress, SocketFamily } from "./address.ds";
 import { SocketHandle } from "../resource/index.ds";
+import { IpAddress } from "./address.ds";
 
-/// Message flags for UDP send and receive operations.
-export newtype UdpMessageFlags = uint32;
+/// Multicast interface selector.
+export newtype MulticastInterface =
+    | { kind: "any" }
+    | { kind: "address"; address: IpAddress }
+    | { kind: "index"; index: uint32 };
 
-/// UDP receive metadata with a raw socket address payload.
-export struct UdpReceive {
-    /// Remote socket address.
-    address: SocketAddress;
-    /// Number of bytes read.
-    bytes: uint64;
-    /// Flags returned by recvfrom-style calls.
-    recvFlags: UdpMessageFlags;
-}
-
-/// IPv4 source-specific multicast membership tuple.
-export struct UdpSourceMembershipV4 {
+/// Multicast group membership.
+export struct MulticastGroup {
     /// Multicast group address.
-    group: string;
-    /// Source address.
-    source: string;
-    /// Local interface address.
-    interfaceAddress: string;
+    group: IpAddress;
+    /// Interface used for membership.
+    networkInterface: MulticastInterface;
 }
 
-/// IPv6 source-specific multicast membership tuple.
-export struct UdpSourceMembershipV6 {
+/// Source-specific multicast group membership.
+export struct SourceMulticastGroup {
     /// Multicast group address.
-    group: string;
+    group: IpAddress;
     /// Source address.
-    source: string;
-    /// Local interface index.
-    interfaceIndex: uint32;
+    source: IpAddress;
+    /// Interface used for membership.
+    networkInterface: MulticastInterface;
 }
 
-/// Create a UDP socket.
-@binding("destack.net.udp.socket", {
-    effect: "external",
-    requires: ["net.udp"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function udpSocket(family: SocketFamily): Result<SocketHandle, PlatformError>;
+/// UDP multicast option key.
+export enum MulticastOption {
+    /// Multicast loopback.
+    Loopback = 1,
+    /// Multicast time-to-live or hop limit.
+    HopLimit = 2,
+    /// Default multicast interface.
+    Interface = 3,
+}
 
-/// Bind a UDP socket to a raw local address.
-@binding("destack.net.udp.bind", {
+/// UDP multicast option value.
+export newtype MulticastOptionValue =
+    | { kind: "loopback"; value: boolean }
+    | { kind: "hopLimit"; value: uint32 }
+    | { kind: "interface"; value: MulticastInterface };
+
+/// Join one multicast group.
+@binding("destack.net.udp.joinMulticast", {
     effect: "external",
-    requires: ["net.udp"],
+    requires: ["net.multicast"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function udpBind(
-    handle: SocketHandle,
-    address: SocketAddress,
+export declare function joinMulticast(
+    socket: SocketHandle,
+    group: MulticastGroup,
 ): Result<void, PlatformError>;
 
-/// Connect a UDP socket to a raw remote address.
-@binding("destack.net.udp.connect", {
+/// Leave one multicast group.
+@binding("destack.net.udp.leaveMulticast", {
     effect: "external",
-    requires: ["net.udp"],
+    requires: ["net.multicast"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function udpConnect(
-    handle: SocketHandle,
-    address: SocketAddress,
+export declare function leaveMulticast(
+    socket: SocketHandle,
+    group: MulticastGroup,
 ): Result<void, PlatformError>;
 
-/// Send a datagram to a raw remote address.
-@binding("destack.net.udp.sendTo", {
-    effect: "external",
-    requires: ["net.udp"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function udpSendTo(
-    handle: SocketHandle,
-    address: SocketAddress,
-    buffer: Slice<uint8>,
-    sendFlags: UdpMessageFlags,
-): Result<uint64, PlatformError>;
-
-/// Receive a datagram from a remote address with raw address output.
-@binding("destack.net.udp.recvFrom", {
-    effect: "external",
-    requires: ["net.udp"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function udpRecvFrom(
-    handle: SocketHandle,
-    buffer: Slice<uint8>,
-    recvFlags: UdpMessageFlags,
-): Result<UdpReceive, PlatformError>;
-
-/// Join an IPv4 multicast group.
-@binding("destack.net.udp.joinMulticastV4", {
+/// Join one source-specific multicast group.
+@binding("destack.net.udp.joinSourceMulticast", {
     effect: "external",
     requires: ["net.multicast"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function joinMulticastV4(
-    handle: SocketHandle,
-    group: string,
-    interfaceAddress: string,
+export declare function joinSourceMulticast(
+    socket: SocketHandle,
+    group: SourceMulticastGroup,
 ): Result<void, PlatformError>;
 
-/// Leave an IPv4 multicast group.
-@binding("destack.net.udp.leaveMulticastV4", {
+/// Leave one source-specific multicast group.
+@binding("destack.net.udp.leaveSourceMulticast", {
     effect: "external",
     requires: ["net.multicast"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function leaveMulticastV4(
-    handle: SocketHandle,
-    group: string,
-    interfaceAddress: string,
+export declare function leaveSourceMulticast(
+    socket: SocketHandle,
+    group: SourceMulticastGroup,
 ): Result<void, PlatformError>;
 
-/// Join an IPv6 multicast group.
-@binding("destack.net.udp.joinMulticastV6", {
+/// Set one multicast option.
+@binding("destack.net.udp.setMulticastOption", {
     effect: "external",
     requires: ["net.multicast"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function joinMulticastV6(
-    handle: SocketHandle,
-    group: string,
-    interfaceIndex: uint32,
+export declare function setMulticastOption(
+    socket: SocketHandle,
+    option: MulticastOptionValue,
 ): Result<void, PlatformError>;
 
-/// Leave an IPv6 multicast group.
-@binding("destack.net.udp.leaveMulticastV6", {
+/// Read one multicast option.
+@binding("destack.net.udp.getMulticastOption", {
     effect: "external",
     requires: ["net.multicast"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function leaveMulticastV6(
-    handle: SocketHandle,
-    group: string,
-    interfaceIndex: uint32,
-): Result<void, PlatformError>;
-
-/// Enable or disable multicast loopback.
-@binding("destack.net.udp.setMulticastLoop", {
-    effect: "external",
-    requires: ["net.multicast"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setMulticastLoop(
-    handle: SocketHandle,
-    enabled: boolean,
-): Result<void, PlatformError>;
-
-/// Read multicast loopback mode.
-@binding("destack.net.udp.getMulticastLoop", {
-    effect: "external",
-    requires: ["net.multicast"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function getMulticastLoop(handle: SocketHandle): Result<boolean, PlatformError>;
-
-/// Set multicast TTL.
-@binding("destack.net.udp.setMulticastTtl", {
-    effect: "external",
-    requires: ["net.multicast"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setMulticastTtl(handle: SocketHandle, ttl: uint32): Result<void, PlatformError>;
-
-/// Read multicast TTL or hop-limit.
-@binding("destack.net.udp.getMulticastTtl", {
-    effect: "external",
-    requires: ["net.multicast"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function getMulticastTtl(handle: SocketHandle): Result<uint32, PlatformError>;
-
-/// Join one IPv4 source-specific multicast membership.
-@binding("destack.net.udp.joinMulticastSourceV4", {
-    effect: "external",
-    requires: ["net.multicast"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function joinMulticastSourceV4(
-    handle: SocketHandle,
-    membership: UdpSourceMembershipV4,
-): Result<void, PlatformError>;
-
-/// Leave one IPv4 source-specific multicast membership.
-@binding("destack.net.udp.leaveMulticastSourceV4", {
-    effect: "external",
-    requires: ["net.multicast"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function leaveMulticastSourceV4(
-    handle: SocketHandle,
-    membership: UdpSourceMembershipV4,
-): Result<void, PlatformError>;
-
-/// Join one IPv6 source-specific multicast membership.
-@binding("destack.net.udp.joinMulticastSourceV6", {
-    effect: "external",
-    requires: ["net.multicast"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function joinMulticastSourceV6(
-    handle: SocketHandle,
-    membership: UdpSourceMembershipV6,
-): Result<void, PlatformError>;
-
-/// Leave one IPv6 source-specific multicast membership.
-@binding("destack.net.udp.leaveMulticastSourceV6", {
-    effect: "external",
-    requires: ["net.multicast"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function leaveMulticastSourceV6(
-    handle: SocketHandle,
-    membership: UdpSourceMembershipV6,
-): Result<void, PlatformError>;
-
-/// Select the default IPv4 multicast interface for one socket.
-@binding("destack.net.udp.setMulticastInterfaceV4", {
-    effect: "external",
-    requires: ["net.multicast"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setMulticastInterfaceV4(
-    handle: SocketHandle,
-    interfaceAddress: string,
-): Result<void, PlatformError>;
-
-/// Read the default IPv4 multicast interface for one socket.
-@binding("destack.net.udp.getMulticastInterfaceV4", {
-    effect: "external",
-    requires: ["net.multicast"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function getMulticastInterfaceV4(handle: SocketHandle): Result<string, PlatformError>;
-
-/// Select the default IPv6 multicast interface for one socket.
-@binding("destack.net.udp.setMulticastInterfaceV6", {
-    effect: "external",
-    requires: ["net.multicast"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setMulticastInterfaceV6(
-    handle: SocketHandle,
-    interfaceIndex: uint32,
-): Result<void, PlatformError>;
-
-/// Read the default IPv6 multicast interface for one socket.
-@binding("destack.net.udp.getMulticastInterfaceV6", {
-    effect: "external",
-    requires: ["net.multicast"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function getMulticastInterfaceV6(handle: SocketHandle): Result<uint32, PlatformError>;
+export declare function getMulticastOption(
+    socket: SocketHandle,
+    option: MulticastOption,
+): Result<MulticastOptionValue, PlatformError>;

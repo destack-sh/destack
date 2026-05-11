@@ -121,24 +121,22 @@ pub enum HostAction {
     FfiPointer,
     /// `ffi.symbol`.
     FfiSymbol,
-    /// `fs.chmod`.
-    FsChmod,
-    /// `fs.chown`.
-    FsChown,
-    /// `fs.handle`.
-    FsHandle,
     /// `fs.link`.
     FsLink,
     /// `fs.lock`.
     FsLock,
     /// `fs.metadata`.
     FsMetadata,
-    /// `fs.mmap`.
-    FsMmap,
+    /// `fs.mode`.
+    FsMode,
+    /// `fs.node`.
+    FsNode,
+    /// `fs.open`.
+    FsOpen,
+    /// `fs.owner`.
+    FsOwner,
     /// `fs.read`.
     FsRead,
-    /// `fs.special`.
-    FsSpecial,
     /// `fs.sync`.
     FsSync,
     /// `fs.temp`.
@@ -263,8 +261,6 @@ pub enum HostAction {
     NetClose,
     /// `net.connect`.
     NetConnect,
-    /// `net.control`.
-    NetControl,
     /// `net.dns`.
     NetDns,
     /// `net.interface`.
@@ -273,14 +269,22 @@ pub enum HostAction {
     NetListen,
     /// `net.multicast`.
     NetMulticast,
+    /// `net.open`.
+    NetOpen,
+    /// `net.option`.
+    NetOption,
     /// `net.raw`.
     NetRaw,
+    /// `net.read`.
+    NetRead,
     /// `net.route.read`.
     NetRouteRead,
     /// `net.route.write`.
     NetRouteWrite,
-    /// `net.udp`.
-    NetUdp,
+    /// `net.status`.
+    NetStatus,
+    /// `net.write`.
+    NetWrite,
     /// `os.background.control`.
     OsBackgroundControl,
     /// `os.background.read`.
@@ -518,15 +522,14 @@ impl HostAction {
         Self::FfiLoad,
         Self::FfiPointer,
         Self::FfiSymbol,
-        Self::FsChmod,
-        Self::FsChown,
-        Self::FsHandle,
         Self::FsLink,
         Self::FsLock,
         Self::FsMetadata,
-        Self::FsMmap,
+        Self::FsMode,
+        Self::FsNode,
+        Self::FsOpen,
+        Self::FsOwner,
         Self::FsRead,
-        Self::FsSpecial,
         Self::FsSync,
         Self::FsTemp,
         Self::FsWatch,
@@ -589,15 +592,18 @@ impl HostAction {
         Self::NetAccept,
         Self::NetClose,
         Self::NetConnect,
-        Self::NetControl,
         Self::NetDns,
         Self::NetInterface,
         Self::NetListen,
         Self::NetMulticast,
+        Self::NetOpen,
+        Self::NetOption,
         Self::NetRaw,
+        Self::NetRead,
         Self::NetRouteRead,
         Self::NetRouteWrite,
-        Self::NetUdp,
+        Self::NetStatus,
+        Self::NetWrite,
         Self::OsBackgroundControl,
         Self::OsBackgroundRead,
         Self::OsCalendarRead,
@@ -748,15 +754,14 @@ impl HostAction {
             Self::FfiLoad => "ffi.load",
             Self::FfiPointer => "ffi.pointer",
             Self::FfiSymbol => "ffi.symbol",
-            Self::FsChmod => "fs.chmod",
-            Self::FsChown => "fs.chown",
-            Self::FsHandle => "fs.handle",
             Self::FsLink => "fs.link",
             Self::FsLock => "fs.lock",
             Self::FsMetadata => "fs.metadata",
-            Self::FsMmap => "fs.mmap",
+            Self::FsMode => "fs.mode",
+            Self::FsNode => "fs.node",
+            Self::FsOpen => "fs.open",
+            Self::FsOwner => "fs.owner",
             Self::FsRead => "fs.read",
-            Self::FsSpecial => "fs.special",
             Self::FsSync => "fs.sync",
             Self::FsTemp => "fs.temp",
             Self::FsWatch => "fs.watch",
@@ -819,15 +824,18 @@ impl HostAction {
             Self::NetAccept => "net.accept",
             Self::NetClose => "net.close",
             Self::NetConnect => "net.connect",
-            Self::NetControl => "net.control",
             Self::NetDns => "net.dns",
             Self::NetInterface => "net.interface",
             Self::NetListen => "net.listen",
             Self::NetMulticast => "net.multicast",
+            Self::NetOpen => "net.open",
+            Self::NetOption => "net.option",
             Self::NetRaw => "net.raw",
+            Self::NetRead => "net.read",
             Self::NetRouteRead => "net.route.read",
             Self::NetRouteWrite => "net.route.write",
-            Self::NetUdp => "net.udp",
+            Self::NetStatus => "net.status",
+            Self::NetWrite => "net.write",
             Self::OsBackgroundControl => "os.background.control",
             Self::OsBackgroundRead => "os.background.read",
             Self::OsCalendarRead => "os.calendar.read",
@@ -984,15 +992,14 @@ impl HostAction {
             "ffi.load" => Some(Self::FfiLoad),
             "ffi.pointer" => Some(Self::FfiPointer),
             "ffi.symbol" => Some(Self::FfiSymbol),
-            "fs.chmod" => Some(Self::FsChmod),
-            "fs.chown" => Some(Self::FsChown),
-            "fs.handle" => Some(Self::FsHandle),
             "fs.link" => Some(Self::FsLink),
             "fs.lock" => Some(Self::FsLock),
             "fs.metadata" => Some(Self::FsMetadata),
-            "fs.mmap" => Some(Self::FsMmap),
+            "fs.mode" => Some(Self::FsMode),
+            "fs.node" => Some(Self::FsNode),
+            "fs.open" => Some(Self::FsOpen),
+            "fs.owner" => Some(Self::FsOwner),
             "fs.read" => Some(Self::FsRead),
-            "fs.special" => Some(Self::FsSpecial),
             "fs.sync" => Some(Self::FsSync),
             "fs.temp" => Some(Self::FsTemp),
             "fs.watch" => Some(Self::FsWatch),
@@ -1055,15 +1062,18 @@ impl HostAction {
             "net.accept" => Some(Self::NetAccept),
             "net.close" => Some(Self::NetClose),
             "net.connect" => Some(Self::NetConnect),
-            "net.control" => Some(Self::NetControl),
             "net.dns" => Some(Self::NetDns),
             "net.interface" => Some(Self::NetInterface),
             "net.listen" => Some(Self::NetListen),
             "net.multicast" => Some(Self::NetMulticast),
+            "net.open" => Some(Self::NetOpen),
+            "net.option" => Some(Self::NetOption),
             "net.raw" => Some(Self::NetRaw),
+            "net.read" => Some(Self::NetRead),
             "net.route.read" => Some(Self::NetRouteRead),
             "net.route.write" => Some(Self::NetRouteWrite),
-            "net.udp" => Some(Self::NetUdp),
+            "net.status" => Some(Self::NetStatus),
+            "net.write" => Some(Self::NetWrite),
             "os.background.control" => Some(Self::OsBackgroundControl),
             "os.background.read" => Some(Self::OsBackgroundRead),
             "os.calendar.read" => Some(Self::OsCalendarRead),

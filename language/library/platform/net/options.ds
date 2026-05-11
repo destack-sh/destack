@@ -3,265 +3,125 @@ import type { PlatformError } from "../error/index.ds";
 import { SocketHandle } from "../resource/index.ds";
 
 /// Socket linger settings.
-export struct Linger {
+export struct SocketLinger {
     /// Whether linger is enabled.
-    enabled: boolean;
-    /// Linger duration in seconds.
-    seconds: uint32;
+    isEnabled: boolean;
+    /// Linger duration in milliseconds.
+    milliseconds: uint32;
+}
+
+/// TCP keepalive settings.
+export struct TcpKeepAlive {
+    /// Whether keepalive probes are enabled.
+    isEnabled: boolean;
+    /// Idle time before probes begin, in milliseconds.
+    idleMilliseconds: uint32;
+    /// Interval between probes, in milliseconds.
+    intervalMilliseconds: uint32;
+    /// Number of failed probes before timeout.
+    probeCount: uint32;
 }
 
 /// Packet timestamping mode.
-export enum SocketTimestampingMode {
-    /// Disable packet timestamping.
+export enum PacketTimestampMode {
+    /// Packet timestamps are disabled.
     Off = 0,
-    /// Enable software timestamping.
+    /// Software timestamps are enabled.
     Software = 1,
-    /// Enable hardware timestamping when available.
+    /// Hardware timestamps are enabled when available.
     Hardware = 2,
 }
 
-/// Native socket option level.
-export newtype SocketOptionLevel = uint32;
+/// Socket option key.
+export newtype SocketOption =
+    | { kind: "reuseAddress" }
+    | { kind: "reusePort" }
+    | { kind: "broadcast" }
+    | { kind: "receiveBufferBytes" }
+    | { kind: "sendBufferBytes" }
+    | { kind: "receiveTimeoutMilliseconds" }
+    | { kind: "sendTimeoutMilliseconds" }
+    | { kind: "linger" }
+    | { kind: "ttl" }
+    | { kind: "trafficClass" }
+    | { kind: "ipv6Only" }
+    | { kind: "tcpNoDelay" }
+    | { kind: "tcpKeepAlive" }
+    | { kind: "packetMark" }
+    | { kind: "packetTimestamp" };
 
-/// Native socket option name.
-export newtype SocketOptionName = uint32;
+/// Socket option value.
+export newtype SocketOptionValue =
+    | { kind: "reuseAddress"; value: boolean }
+    | { kind: "reusePort"; value: boolean }
+    | { kind: "broadcast"; value: boolean }
+    | { kind: "receiveBufferBytes"; value: uint32 }
+    | { kind: "sendBufferBytes"; value: uint32 }
+    | { kind: "receiveTimeoutMilliseconds"; value: uint32 }
+    | { kind: "sendTimeoutMilliseconds"; value: uint32 }
+    | { kind: "linger"; value: SocketLinger }
+    | { kind: "ttl"; value: uint32 }
+    | { kind: "trafficClass"; value: uint32 }
+    | { kind: "ipv6Only"; value: boolean }
+    | { kind: "tcpNoDelay"; value: boolean }
+    | { kind: "tcpKeepAlive"; value: TcpKeepAlive }
+    | { kind: "packetMark"; value: uint32 }
+    | { kind: "packetTimestamp"; value: PacketTimestampMode };
 
-/// Set socket linger settings.
-@binding("destack.net.options.setLinger", {
+/// Raw socket option key.
+export struct RawSocketOption {
+    /// Socket option level.
+    level: int32;
+    /// Socket option name.
+    name: int32;
+}
+
+/// Set one normalized socket option.
+@binding("destack.net.options.set", {
     effect: "external",
-    requires: ["net.control"],
+    requires: ["net.option"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function setLinger(handle: SocketHandle, linger: Linger): Result<void, PlatformError>;
-
-/// Set the receive buffer size.
-@binding("destack.net.options.setRecvBuffer", {
-    effect: "external",
-    requires: ["net.control"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setRecvBuffer(handle: SocketHandle, size: uint32): Result<void, PlatformError>;
-
-/// Set the send buffer size.
-@binding("destack.net.options.setSendBuffer", {
-    effect: "external",
-    requires: ["net.control"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setSendBuffer(handle: SocketHandle, size: uint32): Result<void, PlatformError>;
-
-/// Enable or disable broadcast.
-@binding("destack.net.options.setBroadcast", {
-    effect: "external",
-    requires: ["net.control"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setBroadcast(
-    handle: SocketHandle,
-    enabled: boolean,
+export declare function setSocketOption(
+    socket: SocketHandle,
+    option: SocketOptionValue,
 ): Result<void, PlatformError>;
 
-/// Set the IP time-to-live.
-@binding("destack.net.options.setTtl", {
+/// Read one normalized socket option.
+@binding("destack.net.options.get", {
     effect: "external",
-    requires: ["net.control"],
+    requires: ["net.option"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function setTtl(handle: SocketHandle, ttl: uint32): Result<void, PlatformError>;
+export declare function getSocketOption(
+    socket: SocketHandle,
+    option: SocketOption,
+): Result<SocketOptionValue, PlatformError>;
 
-/// Set the IP type-of-service field.
-@binding("destack.net.options.setTos", {
+/// Set one raw socket option from bytes.
+@binding("destack.net.options.setRaw", {
     effect: "external",
-    requires: ["net.control"],
+    requires: ["net.option"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function setTos(handle: SocketHandle, tos: uint32): Result<void, PlatformError>;
-
-/// Set the read timeout in milliseconds.
-@binding("destack.net.options.setReadTimeout", {
-    effect: "external",
-    requires: ["net.control"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setReadTimeout(
-    handle: SocketHandle,
-    timeoutMs: uint32,
-): Result<void, PlatformError>;
-
-/// Set the write timeout in milliseconds.
-@binding("destack.net.options.setWriteTimeout", {
-    effect: "external",
-    requires: ["net.control"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setWriteTimeout(
-    handle: SocketHandle,
-    timeoutMs: uint32,
-): Result<void, PlatformError>;
-
-/// Restrict an IPv6 socket to IPv6 traffic only.
-@binding("destack.net.options.setOnlyV6", {
-    effect: "external",
-    requires: ["net.control"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setOnlyV6(handle: SocketHandle, enabled: boolean): Result<void, PlatformError>;
-
-/// Read socket linger settings.
-@binding("destack.net.options.getLinger", {
-    effect: "external",
-    requires: ["net.control"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function getLinger(handle: SocketHandle): Result<Linger, PlatformError>;
-
-/// Read the receive buffer size.
-@binding("destack.net.options.getRecvBuffer", {
-    effect: "external",
-    requires: ["net.control"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function getRecvBuffer(handle: SocketHandle): Result<uint32, PlatformError>;
-
-/// Read the send buffer size.
-@binding("destack.net.options.getSendBuffer", {
-    effect: "external",
-    requires: ["net.control"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function getSendBuffer(handle: SocketHandle): Result<uint32, PlatformError>;
-
-/// Read broadcast mode.
-@binding("destack.net.options.getBroadcast", {
-    effect: "external",
-    requires: ["net.control"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function getBroadcast(handle: SocketHandle): Result<boolean, PlatformError>;
-
-/// Read the IP time-to-live.
-@binding("destack.net.options.getTtl", {
-    effect: "external",
-    requires: ["net.control"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function getTtl(handle: SocketHandle): Result<uint32, PlatformError>;
-
-/// Read the IP type-of-service field.
-@binding("destack.net.options.getTos", {
-    effect: "external",
-    requires: ["net.control"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function getTos(handle: SocketHandle): Result<uint32, PlatformError>;
-
-/// Set packet timestamping mode.
-@binding("destack.net.options.setTimestamping", {
-    effect: "external",
-    requires: ["net.control"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setTimestamping(
-    handle: SocketHandle,
-    mode: SocketTimestampingMode,
-): Result<void, PlatformError>;
-
-/// Read packet timestamping mode.
-@binding("destack.net.options.getTimestamping", {
-    effect: "external",
-    requires: ["net.control"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function getTimestamping(
-    handle: SocketHandle,
-): Result<SocketTimestampingMode, PlatformError>;
-
-/// Set socket packet mark.
-@binding("destack.net.options.setPacketMark", {
-    effect: "external",
-    requires: ["net.control"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function setPacketMark(handle: SocketHandle, mark: uint32): Result<void, PlatformError>;
-
-/// Read socket packet mark.
-@binding("destack.net.options.getPacketMark", {
-    effect: "external",
-    requires: ["net.control"],
-    families: ["unix"],
-    simulation: true,
-})
-export declare function getPacketMark(handle: SocketHandle): Result<uint32, PlatformError>;
-
-/// Read the read timeout in milliseconds.
-@binding("destack.net.options.getReadTimeout", {
-    effect: "external",
-    requires: ["net.control"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function getReadTimeout(handle: SocketHandle): Result<uint32, PlatformError>;
-
-/// Read the write timeout in milliseconds.
-@binding("destack.net.options.getWriteTimeout", {
-    effect: "external",
-    requires: ["net.control"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function getWriteTimeout(handle: SocketHandle): Result<uint32, PlatformError>;
-
-/// Read IPv6-only mode.
-@binding("destack.net.options.getOnlyV6", {
-    effect: "external",
-    requires: ["net.control"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function getOnlyV6(handle: SocketHandle): Result<boolean, PlatformError>;
-
-/// Set one raw socket option payload.
-@binding("destack.net.options.setSockOptRaw", {
-    effect: "external",
-    requires: ["net.control"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setSockOptRaw(
-    handle: SocketHandle,
-    level: SocketOptionLevel,
-    name: SocketOptionName,
+export declare function setRawSocketOption(
+    socket: SocketHandle,
+    option: RawSocketOption,
     value: Slice<uint8>,
 ): Result<void, PlatformError>;
 
-/// Read one raw socket option payload.
-@binding("destack.net.options.getSockOptRaw", {
+/// Read one raw socket option into a caller-owned buffer.
+@binding("destack.net.options.getRaw", {
     effect: "external",
-    requires: ["net.control"],
+    requires: ["net.option"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function getSockOptRaw(
-    handle: SocketHandle,
-    level: SocketOptionLevel,
-    name: SocketOptionName,
-    maxBytes: uint32,
-): Result<uint8[], PlatformError>;
+export declare function getRawSocketOption(
+    socket: SocketHandle,
+    option: RawSocketOption,
+    value: Slice<uint8>,
+): Result<uint64, PlatformError>;

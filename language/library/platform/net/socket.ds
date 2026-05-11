@@ -1,16 +1,67 @@
-import { Array, Slice } from "core";
+import { Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
-import { TransferredHandle, SocketHandle } from "../resource/index.ds";
+import { SocketHandle, TransferredHandle } from "../resource/index.ds";
 import { SocketAddress, SocketFamily } from "./address.ds";
 
-/// Native socket type.
-export newtype SocketType = uint32;
+/// Socket type.
+export enum SocketType {
+    /// Stream-oriented socket.
+    Stream = 1,
+    /// Datagram-oriented socket.
+    Datagram = 2,
+    /// Raw protocol socket.
+    Raw = 3,
+    /// Sequenced packet socket.
+    SequencedPacket = 5,
+}
 
-/// Native socket protocol.
+/// Socket protocol number.
 export newtype SocketProtocol = int32;
 
+/// Socket creation flags.
+export newtype SocketFlags = uint32;
+
+/// Create the socket in nonblocking mode.
+export const SOCKET_NONBLOCK: SocketFlags = SocketFlags(0x1);
+
+/// Create the socket as close-on-exec or non-inheritable.
+export const SOCKET_CLOEXEC: SocketFlags = SocketFlags(0x2);
+
+/// Socket open options.
+export struct SocketOpenOptions {
+    /// Address family.
+    family: SocketFamily;
+    /// Socket type.
+    socketType: SocketType;
+    /// Protocol number.
+    protocol: SocketProtocol;
+    /// Creation flags.
+    flags: SocketFlags;
+}
+
+/// Accept flags.
+export newtype AcceptFlags = uint32;
+
+/// Accept the socket in nonblocking mode.
+export const ACCEPT_NONBLOCK: AcceptFlags = AcceptFlags(0x1);
+
+/// Accept the socket as close-on-exec or non-inheritable.
+export const ACCEPT_CLOEXEC: AcceptFlags = AcceptFlags(0x2);
+
 /// Message flags for send and receive operations.
-export newtype SocketMessageFlags = uint32;
+export newtype MessageFlags = uint32;
+
+/// Read without consuming queued data.
+export const MESSAGE_PEEK: MessageFlags = MessageFlags(0x1);
+
+/// Process out-of-band data.
+export const MESSAGE_OUT_OF_BAND: MessageFlags = MessageFlags(0x2);
+
+/// Send without routing table lookup where supported.
+export const MESSAGE_DONT_ROUTE: MessageFlags = MessageFlags(0x4);
+
+/// Wait until the receive buffer is full where supported.
+export const MESSAGE_WAIT_ALL: MessageFlags = MessageFlags(0x8);
 
 /// Shutdown mode for sockets.
 export enum SocketShutdown {
@@ -22,7 +73,23 @@ export enum SocketShutdown {
     ReadWrite = 2,
 }
 
-/// Socket credentials captured from ancillary data.
+/// Pair of connected socket handles.
+export struct SocketPair {
+    /// First socket in the pair.
+    first: SocketHandle;
+    /// Second socket in the pair.
+    second: SocketHandle;
+}
+
+/// Accepted socket result.
+export struct AcceptedSocket {
+    /// Accepted socket handle.
+    socket: SocketHandle;
+    /// Peer address captured during accept.
+    address: SocketAddress;
+}
+
+/// Peer credentials captured from ancillary data.
 export struct SocketCredentials {
     /// Process identifier.
     pid: uint32;
@@ -32,120 +99,145 @@ export struct SocketCredentials {
     gid: uint32;
 }
 
-/// Raw ancillary control buffer payload.
-export newtype SocketControlBuffer = uint8[];
-
-/// Outbound message metadata for sendmsg.
-export struct SocketSendMessage {
-    /// Destination address for explicit routing.
-    address: SocketAddress | void;
+/// Outbound message metadata.
+export struct SendMessage {
+    /// Destination address for unconnected sockets.
+    address?: SocketAddress;
+    /// Ancillary control bytes.
+    control: Slice<uint8>;
     /// Resource handles to pass.
-    fds: Array<TransferredHandle>;
-    /// Raw ancillary control payload.
-    control: SocketControlBuffer;
-    /// Per-send flags passed to sendmsg.
-    flags: SocketMessageFlags;
+    handles: Slice<TransferredHandle>;
     /// Credentials to send when enabled.
-    credentials: SocketCredentials | void;
+    credentials?: SocketCredentials;
+    /// Per-message flags.
+    flags: MessageFlags;
 }
 
-/// Inbound message metadata for recvmsg.
-export struct SocketRecvMessage {
-    /// Number of payload bytes received.
+/// Inbound message options.
+export struct ReceiveMessageOptions {
+    /// Per-message flags.
+    flags: MessageFlags;
+    /// Whether peer credentials should be captured.
+    wantsCredentials: boolean;
+}
+
+/// Inbound message result.
+export struct ReceiveMessageResult {
+    /// Payload bytes received.
     bytes: uint64;
     /// Source address when returned by the host.
-    address: SocketAddress | void;
-    /// Flags returned by recvmsg.
-    recvFlags: SocketMessageFlags;
+    address?: SocketAddress;
+    /// Flags returned by the host.
+    flags: MessageFlags;
+    /// Ancillary control bytes written.
+    controlBytes: uint64;
+    /// Resource handles written.
+    handleCount: uint64;
+    /// Peer credentials when available.
+    credentials?: SocketCredentials;
     /// Whether payload bytes were truncated.
-    payloadTruncated: boolean;
-    /// Whether ancillary data was truncated.
-    controlTruncated: boolean;
-    /// Raw ancillary control payload.
-    control: SocketControlBuffer;
-    /// Resource handles received from the peer.
-    fds: Array<TransferredHandle>;
-    /// Credentials captured from the peer when available.
-    credentials: SocketCredentials | void;
+    isPayloadTruncated: boolean;
+    /// Whether ancillary control bytes were truncated.
+    isControlTruncated: boolean;
 }
 
-/// Outbound payload for sendto-style calls.
-export struct SocketSendTo {
-    /// Destination address.
-    address: SocketAddress;
-    /// Per-send flags passed to sendto.
-    flags: SocketMessageFlags;
-}
-
-/// Inbound payload for recvfrom-style calls.
-export struct SocketRecvFrom {
-    /// Number of payload bytes received.
+/// Inbound datagram result.
+export struct ReceiveFromResult {
+    /// Payload bytes received.
     bytes: uint64;
-    /// Source address.
-    address: SocketAddress;
-    /// Flags returned by recvfrom-style calls.
-    recvFlags: SocketMessageFlags;
+    /// Source address when returned by the host.
+    address?: SocketAddress;
+    /// Flags returned by the host.
+    flags: MessageFlags;
+    /// Whether payload bytes were truncated.
+    isPayloadTruncated: boolean;
 }
 
-/// One sendmmsg entry payload.
-export struct SocketSendBatchEntry {
-    /// Payload bytes for this message.
+/// Receive request for one batch slot.
+export struct ReceiveBatchEntry {
+    /// Payload output buffer.
     payload: Slice<uint8>;
-    /// Message metadata for this payload.
-    message: SocketSendMessage;
+    /// Ancillary control output buffer.
+    control: Slice<uint8>;
+    /// Resource handle output buffer.
+    handles: Slice<TransferredHandle>;
+    /// Per-message options.
+    options: ReceiveMessageOptions;
 }
 
-/// One recvmmsg entry request.
-export struct SocketRecvBatchRequest {
-    /// Payload buffer for this message.
+/// Send request for one batch slot.
+export struct SendBatchEntry {
+    /// Payload input buffer.
     payload: Slice<uint8>;
-    /// Per-message receive flags.
-    recvFlags: SocketMessageFlags;
+    /// Per-message metadata.
+    message: SendMessage;
 }
 
-/// Pair of connected socket handles.
-export struct SocketPair {
-    /// First socket in the pair.
-    first: SocketHandle;
-    /// Second socket in the pair.
-    second: SocketHandle;
-}
-
-/// Create a socket from a native family, type, and protocol.
+/// Create a socket.
 @binding("destack.net.socket.open", {
     effect: "external",
-    requires: ["net.control"],
+    requires: ["net.open"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function socket(
-    family: SocketFamily,
-    socketType: SocketType,
-    protocol: SocketProtocol,
-): Result<SocketHandle, PlatformError>;
+export declare function openSocket(options: SocketOpenOptions): Result<SocketHandle, PlatformError>;
 
 /// Create a connected socket pair.
-@binding("destack.net.socket.openPair", {
+@binding("destack.net.socket.pair", {
     effect: "external",
-    requires: ["net.connect"],
+    requires: ["net.open"],
+    families: ["unix"],
+    simulation: true,
+})
+export declare function openSocketPair(
+    options: SocketOpenOptions,
+): Result<SocketPair, PlatformError>;
+
+/// Bind a socket to a local address.
+@binding("destack.net.socket.bind", {
+    effect: "external",
+    requires: ["net.listen"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function socketPair(
-    family: SocketFamily,
-    socketType: SocketType,
-    protocol: SocketProtocol,
-): Result<SocketPair, PlatformError>;
+export declare function bindSocket(
+    socket: SocketHandle,
+    address: SocketAddress,
+): Result<void, PlatformError>;
 
-/// Connect to a remote socket address.
+/// Mark a bound stream socket as a listener.
+@binding("destack.net.socket.listen", {
+    effect: "external",
+    requires: ["net.listen"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function listenSocket(
+    socket: SocketHandle,
+    backlog: uint32,
+): Result<void, PlatformError>;
+
+/// Accept one connection from a listener socket.
+@binding("destack.net.socket.accept", {
+    effect: "external",
+    requires: ["net.accept"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function acceptSocket(
+    socket: SocketHandle,
+    flags: AcceptFlags,
+): Result<AcceptedSocket, PlatformError>;
+
+/// Connect a socket to a remote address.
 @binding("destack.net.socket.connect", {
     effect: "external",
     requires: ["net.connect"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function connect(
-    handle: SocketHandle,
+export declare function connectSocket(
+    socket: SocketHandle,
     address: SocketAddress,
 ): Result<void, PlatformError>;
 
@@ -156,134 +248,7 @@ export declare function connect(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function close(handle: SocketHandle): Result<void, PlatformError>;
-
-/// Read from a socket into the provided slice.
-@binding("destack.net.socket.read", {
-    effect: "external",
-    requires: ["net.connect"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function read(handle: SocketHandle, buffer: Slice<uint8>): Result<uint64, PlatformError>;
-
-/// Read into multiple buffers.
-@binding("destack.net.socket.readv", {
-    effect: "external",
-    requires: ["net.connect"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function readv(
-    handle: SocketHandle,
-    buffers: Slice<Slice<uint8>>,
-): Result<uint64, PlatformError>;
-
-/// Write to a socket from the provided slice.
-@binding("destack.net.socket.write", {
-    effect: "external",
-    requires: ["net.connect"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function write(
-    handle: SocketHandle,
-    buffer: Slice<uint8>,
-): Result<uint64, PlatformError>;
-
-/// Write from multiple buffers.
-@binding("destack.net.socket.writev", {
-    effect: "external",
-    requires: ["net.connect"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function writev(
-    handle: SocketHandle,
-    buffers: Slice<Slice<uint8>>,
-): Result<uint64, PlatformError>;
-
-/// Receive a message with ancillary data.
-@binding("destack.net.socket.recvMsg", {
-    effect: "external",
-    requires: ["net.control"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function recvMsg(
-    handle: SocketHandle,
-    buffer: Slice<uint8>,
-    recvFlags: SocketMessageFlags,
-    maxFds: uint32,
-    wantCredentials: boolean,
-    maxControlBytes: uint32,
-): Result<SocketRecvMessage, PlatformError>;
-
-/// Send a message with ancillary data.
-@binding("destack.net.socket.sendMsg", {
-    effect: "external",
-    requires: ["net.control"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function sendMsg(
-    handle: SocketHandle,
-    buffer: Slice<uint8>,
-    message: SocketSendMessage,
-): Result<uint64, PlatformError>;
-
-/// Receive a packet from a remote socket address.
-@binding("destack.net.socket.recvFrom", {
-    effect: "external",
-    requires: ["net.udp"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function recvFrom(
-    handle: SocketHandle,
-    buffer: Slice<uint8>,
-    recvFlags: SocketMessageFlags,
-): Result<SocketRecvFrom, PlatformError>;
-
-/// Send a packet to a remote socket address.
-@binding("destack.net.socket.sendTo", {
-    effect: "external",
-    requires: ["net.udp"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function sendTo(
-    handle: SocketHandle,
-    buffer: Slice<uint8>,
-    message: SocketSendTo,
-): Result<uint64, PlatformError>;
-
-/// Send multiple datagrams.
-@binding("destack.net.socket.sendMmsg", {
-    effect: "external",
-    requires: ["net.udp"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function sendMmsg(
-    handle: SocketHandle,
-    messages: Slice<SocketSendBatchEntry>,
-): Result<uint64, PlatformError>;
-
-/// Receive multiple datagrams.
-@binding("destack.net.socket.recvMmsg", {
-    effect: "external",
-    requires: ["net.udp"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function recvMmsg(
-    handle: SocketHandle,
-    requests: Slice<SocketRecvBatchRequest>,
-    maxFds: uint32,
-    wantCredentials: boolean,
-    maxControlBytes: uint32,
-): Result<Array<SocketRecvMessage>, PlatformError>;
+export declare function closeSocket(socket: SocketHandle): Result<void, PlatformError>;
 
 /// Shut down a socket for reads, writes, or both.
 @binding("destack.net.socket.shutdown", {
@@ -292,19 +257,143 @@ export declare function recvMmsg(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function shutdown(
-    handle: SocketHandle,
+export declare function shutdownSocket(
+    socket: SocketHandle,
     how: SocketShutdown,
 ): Result<void, PlatformError>;
 
 /// Enable or disable nonblocking mode on a socket.
-@binding("destack.net.socket.setNonblocking", {
+@binding("destack.net.socket.nonblocking", {
     effect: "external",
-    requires: ["net.control"],
+    requires: ["net.option"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function setNonblocking(
-    handle: SocketHandle,
-    enabled: boolean,
+export declare function setSocketNonblocking(
+    socket: SocketHandle,
+    isEnabled: boolean,
 ): Result<void, PlatformError>;
+
+/// Read the local socket address.
+@binding("destack.net.socket.localAddress", {
+    effect: "external",
+    requires: ["net.status"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function localAddress(socket: SocketHandle): Result<SocketAddress, PlatformError>;
+
+/// Read the remote socket address.
+@binding("destack.net.socket.peerAddress", {
+    effect: "external",
+    requires: ["net.status"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function peerAddress(socket: SocketHandle): Result<SocketAddress, PlatformError>;
+
+/// Receive bytes from a socket.
+@binding("destack.net.socket.receive", {
+    effect: "external",
+    requires: ["net.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function receive(
+    socket: SocketHandle,
+    buffer: Slice<uint8>,
+    flags: MessageFlags,
+): Result<uint64, PlatformError>;
+
+/// Send bytes to a socket.
+@binding("destack.net.socket.send", {
+    effect: "external",
+    requires: ["net.write"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function send(
+    socket: SocketHandle,
+    buffer: Slice<uint8>,
+    flags: MessageFlags,
+): Result<uint64, PlatformError>;
+
+/// Receive bytes and source address from a socket.
+@binding("destack.net.socket.receiveFrom", {
+    effect: "external",
+    requires: ["net.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function receiveFrom(
+    socket: SocketHandle,
+    buffer: Slice<uint8>,
+    flags: MessageFlags,
+): Result<ReceiveFromResult, PlatformError>;
+
+/// Send bytes to a destination address.
+@binding("destack.net.socket.sendTo", {
+    effect: "external",
+    requires: ["net.write"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function sendTo(
+    socket: SocketHandle,
+    buffer: Slice<uint8>,
+    address: SocketAddress,
+    flags: MessageFlags,
+): Result<uint64, PlatformError>;
+
+/// Receive one message with ancillary data.
+@binding("destack.net.socket.receiveMessage", {
+    effect: "external",
+    requires: ["net.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function receiveMessage(
+    socket: SocketHandle,
+    payload: Slice<uint8>,
+    control: Slice<uint8>,
+    handles: Slice<TransferredHandle>,
+    options: ReceiveMessageOptions,
+): Result<ReceiveMessageResult, PlatformError>;
+
+/// Send one message with ancillary data.
+@binding("destack.net.socket.sendMessage", {
+    effect: "external",
+    requires: ["net.write"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function sendMessage(
+    socket: SocketHandle,
+    payload: Slice<uint8>,
+    message: SendMessage,
+): Result<uint64, PlatformError>;
+
+/// Receive multiple messages into caller-owned buffers.
+@binding("destack.net.socket.receiveBatch", {
+    effect: "external",
+    requires: ["net.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function receiveBatch(
+    socket: SocketHandle,
+    requests: Slice<ReceiveBatchEntry>,
+    results: Slice<ReceiveMessageResult>,
+): Result<uint64, PlatformError>;
+
+/// Send multiple messages from caller-owned buffers.
+@binding("destack.net.socket.sendBatch", {
+    effect: "external",
+    requires: ["net.write"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function sendBatch(
+    socket: SocketHandle,
+    messages: Slice<SendBatchEntry>,
+): Result<uint64, PlatformError>;

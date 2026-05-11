@@ -39,12 +39,12 @@ pub enum PolicyWorld {
 
 /// Package selector used by static policy rules.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub struct RuntimePackageSelector {
+pub struct PackageSelector {
     /// Package name glob patterns.
     pub patterns: Vec<String>,
 }
 
-impl RuntimePackageSelector {
+impl PackageSelector {
     /// Return whether this selector has no clauses.
     pub fn is_empty(&self) -> bool {
         self.patterns.is_empty()
@@ -55,7 +55,7 @@ impl RuntimePackageSelector {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct PolicySubject {
     /// Package selector.
-    pub package: Option<RuntimePackageSelector>,
+    pub package: Option<PackageSelector>,
     /// Runtime identity selector.
     pub runtime: Option<RuntimeIdentitySelector>,
     /// Worker identity selector.
@@ -102,7 +102,7 @@ pub struct PolicyRule {
 pub struct PolicyOptions {
     /// Package-declared policy requirements.
     pub requires: Vec<PolicyRequirement>,
-    /// Ordered policy rules.
+    /// Ordered authorization rules.
     pub rules: Vec<PolicyRule>,
 }
 
@@ -152,34 +152,34 @@ impl PolicyOptions {
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(untagged)]
-pub enum RuntimePackageSelectorJson {
+pub enum PackageSelectorJson {
     /// Package name shorthand.
     Pattern(String),
     /// Package name shorthand list.
     Patterns(Vec<String>),
     /// Structured package selector.
-    Selector(RuntimePackageSelectorJsonObject),
+    Selector(PackageSelectorJsonObject),
 }
 
 /// Structured package selector accepted by static policy JSON.
 #[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, Eq)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct RuntimePackageSelectorJsonObject {
+pub struct PackageSelectorJsonObject {
     /// Package name glob patterns.
     pub patterns: Vec<String>,
 }
 
-impl From<&RuntimePackageSelectorJson> for RuntimePackageSelector {
-    fn from(value: &RuntimePackageSelectorJson) -> Self {
+impl From<&PackageSelectorJson> for PackageSelector {
+    fn from(value: &PackageSelectorJson) -> Self {
         match value {
-            RuntimePackageSelectorJson::Pattern(pattern) => Self {
+            PackageSelectorJson::Pattern(pattern) => Self {
                 patterns: vec![pattern.clone()],
             },
-            RuntimePackageSelectorJson::Patterns(patterns) => Self {
+            PackageSelectorJson::Patterns(patterns) => Self {
                 patterns: patterns.clone(),
             },
-            RuntimePackageSelectorJson::Selector(selector) => Self {
+            PackageSelectorJson::Selector(selector) => Self {
                 patterns: selector.patterns.clone(),
             },
         }
@@ -192,7 +192,7 @@ impl From<&RuntimePackageSelectorJson> for RuntimePackageSelector {
 #[serde(rename_all = "camelCase")]
 pub struct PolicySubjectJson {
     /// Package selector.
-    pub package: Option<RuntimePackageSelectorJson>,
+    pub package: Option<PackageSelectorJson>,
     /// Runtime identity selector.
     pub runtime: Option<RuntimeIdentitySelectorJson>,
     /// Worker identity selector.
@@ -209,7 +209,7 @@ impl PolicySubjectJson {
 impl From<&PolicySubjectJson> for PolicySubject {
     fn from(value: &PolicySubjectJson) -> Self {
         Self {
-            package: value.package.as_ref().map(RuntimePackageSelector::from),
+            package: value.package.as_ref().map(PackageSelector::from),
             runtime: value.runtime.as_ref().map(RuntimeIdentitySelector::from),
             worker: value.worker.as_ref().map(RuntimeIdentitySelector::from),
         }
@@ -285,7 +285,7 @@ impl From<&PolicyRuleJson> for PolicyRule {
 pub struct PolicyOptionsJson {
     /// Package-declared policy requirements.
     pub requires: Option<Vec<PolicyRequirementJson>>,
-    /// Ordered policy rules.
+    /// Ordered authorization rules.
     pub rules: Option<Vec<PolicyRuleJson>>,
 }
 
@@ -353,7 +353,7 @@ fn validate_policy_text(
     }
 }
 
-fn package_selector_is_empty(selector: &Option<RuntimePackageSelector>) -> bool {
+fn package_selector_is_empty(selector: &Option<PackageSelector>) -> bool {
     match selector {
         Some(selector) => selector.is_empty(),
         None => true,

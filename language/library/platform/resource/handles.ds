@@ -9,6 +9,9 @@ export newtype DirectoryHandle = ResourceId;
 /// Handle for a network socket.
 export newtype SocketHandle = ResourceId;
 
+/// Handle for a packet capture or injection endpoint.
+export newtype PacketHandle = ResourceId;
+
 /// Handle for a network listener.
 export newtype ListenerHandle = ResourceId;
 
