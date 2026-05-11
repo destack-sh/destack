@@ -1,5 +1,4 @@
 use crate::build::{FunctionBuilder, ModuleBuilder};
-use crate::validate::Validator;
 use crate::{
     Function, Global, GlobalInitializer, LocalNodeId, Mutability, Parameter, Type, Value,
     finalize_function_names,
@@ -69,13 +68,12 @@ impl ModuleBuilder {
             name_id,
             parameter_types,
             return_type,
-            self.verify,
         )
     }
 
     /// Start building a body for an existing declared function.
     pub fn function_body(&mut self, function_id: LocalNodeId<Function>) -> FunctionBuilder<'_> {
-        FunctionBuilder::from_declared(&mut self.tree, &mut self.strings, function_id, self.verify)
+        FunctionBuilder::from_declared(&mut self.tree, &mut self.strings, function_id)
     }
 
     /// Declare a local function without a body.
@@ -100,11 +98,6 @@ impl ModuleBuilder {
         self.tree
             .infer_and_set_function_return_lifetime(function_id);
         finalize_function_names(&mut self.tree, &mut self.strings, function_id);
-
-        let validator = Validator::new(&self.tree);
-        if let Err(error) = validator.validate_function(function_id) {
-            panic!("mir validation failed: {error}");
-        }
 
         function_id
     }
@@ -131,11 +124,6 @@ impl ModuleBuilder {
         self.tree
             .infer_and_set_function_return_lifetime(function_id);
         finalize_function_names(&mut self.tree, &mut self.strings, function_id);
-
-        let validator = Validator::new(&self.tree);
-        if let Err(error) = validator.validate_function(function_id) {
-            panic!("mir validation failed: {error}");
-        }
 
         function_id
     }

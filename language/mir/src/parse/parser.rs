@@ -6,7 +6,6 @@ use destack_source::{
     NodeSpanList, NodeSpanType, Span,
 };
 
-use crate::validate::Validator;
 use crate::{
     Block, Field, Function, Global, LocalNodeId, Node, Tree, Type, Value, finalize_function_names,
 };
@@ -34,7 +33,7 @@ impl ParsedMir {
     }
 
     /// Return the parsed MIR when no parse errors were emitted.
-    pub fn validate(self) -> ParseResult<(Tree, StringPool)> {
+    pub fn finish(self) -> ParseResult<(Tree, StringPool)> {
         let Self {
             tree,
             strings,
@@ -49,17 +48,6 @@ impl ParsedMir {
                 .expect("error diagnostics must contain at least one entry");
             return Err(ParseError::from_diagnostic(diagnostic));
         }
-
-        // validate the finished tree
-        let validator = Validator::new(&tree);
-        validator.validate().map_err(|error| {
-            let position = error
-                .anchor()
-                .and_then(|anchor| tree.get_span_by_id(anchor.node.id))
-                .map(|span| span.start as usize)
-                .unwrap_or(0);
-            ParseError::new(error.to_string(), position)
-        })?;
 
         Ok((tree, strings))
     }

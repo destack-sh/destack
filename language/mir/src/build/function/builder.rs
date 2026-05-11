@@ -41,8 +41,6 @@ pub struct FunctionBuilder<'a> {
     pub(super) strings: &'a mut StringPool,
     /// The id of the function being built.
     pub(super) function_id: LocalNodeId<Function>,
-    /// Whether to verify this function when finishing.
-    pub(super) verify: bool,
     /// Current block we're inserting into.
     pub(super) current_block: Option<LocalNodeId<Block>>,
 
@@ -77,7 +75,6 @@ impl<'a> FunctionBuilder<'a> {
         name: StringId,
         parameter_types: &[LocalNodeId<Type>],
         return_type: LocalNodeId<Type>,
-        verify: bool,
     ) -> Self {
         // create parameter values
         let mut next_value_id = 0u32;
@@ -125,7 +122,6 @@ impl<'a> FunctionBuilder<'a> {
             tree,
             strings,
             function_id,
-            verify,
             current_block: None,
             next_value_id,
             next_variable_id: 0,
@@ -144,7 +140,6 @@ impl<'a> FunctionBuilder<'a> {
         tree: &'a mut Tree,
         strings: &'a mut StringPool,
         function_id: LocalNodeId<Function>,
-        verify: bool,
     ) -> Self {
         // validate the declared function is still empty
         let next_value_id = {
@@ -161,7 +156,6 @@ impl<'a> FunctionBuilder<'a> {
             tree,
             strings,
             function_id,
-            verify,
             current_block: None,
             next_value_id,
             next_variable_id: 0,
@@ -402,23 +396,8 @@ impl<'a> FunctionBuilder<'a> {
         function.blocks = self.blocks;
         function.next_value_id = self.next_value_id;
 
-        // finalize generated names before formatting or validation
+        // finalize generated names before formatting
         finalize_function_names(self.tree, self.strings, self.function_id);
-
-        // keep the verify flag alive in release builds
-        #[cfg(not(any(test, debug_assertions)))]
-        let _ = self.verify;
-
-        // always validate in debug and test builds
-        #[cfg(any(test, debug_assertions))]
-        {
-            if self.verify {
-                let validator = crate::validate::Validator::new(self.tree);
-                if let Err(error) = validator.validate_function(self.function_id) {
-                    panic!("mir validation failed: {error}");
-                }
-            }
-        }
 
         self.function_id
     }
