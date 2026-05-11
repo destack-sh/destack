@@ -1,37 +1,60 @@
 import { Array } from "core";
 import type { PlatformError } from "../error/index.ds";
-import { SocketAddress } from "./address.ds";
+import { IpAddress } from "./address.ds";
 
 /// Network interface flags.
-export newtype NetInterfaceFlags = uint64;
+export newtype InterfaceFlags = uint64;
+
+/// Interface is administratively up.
+export const INTERFACE_UP: InterfaceFlags = InterfaceFlags(0x1);
+
+/// Interface is a loopback interface.
+export const INTERFACE_LOOPBACK: InterfaceFlags = InterfaceFlags(0x2);
+
+/// Interface supports broadcast.
+export const INTERFACE_BROADCAST: InterfaceFlags = InterfaceFlags(0x4);
+
+/// Interface supports multicast.
+export const INTERFACE_MULTICAST: InterfaceFlags = InterfaceFlags(0x8);
+
+/// Interface is point-to-point.
+export const INTERFACE_POINT_TO_POINT: InterfaceFlags = InterfaceFlags(0x10);
+
+/// Network interface address.
+export struct InterfaceAddress {
+    /// Interface address.
+    address: IpAddress;
+    /// Prefix length in bits.
+    prefixLength: uint8;
+}
 
 /// Network interface descriptor.
-export struct NetInterface {
+export struct NetworkInterface {
     /// Interface name.
     name: string;
     /// Interface index.
     index: uint32;
     /// Interface flags.
-    flags: NetInterfaceFlags;
-    /// Interface mtu in bytes.
+    flags: InterfaceFlags;
+    /// Interface MTU in bytes.
     mtu: uint32;
-    /// Interface hardware address.
-    macAddress: uint8[];
+    /// Link-layer hardware address.
+    hardwareAddress: uint8[];
     /// Interface addresses.
-    addresses: Array<SocketAddress>;
+    addresses: Array<InterfaceAddress>;
 }
 
-/// List network interfaces with addresses and flags.
-@binding("destack.net.interface.listInterfaces", {
+/// List network interfaces.
+@binding("destack.net.interface.list", {
     effect: "external",
     requires: ["net.interface"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function listInterfaces(): Result<Array<NetInterface>, PlatformError>;
+export declare function listInterfaces(): Result<Array<NetworkInterface>, PlatformError>;
 
 /// Resolve an interface name to an index.
-@binding("destack.net.interface.interfaceIndex", {
+@binding("destack.net.interface.index", {
     effect: "external",
     requires: ["net.interface"],
     families: ["windows", "unix"],
@@ -40,7 +63,7 @@ export declare function listInterfaces(): Result<Array<NetInterface>, PlatformEr
 export declare function interfaceIndex(name: string): Result<uint32, PlatformError>;
 
 /// Resolve an interface index to a name.
-@binding("destack.net.interface.interfaceName", {
+@binding("destack.net.interface.name", {
     effect: "external",
     requires: ["net.interface"],
     families: ["windows", "unix"],

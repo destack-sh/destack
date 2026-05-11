@@ -1,16 +1,53 @@
-import { Slice } from "core";
+import { Array, Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
+import { PacketHandle, SocketHandle } from "../resource/index.ds";
 import { SocketFamily } from "./address.ds";
-import { SocketHandle } from "../resource/index.ds";
 
-/// Packet timestamp mode.
-export enum PacketTimestampMode {
-    /// Disable packet timestamps.
-    Disabled = 0,
-    /// Enable software timestamps.
-    Software = 1,
-    /// Enable hardware timestamps when available.
-    Hardware = 2,
+/// Packet backend selector.
+export enum PacketBackend {
+    /// Select the best backend for the current host.
+    Auto = 0,
+    /// Linux AF_PACKET backend.
+    AfPacket = 1,
+    /// BSD BPF device backend.
+    Bpf = 2,
+    /// Windows raw socket backend.
+    WindowsRawSocket = 3,
+}
+
+/// Packet backend features.
+export newtype PacketBackendFeatures = uint64;
+
+/// Backend supports packet capture.
+export const PACKET_CAPTURE: PacketBackendFeatures = PacketBackendFeatures(0x1);
+
+/// Backend supports packet injection.
+export const PACKET_SEND: PacketBackendFeatures = PacketBackendFeatures(0x2);
+
+/// Backend supports packet timestamps.
+export const PACKET_TIMESTAMP: PacketBackendFeatures = PacketBackendFeatures(0x4);
+
+/// Backend supports packet filters.
+export const PACKET_FILTER: PacketBackendFeatures = PacketBackendFeatures(0x8);
+
+/// Backend supports fanout groups.
+export const PACKET_FANOUT: PacketBackendFeatures = PacketBackendFeatures(0x10);
+
+/// Backend supports packet rings.
+export const PACKET_RING: PacketBackendFeatures = PacketBackendFeatures(0x20);
+
+/// Packet backend status.
+export struct PacketBackendStatus {
+    /// Backend selector.
+    backend: PacketBackend;
+    /// Stable backend name.
+    name: string;
+    /// Whether this backend is available.
+    isAvailable: boolean;
+    /// Priority in auto-selection order.
+    priority: uint16;
+    /// Backend features.
+    features: PacketBackendFeatures;
 }
 
 /// Packet timestamp clock domain.
@@ -22,108 +59,48 @@ export enum PacketTimestampClock {
     /// Timestamp is in the host monotonic clock domain.
     Monotonic = 2,
     /// Timestamp is in one backend-specific hardware clock domain.
-    HardwareRaw = 3,
+    Hardware = 3,
 }
 
-/// Packet backend selector.
-export enum PacketBackend {
-    /// Select the best backend for the current host.
-    Auto = 0,
-    /// Linux AF_PACKET backend.
-    AfPacket = 1,
-    /// BSD BPF device backend.
-    Bpf = 2,
-    /// Windows raw-socket backend.
-    WinRawSocket = 3,
-    /// Null backend for tests and simulation.
-    Null = 255,
-}
-
-/// Packet backend selection policy.
-export enum PacketBackendSelectionPolicy {
-    /// Require that the requested backend is used with no fallback.
-    Strict = 1,
-    /// Allow fallback to one host-default backend when unavailable.
-    AllowFallback = 2,
-}
-
-/// Packet backend action flags.
-export newtype PacketBackendCapabilityFlags = uint64;
-
-/// Packet backend descriptor.
-export struct PacketBackendDescriptor {
-    /// Backend selector.
+/// Packet endpoint options.
+export struct PacketOpenOptions {
+    /// Preferred packet backend.
     backend: PacketBackend;
-    /// Stable backend name.
-    name: string;
-    /// Whether this backend is currently available on this host.
-    available: boolean;
-    /// Priority in default auto-selection order.
-    priority: uint16;
-    /// Backend action flags.
-    capabilityFlags: PacketBackendCapabilityFlags;
-}
-
-/// Backend action flag bit for packet capture operations.
-export const PACKET_BACKEND_CAP_CAPTURE: PacketBackendCapabilityFlags =
-    PacketBackendCapabilityFlags(0x1);
-/// Backend action flag bit for packet send operations.
-export const PACKET_BACKEND_CAP_SEND: PacketBackendCapabilityFlags =
-    PacketBackendCapabilityFlags(0x2);
-/// Backend action flag bit for timestamp configuration.
-export const PACKET_BACKEND_CAP_TIMESTAMP: PacketBackendCapabilityFlags =
-    PacketBackendCapabilityFlags(0x4);
-/// Backend action flag bit for packet filter programs.
-export const PACKET_BACKEND_CAP_FILTER: PacketBackendCapabilityFlags =
-    PacketBackendCapabilityFlags(0x8);
-/// Backend action flag bit for packet fanout operations.
-export const PACKET_BACKEND_CAP_FANOUT: PacketBackendCapabilityFlags =
-    PacketBackendCapabilityFlags(0x10);
-/// Backend action flag bit for packet ring operations.
-export const PACKET_BACKEND_CAP_RING: PacketBackendCapabilityFlags =
-    PacketBackendCapabilityFlags(0x20);
-
-/// Packet capture options.
-export struct PacketCaptureOptions {
-    /// Preferred packet backend selector.
-    backend: PacketBackend;
-    /// Packet backend selection policy.
-    backendPolicy: PacketBackendSelectionPolicy;
-    /// Interface index for capture.
+    /// Interface index for capture or injection.
     interfaceIndex: uint32;
     /// Maximum frame bytes per packet.
     snapLength: uint32;
     /// Capture timeout in milliseconds.
-    timeoutMs: int32;
+    timeoutMilliseconds?: uint32;
     /// Whether promiscuous mode is requested.
-    promiscuous: boolean;
+    isPromiscuous: boolean;
 }
 
 /// Captured packet metadata.
-export struct PacketCaptureRecord {
-    /// Number of packet bytes written to the target buffer.
+export struct PacketRecord {
+    /// Packet bytes written to the payload buffer.
     bytes: uint64;
     /// Interface index that produced the packet.
     interfaceIndex: uint32;
     /// Packet timestamp clock domain.
     timestampClock: PacketTimestampClock;
     /// Capture timestamp in nanoseconds for `timestampClock`.
-    timestampNs: uint64;
+    timestampNanoseconds: uint64;
     /// Whether packet bytes were truncated.
-    truncated: boolean;
+    isTruncated: boolean;
 }
 
-/// Packet capture backend statistics.
-export struct PacketCaptureStats {
-    /// Number of packets received by the backend.
+/// Packet capture statistics.
+export struct PacketStats {
+    /// Packets received by the backend.
     receivedPackets: uint64;
-    /// Number of packets dropped by the backend.
+    /// Packets dropped by the backend.
     droppedPackets: uint64;
-    /// Number of packets dropped by the interface.
+    /// Packets dropped by the interface.
     interfaceDroppedPackets: uint64;
 }
 
-/// Packet fanout mode for shared packet sockets.
+/// Packet fanout mode.
 export enum PacketFanoutMode {
     /// Hash packets across sockets.
     Hash = 0,
@@ -131,7 +108,7 @@ export enum PacketFanoutMode {
     LoadBalance = 1,
     /// Forward packets to the same CPU socket.
     Cpu = 2,
-    /// Use round robin packet distribution.
+    /// Use round-robin packet distribution.
     RoundRobin = 3,
     /// Use rollover failover packet distribution.
     Rollover = 4,
@@ -139,17 +116,17 @@ export enum PacketFanoutMode {
     QueueMap = 5,
 }
 
-/// Packet fanout options for packet sockets.
+/// Packet fanout options.
 export struct PacketFanoutOptions {
     /// Fanout group identifier.
     groupId: uint16;
-    /// Fanout algorithm mode.
+    /// Fanout mode.
     mode: PacketFanoutMode;
-    /// Mode-specific fanout flags.
+    /// Mode-specific flags.
     flags: uint16;
 }
 
-/// Packet ring options for rx and tx packet queues.
+/// Packet ring options.
 export struct PacketRingOptions {
     /// Ring block size in bytes.
     blockSize: uint32;
@@ -160,17 +137,17 @@ export struct PacketRingOptions {
     /// Number of frames in the ring.
     frameCount: uint32;
     /// Block retire timeout in milliseconds.
-    retireTimeoutMs: uint32;
+    retireTimeoutMilliseconds: uint32;
 }
 
 /// List host packet backends.
-@binding("destack.net.raw.packetBackendList", {
+@binding("destack.net.raw.packetBackends", {
     effect: "external",
     requires: ["net.raw"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function packetBackendList(): Result<Slice<PacketBackendDescriptor>, PlatformError>;
+export declare function listPacketBackends(): Result<Array<PacketBackendStatus>, PlatformError>;
 
 /// Open a raw IP socket.
 @binding("destack.net.raw.socket", {
@@ -179,31 +156,33 @@ export declare function packetBackendList(): Result<Slice<PacketBackendDescripto
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function rawSocket(
+export declare function openRawSocket(
     family: SocketFamily,
     protocol: int32,
 ): Result<SocketHandle, PlatformError>;
 
 /// Enable or disable IP header inclusion on a raw socket.
-@binding("destack.net.raw.setHeaderIncluded", {
+@binding("destack.net.raw.headerIncluded", {
     effect: "external",
     requires: ["net.raw"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function rawSetHeaderIncluded(
-    handle: SocketHandle,
-    enabled: boolean,
+export declare function setHeaderIncluded(
+    socket: SocketHandle,
+    isEnabled: boolean,
 ): Result<void, PlatformError>;
 
-/// Open a packet capture or inject endpoint.
+/// Open a packet capture or injection endpoint.
 @binding("destack.net.raw.packetOpen", {
     effect: "external",
     requires: ["net.raw"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function packetOpen(options: PacketCaptureOptions): Result<SocketHandle, PlatformError>;
+export declare function openPacketEndpoint(
+    options: PacketOpenOptions,
+): Result<PacketHandle, PlatformError>;
 
 /// Receive one packet from a packet endpoint.
 @binding("destack.net.raw.packetReceive", {
@@ -212,10 +191,10 @@ export declare function packetOpen(options: PacketCaptureOptions): Result<Socket
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function packetReceive(
-    handle: SocketHandle,
+export declare function receivePacket(
+    packet: PacketHandle,
     payload: Slice<uint8>,
-): Result<PacketCaptureRecord, PlatformError>;
+): Result<PacketRecord, PlatformError>;
 
 /// Send one packet through a packet endpoint.
 @binding("destack.net.raw.packetSend", {
@@ -224,33 +203,21 @@ export declare function packetReceive(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function packetSend(
-    handle: SocketHandle,
+export declare function sendPacket(
+    packet: PacketHandle,
     payload: Slice<uint8>,
 ): Result<uint64, PlatformError>;
 
-/// Configure packet timestamp mode for a socket or packet endpoint.
-@binding("destack.net.raw.packetSetTimestampMode", {
+/// Attach one packet filter program to an endpoint.
+@binding("destack.net.raw.packetFilter", {
     effect: "external",
     requires: ["net.raw"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function packetSetTimestampMode(
-    handle: SocketHandle,
-    mode: PacketTimestampMode,
-): Result<void, PlatformError>;
-
-/// Attach one packet filter program to a raw endpoint.
-@binding("destack.net.raw.packetSetFilter", {
-    effect: "external",
-    requires: ["net.raw"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function packetSetFilter(
-    handle: SocketHandle,
-    filterProgram: Slice<uint8>,
+export declare function setPacketFilter(
+    packet: PacketHandle,
+    program: Slice<uint8>,
 ): Result<void, PlatformError>;
 
 /// Clear the active packet filter program.
@@ -260,67 +227,67 @@ export declare function packetSetFilter(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function packetClearFilter(handle: SocketHandle): Result<void, PlatformError>;
+export declare function clearPacketFilter(packet: PacketHandle): Result<void, PlatformError>;
 
-/// Set packet fanout on a packet endpoint.
-@binding("destack.net.raw.packetSetFanout", {
+/// Set packet fanout on an endpoint.
+@binding("destack.net.raw.packetFanout", {
     effect: "external",
     requires: ["net.raw"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function packetSetFanout(
-    handle: SocketHandle,
+export declare function setPacketFanout(
+    packet: PacketHandle,
     options: PacketFanoutOptions,
 ): Result<void, PlatformError>;
 
-/// Clear packet fanout from a packet endpoint.
+/// Clear packet fanout from an endpoint.
 @binding("destack.net.raw.packetClearFanout", {
     effect: "external",
     requires: ["net.raw"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function packetClearFanout(handle: SocketHandle): Result<void, PlatformError>;
+export declare function clearPacketFanout(packet: PacketHandle): Result<void, PlatformError>;
 
-/// Configure one packet rx ring for zero-copy capture.
-@binding("destack.net.raw.packetSetRxRing", {
+/// Configure one packet receive ring.
+@binding("destack.net.raw.packetReceiveRing", {
     effect: "external",
     requires: ["net.raw"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function packetSetRxRing(
-    handle: SocketHandle,
+export declare function setPacketReceiveRing(
+    packet: PacketHandle,
     options: PacketRingOptions,
 ): Result<void, PlatformError>;
 
-/// Configure one packet tx ring for zero-copy transmit.
-@binding("destack.net.raw.packetSetTxRing", {
+/// Configure one packet transmit ring.
+@binding("destack.net.raw.packetSendRing", {
     effect: "external",
     requires: ["net.raw"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function packetSetTxRing(
-    handle: SocketHandle,
+export declare function setPacketSendRing(
+    packet: PacketHandle,
     options: PacketRingOptions,
 ): Result<void, PlatformError>;
 
-/// Clear packet rx and tx ring configuration.
+/// Clear packet ring configuration.
 @binding("destack.net.raw.packetClearRing", {
     effect: "external",
     requires: ["net.raw"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function packetClearRing(handle: SocketHandle): Result<void, PlatformError>;
+export declare function clearPacketRing(packet: PacketHandle): Result<void, PlatformError>;
 
-/// Read packet capture statistics from one endpoint.
+/// Read packet endpoint statistics.
 @binding("destack.net.raw.packetStats", {
     effect: "external",
     requires: ["net.raw"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function packetStats(handle: SocketHandle): Result<PacketCaptureStats, PlatformError>;
+export declare function packetStats(packet: PacketHandle): Result<PacketStats, PlatformError>;

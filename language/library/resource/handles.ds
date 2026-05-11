@@ -2,6 +2,7 @@ export type {
     DirectoryHandle,
     FileHandle,
     ListenerHandle,
+    PacketHandle,
     ProcessHandle,
     SocketHandle,
     TimerHandle,

@@ -1,44 +1,104 @@
-import { Slice } from "core";
-import * as platform from "library/platform/index.ds";
+import { AsyncResult, Slice } from "core";
 import type { PlatformError } from "../platform/error/index.ds";
-import { ListenerHandle, SocketHandle } from "../resource/index.ds";
+import { SocketHandle } from "../platform/resource/index.ds";
+import {
+    LookupAddress,
+    LookupQuery,
+    MessageFlags,
+    ReceiveFromResult,
+    SocketAddress,
+    SocketFamily,
+} from "../platform/net/index.ds";
 
-/// Connect to a remote host and return a socket handle.
-export function connect(host: string, port: uint16): Result<SocketHandle, PlatformError> {
-    platform.net.connect(host, port);
+/// Owned stream socket.
+export struct Connection {
+    /// Host socket handle.
+    handle: SocketHandle;
 }
 
-/// Start listening on the given address.
-export function listen(
-    host: string,
-    port: uint16,
-    backlog: uint32,
-): Result<ListenerHandle, PlatformError> {
-    platform.net.listen(host, port, backlog);
+/// Owned stream listener.
+export struct Listener {
+    /// Host listener socket handle.
+    handle: SocketHandle;
 }
 
-/// Accept a new connection from a listener.
-export function accept(listener: ListenerHandle): Result<SocketHandle, PlatformError> {
-    platform.net.accept(listener);
+/// Owned datagram socket.
+export struct DatagramSocket {
+    /// Host socket handle.
+    handle: SocketHandle;
 }
 
-/// Close a socket handle.
-export function close(handle: SocketHandle): Result<void, PlatformError> {
-    platform.net.close(handle);
+/// Stream listen options.
+export struct ListenOptions {
+    /// Local address.
+    address: SocketAddress;
+    /// Pending connection backlog.
+    backlog: uint32;
 }
 
-/// Read from a socket into the provided slice.
-export function read(
-    handle: SocketHandle,
+/// Stream connect options.
+export struct ConnectOptions {
+    /// Remote address.
+    address: SocketAddress;
+}
+
+/// Datagram socket options.
+export struct DatagramOptions {
+    /// Socket address family.
+    family: SocketFamily;
+    /// Local address to bind when present.
+    address: SocketAddress | void;
+}
+
+/// Open one stream connection.
+export declare function connect(options: ConnectOptions): AsyncResult<Connection, PlatformError>;
+
+/// Listen for stream connections.
+export declare function listen(options: ListenOptions): AsyncResult<Listener, PlatformError>;
+
+/// Open one datagram socket.
+export declare function openDatagram(
+    options: DatagramOptions,
+): AsyncResult<DatagramSocket, PlatformError>;
+
+/// Accept one stream connection.
+export declare function accept(listener: &Listener): AsyncResult<Connection, PlatformError>;
+
+/// Close one stream connection.
+export declare function close(connection: ^Connection): AsyncResult<void, PlatformError>;
+
+/// Close one stream listener.
+export declare function closeListener(listener: ^Listener): AsyncResult<void, PlatformError>;
+
+/// Close one datagram socket.
+export declare function closeDatagram(socket: ^DatagramSocket): AsyncResult<void, PlatformError>;
+
+/// Read from one stream connection.
+export declare function read(
+    connection: &Connection,
     buffer: Slice<uint8>,
-): Result<uint64, PlatformError> {
-    platform.net.read(handle, buffer);
-}
+): AsyncResult<uint64, PlatformError>;
 
-/// Write to a socket from the provided slice.
-export function write(
-    handle: SocketHandle,
+/// Write to one stream connection.
+export declare function write(
+    connection: &Connection,
     buffer: Slice<uint8>,
-): Result<uint64, PlatformError> {
-    platform.net.write(handle, buffer);
-}
+): AsyncResult<uint64, PlatformError>;
+
+/// Receive one datagram from a socket.
+export declare function receiveFrom(
+    socket: &DatagramSocket,
+    buffer: Slice<uint8>,
+    flags: MessageFlags,
+): AsyncResult<ReceiveFromResult, PlatformError>;
+
+/// Send one datagram to a remote endpoint.
+export declare function sendTo(
+    socket: &DatagramSocket,
+    address: SocketAddress,
+    buffer: Slice<uint8>,
+    flags: MessageFlags,
+): AsyncResult<uint64, PlatformError>;
+
+/// Resolve a host and service.
+export declare function lookup(query: LookupQuery): AsyncResult<LookupAddress[], PlatformError>;

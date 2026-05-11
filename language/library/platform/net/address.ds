@@ -1,40 +1,58 @@
-import type { PlatformError } from "../error/index.ds";
-import { SocketHandle } from "../resource/index.ds";
-
 /// Socket address family.
 export enum SocketFamily {
-    /// Unspecified address family.
+    /// No address family preference.
     Unspecified = 0,
-    /// IPv4 address.
+    /// IPv4 address family.
     IPv4 = 4,
-    /// IPv6 address.
+    /// IPv6 address family.
     IPv6 = 6,
+    /// Unix domain socket address family.
+    Unix = 1,
 }
 
-/// Raw socket address payload.
-export struct SocketAddress {
-    /// Native address family.
+/// IPv4 address bytes.
+export struct Ipv4Address {
+    /// Address octets in network order.
+    octets: [uint8; 4];
+}
+
+/// IPv6 address bytes.
+export struct Ipv6Address {
+    /// Address octets in network order.
+    octets: [uint8; 16];
+    /// Scope identifier for scoped addresses.
+    scopeId: uint32;
+}
+
+/// IP address payload.
+export newtype IpAddress =
+    | { kind: "ipv4"; address: Ipv4Address }
+    | { kind: "ipv6"; address: Ipv6Address };
+
+/// IP socket endpoint.
+export struct IpEndpoint {
+    /// Endpoint address.
+    address: IpAddress;
+    /// Endpoint port in host byte order.
+    port: uint16;
+}
+
+/// Unix domain socket address payload.
+export newtype UnixAddress =
+    | { kind: "path"; path: string }
+    | { kind: "abstract"; name: uint8[] }
+    | { kind: "unnamed" };
+
+/// Raw socket address payload for host-specific address families.
+export struct RawSocketAddress {
+    /// Socket address family.
     family: uint16;
-    /// Length of the valid sockaddr payload in bytes.
-    length: uint32;
     /// Raw sockaddr bytes.
     bytes: uint8[];
 }
 
-/// Read the local socket address as raw bytes.
-@binding("destack.net.address.localAddress", {
-    effect: "external",
-    requires: ["net.control"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function localAddress(handle: SocketHandle): Result<SocketAddress, PlatformError>;
-
-/// Read the remote socket address as raw bytes.
-@binding("destack.net.address.peerAddress", {
-    effect: "external",
-    requires: ["net.control"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function peerAddress(handle: SocketHandle): Result<SocketAddress, PlatformError>;
+/// Socket address payload.
+export newtype SocketAddress =
+    | { kind: "ip"; endpoint: IpEndpoint }
+    | { kind: "unix"; address: UnixAddress }
+    | { kind: "raw"; address: RawSocketAddress };
