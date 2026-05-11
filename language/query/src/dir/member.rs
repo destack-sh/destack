@@ -542,19 +542,21 @@ fn primitive_members(
     let well_known = match value {
         TypeLiteral::Primitive(primitive) => match primitive {
             PrimitiveType::String => Some(WellKnownSymbol::String),
-            PrimitiveType::Integer(_) | PrimitiveType::Float(_) => Some(WellKnownSymbol::Number),
-            PrimitiveType::Boolean => Some(WellKnownSymbol::Boolean),
-            PrimitiveType::Bigint => Some(WellKnownSymbol::BigInt),
+            PrimitiveType::Integer(_)
+            | PrimitiveType::Float(_)
+            | PrimitiveType::Boolean
+            | PrimitiveType::Bigint => None,
             PrimitiveType::Symbol | PrimitiveType::UniqueSymbol => Some(WellKnownSymbol::Symbol),
             PrimitiveType::Character => None,
         },
-        // scalar literals (string literals, number literals) use the same backing types
+        // scalar literals use the same backing types
         TypeLiteral::ScalarLiteral(scalar) => match scalar {
             ScalarLiteral::Null => None,
             ScalarLiteral::String(_) => Some(WellKnownSymbol::String),
-            ScalarLiteral::Integer(_) | ScalarLiteral::Float(_) => Some(WellKnownSymbol::Number),
-            ScalarLiteral::Boolean(_) => Some(WellKnownSymbol::Boolean),
-            ScalarLiteral::Bigint(_) => Some(WellKnownSymbol::BigInt),
+            ScalarLiteral::Integer(_)
+            | ScalarLiteral::Float(_)
+            | ScalarLiteral::Boolean(_)
+            | ScalarLiteral::Bigint(_) => None,
             ScalarLiteral::Character(_) | ScalarLiteral::RegexString { .. } => None,
         },
         // other type literals don't have backing types with members
