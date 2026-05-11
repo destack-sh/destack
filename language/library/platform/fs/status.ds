@@ -196,7 +196,7 @@ export struct FileStatus {
     simulation: true,
 })
 export declare function entryStatus(
-    entry: Entry,
+    entry: &readonly Entry,
     options: StatusOptions,
 ): Result<FileStatus, PlatformError>;
 

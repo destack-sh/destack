@@ -62,7 +62,7 @@ export struct VolumeStatus {
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function entryVolume(entry: Entry): Result<VolumeStatus, PlatformError>;
+export declare function entryVolume(entry: &readonly Entry): Result<VolumeStatus, PlatformError>;
 
 /// Read status for the volume containing an open file.
 @binding("destack.fs.volume.file", {

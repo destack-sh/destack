@@ -1,5 +1,3 @@
-import { Slice } from "core";
-
 /// Raw byte path on byte-oriented hosts.
 export newtype PathBytes = uint8[];
 
@@ -7,10 +5,10 @@ export newtype PathBytes = uint8[];
 export newtype PathUtf16 = uint16[];
 
 /// Raw byte path output buffer.
-export newtype PathByteBuffer = Slice<uint8>;
+export newtype PathByteBuffer = [uint8];
 
 /// UTF-16 path output buffer.
-export newtype PathUtf16Buffer = Slice<uint16>;
+export newtype PathUtf16Buffer = [uint16];
 
 /// Byte-oriented host path.
 export struct BytePath {
