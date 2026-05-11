@@ -2166,6 +2166,10 @@ type Lock<T> =
 
 # Runtime
 
+The runtime is where code actually _runs_, and it's where pure computation touches the real world via our well defined `host` bindings.
+This is nice because it means we get to capture and analyse all effects through a relatively thin well known boundary, which enables great observability and debugging.
+And because Destack is a fully integrated stack, the runtime has been co-designed as part of the entire language toolchain and the standard library takes advantage of this
+
 ## Modules
 
 Like many JS/TS-adjacent runtimes, Destack supports importing additional file types beyond code modules.
@@ -2292,3 +2296,33 @@ import dataBytes from "./file.txt" with { type: "binary" };  // import as uint8[
 ```
 
 Supported `type` loaders are `json`, `toml`, `yaml`, `text`, `binary`, and `base64`.
+
+## Policy
+
+Destack supports configuring the policy that controls which host actions some piece of code - like a module or some dependency - may perform.
+Packages declare the actions and resources they require, and the app or workspace decides which requirements are allowed.
+
+```json:destack.json
+{
+    "policy": {
+        "requires": [
+            { "action": "fs.read", "resource": "app://config/**" },
+            { "action": "net.connect", "resource": "tcp://database.internal:5432" }
+        ],
+        "rules": [
+            {
+                "subject": { "package": "app" },
+                "action": "fs.read",
+                "resource": "app://config/**",
+                "access": "allow"
+            },
+            {
+                "subject": { "package": "@vendor/parser" },
+                "action": "net.connect",
+                "resource": "*",
+                "access": "deny"
+            }
+        ]
+    }
+}
+```
