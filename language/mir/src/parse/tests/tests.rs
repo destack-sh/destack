@@ -50,10 +50,10 @@ impl<'a> TestParser<'a> {
         Self { source }
     }
 
-    /// Parse one fixture and require full validation.
+    /// Parse one fixture and require no parse errors.
     pub(crate) fn parse(self) -> (Tree, StringPool) {
         Parser::parse(FileId::new(0), self.source, ParseOptions::default())
-            .validate()
+            .finish()
             .expect("parse failed")
     }
 

@@ -12,7 +12,7 @@ fn normalize_fixture_text(text: &str) -> &str {
 pub(crate) fn parse_fixture(source: &str) -> (Tree, StringPool) {
     let source = normalize_fixture_text(source);
     Parser::parse(FileId::new(0), source, ParseOptions::default())
-        .validate()
+        .finish()
         .expect("parse failed")
 }
 

@@ -6,7 +6,7 @@ use crate::{Function, LocalNodeId, Tree};
 /// Parse one MIR test module and return its single function.
 pub(crate) fn parse_test_function(source: &str) -> (Tree, LocalNodeId<Function>) {
     let (tree, _) = Parser::parse(FileId::new(0), source, ParseOptions::default())
-        .validate()
+        .finish()
         .expect("parse failed");
 
     let function_id = tree

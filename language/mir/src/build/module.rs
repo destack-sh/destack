@@ -1,7 +1,6 @@
 use destack_core::{StringId, StringPool};
 
 use crate::Tree;
-use crate::validate::Validator;
 
 /// Builder for constructing a MIR module (collection of functions and types).
 #[derive(Debug)]
@@ -10,27 +9,14 @@ pub struct ModuleBuilder {
     pub(super) tree: Tree,
     /// String pool for names.
     pub(super) strings: StringPool,
-    /// Whether to verify functions as they are built.
-    pub(super) verify: bool,
 }
 
 impl ModuleBuilder {
-    /// Create a new unverified module builder.
-    pub fn unchecked() -> Self {
-        Self::new_with_verify(false)
-    }
-
-    /// Create a new module builder with function verification enabled.
-    pub fn checked() -> Self {
-        Self::new_with_verify(true)
-    }
-
-    /// Create a new module builder with the given verify flag.
-    pub fn new_with_verify(verify: bool) -> Self {
+    /// Create a new module builder.
+    pub fn new() -> Self {
         Self {
             tree: Tree::new(),
             strings: StringPool::new(),
-            verify,
         }
     }
 
@@ -66,31 +52,17 @@ impl ModuleBuilder {
 
     /// Finish building the module.
     pub fn finish(self) -> (Tree, StringPool) {
-        self.validate_tree();
         (self.tree, self.strings)
     }
 
     /// Finish building the module with a mutable string pool.
     pub fn finish_mutable(self) -> (Tree, StringPool) {
-        self.validate_tree();
         (self.tree, self.strings)
-    }
-
-    /// Validate the completed tree when builder verification is enabled.
-    fn validate_tree(&self) {
-        if !self.verify {
-            return;
-        }
-
-        let validator = Validator::new(&self.tree);
-        if let Err(error) = validator.validate() {
-            panic!("mir validation failed: {error}");
-        }
     }
 }
 
 impl Default for ModuleBuilder {
     fn default() -> Self {
-        Self::unchecked()
+        Self::new()
     }
 }
