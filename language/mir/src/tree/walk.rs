@@ -147,6 +147,12 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
                 visitor.visit_type(tree, value, value_ty);
             }
         }
+        Type::Any { interface } => {
+            if let TypeReference::Type(interface) = *interface {
+                let interface_ty = tree.get(interface);
+                visitor.visit_type(tree, interface, interface_ty);
+            }
+        }
         Type::Array { element, .. } => {
             if let TypeReference::Type(element) = *element {
                 let element_ty = tree.get(element);
@@ -177,6 +183,22 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
             if let TypeReference::Type(inner) = *inner {
                 let inner_ty = tree.get(inner);
                 visitor.visit_type(tree, inner, inner_ty);
+            }
+        }
+        Type::Union {
+            tag,
+            variants,
+            copy: _,
+        } => {
+            if let TypeReference::Type(tag) = *tag {
+                let tag_ty = tree.get(tag);
+                visitor.visit_type(tree, tag, tag_ty);
+            }
+            for variant_id in variants {
+                if let TypeReference::Type(variant_id) = variant_id.ty {
+                    let variant_ty = tree.get(variant_id);
+                    visitor.visit_type(tree, variant_id, variant_ty);
+                }
             }
         }
         Type::Vector { element, .. } => {

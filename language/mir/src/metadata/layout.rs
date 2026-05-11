@@ -5,17 +5,15 @@ use serde::{Deserialize, Serialize};
 
 use destack_core::StringId;
 
-use crate::{LocalNodeId, Type, UnionLayout};
+use crate::{LocalNodeId, Type};
 
-/// Canonical layout facts for one MIR module.
+/// Canonical layout metadata for one MIR module.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct LayoutMetadata {
     /// Layout metadata table for aggregate types.
     pub layout_table: LayoutTable,
     /// Concrete layout ids keyed by type id.
     pub layout_by_type: HashMap<LocalNodeId<Type>, LayoutId>,
-    /// Union layout metadata keyed by type id.
-    pub union_layout_by_type: HashMap<LocalNodeId<Type>, UnionLayout>,
 }
 
 impl LayoutMetadata {
@@ -44,28 +42,10 @@ impl LayoutMetadata {
         self.layout_by_type.insert(ty, layout_id)
     }
 
-    /// Return union layout metadata for a type when present.
-    pub fn union_layout(&self, ty: LocalNodeId<Type>) -> Option<&UnionLayout> {
-        self.union_layout_by_type.get(&ty)
-    }
-
-    /// Record union layout metadata for a type.
-    pub fn set_union_layout(
-        &mut self,
-        ty: LocalNodeId<Type>,
-        union_layout: UnionLayout,
-    ) -> Option<UnionLayout> {
-        self.union_layout_by_type.insert(ty, union_layout)
-    }
-
     /// Copy structural layout metadata from one type id to another.
     pub fn copy_type_metadata(&mut self, from: LocalNodeId<Type>, to: LocalNodeId<Type>) {
         if let Some(layout_id) = self.layout_id(from) {
             self.set_layout_id(to, layout_id);
-        }
-
-        if let Some(union_layout) = self.union_layout(from).cloned() {
-            self.set_union_layout(to, union_layout);
         }
     }
 }
@@ -130,8 +110,8 @@ impl LayoutId {
 /// Concrete memory layout for an aggregate type.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Layout {
-    /// The layout kind and kind specific data.
-    pub kind: LayoutKind,
+    /// The layout shape.
+    pub shape: LayoutShape,
     /// Total size in bytes, including trailing padding.
     pub size: u32,
     /// Alignment requirement in bytes.
@@ -142,16 +122,11 @@ pub struct Layout {
     pub fields: Vec<LayoutField>,
 }
 
-/// Aggregate layout kinds with kind specific data.
+/// Aggregate layout shape.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum LayoutKind {
+pub enum LayoutShape {
     /// Plain struct layout.
     Struct,
-    /// Heap object layout with a virtual dispatch table header.
-    Object {
-        /// The byte offset of the virtual dispatch table pointer.
-        vtable_offset: u32,
-    },
     /// Tuple layout with ordered elements.
     Tuple,
     /// Slice header layout with data and length fields.
@@ -167,17 +142,24 @@ pub enum LayoutKind {
     },
     /// Union layout with tag and payload offsets.
     Union {
-        /// The tag type used for discriminants.
-        tag_type: LocalNodeId<Type>,
         /// The byte offset of the tag field.
         tag_offset: u32,
+        /// The payload storage type.
+        payload_type: LocalNodeId<Type>,
         /// The byte offset of the payload field.
         payload_offset: u32,
+        /// The payload storage strategy.
+        payload: UnionPayload,
     },
-    /// Interface layout with object and table offsets.
-    Interface {
-        /// The byte offset of the object pointer.
-        object_offset: u32,
+    /// Object layout with a virtual dispatch table header.
+    Object {
+        /// The byte offset of the virtual dispatch table pointer.
+        vtable_offset: u32,
+    },
+    /// Erased Any value layout with value and table offsets.
+    Any {
+        /// The byte offset of the erased value pointer.
+        value_offset: u32,
         /// The byte offset of the table pointer.
         table_offset: u32,
     },
@@ -185,6 +167,15 @@ pub enum LayoutKind {
     CallableEnvironment,
     /// Function value layout.
     Callable,
+}
+
+/// Payload storage strategy for one union layout.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum UnionPayload {
+    /// Store the active variant inline in the payload field.
+    Inline,
+    /// Store the active variant behind a managed heap reference.
+    Boxed,
 }
 
 /// Memory layout for a single field.

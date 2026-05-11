@@ -68,11 +68,11 @@ The terminators themselves are also quite straightforward: essentially, control 
 | `invoke` | Calls a static function that may unwind; branches to explicit success and exception successors. | `invoke foo(v0): (int32) -> int32 -> okBlock, catch errBlock` |
 | `invoke.indirect` | Calls a function value that may unwind; branches to explicit success and exception successors. | `invoke.indirect v1(v0): (int32) -> int32 -> okBlock, catch errBlock` |
 | `invoke.virtual` | Dispatches a virtual method that may unwind; branches to explicit success and exception successors. | `invoke.virtual receiver, TypeName, 3(v0): (ref<TypeName, managed, readonly>) -> int32 -> okBlock, catch errBlock` |
-| `invoke.interface` | Dispatches an interface method that may unwind; branches to explicit success and exception successors. | `invoke.interface receiver, InterfaceName, 3(v0): (InterfaceName) -> int32 -> okBlock, catch errBlock` |
+| `invoke.interface` | Dispatches through an interface table and branches to explicit success and exception successors. | `invoke.interface receiver, InterfaceName, 3(v0): (any<InterfaceName>) -> int32 -> okBlock, catch errBlock` |
 | `tailCall` | Calls a static function and reuses the current frame, never returning to the caller. | `tailCall foo(v0): (int32) -> void` |
 | `tailCall.indirect` | Tail-calls through a function value, reusing the current frame. | `tailCall.indirect v1(v0): (int32) -> void` |
 | `tailCall.virtual` | Tail-calls a virtual method, reusing the current frame. | `tailCall.virtual receiver, TypeName, 3(v0): (ref<TypeName, managed, readonly>) -> void` |
-| `tailCall.interface` | Tail-calls an interface method, reusing the current frame. | `tailCall.interface receiver, InterfaceName, 3(v0): (InterfaceName) -> void` |
+| `tailCall.interface` | Tail-calls through an interface table, reusing the current frame. | `tailCall.interface receiver, InterfaceName, 3(v0): (any<InterfaceName>) -> void` |
 | `yield` | Suspends the coroutine, returning a value and remembering where to resume in a "resume block". | `yield v0, resume(v1)` |
 | `throw` | Exits abruptly through the exception path, carrying a managed exception object. | `throw v0` |
 | `trap` | Terminates the program unrecoverably; trap kind is `trap.abort` or `trap.panic`. `trap.panic` carries a non-null readonly managed string payload. | `trap.panic v0` |
@@ -124,16 +124,16 @@ Canonical MIR spells checks guard-first: `check int.add.overflow.s left, right -
 
 ### Pointers and References
 
-References are MIR carriers with explicit ownership and place qualifiers.
+References are MIR carriers with explicit storage and place qualifiers.
 Pointer-sized integer types are modeled explicitly.
 ```mir
 ref<int32, raw, space(shared)>
 ref<int32, raw, readonly, space(gpu)>
 ```
 
-In general, MIR uses `ref` to model one base type plus ownership, mutability, and place:
+In general, MIR uses `ref` to model one base type plus storage, access, and place:
 - `managed` for runtime managed object references
-- `owned` for explicit ownership (`^T`)
+- `unique` for unique typed heap references used by `Box`, arrays, and similar storage wrappers
 - `borrowed` for `&T` and `&readonly T`
 - `raw` for "unsafe" physical pointers
 
@@ -142,43 +142,11 @@ Reference syntax is payload-first and spells out qualifiers after the payload ty
 | Kind | Mutability | Example | Meaning |
 | --- | --- | --- | --- |
 | managed | mutable or readonly | `ref<Point, managed>`, `ref<Point, managed, readonly>` | managed object reference, logical by default |
-| owned | mutable or readonly | `ref<Point, owned>`, `ref<Point, owned, readonly>` | owned handle for `^T` |
+| unique | mutable or readonly | `ref<Point, unique>`, `ref<Point, unique, readonly>` | unique typed heap reference |
 | borrowed | mutable | `ref<Point, borrowed>` | mutable borrow (`&T`) |
 | borrowed | readonly | `ref<Point, borrowed, readonly>` | readonly borrow (`&readonly T`) |
 | raw | mutable | `ref<int32, raw>` | raw pointer (mutable) |
 | raw | readonly | `ref<int32, raw, readonly>` | raw pointer (readonly) |
-
-### Borrow Regions and Cleanup
-
-Borrow regions are not spelled on every MIR reference type.
-Function boundaries preserve the relevant borrow relations through `BorrowRegion` metadata on borrowed returns and borrowed aggregates.
-That metadata says which input regions one returned borrow may depend on.
-Most internal regions are inferred and erased before codegen.
-
-Plain managed `T` is the independently live carrier.
-Borrowed `&T` is a dependent address into some other carrier.
-Borrowed values therefore require region proof.
-They do not keep the referent alive on their own.
-
-Pinning is a MIR responsibility for heap storage that may move.
-`pin` stabilizes one local or shared heap value against movement and returns the pinned reference carrier.
-`unpin` releases that stability.
-When a borrowed address into heap storage must survive a safepoint or suspension, the surrounding MIR must use the pinned carrier until `unpin`.
-Raw, stack, frame, and global storage need no such stabilization.
-
-Cleanup placement is also a MIR responsibility.
-`drop` destroys an owned value and runs drop glue.
-`raw.free` releases raw storage directly.
-`using` and `await using` are lowered before MIR optimization into ordinary cleanup calls and control flow.
-
-Field names are optional in MIR types and are only for readability:
-
-```mir
-type Point {
-    x: float32;
-    y: float32;
-}
-```
 
 ## Type Aliases
 

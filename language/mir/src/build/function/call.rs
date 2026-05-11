@@ -96,7 +96,7 @@ impl<'a> FunctionBuilder<'a> {
         });
     }
 
-    /// Call an interface method through an itab slot.
+    /// Call an interface method through an interface table slot.
     pub fn call_interface(
         &mut self,
         receiver: Value,

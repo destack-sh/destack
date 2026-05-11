@@ -6,7 +6,7 @@ use destack_core::StringId;
 
 use crate::{Global, LocalNodeId, Type};
 
-/// Canonical type facts for one MIR module.
+/// Canonical type metadata for one MIR module.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct TypeMetadata {
     /// Cached primitive type ids keyed by primitive shape.

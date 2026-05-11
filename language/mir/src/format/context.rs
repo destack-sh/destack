@@ -441,7 +441,7 @@ fn should_alias_type(ty: &Type) -> bool {
     // allow aliasing for common aggregate shapes
     matches!(
         ty,
-        Type::Struct { .. } | Type::Tuple { .. } | Type::Callable { .. }
+        Type::Struct { .. } | Type::Tuple { .. } | Type::Union { .. } | Type::Callable { .. }
     )
 }
 
@@ -512,6 +512,7 @@ fn type_alias_prefix(ty: &Type) -> &'static str {
         Type::Tuple { .. } => "Tuple",
         Type::Array { .. } => "Array",
         Type::Slice { .. } => "Slice",
+        Type::Union { .. } => "Union",
         Type::Atomic { .. } => "Atomic",
         Type::Reference { .. } => "Ref",
         Type::FunctionPointer { .. } => "Function",
@@ -617,6 +618,11 @@ fn type_key_for_alias_inner(
             let value_key = type_key_for_alias_reference(tree, strings, *value, active_types);
             format!("atomic<{value_key}>")
         }
+        Type::Any { interface } => {
+            let interface_key =
+                type_key_for_alias_reference(tree, strings, *interface, active_types);
+            format!("any<{interface_key}>")
+        }
         Type::Reference {
             kind,
             lifetime,
@@ -644,7 +650,7 @@ fn type_key_for_alias_inner(
             result.push_str(", ");
             result.push_str(match kind {
                 ReferenceKind::Managed => "managed",
-                ReferenceKind::Owned => "owned",
+                ReferenceKind::Unique => "unique",
                 ReferenceKind::Borrowed => "borrowed",
                 ReferenceKind::Raw => "raw",
             });
@@ -680,7 +686,7 @@ fn type_key_for_alias_inner(
             let mut result = format!("slice<{element_key}");
             match kind {
                 ReferenceKind::Managed => {}
-                ReferenceKind::Owned => result.push_str(", owned"),
+                ReferenceKind::Unique => result.push_str(", unique"),
                 ReferenceKind::Borrowed => result.push_str(", borrowed"),
                 ReferenceKind::Raw => result.push_str(", raw"),
             }
@@ -724,6 +730,18 @@ fn type_key_for_alias_inner(
             let inner_key = type_key_for_alias_reference(tree, strings, *inner, active_types);
             format!("newtype<{inner_key}>")
         }
+        Type::Union { tag, variants, .. } => {
+            let tag_key = type_key_for_alias_reference(tree, strings, *tag, active_types);
+            let variants = variants
+                .iter()
+                .map(|variant| {
+                    let ty = type_key_for_alias_reference(tree, strings, variant.ty, active_types);
+                    format!("{}: {ty}", variant.tag)
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("union<{tag_key}; {variants}>")
+        }
         Type::Vector { element, lanes, .. } => {
             // format vector keys with element and lane count
             let element_key = type_key_for_alias_reference(tree, strings, *element, active_types);
@@ -763,7 +781,7 @@ fn type_key_for_alias_inner(
             result.push_str(", ");
             result.push_str(match kind {
                 ReferenceKind::Managed => "managed",
-                ReferenceKind::Owned => "owned",
+                ReferenceKind::Unique => "unique",
                 ReferenceKind::Borrowed => "borrowed",
                 ReferenceKind::Raw => "raw",
             });
@@ -1105,6 +1123,12 @@ fn record_type_use_inner(
             };
             record_type_use_inner(tree, value, counts, visited);
         }
+        Type::Any { interface } => {
+            let TypeReference::Type(interface) = *interface else {
+                return;
+            };
+            record_type_use_inner(tree, interface, counts, visited);
+        }
         Type::Array { element, .. } | Type::Slice { element, .. } => {
             let TypeReference::Type(element) = *element else {
                 return;
@@ -1135,6 +1159,18 @@ fn record_type_use_inner(
                 return;
             };
             record_type_use_inner(tree, inner, counts, visited);
+        }
+        Type::Union { tag, variants, .. } => {
+            let TypeReference::Type(tag_id) = *tag else {
+                return;
+            };
+            record_type_use_inner(tree, tag_id, counts, visited);
+            for variant_id in variants {
+                let TypeReference::Type(variant_id) = variant_id.ty else {
+                    continue;
+                };
+                record_type_use_inner(tree, variant_id, counts, visited);
+            }
         }
         Type::Vector { element, .. } => {
             let TypeReference::Type(element) = *element else {
@@ -1585,6 +1621,9 @@ fn collect_alias_dependencies(
             Type::Atomic { value } => {
                 record_dependency(*value, root, alias_types, &mut dependencies, &mut stack);
             }
+            Type::Any { interface } => {
+                record_dependency(*interface, root, alias_types, &mut dependencies, &mut stack);
+            }
             Type::Array { element, .. } | Type::Slice { element, .. } => {
                 record_dependency(*element, root, alias_types, &mut dependencies, &mut stack);
             }
@@ -1601,6 +1640,12 @@ fn collect_alias_dependencies(
             }
             Type::Newtype { inner, .. } => {
                 record_dependency(*inner, root, alias_types, &mut dependencies, &mut stack);
+            }
+            Type::Union { tag, variants, .. } => {
+                record_dependency(*tag, root, alias_types, &mut dependencies, &mut stack);
+                for variant in variants {
+                    record_dependency(variant.ty, root, alias_types, &mut dependencies, &mut stack);
+                }
             }
             Type::Vector { element, .. } => {
                 record_dependency(*element, root, alias_types, &mut dependencies, &mut stack);

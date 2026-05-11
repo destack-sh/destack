@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 use crate::parse::Token;
 use crate::{
     Access, AddressSpace, ArgumentSlice, Attribute, Block, CommentSpan, Field, FieldSpan, Function,
-    FunctionHeaderSpans, Global, Instruction, InterfaceDispatchShape, Itab, Layout, LayoutId,
-    Lifetime, Local, LocalNodeId, Metadata, Node, NodeType, PlaceProjection, PlaceTable,
+    FunctionHeaderSpans, Global, Instruction, InterfaceDispatchShape, InterfaceTable, Layout,
+    LayoutId, Lifetime, Local, LocalNodeId, Metadata, Node, NodeType, PlaceProjection, PlaceTable,
     ProvenanceId, ProvenanceReason, ReferenceKind, Terminator, Type, TypeAlias,
     TypeDeclarationSpans, TypeLineage, TypeMetadata, TypeReference, TypedValueSpan, ValueReference,
     Vtable,
@@ -312,6 +312,20 @@ impl Tree {
                 .filter(|lifetime| !lifetime.is_empty())
             }
             Type::Newtype { inner, .. } => self.type_reference_lifetime_inner(*inner, visited),
+            Type::Any { interface } => self.type_reference_lifetime_inner(*interface, visited),
+            Type::Union { tag, variants, .. } => {
+                let tag = self.type_reference_lifetime_inner(*tag, visited);
+                let lifetimes = variants
+                    .iter()
+                    .filter_map(|variant| self.type_reference_lifetime_inner(variant.ty, visited));
+
+                Some(Lifetime::new(
+                    tag.into_iter()
+                        .chain(lifetimes)
+                        .flat_map(|lifetime| lifetime.origins.into_iter()),
+                ))
+                .filter(|lifetime| !lifetime.is_empty())
+            }
             Type::Tuple { elements, .. } => {
                 let lifetimes = elements
                     .iter()
@@ -360,6 +374,13 @@ impl Tree {
                 self.type_reference_contains_borrowed_refs(field.ty)
             }),
             Type::Newtype { inner, .. } => self.type_reference_contains_borrowed_refs(*inner),
+            Type::Any { interface } => self.type_reference_contains_borrowed_refs(*interface),
+            Type::Union { tag, variants, .. } => {
+                self.type_reference_contains_borrowed_refs(*tag)
+                    || variants
+                        .iter()
+                        .any(|variant| self.type_reference_contains_borrowed_refs(variant.ty))
+            }
             Type::Tuple { elements, .. } => elements
                 .iter()
                 .any(|element| self.type_reference_contains_borrowed_refs(*element)),
@@ -655,13 +676,13 @@ impl Tree {
         self.metadata.dispatch.vtable(ty)
     }
 
-    /// Return the itab metadata for a concrete type and interface when present.
-    pub fn itab_for_type(
+    /// Return the interface table for a concrete type and interface when present.
+    pub fn interface_table_for_type(
         &self,
         concrete: LocalNodeId<Type>,
         interface: LocalNodeId<Type>,
-    ) -> Option<&Itab> {
-        self.metadata.dispatch.itab(concrete, interface)
+    ) -> Option<&InterfaceTable> {
+        self.metadata.dispatch.interface_table(concrete, interface)
     }
 
     /// Return the display name for a type when present.

@@ -56,7 +56,7 @@ pub enum CallDispatchKind {
         /// The dispatch slot for the method.
         slot: DispatchSlot,
     },
-    /// Interface call through an itab slot.
+    /// Interface call through a dispatch table slot.
     Interface {
         /// The dispatch slot for the method.
         slot: DispatchSlot,
@@ -663,7 +663,7 @@ pub enum Instruction {
         /// The shared call payload.
         call: Call<ArgumentSlice>,
     },
-    /// Call an interface method through an itab slot.
+    /// Call through an interface dispatch table slot.
     CallInterface {
         /// The SSA value to define with the return value, if any.
         destination: Option<ValueReference>,
@@ -691,7 +691,7 @@ pub enum Instruction {
     // heap allocation
     /// Allocate typed heap storage (`new`).
     ///
-    /// The result type decides whether the returned reference is managed or owned.
+    /// The result type decides whether the returned reference is managed or unique.
     New {
         /// The SSA value to define with the allocated reference.
         destination: ValueReference,
@@ -702,7 +702,7 @@ pub enum Instruction {
     },
     /// Allocate typed repeated heap storage (`new.slice`).
     ///
-    /// The result type decides whether the returned slice is managed or owned.
+    /// The result type decides whether the returned slice is managed or unique.
     NewSlice {
         /// The SSA value to define with the allocated slice.
         destination: ValueReference,
@@ -747,10 +747,11 @@ pub enum Instruction {
         result_type: TypeReference,
     },
 
-    // ownership destruction
-    /// Destroy an owned value (`drop`).
+    // ownership end
+    /// End ownership of a value (`drop`).
     ///
-    /// Runs drop glue for the value and releases any owned storage.
+    /// Drop work is represented by explicit MIR before this marker.
+    /// The marker consumes the value and makes later use invalid.
     Drop {
         /// The value to drop.
         value: ValueReference,

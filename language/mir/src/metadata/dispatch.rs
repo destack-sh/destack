@@ -6,7 +6,7 @@ use destack_core::StringId;
 
 use crate::{Field, Function, Global, LocalNodeId, Type};
 
-/// Canonical dispatch facts for one MIR module.
+/// Canonical dispatch metadata for one MIR module.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct DispatchMetadata {
     /// Class dispatch tables.
@@ -14,11 +14,12 @@ pub struct DispatchMetadata {
     /// Class dispatch table vector index keyed by type id.
     #[serde(skip, default)]
     pub(crate) vtable_index_by_type: HashMap<LocalNodeId<Type>, usize>,
-    /// Interface dispatch tables.
-    pub itabs: Vec<Itab>,
-    /// Interface dispatch table vector index keyed by concrete type id, then interface type id.
+    /// The interface dispatch tables.
+    pub interface_tables: Vec<InterfaceTable>,
+    /// The interface table vector index keyed by concrete type id, then interface type id.
     #[serde(skip, default)]
-    pub(crate) itab_index_by_type: HashMap<LocalNodeId<Type>, HashMap<LocalNodeId<Type>, usize>>,
+    pub(crate) interface_table_index_by_type:
+        HashMap<LocalNodeId<Type>, HashMap<LocalNodeId<Type>, usize>>,
     /// Canonical interface dispatch shapes keyed by interface type id.
     pub interface_dispatch_shapes: HashMap<LocalNodeId<Type>, InterfaceDispatchShape>,
 }
@@ -35,15 +36,18 @@ impl DispatchMetadata {
             self.vtable_index_by_type.insert(to, index);
         }
 
-        let itabs = self
-            .itabs
+        let interface_tables = self
+            .interface_tables
             .iter()
             .enumerate()
-            .filter_map(|(index, itab)| (itab.concrete == from).then_some((itab.interface, index)))
+            .filter_map(|(index, table)| {
+                (table.concrete == from).then_some((table.interface, index))
+            })
             .collect::<HashMap<_, _>>();
 
-        if !itabs.is_empty() {
-            self.itab_index_by_type.insert(to, itabs);
+        if !interface_tables.is_empty() {
+            self.interface_table_index_by_type
+                .insert(to, interface_tables);
         }
     }
 
@@ -66,26 +70,30 @@ impl DispatchMetadata {
         self.vtables.iter()
     }
 
-    /// Insert an itab.
-    pub fn insert_itab(&mut self, table: Itab) {
-        let index = self.itabs.len();
-        self.record_itab(table.concrete, table.interface, index);
-        self.itabs.push(table);
+    /// Insert an interface table.
+    pub fn insert_interface_table(&mut self, table: InterfaceTable) {
+        let index = self.interface_tables.len();
+        self.record_interface_table(table.concrete, table.interface, index);
+        self.interface_tables.push(table);
     }
 
-    /// Return the itab for a concrete type and interface when present.
-    pub fn itab(&self, concrete: LocalNodeId<Type>, interface: LocalNodeId<Type>) -> Option<&Itab> {
-        let index = self.itab_index(concrete, interface)?;
+    /// Return the interface table for a concrete type and interface when present.
+    pub fn interface_table(
+        &self,
+        concrete: LocalNodeId<Type>,
+        interface: LocalNodeId<Type>,
+    ) -> Option<&InterfaceTable> {
+        let index = self.interface_table_index(concrete, interface)?;
 
-        self.itabs.get(index)
+        self.interface_tables.get(index)
     }
 
-    /// Iterate all itabs.
-    pub fn iter_itabs(&self) -> impl Iterator<Item = &Itab> {
-        self.itabs.iter()
+    /// Iterate all interface tables.
+    pub fn iter_interface_tables(&self) -> impl Iterator<Item = &InterfaceTable> {
+        self.interface_tables.iter()
     }
 
-    /// Return dispatch shape metadata for an interface type id.
+    /// Return interface dispatch shape metadata for an interface type id.
     pub fn interface_dispatch_shape(
         &self,
         interface: LocalNodeId<Type>,
@@ -93,7 +101,7 @@ impl DispatchMetadata {
         self.interface_dispatch_shapes.get(&interface)
     }
 
-    /// Insert dispatch shape metadata for an interface type id.
+    /// Insert interface dispatch shape metadata for an interface type id.
     pub fn insert_interface_dispatch_shape(
         &mut self,
         interface: LocalNodeId<Type>,
@@ -105,32 +113,32 @@ impl DispatchMetadata {
     /// Rebuild dispatch lookup indexes from canonical tables.
     pub fn rebuild_lookup_index(&mut self) {
         self.vtable_index_by_type.clear();
-        self.itab_index_by_type.clear();
+        self.interface_table_index_by_type.clear();
 
         for (index, vtable) in self.vtables.iter().enumerate() {
             self.vtable_index_by_type.insert(vtable.ty, index);
         }
 
-        let itab_entries = self
-            .itabs
+        let table_entries = self
+            .interface_tables
             .iter()
             .enumerate()
-            .map(|(index, itab)| (itab.concrete, itab.interface, index))
+            .map(|(index, table)| (table.concrete, table.interface, index))
             .collect::<Vec<_>>();
 
-        for (concrete, interface, index) in itab_entries {
-            self.record_itab(concrete, interface, index);
+        for (concrete, interface, index) in table_entries {
+            self.record_interface_table(concrete, interface, index);
         }
     }
 
-    /// Record one itab lookup entry.
-    fn record_itab(
+    /// Record one interface table lookup entry.
+    fn record_interface_table(
         &mut self,
         concrete: LocalNodeId<Type>,
         interface: LocalNodeId<Type>,
         index: usize,
     ) {
-        self.itab_index_by_type
+        self.interface_table_index_by_type
             .entry(concrete)
             .or_default()
             .insert(interface, index);
@@ -144,20 +152,20 @@ impl DispatchMetadata {
             .or_else(|| self.vtables.iter().position(|vtable| vtable.ty == ty))
     }
 
-    /// Return the itab vector index for one concrete and interface pair.
-    fn itab_index(
+    /// Return the interface table vector index for one concrete and interface pair.
+    fn interface_table_index(
         &self,
         concrete: LocalNodeId<Type>,
         interface: LocalNodeId<Type>,
     ) -> Option<usize> {
-        self.itab_index_by_type
+        self.interface_table_index_by_type
             .get(&concrete)
-            .and_then(|itabs| itabs.get(&interface))
+            .and_then(|interface_tables| interface_tables.get(&interface))
             .copied()
             .or_else(|| {
-                self.itabs
+                self.interface_tables
                     .iter()
-                    .position(|itab| itab.concrete == concrete && itab.interface == interface)
+                    .position(|table| table.concrete == concrete && table.interface == interface)
             })
     }
 }
@@ -173,9 +181,9 @@ pub struct Vtable {
     pub entries: Vec<VtableEntry>,
 }
 
-/// Metadata for an interface itab.
+/// Metadata for one concrete implementation of one interface.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Itab {
+pub struct InterfaceTable {
     /// The concrete type providing the implementation.
     pub concrete: LocalNodeId<Type>,
     /// The interface type being dispatched.
@@ -183,7 +191,7 @@ pub struct Itab {
     /// The static global containing this table.
     pub global: LocalNodeId<Global>,
     /// Entries in declaration order.
-    pub entries: Vec<ItabEntry>,
+    pub entries: Vec<InterfaceTableEntry>,
 }
 
 /// Canonical interface dispatch shape.
@@ -212,16 +220,16 @@ pub enum VtableEntry {
     },
 }
 
-/// Entry in an interface itab.
+/// Entry in an interface dispatch table.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ItabEntry {
+pub enum InterfaceTableEntry {
     /// Slot containing the runtime type descriptor.
     TypeDescriptor,
-    /// Slot containing an interface field offset.
+    /// Slot containing a field offset.
     FieldOffset {
-        /// The canonical interface dispatch field id.
+        /// The canonical dispatch field id.
         field: LocalNodeId<Field>,
-        /// The interface field name.
+        /// The field name.
         field_name: StringId,
         /// The field offset in bytes.
         offset: u32,
@@ -240,11 +248,11 @@ pub enum ItabEntry {
 pub enum InterfaceDispatchEntry {
     /// Slot containing the runtime type descriptor.
     TypeDescriptor,
-    /// Slot containing an interface field offset.
+    /// Slot containing a field offset.
     FieldOffset {
-        /// The canonical interface dispatch field id.
+        /// The canonical dispatch field id.
         field: LocalNodeId<Field>,
-        /// The interface field name.
+        /// The field name.
         field_name: StringId,
     },
     /// Slot containing an interface method declaration.
