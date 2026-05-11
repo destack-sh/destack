@@ -36,8 +36,8 @@ pub enum LibraryOutput {
 /// Platform targets for library sources.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum LibraryPlatform {
-    /// Web browser platform.
-    Web,
+    /// Unknown operating system.
+    Unknown,
     /// Windows.
     Windows,
     /// Unix family (Linux, macOS, BSDs, etc.).
@@ -70,14 +70,8 @@ pub enum LibraryPlatform {
     IOS,
     /// Android.
     Android,
-    /// WASI.
-    Wasi,
-    /// Emscripten.
-    Emscripten,
-    /// Bare metal.
-    BareMetal,
-    /// Unknown or portable (no platform-specific APIs).
-    Universal,
+    /// No operating system.
+    None,
 }
 
 impl LibraryPlatform {
@@ -133,7 +127,7 @@ impl From<EmitFormat> for LibraryOutput {
 impl From<Platform> for LibraryPlatform {
     fn from(value: Platform) -> Self {
         match value {
-            Platform::Web => Self::Web,
+            Platform::Unknown => Self::Unknown,
             Platform::Windows => Self::Windows,
             Platform::MacOS => Self::MacOS,
             Platform::Linux => Self::Linux,
@@ -149,10 +143,7 @@ impl From<Platform> for LibraryPlatform {
             Platform::Hermit => Self::Hermit,
             Platform::IOS => Self::IOS,
             Platform::Android => Self::Android,
-            Platform::Wasi => Self::Wasi,
-            Platform::Emscripten => Self::Emscripten,
-            Platform::BareMetal => Self::BareMetal,
-            Platform::Universal => Self::Universal,
+            Platform::None => Self::None,
         }
     }
 }

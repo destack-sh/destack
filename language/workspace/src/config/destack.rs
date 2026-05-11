@@ -177,9 +177,9 @@ impl DestackConfig {
             .map_err(|error| serde_json::Error::io(Error::new(ErrorKind::InvalidData, error)))?;
         if let Some(targets) = &options.targets {
             for target in targets.values() {
-                target.validate().map_err(|error| {
-                    serde_json::Error::io(Error::new(ErrorKind::InvalidData, error))
-                })?;
+                target
+                    .validate()
+                    .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
             }
         }
 
@@ -210,17 +210,22 @@ impl DestackConfig {
                 target_map
                     .iter()
                     .map(|(name, target_json)| {
-                        (
-                            name.clone(),
-                            TargetOptions::from_json_with_runtime_and_policy(
-                                target_json,
-                                &runtime,
-                                &policy,
-                            ),
+                        let target = TargetOptions::from_json_with_runtime_and_policy(
+                            target_json,
+                            &runtime,
+                            &policy,
                         )
+                        .map_err(|error| {
+                            serde_json::Error::io(invalid_config_error(format!(
+                                "target '{name}': {error}"
+                            )))
+                        })?;
+
+                        Ok((name.clone(), target))
                     })
-                    .collect()
+                    .collect::<Result<IndexMap<_, _>, serde_json::Error>>()
             })
+            .transpose()?
             .unwrap_or_default();
         let mut formatter = FormatterOptions::default();
         options.formatter.apply(&mut formatter);
@@ -266,10 +271,18 @@ impl DestackConfig {
                     profile_map
                         .iter()
                         .map(|(name, profile_json)| {
-                            (name.clone(), ProfileOptions::from_json(profile_json))
+                            let profile =
+                                ProfileOptions::from_json(profile_json).map_err(|error| {
+                                    serde_json::Error::io(invalid_config_error(format!(
+                                        "profile '{name}': {error}"
+                                    )))
+                                })?;
+
+                            Ok((name.clone(), profile))
                         })
-                        .collect()
+                        .collect::<Result<IndexMap<_, _>, serde_json::Error>>()
                 })
+                .transpose()?
                 .unwrap_or_default(),
             modes,
             default_target: options.default_target.clone(),
@@ -514,14 +527,17 @@ impl DestackConfig {
         if let Some(targets) = &self.options.targets {
             for name in targets.keys() {
                 let target_json = self.merged_target_json(parent, name)?;
-                target_json.validate().map_err(|error| {
-                    serde_json::Error::io(Error::new(ErrorKind::InvalidData, error))
-                })?;
+                target_json
+                    .validate()
+                    .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
                 let options = TargetOptions::from_json_with_runtime_and_policy(
                     &target_json,
                     &self.runtime,
                     &self.policy,
-                );
+                )
+                .map_err(|error| {
+                    serde_json::Error::io(invalid_config_error(format!("target '{name}': {error}")))
+                })?;
                 self.targets.insert(name.clone(), options);
             }
         }
@@ -535,7 +551,11 @@ impl DestackConfig {
         if let Some(profiles) = &self.options.profiles {
             for name in profiles.keys() {
                 let profile_json = self.merged_profile_json(parent, name)?;
-                let profile = ProfileOptions::from_json(&profile_json);
+                let profile = ProfileOptions::from_json(&profile_json).map_err(|error| {
+                    serde_json::Error::io(invalid_config_error(format!(
+                        "profile '{name}': {error}"
+                    )))
+                })?;
                 self.profiles.insert(name.clone(), profile);
             }
         }
@@ -624,4 +644,9 @@ impl DestackConfig {
             _ => child.clone(),
         }
     }
+}
+
+/// Return one invalid config IO error.
+fn invalid_config_error(message: impl Into<String>) -> Error {
+    Error::new(ErrorKind::InvalidData, message.into())
 }

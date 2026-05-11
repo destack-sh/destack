@@ -28,7 +28,7 @@ pub struct RuntimeOptions {
     pub environment: Runtime,
     /// Stable runtime name for policy selection.
     pub name: Option<String>,
-    /// Resolved app model for host availability checks.
+    /// App declaration used for host support checks.
     pub app: AppOptions,
     /// Runtime scheduler configuration.
     pub scheduler: SchedulerOptions,
@@ -116,7 +116,7 @@ impl RuntimeOptions {
             return ExecutionMode::Replay;
         }
 
-        // trace recording keeps the old record-facing behavior
+        // trace recording selects record execution
         if self.trace.mode == TraceMode::Record {
             return ExecutionMode::Record;
         }

@@ -111,17 +111,23 @@
       "description": "Compiler options.",
       "$ref": "#/$defs/CompilerOptionsJson"
     },
+    "policy": {
+      "description": "Package policy declarations and rules.",
+      "$ref": "#/$defs/PolicyOptionsJson",
+      "default": {
+        "requires": null,
+        "rules": null
+      }
+    },
     "runtime": {
       "description": "Runtime options.",
       "$ref": "#/$defs/RuntimeConfigJson",
       "default": {
-        "host": null,
-        "version": null,
+        "environment": null,
         "name": null,
-        "labels": null,
-        "primaryWorker": null,
         "scheduler": null,
-        "effect": null,
+        "time": null,
+        "random": null,
         "simulation": null,
         "trace": null,
         "heap": null,
@@ -430,11 +436,325 @@
         "deny"
       ]
     },
+    "PolicyOptionsJson": {
+      "description": "Static policy configuration JSON.",
+      "type": "object",
+      "properties": {
+        "requires": {
+          "description": "Package-declared policy requirements.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/PolicyRequirementJson"
+          }
+        },
+        "rules": {
+          "description": "Ordered policy rules.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/PolicyRuleJson"
+          }
+        }
+      }
+    },
+    "PolicyRequirementJson": {
+      "description": "Policy requirement JSON.",
+      "type": "object",
+      "properties": {
+        "domain": {
+          "description": "Policy domain where the action is exercised.",
+          "$ref": "#/$defs/PolicyDomain",
+          "default": "runtime"
+        },
+        "action": {
+          "description": "Action name required by package code.",
+          "type": "string"
+        },
+        "resource": {
+          "description": "Resource scope touched by the action.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "action",
+        "resource"
+      ]
+    },
+    "PolicyDomain": {
+      "description": "Policy domain where one action is exercised.",
+      "oneOf": [
+        {
+          "description": "Compile-time program execution.",
+          "type": "string",
+          "const": "comptime"
+        },
+        {
+          "description": "Ordinary program execution.",
+          "type": "string",
+          "const": "runtime"
+        }
+      ]
+    },
+    "PolicyRuleJson": {
+      "description": "Policy rule JSON.",
+      "type": "object",
+      "properties": {
+        "domain": {
+          "description": "Policy domain where the action is exercised.",
+          "$ref": "#/$defs/PolicyDomain",
+          "default": "runtime"
+        },
+        "subject": {
+          "description": "Subject matched by this rule.",
+          "$ref": "#/$defs/PolicySubjectJson"
+        },
+        "action": {
+          "description": "Action name matched by this rule.",
+          "type": "string"
+        },
+        "resource": {
+          "description": "Resource scope matched by this rule.",
+          "type": "string"
+        },
+        "access": {
+          "description": "Access outcome selected by this rule.",
+          "$ref": "#/$defs/PolicyAccess"
+        },
+        "world": {
+          "description": "World selected when access is allowed.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolicyWorld"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "subject",
+        "action",
+        "resource",
+        "access"
+      ]
+    },
+    "PolicySubjectJson": {
+      "description": "Policy subject JSON.",
+      "type": "object",
+      "properties": {
+        "package": {
+          "description": "Package selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimePackageSelectorJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "runtime": {
+          "description": "Runtime identity selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeIdentitySelectorJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "worker": {
+          "description": "Worker identity selector.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeIdentitySelectorJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "RuntimePackageSelectorJson": {
+      "description": "Package selector accepted by static policy JSON.",
+      "anyOf": [
+        {
+          "description": "Package name shorthand.",
+          "type": "string"
+        },
+        {
+          "description": "Package name shorthand list.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "description": "Structured package selector.",
+          "$ref": "#/$defs/RuntimePackageSelectorJsonObject"
+        }
+      ]
+    },
+    "RuntimePackageSelectorJsonObject": {
+      "description": "Structured package selector accepted by static policy JSON.",
+      "type": "object",
+      "properties": {
+        "patterns": {
+          "description": "Package name glob patterns.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "patterns"
+      ]
+    },
+    "RuntimeIdentitySelectorJson": {
+      "description": "Runtime identity selector for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Name selector for one runtime or one worker.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "labels": {
+          "description": "Label selector for one runtime or one worker.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuntimeLabelSelectorJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "RuntimeLabelSelectorJson": {
+      "description": "Kubernetes-style runtime label selector for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "matchLabels": {
+          "description": "Exact-match labels that must all be present.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "matchExpressions": {
+          "description": "Additional set-based label requirements.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/RuntimeLabelRequirementJson"
+          }
+        }
+      }
+    },
+    "RuntimeLabelRequirementJson": {
+      "description": "Runtime label requirement for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "key": {
+          "description": "Label key to evaluate.",
+          "type": "string"
+        },
+        "operator": {
+          "description": "Label requirement operator.",
+          "$ref": "#/$defs/RuntimeLabelOperatorJson"
+        },
+        "values": {
+          "description": "Label values for set-based operators.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "key",
+        "operator",
+        "values"
+      ]
+    },
+    "RuntimeLabelOperatorJson": {
+      "description": "Runtime label operator for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Match labels whose value is in the supplied value set.",
+          "type": "string",
+          "const": "in"
+        },
+        {
+          "description": "Match labels whose value is not in the supplied value set.",
+          "type": "string",
+          "const": "notIn"
+        },
+        {
+          "description": "Match labels where the key exists regardless of value.",
+          "type": "string",
+          "const": "exists"
+        },
+        {
+          "description": "Match labels where the key does not exist.",
+          "type": "string",
+          "const": "doesNotExist"
+        }
+      ]
+    },
+    "PolicyAccess": {
+      "description": "Policy access result selected by one rule.",
+      "oneOf": [
+        {
+          "description": "Allow the matching action.",
+          "type": "string",
+          "const": "allow"
+        },
+        {
+          "description": "Deny the matching action.",
+          "type": "string",
+          "const": "deny"
+        }
+      ]
+    },
+    "PolicyWorld": {
+      "description": "Runtime world used for allowed effects.",
+      "oneOf": [
+        {
+          "description": "Execute against the live host.",
+          "type": "string",
+          "const": "host"
+        },
+        {
+          "description": "Execute against the configured simulation model.",
+          "type": "string",
+          "const": "simulation"
+        }
+      ]
+    },
     "RuntimeConfigJson": {
       "description": "Runtime config JSON.",
       "anyOf": [
         {
-          "description": "Runtime contract shorthand.",
+          "description": "Runtime environment shorthand.",
           "$ref": "#/$defs/Runtime"
         },
         {
@@ -462,8 +782,8 @@
       "description": "Runtime options (object form).",
       "type": "object",
       "properties": {
-        "host": {
-          "description": "Execution host semantics for this runtime.",
+        "environment": {
+          "description": "Runtime environment family.",
           "anyOf": [
             {
               "$ref": "#/$defs/Runtime"
@@ -473,39 +793,11 @@
             }
           ]
         },
-        "version": {
-          "description": "Runtime version for versioned library selection.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "name": {
           "description": "Stable runtime name for policy selection.",
           "type": [
             "string",
             "null"
-          ]
-        },
-        "labels": {
-          "description": "Runtime labels for policy selection.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "primaryWorker": {
-          "description": "Default primary worker identity for policy selection.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RuntimeWorkerOptionsJson"
-            },
-            {
-              "type": "null"
-            }
           ]
         },
         "scheduler": {
@@ -519,11 +811,22 @@
             }
           ]
         },
-        "effect": {
-          "description": "Runtime effect configuration.",
+        "time": {
+          "description": "Runtime clock source configuration.",
           "anyOf": [
             {
-              "$ref": "#/$defs/EffectOptionsJson"
+              "$ref": "#/$defs/TimeOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "random": {
+          "description": "Runtime randomness source configuration.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RandomOptionsJson"
             },
             {
               "type": "null"
@@ -730,29 +1033,6 @@
         }
       }
     },
-    "RuntimeWorkerOptionsJson": {
-      "description": "Primary runtime worker options for JSON deserialization.",
-      "type": "object",
-      "properties": {
-        "name": {
-          "description": "Primary worker name for policy selection.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "labels": {
-          "description": "Primary worker labels for policy selection.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "type": "string"
-          }
-        }
-      }
-    },
     "SchedulerOptionsJson": {
       "description": "Runtime scheduler options for JSON deserialization.",
       "type": "object",
@@ -934,577 +1214,99 @@
         }
       ]
     },
-    "EffectOptionsJson": {
-      "description": "Runtime effect configuration for JSON deserialization.",
+    "TimeOptionsJson": {
+      "description": "Runtime time options for JSON deserialization.",
       "type": "object",
       "properties": {
-        "backend": {
-          "description": "Default binding backend when no rule matches.",
+        "mode": {
+          "description": "Clock mode selection.",
           "anyOf": [
             {
-              "$ref": "#/$defs/RuntimeWorldJson"
+              "$ref": "#/$defs/TimeModeJson"
             },
             {
               "type": "null"
             }
           ]
         },
-        "access": {
-          "description": "Default access policy for bindings without matching access rules.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RuntimeAccessJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "rules": {
-          "description": "Ordered binding routing rules.",
+        "epochNs": {
+          "description": "Epoch in nanoseconds for virtual time.",
           "type": [
-            "array",
+            "integer",
             "null"
           ],
-          "items": {
-            "$ref": "#/$defs/RuntimeRuleJson"
-          }
+          "format": "uint64",
+          "minimum": 0
         },
-        "time": {
-          "description": "Source for time facts.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/EffectSourceJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "random": {
-          "description": "Source for randomness facts.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/EffectSourceJson"
-            },
-            {
-              "type": "null"
-            }
+        "timeZone": {
+          "description": "Time zone identifier or fixed offset string.",
+          "type": [
+            "string",
+            "null"
           ]
         }
       }
     },
-    "RuntimeWorldJson": {
-      "description": "Runtime world selection for JSON deserialization.",
+    "TimeModeJson": {
+      "description": "Time mode for JSON deserialization.",
       "oneOf": [
         {
-          "description": "Use host-backed platform bindings.",
+          "description": "Use the host clock directly.",
           "type": "string",
           "const": "host"
         },
         {
-          "description": "Use simulation-backed platform bindings.",
+          "description": "Use a virtualized clock derived from runtime state.",
           "type": "string",
-          "const": "simulation"
+          "const": "virtual"
         }
       ]
     },
-    "RuntimeAccessJson": {
-      "description": "Runtime default access policy for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Allow matching binding calls.",
-          "type": "string",
-          "const": "allow"
-        },
-        {
-          "description": "Deny matching binding calls.",
-          "type": "string",
-          "const": "deny"
-        }
-      ]
-    },
-    "RuntimeRuleJson": {
-      "description": "Runtime static rule for JSON deserialization.",
+    "RandomOptionsJson": {
+      "description": "Runtime randomness options for JSON deserialization.",
       "type": "object",
       "properties": {
-        "when": {
-          "description": "Rule filter clause.",
-          "$ref": "#/$defs/RuntimeRuleWhenJson"
-        },
-        "access": {
-          "description": "Access decision for matching bindings.",
+        "mode": {
+          "description": "Randomness source selection.",
           "anyOf": [
             {
-              "$ref": "#/$defs/RuntimeAccessJson"
+              "$ref": "#/$defs/RandomModeJson"
             },
             {
               "type": "null"
             }
           ]
         },
-        "world": {
-          "description": "World decision for matching bindings.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RuntimeWorldJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "replay": {
-          "description": "Replay payload decision for matching bindings.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ReplayPayloadModeJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        }
-      },
-      "required": [
-        "when"
-      ]
-    },
-    "RuntimeRuleWhenJson": {
-      "description": "Runtime rule selector clause for JSON deserialization.",
-      "anyOf": [
-        {
-          "description": "Shorthand binding glob selector.",
-          "type": "string"
-        },
-        {
-          "description": "Shorthand function glob selector.",
-          "type": "string"
-        },
-        {
-          "description": "Full selector object.",
-          "$ref": "#/$defs/RuntimeSelectorJson"
-        }
-      ]
-    },
-    "RuntimeSelectorJson": {
-      "description": "Runtime rule selector clause for JSON deserialization.",
-      "type": "object",
-      "properties": {
-        "binding": {
-          "description": "Glob selector for full binding names.",
+        "seed": {
+          "description": "Seed for deterministic randomness streams.",
           "type": [
-            "string",
-            "null"
-          ]
-        },
-        "function": {
-          "description": "Glob selector for full userland function names.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "capability": {
-          "description": "Glob selector for capability names.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "component": {
-          "description": "Glob selector for component names.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "module": {
-          "description": "Glob selector for module names.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "engine": {
-          "description": "Engine selector.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/BindingEngineJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "execution": {
-          "description": "Execution mode selector.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RuntimeExecutionSelectorJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "platforms": {
-          "description": "Platform selector.",
-          "type": [
-            "array",
+            "integer",
             "null"
           ],
-          "items": {
-            "type": "string"
-          }
+          "format": "uint64",
+          "minimum": 0
         },
-        "scope": {
-          "description": "Binding scope selector.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/BindingScopeJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "blocking": {
-          "description": "Binding blocking selector.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/BindingBlockingJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "affinity": {
-          "description": "Binding affinity selector.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/BindingAffinityJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "effect": {
-          "description": "Binding effect selector.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/BindingEffectJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "runtime": {
-          "description": "Runtime identity selector.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RuntimeIdentitySelectorJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "worker": {
-          "description": "Worker identity selector.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RuntimeIdentitySelectorJson"
-            },
-            {
-              "type": "null"
-            }
+        "perRunnable": {
+          "description": "Whether to use a per-runnable random stream.",
+          "type": [
+            "boolean",
+            "null"
           ]
         }
       }
     },
-    "BindingEngineJson": {
-      "description": "Runtime rule engine selector for JSON deserialization.",
+    "RandomModeJson": {
+      "description": "Randomness mode for JSON deserialization.",
       "oneOf": [
         {
-          "description": "Match VM engine execution.",
+          "description": "Use the host randomness source.",
           "type": "string",
-          "const": "vm"
+          "const": "host"
         },
         {
-          "description": "Match native engine execution.",
-          "type": "string",
-          "const": "native"
-        }
-      ]
-    },
-    "RuntimeExecutionSelectorJson": {
-      "description": "Runtime execution-mode selector for JSON deserialization.",
-      "anyOf": [
-        {
-          "description": "Match one execution mode.",
-          "$ref": "#/$defs/ExecutionModeJson"
-        },
-        {
-          "description": "Match any execution mode in this list.",
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/ExecutionModeJson"
-          }
-        }
-      ]
-    },
-    "ExecutionModeJson": {
-      "description": "Execution mode for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Fast execution without determinism guarantees.",
-          "type": "string",
-          "const": "fast"
-        },
-        {
-          "description": "Deterministic scheduling with controlled randomness.",
+          "description": "Use deterministic runtime-managed randomness.",
           "type": "string",
           "const": "deterministic"
-        },
-        {
-          "description": "Record external effects for replay.",
-          "type": "string",
-          "const": "record"
-        },
-        {
-          "description": "Replay external effects from the log.",
-          "type": "string",
-          "const": "replay"
-        }
-      ]
-    },
-    "BindingScopeJson": {
-      "description": "Runtime rule scope selector for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Match host scope bindings.",
-          "type": "string",
-          "const": "host"
-        },
-        {
-          "description": "Match runtime scope bindings.",
-          "type": "string",
-          "const": "runtime"
-        }
-      ]
-    },
-    "BindingBlockingJson": {
-      "description": "Runtime rule blocking selector for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Match always-blocking bindings.",
-          "type": "string",
-          "const": "always"
-        },
-        {
-          "description": "Match never-blocking bindings.",
-          "type": "string",
-          "const": "never"
-        },
-        {
-          "description": "Match conditionally blocking bindings.",
-          "type": "string",
-          "const": "sometimes"
-        }
-      ]
-    },
-    "BindingAffinityJson": {
-      "description": "Runtime rule affinity selector for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Match bindings callable from any execution context.",
-          "type": "string",
-          "const": "any"
-        },
-        {
-          "description": "Match bindings that require the worker event-loop context.",
-          "type": "string",
-          "const": "eventLoop"
-        },
-        {
-          "description": "Match bindings that require the creating execution context.",
-          "type": "string",
-          "const": "owner"
-        },
-        {
-          "description": "Match bindings that require the process main context.",
-          "type": "string",
-          "const": "processMain"
-        }
-      ]
-    },
-    "BindingEffectJson": {
-      "description": "Runtime rule effect selector for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Match pure bindings.",
-          "type": "string",
-          "const": "pure"
-        },
-        {
-          "description": "Match deterministic bindings.",
-          "type": "string",
-          "const": "deterministic"
-        },
-        {
-          "description": "Match recordable external bindings.",
-          "type": "string",
-          "const": "externalrecordable"
-        },
-        {
-          "description": "Match non-recordable external bindings.",
-          "type": "string",
-          "const": "externalnonrecordable"
-        }
-      ]
-    },
-    "RuntimeIdentitySelectorJson": {
-      "description": "Runtime identity selector for JSON deserialization.",
-      "type": "object",
-      "properties": {
-        "name": {
-          "description": "Name selector for one runtime or one worker.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "labels": {
-          "description": "Label selector for one runtime or one worker.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RuntimeLabelSelectorJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        }
-      }
-    },
-    "RuntimeLabelSelectorJson": {
-      "description": "Kubernetes-style runtime label selector for JSON deserialization.",
-      "type": "object",
-      "properties": {
-        "matchLabels": {
-          "description": "Exact-match labels that must all be present.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "matchExpressions": {
-          "description": "Additional set-based label requirements.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "$ref": "#/$defs/RuntimeLabelRequirementJson"
-          }
-        }
-      }
-    },
-    "RuntimeLabelRequirementJson": {
-      "description": "Runtime label requirement for JSON deserialization.",
-      "type": "object",
-      "properties": {
-        "key": {
-          "description": "Label key to evaluate.",
-          "type": "string"
-        },
-        "operator": {
-          "description": "Label requirement operator.",
-          "$ref": "#/$defs/RuntimeLabelOperatorJson"
-        },
-        "values": {
-          "description": "Label values for set-based operators.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      },
-      "required": [
-        "key",
-        "operator",
-        "values"
-      ]
-    },
-    "RuntimeLabelOperatorJson": {
-      "description": "Runtime label operator for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Match labels whose value is in the supplied value set.",
-          "type": "string",
-          "const": "in"
-        },
-        {
-          "description": "Match labels whose value is not in the supplied value set.",
-          "type": "string",
-          "const": "notIn"
-        },
-        {
-          "description": "Match labels where the key exists regardless of value.",
-          "type": "string",
-          "const": "exists"
-        },
-        {
-          "description": "Match labels where the key does not exist.",
-          "type": "string",
-          "const": "doesNotExist"
-        }
-      ]
-    },
-    "ReplayPayloadModeJson": {
-      "description": "Replay payload mode for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Record only the result value.",
-          "type": "string",
-          "const": "resultsOnly"
-        },
-        {
-          "description": "Record arguments and results for verification.",
-          "type": "string",
-          "const": "argumentsAndResults"
-        }
-      ]
-    },
-    "EffectSourceJson": {
-      "description": "Effect source for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Resolve facts from the live host.",
-          "type": "string",
-          "const": "host"
-        },
-        {
-          "description": "Resolve facts from the active trace log.",
-          "type": "string",
-          "const": "trace"
-        },
-        {
-          "description": "Resolve facts from the configured simulation backend.",
-          "type": "string",
-          "const": "simulation"
-        },
-        {
-          "description": "Forbid this interaction domain.",
-          "type": "string",
-          "const": "deny"
         }
       ]
     },
@@ -1674,6 +1476,21 @@
           "description": "Restore one exact serialized execution image.",
           "type": "string",
           "const": "image"
+        }
+      ]
+    },
+    "ReplayPayloadModeJson": {
+      "description": "Replay payload mode for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Record only the result value.",
+          "type": "string",
+          "const": "resultsOnly"
+        },
+        {
+          "description": "Record arguments and results for verification.",
+          "type": "string",
+          "const": "argumentsAndResults"
         }
       ]
     },
@@ -2217,8 +2034,8 @@
             "null"
           ]
         },
-        "capabilityProfile": {
-          "description": "Optional capability profile selector.",
+        "actionProfile": {
+          "description": "Optional action profile selector.",
           "type": [
             "string",
             "null"
@@ -4196,7 +4013,7 @@
           ]
         },
         "runtime": {
-          "description": "Runtime contract shorthand or full runtime configuration.",
+          "description": "Runtime environment shorthand or full runtime configuration.",
           "anyOf": [
             {
               "$ref": "#/$defs/RuntimeConfigJson"
@@ -4207,7 +4024,14 @@
           ]
         },
         "platform": {
-          "description": "Host platform or packaging surface (e.g., web, ios, android, macos, linux, windows).",
+          "description": "Target operating system.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "host": {
+          "description": "Host environment that provides imports and ambient effects.",
           "type": [
             "string",
             "null"
@@ -4582,10 +4406,21 @@
           ]
         },
         "app": {
-          "description": "App declaration for packaging and runtime capability planning.",
+          "description": "App declaration used for host integration.",
           "anyOf": [
             {
               "$ref": "#/$defs/AppOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "policy": {
+          "description": "Policy declarations and rules for this target.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolicyOptionsJson"
             },
             {
               "type": "null"
@@ -5968,6 +5803,31 @@
         }
       ]
     },
+    "ExecutionModeJson": {
+      "description": "Execution mode for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Fast execution without determinism guarantees.",
+          "type": "string",
+          "const": "fast"
+        },
+        {
+          "description": "Deterministic scheduling with controlled randomness.",
+          "type": "string",
+          "const": "deterministic"
+        },
+        {
+          "description": "Record external effects for replay.",
+          "type": "string",
+          "const": "record"
+        },
+        {
+          "description": "Replay external effects from the log.",
+          "type": "string",
+          "const": "replay"
+        }
+      ]
+    },
     "PanicPolicyJson": {
       "description": "Panic policy for JSON deserialization.",
       "oneOf": [
@@ -6219,6 +6079,13 @@
         },
         "platform": {
           "description": "Target platform / operating system.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "host": {
+          "description": "Target host environment.",
           "type": [
             "string",
             "null"

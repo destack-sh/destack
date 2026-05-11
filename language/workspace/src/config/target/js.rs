@@ -1,5 +1,3 @@
-use std::hash::{Hash, Hasher};
-
 use serde::Deserialize;
 
 use super::output::SourceMapMode;
@@ -144,7 +142,7 @@ pub enum BundleAssetMode {
 }
 
 /// Bundler dependency options.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct BundleDependencyOptions {
     /// Module specifiers to leave external.
     pub external: Vec<String>,
@@ -154,15 +152,6 @@ pub struct BundleDependencyOptions {
     pub always_bundle: Vec<String>,
     /// Module specifiers that are the only allowed bundle inputs.
     pub only_bundle: Vec<String>,
-}
-
-impl Hash for BundleDependencyOptions {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.external.hash(state);
-        self.never_bundle.hash(state);
-        self.always_bundle.hash(state);
-        self.only_bundle.hash(state);
-    }
 }
 
 /// Bundler asset handling options.
@@ -211,7 +200,7 @@ pub struct BundleGeneratedCodeOptions {
 }
 
 /// Bundler output options.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct BundleOutputOptions {
     /// Bundle format for assembled JavaScript outputs.
     pub format: Option<BundleFormat>,
@@ -241,25 +230,6 @@ pub struct BundleOutputOptions {
     pub sourcemap_exclude_sources: bool,
     /// Whether to include debug ids in source maps.
     pub sourcemap_debug_ids: bool,
-}
-
-impl Hash for BundleOutputOptions {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.format.hash(state);
-        self.name.hash(state);
-        self.entry_file_names.hash(state);
-        self.chunk_file_names.hash(state);
-        self.asset_file_names.hash(state);
-        self.public_path.hash(state);
-        self.manifest.hash(state);
-        self.legal_comments.hash(state);
-        self.banner.hash(state);
-        self.footer.hash(state);
-        self.generated_code.hash(state);
-        self.sourcemap.hash(state);
-        self.sourcemap_exclude_sources.hash(state);
-        self.sourcemap_debug_ids.hash(state);
-    }
 }
 
 /// Bundler dependency options in `destack.json`.
