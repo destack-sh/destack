@@ -2,11 +2,10 @@ use destack_core::StringId;
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, WellKnownSymbol, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::LintRequirement::{RequireLibSymbol, RequireWellKnownSymbol};
+use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
-    expression_is_any_symbol_or_global_qualified_member,
-    expression_is_symbol_or_global_qualified_member, expression_type_or_call_return_type_map,
-    expression_unwrap_parenthesized, is_string_type,
+    expression_is_any_symbol, expression_target_symbol, expression_type_or_call_return_type_map,
+    expression_unwrap_parenthesized, expression_unwrap_transparent, is_string_type,
 };
 use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
@@ -19,7 +18,7 @@ declare_lint! {
         code = "LS003",
         category = Security,
         level = Dir,
-        requires_all = [RequireWellKnownSymbol(WellKnownSymbol::Function)],
+        requires_all = [],
         requires_any = [
             RequireLibSymbol("setTimeout", &["dom", "node"]),
             RequireLibSymbol("setInterval", &["dom", "node"]),
@@ -53,8 +52,6 @@ struct NoImpliedEvalVisitor<'a, 'b> {
     ctx: &'a mut LintModuleDirContext<'b>,
     /// The lint metadata.
     meta: &'a LintMeta,
-    /// The Function constructor symbol.
-    function_symbol: dir::GlobalSymbolId,
     /// The String well known symbol when available.
     string_symbol: Option<dir::GlobalSymbolId>,
     /// The Function member name.
@@ -71,8 +68,6 @@ struct NoImpliedEvalVisitor<'a, 'b> {
     set_interval_name: StringId,
     /// The setImmediate member name.
     set_immediate_name: StringId,
-    /// The global qualifier symbols.
-    global_qualifiers: Vec<dir::GlobalSymbolId>,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -80,7 +75,6 @@ struct NoImpliedEvalVisitor<'a, 'b> {
 impl<'a, 'b> NoImpliedEvalVisitor<'a, 'b> {
     /// Build a visitor for no-implied-eval checks.
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
-        let function_symbol = ctx.well_known_symbol(WellKnownSymbol::Function);
         let string_symbol = ctx.get_well_known_symbol(WellKnownSymbol::String);
         let function_name = ctx.string_id("Function");
         let set_timeout_name = ctx.string_id("setTimeout");
@@ -89,13 +83,11 @@ impl<'a, 'b> NoImpliedEvalVisitor<'a, 'b> {
         let set_timeout_symbol = ctx.get_declared_library_symbol(set_timeout_name);
         let set_interval_symbol = ctx.get_declared_library_symbol(set_interval_name);
         let set_immediate_symbol = ctx.get_declared_library_symbol(set_immediate_name);
-        let global_qualifiers = ctx.global_qualifier_symbols();
 
         // prepare visitor state
         Self {
             ctx,
             meta,
-            function_symbol,
             string_symbol,
             function_name,
             set_timeout_symbol,
@@ -104,7 +96,6 @@ impl<'a, 'b> NoImpliedEvalVisitor<'a, 'b> {
             set_timeout_name,
             set_interval_name,
             set_immediate_name,
-            global_qualifiers,
             options: NodeVisitorOptions::default(),
         }
     }
@@ -188,13 +179,18 @@ impl<'a, 'b> NoImpliedEvalVisitor<'a, 'b> {
 
     /// Return true when the expression refers to the Function constructor.
     fn is_function_symbol(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        expression_is_symbol_or_global_qualified_member(
-            self.ctx,
-            expression_id,
-            self.function_symbol,
-            &self.global_qualifiers,
-            self.function_name,
-        )
+        if expression_target_symbol(self.ctx, expression_id).is_some() {
+            return false;
+        }
+
+        let expression_id = expression_unwrap_parenthesized(self.ctx.tree, expression_id);
+        let expression_id = expression_unwrap_transparent(self.ctx.tree, expression_id);
+        let expression = self.ctx.tree.get(expression_id);
+        if let dir::Expression::Path { path, .. } = expression {
+            return path.segments.len() == 1 && path.segments[0] == self.function_name;
+        }
+
+        false
     }
 
     /// Return true when the expression refers to a timer function.
@@ -207,19 +203,7 @@ impl<'a, 'b> NoImpliedEvalVisitor<'a, 'b> {
         .into_iter()
         .flatten()
         .collect::<Vec<_>>();
-        let names = [
-            self.set_timeout_name,
-            self.set_interval_name,
-            self.set_immediate_name,
-        ];
-
-        expression_is_any_symbol_or_global_qualified_member(
-            self.ctx,
-            expression_id,
-            &symbols,
-            &self.global_qualifiers,
-            &names,
-        )
+        expression_is_any_symbol(self.ctx, expression_id, &symbols)
     }
 
     /// Return true when the expression is a string literal or template.

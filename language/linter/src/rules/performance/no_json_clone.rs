@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
-    expression_is_symbol_or_global_qualified_member, expression_unwrap_parenthesized,
+    expression_is_symbol, expression_unwrap_parenthesized,
     expression_unwrap_transparent,
 };
 use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
@@ -59,8 +59,6 @@ struct NoJsonCloneVisitor<'a, 'b> {
     parse_name: StringId,
     /// The stringify member name.
     stringify_name: StringId,
-    /// The global qualifier symbols.
-    global_qualifiers: Vec<dir::GlobalSymbolId>,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -72,7 +70,6 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
         let parse_name = ctx.string_id("parse");
         let stringify_name = ctx.string_id("stringify");
         let json_symbol = ctx.declared_library_symbol(json_name);
-        let global_qualifiers = ctx.global_qualifier_symbols();
 
         Self {
             ctx,
@@ -81,7 +78,6 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
             json_name,
             parse_name,
             stringify_name,
-            global_qualifiers,
             options: NodeVisitorOptions::default(),
         }
     }
@@ -171,12 +167,10 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
         }
 
         // match direct and global qualified JSON references
-        expression_is_symbol_or_global_qualified_member(
+        expression_is_symbol(
             self.ctx,
             *left,
             self.json_symbol,
-            &self.global_qualifiers,
-            self.json_name,
         )
     }
 

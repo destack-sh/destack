@@ -1,4 +1,3 @@
-mod guard_for_in;
 mod no_async_foreach;
 mod no_cond_assign;
 mod no_confusing_assignment;
@@ -46,7 +45,6 @@ mod return_await;
 
 use crate::{BoxedLintRule, boxed};
 
-pub use guard_for_in::*;
 pub use no_async_foreach::*;
 pub use no_cond_assign::*;
 pub use no_confusing_assignment::*;
@@ -95,7 +93,6 @@ pub use return_await::*;
 /// Get all suspicious rules.
 pub fn rules() -> Vec<BoxedLintRule> {
     vec![
-        boxed(GuardForIn),
         boxed(NoAsyncForeach),
         boxed(NoCondAssign),
         boxed(NoConfusingAssignment),

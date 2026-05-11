@@ -9,7 +9,7 @@ use regex_syntax::hir::HirKind;
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::analysis::LintRegexParse;
 use crate::rules::common::{
-    expression_is_symbol_or_global_qualified_member, expression_static_string_literal,
+    expression_is_symbol, expression_static_string_literal,
     expression_target_symbol, expression_unwrap_parenthesized, is_string_type,
     single_quoted_string_literal, span_has_comment, symbol_initializer_expression,
 };
@@ -64,8 +64,6 @@ struct PreferStringReplaceAllVisitor<'a, 'b> {
     regexp_symbol: Option<dir::GlobalSymbolId>,
     /// The string id for the RegExp global name.
     regexp_name: StringId,
-    /// The global qualifier symbols.
-    global_qualifiers: Vec<dir::GlobalSymbolId>,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -78,7 +76,6 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
         let replace_all_name = ctx.string_id("replaceAll");
         let regexp_name = ctx.string_id("RegExp");
         let regexp_symbol = ctx.get_declared_library_symbol(regexp_name);
-        let global_qualifiers = ctx.global_qualifier_symbols();
 
         Self {
             ctx,
@@ -88,7 +85,6 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
             replace_all_name,
             regexp_symbol,
             regexp_name,
-            global_qualifiers,
             options: NodeVisitorOptions::default(),
         }
     }
@@ -413,12 +409,10 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
             return false;
         };
 
-        expression_is_symbol_or_global_qualified_member(
+        expression_is_symbol(
             self.ctx,
             expression_id,
             regexp_symbol,
-            &self.global_qualifiers,
-            self.regexp_name,
         )
     }
 

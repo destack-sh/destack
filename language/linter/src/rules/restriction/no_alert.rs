@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
-    expression_is_any_symbol_or_global_qualified_member, expression_is_standalone_statement,
+    expression_is_any_symbol, expression_is_standalone_statement,
 };
 use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
@@ -66,8 +66,6 @@ struct NoAlertVisitor<'a, 'b> {
     confirm_name: StringId,
     /// The prompt member name.
     prompt_name: StringId,
-    /// The global qualifier symbols.
-    global_qualifiers: Vec<dir::GlobalSymbolId>,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -81,7 +79,6 @@ impl<'a, 'b> NoAlertVisitor<'a, 'b> {
         let alert_symbol = ctx.get_declared_library_symbol(alert_name);
         let confirm_symbol = ctx.get_declared_library_symbol(confirm_name);
         let prompt_symbol = ctx.get_declared_library_symbol(prompt_name);
-        let global_qualifiers = ctx.global_qualifier_symbols();
 
         Self {
             ctx,
@@ -92,7 +89,6 @@ impl<'a, 'b> NoAlertVisitor<'a, 'b> {
             alert_name,
             confirm_name,
             prompt_name,
-            global_qualifiers,
             options: NodeVisitorOptions::default(),
         }
     }
@@ -165,12 +161,10 @@ impl<'a, 'b> NoAlertVisitor<'a, 'b> {
             .collect::<Vec<_>>();
         let names = [self.alert_name, self.confirm_name, self.prompt_name];
 
-        expression_is_any_symbol_or_global_qualified_member(
+        expression_is_any_symbol(
             self.ctx,
             expression_id,
             &symbols,
-            &self.global_qualifiers,
-            &names,
         )
     }
 }

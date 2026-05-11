@@ -123,7 +123,6 @@ Code that is likely unintentional but may occasionally be intentional.
 
 | Code | Rule | Source | Level | Status | Autofix Support | Fixability | Description |
 |------|------|--------|-------|--------|------------------|------------|-------------|
-| `LU001` | `guard-for-in` | ESLint | DIR | ✓ | Sometimes | Unsafe | Require real own-property guards in `for-in` loops |
 | `LU002` | `no-async-foreach` | Destack | DIR | ✓ | Sometimes | Unsafe | Disallow `forEach` with async callback (doesn't await) |
 | `LU003` | `no-cond-assign` | ESLint | AST | ✓ | Sometimes | Safe | Disallow assignment operators in conditional expressions |
 | `LU004` | `no-confusing-assignment` | Destack | AST | ✓ | Always | Safe | Warn on assignments that look like comparisons |
@@ -183,7 +182,6 @@ Patterns that may expose the application to attacks.
 | `LS003` | `no-implied-eval` | ESLint | DIR | ✓ | No | None | Disallow `setTimeout` and `setInterval` with string arguments |
 | `LS004` | `no-insecure-random` | Semgrep | DIR | ✓ | No | None | Disallow insecure random number generators |
 | `LS005` | `no-open-redirect` | Semgrep | DIR | ✓ | No | None | Disallow tainted values in browser redirect APIs |
-| `LS006` | `no-prototype-pollution` | Semgrep | DIR | ✓ | No | None | Disallow patterns that may pollute Object.prototype |
 | `LS007` | `no-regex-injection` | Destack | DIR | ✓ | No | None | Disallow tainted values in dynamic regular expression patterns |
 | `LS008` | `no-script-url` | ESLint | AST | ✓ | No | None | Disallow `javascript:` URLs |
 | `LS009` | `no-secrets` | Biome | AST | ✓ | No | None | Disallow hardcoded secrets and credentials |
@@ -199,7 +197,6 @@ Correct code that could be faster or use less memory.
 |------|------|--------|-------|--------|------------------|------------|-------------|
 | `LP027` | `large-stack-arrays` | Clippy | MIR |  |  | Suggestion | Warn on large stack allocations that should be heap allocated |
 | `LP028` | `large-types-passed-by-value` | Clippy | DIR |  |  | Suggestion | Warn on passing large structs or arrays by value |
-| `LP001` | `no-accumulating-spread` | Biome | DIR | ✓ | No | None | Disallow spreading in accumulators (causes O(n²) allocations) |
 | `LP033` | `no-ambiguous-type` | Destack | DIR |  |  | Suggestion | Warn on types that force dynamic dispatch unnecessarily |
 | `LP019` | `no-alloc-in-loop` | Clippy | MIR |  |  | None | Disallow heap allocations inside loops |
 | `LP002` | `no-array-for-each` | Unicorn | DIR | ✓ | Sometimes | Unsafe | Prefer for-of over `Array.forEach()` |
@@ -208,7 +205,6 @@ Correct code that could be faster or use less memory.
 | `LP005` | `no-barrel-file` | Biome | AST | ✓ | No | None | Disallow barrel files that re-export everything |
 | `LP006` | `no-json-clone` | Destack | DIR | ✓ | Sometimes | Unsafe | Disallow `JSON.parse(JSON.stringify())` for cloning |
 | `LP007` | `no-nested-array-includes` | Destack | DIR | ✓ | No | None | Disallow `includes`/`indexOf` inside loops over another array |
-| `LP008` | `no-object-spread-in-reduce` | Destack | DIR | ✓ | No | None | Disallow object spread in reduce accumulators |
 | `LP009` | `no-regex-in-loop` | Destack | DIR | ✓ | No | None | Disallow `RegExp()` construction inside loops |
 | `LP020` | `no-sequential-independent-await` | Destack | DIR | ✓ | No | None | Suggest `Promise.all` for independent sequential awaits |
 | `LP010` | `no-string-concat-in-loop` | Destack | DIR | ✓ | No | None | Disallow `+=` and `x = x + y` string concatenation in loops |
@@ -272,7 +268,6 @@ Subjective preferences for consistent coding style.
 | `LY045` | `prefer-named-extension`             | Destack    | AST   | ✓      | No              | None       | Prefer named extensions for foreign types                           |
 | `LY046` | `prefer-nullish-coalescing`          | TS-ESLint  | DIR   | ✓      | Sometimes       | Safe       | Prefer `??` over `\                                                 |
 | `LY047` | `prefer-numeric-literals`            | ESLint     | DIR   | ✓      | Sometimes       | Safe       | Prefer numeric literals over `parseInt()`                           |
-| `LY069` | `prefer-object-has-own`              | ESLint     | DIR   | ✓      | Sometimes       | Safe       | Prefer `Object.hasOwn()` over `Object.prototype.hasOwnProperty`     |
 | `LY048` | `prefer-object-spread`               | ESLint     | DIR   | ✓      | Sometimes       | Safe       | Prefer spread operator over `Object.assign()`                       |
 | `LY049` | `prefer-pattern-over-guard`          | Destack    | DIR   | ✓      | Sometimes       | Safe       | Suggest moving match guards into the pattern                        |
 | `LY050` | `prefer-precise-numeric`             | Destack    | AST   | ✓      | Always          | Suggestion | Prefer precise numeric types over `number`                          |

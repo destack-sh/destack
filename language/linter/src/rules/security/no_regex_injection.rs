@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
-    TaintAnalysis, TaintCache, expression_is_symbol_or_global_qualified_member,
+    TaintAnalysis, TaintCache, expression_is_symbol,
 };
 use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
@@ -51,8 +51,6 @@ struct NoRegexInjectionVisitor<'a, 'b> {
     regexp_symbol: dir::GlobalSymbolId,
     /// The RegExp member name.
     regexp_name: StringId,
-    /// The global qualifier symbols.
-    global_qualifiers: Vec<dir::GlobalSymbolId>,
     /// Cached taint analysis state.
     taint_cache: TaintCache,
     /// The visitor options.
@@ -64,14 +62,12 @@ impl<'a, 'b> NoRegexInjectionVisitor<'a, 'b> {
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let regexp_name = ctx.string_id("RegExp");
         let regexp_symbol = ctx.declared_library_symbol(regexp_name);
-        let global_qualifiers = ctx.global_qualifier_symbols();
 
         Self {
             ctx,
             meta,
             regexp_symbol,
             regexp_name,
-            global_qualifiers,
             taint_cache: TaintCache::default(),
             options: NodeVisitorOptions::default(),
         }
@@ -142,12 +138,10 @@ impl<'a, 'b> NoRegexInjectionVisitor<'a, 'b> {
 
     /// Return true when the expression is the RegExp constructor.
     fn is_regexp_constructor(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        expression_is_symbol_or_global_qualified_member(
+        expression_is_symbol(
             self.ctx,
             expression_id,
             self.regexp_symbol,
-            &self.global_qualifiers,
-            self.regexp_name,
         )
     }
 

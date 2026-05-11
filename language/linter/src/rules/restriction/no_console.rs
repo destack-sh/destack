@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
-    expression_is_standalone_statement, expression_is_symbol_or_global_qualified_member,
+    expression_is_standalone_statement, expression_is_symbol,
     expression_static_property_name,
 };
 use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
@@ -52,8 +52,6 @@ struct NoConsoleVisitor<'a, 'b> {
     console_symbol: dir::GlobalSymbolId,
     /// The console member name.
     console_name: StringId,
-    /// The global qualifier symbols.
-    global_qualifiers: Vec<dir::GlobalSymbolId>,
     /// Allowed console member names.
     allowed_methods: Vec<StringId>,
     /// Stack of member left expressions to avoid double reporting.
@@ -67,7 +65,6 @@ impl<'a, 'b> NoConsoleVisitor<'a, 'b> {
     fn new(ctx: &'a mut LintModuleDirContext<'b>, meta: &'a LintMeta) -> Self {
         let console_name = ctx.string_id("console");
         let console_symbol = ctx.declared_library_symbol(console_name);
-        let global_qualifiers = ctx.global_qualifier_symbols();
         let allowed_methods = ctx
             .options
             .restriction
@@ -81,7 +78,6 @@ impl<'a, 'b> NoConsoleVisitor<'a, 'b> {
             meta,
             console_symbol,
             console_name,
-            global_qualifiers,
             allowed_methods,
             member_left_stack: Vec::new(),
             options: NodeVisitorOptions::default(),
@@ -133,12 +129,10 @@ impl<'a, 'b> NoConsoleVisitor<'a, 'b> {
 
     /// Return true when the expression is a console reference.
     fn is_console_reference(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        expression_is_symbol_or_global_qualified_member(
+        expression_is_symbol(
             self.ctx,
             expression_id,
             self.console_symbol,
-            &self.global_qualifiers,
-            self.console_name,
         )
     }
 
