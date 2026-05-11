@@ -1,13 +1,19 @@
 use std::collections::BTreeMap;
 
+use crate::diagnostic::RuntimeResult;
+use crate::runtime::binding::{
+    BindingAffinity, BindingDescriptor, BindingEffect, BindingProvider, BindingReplayKind,
+    BindingReplayPayload, RuntimeAccess,
+};
 use crate::runtime::policy::{
-    ActivationWindow, Effect, Fault, FaultTarget, FaultType, Hook, HookEvent, Lifetime, Policy,
-    PolicyCallId, PolicyState, Rule, RuleId, Trigger, WorldEdgeSelector, WorldEntitySelector,
+    ActivationWindow, Fault, FaultTarget, FaultType, Hook, HookEvent, Lifetime, Policy,
+    PolicyCallId, PolicyState, Rule, RuleAction, RuleId, RuntimeSelector, Trigger,
+    WorldEdgeSelector, WorldEntitySelector,
 };
 use crate::runtime::random::Random;
 use crate::runtime::world::topology::Topology;
 use crate::runtime::{WorkerId, WorldEdgeKind, WorldEntityKind};
-use destack_workspace::{ExecutionMode, RuntimeAccess, RuntimeSelector};
+use destack_workspace::ExecutionMode;
 
 /// Stable runtime name used by policy tests.
 const TEST_RUNTIME_NAME: &str = "test-runtime";
@@ -31,7 +37,7 @@ fn test_on_event_respects_after_call_count_activation() {
         skip_hits: None,
     };
     let policy = Policy {
-        rules: vec![effect_rule("after-call-count", trigger)],
+        rules: vec![action_rule("after-call-count", trigger)],
     };
     let random = Random::new(7);
     let mut state = PolicyState::new(policy);
@@ -78,7 +84,7 @@ fn test_on_event_respects_after_call_count_per_worker() {
         skip_hits: None,
     };
     let policy = Policy {
-        rules: vec![effect_rule("after-call-count-per-worker", trigger)],
+        rules: vec![action_rule("after-call-count-per-worker", trigger)],
     };
     let random = Random::new(11);
     let mut state = PolicyState::new(policy);
@@ -135,7 +141,7 @@ fn test_on_event_respects_cadence_and_cooldown() {
         skip_hits: Some(1),
     };
     let policy = Policy {
-        rules: vec![effect_rule("cadence-cooldown", trigger)],
+        rules: vec![action_rule("cadence-cooldown", trigger)],
     };
     let random = Random::new(17);
     let mut state = PolicyState::new(policy);
@@ -200,7 +206,7 @@ fn test_on_event_respects_call_count_lifetime() {
         skip_hits: None,
     };
     let policy = Policy {
-        rules: vec![effect_rule("lifetime", trigger)],
+        rules: vec![action_rule("lifetime", trigger)],
     };
     let random = Random::new(23);
     let mut state = PolicyState::new(policy);
@@ -256,7 +262,7 @@ fn test_on_event_emits_policy_decision_payload() {
         skip_hits: None,
     };
     let policy = Policy {
-        rules: vec![effect_rule("metadata", trigger)],
+        rules: vec![action_rule("metadata", trigger)],
     };
     let random = Random::new(41);
     let mut state = PolicyState::new(policy);
@@ -279,7 +285,7 @@ fn test_on_event_emits_policy_decision_payload() {
     assert_eq!(decision.hook, Hook::BindingBefore);
     assert_eq!(decision.worker_id, WorkerId(99));
     assert!(decision.call_id.is_some());
-    assert!(matches!(decision.effect, Effect::Fault { .. }));
+    assert!(matches!(decision.action, RuleAction::Fault { .. }));
 }
 
 /// Ensures fault rules require explicit triggers.
@@ -291,7 +297,7 @@ fn test_policy_validate_rejects_fault_rule_without_trigger() {
             id: RuleId("test.policy.shape.fault_missing_trigger".to_string()),
             enabled: true,
             when: Some(RuntimeSelector::default()),
-            action: Effect::Fault {
+            action: RuleAction::Fault {
                 fault: Fault {
                     target: FaultTarget::Call {},
                     fault_type: FaultType::Error {
@@ -308,44 +314,44 @@ fn test_policy_validate_rejects_fault_rule_without_trigger() {
     assert!(result.is_err());
 }
 
-/// Ensures static dispatch rules reject triggers.
+/// Ensures static binding decision rules reject triggers.
 #[test]
-fn test_policy_validate_rejects_dispatch_rule_with_trigger() {
-    // configure one dispatch rule with one trigger
+fn test_policy_validate_rejects_binding_rule_with_trigger() {
+    // configure one binding decision rule with one trigger
     let policy = Policy {
         rules: vec![Rule {
-            id: RuleId("test.policy.shape.dispatch_with_trigger".to_string()),
+            id: RuleId("test.policy.shape.binding_with_trigger".to_string()),
             enabled: true,
             when: Some(RuntimeSelector::default()),
-            action: Effect::SetAccess {
+            action: RuleAction::SetAccess {
                 access: RuntimeAccess::Allow,
             },
             trigger: Some(test_trigger()),
         }],
     };
 
-    // validation should reject dispatch trigger shape
+    // validation should reject binding trigger shape
     let result = validate_policy(&policy);
     assert!(result.is_err());
 }
 
-/// Ensures dispatch rules require one explicit call selector.
+/// Ensures binding decision rules require one explicit call selector.
 #[test]
-fn test_policy_validate_rejects_dispatch_rule_without_call_selector() {
-    // configure one dispatch rule with no call selector
+fn test_policy_validate_rejects_binding_rule_without_call_selector() {
+    // configure one binding decision rule with no call selector
     let policy = Policy {
         rules: vec![Rule {
-            id: RuleId("test.policy.shape.dispatch_missing_call_selector".to_string()),
+            id: RuleId("test.policy.shape.binding_missing_call_selector".to_string()),
             enabled: true,
             when: None,
-            action: Effect::SetAccess {
+            action: RuleAction::SetAccess {
                 access: RuntimeAccess::Allow,
             },
             trigger: None,
         }],
     };
 
-    // validation should reject missing call selector for dispatch rules
+    // validation should reject missing call selector for binding decision rules
     let result = validate_policy(&policy);
     assert!(result.is_err());
 }
@@ -359,7 +365,7 @@ fn test_policy_validate_rejects_call_fault_without_call_selector() {
             id: RuleId("test.policy.shape.call_fault_missing_call_selector".to_string()),
             enabled: true,
             when: None,
-            action: Effect::Fault {
+            action: RuleAction::Fault {
                 fault: Fault {
                     target: FaultTarget::Call {},
                     fault_type: FaultType::Error {
@@ -385,7 +391,7 @@ fn test_policy_validate_rejects_unknown_entity_kind() {
             id: RuleId("test.policy.kind.unknown".to_string()),
             enabled: true,
             when: None,
-            action: Effect::Fault {
+            action: RuleAction::Fault {
                 fault: Fault {
                     target: FaultTarget::Entity {
                         kind: WorldEntityKind("unknown.kind".to_string()),
@@ -412,7 +418,7 @@ fn test_policy_validate_accepts_registered_compatible_fault_kind() {
             id: RuleId("test.policy.kind.compatible".to_string()),
             enabled: true,
             when: None,
-            action: Effect::Fault {
+            action: RuleAction::Fault {
                 fault: Fault {
                     target: FaultTarget::Entity {
                         kind: WorldEntityKind("net.socket".to_string()),
@@ -439,7 +445,7 @@ fn test_policy_validate_rejects_registered_incompatible_fault_kind() {
             id: RuleId("test.policy.kind.incompatible".to_string()),
             enabled: true,
             when: None,
-            action: Effect::Fault {
+            action: RuleAction::Fault {
                 fault: Fault {
                     target: FaultTarget::Entity {
                         kind: WorldEntityKind("fs.inode".to_string()),
@@ -466,7 +472,7 @@ fn test_policy_validate_accepts_registered_compatible_fault_edge_kind() {
             id: RuleId("test.policy.edge.compatible".to_string()),
             enabled: true,
             when: None,
-            action: Effect::Fault {
+            action: RuleAction::Fault {
                 fault: Fault {
                     target: FaultTarget::Edge {
                         kind: WorldEdgeKind("net.stream_link".to_string()),
@@ -494,7 +500,7 @@ fn test_policy_validate_rejects_registered_incompatible_fault_edge_kind() {
             id: RuleId("test.policy.edge.incompatible".to_string()),
             enabled: true,
             when: None,
-            action: Effect::Fault {
+            action: RuleAction::Fault {
                 fault: Fault {
                     target: FaultTarget::Edge {
                         kind: WorldEdgeKind("fs.parent_child".to_string()),
@@ -513,13 +519,13 @@ fn test_policy_validate_rejects_registered_incompatible_fault_edge_kind() {
     assert!(result.is_err());
 }
 
-/// Build one minimal fault effect rule for trigger tests.
-fn effect_rule(id_suffix: &str, trigger: Trigger) -> Rule {
+/// Build one minimal fault action rule for trigger tests.
+fn action_rule(id_suffix: &str, trigger: Trigger) -> Rule {
     Rule {
         id: RuleId(format!("test.active.{id_suffix}")),
         enabled: true,
         when: Some(RuntimeSelector::default()),
-        action: Effect::Fault {
+        action: RuleAction::Fault {
             fault: Fault {
                 target: FaultTarget::Call {},
                 fault_type: FaultType::Error {
@@ -548,7 +554,7 @@ fn test_trigger() -> Trigger {
 }
 
 /// Validate one policy against standard world topology kinds.
-fn validate_policy(policy: &Policy) -> crate::diagnostic::RuntimeResult<()> {
+fn validate_policy(policy: &Policy) -> RuntimeResult<()> {
     let topology = Topology::new();
     policy.validate_with_kind_catalog(&topology)
 }
@@ -559,14 +565,32 @@ fn policy_event(worker_id: u64, hook: Hook, virtual_time_ns: u64) -> HookEvent {
         Hook::BindingBefore => HookEvent::BindingBefore {
             worker_id: WorkerId(worker_id),
             call_id: PolicyCallId(1),
-            descriptor: crate::runtime::bindings::BindingDescriptor::pure("destack.test", "()"),
+            descriptor: BindingDescriptor::new(
+                "destack.test",
+                "()",
+                BindingEffect::Pure,
+                BindingReplayKind::BindingCall,
+                BindingReplayPayload::Results,
+                &[],
+                BindingProvider::Runtime,
+                BindingAffinity::None,
+            ),
             engine: None,
             virtual_time_ns,
         },
         Hook::BindingAfter => HookEvent::BindingAfter {
             worker_id: WorkerId(worker_id),
             call_id: PolicyCallId(1),
-            descriptor: crate::runtime::bindings::BindingDescriptor::pure("destack.test", "()"),
+            descriptor: BindingDescriptor::new(
+                "destack.test",
+                "()",
+                BindingEffect::Pure,
+                BindingReplayKind::BindingCall,
+                BindingReplayPayload::Results,
+                &[],
+                BindingProvider::Runtime,
+                BindingAffinity::None,
+            ),
             engine: None,
             virtual_time_ns,
         },

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
-use crate::runtime::time::{HostClock, HostClockSource, Nanos, VirtualClock, WorldInstant};
+use crate::runtime::time::{HostClock, HostClockSource, Instant, Nanos, VirtualClock};
 use destack_core::{Capture, CaptureMode};
 use destack_workspace::TimeOptions;
 
@@ -10,9 +10,9 @@ use destack_workspace::TimeOptions;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClockImage {
     /// Captured virtual wall-clock instant.
-    pub virtual_wall: WorldInstant,
+    pub virtual_wall: Instant,
     /// Captured virtual monotonic instant.
-    pub virtual_mono: WorldInstant,
+    pub virtual_mono: Instant,
 }
 
 /// Runtime clock sources and time policies.
@@ -102,15 +102,15 @@ impl Clock {
     }
 
     /// Advance the virtual clock to one wall-clock deadline.
-    pub fn advance_virtual_to(&self, deadline: WorldInstant) -> WorldInstant {
+    pub fn advance_virtual_to(&self, deadline: Instant) -> Instant {
         self.virtual_clock.advance_to(deadline)
     }
 
     /// Capture one materialized clock image.
     pub(crate) fn snapshot(&self) -> ClockImage {
         ClockImage {
-            virtual_wall: WorldInstant::from_nanos(self.virtual_wall()),
-            virtual_mono: WorldInstant::from_nanos(self.virtual_mono()),
+            virtual_wall: Instant::from_nanos(self.virtual_wall()),
+            virtual_mono: Instant::from_nanos(self.virtual_mono()),
         }
     }
 

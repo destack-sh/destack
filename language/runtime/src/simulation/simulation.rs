@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::runtime::time::WorldInstant;
+use crate::runtime::time::Instant;
 
 /// Simulation state for one deterministic world.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -17,7 +17,7 @@ pub struct Simulation {
 
 impl Simulation {
     /// Schedule one simulation event at one explicit world instant.
-    pub fn schedule_event(&mut self, at: WorldInstant) -> u64 {
+    pub fn schedule_event(&mut self, at: Instant) -> u64 {
         let sequence = self.next_sequence;
         self.next_sequence = self.next_sequence.saturating_add(1);
 
@@ -27,12 +27,12 @@ impl Simulation {
     }
 
     /// Return the earliest scheduled simulation deadline.
-    pub fn next_deadline(&self) -> Option<WorldInstant> {
+    pub fn next_deadline(&self) -> Option<Instant> {
         self.scheduled_events.iter().map(SimulationEvent::at).min()
     }
 
     /// Deliver simulation events that became due at one world timestamp.
-    pub fn deliver_due(&mut self, now: WorldInstant) -> usize {
+    pub fn deliver_due(&mut self, now: Instant) -> usize {
         // partition due and pending events
         let mut due_events = Vec::new();
         let mut pending_events = Vec::with_capacity(self.scheduled_events.len());
@@ -70,14 +70,14 @@ impl Simulation {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SimulationEvent {
     /// Due world instant.
-    at: WorldInstant,
+    at: Instant,
     /// Stable insertion order.
     sequence: u64,
 }
 
 impl SimulationEvent {
     /// Return the due world instant.
-    pub const fn at(&self) -> WorldInstant {
+    pub const fn at(&self) -> Instant {
         self.at
     }
 
@@ -87,7 +87,7 @@ impl SimulationEvent {
     }
 
     /// Return the stable ordering key for this event.
-    pub(crate) const fn sort_key(&self) -> (WorldInstant, u64) {
+    pub(crate) const fn sort_key(&self) -> (Instant, u64) {
         (self.at, self.sequence)
     }
 }

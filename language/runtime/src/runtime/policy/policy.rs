@@ -4,16 +4,16 @@ use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::WorkerId;
-use crate::runtime::bindings::{
-    BindingDescriptor, BindingEngine, BindingReplayPayload, BindingScope,
+use crate::runtime::binding::{
+    BindingDescriptor, BindingEngine, BindingProvider, BindingReplayPayload, RuntimeAccess,
+    RuntimeWorld,
 };
 use crate::runtime::random::Random;
-use destack_workspace as workspace;
-use destack_workspace::{ExecutionMode, ReplayPayloadMode, RuntimeAccess, RuntimeWorld};
+use destack_workspace::{ExecutionMode, ReplayPayloadMode};
 
 use super::{
-    Effect, FaultKindCatalog, FaultTarget, Hook, HookEvent, Lifetime, PolicyCallId, ProbabilityPpm,
-    Rule, RuleId, Trigger, matcher, validate_rule_fault_compatibility,
+    FaultKindCatalog, FaultTarget, Hook, HookEvent, Lifetime, PolicyCallId, ProbabilityPpm, Rule,
+    RuleAction, RuleId, RuntimeSubject, Trigger, validate_rule_fault_compatibility,
 };
 
 /// Runtime policy specification.
@@ -28,24 +28,24 @@ pub struct Policy {
 pub(crate) struct PolicyDecision {
     /// Stable identifier of the rule that fired.
     pub rule_id: RuleId,
-    /// Hook that produced this effect.
+    /// Hook that produced this action.
     pub hook: Hook,
-    /// Worker identifier for this effect.
+    /// Worker identifier for this action.
     pub worker_id: WorkerId,
     /// Binding call identifier when one call event fired this decision.
     pub call_id: Option<PolicyCallId>,
-    /// Effect payload to execute.
-    pub effect: Effect,
+    /// Rule action payload to execute.
+    pub action: RuleAction,
 }
 
-/// Dispatch decision payload used by hot binding call paths.
+/// Binding decision payload used by hot binding call paths.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct BindingDispatchDecision {
-    /// Final access decision after dispatch rule evaluation.
+pub(crate) struct BindingDecision {
+    /// Final access decision after rule evaluation.
     pub access: RuntimeAccess,
-    /// Final world decision after dispatch rule evaluation.
+    /// Final world decision after rule evaluation.
     pub world: RuntimeWorld,
-    /// Final replay payload decision after dispatch rule evaluation.
+    /// Final replay payload decision after rule evaluation.
     pub replay_payload: BindingReplayPayload,
 }
 
@@ -84,17 +84,6 @@ impl<'a> RuleSubject<'a> {
 }
 
 impl Policy {
-    /// Convert workspace static rules into one runtime policy specification.
-    pub fn from_workspace_rules(rules: &[workspace::RuntimeRule]) -> Self {
-        let rules = rules
-            .iter()
-            .enumerate()
-            .flat_map(|(index, rule)| Rule::from_workspace_rule(index, rule))
-            .collect();
-
-        Self { rules }
-    }
-
     /// Validate all policy invariants against one topology kind catalog.
     pub(crate) fn validate_with_kind_catalog(
         &self,
@@ -250,32 +239,36 @@ impl Policy {
         let has_trigger = rule.trigger.is_some();
         let has_call_selector = rule.when.is_some();
 
-        // dispatch actions require an explicit call selector
-        if Self::is_dispatch_action(&rule.action) && !has_call_selector {
+        // binding decisions require an explicit call selector
+        if Self::is_binding_decision_action(&rule.action) && !has_call_selector {
             return Err(Self::invalid_policy_error(format!(
-                "runtime dispatch rule {} requires when",
+                "runtime binding decision rule {} requires when",
                 rule.id.0
             )));
         }
 
-        // dispatch actions are static selectors and cannot carry triggers
-        if Self::is_dispatch_action(&rule.action) && has_trigger {
+        // binding decisions are static selectors and cannot carry triggers
+        if Self::is_binding_decision_action(&rule.action) && has_trigger {
             return Err(Self::invalid_policy_error(format!(
-                "runtime dispatch rule {} must not define a trigger",
+                "runtime binding decision rule {} must not define a trigger",
                 rule.id.0
             )));
         }
 
-        // fault and custom effects are dynamic and must carry triggers
-        if matches!(rule.action, Effect::Fault { .. } | Effect::Custom { .. }) && !has_trigger {
+        // fault and custom actions are dynamic and must carry triggers
+        if matches!(
+            rule.action,
+            RuleAction::Fault { .. } | RuleAction::Custom { .. }
+        ) && !has_trigger
+        {
             return Err(Self::invalid_policy_error(format!(
-                "runtime effect rule {} requires a trigger",
+                "runtime action rule {} requires a trigger",
                 rule.id.0
             )));
         }
 
-        // call-target faults require call-plane selectors
-        if let Effect::Fault { fault } = &rule.action
+        // call-target faults require call selectors
+        if let RuleAction::Fault { fault } = &rule.action
             && matches!(fault.target, FaultTarget::Call {})
             && !has_call_selector
         {
@@ -288,11 +281,13 @@ impl Policy {
         Ok(())
     }
 
-    /// Return true when one effect is a static dispatch action.
-    fn is_dispatch_action(effect: &Effect) -> bool {
+    /// Return true when one action is a static binding decision action.
+    fn is_binding_decision_action(action: &RuleAction) -> bool {
         matches!(
-            effect,
-            Effect::SetWorld { .. } | Effect::SetAccess { .. } | Effect::SetReplay { .. }
+            action,
+            RuleAction::SetWorld { .. }
+                | RuleAction::SetAccess { .. }
+                | RuleAction::SetReplay { .. }
         )
     }
 
@@ -344,12 +339,12 @@ pub(crate) struct RuleState {
 pub(crate) struct PolicyState {
     /// Active policy specification.
     pub spec: Policy,
-    /// Enabled static dispatch rule indices for this policy revision.
-    dispatch_rule_indices: Vec<usize>,
-    /// Enabled triggered effect rule indices for this policy revision.
-    effect_rule_indices: Vec<usize>,
+    /// Enabled static binding decision rule indices for this policy revision.
+    binding_rule_indices: Vec<usize>,
+    /// Enabled triggered action rule indices for this policy revision.
+    triggered_rule_indices: Vec<usize>,
     /// Total matching call events seen per worker.
-    total_calls_seen_by_agent: HashMap<WorkerId, u64>,
+    total_calls_seen_by_worker: HashMap<WorkerId, u64>,
     /// Runtime rule state by rule id and worker id.
     rule_states: HashMap<RuleId, HashMap<WorkerId, RuleState>>,
 }
@@ -357,14 +352,14 @@ pub(crate) struct PolicyState {
 impl PolicyState {
     /// Create one active policy with empty runtime state.
     pub(crate) fn new(policy: Policy) -> Self {
-        let (dispatch_rule_indices, effect_rule_indices) =
+        let (binding_rule_indices, triggered_rule_indices) =
             Self::split_enabled_rule_indices(&policy);
 
         Self {
             spec: policy,
-            dispatch_rule_indices,
-            effect_rule_indices,
-            total_calls_seen_by_agent: HashMap::new(),
+            binding_rule_indices,
+            triggered_rule_indices,
+            total_calls_seen_by_worker: HashMap::new(),
             rule_states: HashMap::new(),
         }
     }
@@ -436,8 +431,8 @@ impl PolicyState {
         Ok(())
     }
 
-    /// Resolve dispatch decisions for one binding call in one selector scope.
-    pub(crate) fn resolve_binding_dispatch_for_subject(
+    /// Resolve binding decisions for one binding call in one selector scope.
+    pub(crate) fn resolve_binding_for_subject(
         &self,
         subject: RuleSubject<'_>,
         descriptor: BindingDescriptor,
@@ -445,8 +440,8 @@ impl PolicyState {
         default_access: RuntimeAccess,
         default_world: RuntimeWorld,
         default_replay_payload: BindingReplayPayload,
-    ) -> BindingDispatchDecision {
-        self.resolve_binding_dispatch(
+    ) -> BindingDecision {
+        self.resolve_binding(
             subject.runtime_name,
             subject.runtime_labels,
             subject.worker_name,
@@ -478,8 +473,8 @@ impl PolicyState {
         )
     }
 
-    /// Resolve dispatch decisions for one binding call without explanation metadata.
-    pub(crate) fn resolve_binding_dispatch(
+    /// Resolve binding decisions for one binding call without explanation metadata.
+    pub(crate) fn resolve_binding(
         &self,
         runtime_name: &str,
         runtime_labels: &BTreeMap<String, String>,
@@ -491,20 +486,20 @@ impl PolicyState {
         default_access: RuntimeAccess,
         default_world: RuntimeWorld,
         default_replay_payload: BindingReplayPayload,
-    ) -> BindingDispatchDecision {
+    ) -> BindingDecision {
         let mut access = default_access;
         let mut world = default_world;
         let mut replay_payload = default_replay_payload;
         let mut has_access_decision = false;
-        let mut has_world_decision = descriptor.scope == BindingScope::Runtime;
+        let mut has_world_decision = descriptor.provider == BindingProvider::Runtime;
         let mut has_replay_decision = false;
 
         // runtime bindings are always host owned
-        if descriptor.scope == BindingScope::Runtime {
+        if descriptor.provider == BindingProvider::Runtime {
             world = RuntimeWorld::Host;
         }
 
-        for rule_index in &self.dispatch_rule_indices {
+        for rule_index in &self.binding_rule_indices {
             let rule = &self.spec.rules[*rule_index];
             if !Self::matches_call_selector(
                 rule,
@@ -520,7 +515,7 @@ impl PolicyState {
             }
 
             if !has_access_decision
-                && let Effect::SetAccess {
+                && let RuleAction::SetAccess {
                     access: selected_access,
                 } = &rule.action
             {
@@ -529,7 +524,7 @@ impl PolicyState {
             }
 
             if !has_world_decision
-                && let Effect::SetWorld {
+                && let RuleAction::SetWorld {
                     world: selected_world,
                 } = &rule.action
             {
@@ -537,7 +532,7 @@ impl PolicyState {
                 has_world_decision = true;
             }
 
-            if !has_replay_decision && let Effect::SetReplay { payload } = &rule.action {
+            if !has_replay_decision && let RuleAction::SetReplay { payload } = &rule.action {
                 replay_payload = match *payload {
                     ReplayPayloadMode::ResultsOnly => BindingReplayPayload::Results,
                     ReplayPayloadMode::ArgumentsAndResults => {
@@ -552,7 +547,7 @@ impl PolicyState {
             }
         }
 
-        BindingDispatchDecision {
+        BindingDecision {
             access,
             world,
             replay_payload,
@@ -575,7 +570,7 @@ impl PolicyState {
         // update call counters for activation windows
         let total_calls_seen = {
             let calls_seen = self
-                .total_calls_seen_by_agent
+                .total_calls_seen_by_worker
                 .entry(event_worker_id)
                 .or_insert(0);
             if event.counts_as_call_event() {
@@ -592,7 +587,7 @@ impl PolicyState {
         let mut decisions = Vec::new();
 
         // evaluate each matched rule in declaration order
-        for rule_index in &self.effect_rule_indices {
+        for rule_index in &self.triggered_rule_indices {
             let rule = &self.spec.rules[*rule_index];
 
             // skip non-matching selectors early
@@ -614,7 +609,7 @@ impl PolicyState {
                 continue;
             }
 
-            // fault effects must always carry a trigger
+            // fault actions must always carry a trigger
             let Some(trigger) = rule.trigger.as_ref() else {
                 continue;
             };
@@ -640,32 +635,32 @@ impl PolicyState {
                 hook: event_hook,
                 worker_id: event_worker_id,
                 call_id: event_call_id,
-                effect: rule.action.clone(),
+                action: rule.action.clone(),
             });
         }
 
         decisions
     }
 
-    /// Rebuild enabled rule lanes from the active policy.
-    fn rebuild_lanes(&mut self) {
-        let (dispatch_rule_indices, effect_rule_indices) =
+    /// Rebuild enabled rule indices from the active policy.
+    fn rebuild_rule_indices(&mut self) {
+        let (binding_rule_indices, triggered_rule_indices) =
             Self::split_enabled_rule_indices(&self.spec);
-        self.dispatch_rule_indices = dispatch_rule_indices;
-        self.effect_rule_indices = effect_rule_indices;
+        self.binding_rule_indices = binding_rule_indices;
+        self.triggered_rule_indices = triggered_rule_indices;
     }
 
     /// Replace the active policy and reset runtime trigger state.
     fn replace_policy(&mut self, policy: Policy) {
         self.spec = policy;
-        self.rebuild_lanes();
+        self.rebuild_rule_indices();
         self.reset_runtime_state();
     }
 
-    /// Split enabled rule indices into dispatch and effect execution lanes.
+    /// Split enabled rule indices into binding and triggered-action rules.
     fn split_enabled_rule_indices(policy: &Policy) -> (Vec<usize>, Vec<usize>) {
-        let mut dispatch_rule_indices = Vec::new();
-        let mut effect_rule_indices = Vec::new();
+        let mut binding_rule_indices = Vec::new();
+        let mut triggered_rule_indices = Vec::new();
 
         for (index, rule) in policy.rules.iter().enumerate() {
             if !rule.enabled {
@@ -673,13 +668,13 @@ impl PolicyState {
             }
 
             if rule.trigger.is_some() {
-                effect_rule_indices.push(index);
+                triggered_rule_indices.push(index);
             } else {
-                dispatch_rule_indices.push(index);
+                binding_rule_indices.push(index);
             }
         }
 
-        (dispatch_rule_indices, effect_rule_indices)
+        (binding_rule_indices, triggered_rule_indices)
     }
 
     /// Return true when one rule has no call selector or matches one call selector.
@@ -697,21 +692,22 @@ impl PolicyState {
             return true;
         };
 
-        matcher::selector_matches(
-            selector,
+        let subject = RuntimeSubject {
             runtime_name,
             runtime_labels,
             worker_name,
             worker_labels,
-            descriptor,
+            binding: descriptor,
             mode,
             engine,
-        )
+        };
+
+        selector.matches(subject)
     }
 
     /// Reset all runtime state for the active policy revision.
     fn reset_runtime_state(&mut self) {
-        self.total_calls_seen_by_agent = HashMap::new();
+        self.total_calls_seen_by_worker = HashMap::new();
         self.rule_states = HashMap::new();
     }
 }

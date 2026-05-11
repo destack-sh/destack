@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use destack_workspace as workspace;
-use workspace::{ReplayPayloadMode, RuntimeAccess, RuntimeSelector, RuntimeWorld};
+use crate::runtime::binding::{RuntimeAccess, RuntimeWorld};
+use destack_workspace::ReplayPayloadMode;
 
-use super::{Fault, Hook, Trigger};
+use super::{Fault, Hook, RuntimeSelector, Trigger};
 
 /// Stable identifier for one runtime rule.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -16,17 +16,17 @@ impl RuleId {
     }
 }
 
-/// Custom effect payload routed to user-defined handlers.
+/// Custom action payload routed to user-defined handlers.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct CustomEffect {
-    /// Stable custom effect handler key.
+pub struct CustomAction {
+    /// Stable custom action handler key.
     pub handler: String,
-    /// Optional custom effect payload.
+    /// Optional custom action payload.
     pub payload: Option<String>,
 }
 
-impl CustomEffect {
-    /// Create one custom effect without payload.
+impl CustomAction {
+    /// Create one custom action without payload.
     pub fn new(handler: impl Into<String>) -> Self {
         Self {
             handler: handler.into(),
@@ -44,7 +44,7 @@ impl CustomEffect {
 /// Runtime rule action payload.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub enum Effect {
+pub enum RuleAction {
     /// Set the matching binding world.
     SetWorld {
         /// The selected world for matching bindings.
@@ -60,64 +60,64 @@ pub enum Effect {
         /// The selected replay payload mode for matching bindings.
         payload: ReplayPayloadMode,
     },
-    /// Apply one runtime fault effect.
+    /// Apply one runtime fault action.
     Fault {
         /// Fault payload for this rule.
         fault: Fault,
     },
-    /// Apply one user-defined custom effect.
+    /// Apply one user-defined custom action.
     Custom {
-        /// Custom effect payload.
-        custom: CustomEffect,
+        /// Custom action payload.
+        custom: CustomAction,
     },
 }
 
-impl Effect {
-    /// Create one world-dispatch effect.
+impl RuleAction {
+    /// Create one world decision action.
     pub fn set_world(world: RuntimeWorld) -> Self {
         Self::SetWorld { world }
     }
 
-    /// Create one access-dispatch effect.
+    /// Create one access decision action.
     pub fn set_access(access: RuntimeAccess) -> Self {
         Self::SetAccess { access }
     }
 
-    /// Create one replay-dispatch effect.
+    /// Create one replay decision action.
     pub fn set_replay(payload: ReplayPayloadMode) -> Self {
         Self::SetReplay { payload }
     }
 
-    /// Create one fault effect.
+    /// Create one fault action.
     pub fn fault(fault: Fault) -> Self {
         Self::Fault { fault }
     }
 
-    /// Create one custom effect.
-    pub fn custom(custom: CustomEffect) -> Self {
+    /// Create one custom action.
+    pub fn custom(custom: CustomAction) -> Self {
         Self::Custom { custom }
     }
 }
 
-/// One runtime rule for world, access, or fault effects.
+/// One runtime rule for binding decisions or triggered actions.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Rule {
     /// Stable rule identifier.
     pub id: RuleId,
     /// Whether this rule is enabled.
     pub enabled: bool,
-    /// Optional call-plane selector.
+    /// Optional selector for this rule.
     pub when: Option<RuntimeSelector>,
     /// Action payload for this rule.
-    pub action: Effect,
-    /// Trigger controls for effect rules.
-    /// Dispatch rules should leave this empty.
+    pub action: RuleAction,
+    /// Trigger controls for action rules.
+    /// Binding rules should leave this empty.
     pub trigger: Option<Trigger>,
 }
 
 impl Rule {
     /// Create one enabled rule with no selector and no trigger.
-    pub fn new(id: impl Into<String>, action: Effect) -> Self {
+    pub fn new(id: impl Into<String>, action: RuleAction) -> Self {
         Self {
             id: RuleId::new(id),
             enabled: true,
@@ -145,70 +145,33 @@ impl Rule {
         self
     }
 
-    /// Create one enabled access-dispatch rule.
+    /// Create one enabled access decision rule.
     pub fn access(id: impl Into<String>, selector: RuntimeSelector, access: RuntimeAccess) -> Self {
-        Self::new(id, Effect::set_access(access)).when(selector)
+        Self::new(id, RuleAction::set_access(access)).when(selector)
     }
 
-    /// Create one enabled world-dispatch rule.
+    /// Create one enabled world decision rule.
     pub fn world(id: impl Into<String>, selector: RuntimeSelector, world: RuntimeWorld) -> Self {
-        Self::new(id, Effect::set_world(world)).when(selector)
+        Self::new(id, RuleAction::set_world(world)).when(selector)
     }
 
-    /// Create one enabled replay-dispatch rule.
+    /// Create one enabled replay decision rule.
     pub fn replay(
         id: impl Into<String>,
         selector: RuntimeSelector,
         payload: ReplayPayloadMode,
     ) -> Self {
-        Self::new(id, Effect::set_replay(payload)).when(selector)
+        Self::new(id, RuleAction::set_replay(payload)).when(selector)
     }
 
     /// Create one enabled fault rule with one trigger.
     pub fn fault(id: impl Into<String>, fault: Fault, trigger: Trigger) -> Self {
-        Self::new(id, Effect::fault(fault)).trigger(trigger)
+        Self::new(id, RuleAction::fault(fault)).trigger(trigger)
     }
 
-    /// Create one enabled custom-effect rule with one trigger.
-    pub fn custom(id: impl Into<String>, custom: CustomEffect, trigger: Trigger) -> Self {
-        Self::new(id, Effect::custom(custom)).trigger(trigger)
-    }
-
-    /// Convert one workspace static rule into runtime rules.
-    pub fn from_workspace_rule(index: usize, rule: &workspace::RuntimeRule) -> Vec<Self> {
-        let mut rules = Vec::new();
-
-        if let Some(access) = rule.access {
-            rules.push(Self {
-                id: RuleId(format!("destack.runtime.rule.{index}.access")),
-                enabled: true,
-                when: Some(rule.when.clone()),
-                action: Effect::SetAccess { access },
-                trigger: None,
-            });
-        }
-
-        if let Some(world) = rule.world {
-            rules.push(Self {
-                id: RuleId(format!("destack.runtime.rule.{index}.world")),
-                enabled: true,
-                when: Some(rule.when.clone()),
-                action: Effect::SetWorld { world },
-                trigger: None,
-            });
-        }
-
-        if let Some(payload) = rule.replay {
-            rules.push(Self {
-                id: RuleId(format!("destack.runtime.rule.{index}.replay")),
-                enabled: true,
-                when: Some(rule.when.clone()),
-                action: Effect::SetReplay { payload },
-                trigger: None,
-            });
-        }
-
-        rules
+    /// Create one enabled custom-action rule with one trigger.
+    pub fn custom(id: impl Into<String>, custom: CustomAction, trigger: Trigger) -> Self {
+        Self::new(id, RuleAction::custom(custom)).trigger(trigger)
     }
 
     /// Return true when this rule trigger matches one hook.

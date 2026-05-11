@@ -10,26 +10,26 @@ use crate::platform::{
     ResourceBacking, ResourceCapture, ResourceId, ResourceKind, ResourcePortability,
 };
 use crate::runtime::WorkerId;
-use crate::runtime::bindings::{BindingDescriptor, BindingEngine};
-use crate::runtime::observe::Observation;
+use crate::runtime::binding::{BindingDescriptor, BindingEngine};
+use crate::runtime::trace::Observation;
 use crate::runtime::world::{
-    RuntimeId, WorldEntityKind, WorldResource, WorldResourceId, WorldScope,
+    RuntimeId, WorldEntityKind, WorldResource, WorldResourceId, WorldState,
 };
 use destack_source::matches as glob_matches;
 use destack_workspace::ExecutionMode;
 
-use super::{Effect, FaultTarget, PolicyDecision};
+use super::{FaultTarget, PolicyDecision, RuleAction};
 
 /// Durable hook state captured at one checkpoint.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct HookSnapshot {
     /// The next policy call identifier to allocate.
     pub next_call_id: u64,
-    /// The number of unapplied policy decisions.
-    pub unapplied_policy_decisions: u64,
+    /// The number of policy decisions deferred to a later policy executor.
+    pub deferred_policy_decisions: u64,
 }
 
-/// Hook for runtime effect rules.
+/// Hook for runtime action rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Hook {
@@ -102,7 +102,7 @@ pub enum HookEvent {
         /// Virtual timestamp for this event.
         virtual_time_ns: u64,
     },
-    /// Event fired when one timer is dispatched.
+    /// Event fired when one timer fires.
     SchedulerTimerFire {
         /// Worker identifier for this event.
         worker_id: WorkerId,
@@ -300,20 +300,20 @@ pub enum HookDecision {
     },
 }
 
-/// Runtime context passed to one custom effect handler callback.
+/// Runtime context passed to one custom action handler callback.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CustomEffectInvocation {
-    /// Stable rule identifier that produced this effect.
+pub struct CustomActionInvocation {
+    /// Stable rule identifier that produced this action.
     pub rule_id: String,
-    /// Hook that produced this effect.
+    /// Hook that produced this action.
     pub hook: Hook,
-    /// Worker identifier for this effect.
+    /// Worker identifier for this action.
     pub worker_id: WorkerId,
-    /// Binding call identifier when this effect comes from one call event.
+    /// Binding call identifier when this action comes from one call event.
     pub call_id: Option<PolicyCallId>,
-    /// Stable custom effect handler key.
+    /// Stable custom action handler key.
     pub handler: String,
-    /// Optional custom effect payload.
+    /// Optional custom action payload.
     pub payload: Option<String>,
 }
 
@@ -324,9 +324,9 @@ pub struct HookCallbackId(pub u64);
 /// Hook callback function signature.
 pub type HookCallback = Arc<dyn Fn(&HookEvent) -> HookDecision + Send + Sync + 'static>;
 
-/// Custom effect callback function signature.
-pub type CustomEffectHandler =
-    Arc<dyn Fn(&CustomEffectInvocation) -> RuntimeResult<()> + Send + Sync + 'static>;
+/// Custom action callback function signature.
+pub type CustomActionHandler =
+    Arc<dyn Fn(&CustomActionInvocation) -> RuntimeResult<()> + Send + Sync + 'static>;
 
 /// One callback registration in the hook registry.
 struct HookRegistration {
@@ -395,8 +395,8 @@ impl HookRegistry {
         self.callbacks.len() < before_len
     }
 
-    /// Dispatch one event to matching callbacks in registration order.
-    pub(crate) fn dispatch(&self, event: &HookEvent) -> HookDecision {
+    /// Run matching callbacks in registration order.
+    pub(crate) fn run_callbacks(&self, event: &HookEvent) -> HookDecision {
         for callback in &self.callbacks {
             if !self.callback_matches_event(callback, event) {
                 continue;
@@ -431,7 +431,7 @@ impl HookRegistry {
     }
 }
 
-/// Runtime hook dispatch and effect state.
+/// Runtime hook callbacks and action state.
 pub struct Hooks {
     /// Runtime identifier for selector matching.
     runtime_id: RuntimeId,
@@ -441,27 +441,27 @@ pub struct Hooks {
     mode: ExecutionMode,
     /// Callback-style hook registry.
     registry: RwLock<HookRegistry>,
-    /// Custom effect handlers keyed by custom effect kind.
-    custom_effect_handlers: RwLock<HashMap<String, CustomEffectHandler>>,
+    /// Custom action handlers keyed by custom action kind.
+    custom_action_handlers: RwLock<HashMap<String, CustomActionHandler>>,
     /// Next policy call identifier sequence.
     next_call_id: AtomicU64,
-    /// Total policy decisions accepted but not yet executed.
-    unapplied_policy_decisions: AtomicU64,
+    /// Total policy decisions deferred to a later policy executor.
+    deferred_policy_decisions: AtomicU64,
 }
 
 impl std::fmt::Debug for Hooks {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let callback_count = self.registry.read().callbacks.len();
-        let custom_effect_handler_count = self.custom_effect_handlers.read().len();
-        let unapplied_policy_decisions = self.unapplied_policy_decisions.load(Ordering::Relaxed);
+        let custom_action_handler_count = self.custom_action_handlers.read().len();
+        let deferred_policy_decisions = self.deferred_policy_decisions.load(Ordering::Relaxed);
 
         f.debug_struct("Hooks")
             .field("runtime_id", &self.runtime_id)
             .field("worker_id", &self.worker_id)
             .field("mode", &self.mode)
             .field("callback_count", &callback_count)
-            .field("custom_effect_handler_count", &custom_effect_handler_count)
-            .field("unapplied_policy_decisions", &unapplied_policy_decisions)
+            .field("custom_action_handler_count", &custom_action_handler_count)
+            .field("deferred_policy_decisions", &deferred_policy_decisions)
             .finish()
     }
 }
@@ -474,9 +474,9 @@ impl Hooks {
             worker_id,
             mode,
             registry: RwLock::new(HookRegistry::default()),
-            custom_effect_handlers: RwLock::new(HashMap::new()),
+            custom_action_handlers: RwLock::new(HashMap::new()),
             next_call_id: AtomicU64::new(1),
-            unapplied_policy_decisions: AtomicU64::new(0),
+            deferred_policy_decisions: AtomicU64::new(0),
         }
     }
 
@@ -497,18 +497,18 @@ impl Hooks {
             .boxed());
         }
 
-        // require no registered custom effect handlers
-        if !self.custom_effect_handlers.read().is_empty() {
+        // require no registered custom action handlers
+        if !self.custom_action_handlers.read().is_empty() {
             return Err(RuntimeError::CaptureBarrier {
                 component: "runtime.hooks".to_string(),
                 mode: "snapshot".to_string(),
-                detail: "custom effect handlers are still registered".to_string(),
+                detail: "custom action handlers are still registered".to_string(),
             }
             .boxed());
         }
 
-        // require no unapplied policy decisions
-        if self.unapplied_policy_decisions.load(Ordering::Relaxed) != 0 {
+        // require no deferred policy decisions
+        if self.deferred_policy_decisions.load(Ordering::Relaxed) != 0 {
             return Err(RuntimeError::CaptureBarrier {
                 component: "runtime.hooks".to_string(),
                 mode: "snapshot".to_string(),
@@ -526,7 +526,7 @@ impl Hooks {
 
         Ok(HookSnapshot {
             next_call_id: self.next_call_id.load(Ordering::Relaxed),
-            unapplied_policy_decisions: self.unapplied_policy_decisions.load(Ordering::Relaxed),
+            deferred_policy_decisions: self.deferred_policy_decisions.load(Ordering::Relaxed),
         })
     }
 
@@ -550,8 +550,8 @@ impl Hooks {
         self.capture_barrier()?;
         self.next_call_id
             .store(snapshot.next_call_id, Ordering::Relaxed);
-        self.unapplied_policy_decisions
-            .store(snapshot.unapplied_policy_decisions, Ordering::Relaxed);
+        self.deferred_policy_decisions
+            .store(snapshot.deferred_policy_decisions, Ordering::Relaxed);
 
         Ok(())
     }
@@ -598,28 +598,28 @@ impl Hooks {
         registry.unregister(callback_id)
     }
 
-    /// Register one custom effect callback by handler key.
-    pub fn on_custom_effect(
+    /// Register one custom action callback by handler key.
+    pub fn on_custom_action(
         &self,
         handler: impl Into<String>,
-        callback: impl Fn(&CustomEffectInvocation) -> RuntimeResult<()> + Send + Sync + 'static,
+        callback: impl Fn(&CustomActionInvocation) -> RuntimeResult<()> + Send + Sync + 'static,
     ) {
-        let mut handlers = self.custom_effect_handlers.write();
+        let mut handlers = self.custom_action_handlers.write();
 
         handlers.insert(handler.into(), Arc::new(callback));
     }
 
-    /// Remove one custom effect callback by handler key.
-    pub fn off_custom_effect(&self, handler: &str) -> bool {
-        let mut handlers = self.custom_effect_handlers.write();
+    /// Remove one custom action callback by handler key.
+    pub fn off_custom_action(&self, handler: &str) -> bool {
+        let mut handlers = self.custom_action_handlers.write();
 
         handlers.remove(handler).is_some()
     }
 
-    /// Evaluate pre-call runtime effects for one binding invocation.
+    /// Evaluate pre-call runtime actions for one binding invocation.
     pub(crate) fn on_before_binding(
         &self,
-        world: &WorldScope,
+        world: &mut WorldState,
         descriptor: BindingDescriptor,
         engine: Option<BindingEngine>,
     ) -> RuntimeResult<PolicyCallId> {
@@ -643,10 +643,10 @@ impl Hooks {
         Ok(call_id)
     }
 
-    /// Evaluate post-call runtime effects for one binding invocation.
+    /// Evaluate post-call runtime actions for one binding invocation.
     pub(crate) fn on_after_binding(
         &self,
-        world: &WorldScope,
+        world: &mut WorldState,
         descriptor: BindingDescriptor,
         engine: Option<BindingEngine>,
         call_id: PolicyCallId,
@@ -663,8 +663,8 @@ impl Hooks {
         );
     }
 
-    /// Evaluate runtime effects for one scheduler enqueue event.
-    pub(crate) fn on_scheduler_enqueue(&self, world: &WorldScope) {
+    /// Evaluate runtime actions for one scheduler enqueue event.
+    pub(crate) fn on_scheduler_enqueue(&self, world: &mut WorldState) {
         self.on_policy_event(
             world,
             HookEvent::SchedulerEnqueue {
@@ -674,8 +674,8 @@ impl Hooks {
         );
     }
 
-    /// Evaluate runtime effects for one scheduler dequeue event.
-    pub(crate) fn on_scheduler_dequeue(&self, world: &WorldScope) {
+    /// Evaluate runtime actions for one scheduler dequeue event.
+    pub(crate) fn on_scheduler_dequeue(&self, world: &mut WorldState) {
         self.on_policy_event(
             world,
             HookEvent::SchedulerDequeue {
@@ -685,8 +685,8 @@ impl Hooks {
         );
     }
 
-    /// Evaluate runtime effects for one scheduler timer fire event.
-    pub(crate) fn on_scheduler_timer_fire(&self, world: &WorldScope) {
+    /// Evaluate runtime actions for one scheduler timer fire event.
+    pub(crate) fn on_scheduler_timer_fire(&self, world: &mut WorldState) {
         self.on_policy_event(
             world,
             HookEvent::SchedulerTimerFire {
@@ -696,8 +696,8 @@ impl Hooks {
         );
     }
 
-    /// Evaluate runtime effects for one ingress enqueue.
-    pub(crate) fn on_ingress_enqueue(&self, world: &WorldScope) {
+    /// Evaluate runtime actions for one ingress enqueue.
+    pub(crate) fn on_ingress_enqueue(&self, world: &mut WorldState) {
         self.on_policy_event(
             world,
             HookEvent::IngressEnqueue {
@@ -707,8 +707,8 @@ impl Hooks {
         );
     }
 
-    /// Evaluate runtime effects for one time read.
-    pub(crate) fn on_time_read(&self, world: &WorldScope, engine: Option<BindingEngine>) {
+    /// Evaluate runtime actions for one time read.
+    pub(crate) fn on_time_read(&self, world: &mut WorldState, engine: Option<BindingEngine>) {
         self.on_policy_event(
             world,
             HookEvent::TimeRead {
@@ -719,8 +719,8 @@ impl Hooks {
         );
     }
 
-    /// Evaluate runtime effects for one random read.
-    pub(crate) fn on_random_read(&self, world: &WorldScope, engine: Option<BindingEngine>) {
+    /// Evaluate runtime actions for one random read.
+    pub(crate) fn on_random_read(&self, world: &mut WorldState, engine: Option<BindingEngine>) {
         self.on_policy_event(
             world,
             HookEvent::RandomRead {
@@ -731,10 +731,10 @@ impl Hooks {
         );
     }
 
-    /// Evaluate runtime effects for one resource attach.
+    /// Evaluate runtime actions for one resource attach.
     pub(crate) fn on_resource_attach(
         &self,
-        world: &WorldScope,
+        world: &mut WorldState,
         resource_id: ResourceId,
         resource_kind: ResourceKind,
         resource_label: Option<&str>,
@@ -771,10 +771,10 @@ impl Hooks {
         Ok(())
     }
 
-    /// Evaluate runtime effects for one resource detach.
+    /// Evaluate runtime actions for one resource detach.
     pub(crate) fn on_resource_detach(
         &self,
-        world: &WorldScope,
+        world: &mut WorldState,
         resource_id: ResourceId,
         _resource_kind: ResourceKind,
         resource_label: Option<&str>,
@@ -799,20 +799,20 @@ impl Hooks {
         Ok(())
     }
 
-    /// Return the total number of unapplied policy decisions.
-    pub fn unapplied_policy_decision_count(&self) -> u64 {
-        self.unapplied_policy_decisions.load(Ordering::Relaxed)
+    /// Return the total number of deferred policy decisions.
+    pub fn deferred_policy_decision_count(&self) -> u64 {
+        self.deferred_policy_decisions.load(Ordering::Relaxed)
     }
 
     /// Evaluate one policy event.
-    fn on_policy_event(&self, world: &WorldScope, event: HookEvent) -> HookDecision {
+    fn on_policy_event(&self, world: &mut WorldState, event: HookEvent) -> HookDecision {
         // apply callback hook interceptors first
-        let hook_decision = self.dispatch_hook_event(&event);
+        let hook_decision = self.run_hook_callbacks(&event);
         if matches!(hook_decision, HookDecision::Deny { .. }) {
             return hook_decision;
         }
 
-        // TODO #Incomplete: execute policy decisions after trigger evaluation
+        // trigger policy actions after callback interception
         let decisions =
             match world.evaluate_policy_event(self.mode, self.runtime_id, self.worker_id, &event) {
                 Ok(decisions) => decisions,
@@ -829,65 +829,63 @@ impl Hooks {
 
     /// Apply policy decisions for one policy event.
     fn apply_policy_decisions(&self, decisions: &[PolicyDecision]) {
-        // short circuit when no effects fired
+        // short circuit when no actions fired
         if decisions.is_empty() {
             return;
         }
 
-        // route each decision through its target dispatch path
+        // apply each accepted decision
         for decision in decisions {
-            self.route_policy_decision(decision);
+            self.apply_policy_decision(decision);
         }
     }
 
-    /// Route one policy decision to host or simulation execution lanes.
-    fn route_policy_decision(&self, decision: &PolicyDecision) {
-        match &decision.effect {
-            Effect::Fault { fault } => match &fault.target {
-                FaultTarget::Call {} => self.route_call_fault(decision),
+    /// Apply one policy decision to host or simulation state.
+    fn apply_policy_decision(&self, decision: &PolicyDecision) {
+        match &decision.action {
+            RuleAction::Fault { fault } => match &fault.target {
+                FaultTarget::Call {} => self.apply_call_fault(decision),
                 FaultTarget::Entity { kind, .. } => {
-                    self.route_simulation_entity_fault(kind.as_str(), decision)
+                    self.apply_entity_fault(kind.as_str(), decision)
                 }
-                FaultTarget::Edge { kind, .. } => {
-                    self.route_simulation_edge_fault(kind.as_str(), decision)
-                }
+                FaultTarget::Edge { kind, .. } => self.apply_edge_fault(kind.as_str(), decision),
             },
-            Effect::Custom { custom } => self.route_custom_effect(decision, custom),
-            // NOTE #Incomplete: non-fault trigger effects are not wired yet
-            _ => self.record_unapplied_policy_decision(),
+            RuleAction::Custom { custom } => self.apply_custom_action(decision, custom),
+            // NOTE #Incomplete: non-fault actions need policy executors
+            _ => self.defer_policy_decision(),
         }
     }
 
-    /// Route one call-target fault decision.
-    fn route_call_fault(&self, _decision: &PolicyDecision) {
-        // TODO #Incomplete: execute call-target faults through host binding interception lanes
-        self.record_unapplied_policy_decision();
+    /// Apply one call-target fault decision.
+    fn apply_call_fault(&self, _decision: &PolicyDecision) {
+        // NOTE #Incomplete: call faults need binding interception
+        self.defer_policy_decision();
     }
 
-    /// Route one entity-target fault decision.
-    fn route_simulation_entity_fault(&self, _kind: &str, _decision: &PolicyDecision) {
-        // TODO #Incomplete: execute entity-target faults through simulation entity handlers
-        self.record_unapplied_policy_decision();
+    /// Apply one entity-target fault decision.
+    fn apply_entity_fault(&self, _kind: &str, _decision: &PolicyDecision) {
+        // NOTE #Incomplete: entity faults need simulation handlers
+        self.defer_policy_decision();
     }
 
-    /// Route one edge-target fault decision.
-    fn route_simulation_edge_fault(&self, _kind: &str, _decision: &PolicyDecision) {
-        // TODO #Incomplete: execute edge-target faults through simulation edge handlers
-        self.record_unapplied_policy_decision();
+    /// Apply one edge-target fault decision.
+    fn apply_edge_fault(&self, _kind: &str, _decision: &PolicyDecision) {
+        // NOTE #Incomplete: edge faults need simulation handlers
+        self.defer_policy_decision();
     }
 
-    /// Route one custom-effect decision to one registered custom handler.
-    fn route_custom_effect(&self, decision: &PolicyDecision, custom: &super::CustomEffect) {
+    /// Apply one custom-action decision to one registered handler.
+    fn apply_custom_action(&self, decision: &PolicyDecision, custom: &super::CustomAction) {
         let handler = {
-            let handlers = self.custom_effect_handlers.read();
+            let handlers = self.custom_action_handlers.read();
             handlers.get(custom.handler.as_str()).cloned()
         };
         let Some(handler) = handler else {
-            self.record_unapplied_policy_decision();
+            self.defer_policy_decision();
             return;
         };
 
-        let invocation = CustomEffectInvocation {
+        let invocation = CustomActionInvocation {
             rule_id: decision.rule_id.0.clone(),
             hook: decision.hook,
             worker_id: decision.worker_id,
@@ -897,22 +895,21 @@ impl Hooks {
         };
 
         if handler(&invocation).is_err() {
-            self.record_unapplied_policy_decision();
+            self.defer_policy_decision();
         }
     }
 
-    /// Record one policy decision that has not been applied yet.
-    fn record_unapplied_policy_decision(&self) {
-        // count unapplied decisions until execution wiring lands
-        self.unapplied_policy_decisions
+    /// Defer one policy decision for a later policy executor.
+    fn defer_policy_decision(&self) {
+        self.deferred_policy_decisions
             .fetch_add(1, Ordering::Relaxed);
     }
 
-    /// Dispatch one policy event to all matching user callbacks.
-    fn dispatch_hook_event(&self, event: &HookEvent) -> HookDecision {
+    /// Run all matching user callbacks for one hook event.
+    fn run_hook_callbacks(&self, event: &HookEvent) -> HookDecision {
         let registry = self.registry.read();
 
-        registry.dispatch(event)
+        registry.run_callbacks(event)
     }
 }
 

@@ -489,32 +489,32 @@ impl World {
 
     /// Resolve one authoritative trace record for one branch-local transition.
     pub fn transition_record(&self, transition: &Transition) -> RuntimeResult<TraceRecord> {
-        if transition.after.branch_id != self.branch_id {
+        if transition.after.branch_id != self.state.branch_id {
             return Err(RuntimeError::MomentBranchMismatch {
                 moment_branch_id: transition.after.branch_id.get(),
-                world_branch_id: self.branch_id.get(),
+                world_branch_id: self.state.branch_id.get(),
             }
             .boxed());
         }
 
-        let trace = Trace::from_log(ExecutionMode::Replay, self.trace.log().clone());
+        let trace = Trace::from_log(ExecutionMode::Replay, self.state.trace.log().clone());
         trace.record_at(transition.cause_sequence)
     }
 
     /// Validate one query range against the active world branch.
     fn require_query_range(&self, start: Moment, end: Moment) -> RuntimeResult<()> {
-        if start.branch_id != self.branch_id {
+        if start.branch_id != self.state.branch_id {
             return Err(RuntimeError::MomentBranchMismatch {
                 moment_branch_id: start.branch_id.get(),
-                world_branch_id: self.branch_id.get(),
+                world_branch_id: self.state.branch_id.get(),
             }
             .boxed());
         }
 
-        if end.branch_id != self.branch_id {
+        if end.branch_id != self.state.branch_id {
             return Err(RuntimeError::MomentBranchMismatch {
                 moment_branch_id: end.branch_id.get(),
-                world_branch_id: self.branch_id.get(),
+                world_branch_id: self.state.branch_id.get(),
             }
             .boxed());
         }
@@ -545,22 +545,22 @@ impl World {
         start: TraceSequence,
         end: TraceSequence,
     ) -> RuntimeResult<Vec<Event>> {
-        let trace = Trace::from_log(ExecutionMode::Replay, self.trace.log().clone());
-        trace.events_between_on_branch(self.branch_id, start, end)
+        let trace = Trace::from_log(ExecutionMode::Replay, self.state.trace.log().clone());
+        trace.events_between_on_branch(self.state.branch_id, start, end)
     }
 
     /// Project committed and live observation records into query events for one range.
     fn observation_events_between(&self, start: Moment, end: Moment) -> RuntimeResult<Vec<Event>> {
         let committed_head = {
             let lineage = self.lineage.read();
-            lineage.branch_head_moment(self.branch_id)?
+            lineage.branch_head_moment(self.state.branch_id)?
         };
 
         let mut events = Vec::new();
 
         if start.sequence.get() < committed_head.sequence.get() {
             let committed_end = Moment::new(
-                self.branch_id,
+                self.state.branch_id,
                 TraceSequence::new(end.sequence.get().min(committed_head.sequence.get())),
             );
             let lineage = self.lineage.read();
@@ -570,10 +570,10 @@ impl World {
 
         if end.sequence.get() > committed_head.sequence.get() {
             let local_start = Moment::new(
-                self.branch_id,
+                self.state.branch_id,
                 TraceSequence::new(start.sequence.get().max(committed_head.sequence.get())),
             );
-            let records = self.observations.records_between(local_start, end);
+            let records = self.state.observations.records_between(local_start, end);
             events.extend(records.into_iter().map(Event::from_observation));
         }
 
@@ -586,7 +586,7 @@ impl World {
         start: TraceSequence,
         end: TraceSequence,
     ) -> RuntimeResult<Vec<Transition>> {
-        let trace = Trace::from_log(ExecutionMode::Replay, self.trace.log().clone());
-        trace.transitions_between_on_branch(self.branch_id, start, end)
+        let trace = Trace::from_log(ExecutionMode::Replay, self.state.trace.log().clone());
+        trace.transitions_between_on_branch(self.state.branch_id, start, end)
     }
 }

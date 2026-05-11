@@ -6,17 +6,19 @@ use parking_lot::RwLock;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
-use crate::runtime::bindings::BindingReplayPayload;
-use crate::runtime::observe::{Observation, ObservationSequence, Observations};
+use crate::runtime::binding::BindingReplayPayload;
 use crate::runtime::policy::{Policy, PolicyState};
 use crate::runtime::random::{Random, RandomStreamId};
-use crate::runtime::time::{Clock, HostClockSource, Nanos, WorldInstant};
-use crate::runtime::trace::{EnvironmentConfig, Outcome, Trace, TraceHeader, TraceSequence};
+use crate::runtime::time::{Clock, HostClockSource, Instant, Nanos};
+use crate::runtime::trace::{
+    EnvironmentConfig, Observation, ObservationSequence, Observations, Outcome, Trace, TraceHeader,
+    TraceSequence,
+};
 use crate::runtime::{Collector, CollectorMode, Runtime, WorkerId};
 use crate::simulation::Simulation;
 use destack_workspace::{RandomMode, ReplayPayloadMode, RuntimeOptions, TimeMode};
 
-use super::lineage::{Lineage, ROOT_BRANCH_ID};
+use super::lineage::{Lineage, ROOT_BRANCH};
 use super::topology::Topology;
 pub(crate) use super::topology::{
     RuntimeId, WorldEdge, WorldEdgeId, WorldEdgeKind, WorldEdgeKindDefinition, WorldEntity,
@@ -24,145 +26,22 @@ pub(crate) use super::topology::{
 };
 use super::{
     BranchId, Command, INITIAL_RUNTIME_ID, INITIAL_WORKER_ID, WorldImage, WorldResource,
-    WorldResourceId, WorldScope,
+    WorldResourceId, WorldState,
 };
 
-/// Number of bytes in a megabyte for replay chunk sizing.
-const BYTES_PER_MB: u64 = 1024 * 1024;
-
-impl WorldScope {
-    /// Return the current world wall time.
-    pub(crate) fn wall(&self) -> Nanos {
-        match self.time_mode {
-            TimeMode::Host => self.clock().host_wall(),
-            TimeMode::Virtual => self.clock().virtual_wall(),
-        }
-    }
-
-    /// Return the current world wall time in nanoseconds.
-    pub(crate) fn wall_nanos(&self) -> u64 {
-        self.wall().get()
-    }
-
-    /// Return the current world monotonic time.
-    pub(crate) fn mono(&self) -> Nanos {
-        match self.time_mode {
-            TimeMode::Host => self.clock().host_mono(),
-            TimeMode::Virtual => self.clock().virtual_mono(),
-        }
-    }
-
-    /// Return the current world monotonic time in nanoseconds.
-    pub(crate) fn mono_nanos(&self) -> u64 {
-        self.mono().get()
-    }
-
-    /// Fill one buffer with secure world-routed random bytes.
-    pub(crate) fn fill_secure_bytes(&self, buffer: &mut [u8]) -> RuntimeResult<()> {
-        if self.random_mode == RandomMode::Deterministic {
-            return Err(RuntimeError::from(PlatformError::not_supported(
-                "destack.random.secure.bytes",
-            ))
-            .boxed());
-        }
-
-        self.random().fill_secure_bytes(buffer)
-    }
-
-    /// Try to fill one buffer with secure world-routed random bytes without blocking.
-    pub(crate) fn try_fill_secure_bytes(&self, buffer: &mut [u8]) -> RuntimeResult<()> {
-        if self.random_mode == RandomMode::Deterministic {
-            return Err(RuntimeError::from(PlatformError::not_supported(
-                "destack.random.secure.bytesTry",
-            ))
-            .boxed());
-        }
-
-        self.random().try_fill_secure_bytes(buffer)
-    }
-
-    /// Return one world-routed random u64 from one stream.
-    pub(crate) fn next_stream_u64(&self, stream_id: RandomStreamId) -> RuntimeResult<u64> {
-        match self.random_mode {
-            RandomMode::Host => self.random().next_secure_u64(),
-            RandomMode::Deterministic => Ok(self.random().next_stream_u64(stream_id)),
-        }
-    }
-
-    /// Fill one buffer with world-routed random bytes from one stream.
-    pub(crate) fn fill_stream_bytes(
-        &self,
-        stream_id: RandomStreamId,
-        buffer: &mut [u8],
-    ) -> RuntimeResult<()> {
-        match self.random_mode {
-            RandomMode::Host => self.random().fill_secure_bytes(buffer),
-            RandomMode::Deterministic => {
-                self.random().fill_stream_bytes(stream_id, buffer);
-                Ok(())
-            }
-        }
-    }
-
-    /// Return the effective world time mode.
-    pub(crate) const fn time_mode(&self) -> TimeMode {
-        self.time_mode
-    }
-
-    /// Return the earliest deadline across worker-local and world-local timed work.
-    pub(crate) fn next_deadline<I>(&self, worker_deadlines: I) -> Option<WorldInstant>
-    where
-        I: IntoIterator<Item = Option<WorldInstant>>,
-    {
-        let mut next_deadline = self.simulation().next_deadline();
-
-        for agent_deadline in worker_deadlines {
-            next_deadline = match (next_deadline, agent_deadline) {
-                (Some(current), Some(candidate)) => Some(current.min(candidate)),
-                (Some(current), None) => Some(current),
-                (None, Some(candidate)) => Some(candidate),
-                (None, None) => None,
-            };
-        }
-
-        next_deadline
-    }
-}
+/// Number of bytes in one configured trace chunk mebibyte.
+const TRACE_CHUNK_MEBIBYTE_BYTES: u64 = 1024 * 1024;
 
 /// One interconnected runtime world.
 #[derive(Debug)]
 pub struct World {
-    /// Active branch identifier for this live world instance.
-    pub(crate) branch_id: BranchId,
     /// Live runtimes owned by this world.
     pub(crate) runtimes: BTreeMap<RuntimeId, Box<Runtime>>,
-    /// Shared simulation state for all workers using this world.
-    pub(crate) simulation: Simulation,
-    /// Active policy state.
-    pub(crate) policy: PolicyState,
-    /// The next runtime id to allocate.
-    pub(crate) next_runtime_id: u64,
-    /// The next worker id to allocate.
-    pub(crate) next_worker_id: u64,
-    /// Topology registry for world metadata.
-    pub(crate) topology: Topology,
-    /// Logical resource records keyed by world resource identifier.
-    pub(crate) resources: BTreeMap<WorldResourceId, WorldResource>,
+    /// Shared state used by runtimes and workers.
+    pub(crate) state: WorldState,
 
     /// Lineage-root metadata for this live world.
     pub(crate) lineage: Arc<RwLock<Lineage>>,
-    /// Effective world time mode after execution-mode resolution.
-    pub(crate) time_mode: TimeMode,
-    /// Effective world random mode after execution-mode resolution.
-    pub(crate) random_mode: RandomMode,
-    /// Shared world clock.
-    pub(crate) clock: Clock,
-    /// Shared world randomness state.
-    pub(crate) random: Random,
-    /// Trace of world events.
-    pub(crate) trace: Trace,
-    /// Emitted observation log (separate from causal trace).
-    pub(crate) observations: Observations,
 }
 
 impl World {
@@ -188,18 +67,18 @@ impl World {
     /// Create one world from runtime options and optional host clock source.
     pub(crate) fn new(
         options: &RuntimeOptions,
-        host_clock_source: Option<std::sync::Arc<dyn HostClockSource>>,
+        host_clock_source: Option<Arc<dyn HostClockSource>>,
     ) -> RuntimeResult<Self> {
-        Self::for_branch(ROOT_BRANCH_ID, options, host_clock_source)
+        Self::new_at_branch(ROOT_BRANCH, options, host_clock_source)
     }
 
     /// Create one world for one explicit active branch.
-    pub(crate) fn for_branch(
+    pub(crate) fn new_at_branch(
         branch_id: BranchId,
         options: &RuntimeOptions,
-        host_clock_source: Option<std::sync::Arc<dyn HostClockSource>>,
+        host_clock_source: Option<Arc<dyn HostClockSource>>,
     ) -> RuntimeResult<Self> {
-        // collapsed execution summaries
+        // effective modes
         let execution_mode = options.execution_mode();
         let time_mode = options.time_mode();
         let random_mode = options.random_mode();
@@ -208,7 +87,7 @@ impl World {
             ReplayPayloadMode::ArgumentsAndResults => BindingReplayPayload::ArgumentsAndResults,
         };
 
-        // replay header: options with chunk-size override
+        // replay header
         let mut trace_header = TraceHeader {
             execution_mode,
             time_mode,
@@ -218,23 +97,43 @@ impl World {
             ..TraceHeader::new(EnvironmentConfig::default())
         };
         if let Some(chunk_size_mb) = options.trace_chunk_size_mb() {
-            let chunk_bytes = chunk_size_mb.saturating_mul(BYTES_PER_MB);
+            let chunk_bytes = chunk_size_mb.saturating_mul(TRACE_CHUNK_MEBIBYTE_BYTES);
             if chunk_bytes > 0 {
                 trace_header.max_chunk_bytes = chunk_bytes;
             }
         }
 
-        // world state
+        // live state inputs
         let time_options = options.time_options();
         let clock = if let Some(host_clock_source) = host_clock_source {
             Clock::from_options_with_host_clock_source(&time_options, host_clock_source)
         } else {
             Clock::from_options(&time_options)
         };
-        let random = Random::new(options.random_options().seed.unwrap_or(0));
-        let policy = Policy::from_workspace_rules(&options.effect.rules);
+        let random = Random::from_options(&options.random_options());
+        let policy = Policy::default();
         let trace = Trace::new(execution_mode, trace_header);
         let topology = Topology::new();
+        policy.validate_with_kind_catalog(&topology)?;
+
+        // live world state
+        let state = WorldState {
+            branch_id,
+            time_mode,
+            random_mode,
+            simulation: Simulation::default(),
+            policy: PolicyState::new(policy),
+            next_runtime_id: INITIAL_RUNTIME_ID,
+            next_worker_id: INITIAL_WORKER_ID,
+            topology,
+            resources: BTreeMap::new(),
+            clock,
+            random,
+            trace,
+            observations: Observations::default(),
+        };
+
+        // lineage backing
         let allocator = Arc::new(
             heap::Allocator::try_new(
                 options.heap.layout.page_bytes,
@@ -243,20 +142,20 @@ impl World {
             .map_err(Box::<RuntimeError>::from)?,
         );
 
-        // final world state
+        // root image mirrors the initial live state
         let root_image = Arc::new(WorldImage {
-            next_runtime_id: INITIAL_RUNTIME_ID,
-            next_worker_id: INITIAL_WORKER_ID,
-            policy: PolicyState::new(policy.clone()),
-            topology: topology.clone(),
-            resources: BTreeMap::new(),
-            simulation: Simulation::default(),
-            clock: clock.snapshot(),
-            random: random.snapshot(),
+            next_runtime_id: state.next_runtime_id,
+            next_worker_id: state.next_worker_id,
+            policy: state.policy.clone(),
+            topology: state.topology.clone(),
+            resources: state.resources.clone(),
+            simulation: state.simulation.clone(),
+            clock: state.clock.snapshot(),
+            random: state.random.snapshot(),
             runtimes: BTreeMap::new(),
             workers: BTreeMap::new(),
         });
-        let root_trace_image = Arc::new(trace.capture_image());
+        let root_trace_image = Arc::new(state.trace.capture_image());
         let collector_mode = CollectorMode::from_scheduler_mode(options.scheduler.mode);
         let collector = Collector::new(collector_mode, format!("destack.collector.{branch_id:?}"))?;
         let lineage = Arc::new(RwLock::new(Lineage::new_root(
@@ -268,155 +167,116 @@ impl World {
             root_image,
             root_trace_image,
         )));
-        policy.validate_with_kind_catalog(&topology)?;
-
         let world = Self {
-            branch_id,
             runtimes: BTreeMap::new(),
-            simulation: Simulation::default(),
-            policy: PolicyState::new(policy),
-            next_runtime_id: INITIAL_RUNTIME_ID,
-            next_worker_id: INITIAL_WORKER_ID,
-            topology,
-            resources: BTreeMap::new(),
-            time_mode,
-            random_mode,
-            clock,
-            random,
-            trace,
-            observations: Observations::default(),
+            state,
             lineage,
         };
 
         Ok(world)
     }
 
-    /// Borrow one read guard for simulation.
+    /// Borrow simulation state.
     pub fn simulation(&self) -> &Simulation {
-        &self.simulation
+        &self.state.simulation
     }
 
-    /// Borrow one write guard for simulation.
+    /// Borrow mutable simulation state.
     pub fn simulation_mut(&mut self) -> &mut Simulation {
-        &mut self.simulation
+        &mut self.state.simulation
     }
 
     /// Return the earliest deadline contributed by simulation state.
-    pub fn next_simulation_deadline(&self) -> Option<WorldInstant> {
-        self.simulation.next_deadline()
+    pub fn next_simulation_deadline(&self) -> Option<Instant> {
+        self.state.simulation.next_deadline()
     }
 
     /// Snapshot world policy state.
     pub fn policy(&self) -> Policy {
-        self.policy.spec.clone()
+        self.state.policy.spec.clone()
     }
 
     /// Snapshot world entity kind definitions.
     pub fn entity_kinds(&self) -> BTreeMap<WorldEntityKind, WorldEntityKindDefinition> {
-        self.topology.entity_kinds().clone()
+        self.state.topology.entity_kinds().clone()
     }
 
     /// Snapshot world edge kind definitions.
     pub fn edge_kinds(&self) -> BTreeMap<WorldEdgeKind, WorldEdgeKindDefinition> {
-        self.topology.edge_kinds().clone()
+        self.state.topology.edge_kinds().clone()
     }
 
     /// Snapshot world entities.
     pub fn entities(&self) -> BTreeMap<WorldEntityId, WorldEntity> {
-        self.topology.entities().clone()
+        self.state.topology.entities().clone()
     }
 
     /// Return labels for one live runtime.
     pub fn runtime_labels(&self, runtime_id: RuntimeId) -> RuntimeResult<BTreeMap<String, String>> {
-        let entity_id = format!("runtime.{}", runtime_id.0);
-        let topology = &self.topology;
-        let entity =
-            topology
-                .entities()
-                .get(entity_id.as_str())
-                .ok_or(RuntimeError::RuntimeNotFound {
-                    runtime_id: runtime_id.0,
-                })?;
+        let topology = &self.state.topology;
+        let entity = topology.entities().get(&runtime_id.entity_id()).ok_or(
+            RuntimeError::RuntimeNotFound {
+                runtime_id: runtime_id.0,
+            },
+        )?;
 
         Ok(entity.labels.clone())
     }
 
     /// Return labels for one live worker.
     pub fn worker_labels(&self, worker_id: WorkerId) -> RuntimeResult<BTreeMap<String, String>> {
-        let entity_id = format!("worker.{}", worker_id.0);
-        let topology = &self.topology;
-        let entity =
-            topology
-                .entities()
-                .get(entity_id.as_str())
-                .ok_or(RuntimeError::WorkerNotFound {
-                    worker_id: worker_id.0,
-                })?;
+        let topology = &self.state.topology;
+        let entity = topology.entities().get(&worker_id.entity_id()).ok_or(
+            RuntimeError::WorkerNotFound {
+                worker_id: worker_id.0,
+            },
+        )?;
 
         Ok(entity.labels.clone())
     }
 
     /// Snapshot world edges.
     pub fn edges(&self) -> BTreeMap<WorldEdgeId, WorldEdge> {
-        self.topology.edges().clone()
+        self.state.topology.edges().clone()
     }
 
     /// Snapshot logical world resources.
     pub fn resources(&self) -> BTreeMap<WorldResourceId, WorldResource> {
-        self.resources.clone()
-    }
-
-    /// Borrow the live branch state.
-    pub(crate) fn world_scope(&mut self) -> WorldScope {
-        WorldScope::new(
-            self.branch_id,
-            self.time_mode,
-            self.random_mode,
-            &mut self.simulation,
-            &mut self.policy,
-            &mut self.next_runtime_id,
-            &mut self.next_worker_id,
-            &mut self.topology,
-            &mut self.resources,
-            &self.clock,
-            &self.random,
-            &self.trace,
-            &self.observations,
-        )
+        self.state.resources.clone()
     }
 
     /// Borrow the shared world clock.
     pub fn clock(&self) -> &Clock {
-        &self.clock
+        &self.state.clock
     }
 
     /// Return the effective world time mode.
     pub fn time_mode(&self) -> TimeMode {
-        self.time_mode
+        self.state.time_mode
     }
 
     /// Return the effective world random mode.
     pub fn random_mode(&self) -> RandomMode {
-        self.random_mode
+        self.state.random_mode
     }
 
     /// Return the emitted observation log for this world.
     pub fn observations(&self) -> &Observations {
-        &self.observations
+        &self.state.observations
     }
 
     /// Emit one observation at the current world moment.
     pub fn observe(&mut self, observation: Observation) -> ObservationSequence {
         let moment = self.moment();
 
-        self.observations.record_at(moment, observation)
+        self.state.observations.record_at(moment, observation)
     }
 
     /// Return the current world wall time.
     pub fn wall(&self) -> Nanos {
-        match self.time_mode {
-            TimeMode::Host => self.clock.host_wall(),
-            TimeMode::Virtual => self.clock.virtual_wall(),
+        match self.state.time_mode {
+            TimeMode::Host => self.state.clock.host_wall(),
+            TimeMode::Virtual => self.state.clock.virtual_wall(),
         }
     }
 
@@ -427,9 +287,9 @@ impl World {
 
     /// Return the current world monotonic time.
     pub fn mono(&self) -> Nanos {
-        match self.time_mode {
-            TimeMode::Host => self.clock.host_mono(),
-            TimeMode::Virtual => self.clock.virtual_mono(),
+        match self.state.time_mode {
+            TimeMode::Host => self.state.clock.host_mono(),
+            TimeMode::Virtual => self.state.clock.virtual_mono(),
         }
     }
 
@@ -440,40 +300,40 @@ impl World {
 
     /// Borrow the shared world randomness state.
     pub fn random(&self) -> &Random {
-        &self.random
+        &self.state.random
     }
 
     /// Fill one buffer with secure world-routed random bytes.
     pub fn fill_secure_bytes(&self, buffer: &mut [u8]) -> RuntimeResult<()> {
         // deterministic worlds reject secure host entropy by default
-        if self.random_mode == RandomMode::Deterministic {
+        if self.state.random_mode == RandomMode::Deterministic {
             return Err(RuntimeError::from(PlatformError::not_supported(
                 "destack.random.secure.bytes",
             ))
             .boxed());
         }
 
-        self.random.fill_secure_bytes(buffer)
+        self.state.random.fill_secure_bytes(buffer)
     }
 
     /// Try to fill one buffer with secure world-routed random bytes without blocking.
     pub fn try_fill_secure_bytes(&self, buffer: &mut [u8]) -> RuntimeResult<()> {
         // deterministic worlds reject secure host entropy by default
-        if self.random_mode == RandomMode::Deterministic {
+        if self.state.random_mode == RandomMode::Deterministic {
             return Err(RuntimeError::from(PlatformError::not_supported(
                 "destack.random.secure.bytesTry",
             ))
             .boxed());
         }
 
-        self.random.try_fill_secure_bytes(buffer)
+        self.state.random.try_fill_secure_bytes(buffer)
     }
 
     /// Return one world-routed random u64 from one stream.
     pub fn next_stream_u64(&self, stream_id: RandomStreamId) -> RuntimeResult<u64> {
-        match self.random_mode {
-            RandomMode::Host => self.random.next_secure_u64(),
-            RandomMode::Deterministic => Ok(self.random.next_stream_u64(stream_id)),
+        match self.state.random_mode {
+            RandomMode::Host => self.state.random.next_secure_u64(),
+            RandomMode::Deterministic => Ok(self.state.random.next_stream_u64(stream_id)),
         }
     }
 
@@ -483,10 +343,10 @@ impl World {
         stream_id: RandomStreamId,
         buffer: &mut [u8],
     ) -> RuntimeResult<()> {
-        match self.random_mode {
-            RandomMode::Host => self.random.fill_secure_bytes(buffer),
+        match self.state.random_mode {
+            RandomMode::Host => self.state.random.fill_secure_bytes(buffer),
             RandomMode::Deterministic => {
-                self.random.fill_stream_bytes(stream_id, buffer);
+                self.state.random.fill_stream_bytes(stream_id, buffer);
                 Ok(())
             }
         }
@@ -494,31 +354,26 @@ impl World {
 
     /// Borrow the shared trace controller.
     pub fn trace(&self) -> &Trace {
-        &self.trace
+        &self.state.trace
     }
 
-    /// Ingest one authoritative command at the world boundary.
-    pub fn ingest(&self, command: Command) -> RuntimeResult<()> {
-        self.trace.record_command(command)
+    /// Record one authoritative command at the world boundary.
+    pub fn record_command(&self, command: Command) -> RuntimeResult<()> {
+        self.state.trace.record_command(command)
     }
 
-    /// Accept one authoritative external outcome at the world boundary.
-    pub fn accept(&self, outcome: Outcome) -> RuntimeResult<()> {
-        self.trace.record_outcome(outcome)
-    }
-
-    /// Append one authoritative history anchor at the world boundary.
-    pub fn anchor(&self, label: impl Into<String>) -> RuntimeResult<TraceSequence> {
-        self.trace.record_anchor(label.into())
+    /// Record one authoritative external outcome at the world boundary.
+    pub fn record_outcome(&self, outcome: Outcome) -> RuntimeResult<()> {
+        self.state.trace.record_outcome(outcome)
     }
 
     /// Append one explicit history label to the active trace.
     pub fn label(&self, label: impl Into<String>) -> RuntimeResult<TraceSequence> {
-        self.anchor(label)
+        self.state.trace.record_anchor(label.into())
     }
 
     /// Resolve one command against the replay boundary.
     pub(crate) fn resolve_command(&self, command: Command) -> RuntimeResult<Command> {
-        self.trace.resolve_command(command)
+        self.state.trace.resolve_command(command)
     }
 }

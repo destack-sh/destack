@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use super::Hook;
 
-/// Activation behavior for runtime rules.
+/// Activation window for runtime rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ActivationWindow {
     /// Activate the rule immediately.
@@ -30,7 +30,7 @@ impl ActivationWindow {
     }
 }
 
-/// Lifetime behavior for runtime rules.
+/// Lifetime window for runtime rules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Lifetime {
     /// Keep the rule active until explicitly disabled.
@@ -71,7 +71,7 @@ pub struct Trigger {
     pub activation_ppm: Option<ProbabilityPpm>,
     /// Fire probability in parts-per-million.
     pub probability_ppm: Option<ProbabilityPpm>,
-    /// Maximum number of effect firings.
+    /// Maximum number of action firings.
     pub max_occurrences: Option<u64>,
     /// Cooldown duration between firings in nanoseconds.
     pub cooldown_ns: Option<u64>,

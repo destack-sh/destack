@@ -2,23 +2,7 @@ use {destack_engine as engine, destack_heap as heap, destack_native as native, d
 
 use super::{Context, Continuation, ContinuationImage, Entry, Image, Outcome};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::memory::RootSink;
-
-/// VM root visitor bridged into runtime root collection.
-struct VmRootSink<'a, 'b> {
-    /// The runtime root visitor.
-    roots: &'a mut RootSink<'b>,
-}
-
-impl vm::RootSink for VmRootSink<'_, '_> {
-    fn push_heap(&mut self, reference: heap::HeapReference) {
-        self.roots.push_heap(reference);
-    }
-
-    fn push_shared_heap(&mut self, reference: heap::SharedHeapReference) {
-        self.roots.push_shared_heap(reference);
-    }
-}
+use crate::runtime::heap::RootSink;
 
 /// Execution backend owned by one worker.
 pub enum Engine {
@@ -344,6 +328,22 @@ impl From<vm::Isolate> for Engine {
 impl From<native::Engine> for Engine {
     fn from(engine: native::Engine) -> Self {
         Self::Native(engine)
+    }
+}
+
+/// VM root visitor bridged into runtime root collection.
+struct VmRootSink<'a, 'b> {
+    /// The runtime root visitor.
+    roots: &'a mut RootSink<'b>,
+}
+
+impl vm::RootSink for VmRootSink<'_, '_> {
+    fn push_heap(&mut self, reference: heap::HeapReference) {
+        self.roots.push_heap(reference);
+    }
+
+    fn push_shared_heap(&mut self, reference: heap::SharedHeapReference) {
+        self.roots.push_shared_heap(reference);
     }
 }
 

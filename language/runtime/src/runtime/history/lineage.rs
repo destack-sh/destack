@@ -5,9 +5,8 @@ use destack_heap as heap;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::observe::ObservationRecord;
-use crate::runtime::time::WorldInstant;
-use crate::runtime::trace::{TraceImage, TraceSequence};
+use crate::runtime::time::Instant;
+use crate::runtime::trace::{ObservationRecord, TraceImage, TraceSequence};
 use crate::runtime::world::RuntimeId;
 use crate::runtime::{Collector, RuntimeImage, WorkerId, WorkerImage};
 
@@ -17,7 +16,7 @@ use super::{
 };
 
 /// First active branch identifier for one new world.
-pub(crate) const ROOT_BRANCH_ID: BranchId = BranchId::new(0);
+pub(crate) const ROOT_BRANCH: BranchId = BranchId::new(0);
 /// First active revision for one new world.
 pub(crate) const ROOT_REVISION: Revision = Revision::new(0);
 /// Root image identifier for one new world.
@@ -33,31 +32,9 @@ const INITIAL_IMAGE_ID: u128 = 1;
 /// First allocated runtime image identifier.
 const INITIAL_RUNTIME_IMAGE_ID: u128 = 0;
 /// First allocated worker image identifier.
-const INITIAL_AGENT_IMAGE_ID: u128 = 0;
+const INITIAL_WORKER_IMAGE_ID: u128 = 0;
 /// Root trace image identifier for one new world.
 pub(crate) const ROOT_TRACE_IMAGE_ID: TraceImageId = TraceImageId::new(0);
-
-/// Lineage-local identifier for one canonical retained runtime image.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-struct RuntimeImageId(u128);
-
-impl RuntimeImageId {
-    /// Create a new runtime image identifier.
-    const fn new(value: u128) -> Self {
-        Self(value)
-    }
-}
-
-/// Lineage-local identifier for one canonical retained worker image.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-struct AgentImageId(u128);
-
-impl AgentImageId {
-    /// Create a new worker image identifier.
-    const fn new(value: u128) -> Self {
-        Self(value)
-    }
-}
 
 /// Lineage-root metadata and durable restore metadata.
 #[derive(Debug)]
@@ -77,7 +54,7 @@ pub(crate) struct Lineage {
     /// The next runtime image identifier to allocate.
     pub next_runtime_image_id: u128,
     /// The next worker image identifier to allocate.
-    pub next_agent_image_id: u128,
+    pub next_worker_image_id: u128,
     /// The known branch metadata records.
     pub branches: BTreeMap<BranchId, Branch>,
     /// The known revision metadata records.
@@ -91,7 +68,7 @@ pub(crate) struct Lineage {
     /// The canonical retained runtime image payloads.
     runtime_images: BTreeMap<RuntimeImageId, Arc<RuntimeImage>>,
     /// The canonical retained worker image payloads.
-    worker_images: BTreeMap<AgentImageId, Arc<WorkerImage>>,
+    worker_images: BTreeMap<WorkerImageId, Arc<WorkerImage>>,
     /// The committed observation history keyed by branch.
     pub observations: BTreeMap<BranchId, Vec<ObservationRecord>>,
 }
@@ -112,7 +89,7 @@ pub struct LineageSnapshot {
     /// The next runtime image identifier to allocate.
     pub next_runtime_image_id: u128,
     /// The next worker image identifier to allocate.
-    pub next_agent_image_id: u128,
+    pub next_worker_image_id: u128,
     /// The known branch metadata records.
     pub branches: BTreeMap<BranchId, Branch>,
     /// The known revision metadata records.
@@ -127,6 +104,28 @@ pub struct LineageSnapshot {
     pub observations: BTreeMap<BranchId, Vec<ObservationRecord>>,
 }
 
+/// Lineage-local identifier for one canonical retained runtime image.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+struct RuntimeImageId(u128);
+
+impl RuntimeImageId {
+    /// Create a new runtime image identifier.
+    const fn new(value: u128) -> Self {
+        Self(value)
+    }
+}
+
+/// Lineage-local identifier for one canonical retained worker image.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+struct WorkerImageId(u128);
+
+impl WorkerImageId {
+    /// Create a new worker image identifier.
+    const fn new(value: u128) -> Self {
+        Self(value)
+    }
+}
+
 impl Lineage {
     /// Capture one durable lineage snapshot for all retained history.
     pub(crate) fn full_snapshot(&self) -> RuntimeResult<LineageSnapshot> {
@@ -139,7 +138,7 @@ impl Lineage {
             allocator: self.allocator.image_pages_from_ids(&reachable_pages)?,
             next_image_id: self.next_image_id,
             next_runtime_image_id: self.next_runtime_image_id,
-            next_agent_image_id: self.next_agent_image_id,
+            next_worker_image_id: self.next_worker_image_id,
             branches: self.branches.clone(),
             revisions: self.revisions.clone(),
             checkpoints: self.checkpoints.clone(),
@@ -209,7 +208,7 @@ impl Lineage {
             allocator: self.allocator.image_pages_from_ids(&reachable_pages)?,
             next_image_id: self.next_image_id,
             next_runtime_image_id: self.next_runtime_image_id,
-            next_agent_image_id: self.next_agent_image_id,
+            next_worker_image_id: self.next_worker_image_id,
             branches: BTreeMap::from([(branch.id, branch)]),
             revisions: BTreeMap::from([(revision, revision_state)]),
             checkpoints,
@@ -223,8 +222,8 @@ impl Lineage {
     pub(crate) fn new_root(
         allocator: Arc<heap::Allocator>,
         collector: Arc<Collector>,
-        wall: WorldInstant,
-        mono: WorldInstant,
+        wall: Instant,
+        mono: Instant,
         sequence: TraceSequence,
         image: Arc<WorldImage>,
         trace_image: Arc<TraceImage>,
@@ -241,7 +240,7 @@ impl Lineage {
         revisions.insert(
             ROOT_REVISION,
             RevisionState {
-                branch_id: ROOT_BRANCH_ID,
+                branch_id: ROOT_BRANCH,
                 parent_revision: None,
                 sequence,
                 image_id: ROOT_IMAGE_ID,
@@ -253,9 +252,9 @@ impl Lineage {
         );
 
         branches.insert(
-            ROOT_BRANCH_ID,
+            ROOT_BRANCH,
             Branch {
-                id: ROOT_BRANCH_ID,
+                id: ROOT_BRANCH,
                 head_revision: ROOT_REVISION,
                 origin: BranchOrigin::Root,
                 name: "root".to_string(),
@@ -271,7 +270,7 @@ impl Lineage {
             next_checkpoint_id: INITIAL_CHECKPOINT_ID,
             next_image_id: INITIAL_IMAGE_ID,
             next_runtime_image_id: INITIAL_RUNTIME_IMAGE_ID,
-            next_agent_image_id: INITIAL_AGENT_IMAGE_ID,
+            next_worker_image_id: INITIAL_WORKER_IMAGE_ID,
             branches,
             revisions,
             checkpoints: BTreeMap::new(),
@@ -308,7 +307,7 @@ impl Lineage {
             next_checkpoint_id: snapshot.next_checkpoint_id,
             next_image_id: snapshot.next_image_id,
             next_runtime_image_id: snapshot.next_runtime_image_id,
-            next_agent_image_id: snapshot.next_agent_image_id,
+            next_worker_image_id: snapshot.next_worker_image_id,
             branches: snapshot.branches,
             revisions: snapshot.revisions,
             checkpoints: snapshot.checkpoints,
@@ -424,8 +423,8 @@ impl Lineage {
         branch_id: BranchId,
         image_id: ImageId,
         sequence: TraceSequence,
-        wall: WorldInstant,
-        mono: WorldInstant,
+        wall: Instant,
+        mono: Instant,
         checkpoint_name: Option<String>,
     ) -> RuntimeResult<(Revision, RevisionState, Option<Checkpoint>)> {
         let parent_branch = self.branches.get(&branch_id).cloned().ok_or_else(|| {
@@ -845,9 +844,9 @@ impl Lineage {
 
         // worker images
         for (worker_id, worker_image) in &mut image.workers {
-            let canonical_agent_image =
-                self.retain_agent_image(*worker_id, worker_image.clone(), parent_image.as_deref());
-            *worker_image = canonical_agent_image;
+            let canonical_worker_image =
+                self.retain_worker_image(*worker_id, worker_image.clone(), parent_image.as_deref());
+            *worker_image = canonical_worker_image;
         }
 
         Ok(())
@@ -865,7 +864,7 @@ impl Lineage {
 
             let mut image = image.as_ref().clone();
             self.rebuild_runtime_image_entries(&mut image);
-            self.rebuild_agent_image_entries(&mut image);
+            self.rebuild_worker_image_entries(&mut image);
             self.images.insert(image_id, Arc::new(image));
         }
     }
@@ -916,23 +915,23 @@ impl Lineage {
     }
 
     /// Return one canonical worker image for one retained worker payload.
-    fn retain_agent_image(
+    fn retain_worker_image(
         &mut self,
         worker_id: WorkerId,
         worker_image: Arc<WorkerImage>,
         parent_image: Option<&WorldImage>,
     ) -> Arc<WorkerImage> {
         if let Some(parent_image) = parent_image
-            && let Some(parent_agent_image) = parent_image.workers.get(&worker_id)
-            && parent_agent_image.as_ref() == worker_image.as_ref()
+            && let Some(parent_worker_image) = parent_image.workers.get(&worker_id)
+            && parent_worker_image.as_ref() == worker_image.as_ref()
         {
-            return parent_agent_image.clone();
+            return parent_worker_image.clone();
         }
 
-        let agent_image_id = AgentImageId::new(self.next_agent_image_id);
-        self.next_agent_image_id += 1;
+        let worker_image_id = WorkerImageId::new(self.next_worker_image_id);
+        self.next_worker_image_id += 1;
         self.worker_images
-            .insert(agent_image_id, worker_image.clone());
+            .insert(worker_image_id, worker_image.clone());
 
         worker_image
     }
@@ -957,21 +956,21 @@ impl Lineage {
     }
 
     /// Canonicalize worker images while rebuilding retained lineage state.
-    fn rebuild_agent_image_entries(&mut self, image: &mut WorldImage) {
+    fn rebuild_worker_image_entries(&mut self, image: &mut WorldImage) {
         for worker_image in image.workers.values_mut() {
-            if let Some(existing_agent_image) = self
-                .worker_images
-                .values()
-                .find(|existing_agent_image| existing_agent_image.as_ref() == worker_image.as_ref())
+            if let Some(existing_worker_image) =
+                self.worker_images.values().find(|existing_worker_image| {
+                    existing_worker_image.as_ref() == worker_image.as_ref()
+                })
             {
-                *worker_image = existing_agent_image.clone();
+                *worker_image = existing_worker_image.clone();
                 continue;
             }
 
-            let agent_image_id = AgentImageId::new(self.next_agent_image_id);
-            self.next_agent_image_id += 1;
+            let worker_image_id = WorkerImageId::new(self.next_worker_image_id);
+            self.next_worker_image_id += 1;
             self.worker_images
-                .insert(agent_image_id, worker_image.clone());
+                .insert(worker_image_id, worker_image.clone());
         }
     }
 }

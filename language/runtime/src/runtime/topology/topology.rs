@@ -117,15 +117,15 @@ impl Topology {
             .contains_key(&runtime_id.owns_worker_edge_id(worker_id))
     }
 
-    /// Add one runtime and its primary worker metadata.
+    /// Add one runtime and its default worker metadata.
     pub(crate) fn add_runtime(
         &mut self,
         runtime_id: RuntimeId,
         runtime_name: String,
         runtime_labels: BTreeMap<String, String>,
-        primary_worker_id: WorkerId,
-        primary_worker_name: String,
-        primary_worker_labels: BTreeMap<String, String>,
+        default_worker_id: WorkerId,
+        default_worker_name: String,
+        default_worker_labels: BTreeMap<String, String>,
     ) -> TopologyResult<()> {
         // reject duplicate metadata upfront
         if self.entities.contains_key(&runtime_id.entity_id()) {
@@ -133,9 +133,9 @@ impl Topology {
                 entity_id: runtime_id.entity_id(),
             });
         }
-        if self.entities.contains_key(&primary_worker_id.entity_id()) {
+        if self.entities.contains_key(&default_worker_id.entity_id()) {
             return Err(TopologyError::DuplicateEntity {
-                entity_id: primary_worker_id.entity_id(),
+                entity_id: default_worker_id.entity_id(),
             });
         }
 
@@ -146,21 +146,21 @@ impl Topology {
             );
         self.upsert_entity(runtime_entity)?;
 
-        // primary worker entity
-        let worker_entity = WorldEntity::new(primary_worker_id.entity_id(), BUILTIN_WORKER_KIND_ID)
+        // default worker entity
+        let worker_entity = WorldEntity::new(default_worker_id.entity_id(), BUILTIN_WORKER_KIND_ID)
             .labels(entity_labels_with_name(
-                primary_worker_labels,
+                default_worker_labels,
                 LABEL_WORKER_NAME,
-                primary_worker_name,
+                default_worker_name,
             ));
         self.upsert_entity(worker_entity)?;
 
         // ownership edge
         let edge = WorldEdge::new(
-            runtime_id.owns_worker_edge_id(primary_worker_id),
+            runtime_id.owns_worker_edge_id(default_worker_id),
             BUILTIN_RUNTIME_OWNS_WORKER_EDGE_KIND_ID,
             runtime_id.entity_id(),
-            primary_worker_id.entity_id(),
+            default_worker_id.entity_id(),
         );
         self.upsert_edge(edge)?;
 

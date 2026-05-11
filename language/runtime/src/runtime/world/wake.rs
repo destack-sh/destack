@@ -1,5 +1,5 @@
 use crate::runtime::scheduler::Timer;
-use crate::runtime::time::WorldInstant;
+use crate::runtime::time::Instant;
 use crate::runtime::{RuntimeId, WorkerId};
 
 /// World-timed due work selected by the scheduler.
@@ -18,9 +18,9 @@ pub enum Wake {
 
 impl Wake {
     /// Return the due wall-clock deadline used for deterministic ordering.
-    pub const fn at(&self) -> WorldInstant {
+    pub const fn at(&self) -> Instant {
         match self {
-            Self::WorkerTimer { timer, .. } => WorldInstant::from_nanos(timer.deadline.at),
+            Self::WorkerTimer { timer, .. } => Instant::from_nanos(timer.deadline.at),
         }
     }
 
@@ -53,7 +53,7 @@ impl Wake {
     }
 
     /// Return the stable ordering key for this wake.
-    pub(crate) const fn sort_key(&self) -> (WorldInstant, u8, u64, u64, u64) {
+    pub(crate) const fn sort_key(&self) -> (Instant, u8, u64, u64, u64) {
         (
             self.at(),
             self.kind_rank(),

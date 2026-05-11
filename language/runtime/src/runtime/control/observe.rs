@@ -1,8 +1,5 @@
-use std::sync::Arc;
-
 use crate::diagnostic::RuntimeResult;
-use crate::runtime::observe::ObservationSubscriptionId;
-use crate::runtime::trace::TraceCursor;
+use crate::runtime::trace::{ObservationSubscriptionId, TraceCursor};
 
 use super::Control;
 use super::handle::{ControlEntry, ControlHandleId, ControlKind};
@@ -78,7 +75,7 @@ impl Control {
     pub(crate) fn open_trace_cursor(
         &mut self,
         world_handle_id: ControlHandleId,
-        cursor: Arc<TraceCursor>,
+        cursor: TraceCursor,
     ) -> ControlHandleId {
         let handle_id = self.allocate_handle_id();
 
@@ -106,7 +103,7 @@ impl Control {
     pub(crate) fn open_trace_cursor_handle(
         &mut self,
         world_handle_id: ControlHandleId,
-        cursor: Arc<TraceCursor>,
+        cursor: TraceCursor,
     ) -> RuntimeResult<ControlHandleId> {
         self.require_kind(world_handle_id, ControlKind::World)?;
 
@@ -117,12 +114,20 @@ impl Control {
     pub(crate) fn trace_cursor_entry(
         &self,
         handle_id: ControlHandleId,
-    ) -> RuntimeResult<TraceCursorEntry> {
+    ) -> RuntimeResult<&TraceCursorEntry> {
         self.require_kind(handle_id, ControlKind::TraceCursor)?;
 
-        let entry = self.get_trace_cursor_entry(handle_id)?;
+        self.get_trace_cursor_entry(handle_id)
+    }
 
-        Ok(entry.clone())
+    /// Resolve one trace cursor handle into its stored mutable entry.
+    pub(crate) fn trace_cursor_entry_mut(
+        &mut self,
+        handle_id: ControlHandleId,
+    ) -> RuntimeResult<&mut TraceCursorEntry> {
+        self.require_kind(handle_id, ControlKind::TraceCursor)?;
+
+        self.get_trace_cursor_entry_mut(handle_id)
     }
 
     /// Close one trace cursor handle and return its stored entry.

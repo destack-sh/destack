@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use super::{Nanos, WorldInstant};
+use super::{Instant, Nanos};
 
 /// Virtual clock state for deterministic time.
 #[derive(Debug)]
@@ -34,17 +34,17 @@ impl VirtualClock {
     }
 
     /// Advance the virtual clock by a delta.
-    pub(crate) fn advance(&self, delta: Nanos) -> WorldInstant {
+    pub(crate) fn advance(&self, delta: Nanos) -> Instant {
         let delta_nanos = delta.get();
         let wall = self.wall_nanos.fetch_add(delta_nanos, Ordering::Relaxed) + delta_nanos;
         let _ = self.mono_nanos.fetch_add(delta_nanos, Ordering::Relaxed) + delta_nanos;
-        WorldInstant::new(wall)
+        Instant::new(wall)
     }
 
     /// Advance the virtual clock to the provided deadline.
-    pub(crate) fn advance_to(&self, deadline: WorldInstant) -> WorldInstant {
+    pub(crate) fn advance_to(&self, deadline: Instant) -> Instant {
         // keep the current value if we are already past the deadline
-        let now = WorldInstant::from_nanos(self.wall());
+        let now = Instant::from_nanos(self.wall());
         if deadline <= now {
             return now;
         }
@@ -55,7 +55,7 @@ impl VirtualClock {
     }
 
     /// Restore one captured virtual clock state.
-    pub(crate) fn restore_snapshot(&self, wall: WorldInstant, mono: WorldInstant) {
+    pub(crate) fn restore_snapshot(&self, wall: Instant, mono: Instant) {
         self.wall_nanos.store(wall.get(), Ordering::Relaxed);
         self.mono_nanos.store(mono.get(), Ordering::Relaxed);
     }

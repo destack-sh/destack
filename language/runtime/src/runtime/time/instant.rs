@@ -6,9 +6,9 @@ use super::Nanos;
 #[derive(
     Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
 )]
-pub struct WorldInstant(Nanos);
+pub struct Instant(Nanos);
 
-impl WorldInstant {
+impl Instant {
     /// Create a world instant from one raw nanosecond value.
     pub const fn new(value: u64) -> Self {
         Self(Nanos::new(value))
@@ -40,7 +40,7 @@ impl WorldInstant {
     }
 }
 
-impl From<u64> for WorldInstant {
+impl From<u64> for Instant {
     fn from(value: u64) -> Self {
         Self::new(value)
     }
