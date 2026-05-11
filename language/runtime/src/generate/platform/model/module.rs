@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::platform::model::{BindingEntry, CatalogBindingScope, CatalogBindingSimulation};
+use crate::platform::model::{BindingEntry, CatalogBindingProvider, CatalogBindingSimulation};
 
 use super::{ModuleLayout, WorkspaceLayout};
 
@@ -27,9 +27,9 @@ impl ModuleSpec {
         // dispatch support
         let has_host_dispatch = bindings
             .values()
-            .any(|entry| entry.scope != CatalogBindingScope::Runtime);
+            .any(|entry| entry.provider != CatalogBindingProvider::Runtime);
         let has_simulation_dispatch = bindings.values().any(|entry| {
-            entry.scope != CatalogBindingScope::Runtime
+            entry.provider != CatalogBindingProvider::Runtime
                 && entry.simulation != CatalogBindingSimulation::Unsupported
         });
 

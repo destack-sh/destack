@@ -1,6 +1,6 @@
 use crate::platform::model::{
-    CatalogBindingAffinity, CatalogBindingBlocking, CatalogBindingReplayKind, CatalogBindingScope,
-    CatalogEffectClass, CatalogReplayPayload, CatalogReplayPolicy,
+    CatalogBindingAffinity, CatalogBindingProvider, CatalogBindingReplayKind, CatalogEffectClass,
+    CatalogReplayPayload, CatalogReplayPolicy,
 };
 
 use super::binding::BindingWriter;
@@ -19,13 +19,12 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
                 binding.entry.replay_payload,
                 binding.entry.replay_kind,
                 &binding.entry.requires,
-                binding.entry.scope,
-                binding.entry.blocking,
+                binding.entry.provider,
                 binding.entry.affinity,
                 &codegen,
             );
-            let host_platforms =
-                codegen.render_binding_host_platforms(&binding.entry.host_platforms);
+            let platforms = codegen.render_binding_platforms(&binding.entry.platforms);
+            let hosts = codegen.render_binding_hosts(&binding.entry.hosts);
             output.push_str(&format!(
                 "/// Binding descriptor for {}.\n",
                 binding.extern_name
@@ -41,8 +40,11 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             }
             output.push_str(")");
             output.push_str(&format!("\n    .with_namespace(\"{}\")", self.spec.module));
-            if let Some(host_platforms) = host_platforms {
-                output.push_str(&format!("\n    .with_host_platforms({host_platforms})"));
+            if let Some(platforms) = platforms {
+                output.push_str(&format!("\n    .with_platforms({platforms})"));
+            }
+            if let Some(hosts) = hosts {
+                output.push_str(&format!("\n    .with_hosts({hosts})"));
             }
             output.push_str(";\n\n");
         }
@@ -54,23 +56,21 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
         replay_payload: CatalogReplayPayload,
         replay_kind: CatalogBindingReplayKind,
         requires: &[String],
-        scope: CatalogBindingScope,
-        blocking: CatalogBindingBlocking,
+        provider: CatalogBindingProvider,
         affinity: CatalogBindingAffinity,
         codegen: &ModuleCodegen<'_>,
     ) -> (&'static str, Vec<String>) {
         let requires_arg = codegen.render_binding_requires(requires);
-        let scope_arg = codegen.render_binding_scope(scope);
-        let blocking_arg = codegen.render_binding_blocking(blocking);
+        let provider_arg = codegen.render_binding_provider(provider);
         let affinity_arg = codegen.render_binding_affinity(affinity);
         match effect_class {
             CatalogEffectClass::Pure => (
-                "pure_with_requires_and_behavior",
-                vec![requires_arg, scope_arg, blocking_arg, affinity_arg],
+                "pure_with_requires_and_dispatch",
+                vec![requires_arg, provider_arg, affinity_arg],
             ),
             CatalogEffectClass::Deterministic => (
-                "deterministic_with_requires_and_behavior",
-                vec![requires_arg, scope_arg, blocking_arg, affinity_arg],
+                "deterministic_with_requires_and_dispatch",
+                vec![requires_arg, provider_arg, affinity_arg],
             ),
             CatalogEffectClass::External { replay } => {
                 let replay = match replay {
@@ -92,20 +92,18 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
                             replay_kind,
                             payload_arg,
                             requires_arg,
-                            scope_arg,
-                            blocking_arg,
+                            provider_arg,
                             affinity_arg,
                         ],
                     )
                 } else {
                     (
-                        "external_with_requires_and_behavior",
+                        "external_with_requires_and_dispatch",
                         vec![
                             replay.to_string(),
                             replay_kind,
                             requires_arg,
-                            scope_arg,
-                            blocking_arg,
+                            provider_arg,
                             affinity_arg,
                         ],
                     )

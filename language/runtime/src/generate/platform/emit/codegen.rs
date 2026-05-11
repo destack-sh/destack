@@ -3,8 +3,7 @@ use destack_dir::{EnumBackingType, IntegerType};
 use super::binding_type_requires_abi;
 use crate::platform::model::{
     BindingEntry, BindingParameter, BindingTaggedUnionVariant, BindingType, CatalogBindingAffinity,
-    CatalogBindingBlocking, CatalogBindingReplayKind, CatalogBindingScope,
-    CatalogBindingSimulation, CatalogEntropyKind,
+    CatalogBindingProvider, CatalogBindingReplayKind, CatalogBindingSimulation, CatalogEntropyKind,
 };
 
 /// Module-scoped Rust code generation helpers.
@@ -184,30 +183,20 @@ impl<'a> ModuleCodegen<'a> {
         out
     }
 
-    /// Render one binding scope enum expression.
-    pub(super) fn render_binding_scope(&self, scope: CatalogBindingScope) -> String {
-        match scope {
-            CatalogBindingScope::Host => "BindingScope::Host".to_string(),
-            CatalogBindingScope::Runtime => "BindingScope::Runtime".to_string(),
-        }
-    }
-
-    /// Render one binding blocking enum expression.
-    pub(super) fn render_binding_blocking(&self, blocking: CatalogBindingBlocking) -> String {
-        match blocking {
-            CatalogBindingBlocking::Never => "BindingBlocking::Never".to_string(),
-            CatalogBindingBlocking::Sometimes => "BindingBlocking::Sometimes".to_string(),
-            CatalogBindingBlocking::Always => "BindingBlocking::Always".to_string(),
+    /// Render one binding provider enum expression.
+    pub(super) fn render_binding_provider(&self, provider: CatalogBindingProvider) -> String {
+        match provider {
+            CatalogBindingProvider::Host => "BindingProvider::Host".to_string(),
+            CatalogBindingProvider::Runtime => "BindingProvider::Runtime".to_string(),
         }
     }
 
     /// Render one binding affinity enum expression.
     pub(super) fn render_binding_affinity(&self, affinity: CatalogBindingAffinity) -> String {
         match affinity {
-            CatalogBindingAffinity::Any => "BindingAffinity::Any".to_string(),
-            CatalogBindingAffinity::EventLoop => "BindingAffinity::EventLoop".to_string(),
-            CatalogBindingAffinity::Owner => "BindingAffinity::Owner".to_string(),
-            CatalogBindingAffinity::ProcessMain => "BindingAffinity::ProcessMain".to_string(),
+            CatalogBindingAffinity::None => "BindingAffinity::None".to_string(),
+            CatalogBindingAffinity::Worker => "BindingAffinity::Worker".to_string(),
+            CatalogBindingAffinity::Main => "BindingAffinity::Main".to_string(),
         }
     }
 
@@ -237,7 +226,7 @@ impl<'a> ModuleCodegen<'a> {
     pub(super) fn render_native_world_dispatch(
         &self,
         binding_const: &str,
-        scope: CatalogBindingScope,
+        provider: CatalogBindingProvider,
         simulation: CatalogBindingSimulation,
         implementation_fn_name: &str,
         args: &[String],
@@ -260,8 +249,8 @@ impl<'a> ModuleCodegen<'a> {
             )
         };
 
-        // runtime scope
-        if scope == CatalogBindingScope::Runtime {
+        // runtime provider
+        if provider == CatalogBindingProvider::Runtime {
             return format!(
                 "{{\n            let _binding_hook_guard = context.on_before_binding({binding_const})?;\n            {runtime_call}\n        }}"
             );
@@ -272,7 +261,7 @@ impl<'a> ModuleCodegen<'a> {
             CatalogBindingSimulation::Unsupported => format!(
                 "Err(RuntimeError::from(PlatformError::not_supported({binding_const}.name)).boxed())"
             ),
-            CatalogBindingSimulation::Stub | CatalogBindingSimulation::Model => {
+            CatalogBindingSimulation::Supported => {
                 if args.is_empty() {
                     format!(
                         "unsafe {{ platform_simulation_native::{implementation_fn_name}(context) }}"
@@ -350,7 +339,7 @@ impl<'a> ModuleCodegen<'a> {
     pub(super) fn render_vm_world_dispatch(
         &self,
         binding_const: &str,
-        scope: CatalogBindingScope,
+        provider: CatalogBindingProvider,
         simulation: CatalogBindingSimulation,
         implementation_fn_name: &str,
         invoke_args: &str,
@@ -360,8 +349,8 @@ impl<'a> ModuleCodegen<'a> {
         let host_call =
             format!("platform_vm::{implementation_fn_name}(binding, context{invoke_args})");
 
-        // runtime scope
-        if scope == CatalogBindingScope::Runtime {
+        // runtime provider
+        if provider == CatalogBindingProvider::Runtime {
             return format!(
                 "{{\n                        let _binding_hook_guard = binding.on_before_binding({binding_const})?;\n                        {runtime_call}\n                    }}"
             );
@@ -372,7 +361,7 @@ impl<'a> ModuleCodegen<'a> {
             CatalogBindingSimulation::Unsupported => format!(
                 "Err(RuntimeError::from(PlatformError::not_supported({binding_const}.name)).boxed())"
             ),
-            CatalogBindingSimulation::Stub | CatalogBindingSimulation::Model => {
+            CatalogBindingSimulation::Supported => {
                 format!(
                     "platform_simulation_vm::{implementation_fn_name}(binding, context{invoke_args})"
                 )
@@ -391,12 +380,12 @@ impl<'a> ModuleCodegen<'a> {
         }
 
         let mut values = String::from("&[");
-        for (index, capability) in requires.iter().enumerate() {
+        for (index, action) in requires.iter().enumerate() {
             if index > 0 {
                 values.push_str(", ");
             }
             values.push('"');
-            values.push_str(&self.escape_rust_string(capability));
+            values.push_str(&self.escape_rust_string(action));
             values.push('"');
         }
         values.push(']');
@@ -404,27 +393,34 @@ impl<'a> ModuleCodegen<'a> {
         values
     }
 
-    /// Render one optional host platform array expression.
-    pub(super) fn render_binding_host_platforms(
-        &self,
-        host_platforms: &[String],
-    ) -> Option<String> {
-        if host_platforms.is_empty() {
+    /// Render one optional platform array expression.
+    pub(super) fn render_binding_platforms(&self, platforms: &[String]) -> Option<String> {
+        self.render_string_array(platforms)
+    }
+
+    /// Render one optional host array expression.
+    pub(super) fn render_binding_hosts(&self, hosts: &[String]) -> Option<String> {
+        self.render_string_array(hosts)
+    }
+
+    /// Render one optional string array expression.
+    fn render_string_array(&self, values: &[String]) -> Option<String> {
+        if values.is_empty() {
             return None;
         }
 
-        let mut values = String::from("&[");
-        for (index, platform) in host_platforms.iter().enumerate() {
+        let mut rendered = String::from("&[");
+        for (index, value) in values.iter().enumerate() {
             if index > 0 {
-                values.push_str(", ");
+                rendered.push_str(", ");
             }
-            values.push('"');
-            values.push_str(&self.escape_rust_string(platform));
-            values.push('"');
+            rendered.push('"');
+            rendered.push_str(&self.escape_rust_string(value));
+            rendered.push('"');
         }
-        values.push(']');
+        rendered.push(']');
 
-        Some(values)
+        Some(rendered)
     }
 
     /// Build a qualified ABI struct path for a named binding type.

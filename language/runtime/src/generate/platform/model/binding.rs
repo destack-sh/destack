@@ -826,8 +826,8 @@ pub(crate) fn binding_type_from_symbol(
     let domain = if let Some(domain) = platform_domain_for_module(modules, symbol_id.module_id) {
         domain
     } else {
-        // allow the intrinsic capability alias used by platform security bindings
-        if name == "PlatformCapability" {
+        // allow the intrinsic action alias used by platform security bindings
+        if name == "HostAction" {
             return BindingType::String;
         }
 

@@ -31,11 +31,10 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
         let mut binding_imports = vec![
             "BindingAffinity",
             "BindingDescriptor",
-            "BindingBlocking",
             "BindingRegistry",
             "NativeBinding",
             "NativeBindingSet",
-            "BindingScope",
+            "BindingProvider",
             "native_call",
         ];
         if usage.uses_replay_policy {

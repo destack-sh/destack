@@ -1,5 +1,5 @@
 use crate::platform::model::{
-    BindingEntry, BindingType, CatalogBindingReplayKind, CatalogBindingScope,
+    BindingEntry, BindingType, CatalogBindingProvider, CatalogBindingReplayKind,
     CatalogBindingSimulation, CatalogEffectClass, CatalogReplayPayload, CatalogReplayPolicy,
 };
 use std::collections::BTreeSet;
@@ -1322,7 +1322,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             output.push_str(&format!("fn {fn_name}(\n"));
             output.push_str("    binding: &BindingCallContext,\n");
             output.push_str("    context: &mut vm::BindingContext<'_>,\n");
-            if entry.scope != CatalogBindingScope::Runtime {
+            if entry.provider != CatalogBindingProvider::Runtime {
                 output.push_str("    world: RuntimeWorld,\n");
             }
             for param in &params {
@@ -1337,7 +1337,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
                 binding.const_name
             ));
             output.push_str("        context,\n");
-            if entry.scope == CatalogBindingScope::Runtime {
+            if entry.provider == CatalogBindingProvider::Runtime {
                 output.push_str(&format!(
                     "        |context| platform_runtime_vm::{}(binding, context{invoke_args}),\n",
                     implementation_fn_name
@@ -1348,7 +1348,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
                         "Err(RuntimeError::from(PlatformError::not_supported({}.name)).boxed())",
                         binding.const_name
                     ),
-                    CatalogBindingSimulation::Stub | CatalogBindingSimulation::Model => {
+                    CatalogBindingSimulation::Supported => {
                         format!(
                             "platform_simulation_vm::{}(binding, context{invoke_args})",
                             implementation_fn_name
@@ -1580,7 +1580,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
             output.push_str("#[inline]\n");
             output.push_str(&format!("fn {fn_name}(\n"));
             output.push_str("    binding: &BindingCallContext,\n");
-            if entry.scope != CatalogBindingScope::Runtime {
+            if entry.provider != CatalogBindingProvider::Runtime {
                 output.push_str("    world: RuntimeWorld,\n");
             }
             for param in &params {
@@ -1640,7 +1640,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
                     args.join(", ")
                 )
             };
-            if entry.scope == CatalogBindingScope::Runtime {
+            if entry.provider == CatalogBindingProvider::Runtime {
                 output.push_str(&format!("        || {runtime_call},\n"));
             } else {
                 let simulation_call = match entry.simulation {
@@ -1648,7 +1648,7 @@ impl<'spec, 'output> BindingWriter<'spec, 'output> {
                         "Err(RuntimeError::from(PlatformError::not_supported({}.name)).boxed())",
                         binding.const_name
                     ),
-                    CatalogBindingSimulation::Stub | CatalogBindingSimulation::Model => {
+                    CatalogBindingSimulation::Supported => {
                         if args.is_empty() {
                             format!(
                                 "unsafe {{ platform_simulation_native::{}(binding) }}",
