@@ -12,9 +12,6 @@ export newtype SocketHandle = ResourceId;
 /// Handle for a packet capture or injection endpoint.
 export newtype PacketHandle = ResourceId;
 
-/// Handle for a network listener.
-export newtype ListenerHandle = ResourceId;
-
 /// Handle for a spawned process.
 export newtype ProcessHandle = ResourceId;
 
