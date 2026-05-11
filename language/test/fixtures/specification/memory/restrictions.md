@@ -60,7 +60,7 @@ function run(): void {
 @noHeap
 function run(): void {
     let allocator = defaultAllocator();
-    let layout = AllocationLayout { size: 64, align: 8 };
+    let layout = AllocationLayout.new(64, 8);
     let value = allocator.allocate(layout)?;
 }
 ```

@@ -95,9 +95,9 @@ let item = second(items);
 item satisfies &readonly int32;
 ```
 
-### managed roots cannot be named as lifetimes
+### managed is not a lifetime
 
-Managed-rooted borrows still have specific inferred lifetimes.
+Managed storage participates in lifetime inference, but it does not introduce a lifetime literal.
 
 ```ds
 class User {

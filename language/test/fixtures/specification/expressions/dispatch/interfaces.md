@@ -1,6 +1,6 @@
-# Interface Dispatch
+# Interface Specialization
 
-Interface dispatch uses a witness table when a concrete value is viewed through an interface.
+Interface annotations specialize to the concrete value at each application.
 
 ## fields
 
@@ -149,7 +149,7 @@ shape.origin.x satisfies int32 | float32;
 
 ## methods
 
-### methods dispatch through interfaces
+### methods specialize through interfaces
 
 Interface method calls use the concrete method target.
 
