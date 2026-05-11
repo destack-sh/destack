@@ -1,55 +1,17 @@
 import type { PlatformError } from "../error/index.ds";
 import { CompletionHandle, ResourceId } from "../resource/index.ds";
-import { Array, Slice } from "core";
 
-/// Completion queue event.
+/// Completion event flags.
+export newtype CompletionFlags = uint32;
+
+/// Completion event.
 export struct CompletionEvent {
     /// User-assigned completion key.
     key: uint64;
-    /// Operation result payload.
+    /// Host result value.
     result: int64;
     /// Completion flags.
-    flags: uint32;
-}
-
-/// Completion operation kind.
-export enum CompletionOperationKind {
-    /// Read operation.
-    Read = 1,
-    /// Write operation.
-    Write = 2,
-    /// Accept operation.
-    Accept = 3,
-    /// Connect operation.
-    Connect = 4,
-    /// Timeout operation.
-    Timeout = 5,
-    /// Fsync operation.
-    Fsync = 6,
-    /// Send operation.
-    Send = 7,
-    /// Receive operation.
-    Receive = 8,
-}
-
-/// Completion operation descriptor.
-export struct CompletionOperation {
-    /// Operation kind.
-    kind: CompletionOperationKind;
-    /// Operation target resource identifier.
-    target: ResourceId;
-    /// User-assigned completion key.
-    key: uint64;
-    /// Primary operation offset or position.
-    offset: uint64;
-    /// Primary operation length.
-    length: uint32;
-    /// Operation flags.
-    flags: uint32;
-    /// Opaque argument lane 0.
-    argument0: uint64;
-    /// Opaque argument lane 1.
-    argument1: uint64;
+    flags: CompletionFlags;
 }
 
 /// Open a completion queue.
@@ -59,7 +21,7 @@ export struct CompletionOperation {
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function completionOpen(entries: uint32): Result<CompletionHandle, PlatformError>;
+export declare function openCompletion(entries: uint32): Result<CompletionHandle, PlatformError>;
 
 /// Close a completion queue.
 @binding("destack.io.completion.close", {
@@ -68,7 +30,44 @@ export declare function completionOpen(entries: uint32): Result<CompletionHandle
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function completionClose(handle: CompletionHandle): Result<void, PlatformError>;
+export declare function closeCompletion(completion: CompletionHandle): Result<void, PlatformError>;
+
+/// Bind one resource to a completion queue.
+@binding("destack.io.completion.bind", {
+    effect: "external",
+    requires: ["io.completion"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function bindCompletion(
+    completion: CompletionHandle,
+    resource: ResourceId,
+    key: uint64,
+): Result<void, PlatformError>;
+
+/// Unbind one resource from a completion queue.
+@binding("destack.io.completion.unbind", {
+    effect: "external",
+    requires: ["io.completion"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function unbindCompletion(
+    completion: CompletionHandle,
+    resource: ResourceId,
+): Result<void, PlatformError>;
+
+/// Post one synthetic completion event.
+@binding("destack.io.completion.post", {
+    effect: "external",
+    requires: ["io.completion"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function postCompletion(
+    completion: CompletionHandle,
+    event: CompletionEvent,
+): Result<void, PlatformError>;
 
 /// Wait for completion events.
 @binding("destack.io.completion.wait", {
@@ -77,60 +76,20 @@ export declare function completionClose(handle: CompletionHandle): Result<void, 
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function completionWait(
-    handle: CompletionHandle,
-    timeoutNs: uint64,
-    maxEvents: uint32,
-): Result<Array<CompletionEvent>, PlatformError>;
+export declare function waitCompletion(
+    completion: CompletionHandle,
+    events: &[CompletionEvent],
+    timeoutNs?: uint64,
+): Result<uint32, PlatformError>;
 
-/// Cancel queued operations for one target.
+/// Cancel queued completions for one resource.
 @binding("destack.io.completion.cancel", {
     effect: "external",
     requires: ["io.completion"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function completionCancel(
-    handle: CompletionHandle,
-    target: ResourceId,
-): Result<uint32, PlatformError>;
-
-/// Submit one completion operation.
-@binding("destack.io.completion.submit", {
-    effect: "external",
-    requires: ["io.submit"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function completionSubmit(
-    handle: CompletionHandle,
-    operation: CompletionOperation,
-): Result<void, PlatformError>;
-
-/// Submit a batch of completion operations.
-@binding("destack.io.completion.submitBatch", {
-    effect: "external",
-    requires: ["io.submit"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function completionSubmitBatch(
-    handle: CompletionHandle,
-    operationWords: Slice<uint64>,
-    operationCount: uint32,
-    operationWordStride: uint32,
-): Result<uint32, PlatformError>;
-
-/// Enter the completion backend with submit and wait hints.
-@binding("destack.io.completion.enter", {
-    effect: "external",
-    requires: ["io.submit"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function completionEnter(
-    handle: CompletionHandle,
-    minComplete: uint32,
-    timeoutNs: uint64,
-    flags: uint32,
+export declare function cancelCompletion(
+    completion: CompletionHandle,
+    resource: ResourceId,
 ): Result<uint32, PlatformError>;

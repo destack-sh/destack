@@ -2,3 +2,4 @@
 export * from "./clock.ds";
 export * from "./sleep.ds";
 export * from "./timer.ds";
+export * from "./timerfd.ds";

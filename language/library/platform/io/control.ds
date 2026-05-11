@@ -1,55 +1,37 @@
-import { Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
 import { ResourceId } from "../resource/index.ds";
 
-/// Generic descriptor control command selector.
-export newtype DescriptorControlCommand = uint32;
+/// Resource control flags.
+export newtype ControlFlags = uint32;
 
-/// Generic descriptor control flag mask.
-export newtype DescriptorControlFlags = uint32;
-
-/// Generic descriptor request payload.
-export struct DescriptorRequest {
-    /// Request code.
+/// Resource control request.
+export struct ControlRequest {
+    /// Host request code.
     code: uint64;
-    /// Opaque input payload forwarded to the host.
-    input: Slice<uint8>;
-    /// Maximum output payload size requested from the host.
-    outputSize: uint32;
+    /// Scalar argument value.
+    argument: uint64;
     /// Request flags.
-    flags: uint32;
+    flags: ControlFlags;
 }
 
-/// Generic descriptor response payload.
-export struct DescriptorResult {
-    /// Host return value for the request.
-    returnValue: int64;
-    /// Opaque output payload returned by the host.
-    output: Slice<uint8>;
+/// Resource control result.
+export struct ControlResult {
+    /// Host return value.
+    value: int64;
+    /// Output bytes written.
+    bytes: uint32;
 }
 
-/// Execute one fcntl-style descriptor command.
-@binding("destack.io.control.fcntl", {
+/// Execute one resource control request.
+@binding("destack.io.control", {
     effect: "external",
     requires: ["io.control"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function controlFcntl(
-    handle: ResourceId,
-    command: DescriptorControlCommand,
-    argument: uint64,
-    flags: DescriptorControlFlags,
-): Result<int64, PlatformError>;
-
-/// Execute one ioctl-style descriptor request.
-@binding("destack.io.control.ioctl", {
-    effect: "external",
-    requires: ["io.control"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function controlIoctl(
-    handle: ResourceId,
-    request: DescriptorRequest,
-): Result<DescriptorResult, PlatformError>;
+export declare function control(
+    resource: ResourceId,
+    request: ControlRequest,
+    input: &readonly [uint8],
+    output: &[uint8],
+): Result<ControlResult, PlatformError>;

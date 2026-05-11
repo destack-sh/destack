@@ -21,7 +21,7 @@ export newtype JobHandle = ResourceId;
 /// Handle for a scheduled timer.
 export newtype TimerHandle = ResourceId;
 
-/// Handle for a timerfd style descriptor.
+/// Handle for a Linux timerfd descriptor.
 export newtype TimerFdHandle = ResourceId;
 
 /// Handle for a filesystem watcher.
@@ -77,9 +77,6 @@ export newtype TlsContextHandle = ResourceId;
 
 /// Handle for one TLS session.
 export newtype TlsSessionHandle = ResourceId;
-
-/// Handle for a device endpoint.
-export newtype DeviceHandle = ResourceId;
 
 /// Handle for a pseudo terminal endpoint.
 export newtype PtyHandle = ResourceId;
