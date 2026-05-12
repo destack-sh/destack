@@ -1,16 +1,15 @@
-import { Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
 import { TlsContextHandle } from "../resource/index.ds";
 
-/// Tls protocol version.
+/// TLS protocol version.
 export enum TlsVersion {
-    /// Tls 1.2.
+    /// TLS 1.2.
     Tls12 = 0x0303,
-    /// Tls 1.3.
+    /// TLS 1.3.
     Tls13 = 0x0304,
 }
 
-/// Tls endpoint role.
+/// TLS endpoint role.
 export enum TlsRole {
     /// Client endpoint.
     Client = 0,
@@ -18,7 +17,29 @@ export enum TlsRole {
     Server = 1,
 }
 
-/// Options for opening one tls context.
+/// TLS hostname verification mode.
+export enum TlsHostnameVerificationMode {
+    /// Enforce strict hostname verification against the expected server name.
+    Strict = 0,
+    /// Permit hostname mismatch while still validating certificate trust.
+    AllowMismatch = 1,
+    /// Disable hostname verification checks.
+    Disabled = 2,
+}
+
+/// TLS session resumption policy.
+export enum TlsSessionResumptionMode {
+    /// Disable session resumption.
+    Disabled = 0,
+    /// Enable stateful session cache resumption.
+    Stateful = 1,
+    /// Enable stateless ticket resumption.
+    Stateless = 2,
+    /// Enable stateful and stateless resumption.
+    StatefulAndStateless = 3,
+}
+
+/// Options for opening one TLS context.
 export struct TlsContextOptions {
     /// Client or server role.
     role: TlsRole;
@@ -29,139 +50,110 @@ export struct TlsContextOptions {
     /// Require peer certificate validation.
     verifyPeer: boolean;
     /// Application layer protocol identifiers in preference order.
-    alpnProtocols: Slice<Slice<uint8>>;
+    alpnProtocols: [[uint8]];
 }
 
-/// Tls hostname verification mode.
-export enum TlsHostnameVerificationMode {
-    /// Enforce strict hostname verification against the expected server name.
-    Strict = 0,
-    /// Permit hostname mismatch while still validating certificate trust.
-    AllowMismatch = 1,
-    /// Disable hostname verification checks.
-    Disabled = 2,
-}
-
-/// Tls session resumption policy.
-export enum TlsSessionResumptionMode {
-    /// Disable session resumption.
-    Disabled = 0,
-    /// Enable stateful session cache based resumption.
-    Stateful = 1,
-    /// Enable stateless ticket based resumption.
-    Stateless = 2,
-    /// Enable both stateful and stateless resumption modes.
-    StatefulAndStateless = 3,
-}
-
-/// Tls context bindings for the platform runtime boundary.
+/// Open one TLS context.
 @binding("destack.tls.context.open", {
     effect: "external",
     requires: ["tls.context"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function contextOpen(
-    options: TlsContextOptions,
+export declare function openTlsContext(
+    options: &readonly TlsContextOptions,
 ): Result<TlsContextHandle, PlatformError>;
 
-/// Close one tls context object.
+/// Close one TLS context.
 @binding("destack.tls.context.close", {
     effect: "external",
     requires: ["tls.context"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function contextClose(handle: TlsContextHandle): Result<void, PlatformError>;
+export declare function closeTlsContext(context: TlsContextHandle): Result<void, PlatformError>;
 
-/// Set one local certificate chain and private key on a tls context.
-@binding("destack.tls.context.setIdentityPem", {
+/// Set one local certificate chain and private key on a TLS context.
+@binding("destack.tls.context.identity.pem.set", {
     effect: "external",
-    replay: "forbidden",
     requires: ["tls.context", "tls.identity.use", "tls.identity.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function contextSetIdentityPem(
-    handle: TlsContextHandle,
-    certificateChainPem: Slice<uint8>,
-    privateKeyPem: Slice<uint8>,
+export declare function setTlsIdentityPem(
+    context: TlsContextHandle,
+    certificateChainPem: &readonly [uint8],
+    privateKeyPem: &readonly [uint8],
 ): Result<void, PlatformError>;
 
-/// Set trust anchors on a tls context from one PEM bundle.
-@binding("destack.tls.context.setTrustAnchorsPem", {
+/// Set trust anchors on a TLS context from one PEM bundle.
+@binding("destack.tls.context.trust.pem.set", {
     effect: "external",
-    replay: "forbidden",
     requires: ["tls.context", "tls.trust.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function contextSetTrustAnchorsPem(
-    handle: TlsContextHandle,
-    trustAnchorsPem: Slice<uint8>,
+export declare function setTlsTrustAnchorsPem(
+    context: TlsContextHandle,
+    trustAnchorsPem: &readonly [uint8],
 ): Result<void, PlatformError>;
 
-/// Set allowed tls cipher suites for one context.
-@binding("destack.tls.context.setCipherSuites", {
+/// Set allowed TLS cipher suites for one context.
+@binding("destack.tls.context.cipherSuites.set", {
     effect: "external",
-    replay: "forbidden",
     requires: ["tls.context", "tls.policy"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function contextSetCipherSuites(
-    handle: TlsContextHandle,
-    suites: Slice<string>,
+export declare function setTlsCipherSuites(
+    context: TlsContextHandle,
+    suites: &readonly [string],
 ): Result<void, PlatformError>;
 
-/// Set allowed tls key exchange groups for one context.
-@binding("destack.tls.context.setGroups", {
+/// Set allowed TLS key exchange groups for one context.
+@binding("destack.tls.context.groups.set", {
     effect: "external",
-    replay: "forbidden",
     requires: ["tls.context", "tls.policy"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function contextSetGroups(
-    handle: TlsContextHandle,
-    groups: Slice<string>,
+export declare function setTlsGroups(
+    context: TlsContextHandle,
+    groups: &readonly [string],
 ): Result<void, PlatformError>;
 
-/// Set allowed tls signature algorithms for one context.
-@binding("destack.tls.context.setSignatureAlgorithms", {
+/// Set allowed TLS signature algorithms for one context.
+@binding("destack.tls.context.signatureAlgorithms.set", {
     effect: "external",
-    replay: "forbidden",
     requires: ["tls.context", "tls.policy"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function contextSetSignatureAlgorithms(
-    handle: TlsContextHandle,
-    algorithms: Slice<string>,
+export declare function setTlsSignatureAlgorithms(
+    context: TlsContextHandle,
+    algorithms: &readonly [string],
 ): Result<void, PlatformError>;
 
 /// Set hostname verification mode for one context.
-@binding("destack.tls.context.setHostnameVerificationMode", {
+@binding("destack.tls.context.hostnameVerification.set", {
     effect: "external",
-    replay: "forbidden",
     requires: ["tls.context", "tls.hostname.verify"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function contextSetHostnameVerificationMode(
-    handle: TlsContextHandle,
+export declare function setTlsHostnameVerification(
+    context: TlsContextHandle,
     mode: TlsHostnameVerificationMode,
 ): Result<void, PlatformError>;
 
 /// Set session resumption policy for one context.
-@binding("destack.tls.context.setSessionResumption", {
+@binding("destack.tls.context.resumption.set", {
     effect: "external",
-    replay: "forbidden",
     requires: ["tls.context", "tls.resumption"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function contextSetSessionResumption(
-    handle: TlsContextHandle,
+export declare function setTlsSessionResumption(
+    context: TlsContextHandle,
     mode: TlsSessionResumptionMode,
 ): Result<void, PlatformError>;
