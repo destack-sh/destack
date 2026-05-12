@@ -1,6 +1,10 @@
 use indexmap::IndexMap;
 use serde::Deserialize;
 
+use super::{
+    DependencyJsonMap, DependencyMap, dependency_options_from_json, validate_dependency_json_map,
+};
+
 /// Development mode name.
 pub const MODE_DEV: &str = "dev";
 
@@ -20,10 +24,12 @@ pub const MODE_BENCH: &str = "bench";
 pub const MODE_LINT: &str = "lint";
 
 /// Named source graph mode options.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ModeOptions {
     /// Mode names included before this mode.
     pub extends: Vec<String>,
+    /// Dependencies enabled by this mode.
+    pub dependencies: DependencyMap,
 }
 
 impl ModeOptions {
@@ -35,6 +41,7 @@ impl ModeOptions {
                 .as_ref()
                 .map(ModeExtends::names)
                 .unwrap_or_default(),
+            dependencies: dependency_options_from_json(&json.dependencies),
         }
     }
 }
@@ -61,6 +68,15 @@ pub fn builtin_mode_names() -> &'static [&'static str] {
 pub struct ModeJson {
     /// Mode names included before this mode.
     pub extends: Option<ModeExtends>,
+    /// Dependencies enabled by this mode.
+    pub dependencies: Option<DependencyJsonMap>,
+}
+
+impl ModeJson {
+    /// Validate one source graph mode declaration.
+    pub fn validate(&self) -> Result<(), String> {
+        validate_dependency_json_map(self.dependencies.as_ref())
+    }
 }
 
 /// Mode extends field from `destack.json`.

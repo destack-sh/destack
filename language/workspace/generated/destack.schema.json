@@ -107,6 +107,16 @@
         "type": "string"
       }
     },
+    "dependencies": {
+      "description": "Package dependencies.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/DependencyOptionsJson"
+      }
+    },
     "compiler": {
       "description": "Compiler options.",
       "$ref": "#/$defs/CompilerOptionsJson"
@@ -219,6 +229,60 @@
               "type": "string"
             }
           }
+        }
+      }
+    },
+    "DependencyOptionsJson": {
+      "description": "Dependency declaration accepted by `destack.json`.",
+      "anyOf": [
+        {
+          "description": "Registry version or workspace requirement shorthand.",
+          "type": "string"
+        },
+        {
+          "description": "Structured dependency declaration.",
+          "$ref": "#/$defs/DependencySourceJson"
+        }
+      ]
+    },
+    "DependencySourceJson": {
+      "description": "Structured dependency source accepted by `destack.json`.",
+      "type": "object",
+      "properties": {
+        "version": {
+          "description": "Registry version requirement.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "workspace": {
+          "description": "Whether this dependency resolves from the current workspace.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "path": {
+          "description": "Local package path.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "git": {
+          "description": "Git repository URL.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ref": {
+          "description": "Git branch, tag, or revision selector.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       }
     },
@@ -5943,6 +6007,16 @@
               "type": "null"
             }
           ]
+        },
+        "dependencies": {
+          "description": "Dependencies enabled by this mode.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "$ref": "#/$defs/DependencyOptionsJson"
+          }
         }
       }
     },

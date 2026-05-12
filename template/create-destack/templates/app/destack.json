@@ -3,21 +3,6 @@
   "name": "__DESTACK_PROJECT__",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
-  "packageManager": "bun@1.2.18",
-  "devDependencies": {
-    "@destack/cli": "0.55.4",
-    "@types/bun": "1.2.18"
-  },
-  "tasks": {
-    "dev": "destack run --watch src/main.ds",
-    "start": {
-      "command": "destack run src/main.ds",
-      "env": {
-        "NODE_ENV": "production"
-      }
-    }
-  },
   "compiler": {
     "target": "esnext",
     "module": "esnext",
