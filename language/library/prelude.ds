@@ -112,6 +112,7 @@ export {
     Error,
     abort,
     panic,
+    trap,
     todo,
     unreachable,
     StackFrameId,
