@@ -75,20 +75,11 @@ export newtype CryptoCipherHandle = ResourceId;
 /// Handle for one TLS context.
 export newtype TlsContextHandle = ResourceId;
 
-/// Handle for one TLS session.
-export newtype TlsSessionHandle = ResourceId;
+/// Handle for one TLS connection.
+export newtype TlsConnectionHandle = ResourceId;
 
 /// Handle for a pseudo terminal endpoint.
 export newtype PtyHandle = ResourceId;
-
-/// Handle for a thread object.
-export newtype ThreadHandle = ResourceId;
-
-/// Handle for a runtime thread entry object.
-export newtype ThreadEntryHandle = ResourceId;
-
-/// Handle for a thread local key.
-export newtype ThreadLocalKey = ResourceId;
 
 /// Handle for a sandbox scope.
 export newtype SandboxHandle = ResourceId;
@@ -102,7 +93,7 @@ export newtype ProfileHandle = ResourceId;
 /// Handle for an active trace stream.
 export newtype TraceHandle = ResourceId;
 
-/// Handle for a TTY device.
+/// Handle for a terminal device.
 export newtype TtyHandle = ResourceId;
 
 /// Handle for a signal subscription.

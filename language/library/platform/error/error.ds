@@ -144,15 +144,6 @@ export enum PlatformErrorCode {
     /// Security policy violation.
     SecurityViolation = 7211,
 
-    /// Generic thread error.
-    Thread = 7300,
-    /// Thread spawn failed.
-    ThreadSpawnFailed = 7310,
-    /// Thread join failed.
-    ThreadJoinFailed = 7311,
-    /// Thread synchronization deadlock.
-    ThreadDeadlock = 7312,
-
     /// Generic FFI error.
     Ffi = 7400,
     /// FFI library load failed.
@@ -406,16 +397,6 @@ export struct PlatformErrorContextFfi {
     symbol?: string;
 }
 
-/// Thread platform-error context payload.
-export struct PlatformErrorContextThread {
-    /// Discriminator for this error-context variant.
-    kind: "thread";
-    /// Optional syscall or host API name.
-    syscall?: string;
-    /// Optional thread id.
-    threadId?: uint64;
-}
-
 /// IPC platform-error context payload.
 export struct PlatformErrorContextIpc {
     /// Discriminator for this error-context variant.
@@ -496,7 +477,6 @@ export newtype PlatformErrorContext =
     | PlatformErrorContextResource
     | PlatformErrorContextSecurity
     | PlatformErrorContextFfi
-    | PlatformErrorContextThread
     | PlatformErrorContextIpc
     | PlatformErrorContextDevice
     | PlatformErrorContextDisplay
