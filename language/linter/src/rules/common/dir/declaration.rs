@@ -19,14 +19,6 @@ pub fn declaration_has_implements_heritage(declaration: &dir::Declaration) -> bo
     }
 }
 
-/// Return true when one declaration has any embedded type entries.
-pub fn declaration_has_embedded_types(declaration: &dir::Declaration) -> bool {
-    match declaration {
-        dir::Declaration::Struct(declaration) => !declaration.embedded_types.is_empty(),
-        _ => false,
-    }
-}
-
 /// Return true when every member in one list is a field member.
 pub fn members_are_all_fields(
     tree: &dir::Tree,

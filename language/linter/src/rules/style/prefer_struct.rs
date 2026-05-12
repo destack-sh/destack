@@ -2,9 +2,7 @@ use destack_ast as ast;
 use destack_dir::{self as dir};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{
-    declaration_has_embedded_types, declaration_has_extends_heritage, members_are_all_fields,
-};
+use crate::rules::common::{declaration_has_extends_heritage, members_are_all_fields};
 use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -99,9 +97,8 @@ fn class_is_struct_candidate(
         return false;
     }
 
-    // keep extends and embed inheritance on classes
-    if declaration_has_extends_heritage(declaration) || declaration_has_embedded_types(declaration)
-    {
+    // keep extends inheritance on classes
+    if declaration_has_extends_heritage(declaration) {
         return false;
     }
 

@@ -223,13 +223,6 @@ fn type_expression_complexity_inner(
                             current_depth,
                         ));
                     }
-                    ast::TypeMember::Embed { value } => {
-                        max_depth = max_depth.max(type_expression_complexity_inner(
-                            tree,
-                            *value,
-                            current_depth,
-                        ));
-                    }
                     ast::TypeMember::AssociatedType {
                         constraint, value, ..
                     } => {
