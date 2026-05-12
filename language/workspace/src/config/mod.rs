@@ -15,6 +15,7 @@ mod product;
 mod profile;
 mod runtime;
 mod target;
+mod vendor;
 
 pub use cache::*;
 pub use compiler::*;
@@ -33,3 +34,4 @@ pub use product::*;
 pub use profile::*;
 pub use runtime::*;
 pub use target::*;
+pub use vendor::*;
