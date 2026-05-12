@@ -21,3 +21,12 @@ export newtype sink = (string,) | ();
 /// function sanitizeUrl(value: string): string;
 /// ```
 export newtype sanitizer = (string,) | ();
+
+/// Marks a declaration or expression as requiring unsafe authority.
+export newtype unsafe = (string,) | ();
+
+/// Allows unsafe operations inside the annotated scope.
+export newtype allowUnsafe = (string,) | ();
+
+/// Marks a declaration as safely encapsulating unsafe implementation details.
+export newtype trusted = (string,) | ();

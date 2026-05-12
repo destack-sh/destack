@@ -1,0 +1,20 @@
+/// A stateful hash sink.
+export newtype interface Hasher {
+    /// Add raw bytes to the hash state.
+    write(bytes: &readonly [uint8]): void;
+
+    /// Add one unsigned byte to the hash state.
+    writeUint8(value: uint8): void;
+
+    /// Add one unsigned machine word to the hash state.
+    writeUsize(value: usize): void;
+
+    /// Finish the hash state.
+    finish(): uint64;
+}
+
+/// A value that can feed itself into a hasher.
+export newtype interface Hash {
+    /// Add this value to `state`.
+    hash(state: &Hasher): void;
+}
