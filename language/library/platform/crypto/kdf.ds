@@ -1,41 +1,39 @@
-import { Slice } from "destack:collections";
+import { Array } from "destack:collections";
 import { PlatformError } from "destack:platform/error";
+import { CryptoKeyHandle, CryptoStoreHandle } from "destack:platform/resource";
 import { CryptoDigestAlgorithm } from "./algorithm.ds";
+import { CryptoDerivedKey } from "./key.ds";
 
-/// HKDF request.
-export struct CryptoHkdfRequest {
+/// HKDF derivation.
+export struct CryptoHkdf {
     /// Digest algorithm.
     digest: CryptoDigestAlgorithm;
     /// Input keying material.
-    inputKeyMaterial: Slice<uint8>;
+    inputKeyMaterial: &readonly [uint8];
     /// Optional salt bytes.
-    salt: Slice<uint8>;
+    salt: &readonly [uint8];
     /// Context and application info bytes.
-    info: Slice<uint8>;
-    /// Output length in bytes.
-    length: uint32;
+    info: &readonly [uint8];
 }
 
-/// PBKDF2 request.
-export struct CryptoPbkdf2Request {
+/// PBKDF2 derivation.
+export struct CryptoPbkdf2 {
     /// Digest algorithm.
     digest: CryptoDigestAlgorithm;
     /// Password bytes.
-    password: Slice<uint8>;
+    password: &readonly [uint8];
     /// Salt bytes.
-    salt: Slice<uint8>;
+    salt: &readonly [uint8];
     /// Iteration count.
     iterations: uint32;
-    /// Output length in bytes.
-    length: uint32;
 }
 
-/// scrypt request.
-export struct CryptoScryptRequest {
+/// scrypt derivation.
+export struct CryptoScrypt {
     /// Password bytes.
-    password: Slice<uint8>;
+    password: &readonly [uint8];
     /// Salt bytes.
-    salt: Slice<uint8>;
+    salt: &readonly [uint8];
     /// CPU and memory cost parameter.
     cost: uint32;
     /// Block size parameter.
@@ -44,68 +42,138 @@ export struct CryptoScryptRequest {
     parallelization: uint32;
     /// Maximum memory in bytes.
     maxMemoryBytes: uint64;
-    /// Output length in bytes.
-    length: uint32;
 }
 
-/// Argon2id request.
-export struct CryptoArgon2idRequest {
+/// Argon2id derivation.
+export struct CryptoArgon2id {
     /// Password bytes.
-    password: Slice<uint8>;
+    password: &readonly [uint8];
     /// Salt bytes.
-    salt: Slice<uint8>;
+    salt: &readonly [uint8];
     /// Optional associated data bytes.
-    associatedData: Slice<uint8>;
+    associatedData: &readonly [uint8];
     /// Optional secret bytes.
-    secret: Slice<uint8>;
+    secret: &readonly [uint8];
     /// Iteration count.
     iterations: uint32;
     /// Memory size in kibibytes.
     memoryKiB: uint32;
     /// Parallel workers.
     parallelism: uint32;
+}
+
+/// SP 800-108 counter-mode derivation.
+export struct CryptoSp800108Counter {
+    /// Digest algorithm.
+    digest: CryptoDigestAlgorithm;
+    /// Secret key bytes.
+    key: &readonly [uint8];
+    /// Label bytes.
+    label: &readonly [uint8];
+    /// Context bytes.
+    context: &readonly [uint8];
+}
+
+/// SP 800-56A concat derivation.
+export struct CryptoSp80056aConcat {
+    /// Digest algorithm.
+    digest: CryptoDigestAlgorithm;
+    /// Shared secret bytes.
+    secret: &readonly [uint8];
+    /// Algorithm identifier bytes.
+    algorithmId: &readonly [uint8];
+    /// Party U info bytes.
+    partyUInfo: &readonly [uint8];
+    /// Party V info bytes.
+    partyVInfo: &readonly [uint8];
+    /// Public supplemental info bytes.
+    publicInfo: &readonly [uint8];
+    /// Private supplemental info bytes.
+    privateInfo: &readonly [uint8];
+}
+
+/// X9.63 derivation.
+export struct CryptoX963 {
+    /// Digest algorithm.
+    digest: CryptoDigestAlgorithm;
+    /// Shared secret bytes.
+    secret: &readonly [uint8];
+    /// Shared info bytes.
+    sharedInfo: &readonly [uint8];
+}
+
+/// X9.42 concat derivation.
+export struct CryptoX942Concat {
+    /// Digest algorithm.
+    digest: CryptoDigestAlgorithm;
+    /// Shared secret bytes.
+    secret: &readonly [uint8];
+    /// Algorithm identifier bytes.
+    algorithmId: &readonly [uint8];
+    /// Party U info bytes.
+    partyUInfo: &readonly [uint8];
+    /// Party V info bytes.
+    partyVInfo: &readonly [uint8];
+    /// Public supplemental info bytes.
+    publicInfo: &readonly [uint8];
+    /// Private supplemental info bytes.
+    privateInfo: &readonly [uint8];
+}
+
+/// TLS 1.2 PRF derivation.
+export struct CryptoTls12Prf {
+    /// Digest algorithm.
+    digest: CryptoDigestAlgorithm;
+    /// Secret bytes.
+    secret: &readonly [uint8];
+    /// Label bytes.
+    label: &readonly [uint8];
+    /// Seed bytes.
+    seed: &readonly [uint8];
+}
+
+/// Key derivation.
+export newtype CryptoKdf =
+    | CryptoHkdf
+    | CryptoPbkdf2
+    | CryptoScrypt
+    | CryptoArgon2id
+    | CryptoSp800108Counter
+    | CryptoSp80056aConcat
+    | CryptoX963
+    | CryptoX942Concat
+    | CryptoTls12Prf;
+
+/// Key derivation raw byte request.
+export struct CryptoKdfBits {
+    /// Key derivation.
+    kdf: CryptoKdf;
     /// Output length in bytes.
     length: uint32;
 }
 
-/// Derive one key with HKDF.
-@binding("destack.crypto.kdf.hkdf", {
+/// Derive raw bytes.
+@binding("destack.crypto.kdf.deriveBits", {
     effect: "external",
     replay: "forbidden",
     requires: ["crypto.kdf"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function kdfHkdf(request: CryptoHkdfRequest): Result<Slice<uint8>, PlatformError>;
+export declare function deriveKdfBits(
+    request: &readonly CryptoKdfBits,
+): Result<^Array<uint8>, PlatformError>;
 
-/// Derive one key with PBKDF2.
-@binding("destack.crypto.kdf.pbkdf2", {
+/// Derive one key.
+@binding("destack.crypto.kdf.deriveKey", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.kdf"],
+    requires: ["crypto.kdf", "crypto.store.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function kdfPbkdf2(request: CryptoPbkdf2Request): Result<Slice<uint8>, PlatformError>;
-
-/// Derive one key with scrypt.
-@binding("destack.crypto.kdf.scrypt", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["crypto.kdf"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function kdfScrypt(request: CryptoScryptRequest): Result<Slice<uint8>, PlatformError>;
-
-/// Derive one key with Argon2id.
-@binding("destack.crypto.kdf.argon2id", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["crypto.kdf"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function kdfArgon2id(
-    request: CryptoArgon2idRequest,
-): Result<Slice<uint8>, PlatformError>;
+export declare function deriveKdfKey(
+    store: CryptoStoreHandle,
+    kdf: &readonly CryptoKdf,
+    key: &readonly CryptoDerivedKey,
+): Result<CryptoKeyHandle, PlatformError>;

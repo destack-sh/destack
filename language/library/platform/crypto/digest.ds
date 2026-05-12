@@ -1,4 +1,4 @@
-import { Slice } from "destack:collections";
+import { Array } from "destack:collections";
 import { PlatformError } from "destack:platform/error";
 import { CryptoDigestHandle } from "destack:platform/resource";
 import { CryptoDigestAlgorithm } from "./algorithm.ds";
@@ -11,10 +11,10 @@ import { CryptoDigestAlgorithm } from "./algorithm.ds";
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function digestCompute(
+export declare function computeDigest(
     algorithm: CryptoDigestAlgorithm,
-    payload: Slice<uint8>,
-): Result<Slice<uint8>, PlatformError>;
+    payload: &readonly [uint8],
+): Result<^Array<uint8>, PlatformError>;
 
 /// Open one streaming digest context.
 @binding("destack.crypto.digest.open", {
@@ -24,7 +24,7 @@ export declare function digestCompute(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function digestOpen(
+export declare function openDigest(
     algorithm: CryptoDigestAlgorithm,
 ): Result<CryptoDigestHandle, PlatformError>;
 
@@ -36,9 +36,9 @@ export declare function digestOpen(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function digestUpdate(
-    handle: CryptoDigestHandle,
-    payload: Slice<uint8>,
+export declare function updateDigest(
+    digest: CryptoDigestHandle,
+    payload: &readonly [uint8],
 ): Result<void, PlatformError>;
 
 /// Finalize one streaming digest context and return one digest output.
@@ -49,17 +49,9 @@ export declare function digestUpdate(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function digestFinish(handle: CryptoDigestHandle): Result<Slice<uint8>, PlatformError>;
-
-/// Reset one streaming digest context to its initial state.
-@binding("destack.crypto.digest.reset", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["crypto.digest"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function digestReset(handle: CryptoDigestHandle): Result<void, PlatformError>;
+export declare function finishDigest(
+    digest: CryptoDigestHandle,
+): Result<^Array<uint8>, PlatformError>;
 
 /// Close one streaming digest context.
 @binding("destack.crypto.digest.close", {
@@ -69,4 +61,4 @@ export declare function digestReset(handle: CryptoDigestHandle): Result<void, Pl
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function digestClose(handle: CryptoDigestHandle): Result<void, PlatformError>;
+export declare function closeDigest(digest: CryptoDigestHandle): Result<void, PlatformError>;

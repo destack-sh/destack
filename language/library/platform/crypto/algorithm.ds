@@ -8,22 +8,18 @@ export enum CryptoKeyKind {
     Private = 3,
 }
 
-/// Key material residency policy.
+/// Key material residency.
 export enum CryptoKeyResidency {
-    /// Unspecified residency policy.
-    Unknown = 0,
-    /// Software-managed key material that can be exported.
-    SoftwareExportable = 1,
-    /// Software-managed key material that is policy non-exportable.
-    SoftwareNonExportable = 2,
+    /// Software-managed key material.
+    Software = 1,
+    /// Host-managed opaque key material.
+    HostOpaque = 2,
     /// Hardware-managed opaque key material.
     HardwareOpaque = 3,
 }
 
 /// Key algorithm family.
 export enum CryptoKeyAlgorithm {
-    /// Unspecified algorithm.
-    Unknown = 0,
     /// RSA key family.
     Rsa = 1,
     /// Elliptic-curve key family.
@@ -46,8 +42,6 @@ export enum CryptoKeyAlgorithm {
 
 /// Named curve selector.
 export enum CryptoNamedCurve {
-    /// Unspecified curve.
-    Unknown = 0,
     /// NIST P-256.
     P256 = 1,
     /// NIST P-384.
@@ -56,20 +50,10 @@ export enum CryptoNamedCurve {
     P521 = 3,
     /// SEC secp256k1.
     Secp256k1 = 4,
-    /// RFC 7748 X25519.
-    X25519 = 5,
-    /// RFC 7748 X448.
-    X448 = 6,
-    /// RFC 8032 Ed25519.
-    Ed25519 = 7,
-    /// RFC 8032 Ed448.
-    Ed448 = 8,
 }
 
 /// Key material format.
 export enum CryptoKeyFormat {
-    /// Unspecified key format.
-    Unknown = 0,
     /// PKCS#8 PEM.
     Pkcs8Pem = 1,
     /// PKCS#8 DER.
@@ -94,8 +78,6 @@ export enum CryptoKeyFormat {
 
 /// Digest algorithm selector.
 export enum CryptoDigestAlgorithm {
-    /// Unspecified digest algorithm.
-    Unknown = 0,
     /// SHA-1.
     Sha1 = 1,
     /// SHA-224.
@@ -120,8 +102,6 @@ export enum CryptoDigestAlgorithm {
 
 /// Signature algorithm selector.
 export enum CryptoSignatureAlgorithm {
-    /// Unspecified signature algorithm.
-    Unknown = 0,
     /// RSASSA-PKCS1-v1_5.
     RsaPkcs1v15 = 1,
     /// RSASSA-PSS.
@@ -136,8 +116,6 @@ export enum CryptoSignatureAlgorithm {
 
 /// Asymmetric encryption algorithm selector.
 export enum CryptoAsymmetricEncryptionAlgorithm {
-    /// Unspecified asymmetric encryption algorithm.
-    Unknown = 0,
     /// RSAES-PKCS1-v1_5.
     RsaPkcs1v15 = 1,
     /// RSAES-OAEP.
@@ -146,8 +124,6 @@ export enum CryptoAsymmetricEncryptionAlgorithm {
 
 /// Key wrap algorithm selector.
 export enum CryptoKeyWrapAlgorithm {
-    /// Unspecified key wrap algorithm.
-    Unknown = 0,
     /// RSAES-OAEP key wrap.
     RsaOaep = 1,
     /// AES key wrap, RFC 3394.
@@ -158,8 +134,6 @@ export enum CryptoKeyWrapAlgorithm {
 
 /// Symmetric encryption algorithm selector.
 export enum CryptoCipherAlgorithm {
-    /// Unspecified cipher algorithm.
-    Unknown = 0,
     /// AES-GCM.
     AesGcm = 1,
     /// AES-CTR.
@@ -172,16 +146,12 @@ export enum CryptoCipherAlgorithm {
 
 /// Message authentication algorithm selector.
 export enum CryptoMacAlgorithm {
-    /// Unspecified MAC algorithm.
-    Unknown = 0,
     /// HMAC.
     Hmac = 1,
 }
 
 /// Key-derivation algorithm selector.
 export enum CryptoKdfAlgorithm {
-    /// Unspecified KDF algorithm.
-    Unknown = 0,
     /// HKDF.
     Hkdf = 1,
     /// PBKDF2.
@@ -190,12 +160,20 @@ export enum CryptoKdfAlgorithm {
     Scrypt = 3,
     /// Argon2id.
     Argon2id = 4,
+    /// NIST SP 800-108 counter-mode KDF.
+    Sp800108Counter = 5,
+    /// NIST SP 800-56A concat KDF.
+    Sp80056aConcat = 6,
+    /// ANSI X9.63 KDF.
+    X963 = 7,
+    /// ANSI X9.42 concat KDF.
+    X942Concat = 8,
+    /// TLS 1.2 PRF.
+    Tls12Prf = 9,
 }
 
 /// Key agreement algorithm selector.
 export enum CryptoKeyAgreementAlgorithm {
-    /// Unspecified key-agreement algorithm.
-    Unknown = 0,
     /// ECDH over one named curve.
     Ecdh = 1,
     /// X25519.
@@ -204,32 +182,32 @@ export enum CryptoKeyAgreementAlgorithm {
     X448 = 3,
 }
 
-/// Key usage bitmask.
-export newtype CryptoKeyUsageMask = uint32;
+/// Key usage flags.
+export newtype CryptoKeyUsageFlags = uint32;
 
 /// Key usage: sign.
-export const CRYPTO_KEY_USAGE_SIGN: CryptoKeyUsageMask = CryptoKeyUsageMask(0x0000_0001);
+export const CRYPTO_KEY_USAGE_SIGN: CryptoKeyUsageFlags = CryptoKeyUsageFlags(0x0000_0001);
 
 /// Key usage: verify.
-export const CRYPTO_KEY_USAGE_VERIFY: CryptoKeyUsageMask = CryptoKeyUsageMask(0x0000_0002);
+export const CRYPTO_KEY_USAGE_VERIFY: CryptoKeyUsageFlags = CryptoKeyUsageFlags(0x0000_0002);
 
 /// Key usage: encrypt.
-export const CRYPTO_KEY_USAGE_ENCRYPT: CryptoKeyUsageMask = CryptoKeyUsageMask(0x0000_0004);
+export const CRYPTO_KEY_USAGE_ENCRYPT: CryptoKeyUsageFlags = CryptoKeyUsageFlags(0x0000_0004);
 
 /// Key usage: decrypt.
-export const CRYPTO_KEY_USAGE_DECRYPT: CryptoKeyUsageMask = CryptoKeyUsageMask(0x0000_0008);
+export const CRYPTO_KEY_USAGE_DECRYPT: CryptoKeyUsageFlags = CryptoKeyUsageFlags(0x0000_0008);
 
 /// Key usage: wrap.
-export const CRYPTO_KEY_USAGE_WRAP: CryptoKeyUsageMask = CryptoKeyUsageMask(0x0000_0010);
+export const CRYPTO_KEY_USAGE_WRAP: CryptoKeyUsageFlags = CryptoKeyUsageFlags(0x0000_0010);
 
 /// Key usage: unwrap.
-export const CRYPTO_KEY_USAGE_UNWRAP: CryptoKeyUsageMask = CryptoKeyUsageMask(0x0000_0020);
+export const CRYPTO_KEY_USAGE_UNWRAP: CryptoKeyUsageFlags = CryptoKeyUsageFlags(0x0000_0020);
 
 /// Key usage: derive bits.
-export const CRYPTO_KEY_USAGE_DERIVE_BITS: CryptoKeyUsageMask = CryptoKeyUsageMask(0x0000_0040);
+export const CRYPTO_KEY_USAGE_DERIVE_BITS: CryptoKeyUsageFlags = CryptoKeyUsageFlags(0x0000_0040);
 
-/// Key usage: derive keys.
-export const CRYPTO_KEY_USAGE_DERIVE_KEYS: CryptoKeyUsageMask = CryptoKeyUsageMask(0x0000_0080);
+/// Key usage: derive key.
+export const CRYPTO_KEY_USAGE_DERIVE_KEY: CryptoKeyUsageFlags = CryptoKeyUsageFlags(0x0000_0080);
 
 /// Key usage: export.
-export const CRYPTO_KEY_USAGE_EXPORT: CryptoKeyUsageMask = CryptoKeyUsageMask(0x0000_0100);
+export const CRYPTO_KEY_USAGE_EXPORT: CryptoKeyUsageFlags = CryptoKeyUsageFlags(0x0000_0100);

@@ -1,4 +1,4 @@
-import { Slice } from "destack:collections";
+import { Array } from "destack:collections";
 import { PlatformError } from "destack:platform/error";
 import { CryptoKeyHandle, CryptoMacHandle } from "destack:platform/resource";
 import { CryptoDigestAlgorithm, CryptoMacAlgorithm } from "./algorithm.ds";
@@ -10,9 +10,7 @@ export struct CryptoMacParameters {
     /// Digest algorithm for HMAC.
     digest: CryptoDigestAlgorithm;
     /// Output tag length in bytes.
-    ///
-    /// Set to zero to use provider default tag length.
-    tagLengthBytes?: uint32;
+    tagLength?: uint32;
 }
 
 /// Compute one message authentication code in one shot.
@@ -23,11 +21,11 @@ export struct CryptoMacParameters {
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function macCompute(
+export declare function computeMac(
     key: CryptoKeyHandle,
-    parameters: CryptoMacParameters,
-    payload: Slice<uint8>,
-): Result<Slice<uint8>, PlatformError>;
+    parameters: &readonly CryptoMacParameters,
+    payload: &readonly [uint8],
+): Result<^Array<uint8>, PlatformError>;
 
 /// Verify one message authentication code in one shot.
 @binding("destack.crypto.mac.verify", {
@@ -37,11 +35,11 @@ export declare function macCompute(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function macVerify(
+export declare function verifyMac(
     key: CryptoKeyHandle,
-    parameters: CryptoMacParameters,
-    payload: Slice<uint8>,
-    tag: Slice<uint8>,
+    parameters: &readonly CryptoMacParameters,
+    payload: &readonly [uint8],
+    tag: &readonly [uint8],
 ): Result<boolean, PlatformError>;
 
 /// Open one streaming MAC context.
@@ -52,9 +50,9 @@ export declare function macVerify(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function macOpen(
+export declare function openMac(
     key: CryptoKeyHandle,
-    parameters: CryptoMacParameters,
+    parameters: &readonly CryptoMacParameters,
 ): Result<CryptoMacHandle, PlatformError>;
 
 /// Update one streaming MAC context.
@@ -65,9 +63,9 @@ export declare function macOpen(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function macUpdate(
-    handle: CryptoMacHandle,
-    payload: Slice<uint8>,
+export declare function updateMac(
+    mac: CryptoMacHandle,
+    payload: &readonly [uint8],
 ): Result<void, PlatformError>;
 
 /// Finalize one streaming MAC context and return one tag.
@@ -78,17 +76,7 @@ export declare function macUpdate(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function macFinish(handle: CryptoMacHandle): Result<Slice<uint8>, PlatformError>;
-
-/// Reset one streaming MAC context to its initial state.
-@binding("destack.crypto.mac.reset", {
-    effect: "external",
-    replay: "forbidden",
-    requires: ["crypto.mac"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function macReset(handle: CryptoMacHandle): Result<void, PlatformError>;
+export declare function finishMac(mac: CryptoMacHandle): Result<^Array<uint8>, PlatformError>;
 
 /// Close one streaming MAC context.
 @binding("destack.crypto.mac.close", {
@@ -98,4 +86,4 @@ export declare function macReset(handle: CryptoMacHandle): Result<void, Platform
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function macClose(handle: CryptoMacHandle): Result<void, PlatformError>;
+export declare function closeMac(mac: CryptoMacHandle): Result<void, PlatformError>;
