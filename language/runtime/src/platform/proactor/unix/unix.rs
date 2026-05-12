@@ -16,7 +16,7 @@ use crate::runtime::{ExecutionMode, ExecutionPolicy, start_with_policy};
 /// Sentinel token emitted by wake notifications.
 const WAKE_TOKEN: u64 = u64::MAX;
 /// Reserved resource id emitted by internal control completions.
-const INTERNAL_RESOURCE_ID: ResourceId = ResourceId(0);
+const INTERNAL_RESOURCE_ID: ResourceId = ResourceId::local(0);
 
 /// Command sent from the proactor frontend to the worker.
 #[derive(Debug, Clone, Copy)]
@@ -804,7 +804,7 @@ mod tests {
         // submit one timeout request
         proactor
             .submit(ProactorRequest {
-                resource_id: ResourceId(1),
+                resource_id: ResourceId::local(1),
                 token: 99,
                 op: ProactorOp::Timeout {
                     timeout_ns: 1_000_000,
@@ -833,7 +833,7 @@ mod tests {
         let mut read_buffer = vec![0u8; 4];
         proactor
             .submit(ProactorRequest {
-                resource_id: ResourceId(10),
+                resource_id: ResourceId::local(10),
                 token: 1,
                 op: ProactorOp::Read {
                     handle: PlatformHandle::from_raw_fd(read_fd),
@@ -850,7 +850,7 @@ mod tests {
         let payload = b"pong".to_vec();
         proactor
             .submit(ProactorRequest {
-                resource_id: ResourceId(11),
+                resource_id: ResourceId::local(11),
                 token: 2,
                 op: ProactorOp::Write {
                     handle: PlatformHandle::from_raw_fd(write_fd),

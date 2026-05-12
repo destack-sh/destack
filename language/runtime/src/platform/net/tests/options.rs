@@ -58,7 +58,7 @@ fn test_net_socket_options() {
     with_harness_context(|mut context| {
         // start listening on an ephemeral port
         let listener = context.destack_net_listen(
-            context.socket_address_value_for_host_port("127.0.0.1", 0)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", 0)?,
             64,
         )?;
         let port = context.listener_port(listener);
@@ -71,7 +71,7 @@ fn test_net_socket_options() {
         )?;
         context.destack_net_connect(
             socket,
-            context.socket_address_value_for_host_port("127.0.0.1", port)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", port)?,
         )?;
 
         // set basic options
@@ -107,7 +107,7 @@ fn test_net_socket_options_extended() {
     with_harness_context(|mut context| {
         // start a TCP pair for stream-level options
         let listener = context.destack_net_listen(
-            context.socket_address_value_for_host_port("127.0.0.1", 0)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", 0)?,
             64,
         )?;
         let port = context.listener_port(listener);
@@ -118,7 +118,7 @@ fn test_net_socket_options_extended() {
         )?;
         context.destack_net_connect(
             client,
-            context.socket_address_value_for_host_port("127.0.0.1", port)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", port)?,
         )?;
         let server = context.destack_net_accept(listener, AcceptFlags(0))?;
 
@@ -126,7 +126,7 @@ fn test_net_socket_options_extended() {
         let udp = context.destack_net_udp_socket(SocketFamily::IPv4)?;
         context.destack_net_udp_bind(
             udp,
-            context.socket_address_value_for_host_port("127.0.0.1", 0)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", 0)?,
         )?;
 
         // stream options
@@ -220,8 +220,8 @@ fn test_net_socket_options_extended() {
         // multicast membership may not be supported by host setup
         let join_result = context.destack_net_join_multicast_v4(
             udp,
-            context.string_value("224.0.0.251"),
-            context.string_value("127.0.0.1"),
+            context.string_value("224.0.local_id.251"),
+            context.string_value("127.0.local_id.1"),
         );
         if let Err(error) = join_result {
             assert_platform_error_codes_with_privileged_policy::<()>(
@@ -231,8 +231,8 @@ fn test_net_socket_options_extended() {
         } else {
             context.destack_net_leave_multicast_v4(
                 udp,
-                context.string_value("224.0.0.251"),
-                context.string_value("127.0.0.1"),
+                context.string_value("224.0.local_id.251"),
+                context.string_value("127.0.local_id.1"),
             )?;
         }
 
@@ -350,7 +350,7 @@ fn test_net_join_multicast_source_v4_rejects_invalid_group() {
 
         // invalid group text must fail as invalid argument
         let group = context.string_value("not-an-ip");
-        let source = context.string_value("10.0.0.1");
+        let source = context.string_value("10.0.local_id.1");
         let interface_address = context.string_value("");
         let membership = match (group, source, interface_address) {
             (
@@ -569,8 +569,10 @@ fn test_net_multicast_interface_lanes() {
         let socket_v4 = context.destack_net_udp_socket(SocketFamily::IPv4)?;
 
         // set one IPv4 multicast interface candidate
-        let set_v4_result = context
-            .destack_net_set_multicast_interface_v4(socket_v4, context.string_value("127.0.0.1"));
+        let set_v4_result = context.destack_net_set_multicast_interface_v4(
+            socket_v4,
+            context.string_value("127.0.local_id.1"),
+        );
         if let Err(error) = set_v4_result {
             assert_platform_error_codes_with_privileged_policy::<()>(
                 Err(error),
@@ -649,7 +651,7 @@ fn test_net_leave_multicast_source_lanes_reject_invalid_membership() {
 
         // build one malformed IPv4 source-membership payload
         let group = context.string_value("not-an-ip");
-        let source = context.string_value("10.0.0.1");
+        let source = context.string_value("10.0.local_id.1");
         let interface_address = context.string_value("");
         let membership_v4 = match (group, source, interface_address) {
             (

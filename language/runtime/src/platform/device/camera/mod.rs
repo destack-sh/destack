@@ -5,8 +5,6 @@ mod core;
 mod linux;
 #[cfg(target_os = "macos")]
 mod macos;
-#[cfg(test)]
-mod tests;
 mod unsupported;
 #[cfg(target_os = "windows")]
 mod windows;

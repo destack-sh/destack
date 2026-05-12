@@ -16,7 +16,9 @@ use crate::runtime::control::{ObservationEntry, SnapshotEntry, WorldViewEntry};
 use crate::runtime::engine::Image;
 use crate::runtime::scheduler::EventLoopSnapshot;
 use crate::runtime::trace::{ObservationCategory, ObservationRecord, Outcome, TraceRecord};
-use crate::runtime::world::{Edge, Entity, Revision, RevisionState, World, WorldImage};
+use crate::runtime::world::{
+    Edge, Entity, Revision, RevisionState, World, WorldImage, resource_entity_id,
+};
 use postcard::to_allocvec;
 
 use super::{ObservationHandleEntry, PinnedWorldView, RuntimeHandleCodec, SnapshotHandleEntry};
@@ -247,11 +249,11 @@ impl RuntimeDescriptorCodec {
 
     /// Build one owned resource descriptor from runtime state.
     pub(crate) fn resource_descriptor(
-        resource: &runtime::world::WorldResource,
+        resource: &runtime::world::Resource,
     ) -> ResourceDescriptorValue {
         ResourceDescriptorValue {
             id: RuntimeHandleCodec::encode_world_resource_id(resource.id),
-            entity_id: TopologyEntityIdValue(resource.id.entity_id().to_string()),
+            entity_id: TopologyEntityIdValue(resource_entity_id(resource.id).to_string()),
             kind: resource.kind.to_string(),
             label: resource.label.clone(),
         }

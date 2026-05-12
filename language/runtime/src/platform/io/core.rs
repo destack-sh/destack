@@ -115,7 +115,7 @@ fn poll_not_found(op: &'static str, handle: resource::PollHandle) -> Box<Runtime
         None,
         Some(op.to_string()),
         None,
-        format!("poll handle {} not found", handle.0.0),
+        format!("poll handle {} not found", handle.0.local_id),
     ))
     .boxed()
 }
@@ -419,7 +419,7 @@ fn completion_not_found(
         None,
         Some(operation.to_string()),
         None,
-        format!("completion handle {} not found", handle.0.0),
+        format!("completion handle {} not found", handle.0.local_id),
     ))
     .boxed()
 }
@@ -512,10 +512,12 @@ fn resolve_completion_resource(
 
 /// Return whether one event token exists and carries the event label.
 fn event_exists(binding: &BindingCallContext, token: EventToken) -> bool {
+    let resource_id = ResourceId::new(binding.worker().worker_id(), token.0);
+
     binding
         .worker()
         .resources
-        .with_entry(ResourceId(token.0), |entry| {
+        .with_entry(resource_id, |entry| {
             if entry.kind != ResourceKind::Event {
                 return false;
             }
@@ -526,8 +528,8 @@ fn event_exists(binding: &BindingCallContext, token: EventToken) -> bool {
 }
 
 /// Return the attachment key for one event token in one worker.
-fn event_attachment_key(_binding: &BindingCallContext, token: EventToken) -> EventAttachmentKey {
-    ResourceId(token.0)
+fn event_attachment_key(binding: &BindingCallContext, token: EventToken) -> EventAttachmentKey {
+    ResourceId::new(binding.worker().worker_id(), token.0)
 }
 
 /// Build one optional timeout from one nanosecond value.
@@ -755,6 +757,7 @@ fn completion_request(
 
 /// Decode one compact completion operation record from one batch word lane.
 fn decode_completion_operation_words(
+    binding: &BindingCallContext,
     words: &[u64],
     index: u32,
 ) -> RuntimeResult<CompletionOperation> {
@@ -779,7 +782,7 @@ fn decode_completion_operation_words(
 
     Ok(CompletionOperation {
         kind,
-        target: ResourceId(words[1]),
+        target: ResourceId::new(binding.worker().worker_id(), words[1]),
         key: words[2],
         offset: words[3],
         length: words[4] as u32,
@@ -956,7 +959,7 @@ pub(super) fn completion_submit_batch(
     let mut seen = HashSet::with_capacity(operationcount as usize);
     for index in 0..operationcount {
         let base = index as usize * operationwordstride as usize;
-        let operation = decode_completion_operation_words(&words[base..base + 8], index)?;
+        let operation = decode_completion_operation_words(binding, &words[base..base + 8], index)?;
         let request = completion_request(binding, operation)?;
         if !seen.insert(request.token) {
             return Err(RuntimeError::from(PlatformError::invalid_argument_value(

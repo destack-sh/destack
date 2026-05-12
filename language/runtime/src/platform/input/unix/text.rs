@@ -177,7 +177,7 @@ fn text_session_not_found(
         None,
         Some(operation.to_string()),
         None,
-        format!("text session {} not found", session.0.0),
+        format!("text session {} not found", session.0.local_id),
     ))
     .boxed()
 }
@@ -193,7 +193,7 @@ fn window_target_not_found(
         None,
         Some(operation.to_string()),
         None,
-        format!("window handle {} not found", target.0.0),
+        format!("window handle {} not found", target.0.local_id),
     ))
     .boxed()
 }
@@ -1927,7 +1927,7 @@ pub(crate) unsafe fn destack_input_text_open(
             .resources
             .insert(binding.world(), entry, Some(binding.engine()));
     let session = resource::InputTextSessionHandle(resource_id);
-    let session_id = resource_id.0;
+    let session_id = resource_id.local_id;
 
     // runtime state
     state_store.insert_host_text_session(session_id, config.target.window, state.clone());
@@ -1989,12 +1989,12 @@ pub(crate) unsafe fn destack_input_text_close(
     let state_store = input_state(binding)?;
     let host_session_id = binding.host().host_session_id().0;
     let request = HostTextInputCloseRequest {
-        session_id: session.0.0,
+        session_id: session.0.local_id,
     };
     let status = unsafe { host_text_close(host_session_id, request) };
     host_status_result(status, "destack.input.text.close", "close")?;
 
-    if let Some(queue) = state_store.remove_host_text_session(session.0.0) {
+    if let Some(queue) = state_store.remove_host_text_session(session.0.local_id) {
         queue.close();
     }
 
@@ -2019,7 +2019,7 @@ pub(crate) unsafe fn destack_input_text_get_geometry(
     }
 
     let state = input_state(binding)?;
-    let Some(geometry) = state.host_text_session_geometry(session.0.0) else {
+    let Some(geometry) = state.host_text_session_geometry(session.0.local_id) else {
         return Err(RuntimeError::from(PlatformError::io_with(
             Some(PlatformErrorCode::IoWouldBlock),
             None,
@@ -2053,7 +2053,7 @@ pub(crate) unsafe fn destack_input_text_read_event(
     binding.advance_wait_progress()?;
 
     let state_store = input_state(binding)?;
-    let Some(queue) = state_store.host_text_session_queue(session.0.0) else {
+    let Some(queue) = state_store.host_text_session_queue(session.0.local_id) else {
         return Err(text_session_not_found(
             "destack.input.text.readEvent",
             session,
@@ -2096,13 +2096,13 @@ pub(crate) unsafe fn destack_input_text_set_geometry(
     let host_session_id = binding.host().host_session_id().0;
 
     let request = HostTextInputGeometryRequest {
-        session_id: session.0.0,
+        session_id: session.0.local_id,
         geometry: <HostTextInputGeometry as NativeAbiCodec>::from_value(binding, area),
     };
     let status = unsafe { host_text_set_geometry(host_session_id, request) };
     host_status_result(status, "destack.input.text.setGeometry", "set geometry")?;
 
-    state_store.set_host_text_session_geometry(session.0.0, area)?;
+    state_store.set_host_text_session_geometry(session.0.local_id, area)?;
 
     Ok(())
 }
@@ -2120,13 +2120,13 @@ pub(crate) unsafe fn destack_input_text_set_state(
     validate_text_session_state(&state)?;
 
     let request = HostTextInputStateRequest {
-        session_id: session.0.0,
+        session_id: session.0.local_id,
         state: <HostTextInputState as NativeAbiCodec>::from_value(binding, state.clone()),
     };
     let status = unsafe { host_text_set_state(host_session_id, request) };
     host_status_result(status, "destack.input.text.setState", "set state")?;
 
-    state_store.set_host_text_session_state(session.0.0, state)?;
+    state_store.set_host_text_session_state(session.0.local_id, state)?;
 
     Ok(())
 }
@@ -2146,7 +2146,7 @@ pub(crate) unsafe fn destack_input_text_try_read_event(
     binding.advance_wait_progress()?;
 
     let state_store = input_state(binding)?;
-    let Some(queue) = state_store.host_text_session_queue(session.0.0) else {
+    let Some(queue) = state_store.host_text_session_queue(session.0.local_id) else {
         return Err(text_session_not_found(
             "destack.input.text.tryReadEvent",
             session,

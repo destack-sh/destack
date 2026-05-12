@@ -18,7 +18,7 @@ fn test_net_raw_address_roundtrip() {
     with_harness_context(|mut context| {
         // set up a connected pair
         let listener = context.destack_net_listen(
-            context.socket_address_value_for_host_port("127.0.0.1", 0)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", 0)?,
             128,
         )?;
         let port = context.listener_port(listener);
@@ -29,7 +29,7 @@ fn test_net_raw_address_roundtrip() {
         )?;
         context.destack_net_connect(
             client,
-            context.socket_address_value_for_host_port("127.0.0.1", port)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", port)?,
         )?;
         let server = context.destack_net_accept(listener, AcceptFlags(0))?;
 
@@ -76,7 +76,7 @@ fn test_net_mmsg_roundtrip() {
         let server = context.destack_net_udp_socket(SocketFamily::IPv4)?;
         context.destack_net_udp_bind(
             server,
-            context.socket_address_value_for_host_port("127.0.0.1", 0)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", 0)?,
         )?;
         let server_address = context.destack_net_local_address(server)?;
         let (_host, port, _family) = context.socket_address_from_value(server_address)?;
@@ -85,7 +85,7 @@ fn test_net_mmsg_roundtrip() {
         let client = context.destack_net_udp_socket(SocketFamily::IPv4)?;
         context.destack_net_udp_connect(
             client,
-            context.socket_address_value_for_host_port("127.0.0.1", port)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", port)?,
         )?;
 
         // send two datagrams through sendmmsg
@@ -128,7 +128,7 @@ fn test_net_sendmsg_recvmsg_roundtrip() {
     with_harness_context(|mut context| {
         // set up a connected pair
         let listener = context.destack_net_listen(
-            context.socket_address_value_for_host_port("127.0.0.1", 0)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", 0)?,
             128,
         )?;
         let port = context.listener_port(listener);
@@ -139,7 +139,7 @@ fn test_net_sendmsg_recvmsg_roundtrip() {
         )?;
         context.destack_net_connect(
             client,
-            context.socket_address_value_for_host_port("127.0.0.1", port)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", port)?,
         )?;
         let server = context.destack_net_accept(listener, AcceptFlags(0))?;
 
@@ -203,7 +203,7 @@ fn test_net_sendmsg_recvmsg_datagram_address_roundtrip() {
         let server = context.destack_net_udp_socket(SocketFamily::IPv4)?;
         context.destack_net_udp_bind(
             server,
-            context.socket_address_value_for_host_port("127.0.0.1", 0)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", 0)?,
         )?;
         let server_address = context.destack_net_local_address(server)?;
         let (_host, port, _family) = context.socket_address_from_value(server_address)?;
@@ -212,7 +212,7 @@ fn test_net_sendmsg_recvmsg_datagram_address_roundtrip() {
         let client = context.destack_net_udp_socket(SocketFamily::IPv4)?;
 
         // send one datagram through sendmsg with explicit destination address
-        let destination = context.socket_address_value_for_host_port("127.0.0.1", port)?;
+        let destination = context.socket_address_value_for_host_port("127.0.local_id.1", port)?;
         let message = context.send_message_value(destination, &[], 0, false)?;
         let sent =
             context.destack_net_send_msg(client, context.bytes_slice_value(b"hello")?, message)?;
@@ -249,7 +249,7 @@ fn test_net_sendmsg_recvmsg_datagram_address_roundtrip() {
             .expect("recvmsg should include source address for datagrams");
         let (host, source_port, family) = context.socket_address_from_value(source)?;
         assert_eq!(family, SocketFamily::IPv4);
-        assert_eq!(host, "127.0.0.1");
+        assert_eq!(host, "127.0.local_id.1");
         assert!(source_port > 0);
 
         let payload = context.bytes_prefix_from_slice_value(recv_decode, bytes as usize)?;
@@ -270,7 +270,7 @@ fn test_net_recvmsg_rejects_ancillary_requests() {
     with_harness_context(|mut context| {
         // set up a connected pair
         let listener = context.destack_net_listen(
-            context.socket_address_value_for_host_port("127.0.0.1", 0)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", 0)?,
             128,
         )?;
         let port = context.listener_port(listener);
@@ -281,7 +281,7 @@ fn test_net_recvmsg_rejects_ancillary_requests() {
         )?;
         context.destack_net_connect(
             client,
-            context.socket_address_value_for_host_port("127.0.0.1", port)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", port)?,
         )?;
         let server = context.destack_net_accept(listener, AcceptFlags(0))?;
 
@@ -316,7 +316,7 @@ fn test_net_sendmsg_rejects_credential_requests() {
     with_harness_context(|mut context| {
         // set up a connected pair
         let listener = context.destack_net_listen(
-            context.socket_address_value_for_host_port("127.0.0.1", 0)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", 0)?,
             128,
         )?;
         let port = context.listener_port(listener);
@@ -327,7 +327,7 @@ fn test_net_sendmsg_rejects_credential_requests() {
         )?;
         context.destack_net_connect(
             client,
-            context.socket_address_value_for_host_port("127.0.0.1", port)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", port)?,
         )?;
         let server = context.destack_net_accept(listener, AcceptFlags(0))?;
 

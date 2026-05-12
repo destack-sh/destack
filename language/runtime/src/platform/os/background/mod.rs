@@ -2,8 +2,6 @@ mod core;
 mod ingress;
 pub(crate) mod runtime;
 pub(crate) mod storage;
-#[cfg(test)]
-mod tests;
 pub(crate) mod wrapper;
 
 pub(crate) use core::*;

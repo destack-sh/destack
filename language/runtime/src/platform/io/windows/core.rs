@@ -319,7 +319,7 @@ pub(crate) fn host_completion_register_accepted_handle(
             .worker()
             .resources
             .insert(binding.world(), entry, Some(binding.engine()));
-    Ok(resource_id.0 as i64)
+    Ok(resource_id.local_id as i64)
 }
 
 /// Open one event token on Windows hosts.
@@ -350,7 +350,7 @@ pub(crate) fn host_event_open(
             .worker()
             .resources
             .insert(binding.world(), entry, Some(binding.engine()));
-    Ok(EventToken(resource_id.0))
+    Ok(EventToken(resource_id.local_id))
 }
 
 /// Close one event token on Windows hosts.
@@ -358,10 +358,12 @@ pub(crate) fn host_event_close(
     binding: &BindingCallContext,
     token: EventToken,
 ) -> RuntimeResult<()> {
+    let resource_id = ResourceId::new(binding.worker().worker_id(), token.0);
+
     // remove one token resource from the runtime table
     let removed = binding.worker().resources.remove_and_finalize(
         binding.world(),
-        ResourceId(token.0),
+        resource_id,
         Some(binding.engine()),
     );
     if !removed {
@@ -378,12 +380,13 @@ pub(crate) fn host_event_signal(
     value: u64,
 ) -> RuntimeResult<()> {
     let _ = value;
+    let resource_id = ResourceId::new(binding.worker().worker_id(), token.0);
 
     // resolve one event handle from the token resource
     let handle = binding
         .worker()
         .resources
-        .with_entry(ResourceId(token.0), |entry| {
+        .with_entry(resource_id, |entry| {
             if entry.label.as_deref() != Some(io_core::EVENT_RESOURCE_LABEL) {
                 return None;
             }

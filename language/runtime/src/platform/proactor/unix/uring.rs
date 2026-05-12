@@ -1061,7 +1061,7 @@ mod tests {
         // submit the read request
         proactor
             .submit(ProactorRequest {
-                resource_id: ResourceId(1),
+                resource_id: ResourceId::local(1),
                 token: 1,
                 op: ProactorOp::Read {
                     handle: read_handle,
@@ -1077,7 +1077,7 @@ mod tests {
         // submit the write request
         proactor
             .submit(ProactorRequest {
-                resource_id: ResourceId(2),
+                resource_id: ResourceId::local(2),
                 token: 2,
                 op: ProactorOp::Write {
                     handle: write_handle,
@@ -1122,7 +1122,7 @@ mod tests {
         // submit the poll request
         proactor
             .submit(ProactorRequest {
-                resource_id: ResourceId(3),
+                resource_id: ResourceId::local(3),
                 token: 3,
                 op: ProactorOp::Poll {
                     handle: read_handle,
@@ -1177,7 +1177,7 @@ mod tests {
         // submit the recvfrom request
         proactor
             .submit(ProactorRequest {
-                resource_id: ResourceId(10),
+                resource_id: ResourceId::local(10),
                 token: 10,
                 op: ProactorOp::RecvFrom {
                     handle: server_handle,
@@ -1202,7 +1202,7 @@ mod tests {
         let sockaddr = socket_addr_v4(server_addr);
         proactor
             .submit(ProactorRequest {
-                resource_id: ResourceId(11),
+                resource_id: ResourceId::local(11),
                 token: 11,
                 op: ProactorOp::SendTo {
                     handle: client_handle,
@@ -1258,7 +1258,7 @@ mod tests {
         let mut addr_len = std::mem::size_of::<libc::sockaddr_storage>() as u32;
         proactor
             .submit(ProactorRequest {
-                resource_id: ResourceId(20),
+                resource_id: ResourceId::local(20),
                 token: 20,
                 op: ProactorOp::Accept {
                     handle: listen_handle,
@@ -1278,7 +1278,7 @@ mod tests {
         let sockaddr = socket_addr_v4(listener_addr);
         proactor
             .submit(ProactorRequest {
-                resource_id: ResourceId(21),
+                resource_id: ResourceId::local(21),
                 token: 21,
                 op: ProactorOp::Connect {
                     handle: client_handle,
@@ -1321,7 +1321,7 @@ mod tests {
         // submit the timeout request
         proactor
             .submit(ProactorRequest {
-                resource_id: ResourceId(30),
+                resource_id: ResourceId::local(30),
                 token: 30,
                 op: ProactorOp::Timeout {
                     timeout_ns: 1_000_000,

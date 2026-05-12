@@ -395,7 +395,7 @@ fn test_process_signal_fd_validation_errors_are_specific() {
             PlatformErrorCode::InvalidArgumentValue,
         )?;
 
-        let invalid_handle = SignalFdHandle(ResourceId(0));
+        let invalid_handle = SignalFdHandle(ResourceId::local(0));
         assert_platform_error_code_with_privileged_policy(
             context.destack_process_signal_fd_try_read(invalid_handle),
             PlatformErrorCode::InvalidArgumentValue,

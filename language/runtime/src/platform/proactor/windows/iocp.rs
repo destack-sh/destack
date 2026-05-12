@@ -2598,7 +2598,7 @@ mod tests {
         // submit and immediately cancel one timeout token
         let token = 71u64;
         let request = ProactorRequest {
-            resource_id: ResourceId(11),
+            resource_id: ResourceId::local(11),
             token,
             op: ProactorOp::Timeout {
                 timeout_ns: 50_000_000,
@@ -2630,7 +2630,7 @@ mod tests {
     fn test_iocp_connect_null_address_reports_invalid_argument() {
         // execute one connect request with one invalid address pointer
         let request = ProactorRequest {
-            resource_id: ResourceId(21),
+            resource_id: ResourceId::local(21),
             token: 3,
             op: ProactorOp::Connect {
                 handle: PlatformHandle(0),
@@ -2652,7 +2652,7 @@ mod tests {
     fn test_iocp_accept_invalid_handle_reports_net_error() {
         // execute one accept request with one invalid listener handle
         let request = ProactorRequest {
-            resource_id: ResourceId(31),
+            resource_id: ResourceId::local(31),
             token: 9,
             op: ProactorOp::Accept {
                 handle: PlatformHandle(0),
@@ -2671,7 +2671,7 @@ mod tests {
     fn test_iocp_sendfile_invalid_handles_report_net_error() {
         // execute one sendfile request with invalid socket and file handles
         let request = ProactorRequest {
-            resource_id: ResourceId(41),
+            resource_id: ResourceId::local(41),
             token: 17,
             op: ProactorOp::SendFile {
                 output: PlatformHandle(0),
@@ -2692,7 +2692,7 @@ mod tests {
     fn test_iocp_copy_file_range_zero_length_succeeds() {
         // execute one zero-length copy request
         let request = ProactorRequest {
-            resource_id: ResourceId(51),
+            resource_id: ResourceId::local(51),
             token: 25,
             op: ProactorOp::CopyFileRange {
                 input: PlatformHandle(0),
@@ -2715,7 +2715,7 @@ mod tests {
     fn test_iocp_splice_zero_length_succeeds() {
         // execute one zero-length splice request
         let request = ProactorRequest {
-            resource_id: ResourceId(61),
+            resource_id: ResourceId::local(61),
             token: 29,
             op: ProactorOp::Splice {
                 input: PlatformHandle(0),
@@ -2738,7 +2738,7 @@ mod tests {
     fn test_iocp_fallocate_zero_length_succeeds() {
         // execute one zero-length preallocation request
         let request = ProactorRequest {
-            resource_id: ResourceId(71),
+            resource_id: ResourceId::local(71),
             token: 33,
             op: ProactorOp::Fallocate {
                 handle: PlatformHandle(0),

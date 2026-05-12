@@ -367,7 +367,7 @@ pub(crate) unsafe fn close_event_stream(
     if !removed {
         return Err(core_platform::io_not_found(
             "destack.audio.event.close",
-            format!("unknown audio event handle {}", handle.0.0),
+            format!("unknown audio event handle {}", handle.0.local_id),
         ));
     }
 

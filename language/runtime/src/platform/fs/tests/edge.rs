@@ -11,11 +11,11 @@ fn test_fs_invalid_file_handle() {
         // exercise invalid file handle paths
         let buffer = context.zeroed_bytes_slice_value(16)?;
         assert_platform_error_codes_with_privileged_policy(
-            context.destack_fs_read(FileHandle(ResourceId(9999)), buffer),
+            context.destack_fs_read(FileHandle(ResourceId::local(9999)), buffer),
             &[PlatformErrorCode::InvalidArgumentValue],
         )?;
         assert_platform_error_codes_with_privileged_policy(
-            context.destack_fs_close(FileHandle(ResourceId(9999))),
+            context.destack_fs_close(FileHandle(ResourceId::local(9999))),
             &[PlatformErrorCode::InvalidArgumentValue],
         )?;
 
@@ -47,7 +47,7 @@ fn test_fs_invalid_directory_handle() {
             &[PlatformErrorCode::InvalidArgumentValue],
         )?;
         assert_platform_error_codes_with_privileged_policy(
-            context.destack_fs_closedir(DirectoryHandle(ResourceId(9999))),
+            context.destack_fs_closedir(DirectoryHandle(ResourceId::local(9999))),
             &[PlatformErrorCode::InvalidArgumentValue],
         )?;
 

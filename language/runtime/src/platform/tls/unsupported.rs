@@ -4,7 +4,7 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
 use crate::platform::abi::{NativeSlice, NativeStringRef, NativeStringSlice};
-use crate::platform::tls::bindings_generated as bindings;
+use crate::platform::tls::abi_generated as bindings;
 
 use crate::runtime::BindingCallContext;
 use bindings::*;

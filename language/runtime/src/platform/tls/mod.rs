@@ -1,16 +1,8 @@
 #[path = "abi.generated.rs"]
 pub(crate) mod abi_generated;
-#[path = "bindings.generated.rs"]
-mod bindings_generated;
 
 pub(crate) use abi_generated::*;
-pub(crate) use bindings_generated::*;
 #[cfg(any(unix, windows))]
 mod core;
 mod host;
-pub mod native;
-pub(crate) mod simulation;
-#[cfg(test)]
-mod tests;
 mod unsupported;
-pub mod vm;

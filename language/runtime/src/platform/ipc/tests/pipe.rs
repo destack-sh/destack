@@ -71,7 +71,7 @@ fn test_pipe_open_rejects_unsupported_flags() {
 fn test_pipe_rejects_unknown_handle() {
     with_harness_context(|mut context| {
         // build one unknown pipe handle and one tiny read buffer
-        let unknown = resource::PipeHandle(resource::ResourceId(0));
+        let unknown = resource::PipeHandle(resource::ResourceId::local(0));
         let mut buffer = [0u8; 1];
 
         // read should fail with invalid-argument for unknown handle

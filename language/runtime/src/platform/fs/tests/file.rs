@@ -555,7 +555,7 @@ fn test_fs_mknod_and_mknodat_utf16_roundtrip() {
 fn test_fs_tee_vmsplice_invalid_handle_contract() {
     with_harness_context(|mut context| {
         // prepare one invalid pipe handle and one payload
-        let invalid_pipe = PipeHandle(ResourceId(0));
+        let invalid_pipe = PipeHandle(ResourceId::local(0));
         let payload = [b"destack".as_slice()];
         let payload = context.bytes_slices_value(&payload)?;
 

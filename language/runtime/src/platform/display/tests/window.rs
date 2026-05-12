@@ -14,6 +14,8 @@ use display_platform::{
 };
 use resource::{DisplayHandle, ResourceId};
 
+use crate::runtime::WorkerId;
+
 #[cfg(windows)]
 use std::thread::sleep;
 #[cfg(windows)]
@@ -29,6 +31,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 const CURSOR_VISIBILITY_RETRY_COUNT: usize = 50;
 #[cfg(windows)]
 const CURSOR_VISIBILITY_RETRY_DELAY_MS: u64 = 10;
+const INVALID_DISPLAY_RESOURCE: ResourceId = ResourceId::new(WorkerId(1), 0);
 
 #[cfg(windows)]
 /// Return whether the process cursor is currently visible.
@@ -115,7 +118,7 @@ pub(crate) fn test_window_mode_exclusive_with_invalid_display_is_rejected() {
         let exclusive = harness_window_mode_options(
             &context,
             HarnessWindowMode::ExclusiveFullscreen {
-                display: DisplayHandle(ResourceId(0)),
+                display: DisplayHandle(INVALID_DISPLAY_RESOURCE),
                 display_mode: None,
             },
         );
@@ -164,7 +167,7 @@ pub(crate) fn test_window_failed_mode_change_preserves_previous_mode() {
         let invalid_mode = harness_window_mode_options(
             &context,
             HarnessWindowMode::ExclusiveFullscreen {
-                display: DisplayHandle(ResourceId(0)),
+                display: DisplayHandle(INVALID_DISPLAY_RESOURCE),
                 display_mode: None,
             },
         );
@@ -229,7 +232,7 @@ pub(crate) fn test_window_open_mode_exclusive_with_invalid_display_is_rejected()
                     display_platform::WindowModeOptions::WindowExclusiveFullscreenModeOptions(
                         display_platform::WindowExclusiveFullscreenModeOptions {
                             kind: context.call_context.store_string("exclusiveFullscreen"),
-                            display: DisplayHandle(ResourceId(0)),
+                            display: DisplayHandle(INVALID_DISPLAY_RESOURCE),
                             display_mode: None,
                         },
                     );
@@ -249,7 +252,7 @@ pub(crate) fn test_window_open_mode_exclusive_with_invalid_display_is_rejected()
                                     .intern_string("exclusiveFullscreen")
                                     .expect("vm test string should intern"),
                             ),
-                            display: DisplayHandle(ResourceId(0)),
+                            display: DisplayHandle(INVALID_DISPLAY_RESOURCE),
                             display_mode: None,
                         },
                     );

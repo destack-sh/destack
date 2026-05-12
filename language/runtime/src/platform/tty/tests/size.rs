@@ -94,7 +94,7 @@ fn test_tty_size_updates_roundtrip() {
 #[test]
 fn test_tty_size_rejects_unknown_handle() {
     with_harness_context(|mut context| {
-        let unknown = TtyHandle(ResourceId(0));
+        let unknown = TtyHandle(ResourceId::local(0));
 
         let get_result = context.destack_tty_get_size(unknown);
         assert_platform_error_codes(get_result, &[PlatformErrorCode::InvalidArgumentValue])?;

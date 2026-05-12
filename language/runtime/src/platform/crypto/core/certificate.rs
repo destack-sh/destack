@@ -541,7 +541,7 @@ pub(crate) fn certificate_delete(
     else {
         return Err(core_platform::io_not_found(
             "destack.crypto.certificate.delete",
-            format!("unknown crypto certificate handle {}", handle.0.0),
+            format!("unknown crypto certificate handle {}", handle.0.local_id),
         ));
     };
 
@@ -549,7 +549,7 @@ pub(crate) fn certificate_delete(
     if entry.kind != CRYPTO_CERTIFICATE_RESOURCE_KIND {
         return Err(core_platform::io_not_found(
             "destack.crypto.certificate.delete",
-            format!("unknown crypto certificate handle {}", handle.0.0),
+            format!("unknown crypto certificate handle {}", handle.0.local_id),
         ));
     }
 

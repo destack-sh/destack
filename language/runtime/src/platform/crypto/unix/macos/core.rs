@@ -127,15 +127,17 @@ pub(super) fn configured_store_path(
         CryptoStoreKind::User => binding
             .worker()
             .options
+            .host
             .crypto
-            .host_store_paths
+            .key_store_paths
             .user
             .clone(),
         CryptoStoreKind::Machine => binding
             .worker()
             .options
+            .host
             .crypto
-            .host_store_paths
+            .key_store_paths
             .machine
             .clone(),
         _ => None,
@@ -147,6 +149,7 @@ pub(super) fn configured_keychain_snapshot_service(binding: &BindingCallContext)
     binding
         .worker()
         .options
+        .host
         .crypto
         .macos_keychain_snapshot_service
         .clone()
@@ -158,6 +161,7 @@ pub(super) fn configured_keychain_snapshot_account(binding: &BindingCallContext)
     binding
         .worker()
         .options
+        .host
         .crypto
         .macos_keychain_snapshot_account
         .clone()

@@ -69,7 +69,7 @@ pub(crate) fn resolve_display_id(
     .ok_or_else(|| {
         core_platform::io_not_found(
             operation,
-            format!("display handle {} was not found", handle.0.0),
+            format!("display handle {} was not found", handle.0.local_id),
         )
     })?;
 
@@ -92,7 +92,7 @@ pub(crate) fn resolve_window_host_state(
     .ok_or_else(|| {
         core_platform::io_not_found(
             operation,
-            format!("window handle {} was not found", window.0.0),
+            format!("window handle {} was not found", window.0.local_id),
         )
     })
 }
@@ -124,7 +124,7 @@ pub(crate) fn resolve_monitor_event_stream(
     .ok_or_else(|| {
         core_platform::io_not_found(
             operation,
-            format!("display event handle {} was not found", handle.0.0),
+            format!("display event handle {} was not found", handle.0.local_id),
         )
     })
 }
@@ -145,7 +145,7 @@ pub(crate) fn resolve_window_event_stream(
     .ok_or_else(|| {
         core_platform::io_not_found(
             operation,
-            format!("window event handle {} was not found", handle.0.0),
+            format!("window event handle {} was not found", handle.0.local_id),
         )
     })
 }

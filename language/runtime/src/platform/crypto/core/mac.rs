@@ -323,7 +323,7 @@ pub(crate) fn mac_close(
     else {
         return Err(core_platform::io_not_found(
             "destack.crypto.mac.close",
-            format!("unknown crypto mac handle {}", handle.0.0),
+            format!("unknown crypto mac handle {}", handle.0.local_id),
         ));
     };
 
@@ -331,7 +331,7 @@ pub(crate) fn mac_close(
     if entry.kind != CRYPTO_MAC_RESOURCE_KIND {
         return Err(core_platform::io_not_found(
             "destack.crypto.mac.close",
-            format!("unknown crypto mac handle {}", handle.0.0),
+            format!("unknown crypto mac handle {}", handle.0.local_id),
         ));
     }
 

@@ -161,7 +161,7 @@ fn test_unix_ancillary_send_receive_roundtrip() {
 fn test_unix_ancillary_rejects_unknown_socket_handle() {
     with_harness_context(|mut context| {
         // build one unknown socket handle
-        let unknown = resource::SocketHandle(resource::ResourceId(0));
+        let unknown = resource::SocketHandle(resource::ResourceId::local(0));
 
         // receive should fail with invalid-argument for unknown socket handles
         let receive_error = context.destack_ipc_unix_receive(unknown, 0);

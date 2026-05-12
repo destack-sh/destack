@@ -570,7 +570,7 @@ fn test_io_device_open_rejects_regular_files() {
 #[test]
 fn test_io_device_operations_reject_unknown_handle() {
     with_harness_context(|mut context| {
-        let handle = DeviceHandle(ResourceId(999_999));
+        let handle = DeviceHandle(ResourceId::local(999_999));
         let buffer = context.byte_slice_value(&[0u8; 4])?;
         let bytes = context.byte_slice_value(b"ping")?;
         let request = context.descriptor_request_value(1, &[], 0, 0)?;
@@ -638,7 +638,7 @@ fn test_io_completion_close_rejects_non_completion_handle() {
 #[test]
 fn test_io_completion_enter_rejects_unknown_handle() {
     with_harness_context(|mut context| {
-        let unknown = CompletionHandle(ResourceId(999_999));
+        let unknown = CompletionHandle(ResourceId::local(999_999));
         assert_platform_error_code(
             context.destack_io_completion_enter(unknown, 0, 0, 0),
             PlatformErrorCode::IoNotFound,
@@ -652,7 +652,7 @@ fn test_io_completion_enter_rejects_unknown_handle() {
 #[test]
 fn test_io_completion_wait_rejects_unknown_handle() {
     with_harness_context(|mut context| {
-        let unknown = CompletionHandle(ResourceId(999_999));
+        let unknown = CompletionHandle(ResourceId::local(999_999));
         assert_platform_error_code(
             context.destack_io_completion_wait(unknown, 0, 8),
             PlatformErrorCode::IoNotFound,
@@ -666,9 +666,9 @@ fn test_io_completion_wait_rejects_unknown_handle() {
 #[test]
 fn test_io_completion_cancel_rejects_unknown_handle() {
     with_harness_context(|mut context| {
-        let unknown = CompletionHandle(ResourceId(999_999));
+        let unknown = CompletionHandle(ResourceId::local(999_999));
         assert_platform_error_code(
-            context.destack_io_completion_cancel(unknown, ResourceId(1)),
+            context.destack_io_completion_cancel(unknown, ResourceId::local(1)),
             PlatformErrorCode::IoNotFound,
         )?;
 
@@ -720,7 +720,7 @@ fn test_io_completion_submit_rejects_unknown_target() {
 
         let operation = CompletionOperation {
             kind: CompletionOperationKind::Read,
-            target: ResourceId(999_999),
+            target: ResourceId::local(999_999),
             key: 1,
             offset: 0,
             length: 16,
@@ -795,7 +795,7 @@ fn test_io_completion_submit_rejects_reserved_token() {
 
         let operation = CompletionOperation {
             kind: CompletionOperationKind::Timeout,
-            target: ResourceId(0),
+            target: ResourceId::local(0),
             key: u64::MAX,
             offset: 1_000_000,
             length: 0,
@@ -846,7 +846,7 @@ fn test_io_completion_submit_batch_rejects_pending_token() {
 
         let operation = CompletionOperation {
             kind: CompletionOperationKind::Timeout,
-            target: ResourceId(0),
+            target: ResourceId::local(0),
             key: 91,
             offset: 1_000_000_000,
             length: 0,
@@ -879,7 +879,7 @@ fn test_io_completion_submit_timeout_wait_roundtrip() {
 
         let operation = CompletionOperation {
             kind: CompletionOperationKind::Timeout,
-            target: ResourceId(0),
+            target: ResourceId::local(0),
             key: 77,
             offset: 1_000_000,
             length: 0,
@@ -994,7 +994,7 @@ fn test_io_completion_cancel_rejects_unknown_target() {
         };
 
         assert_platform_error_code(
-            context.destack_io_completion_cancel(handle, ResourceId(999_999)),
+            context.destack_io_completion_cancel(handle, ResourceId::local(999_999)),
             PlatformErrorCode::IoNotFound,
         )?;
         context.destack_io_completion_close(handle)?;
@@ -1130,7 +1130,7 @@ fn test_io_event_attach_rejects_unknown_target() {
     with_harness_context(|mut context| {
         let token = context.destack_io_event_open(0)?;
         assert_platform_error_code(
-            context.destack_io_event_attach(token, ResourceId(999_999), 7),
+            context.destack_io_event_attach(token, ResourceId::local(999_999), 7),
             PlatformErrorCode::IoNotFound,
         )?;
         context.destack_io_event_close(token)?;
@@ -1349,7 +1349,7 @@ fn test_io_control_fcntl_rejects_unknown_flags() {
     with_harness_context(|mut context| {
         assert_platform_error_code(
             context.destack_io_control_fcntl(
-                ResourceId(999_999),
+                ResourceId::local(999_999),
                 DescriptorControlCommand(0),
                 0,
                 DescriptorControlFlags(1),
@@ -1367,7 +1367,7 @@ fn test_io_control_ioctl_rejects_unknown_flags() {
     with_harness_context(|mut context| {
         let request = context.descriptor_request_value(0, &[], 0, 1)?;
         assert_platform_error_code(
-            context.destack_io_control_ioctl(ResourceId(999_999), request),
+            context.destack_io_control_ioctl(ResourceId::local(999_999), request),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
 
@@ -1381,7 +1381,7 @@ fn test_io_control_ioctl_rejects_oversized_output() {
     with_harness_context(|mut context| {
         let request = context.descriptor_request_value(0, &[], 16 * 1024 * 1024 + 1, 0)?;
         assert_platform_error_code(
-            context.destack_io_control_ioctl(ResourceId(999_999), request),
+            context.destack_io_control_ioctl(ResourceId::local(999_999), request),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
 
@@ -1396,7 +1396,7 @@ fn test_io_control_ioctl_rejects_oversized_input() {
         let oversized_input = vec![0u8; 16 * 1024 * 1024 + 1];
         let request = context.descriptor_request_value(0, &oversized_input, 0, 0)?;
         assert_platform_error_code(
-            context.destack_io_control_ioctl(ResourceId(999_999), request),
+            context.destack_io_control_ioctl(ResourceId::local(999_999), request),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
 
@@ -1410,7 +1410,7 @@ fn test_io_control_ioctl_rejects_unknown_target() {
     with_harness_context(|mut context| {
         let request = context.descriptor_request_value(0, &[], 0, 0)?;
         assert_platform_error_code(
-            context.destack_io_control_ioctl(ResourceId(999_999), request),
+            context.destack_io_control_ioctl(ResourceId::local(999_999), request),
             PlatformErrorCode::IoNotFound,
         )?;
 
@@ -1425,7 +1425,7 @@ fn test_io_control_fcntl_rejects_unknown_target() {
     with_harness_context(|mut context| {
         assert_platform_error_code(
             context.destack_io_control_fcntl(
-                ResourceId(999_999),
+                ResourceId::local(999_999),
                 DescriptorControlCommand(0),
                 0,
                 DescriptorControlFlags(0),
@@ -1563,7 +1563,7 @@ fn test_io_uring_register_files_rejects_unknown_target() {
             return Ok(());
         };
 
-        let files = context.resource_id_slice_value(&[ResourceId(999_999)])?;
+        let files = context.resource_id_slice_value(&[ResourceId::local(999_999)])?;
         assert_platform_error_code(
             context.destack_io_uring_register_files(handle, files),
             PlatformErrorCode::IoNotFound,
@@ -1634,7 +1634,7 @@ fn test_io_uring_unregister_without_registration_is_idempotent() {
 #[test]
 fn test_io_uring_features_rejects_unknown_handle() {
     with_harness_context(|mut context| {
-        let unknown = UringHandle(ResourceId(999_999));
+        let unknown = UringHandle(ResourceId::local(999_999));
         assert_platform_error_code(
             context.destack_io_uring_features(unknown),
             PlatformErrorCode::IoNotFound,
@@ -1649,7 +1649,7 @@ fn test_io_uring_features_rejects_unknown_handle() {
 #[test]
 fn test_io_uring_close_rejects_unknown_handle() {
     with_harness_context(|mut context| {
-        let unknown = UringHandle(ResourceId(999_999));
+        let unknown = UringHandle(ResourceId::local(999_999));
         assert_platform_error_code(
             context.destack_io_uring_close(unknown),
             PlatformErrorCode::IoNotFound,
@@ -1664,7 +1664,7 @@ fn test_io_uring_close_rejects_unknown_handle() {
 #[test]
 fn test_io_uring_unregister_files_rejects_unknown_handle() {
     with_harness_context(|mut context| {
-        let unknown = UringHandle(ResourceId(999_999));
+        let unknown = UringHandle(ResourceId::local(999_999));
         assert_platform_error_code(
             context.destack_io_uring_unregister_files(unknown),
             PlatformErrorCode::IoNotFound,
@@ -1679,7 +1679,7 @@ fn test_io_uring_unregister_files_rejects_unknown_handle() {
 #[test]
 fn test_io_uring_unregister_buffers_rejects_unknown_handle() {
     with_harness_context(|mut context| {
-        let unknown = UringHandle(ResourceId(999_999));
+        let unknown = UringHandle(ResourceId::local(999_999));
         assert_platform_error_code(
             context.destack_io_uring_unregister_buffers(unknown),
             PlatformErrorCode::IoNotFound,

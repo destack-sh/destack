@@ -146,7 +146,7 @@ fn test_midi_missing_input_endpoints_and_handles_fail_with_expected_errors() {
             ],
         )?;
 
-        let missing_input_handle = resource::MidiInputPortHandle(resource::ResourceId(0));
+        let missing_input_handle = resource::MidiInputPortHandle(resource::ResourceId::local(0));
 
         // handle failures
         assert_platform_error_codes(

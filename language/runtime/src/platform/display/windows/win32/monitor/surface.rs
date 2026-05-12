@@ -72,7 +72,7 @@ pub(crate) unsafe fn monitor_close(
     if !removed {
         return Err(core_platform::io_not_found(
             "destack.display.monitor.close",
-            format!("display handle {} was not found", handle.0.0),
+            format!("display handle {} was not found", handle.0.local_id),
         ));
     }
 

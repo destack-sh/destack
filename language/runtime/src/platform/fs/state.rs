@@ -1,4 +1,6 @@
-use std::sync::{Arc, OnceLock};
+#[cfg(windows)]
+use std::sync::Arc;
+use std::sync::OnceLock;
 
 use destack_core::{Capture, CaptureMode};
 use serde::{Deserialize, Serialize};
@@ -7,14 +9,10 @@ use crate::diagnostic::RuntimeError;
 
 #[cfg(windows)]
 use super::host::WindowsMmapRuntimeState;
-use super::vm::VmMmapRuntimeState;
 
 /// Runtime-owned filesystem module state.
 #[derive(Default)]
 pub(crate) struct PlatformFsState {
-    /// Runtime-owned vm mmap state.
-    vm_mmap_runtime_state: OnceLock<Arc<VmMmapRuntimeState>>,
-
     /// Runtime-owned windows mmap state.
     #[cfg(windows)]
     windows_mmap_runtime_state: OnceLock<Arc<WindowsMmapRuntimeState>>,
@@ -31,10 +29,6 @@ impl std::fmt::Debug for PlatformFsState {
 impl PlatformFsState {
     /// Return whether any runtime-owned filesystem state is active.
     fn has_runtime_state(&self) -> bool {
-        if self.vm_mmap_runtime_state.get().is_some() {
-            return true;
-        }
-
         #[cfg(windows)]
         if self.windows_mmap_runtime_state.get().is_some() {
             return true;
@@ -55,17 +49,6 @@ impl PlatformFsState {
             detail: "runtime state is active".to_string(),
         }
         .boxed())
-    }
-
-    /// Return runtime-owned windows mmap state.
-    pub(crate) fn vm_mmap_runtime_state(
-        &self,
-        initialize: impl FnOnce() -> VmMmapRuntimeState,
-    ) -> Arc<VmMmapRuntimeState> {
-        Arc::clone(
-            self.vm_mmap_runtime_state
-                .get_or_init(|| Arc::new(initialize())),
-        )
     }
 
     /// Return runtime-owned windows mmap state.

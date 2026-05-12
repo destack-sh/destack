@@ -107,7 +107,7 @@ pub(crate) unsafe fn destack_audio_stream_close(
     ) {
         return Err(audio_not_found(
             "destack.audio.stream.close",
-            format!("unknown audio stream handle {}", handle.0.0),
+            format!("unknown audio stream handle {}", handle.0.local_id),
         ));
     }
 

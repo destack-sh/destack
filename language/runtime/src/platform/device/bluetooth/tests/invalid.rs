@@ -36,7 +36,7 @@ fn assert_invalid_handle_or_not_supported<T>(
 #[test]
 fn test_device_bluetooth_rejects_unknown_adapter_watch_handles() {
     with_harness_context(|mut context| {
-        let unknown_watch = BluetoothAdapterWatchHandle(ResourceId(0));
+        let unknown_watch = BluetoothAdapterWatchHandle(ResourceId::local(0));
 
         // reject one invalid adapter-watch close target
         assert_invalid_handle(context.destack_device_bluetooth_adapter_watch_close(unknown_watch))?;
@@ -60,7 +60,7 @@ fn test_device_bluetooth_rejects_unknown_adapter_watch_handles() {
 #[test]
 fn test_device_bluetooth_rejects_unknown_scan_handles() {
     with_harness_context(|mut context| {
-        let unknown_scan = BluetoothScanHandle(ResourceId(0));
+        let unknown_scan = BluetoothScanHandle(ResourceId::local(0));
 
         // reject one invalid scan close target
         assert_invalid_handle(context.destack_device_bluetooth_scan_close(unknown_scan))?;
@@ -80,7 +80,7 @@ fn test_device_bluetooth_rejects_unknown_scan_handles() {
 #[test]
 fn test_device_bluetooth_rejects_unknown_device_handles() {
     with_harness_context(|mut context| {
-        let unknown_device = BluetoothDeviceHandle(ResourceId(0));
+        let unknown_device = BluetoothDeviceHandle(ResourceId::local(0));
         let service_id = context.harness_value_from(String::from("service.1"))?;
         let characteristic_id = context.harness_value_from(String::from("characteristic.1"))?;
 
@@ -182,7 +182,7 @@ fn test_device_bluetooth_rejects_unknown_device_handles() {
 #[test]
 fn test_device_bluetooth_rejects_unknown_subscription_handles() {
     with_harness_context(|mut context| {
-        let unknown_subscription = BluetoothSubscriptionHandle(ResourceId(0));
+        let unknown_subscription = BluetoothSubscriptionHandle(ResourceId::local(0));
 
         // reject one invalid unsubscribe target
         assert_invalid_handle(

@@ -442,7 +442,7 @@ pub(crate) fn cipher_close(
     else {
         return Err(core_platform::io_not_found(
             "destack.crypto.cipher.close",
-            format!("unknown crypto cipher handle {}", handle.0.0),
+            format!("unknown crypto cipher handle {}", handle.0.local_id),
         ));
     };
 
@@ -450,7 +450,7 @@ pub(crate) fn cipher_close(
     if entry.kind != CRYPTO_CIPHER_RESOURCE_KIND {
         return Err(core_platform::io_not_found(
             "destack.crypto.cipher.close",
-            format!("unknown crypto cipher handle {}", handle.0.0),
+            format!("unknown crypto cipher handle {}", handle.0.local_id),
         ));
     }
 

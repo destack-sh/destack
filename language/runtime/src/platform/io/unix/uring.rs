@@ -86,7 +86,7 @@ fn uring_not_found(operation: &'static str, handle: resource::UringHandle) -> Bo
         None,
         Some(operation.to_string()),
         None,
-        format!("io_uring handle {} not found", handle.0.0),
+        format!("io_uring handle {} not found", handle.0.local_id),
     ))
     .boxed()
 }

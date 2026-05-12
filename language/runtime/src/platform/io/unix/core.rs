@@ -445,7 +445,7 @@ pub(crate) fn host_completion_register_accepted_handle(
             .worker()
             .resources
             .insert(binding.world(), entry, Some(binding.engine()));
-    Ok(resource_id.0 as i64)
+    Ok(resource_id.local_id as i64)
 }
 
 /// Open one event token on Unix hosts.
@@ -485,7 +485,7 @@ pub(crate) fn host_event_open(
                 .worker()
                 .resources
                 .insert(binding.world(), entry, Some(binding.engine()));
-        Ok(EventToken(resource_id.0))
+        Ok(EventToken(resource_id.local_id))
     }
 
     #[cfg(all(unix, not(target_os = "linux")))]
@@ -520,7 +520,7 @@ pub(crate) fn host_event_open(
                 .resources
                 .insert(binding.world(), entry, Some(binding.engine()));
 
-        Ok(EventToken(resource_id.0))
+        Ok(EventToken(resource_id.local_id))
     }
 }
 
@@ -529,10 +529,12 @@ pub(crate) fn host_event_close(
     binding: &BindingCallContext,
     token: EventToken,
 ) -> RuntimeResult<()> {
+    let resource_id = ResourceId::new(binding.worker().worker_id(), token.0);
+
     // remove one token resource from the runtime table
     let removed = binding.worker().resources.remove_and_finalize(
         binding.world(),
-        ResourceId(token.0),
+        resource_id,
         Some(binding.engine()),
     );
     if !removed {
@@ -551,18 +553,22 @@ pub(crate) fn host_event_signal(
     // resolve one descriptor from the token resource
     #[cfg(target_os = "linux")]
     let descriptor = {
+        let resource_id = ResourceId::new(binding.worker().worker_id(), token.0);
+
         binding
             .worker()
             .resources
-            .with_entry(ResourceId(token.0), |entry| entry.fd())
+            .with_entry(resource_id, |entry| entry.fd())
             .flatten()
             .ok_or_else(|| io_core::event_not_found("destack.io.event.signal", token))?
     };
     #[cfg(all(unix, not(target_os = "linux")))]
+    let resource_id = ResourceId::new(binding.worker().worker_id(), token.0);
+    #[cfg(all(unix, not(target_os = "linux")))]
     let descriptor = binding
         .worker()
         .resources
-        .with_entry(ResourceId(token.0), |entry| {
+        .with_entry(resource_id, |entry| {
             if entry.kind != ResourceKind::Event {
                 return None;
             }

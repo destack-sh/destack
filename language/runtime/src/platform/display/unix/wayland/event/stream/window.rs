@@ -145,7 +145,7 @@ pub(crate) unsafe fn window_event_close(
     if !removed {
         return Err(core_platform::io_not_found(
             "destack.display.window.eventClose",
-            format!("window event handle {} was not found", handle.0.0),
+            format!("window event handle {} was not found", handle.0.local_id),
         ));
     }
 

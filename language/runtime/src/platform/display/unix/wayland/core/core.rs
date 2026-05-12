@@ -330,7 +330,7 @@ pub(crate) fn window_not_found(
 ) -> Box<RuntimeError> {
     core_platform::io_not_found(
         operation,
-        format!("window handle {} was not found", handle.0.0),
+        format!("window handle {} was not found", handle.0.local_id),
     )
 }
 
@@ -341,7 +341,7 @@ pub(crate) fn display_not_found(
 ) -> Box<RuntimeError> {
     core_platform::io_not_found(
         operation,
-        format!("display handle {} was not found", handle.0.0),
+        format!("display handle {} was not found", handle.0.local_id),
     )
 }
 

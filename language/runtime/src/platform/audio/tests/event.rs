@@ -110,7 +110,7 @@ fn test_audio_event_open_rejects_unknown_stream_handle() {
     with_harness_context(|mut context| {
         let mut event_options = default_event_options();
         event_options.flags = audio_core::EVENT_SUBSCRIBE_STREAM;
-        event_options.stream = Some(AudioStreamHandle(ResourceId(999_999)));
+        event_options.stream = Some(AudioStreamHandle(ResourceId::local(999_999)));
 
         let event_options = harness_event_options(&mut context, event_options);
         assert_platform_error_code(

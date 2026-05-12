@@ -1,18 +1,17 @@
 use std::sync::Arc;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
-use crate::platform::resource::ResourceId;
 use crate::platform::runtime::{
     BranchId, CheckpointId, ImageId, ObservationHandle, RevisionId, RuntimeHandle, RuntimeId,
     SnapshotFormat, SnapshotId, TraceCursorHandle, WorkerHandle, WorkerId, WorldHandle,
-    WorldResourceId, WorldResourceIdVm, WorldViewHandle,
+    WorldResourceIdVm, WorldViewHandle,
 };
+use crate::platform::{PlatformError, resource};
 use crate::runtime::control::{ControlHandleId, ControlSnapshotFormat};
 use crate::runtime::trace::ObservationSubscriptionId;
 use crate::runtime::world::{
     BranchId as WorldBranchId, CheckpointId as WorldCheckpointId, ImageId as WorldImageId,
-    Revision as WorldRevision, WorldResourceId as LogicalWorldResourceId, WorldSnapshot,
+    Revision as WorldRevision, WorldSnapshot,
 };
 use crate::runtime::{RuntimeId as WorldRuntimeId, WorkerId as WorldWorkerId};
 
@@ -44,62 +43,62 @@ pub(crate) struct RuntimeHandleCodec;
 impl RuntimeHandleCodec {
     /// Decode one world handle into its control-table id.
     pub(crate) fn decode_world_handle(handle: WorldHandle) -> ControlHandleId {
-        ControlHandleId::new(handle.0.0)
+        ControlHandleId::new(handle.0.local_id)
     }
 
     /// Encode one world control-table id as one low-level world handle.
     pub(crate) fn encode_world_handle(handle_id: ControlHandleId) -> WorldHandle {
-        WorldHandle(ResourceId(handle_id.get()))
+        WorldHandle(Self::control_resource_id(handle_id))
     }
 
     /// Decode one runtime handle into its control-table id.
     pub(crate) fn decode_runtime_handle(handle: RuntimeHandle) -> ControlHandleId {
-        ControlHandleId::new(handle.0.0)
+        ControlHandleId::new(handle.0.local_id)
     }
 
     /// Encode one runtime control-table id as one low-level runtime handle.
     pub(crate) fn encode_runtime_handle(handle_id: ControlHandleId) -> RuntimeHandle {
-        RuntimeHandle(ResourceId(handle_id.get()))
+        RuntimeHandle(Self::control_resource_id(handle_id))
     }
 
     /// Decode one worker handle into its control-table id.
     pub(crate) fn decode_worker_handle(handle: WorkerHandle) -> ControlHandleId {
-        ControlHandleId::new(handle.0.0)
+        ControlHandleId::new(handle.0.local_id)
     }
 
     /// Encode one worker control-table id as one low-level worker handle.
     pub(crate) fn encode_worker_handle(handle_id: ControlHandleId) -> WorkerHandle {
-        WorkerHandle(ResourceId(handle_id.get()))
+        WorkerHandle(Self::control_resource_id(handle_id))
     }
 
     /// Decode one observation handle into its control-table id.
     pub(crate) fn decode_observation_handle(handle: ObservationHandle) -> ControlHandleId {
-        ControlHandleId::new(handle.0.0)
+        ControlHandleId::new(handle.0.local_id)
     }
 
     /// Encode one observation control-table id as one low-level observation handle.
     pub(crate) fn encode_observation_handle(handle_id: ControlHandleId) -> ObservationHandle {
-        ObservationHandle(ResourceId(handle_id.get()))
+        ObservationHandle(Self::control_resource_id(handle_id))
     }
 
     /// Decode one trace cursor handle into its control-table id.
     pub(crate) fn decode_trace_cursor_handle(handle: TraceCursorHandle) -> ControlHandleId {
-        ControlHandleId::new(handle.0.0)
+        ControlHandleId::new(handle.0.local_id)
     }
 
     /// Encode one trace cursor control-table id as one low-level trace cursor handle.
     pub(crate) fn encode_trace_cursor_handle(handle_id: ControlHandleId) -> TraceCursorHandle {
-        TraceCursorHandle(ResourceId(handle_id.get()))
+        TraceCursorHandle(Self::control_resource_id(handle_id))
     }
 
     /// Decode one pinned world-view handle into its control-table id.
     pub(crate) fn decode_world_view_handle(handle: WorldViewHandle) -> ControlHandleId {
-        ControlHandleId::new(handle.0.0)
+        ControlHandleId::new(handle.0.local_id)
     }
 
     /// Encode one control-table id as one pinned world-view handle.
     pub(crate) fn encode_world_view_handle(handle_id: ControlHandleId) -> WorldViewHandle {
-        WorldViewHandle(ResourceId(handle_id.get()))
+        WorldViewHandle(Self::control_resource_id(handle_id))
     }
 
     /// Decode one snapshot id into its control-table id.
@@ -222,31 +221,32 @@ impl RuntimeHandleCodec {
         WorldWorkerId(worker_id.0)
     }
 
-    /// Decode one low-level world resource id into one logical world resource id.
+    /// Decode one low-level world resource id into one world resource id.
     pub(crate) fn decode_world_resource_id(
-        resource_id: WorldResourceId,
-    ) -> RuntimeResult<LogicalWorldResourceId> {
-        Ok(LogicalWorldResourceId::new(
-            Self::decode_worker_id(resource_id.worker_id),
-            resource_id.resource_id,
-        ))
+        resource_id: crate::platform::runtime::WorldResourceId,
+    ) -> RuntimeResult<resource::ResourceId> {
+        Ok(resource_id.resource_id)
     }
 
-    /// Decode one VM world resource id into one logical world resource id.
+    /// Decode one VM world resource id into one world resource id.
     pub(crate) fn decode_world_resource_id_vm(
         resource_id: WorldResourceIdVm,
-    ) -> RuntimeResult<LogicalWorldResourceId> {
-        Ok(LogicalWorldResourceId::new(
-            Self::decode_worker_id(resource_id.worker_id),
-            resource_id.resource_id,
-        ))
+    ) -> RuntimeResult<resource::ResourceId> {
+        Ok(resource_id.resource_id)
     }
 
-    /// Encode one logical world resource id into the low-level binding type.
-    pub(crate) fn encode_world_resource_id(resource_id: LogicalWorldResourceId) -> WorldResourceId {
-        WorldResourceId {
+    /// Encode one world resource id into the low-level binding type.
+    pub(crate) fn encode_world_resource_id(
+        resource_id: resource::ResourceId,
+    ) -> crate::platform::runtime::WorldResourceId {
+        crate::platform::runtime::WorldResourceId {
             worker_id: WorkerId(resource_id.worker_id.0),
-            resource_id: resource_id.resource_id,
+            resource_id,
         }
+    }
+
+    /// Encode one control-table id as a process-local resource id.
+    fn control_resource_id(handle_id: ControlHandleId) -> resource::ResourceId {
+        resource::ResourceId::new(WorldWorkerId(0), handle_id.get())
     }
 }

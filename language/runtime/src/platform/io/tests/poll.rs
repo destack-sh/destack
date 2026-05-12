@@ -368,7 +368,7 @@ fn test_io_poll_wait_empty_returns_no_events() {
 #[test]
 fn test_io_poll_rejects_unknown_poll_handle() {
     with_harness_context(|mut context| {
-        let unknown = PollHandle(ResourceId(9999));
+        let unknown = PollHandle(ResourceId::local(9999));
 
         assert_platform_error_code(
             context.destack_io_poll_close(unknown),
@@ -376,7 +376,7 @@ fn test_io_poll_rejects_unknown_poll_handle() {
         )?;
 
         assert_platform_error_code(
-            context.destack_io_poll_deregister(unknown, ResourceId(1)),
+            context.destack_io_poll_deregister(unknown, ResourceId::local(1)),
             PlatformErrorCode::IoNotFound,
         )?;
 
@@ -396,7 +396,12 @@ fn test_io_poll_rejects_invalid_interest_bits() {
         let handle = context.destack_io_poll_open(PollBackend::Auto)?;
 
         assert_platform_error_code(
-            context.destack_io_poll_register(handle, ResourceId(9999), 1, PollInterest(1 << 31)),
+            context.destack_io_poll_register(
+                handle,
+                ResourceId::local(9999),
+                1,
+                PollInterest(1 << 31),
+            ),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
 
@@ -413,7 +418,7 @@ fn test_io_poll_rejects_empty_interest() {
         let handle = context.destack_io_poll_open(PollBackend::Auto)?;
 
         assert_platform_error_code(
-            context.destack_io_poll_register(handle, ResourceId(9999), 1, PollInterest(0)),
+            context.destack_io_poll_register(handle, ResourceId::local(9999), 1, PollInterest(0)),
             PlatformErrorCode::InvalidArgumentValue,
         )?;
 
@@ -430,7 +435,7 @@ fn test_io_poll_rejects_unknown_target() {
         let handle = context.destack_io_poll_open(PollBackend::Auto)?;
 
         assert_platform_error_code(
-            context.destack_io_poll_register(handle, ResourceId(9999), 1, PollInterest(1)),
+            context.destack_io_poll_register(handle, ResourceId::local(9999), 1, PollInterest(1)),
             PlatformErrorCode::IoNotFound,
         )?;
 

@@ -1937,7 +1937,7 @@ pub(crate) fn test_display_wayland_capabilities_match_implemented_contract() {
         let exclusive_mode = harness_window_mode_options(
             &context,
             HarnessWindowMode::ExclusiveFullscreen {
-                display: resource::DisplayHandle(resource::ResourceId(0)),
+                display: resource::DisplayHandle(resource::ResourceId::local(0)),
                 display_mode: None,
             },
         );

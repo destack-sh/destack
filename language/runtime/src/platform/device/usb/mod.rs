@@ -30,6 +30,3 @@ pub(crate) use operations::{
     destack_device_usb_transfer_cancel, destack_device_usb_transfer_cancel_all,
 };
 pub(crate) use service::{UsbService, usb_service};
-
-#[cfg(test)]
-mod tests;

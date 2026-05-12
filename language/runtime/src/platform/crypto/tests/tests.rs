@@ -158,5 +158,5 @@ where
 
 /// Return one placeholder store handle for invalid-handle tests.
 pub(crate) fn placeholder_store_handle() -> resource::CryptoStoreHandle {
-    resource::CryptoStoreHandle(ResourceId(1))
+    resource::CryptoStoreHandle(ResourceId::local(1))
 }

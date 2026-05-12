@@ -291,7 +291,7 @@ fn test_midi_missing_output_endpoints_and_handles_fail_with_expected_errors() {
             ],
         )?;
 
-        let missing_output_handle = resource::MidiOutputPortHandle(resource::ResourceId(0));
+        let missing_output_handle = resource::MidiOutputPortHandle(resource::ResourceId::local(0));
         let one_record = output_record_for_transport(
             &mut context,
             MidiDataFormat::Midi1Bytes,

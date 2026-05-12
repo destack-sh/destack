@@ -143,7 +143,7 @@ fn test_tty_io_roundtrip_through_pty_pair() {
 #[test]
 fn test_tty_io_rejects_unknown_handle() {
     with_harness_context(|mut context| {
-        let unknown = TtyHandle(ResourceId(0));
+        let unknown = TtyHandle(ResourceId::local(0));
 
         let mut read_buffer = [0u8; 8];
         let read_buffer = context.mutable_bytes_value(&mut read_buffer)?;

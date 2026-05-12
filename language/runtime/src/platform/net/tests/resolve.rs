@@ -126,7 +126,7 @@ fn test_net_reverse_lookup_localhost() {
     with_harness_context(|mut context| {
         let resolved = context
             .destack_net_resolve(context.resolve_query_value(
-                "127.0.0.1",
+                "127.0.local_id.1",
                 0,
                 SocketFamily::IPv4,
                 ResolveFlags(0),
@@ -180,7 +180,7 @@ fn test_net_reverse_lookup_localhost() {
 fn test_net_reverse_lookup_numeric_host_and_service() {
     with_harness_context(|mut context| {
         // construct one numeric loopback address with a fixed service port
-        let address = context.socket_address_value_for_host_port("127.0.0.1", 80)?;
+        let address = context.socket_address_value_for_host_port("127.0.local_id.1", 80)?;
 
         // request numeric host and numeric service rendering
         let flags = ReverseLookupFlags(0x1 | 0x2);
@@ -193,7 +193,7 @@ fn test_net_reverse_lookup_numeric_host_and_service() {
             Ok(records) => {
                 assert!(!records.is_empty(), "reverse lookup should return records");
                 let (host, service) = &records[0];
-                assert_eq!(host, "127.0.0.1");
+                assert_eq!(host, "127.0.local_id.1");
                 assert_eq!(service, "80");
             }
             Err(error) => {
@@ -214,7 +214,7 @@ fn test_net_reverse_lookup_numeric_host_and_service() {
 fn test_net_reverse_lookup_rejects_unknown_flag_bits() {
     with_harness_context(|mut context| {
         // construct one numeric loopback address for reverse lookup
-        let address = context.socket_address_value_for_host_port("127.0.0.1", 80)?;
+        let address = context.socket_address_value_for_host_port("127.0.local_id.1", 80)?;
 
         // pass one undefined flag bit
         assert_platform_error_codes_with_privileged_policy::<()>(

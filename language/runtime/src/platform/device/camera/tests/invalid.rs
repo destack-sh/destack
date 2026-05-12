@@ -22,7 +22,7 @@ fn assert_invalid_handle<T>(result: Result<T, Box<RuntimeError>>) -> RuntimeResu
 #[test]
 fn test_device_camera_rejects_unknown_device_handles() {
     with_harness_context(|mut context| {
-        let unknown = CameraDeviceHandle(ResourceId(0));
+        let unknown = CameraDeviceHandle(ResourceId::local(0));
 
         // device operations
         assert_invalid_handle(context.destack_device_camera_device_close(unknown))?;
@@ -39,7 +39,7 @@ fn test_device_camera_rejects_unknown_device_handles() {
 #[test]
 fn test_device_camera_rejects_unknown_watch_handles() {
     with_harness_context(|mut context| {
-        let unknown = CameraWatchHandle(ResourceId(0));
+        let unknown = CameraWatchHandle(ResourceId::local(0));
 
         // watch operations
         assert_invalid_handle(context.destack_device_camera_device_watch_close(unknown))?;
@@ -55,7 +55,7 @@ fn test_device_camera_rejects_unknown_watch_handles() {
 #[test]
 fn test_device_camera_rejects_unknown_stream_handles() {
     with_harness_context(|mut context| {
-        let unknown = CameraStreamHandle(ResourceId(0));
+        let unknown = CameraStreamHandle(ResourceId::local(0));
         let controls = CameraControlPatchValue {
             exposure_mode: None,
             exposure_compensation_ev: None,

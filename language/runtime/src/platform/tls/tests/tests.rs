@@ -134,15 +134,15 @@ pub(crate) fn assert_invalid_argument_value<T>(result: RuntimeResult<T>) -> Runt
 
 /// Return one placeholder TLS context handle for invalid-argument tests.
 pub(crate) fn placeholder_context_handle() -> resource::TlsContextHandle {
-    resource::TlsContextHandle(ResourceId(1))
+    resource::TlsContextHandle(ResourceId::local(1))
 }
 
 /// Return one placeholder TLS session handle for invalid-argument tests.
 pub(crate) fn placeholder_session_handle() -> resource::TlsSessionHandle {
-    resource::TlsSessionHandle(ResourceId(1))
+    resource::TlsSessionHandle(ResourceId::local(1))
 }
 
 /// Return one placeholder socket handle for invalid-argument tests.
 pub(crate) fn placeholder_socket_handle() -> resource::SocketHandle {
-    resource::SocketHandle(ResourceId(1))
+    resource::SocketHandle(ResourceId::local(1))
 }

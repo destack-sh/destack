@@ -172,7 +172,7 @@ pub(crate) fn missing_handle(
 ) -> Box<RuntimeError> {
     core_platform::io_not_found(
         operation,
-        format!("{handle_kind} handle {} not found", handle_id.0),
+        format!("{handle_kind} handle {} not found", handle_id.local_id),
     )
 }
 

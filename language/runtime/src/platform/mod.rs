@@ -38,8 +38,6 @@ pub mod memory;
 pub mod net;
 /// OS bindings.
 pub mod os;
-/// Completion-based I/O abstraction.
-pub mod proactor;
 /// Process bindings.
 pub mod process;
 /// Randomness bindings.
@@ -66,17 +64,6 @@ pub use abi::{
 pub(crate) use core::{NativeAbiCodec, VmAbiCodec};
 pub use diagnostic::{PlatformError, PlatformErrorCode, PlatformResult};
 pub use generated::{PLATFORM_NATIVE_BINDINGS, PLATFORM_VM_BINDINGS};
-#[cfg(target_os = "linux")]
-pub use proactor::IoUringProactor;
-#[cfg(windows)]
-pub use proactor::IocpProactor;
-#[cfg(all(unix, not(target_os = "linux")))]
-pub use proactor::UnixProactor;
-pub use proactor::{
-    Proactor, ProactorAddress, ProactorAddressStorage, ProactorBuffer, ProactorBufferVec,
-    ProactorCompletion, ProactorCompletionData, ProactorOp, ProactorOpKind, ProactorRequest,
-    ProactorShutdown,
-};
 #[allow(unused_imports)]
 pub(crate) use resource::{
     ResourceBacking, ResourceCapture, ResourceEntry, ResourceId, ResourceKind, ResourcePortability,

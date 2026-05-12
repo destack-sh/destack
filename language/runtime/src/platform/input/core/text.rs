@@ -30,7 +30,10 @@ pub(crate) fn text_session_not_found(
     operation: &'static str,
     session: resource::InputTextSessionHandle,
 ) -> Box<RuntimeError> {
-    core_platform::io_not_found(operation, format!("text session {} not found", session.0.0))
+    core_platform::io_not_found(
+        operation,
+        format!("text session {} not found", session.0.local_id),
+    )
 }
 
 /// Return the UTF-16 code-unit length for one string.

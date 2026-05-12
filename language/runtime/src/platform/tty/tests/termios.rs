@@ -48,7 +48,7 @@ fn empty_termios_attributes(
 #[test]
 fn test_tty_termios_rejects_unknown_handle() {
     with_harness_context(|mut context| {
-        let unknown = TtyHandle(ResourceId(0));
+        let unknown = TtyHandle(ResourceId::local(0));
 
         let drain_result = context.destack_tty_termios_drain(unknown);
         assert_platform_error_codes(drain_result, &[PlatformErrorCode::InvalidArgumentValue])?;

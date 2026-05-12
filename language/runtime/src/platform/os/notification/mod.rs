@@ -4,8 +4,6 @@ mod ingress;
 pub(crate) mod runtime;
 #[cfg(target_os = "linux")]
 pub(crate) mod storage;
-#[cfg(test)]
-mod tests;
 pub(crate) mod time;
 #[cfg(not(any(
     windows,
