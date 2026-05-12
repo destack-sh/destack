@@ -13,9 +13,9 @@ use parking_lot::Mutex;
 
 use crate::SessionError;
 
-/// One session-owned artifact provider attempt.
+/// One artifact provider attempt owned by a session worker.
 #[derive(Debug)]
-pub(crate) struct SessionProviderContext {
+pub(crate) struct ProviderAttempt {
     /// The repository that owns the pinned revision.
     pub(super) repository: Arc<Repository>,
     /// The pinned revision for this attempt.
@@ -28,8 +28,8 @@ pub(crate) struct SessionProviderContext {
     diagnostics: Mutex<DiagnosticCollection>,
 }
 
-impl SessionProviderContext {
-    /// Create one provider attempt context.
+impl ProviderAttempt {
+    /// Create one provider attempt.
     pub(crate) fn new(repository: Arc<Repository>, revision: Revision, key: ArtifactKey) -> Self {
         Self {
             repository,
@@ -46,18 +46,8 @@ impl SessionProviderContext {
     }
 
     /// Return the artifact key being built.
-    pub(crate) fn artifact_key(&self) -> ArtifactKey {
+    pub(crate) fn key(&self) -> ArtifactKey {
         self.key
-    }
-
-    /// Return the exact dependencies read by this attempt.
-    pub(crate) fn dependencies(&self) -> Vec<ArtifactDependency> {
-        self.dependencies.lock().clone()
-    }
-
-    /// Return diagnostics produced by this attempt.
-    pub(crate) fn diagnostic_collection(&self) -> DiagnosticCollection {
-        self.diagnostics.lock().clone()
     }
 
     /// Complete this attempt with its ready payload.
@@ -66,7 +56,7 @@ impl SessionProviderContext {
         payload: ArtifactPayload,
     ) -> Result<ArtifactVersion, SessionError> {
         let dependencies = self.dependencies();
-        let diagnostics = self.diagnostic_collection();
+        let diagnostics = self.diagnostics();
         let version = ArtifactVersion::new(self.key, dependencies.iter().cloned());
 
         self.repository.complete_artifact(
@@ -86,7 +76,7 @@ impl SessionProviderContext {
         failure: ArtifactFailure,
     ) -> Result<ArtifactVersion, SessionError> {
         let dependencies = self.dependencies();
-        let diagnostics = self.diagnostic_collection();
+        let diagnostics = self.diagnostics();
         let version = ArtifactVersion::new(self.key, dependencies.iter().cloned());
 
         self.repository.fail_artifact(
@@ -98,6 +88,16 @@ impl SessionProviderContext {
         )?;
 
         Ok(version)
+    }
+
+    /// Return the exact dependencies read by this attempt.
+    fn dependencies(&self) -> Vec<ArtifactDependency> {
+        self.dependencies.lock().clone()
+    }
+
+    /// Return diagnostics produced by this attempt.
+    fn diagnostics(&self) -> DiagnosticCollection {
+        self.diagnostics.lock().clone()
     }
 
     /// Add one dependency if it has not already been added.
@@ -209,7 +209,7 @@ impl SessionProviderContext {
     }
 }
 
-impl DiagnosticContext for SessionProviderContext {
+impl DiagnosticContext for ProviderAttempt {
     /// Resolve one provider diagnostic anchor into a final source label.
     fn label(
         &self,
@@ -273,7 +273,7 @@ impl DiagnosticContext for SessionProviderContext {
     }
 }
 
-impl ProviderContext for SessionProviderContext {
+impl ProviderContext for ProviderAttempt {
     /// Return the pinned repository revision for this attempt.
     fn revision(&self) -> Revision {
         self.revision()

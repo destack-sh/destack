@@ -43,10 +43,10 @@ pub enum SessionError {
         /// The missing package id.
         package_id: PackageId,
     },
-    /// The worker limit is not usable.
-    InvalidWorkerLimit {
-        /// The invalid worker limit.
-        worker_limit: usize,
+    /// The worker count is not usable.
+    InvalidWorkerCount {
+        /// The invalid worker count.
+        worker_count: usize,
     },
     /// Artifact provision reached a failed terminal outcome.
     ArtifactFailed {
@@ -85,8 +85,8 @@ impl std::fmt::Display for SessionError {
             SessionError::PackageNotTracked { package_id } => {
                 write!(formatter, "package not tracked: {package_id:?}")
             }
-            SessionError::InvalidWorkerLimit { worker_limit } => {
-                write!(formatter, "invalid session worker limit: {worker_limit}")
+            SessionError::InvalidWorkerCount { worker_count } => {
+                write!(formatter, "invalid session worker count: {worker_count}")
             }
             SessionError::ArtifactFailed { key, failure } => {
                 write!(
