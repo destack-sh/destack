@@ -18,8 +18,6 @@ pub enum UnaryOperator {
     Plus,
     /// `-`
     Negate,
-    /// `-%`
-    WrappingNegate,
     /// `~`
     ElementwiseNot,
     /// `typeof`
@@ -39,16 +37,8 @@ pub enum BinaryOperator {
     // multiplication
     /// `*`
     Multiply,
-    /// `*%`
-    WrappingMultiply,
-    /// `*|`
-    SaturatingMultiply,
     /// `**`
     Exponent,
-    /// `**%`
-    WrappingExponent,
-    /// `**|`
-    SaturatingExponent,
     /// `/`
     Divide,
     /// `%`
@@ -57,22 +47,12 @@ pub enum BinaryOperator {
     // addition
     /// `+`
     Add,
-    /// `+%`
-    WrappingAdd,
-    /// `+|`
-    SaturatingAdd,
     /// `-`
     Subtract,
-    /// `-%`
-    WrappingSubtract,
-    /// `-|`
-    SaturatingSubtract,
 
     // shift
     /// `<<`
     ShiftLeft,
-    /// `<<|`
-    SaturatingShiftLeft,
     /// `>>`
     ShiftRight,
     /// `>>>`
@@ -124,16 +104,8 @@ pub enum AssignOperator {
     // multiplication assignment
     /// `*=`
     MultiplyAssign,
-    /// `*%=`
-    WrappingMultiplyAssign,
-    /// `*|=`
-    SaturatingMultiplyAssign,
     /// `**=`
     ExponentAssign,
-    /// `**%=`
-    WrappingExponentAssign,
-    /// `**|`
-    SaturatingExponentAssign,
     /// `/=`
     DivideAssign,
     /// `%=`
@@ -142,22 +114,12 @@ pub enum AssignOperator {
     // addition assignment
     /// `+=`
     AddAssign,
-    /// `+%=`
-    WrappingAddAssign,
-    /// `+|=`
-    SaturatingAddAssign,
     /// `-=`
     SubtractAssign,
-    /// `-%=`
-    WrappingSubtractAssign,
-    /// `-|=`
-    SaturatingSubtractAssign,
 
     // shift assignment
     /// `<<=`
     ShiftLeftAssign,
-    /// `<<|=`
-    SaturatingShiftLeftAssign,
     /// `>>=`
     ShiftRightAssign,
     /// `>>>=`
