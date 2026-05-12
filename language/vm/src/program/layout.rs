@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
-use destack_core::StringId;
-use destack_mir::{LayoutId, LayoutKind, LayoutTable, ReferenceMap};
+use destack_mir::{LayoutId, LayoutTable, ReferenceMap};
 use {destack_engine as engine, destack_heap as heap, destack_mir as mir};
 
 use crate::{Error, Result, Word};
@@ -253,7 +252,7 @@ impl CallableObjectLayout {
     /// Return the heap layout table entry for callable objects.
     pub(crate) fn table_layout(self) -> mir::Layout {
         mir::Layout {
-            kind: LayoutKind::Callable,
+            shape: mir::LayoutShape::Callable,
             size: self.byte_len as u32,
             alignment: self.alignment as u32,
             reference_map: ReferenceMap::Direct {
@@ -366,6 +365,14 @@ fn build_layout(
             })?;
 
             build_layout(tree, layouts, value)?
+        }
+        mir::Type::Any { .. } => {
+            let layout = tree
+                .type_layout(ty)
+                .ok_or_else(|| Error::MissingRepresentation {
+                    context: "any layout".to_string(),
+                })?;
+            build_mir_layout(tree, layouts, layout)?
         }
         mir::Type::Newtype { .. } => unreachable!("repr_type must peel newtypes"),
         mir::Type::Struct { fields, .. } => {
@@ -915,7 +922,7 @@ fn raw_fields_from_layout(layout: &mir::Layout) -> Vec<FieldLayout> {
 
 /// Return the raw MIR array stride.
 fn raw_array_stride(layout: &mir::Layout) -> Result<usize> {
-    let mir::LayoutKind::Array { element_stride, .. } = &layout.kind else {
+    let mir::LayoutShape::Array { element_stride, .. } = &layout.shape else {
         return Err(Error::InvariantViolation {
             context: "missing MIR array layout stride".to_string(),
         });
@@ -982,8 +989,10 @@ fn build_reference_map(
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Result<ReferenceMap> {
-    if tree.metadata.layout.union_layout(ty).is_some() {
-        return build_union_reference_map(tree, layouts, ty);
+    if let Some(layout) = tree.type_layout(ty)
+        && matches!(layout.shape, mir::LayoutShape::Union { .. })
+    {
+        return build_union_reference_map(tree, layouts, ty, layout);
     }
 
     let mut local_offsets = Vec::new();
@@ -1016,94 +1025,47 @@ fn build_union_reference_map(
     tree: &mir::Tree,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     ty: mir::LocalNodeId<mir::Type>,
+    layout: &mir::Layout,
 ) -> Result<ReferenceMap> {
-    let union = tree
-        .metadata
-        .layout
-        .union_layout(ty)
-        .ok_or_else(|| Error::InvariantViolation {
-            context: format!("missing union metadata for {ty:?}"),
+    let mir::LayoutShape::Union {
+        tag_offset,
+        payload_type,
+        payload_offset,
+        payload,
+    } = &layout.shape
+    else {
+        return Err(Error::InvariantViolation {
+            context: "reference map requested for non-union layout".to_string(),
+        });
+    };
+    let mir::Type::Union { tag, variants, .. } = tree.get(ty) else {
+        return Err(Error::InvariantViolation {
+            context: "reference map requested for non-union type".to_string(),
+        });
+    };
+    let tag_type = tag.ty().ok_or_else(|| Error::InvariantViolation {
+        context: "union tag type is not concrete".to_string(),
+    })?;
+
+    let tag_bytes = union_tag_bytes(tree, tag_type)?;
+    let mut reference_variants = Vec::with_capacity(variants.len());
+
+    for variant in variants.iter() {
+        let element_type = variant.ty.ty().ok_or_else(|| Error::InvariantViolation {
+            context: "union variant type is not concrete".to_string(),
         })?;
-    let tag_offset = union_field_offset(tree, layouts, ty, union.tag_field_name)?;
-    let payload_offset = union_field_offset(tree, layouts, ty, union.payload_field_name)?;
-
-    let tag_bytes = union_tag_bytes(tree, union.tag_type)?;
-    let mut variants = Vec::with_capacity(union.element_types.len());
-
-    for (tag, element_type) in union.element_types.iter().copied().enumerate() {
-        let map = union_variant_reference_map(layouts, union, element_type)?;
-        variants.push(mir::ReferenceVariant {
-            tag: tag as u64,
-            payload_offset,
+        let map = union_variant_reference_map(layouts, *payload, *payload_type, element_type)?;
+        reference_variants.push(mir::ReferenceVariant {
+            tag: variant.tag,
+            payload_offset: *payload_offset,
             map,
         });
     }
 
     Ok(ReferenceMap::Tagged {
-        tag_offset,
+        tag_offset: *tag_offset,
         tag_bytes,
-        variants: variants.into_boxed_slice(),
-    })
-}
-
-/// Return the byte offset for one lowered union field.
-fn union_field_offset(
-    tree: &mir::Tree,
-    layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
-    ty: mir::LocalNodeId<mir::Type>,
-    field_name: StringId,
-) -> Result<u32> {
-    if let Some(mir::Layout {
-        kind:
-            mir::LayoutKind::Union {
-                tag_offset,
-                payload_offset,
-                ..
-            },
-        ..
-    }) = tree.type_layout(ty)
-    {
-        let union =
-            tree.metadata
-                .layout
-                .union_layout(ty)
-                .ok_or_else(|| Error::InvariantViolation {
-                    context: format!("missing union metadata for {ty:?}"),
-                })?;
-        if field_name == union.tag_field_name {
-            return Ok(*tag_offset);
-        }
-        if field_name == union.payload_field_name {
-            return Ok(*payload_offset);
-        }
-    }
-
-    let mir::Type::Struct { fields, .. } = tree.get(ty) else {
-        return Err(Error::InvariantViolation {
-            context: format!("union metadata attached to non-struct type {ty:?}"),
-        });
-    };
-    let layout = layouts.get(&ty).ok_or_else(|| Error::InvariantViolation {
-        context: format!("missing union layout for {ty:?}"),
-    })?;
-
-    for (index, field_id) in fields.iter().enumerate() {
-        if tree.get(*field_id).name != Some(field_name) {
-            continue;
-        }
-        let field = layout
-            .field(index as u32)
-            .ok_or_else(|| Error::InvariantViolation {
-                context: format!("missing union field layout {ty:?}.{index}"),
-            })?;
-
-        return u32::try_from(field.offset).map_err(|_| Error::InvariantViolation {
-            context: format!("union field offset is too large: {}", field.offset),
-        });
-    }
-
-    Err(Error::InvariantViolation {
-        context: format!("missing union field {field_name:?}"),
+        variants: reference_variants.into_boxed_slice(),
     })
 }
 
@@ -1123,12 +1085,13 @@ fn union_tag_bytes(tree: &mir::Tree, tag_type: mir::LocalNodeId<mir::Type>) -> R
 /// Return the payload reference map for one union variant.
 fn union_variant_reference_map(
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
-    union: &mir::UnionLayout,
+    payload: mir::UnionPayload,
+    payload_type: mir::LocalNodeId<mir::Type>,
     element_type: mir::LocalNodeId<mir::Type>,
 ) -> Result<ReferenceMap> {
-    let payload_type = match union.payload_kind {
-        mir::UnionPayloadKind::Inline => element_type,
-        mir::UnionPayloadKind::Boxed => union.payload_type,
+    let payload_type = match payload {
+        mir::UnionPayload::Inline => element_type,
+        mir::UnionPayload::Boxed => payload_type,
     };
 
     layouts
@@ -1335,7 +1298,7 @@ mod tests {
                 pointer_bytes: data_layout.pointer_bytes,
             },
         )
-        .validate()
+        .finish()
         .expect("failed to parse MIR");
         tree.metadata.data_layout = data_layout;
         (tree, strings)
@@ -1348,42 +1311,11 @@ mod tests {
                 return type_alias
                     .ty
                     .ty()
-                    .expect("type alias should be concrete after validation");
+                    .expect("type alias should be concrete after parsing");
             }
         }
 
         panic!("missing type alias {name}");
-    }
-
-    /// Look up one named struct field.
-    fn lookup_field(
-        tree: &Tree,
-        strings: &StringPool,
-        ty: mir::LocalNodeId<Type>,
-        name: &str,
-    ) -> (StringId, mir::LocalNodeId<Type>) {
-        let Type::Struct { fields, .. } = tree.get(ty) else {
-            panic!("expected struct type {ty:?}");
-        };
-
-        for field_id in fields {
-            let field = tree.get(*field_id);
-            let Some(field_name) = field.name else {
-                continue;
-            };
-            if strings.get(field_name) != name {
-                continue;
-            }
-
-            let field_type = field
-                .ty
-                .ty()
-                .expect("struct field should be concrete after validation");
-
-            return (field_name, field_type);
-        }
-
-        panic!("missing field {name}");
     }
 
     /// Struct layout uses canonical field alignment when raw metadata is absent.
@@ -1513,31 +1445,43 @@ type Holder {
         let mir_text = r#"
 type Ref = ref<int32, managed, readonly>;
 type Plain = int32;
+type Tag = uint8;
 type Payload = usize[1];
-type Shape {
-    tag: uint8;
-    payload: Payload;
-}"#;
+type Shape = union<Tag; 0: Ref, 1: Plain>"#;
         let (mut tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
         let union_type = lookup_type_alias(&tree, &strings, "Shape");
-        let ref_type = lookup_type_alias(&tree, &strings, "Ref");
-        let plain_type = lookup_type_alias(&tree, &strings, "Plain");
-        let (tag_field_name, tag_type) = lookup_field(&tree, &strings, union_type, "tag");
-        let (payload_field_name, payload_type) =
-            lookup_field(&tree, &strings, union_type, "payload");
-
-        tree.metadata.layout.set_union_layout(
-            union_type,
-            mir::UnionLayout {
-                tag_type,
+        let tag_type = lookup_type_alias(&tree, &strings, "Tag");
+        let payload_type = lookup_type_alias(&tree, &strings, "Payload");
+        let layout_id = tree.metadata.layout.layout_table.insert(mir::Layout {
+            shape: mir::LayoutShape::Union {
+                tag_offset: 0,
                 payload_type,
-                payload_kind: mir::UnionPayloadKind::Inline,
-                element_types: vec![ref_type, plain_type],
-                tag_field_name,
-                payload_field_name,
-                discriminant: None,
+                payload_offset: 8,
+                payload: mir::UnionPayload::Inline,
             },
-        );
+            size: 16,
+            alignment: 8,
+            reference_map: ReferenceMap::empty(),
+            fields: vec![
+                mir::LayoutField {
+                    name: None,
+                    ty: tag_type,
+                    offset: 0,
+                    size: 1,
+                    alignment: 1,
+                    source_index: Some(0),
+                },
+                mir::LayoutField {
+                    name: None,
+                    ty: payload_type,
+                    offset: 8,
+                    size: 8,
+                    alignment: 8,
+                    source_index: Some(1),
+                },
+            ],
+        });
+        tree.metadata.layout.set_layout_id(union_type, layout_id);
 
         let layouts = build_layouts(&tree).expect("failed to build layouts");
         let layout = layouts.get(&union_type).expect("missing layout");

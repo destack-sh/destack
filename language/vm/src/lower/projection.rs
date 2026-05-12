@@ -29,7 +29,7 @@ pub(super) fn field_projection(
     ))
 }
 
-/// Build the vtable projection for one virtual receiver.
+/// Build the vtable projection for one class receiver.
 pub(super) fn vtable_projection(
     tree: &mir::Tree,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
@@ -37,22 +37,25 @@ pub(super) fn vtable_projection(
 ) -> Option<Projection> {
     let receiver_type = receiver_type?;
     let raw_layout = tree.type_layout(repr_type(tree, receiver_type))?;
-    let mir::LayoutKind::Object { vtable_offset } = &raw_layout.kind else {
+    let mir::LayoutShape::Object {
+        table_offset: vtable_offset,
+    } = &raw_layout.shape
+    else {
         return None;
     };
 
     field_projection_at_offset(tree, layouts, receiver_type, *vtable_offset as usize)
 }
 
-/// Build the itab projection for one interface receiver.
-pub(super) fn itab_projection(
+/// Build the dispatch-table projection for one Any receiver.
+pub(super) fn interface_table_projection(
     tree: &mir::Tree,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     receiver_type: Option<mir::LocalNodeId<mir::Type>>,
 ) -> Option<Projection> {
     let receiver_type = receiver_type?;
     let raw_layout = tree.type_layout(repr_type(tree, receiver_type))?;
-    let mir::LayoutKind::Interface { table_offset, .. } = &raw_layout.kind else {
+    let mir::LayoutShape::Any { table_offset, .. } = &raw_layout.shape else {
         return None;
     };
 

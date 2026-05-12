@@ -379,6 +379,7 @@ pub(crate) fn value_layout_from_type(
             None => ValueLayout::Unknown,
         },
         mir::Type::Slice { .. } => ValueLayout::FrameBytes { ty },
+        mir::Type::Any { .. } => ValueLayout::FrameBytes { ty },
         mir::Type::Atomic { value } => match value.ty() {
             Some(value) => value_layout_from_type(tree, value),
             None => ValueLayout::Unknown,

@@ -63,7 +63,7 @@ impl TestIsolate {
     /// Build one test isolate from MIR text with one explicit isolate id.
     pub(crate) fn with_id(mir_text: &str, isolate_id: IsolateId) -> Self {
         let (tree, strings) = Parser::parse(FileId::new(0), mir_text, ParseOptions::default())
-            .validate()
+            .finish()
             .expect("failed to parse MIR");
 
         let mut isolate =
@@ -105,7 +105,7 @@ impl TestIsolate {
             .unwrap_or_else(|| panic!("missing argument {argument_index} for '{function}'"))
             .ty
             .ty()
-            .expect("function parameter type should be concrete after validation")
+            .expect("function parameter type should be concrete after parsing")
     }
 
     /// Materialize one value for the given MIR type.
@@ -263,7 +263,7 @@ pub(crate) fn create_isolate_with_data_layout(
             pointer_bytes: data_layout.pointer_bytes,
         },
     )
-    .validate()
+    .finish()
     .expect("failed to parse MIR");
     assert_eq!(tree.metadata.data_layout, data_layout);
 
@@ -481,14 +481,14 @@ b0:
     assert_eq!(output, Value::int32(7));
 }
 
-/// Interface dispatch forwards the concrete object receiver to the selected method.
-#[ignore = "raw MIR fixtures cannot declare interface itab metadata"]
+/// The interface dispatch forwards the concrete object receiver to the selected method.
+#[ignore = "raw MIR fixtures cannot declare interface table metadata"]
 #[test]
 fn test_interface_call_forwards_concrete_receiver() {
     let mir_text = r#"
 type Greeter {
-    object: ref<void, managed, readonly>;
-    itab: usize;
+    value: ref<void, managed, readonly>;
+    table: ref<void, raw, readonly, space(static)>;
 }
 type GreeterImpl {
     vtable: ref<void, raw, readonly, space(local)>;
@@ -515,7 +515,7 @@ b0:
     v1: ref<GreeterImpl, managed, readonly> = call GreeterImpl.constructor(v0): (int32) -> ref<GreeterImpl, managed, readonly>
     v2: ref<void, managed, readonly> = cast.bit v1 -> ref<void, managed, readonly>
     v3: uint64 = 0uint64
-    v4: usize = cast.bit v3 -> usize
+    v4: ref<void, raw, readonly, space(static)> = cast.bit v3 -> ref<void, raw, readonly, space(static)>
     v5: Greeter = struct Greeter (v2, v4)
     v6: int32 = call callInterface(v5): (Greeter) -> int32
     return v6
