@@ -49,12 +49,12 @@ pub enum TokenType {
     InvokeIndirect,
     /// `tailCall.indirect`
     TailCallIndirect,
-    /// `call.virtual`
-    CallVirtual,
-    /// `invoke.virtual`
-    InvokeVirtual,
-    /// `tailCall.virtual`
-    TailCallVirtual,
+    /// `call.class`
+    CallClass,
+    /// `invoke.class`
+    InvokeClass,
+    /// `tailCall.class`
+    TailCallClass,
     /// `call.interface`
     CallInterface,
     /// `invoke.interface`

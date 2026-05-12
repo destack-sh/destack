@@ -13,15 +13,15 @@ pub struct DispatchMetadata {
     pub vtables: Vec<Vtable>,
     /// Class dispatch table vector index keyed by type id.
     #[serde(skip, default)]
-    pub(crate) vtable_index_by_type: HashMap<LocalNodeId<Type>, usize>,
+    pub(crate) vtable_indices: HashMap<LocalNodeId<Type>, usize>,
     /// The interface dispatch tables.
     pub interface_tables: Vec<InterfaceTable>,
     /// The interface table vector index keyed by concrete type id, then interface type id.
     #[serde(skip, default)]
-    pub(crate) interface_table_index_by_type:
+    pub(crate) interface_table_indices:
         HashMap<LocalNodeId<Type>, HashMap<LocalNodeId<Type>, usize>>,
-    /// Canonical interface dispatch shapes keyed by interface type id.
-    pub interface_dispatch_shapes: HashMap<LocalNodeId<Type>, InterfaceDispatchShape>,
+    /// Interface slot layouts keyed by interface type id.
+    pub interface_shapes: HashMap<LocalNodeId<Type>, InterfaceShape>,
 }
 
 impl DispatchMetadata {
@@ -33,7 +33,7 @@ impl DispatchMetadata {
     /// Copy dispatch metadata from one type id to another.
     pub fn copy_type_metadata(&mut self, from: LocalNodeId<Type>, to: LocalNodeId<Type>) {
         if let Some(index) = self.vtable_index(from) {
-            self.vtable_index_by_type.insert(to, index);
+            self.vtable_indices.insert(to, index);
         }
 
         let interface_tables = self
@@ -46,15 +46,14 @@ impl DispatchMetadata {
             .collect::<HashMap<_, _>>();
 
         if !interface_tables.is_empty() {
-            self.interface_table_index_by_type
-                .insert(to, interface_tables);
+            self.interface_table_indices.insert(to, interface_tables);
         }
     }
 
     /// Insert a vtable.
     pub fn insert_vtable(&mut self, table: Vtable) {
         let index = self.vtables.len();
-        self.vtable_index_by_type.insert(table.ty, index);
+        self.vtable_indices.insert(table.ty, index);
         self.vtables.push(table);
     }
 
@@ -93,30 +92,27 @@ impl DispatchMetadata {
         self.interface_tables.iter()
     }
 
-    /// Return interface dispatch shape metadata for an interface type id.
-    pub fn interface_dispatch_shape(
-        &self,
-        interface: LocalNodeId<Type>,
-    ) -> Option<&InterfaceDispatchShape> {
-        self.interface_dispatch_shapes.get(&interface)
+    /// Return interface shape metadata for an interface type id.
+    pub fn interface_shape(&self, interface: LocalNodeId<Type>) -> Option<&InterfaceShape> {
+        self.interface_shapes.get(&interface)
     }
 
-    /// Insert interface dispatch shape metadata for an interface type id.
-    pub fn insert_interface_dispatch_shape(
+    /// Insert interface shape metadata for an interface type id.
+    pub fn insert_interface_shape(
         &mut self,
         interface: LocalNodeId<Type>,
-        shape: InterfaceDispatchShape,
-    ) -> Option<InterfaceDispatchShape> {
-        self.interface_dispatch_shapes.insert(interface, shape)
+        shape: InterfaceShape,
+    ) -> Option<InterfaceShape> {
+        self.interface_shapes.insert(interface, shape)
     }
 
     /// Rebuild dispatch lookup indexes from canonical tables.
-    pub fn rebuild_lookup_index(&mut self) {
-        self.vtable_index_by_type.clear();
-        self.interface_table_index_by_type.clear();
+    pub fn rebuild_indices(&mut self) {
+        self.vtable_indices.clear();
+        self.interface_table_indices.clear();
 
         for (index, vtable) in self.vtables.iter().enumerate() {
-            self.vtable_index_by_type.insert(vtable.ty, index);
+            self.vtable_indices.insert(vtable.ty, index);
         }
 
         let table_entries = self
@@ -138,7 +134,7 @@ impl DispatchMetadata {
         interface: LocalNodeId<Type>,
         index: usize,
     ) {
-        self.interface_table_index_by_type
+        self.interface_table_indices
             .entry(concrete)
             .or_default()
             .insert(interface, index);
@@ -146,7 +142,7 @@ impl DispatchMetadata {
 
     /// Return the vtable vector index for one type.
     fn vtable_index(&self, ty: LocalNodeId<Type>) -> Option<usize> {
-        self.vtable_index_by_type
+        self.vtable_indices
             .get(&ty)
             .copied()
             .or_else(|| self.vtables.iter().position(|vtable| vtable.ty == ty))
@@ -158,7 +154,7 @@ impl DispatchMetadata {
         concrete: LocalNodeId<Type>,
         interface: LocalNodeId<Type>,
     ) -> Option<usize> {
-        self.interface_table_index_by_type
+        self.interface_table_indices
             .get(&concrete)
             .and_then(|interface_tables| interface_tables.get(&interface))
             .copied()
@@ -190,17 +186,32 @@ pub struct InterfaceTable {
     pub interface: LocalNodeId<Type>,
     /// The static global containing this table.
     pub global: LocalNodeId<Global>,
-    /// Entries in declaration order.
+    /// Slots in interface shape order.
     pub entries: Vec<InterfaceTableEntry>,
 }
 
-/// Canonical interface dispatch shape.
+impl InterfaceTable {
+    /// The first user-visible interface slot.
+    pub const FIRST_SLOT: DispatchSlot = DispatchSlot(1);
+
+    /// Return the table slot for one interface slot index.
+    pub const fn slot_for_index(index: usize) -> DispatchSlot {
+        DispatchSlot(Self::FIRST_SLOT.0 + index as u32)
+    }
+
+    /// Return the storage slot count for an interface table.
+    pub const fn storage_len(interface_slots: usize) -> usize {
+        Self::FIRST_SLOT.0 as usize + interface_slots
+    }
+}
+
+/// Slot layout for one interface.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct InterfaceDispatchShape {
+pub struct InterfaceShape {
     /// The interface type owning this shape.
     pub interface: LocalNodeId<Type>,
-    /// Entries in declaration order.
-    pub entries: Vec<InterfaceDispatchEntry>,
+    /// User-visible slots in declaration order.
+    pub slots: Vec<InterfaceSlot>,
 }
 
 /// Entry in a class vtable.
@@ -223,42 +234,34 @@ pub enum VtableEntry {
 /// Entry in an interface dispatch table.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum InterfaceTableEntry {
-    /// Slot containing the runtime type descriptor.
-    TypeDescriptor,
     /// Slot containing a field offset.
     FieldOffset {
-        /// The canonical dispatch field id.
-        field: LocalNodeId<Field>,
-        /// The field name.
-        field_name: StringId,
         /// The field offset in bytes.
         offset: u32,
     },
-    /// Slot mapping interface method declaration to target method.
+    /// Slot containing a concrete method implementation.
     Method {
-        /// The declared interface method.
-        declared_method: LocalNodeId<Function>,
         /// The concrete method implementation.
-        target_method: LocalNodeId<Function>,
+        function: LocalNodeId<Function>,
     },
 }
 
-/// Slot descriptor for interface dispatch layout.
+/// Slot descriptor for an interface layout.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum InterfaceDispatchEntry {
-    /// Slot containing the runtime type descriptor.
-    TypeDescriptor,
-    /// Slot containing a field offset.
-    FieldOffset {
+pub enum InterfaceSlot {
+    /// Field slot.
+    Field {
         /// The canonical dispatch field id.
         field: LocalNodeId<Field>,
         /// The field name.
         field_name: StringId,
     },
-    /// Slot containing an interface method declaration.
+    /// Method slot.
     Method {
-        /// The declared interface method.
-        declared_method: LocalNodeId<Function>,
+        /// The method name.
+        name: StringId,
+        /// The method signature.
+        signature: LocalNodeId<Type>,
     },
 }
 

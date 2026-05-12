@@ -237,7 +237,7 @@ impl<'a> FunctionBuilder<'a> {
                     Self::replace_value_in_slot(then_value, from, to);
                     Self::replace_value_in_slot(else_value, from, to);
                 }
-                Instruction::CallVirtual { receiver, .. }
+                Instruction::CallClass { receiver, .. }
                 | Instruction::CallInterface { receiver, .. } => {
                     Self::replace_value_in_slot(receiver, from, to);
                 }
@@ -398,7 +398,7 @@ impl<'a> FunctionBuilder<'a> {
                 Self::replace_values_in_slice(&mut normal_target.arguments, from, to);
                 Self::replace_values_in_slice(&mut unwind_target.arguments, from, to);
             }
-            Terminator::InvokeVirtual {
+            Terminator::InvokeClass {
                 receiver,
                 call,
                 normal_target,
@@ -433,7 +433,7 @@ impl<'a> FunctionBuilder<'a> {
                 Self::replace_value_in_slot(callee, from, to);
                 Self::replace_values_in_slice(&mut call.arguments, from, to);
             }
-            Terminator::TailCallVirtual { receiver, call, .. }
+            Terminator::TailCallClass { receiver, call, .. }
             | Terminator::TailCallInterface { receiver, call, .. } => {
                 Self::replace_value_in_slot(receiver, from, to);
                 Self::replace_values_in_slice(&mut call.arguments, from, to);

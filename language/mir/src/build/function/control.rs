@@ -195,8 +195,8 @@ impl<'a> FunctionBuilder<'a> {
         };
     }
 
-    /// Call a virtual method with explicit success and exception continuations.
-    pub fn call_virtual_branch(
+    /// Call a class method with explicit success and exception continuations.
+    pub fn call_class_branch(
         &mut self,
         receiver: Value,
         declaring_type: LocalNodeId<Type>,
@@ -216,7 +216,7 @@ impl<'a> FunctionBuilder<'a> {
         let terminator_id = self.tree.get(block_id).terminator;
         let terminator = self.tree.get_mut(terminator_id);
 
-        *terminator = Terminator::InvokeVirtual {
+        *terminator = Terminator::InvokeClass {
             receiver: receiver.into(),
             declaring_type: declaring_type.into(),
             slot,
@@ -245,7 +245,6 @@ impl<'a> FunctionBuilder<'a> {
         receiver: Value,
         declaring_type: LocalNodeId<Type>,
         slot: DispatchSlot,
-        declared_target: Option<LocalNodeId<Function>>,
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
         normal_block: LocalNodeId<Block>,
@@ -264,7 +263,6 @@ impl<'a> FunctionBuilder<'a> {
             receiver: receiver.into(),
             declaring_type: declaring_type.into(),
             slot,
-            declared_target: declared_target.map(Into::into),
             call: Call::new(
                 argument_values
                     .into_iter()
@@ -308,10 +306,10 @@ impl<'a> FunctionBuilder<'a> {
         };
     }
 
-    /// Tail call through a virtual dispatch slot.
+    /// Tail call through a class dispatch slot.
     ///
     /// The callee's return value becomes this function's return value.
-    pub fn tail_call_virtual(
+    pub fn tail_call_class(
         &mut self,
         receiver: Value,
         declaring_type: LocalNodeId<Type>,
@@ -324,7 +322,7 @@ impl<'a> FunctionBuilder<'a> {
         let terminator_id = self.tree.get(block_id).terminator;
         let terminator = self.tree.get_mut(terminator_id);
 
-        *terminator = Terminator::TailCallVirtual {
+        *terminator = Terminator::TailCallClass {
             receiver: receiver.into(),
             declaring_type: declaring_type.into(),
             slot,
@@ -347,7 +345,6 @@ impl<'a> FunctionBuilder<'a> {
         receiver: Value,
         declaring_type: LocalNodeId<Type>,
         slot: DispatchSlot,
-        declared_target: Option<LocalNodeId<Function>>,
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
     ) {
@@ -359,7 +356,6 @@ impl<'a> FunctionBuilder<'a> {
             receiver: receiver.into(),
             declaring_type: declaring_type.into(),
             slot,
-            declared_target: declared_target.map(Into::into),
             call: Call::new(
                 argument_values
                     .into_iter()

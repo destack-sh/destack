@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 use crate::parse::Token;
 use crate::{
     Access, AddressSpace, ArgumentSlice, Attribute, Block, CommentSpan, Field, FieldSpan, Function,
-    FunctionHeaderSpans, Global, Instruction, InterfaceDispatchShape, InterfaceTable, Layout,
-    LayoutId, Lifetime, Local, LocalNodeId, Metadata, Node, NodeType, PlaceProjection, PlaceTable,
+    FunctionHeaderSpans, Global, Instruction, InterfaceShape, InterfaceTable, Layout, LayoutId,
+    Lifetime, Local, LocalNodeId, Metadata, Node, NodeType, PlaceProjection, PlaceTable,
     ProvenanceId, ProvenanceReason, ReferenceKind, Terminator, Type, TypeAlias,
     TypeDeclarationSpans, TypeLineage, TypeMetadata, TypeReference, TypedValueSpan, ValueReference,
     Vtable,
@@ -690,12 +690,9 @@ impl Tree {
         self.metadata.types.display_name(ty)
     }
 
-    /// Return the canonical interface dispatch shape when present.
-    pub fn interface_dispatch_shape(
-        &self,
-        interface: LocalNodeId<Type>,
-    ) -> Option<&InterfaceDispatchShape> {
-        self.metadata.dispatch.interface_dispatch_shape(interface)
+    /// Return the interface shape when present.
+    pub fn interface_shape(&self, interface: LocalNodeId<Type>) -> Option<&InterfaceShape> {
+        self.metadata.dispatch.interface_shape(interface)
     }
 
     /// Return the usize type id.

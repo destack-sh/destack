@@ -151,9 +151,9 @@ pub enum LayoutShape {
         /// The payload storage strategy.
         payload: UnionPayload,
     },
-    /// Object layout with a virtual dispatch table header.
+    /// Object layout with a class dispatch table header.
     Object {
-        /// The byte offset of the virtual dispatch table pointer.
+        /// The byte offset of the class dispatch table pointer.
         vtable_offset: u32,
     },
     /// Erased Any value layout with value and table offsets.

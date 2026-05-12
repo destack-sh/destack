@@ -50,8 +50,8 @@ impl<'a> FunctionBuilder<'a> {
         });
     }
 
-    /// Call a virtual method through a vtable slot.
-    pub fn call_virtual(
+    /// Call a class method through a class dispatch slot.
+    pub fn call_class(
         &mut self,
         receiver: Value,
         declaring_type: LocalNodeId<Type>,
@@ -63,7 +63,7 @@ impl<'a> FunctionBuilder<'a> {
         let destination = self.allocate_value();
         let result_type = self.signature_result_type(signature);
         let arguments = self.add_call_arguments(argument_values);
-        self.insert_instruction(Instruction::CallVirtual {
+        self.insert_instruction(Instruction::CallClass {
             destination: Some(destination.into()),
             receiver: receiver.into(),
             declaring_type: declaring_type.into(),
@@ -75,8 +75,8 @@ impl<'a> FunctionBuilder<'a> {
         Some(destination)
     }
 
-    /// Call a virtual method with no return value.
-    pub fn call_virtual_void(
+    /// Call a class method with no return value.
+    pub fn call_class_void(
         &mut self,
         receiver: Value,
         declaring_type: LocalNodeId<Type>,
@@ -86,7 +86,7 @@ impl<'a> FunctionBuilder<'a> {
         argument_values: Vec<Value>,
     ) {
         let arguments = self.add_call_arguments(argument_values);
-        self.insert_instruction(Instruction::CallVirtual {
+        self.insert_instruction(Instruction::CallClass {
             destination: None,
             receiver: receiver.into(),
             declaring_type: declaring_type.into(),
@@ -102,7 +102,6 @@ impl<'a> FunctionBuilder<'a> {
         receiver: Value,
         declaring_type: LocalNodeId<Type>,
         slot: DispatchSlot,
-        declared_target: Option<LocalNodeId<Function>>,
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
     ) -> Option<Value> {
@@ -114,7 +113,6 @@ impl<'a> FunctionBuilder<'a> {
             receiver: receiver.into(),
             declaring_type: declaring_type.into(),
             slot,
-            declared_target: declared_target.map(FunctionReference::Function),
             call: Call::new(arguments, TypeReference::Type(signature)),
         });
         self.define_value(destination, result_type);
@@ -127,7 +125,6 @@ impl<'a> FunctionBuilder<'a> {
         receiver: Value,
         declaring_type: LocalNodeId<Type>,
         slot: DispatchSlot,
-        declared_target: Option<LocalNodeId<Function>>,
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
     ) {
@@ -137,7 +134,6 @@ impl<'a> FunctionBuilder<'a> {
             receiver: receiver.into(),
             declaring_type: declaring_type.into(),
             slot,
-            declared_target: declared_target.map(FunctionReference::Function),
             call: Call::new(arguments, TypeReference::Type(signature)),
         });
     }

@@ -1257,7 +1257,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 format_call_signature_suffix(call.signature, f)
             }
 
-            Instruction::CallVirtual {
+            Instruction::CallClass {
                 destination,
                 receiver,
                 call,
@@ -1272,7 +1272,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 write!(
                     f,
                     [
-                        token("call.virtual"),
+                        token("call.class"),
                         space(),
                         receiver,
                         token(","),

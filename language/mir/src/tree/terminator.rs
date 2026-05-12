@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
 
 use crate::{
-    BinaryOperator, BlockReference, Call, DispatchSlot, FunctionReference, IntegerReference, Node,
-    NodeType, TypeReference, ValueReference,
+    BinaryOperator, BlockReference, Call, CallDispatchKind, DispatchSlot, FunctionReference,
+    IntegerReference, Node, NodeType, TypeReference, ValueReference,
 };
 
 /// One control-flow edge target.
@@ -211,11 +211,11 @@ pub enum Terminator {
         /// The exception continuation block.
         unwind_target: BlockTarget,
     },
-    /// Virtual call with explicit success and exception continuations.
-    InvokeVirtual {
+    /// Class call with explicit success and exception continuations.
+    InvokeClass {
         /// The receiver value for dispatch.
         receiver: ValueReference,
-        /// The declaring type for this virtual call.
+        /// The declaring type for this class call.
         declaring_type: TypeReference,
         /// The dispatch slot for the method.
         slot: DispatchSlot,
@@ -236,8 +236,6 @@ pub enum Terminator {
         declaring_type: TypeReference,
         /// The dispatch slot for the method.
         slot: DispatchSlot,
-        /// The declared method target when known.
-        declared_target: Option<FunctionReference>,
         /// The shared call payload.
         call: Call<Vec<ValueReference>>,
         /// The success continuation block.
@@ -273,11 +271,11 @@ pub enum Terminator {
         /// The shared call payload.
         call: Call<Vec<ValueReference>>,
     },
-    /// Tail call through a virtual dispatch slot.
-    TailCallVirtual {
+    /// Tail call through a class dispatch slot.
+    TailCallClass {
         /// The receiver value for dispatch.
         receiver: ValueReference,
-        /// The declaring type for this virtual call.
+        /// The declaring type for this class call.
         declaring_type: TypeReference,
         /// The dispatch slot for the method.
         slot: DispatchSlot,
@@ -294,8 +292,6 @@ pub enum Terminator {
         declaring_type: TypeReference,
         /// The dispatch slot for the method.
         slot: DispatchSlot,
-        /// The declared method target when known.
-        declared_target: Option<FunctionReference>,
         /// The shared call payload.
         call: Call<Vec<ValueReference>>,
     },
@@ -307,21 +303,21 @@ impl Node for Terminator {
 
 impl Terminator {
     /// Return the dispatch kind when this terminator performs a call.
-    pub fn call_dispatch_kind(&self) -> Option<crate::CallDispatchKind> {
+    pub fn call_dispatch_kind(&self) -> Option<CallDispatchKind> {
         match self {
             Terminator::Error => None,
             Terminator::Invoke { .. } | Terminator::TailCall { .. } => {
-                Some(crate::CallDispatchKind::Direct)
+                Some(CallDispatchKind::Direct)
             }
             Terminator::InvokeIndirect { .. } | Terminator::TailCallIndirect { .. } => {
-                Some(crate::CallDispatchKind::Indirect)
+                Some(CallDispatchKind::Indirect)
             }
-            Terminator::InvokeVirtual { slot, .. } | Terminator::TailCallVirtual { slot, .. } => {
-                Some(crate::CallDispatchKind::Virtual { slot: *slot })
+            Terminator::InvokeClass { slot, .. } | Terminator::TailCallClass { slot, .. } => {
+                Some(CallDispatchKind::Class { slot: *slot })
             }
             Terminator::InvokeInterface { slot, .. }
             | Terminator::TailCallInterface { slot, .. } => {
-                Some(crate::CallDispatchKind::Interface { slot: *slot })
+                Some(CallDispatchKind::Interface { slot: *slot })
             }
             _ => None,
         }
@@ -333,11 +329,11 @@ impl Terminator {
             Terminator::Error => None,
             Terminator::Invoke { call, .. }
             | Terminator::InvokeIndirect { call, .. }
-            | Terminator::InvokeVirtual { call, .. }
+            | Terminator::InvokeClass { call, .. }
             | Terminator::InvokeInterface { call, .. }
             | Terminator::TailCall { call, .. }
             | Terminator::TailCallIndirect { call, .. }
-            | Terminator::TailCallVirtual { call, .. }
+            | Terminator::TailCallClass { call, .. }
             | Terminator::TailCallInterface { call, .. } => Some(call.signature),
             _ => None,
         }
@@ -350,16 +346,10 @@ impl Terminator {
             Terminator::Invoke { function, .. } | Terminator::TailCall { function, .. } => {
                 Some(*function)
             }
-            Terminator::InvokeVirtual {
+            Terminator::InvokeClass {
                 declared_target, ..
             }
-            | Terminator::InvokeInterface {
-                declared_target, ..
-            }
-            | Terminator::TailCallVirtual {
-                declared_target, ..
-            }
-            | Terminator::TailCallInterface {
+            | Terminator::TailCallClass {
                 declared_target, ..
             } => *declared_target,
             _ => None,
@@ -396,7 +386,7 @@ impl Terminator {
                 unwind_target,
                 ..
             }
-            | Terminator::InvokeVirtual {
+            | Terminator::InvokeClass {
                 normal_target,
                 unwind_target,
                 ..
@@ -411,7 +401,7 @@ impl Terminator {
             Terminator::Unreachable => smallvec![],
             Terminator::TailCall { .. } => smallvec![],
             Terminator::TailCallIndirect { .. } => smallvec![],
-            Terminator::TailCallVirtual { .. } => smallvec![],
+            Terminator::TailCallClass { .. } => smallvec![],
             Terminator::TailCallInterface { .. } => smallvec![],
         }
     }
@@ -492,7 +482,7 @@ impl Terminator {
                 uses.extend(unwind_target.arguments.iter().copied());
                 uses
             }
-            Terminator::InvokeVirtual {
+            Terminator::InvokeClass {
                 receiver,
                 call,
                 normal_target,
@@ -521,7 +511,7 @@ impl Terminator {
                 uses.extend(call.arguments.iter().copied());
                 uses
             }
-            Terminator::TailCallVirtual { receiver, call, .. }
+            Terminator::TailCallClass { receiver, call, .. }
             | Terminator::TailCallInterface { receiver, call, .. } => {
                 let mut uses = smallvec![*receiver];
                 uses.extend(call.arguments.iter().copied());
