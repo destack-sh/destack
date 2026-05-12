@@ -199,7 +199,7 @@ export struct FileLockOptions {
 /// Open one filesystem entry as a file handle.
 @binding("destack.fs.file.open", {
     effect: "external",
-    requires: ["fs.open"],
+    requires: ["host.fs.open"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -211,7 +211,7 @@ export declare function openFile(
 /// Read bytes from an open file into an output buffer.
 @binding("destack.fs.file.read", {
     effect: "external",
-    requires: ["fs.read"],
+    requires: ["host.fs.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -224,7 +224,7 @@ export declare function readFile(
 /// Write bytes to an open file from an input buffer.
 @binding("destack.fs.file.write", {
     effect: "external",
-    requires: ["fs.write"],
+    requires: ["host.fs.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -237,7 +237,7 @@ export declare function writeFile(
 /// Read bytes from an open file into multiple output buffers.
 @binding("destack.fs.file.readMany", {
     effect: "external",
-    requires: ["fs.read"],
+    requires: ["host.fs.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -250,7 +250,7 @@ export declare function readFileMany(
 /// Write bytes to an open file from multiple input buffers.
 @binding("destack.fs.file.writeMany", {
     effect: "external",
-    requires: ["fs.write"],
+    requires: ["host.fs.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -263,7 +263,7 @@ export declare function writeFileMany(
 /// Reposition an open file and return the new offset.
 @binding("destack.fs.file.seek", {
     effect: "external",
-    requires: ["fs.open"],
+    requires: ["host.fs.open"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -276,7 +276,7 @@ export declare function seekFile(
 /// Truncate an open file to the requested size.
 @binding("destack.fs.file.truncate", {
     effect: "external",
-    requires: ["fs.write"],
+    requires: ["host.fs.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -285,7 +285,7 @@ export declare function truncateFile(file: FileHandle, size: FileSize): Result<v
 /// Synchronize file contents and metadata with storage.
 @binding("destack.fs.file.sync", {
     effect: "external",
-    requires: ["fs.sync"],
+    requires: ["host.fs.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -294,7 +294,7 @@ export declare function syncFile(file: FileHandle): Result<void, PlatformError>;
 /// Synchronize file contents with storage.
 @binding("destack.fs.file.syncData", {
     effect: "external",
-    requires: ["fs.sync"],
+    requires: ["host.fs.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -303,7 +303,7 @@ export declare function syncFileData(file: FileHandle): Result<void, PlatformErr
 /// Synchronize one byte range with storage.
 @binding("destack.fs.file.syncRange", {
     effect: "external",
-    requires: ["fs.sync"],
+    requires: ["host.fs.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -316,7 +316,7 @@ export declare function syncFileRange(
 /// Copy bytes between two open files.
 @binding("destack.fs.file.copyRange", {
     effect: "external",
-    requires: ["fs.read", "fs.write"],
+    requires: ["host.fs.read", "host.fs.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -330,7 +330,7 @@ export declare function copyFileRange(
 /// Clone bytes between two open files.
 @binding("destack.fs.file.cloneRange", {
     effect: "external",
-    requires: ["fs.read", "fs.write"],
+    requires: ["host.fs.read", "host.fs.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -344,7 +344,7 @@ export declare function cloneFileRange(
 /// Allocate, release, or reshape storage for one byte range.
 @binding("destack.fs.file.allocate", {
     effect: "external",
-    requires: ["fs.write"],
+    requires: ["host.fs.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -357,7 +357,7 @@ export declare function allocateFile(
 /// Provide access pattern advice for one byte range.
 @binding("destack.fs.file.advise", {
     effect: "external",
-    requires: ["fs.metadata"],
+    requires: ["host.fs.metadata"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -370,7 +370,7 @@ export declare function adviseFile(
 /// Apply or release one advisory file lock.
 @binding("destack.fs.file.lock", {
     effect: "external",
-    requires: ["fs.lock"],
+    requires: ["host.fs.lock"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -382,7 +382,7 @@ export declare function lockFile(
 /// Duplicate an open file handle into a new owned resource.
 @binding("destack.fs.file.duplicate", {
     effect: "external",
-    requires: ["fs.open"],
+    requires: ["host.fs.open"],
     families: ["windows", "unix"],
     simulation: true,
 })

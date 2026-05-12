@@ -6,7 +6,7 @@ import { SymbolHandle } from "destack:platform/resource";
 @binding("destack.ffi.call.invoke", {
     effect: "external",
     replay: "forbidden",
-    requires: ["ffi.call"],
+    requires: ["host.ffi.call"],
     families: ["windows", "unix"],
     simulation: true,
 })

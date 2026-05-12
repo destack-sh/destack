@@ -17,7 +17,7 @@ export struct CryptoMacParameters {
 @binding("destack.crypto.mac.compute", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.mac"],
+    requires: ["host.crypto.mac"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -31,7 +31,7 @@ export declare function computeMac(
 @binding("destack.crypto.mac.verify", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.mac"],
+    requires: ["host.crypto.mac"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -46,7 +46,7 @@ export declare function verifyMac(
 @binding("destack.crypto.mac.open", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.mac"],
+    requires: ["host.crypto.mac"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -59,7 +59,7 @@ export declare function openMac(
 @binding("destack.crypto.mac.update", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.mac"],
+    requires: ["host.crypto.mac"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -72,7 +72,7 @@ export declare function updateMac(
 @binding("destack.crypto.mac.finish", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.mac"],
+    requires: ["host.crypto.mac"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -82,7 +82,7 @@ export declare function finishMac(mac: CryptoMacHandle): Result<^Array<uint8>, P
 @binding("destack.crypto.mac.close", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.mac"],
+    requires: ["host.crypto.mac"],
     families: ["windows", "unix"],
     simulation: true,
 })

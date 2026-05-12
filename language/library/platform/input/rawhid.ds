@@ -17,7 +17,7 @@ export struct InputRawHidReport {
 /// Read one raw-hid report.
 @binding("destack.input.rawhid.read", {
     effect: "external",
-    requires: ["input.read"],
+    requires: ["host.input.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -30,7 +30,7 @@ export declare function rawHidRead(
 /// Poll one raw-hid report without blocking.
 @binding("destack.input.rawhid.tryRead", {
     effect: "external",
-    requires: ["input.read"],
+    requires: ["host.input.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -42,7 +42,7 @@ export declare function rawHidTryRead(
 /// Write one raw-hid output report.
 @binding("destack.input.rawhid.write", {
     effect: "external",
-    requires: ["input.write"],
+    requires: ["host.input.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -55,7 +55,7 @@ export declare function rawHidWrite(
 /// Read one raw-hid feature report.
 @binding("destack.input.rawhid.getFeature", {
     effect: "external",
-    requires: ["input.control"],
+    requires: ["host.input.control"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -68,7 +68,7 @@ export declare function rawHidGetFeature(
 /// Write one raw-hid feature report.
 @binding("destack.input.rawhid.setFeature", {
     effect: "external",
-    requires: ["input.control"],
+    requires: ["host.input.control"],
     families: ["windows", "unix"],
     simulation: true,
 })

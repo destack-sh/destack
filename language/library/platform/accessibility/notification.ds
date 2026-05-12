@@ -55,7 +55,7 @@ export struct AccessibilityNotification {
 /// Post one accessibility notification for one window.
 @binding("destack.accessibility.notification.post", {
     effect: "external",
-    requires: ["accessibility.notify"],
+    requires: ["host.accessibility.notify"],
     families: ["windows", "unix"],
     simulation: true,
 })

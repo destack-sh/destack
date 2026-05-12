@@ -156,7 +156,7 @@ export struct CryptoCertificateListPage {
 /// Read crypto provider capabilities.
 @binding("destack.crypto.capability.read", {
     effect: "external",
-    requires: ["crypto.capability.read"],
+    requires: ["host.crypto.capability.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -169,7 +169,7 @@ export declare function readCryptoProviderCapability(): Result<
 @binding("destack.crypto.store.open", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.store.read"],
+    requires: ["host.crypto.store.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -181,7 +181,7 @@ export declare function openCryptoStore(
 @binding("destack.crypto.store.close", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.store.read"],
+    requires: ["host.crypto.store.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -191,7 +191,7 @@ export declare function closeCryptoStore(store: CryptoStoreHandle): Result<void,
 @binding("destack.crypto.store.keys.list", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.store.read"],
+    requires: ["host.crypto.store.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -204,7 +204,7 @@ export declare function listCryptoKeys(
 @binding("destack.crypto.store.certificates.list", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.store.read"],
+    requires: ["host.crypto.store.read"],
     families: ["windows", "unix"],
     simulation: true,
 })

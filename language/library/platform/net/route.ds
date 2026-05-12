@@ -43,7 +43,7 @@ export struct NetworkRouteEntry {
 /// List route table entries.
 @binding("destack.net.route.list", {
     effect: "external",
-    requires: ["net.route.read"],
+    requires: ["host.net.route.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -54,7 +54,7 @@ export declare function listNetworkRoutes(
 /// Add a route table entry.
 @binding("destack.net.route.add", {
     effect: "external",
-    requires: ["net.route.write"],
+    requires: ["host.net.route.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -63,7 +63,7 @@ export declare function addNetworkRoute(route: NetworkRouteEntry): Result<void, 
 /// Remove a route table entry.
 @binding("destack.net.route.remove", {
     effect: "external",
-    requires: ["net.route.write"],
+    requires: ["host.net.route.write"],
     families: ["windows", "unix"],
     simulation: true,
 })

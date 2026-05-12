@@ -196,7 +196,7 @@ export struct InputDeviceCapabilities {
 /// List available input devices.
 @binding("destack.input.device.list", {
     effect: "external",
-    requires: ["input.read"],
+    requires: ["host.input.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -205,7 +205,7 @@ export declare function list(): Result<Slice<InputDeviceDescriptor>, PlatformErr
 /// Open one input device.
 @binding("destack.input.device.open", {
     effect: "external",
-    requires: ["input.read"],
+    requires: ["host.input.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -214,7 +214,7 @@ export declare function open(id: string): Result<InputDeviceHandle, PlatformErro
 /// Close one input device.
 @binding("destack.input.device.close", {
     effect: "external",
-    requires: ["input.read"],
+    requires: ["host.input.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -223,7 +223,7 @@ export declare function close(handle: InputDeviceHandle): Result<void, PlatformE
 /// Query actions for one opened input device.
 @binding("destack.input.device.actions", {
     effect: "external",
-    requires: ["input.read"],
+    requires: ["host.input.read"],
     families: ["windows", "unix"],
     simulation: true,
 })

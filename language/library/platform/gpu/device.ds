@@ -123,7 +123,7 @@ export struct GpuCapturedError {
 /// Open a logical GPU device.
 @binding("destack.gpu.device.open", {
     effect: "external",
-    requires: ["gpu.device"],
+    requires: ["host.gpu.device"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -135,7 +135,7 @@ export declare function deviceOpen(
 /// Read device metadata.
 @binding("destack.gpu.device.info", {
     effect: "external",
-    requires: ["gpu.device"],
+    requires: ["host.gpu.device"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -144,7 +144,7 @@ export declare function deviceInfo(device: GpuDeviceHandle): Result<GpuDeviceInf
 /// Read a device feature snapshot.
 @binding("destack.gpu.device.features", {
     effect: "external",
-    requires: ["gpu.device"],
+    requires: ["host.gpu.device"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -155,7 +155,7 @@ export declare function deviceFeatures(
 /// Read a device limits snapshot.
 @binding("destack.gpu.device.limits", {
     effect: "external",
-    requires: ["gpu.device"],
+    requires: ["host.gpu.device"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -164,7 +164,7 @@ export declare function deviceLimits(device: GpuDeviceHandle): Result<GpuAdapter
 /// Check whether one device supports one feature.
 @binding("destack.gpu.device.hasFeature", {
     effect: "external",
-    requires: ["gpu.device"],
+    requires: ["host.gpu.device"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -176,7 +176,7 @@ export declare function deviceHasFeature(
 /// Read device health status.
 @binding("destack.gpu.device.status", {
     effect: "external",
-    requires: ["gpu.device"],
+    requires: ["host.gpu.device"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -185,7 +185,7 @@ export declare function deviceStatus(device: GpuDeviceHandle): Result<GpuDeviceS
 /// Resolve the default queue for a logical device.
 @binding("destack.gpu.device.queue", {
     effect: "external",
-    requires: ["gpu.queue"],
+    requires: ["host.gpu.queue"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -194,7 +194,7 @@ export declare function deviceQueue(device: GpuDeviceHandle): Result<GpuQueueHan
 /// Poll a logical device for completion progress.
 @binding("destack.gpu.device.poll", {
     effect: "external",
-    requires: ["gpu.queue"],
+    requires: ["host.gpu.queue"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -207,7 +207,7 @@ export declare function devicePoll(
 /// Push one device error scope.
 @binding("destack.gpu.device.pushErrorScope", {
     effect: "external",
-    requires: ["gpu.device"],
+    requires: ["host.gpu.device"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -219,7 +219,7 @@ export declare function devicePushErrorScope(
 /// Pop one device error scope.
 @binding("destack.gpu.device.popErrorScope", {
     effect: "external",
-    requires: ["gpu.device"],
+    requires: ["host.gpu.device"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -231,7 +231,7 @@ export declare function devicePopErrorScope(
 /// Close a logical GPU device.
 @binding("destack.gpu.device.close", {
     effect: "external",
-    requires: ["gpu.device"],
+    requires: ["host.gpu.device"],
     families: ["windows", "unix"],
     simulation: true,
 })

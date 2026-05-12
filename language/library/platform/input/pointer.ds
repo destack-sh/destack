@@ -150,7 +150,7 @@ export enum InputPointerGrabMode {
 /// Read one absolute pointer state snapshot.
 @binding("destack.input.pointer.state", {
     effect: "external",
-    requires: ["input.read"],
+    requires: ["host.input.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -161,7 +161,7 @@ export declare function pointerState(
 /// Read one relative pointer state snapshot.
 @binding("destack.input.pointer.relativeState", {
     effect: "external",
-    requires: ["input.read"],
+    requires: ["host.input.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -172,7 +172,7 @@ export declare function pointerRelativeState(
 /// Enable or disable relative pointer mode.
 @binding("destack.input.pointer.setRelativeMode", {
     effect: "external",
-    requires: ["input.control"],
+    requires: ["host.input.control"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -184,7 +184,7 @@ export declare function pointerSetRelativeMode(
 /// Set pointer grab mode.
 @binding("destack.input.pointer.setGrabMode", {
     effect: "external",
-    requires: ["input.grab"],
+    requires: ["host.input.grab"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -197,7 +197,7 @@ export declare function pointerSetGrabMode(
 /// Enable or disable pointer capture.
 @binding("destack.input.pointer.capture", {
     effect: "external",
-    requires: ["input.grab"],
+    requires: ["host.input.grab"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -210,7 +210,7 @@ export declare function pointerCapture(
 /// Warp pointer position.
 @binding("destack.input.pointer.warp", {
     effect: "external",
-    requires: ["input.control"],
+    requires: ["host.input.control"],
     families: ["windows", "unix"],
     simulation: true,
 })

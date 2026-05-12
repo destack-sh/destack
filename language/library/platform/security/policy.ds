@@ -1,6 +1,6 @@
 import { Slice } from "destack:collections";
 import { PlatformError } from "destack:platform/error";
-import { HostAction } from "./action.ds";
+import { Action } from "./action.ds";
 
 /// Policy decision mode for one action entry.
 export enum SecurityPolicyMode {
@@ -15,7 +15,7 @@ export enum SecurityPolicyMode {
 /// Structured policy rule for one action.
 export struct SecurityPolicyRule {
     /// Action selector for the rule.
-    action: HostAction;
+    action: Action;
     /// Decision mode for the action.
     mode: SecurityPolicyMode;
 }
@@ -23,16 +23,16 @@ export struct SecurityPolicyRule {
 /// Read policy actions for one named scope.
 @binding("destack.security.policy.get", {
     effect: "deterministic",
-    requires: ["security.policy.read"],
+    requires: ["runtime.security.policy.read"],
     families: ["windows", "unix"],
     provider: "runtime",
 })
-export declare function policyGet(provider: string): Result<Slice<HostAction>, PlatformError>;
+export declare function policyGet(provider: string): Result<Slice<Action>, PlatformError>;
 
 /// Read structured policy rules for one named scope.
 @binding("destack.security.policy.getRules", {
     effect: "deterministic",
-    requires: ["security.policy.read"],
+    requires: ["runtime.security.policy.read"],
     families: ["windows", "unix"],
     provider: "runtime",
 })
@@ -41,19 +41,19 @@ export declare function policyGetRules(provider: string): Result<Slice<SecurityP
 /// Replace policy actions for one named scope.
 @binding("destack.security.policy.set", {
     effect: "deterministic",
-    requires: ["security.policy.write"],
+    requires: ["runtime.security.policy.write"],
     families: ["windows", "unix"],
     provider: "runtime",
 })
 export declare function policySet(
     provider: string,
-    requires: Slice<HostAction>,
+    requires: Slice<Action>,
 ): Result<void, PlatformError>;
 
 /// Replace structured policy rules for one named scope.
 @binding("destack.security.policy.setRules", {
     effect: "deterministic",
-    requires: ["security.policy.write"],
+    requires: ["runtime.security.policy.write"],
     families: ["windows", "unix"],
     provider: "runtime",
 })

@@ -7,7 +7,7 @@ import { CryptoDigestAlgorithm } from "./algorithm.ds";
 @binding("destack.crypto.digest.compute", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.digest"],
+    requires: ["host.crypto.digest"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -20,7 +20,7 @@ export declare function computeDigest(
 @binding("destack.crypto.digest.open", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.digest"],
+    requires: ["host.crypto.digest"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -32,7 +32,7 @@ export declare function openDigest(
 @binding("destack.crypto.digest.update", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.digest"],
+    requires: ["host.crypto.digest"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -45,7 +45,7 @@ export declare function updateDigest(
 @binding("destack.crypto.digest.finish", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.digest"],
+    requires: ["host.crypto.digest"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -57,7 +57,7 @@ export declare function finishDigest(
 @binding("destack.crypto.digest.close", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.digest"],
+    requires: ["host.crypto.digest"],
     families: ["windows", "unix"],
     simulation: true,
 })

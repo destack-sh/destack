@@ -92,7 +92,7 @@ export struct MidiBackend {
 /// List MIDI backends.
 @binding("destack.device.midi.backend.list", {
     effect: "external",
-    requires: ["device.midi.list"],
+    requires: ["host.device.midi.list"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -230,7 +230,7 @@ export newtype MidiEvent =
 /// Open a MIDI topology watch.
 @binding("destack.device.midi.event.open", {
     effect: "external",
-    requires: ["device.midi.observe"],
+    requires: ["host.device.midi.observe"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -241,7 +241,7 @@ export declare function openMidiWatch(
 /// Close a MIDI topology watch.
 @binding("destack.device.midi.event.close", {
     effect: "external",
-    requires: ["device.midi.observe"],
+    requires: ["host.device.midi.observe"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -250,7 +250,7 @@ export declare function closeMidiWatch(watch: MidiWatchHandle): Result<void, Pla
 /// Read one MIDI topology event.
 @binding("destack.device.midi.event.read", {
     effect: "external",
-    requires: ["device.midi.observe"],
+    requires: ["host.device.midi.observe"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -276,7 +276,7 @@ export struct MidiInputRecord {
 /// List MIDI input ports.
 @binding("destack.device.midi.input.list", {
     effect: "external",
-    requires: ["device.midi.list"],
+    requires: ["host.device.midi.list"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -287,7 +287,7 @@ export declare function listMidiInputs(
 /// Open a MIDI input port.
 @binding("destack.device.midi.input.open", {
     effect: "external",
-    requires: ["device.midi.open"],
+    requires: ["host.device.midi.open"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -299,7 +299,7 @@ export declare function openMidiInput(
 /// Close a MIDI input port.
 @binding("destack.device.midi.input.close", {
     effect: "external",
-    requires: ["device.midi.open"],
+    requires: ["host.device.midi.open"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -308,7 +308,7 @@ export declare function closeMidiInput(input: MidiInputPortHandle): Result<void,
 /// Describe a MIDI input port.
 @binding("destack.device.midi.input.describe", {
     effect: "external",
-    requires: ["device.midi.open"],
+    requires: ["host.device.midi.open"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -319,7 +319,7 @@ export declare function describeMidiInput(
 /// Read MIDI input records.
 @binding("destack.device.midi.input.read", {
     effect: "external",
-    requires: ["device.midi.read"],
+    requires: ["host.device.midi.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -332,7 +332,7 @@ export declare function readMidiInput(
 /// Create a virtual MIDI input port.
 @binding("destack.device.midi.input.virtual.open", {
     effect: "external",
-    requires: ["device.midi.virtual"],
+    requires: ["host.device.midi.virtual"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -355,7 +355,7 @@ export struct MidiOutputRecord {
 /// List MIDI output ports.
 @binding("destack.device.midi.output.list", {
     effect: "external",
-    requires: ["device.midi.list"],
+    requires: ["host.device.midi.list"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -366,7 +366,7 @@ export declare function listMidiOutputs(
 /// Open a MIDI output port.
 @binding("destack.device.midi.output.open", {
     effect: "external",
-    requires: ["device.midi.open"],
+    requires: ["host.device.midi.open"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -378,7 +378,7 @@ export declare function openMidiOutput(
 /// Close a MIDI output port.
 @binding("destack.device.midi.output.close", {
     effect: "external",
-    requires: ["device.midi.open"],
+    requires: ["host.device.midi.open"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -387,7 +387,7 @@ export declare function closeMidiOutput(output: MidiOutputPortHandle): Result<vo
 /// Describe a MIDI output port.
 @binding("destack.device.midi.output.describe", {
     effect: "external",
-    requires: ["device.midi.open"],
+    requires: ["host.device.midi.open"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -398,7 +398,7 @@ export declare function describeMidiOutput(
 /// Write MIDI output records.
 @binding("destack.device.midi.output.write", {
     effect: "external",
-    requires: ["device.midi.write"],
+    requires: ["host.device.midi.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -410,7 +410,7 @@ export declare function writeMidiOutput(
 /// Create a virtual MIDI output port.
 @binding("destack.device.midi.output.virtual.open", {
     effect: "external",
-    requires: ["device.midi.virtual"],
+    requires: ["host.device.midi.virtual"],
     families: ["windows", "unix"],
     simulation: true,
 })

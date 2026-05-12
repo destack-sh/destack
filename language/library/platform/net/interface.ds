@@ -47,7 +47,7 @@ export struct NetworkInterface {
 /// List network interfaces.
 @binding("destack.net.interface.list", {
     effect: "external",
-    requires: ["net.interface"],
+    requires: ["host.net.interface"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -56,7 +56,7 @@ export declare function listNetworkInterfaces(): Result<^Array<NetworkInterface>
 /// Resolve an interface name to an index.
 @binding("destack.net.interface.index", {
     effect: "external",
-    requires: ["net.interface"],
+    requires: ["host.net.interface"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -67,7 +67,7 @@ export declare function networkInterfaceIndex(
 /// Resolve an interface index to a name.
 @binding("destack.net.interface.name", {
     effect: "external",
-    requires: ["net.interface"],
+    requires: ["host.net.interface"],
     families: ["windows", "unix"],
     simulation: true,
 })

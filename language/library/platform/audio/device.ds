@@ -20,7 +20,7 @@ export enum AudioDeviceDirection {
     Capture = 2,
     /// Duplex playback and capture device.
     Duplex = 3,
-    /// Capture endpoint for host loopback or monitor lanes.
+    /// Capture endpoint for host loopback or monitor channels.
     Loopback = 4,
 }
 
@@ -41,7 +41,7 @@ export enum AudioSampleFormat {
     U8 = 1,
     /// Signed 16-bit PCM.
     S16 = 2,
-    /// Signed 24-bit PCM in 32-bit lanes.
+    /// Signed 24-bit PCM in 32-bit containers.
     S24 = 3,
     /// Signed 32-bit PCM.
     S32 = 4,
@@ -125,7 +125,7 @@ export struct AudioDeviceDescriptor {
     isDefaultLoopback: boolean;
     /// Device-level action flags.
     /// These are coarse feature categories.
-    /// Use `supported*` masks for lane-level support decisions.
+    /// Use `supported*` masks for fine-grained support decisions.
     capabilityFlags: AudioDeviceCapabilityFlags;
     /// Supported device-open flags for this device.
     supportedDeviceOpenFlags: AudioDeviceOpenFlags;
@@ -170,7 +170,7 @@ export struct AudioDeviceDescriptor {
 /// Trigger one backend rescan.
 @binding("destack.audio.device.rescan", {
     effect: "external",
-    requires: ["audio.device.monitor"],
+    requires: ["host.audio.device.monitor"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -182,7 +182,7 @@ export declare function deviceRescan(
 /// List available audio devices.
 @binding("destack.audio.device.list", {
     effect: "external",
-    requires: ["audio.device"],
+    requires: ["host.audio.device"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -193,7 +193,7 @@ export declare function deviceList(
 /// Read one default device identifier for the selected direction.
 @binding("destack.audio.device.default", {
     effect: "external",
-    requires: ["audio.device"],
+    requires: ["host.audio.device"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -206,7 +206,7 @@ export declare function deviceDefault(
 /// Open one audio device endpoint.
 @binding("destack.audio.device.open", {
     effect: "external",
-    requires: ["audio.device"],
+    requires: ["host.audio.device"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -218,7 +218,7 @@ export declare function deviceOpen(
 /// Read metadata for one opened device endpoint.
 @binding("destack.audio.device.descriptor", {
     effect: "external",
-    requires: ["audio.device"],
+    requires: ["host.audio.device"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -229,7 +229,7 @@ export declare function deviceDescriptor(
 /// Close one audio device endpoint.
 @binding("destack.audio.device.close", {
     effect: "external",
-    requires: ["audio.device"],
+    requires: ["host.audio.device"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -261,7 +261,7 @@ export const AUDIO_DEVICE_CAP_EXCLUSIVE_MODE: AudioDeviceCapabilityFlags =
 /// Device supports loopback capture.
 export const AUDIO_DEVICE_CAP_LOOPBACK: AudioDeviceCapabilityFlags =
     AudioDeviceCapabilityFlags(0x4);
-/// Device supports full-duplex stream lanes.
+/// Device supports full-duplex streams.
 export const AUDIO_DEVICE_CAP_FULL_DUPLEX: AudioDeviceCapabilityFlags =
     AudioDeviceCapabilityFlags(0x8);
 /// Device supports stream gain controls.

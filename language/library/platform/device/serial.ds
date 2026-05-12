@@ -188,7 +188,7 @@ export newtype SerialEvent =
 /// List serial ports.
 @binding("destack.device.serial.list", {
     effect: "external",
-    requires: ["device.serial.list"],
+    requires: ["host.device.serial.list"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -197,7 +197,7 @@ export declare function listSerialPorts(): Result<^Array<SerialPort>, PlatformEr
 /// Open a serial topology watch.
 @binding("destack.device.serial.watch.open", {
     effect: "external",
-    requires: ["device.serial.list"],
+    requires: ["host.device.serial.list"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -206,7 +206,7 @@ export declare function openSerialWatch(): Result<SerialWatchHandle, PlatformErr
 /// Close a serial topology watch.
 @binding("destack.device.serial.watch.close", {
     effect: "external",
-    requires: ["device.serial.list"],
+    requires: ["host.device.serial.list"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -215,7 +215,7 @@ export declare function closeSerialWatch(watch: SerialWatchHandle): Result<void,
 /// Read one serial topology event.
 @binding("destack.device.serial.watch.read", {
     effect: "external",
-    requires: ["device.serial.list"],
+    requires: ["host.device.serial.list"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -227,7 +227,7 @@ export declare function readSerialWatch(
 /// Open a serial port.
 @binding("destack.device.serial.open", {
     effect: "external",
-    requires: ["device.serial.open"],
+    requires: ["host.device.serial.open"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -239,7 +239,7 @@ export declare function openSerialPort(
 /// Close a serial port.
 @binding("destack.device.serial.close", {
     effect: "external",
-    requires: ["device.serial.open"],
+    requires: ["host.device.serial.open"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -248,7 +248,7 @@ export declare function closeSerialPort(port: SerialPortHandle): Result<void, Pl
 /// Describe a serial port.
 @binding("destack.device.serial.describe", {
     effect: "external",
-    requires: ["device.serial.open"],
+    requires: ["host.device.serial.open"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -259,7 +259,7 @@ export declare function describeSerialPort(
 /// Read serial port configuration.
 @binding("destack.device.serial.config.get", {
     effect: "external",
-    requires: ["device.serial.open"],
+    requires: ["host.device.serial.open"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -270,7 +270,7 @@ export declare function getSerialConfig(
 /// Update serial port configuration.
 @binding("destack.device.serial.config.set", {
     effect: "external",
-    requires: ["device.serial.configure"],
+    requires: ["host.device.serial.configure"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -282,7 +282,7 @@ export declare function setSerialConfig(
 /// Read bytes from a serial port.
 @binding("destack.device.serial.read", {
     effect: "external",
-    requires: ["device.serial.read"],
+    requires: ["host.device.serial.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -295,7 +295,7 @@ export declare function readSerial(
 /// Write bytes to a serial port.
 @binding("destack.device.serial.write", {
     effect: "external",
-    requires: ["device.serial.write"],
+    requires: ["host.device.serial.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -308,7 +308,7 @@ export declare function writeSerial(
 /// Wait for queued serial output to drain.
 @binding("destack.device.serial.drain", {
     effect: "external",
-    requires: ["device.serial.write"],
+    requires: ["host.device.serial.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -317,7 +317,7 @@ export declare function drainSerial(port: SerialPortHandle): Result<void, Platfo
 /// Flush queued serial bytes.
 @binding("destack.device.serial.flush", {
     effect: "external",
-    requires: ["device.serial.configure"],
+    requires: ["host.device.serial.configure"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -329,7 +329,7 @@ export declare function flushSerial(
 /// Read serial input signals.
 @binding("destack.device.serial.signals.get", {
     effect: "external",
-    requires: ["device.serial.open"],
+    requires: ["host.device.serial.open"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -340,7 +340,7 @@ export declare function getSerialSignals(
 /// Update serial output signals.
 @binding("destack.device.serial.signals.set", {
     effect: "external",
-    requires: ["device.serial.configure"],
+    requires: ["host.device.serial.configure"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -352,7 +352,7 @@ export declare function setSerialSignals(
 /// Read one serial port event.
 @binding("destack.device.serial.event.read", {
     effect: "external",
-    requires: ["device.serial.observe"],
+    requires: ["host.device.serial.observe"],
     families: ["windows", "unix"],
     simulation: true,
 })

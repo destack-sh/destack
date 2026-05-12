@@ -30,7 +30,7 @@ export struct MessageQueueMessage {
 /// Open or create one POSIX message queue.
 @binding("destack.ipc.message.open", {
     effect: "external",
-    requires: ["ipc.message"],
+    requires: ["host.ipc.message"],
     families: ["unix"],
     simulation: true,
 })
@@ -42,7 +42,7 @@ export declare function openMessageQueue(
 /// Close one message queue handle.
 @binding("destack.ipc.message.close", {
     effect: "external",
-    requires: ["ipc.message"],
+    requires: ["host.ipc.message"],
     families: ["unix"],
     simulation: true,
 })
@@ -53,7 +53,7 @@ export declare function closeMessageQueue(
 /// Remove one named message queue.
 @binding("destack.ipc.message.remove", {
     effect: "external",
-    requires: ["ipc.message"],
+    requires: ["host.ipc.message"],
     families: ["unix"],
     simulation: true,
 })
@@ -62,7 +62,7 @@ export declare function removeMessageQueue(name: &readonly string): Result<void,
 /// Send one message to a queue.
 @binding("destack.ipc.message.send", {
     effect: "external",
-    requires: ["ipc.message"],
+    requires: ["host.ipc.message"],
     families: ["unix"],
     simulation: true,
 })
@@ -76,7 +76,7 @@ export declare function sendMessageQueue(
 /// Receive one message from a queue.
 @binding("destack.ipc.message.receive", {
     effect: "external",
-    requires: ["ipc.message"],
+    requires: ["host.ipc.message"],
     families: ["unix"],
     simulation: true,
 })

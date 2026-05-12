@@ -27,7 +27,7 @@ export struct SharedMemoryMap {
 /// Create one named shared memory object.
 @binding("destack.ipc.memory.create", {
     effect: "external",
-    requires: ["ipc.memory"],
+    requires: ["host.ipc.memory"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -40,7 +40,7 @@ export declare function createSharedMemory(
 /// Create one anonymous shared memory object.
 @binding("destack.ipc.memory.createAnonymous", {
     effect: "external",
-    requires: ["ipc.memory"],
+    requires: ["host.ipc.memory"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -52,7 +52,7 @@ export declare function createAnonymousSharedMemory(
 /// Open one named shared memory object.
 @binding("destack.ipc.memory.open", {
     effect: "external",
-    requires: ["ipc.memory"],
+    requires: ["host.ipc.memory"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -64,7 +64,7 @@ export declare function openSharedMemory(
 /// Remove one named shared memory object.
 @binding("destack.ipc.memory.remove", {
     effect: "external",
-    requires: ["ipc.memory"],
+    requires: ["host.ipc.memory"],
     families: ["unix"],
     simulation: true,
 })
@@ -73,7 +73,7 @@ export declare function removeSharedMemory(name: &readonly string): Result<void,
 /// Close one shared memory object handle.
 @binding("destack.ipc.memory.close", {
     effect: "external",
-    requires: ["ipc.memory"],
+    requires: ["host.ipc.memory"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -84,7 +84,7 @@ export declare function closeSharedMemory(
 /// Map one shared memory range.
 @binding("destack.ipc.memory.map", {
     effect: "external",
-    requires: ["ipc.memory"],
+    requires: ["host.ipc.memory"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -98,7 +98,7 @@ export declare function mapSharedMemory(
 /// Unmap one shared memory range.
 @binding("destack.ipc.memory.unmap", {
     effect: "external",
-    requires: ["ipc.memory"],
+    requires: ["host.ipc.memory"],
     families: ["windows", "unix"],
     simulation: true,
 })

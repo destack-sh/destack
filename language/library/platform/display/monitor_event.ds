@@ -163,7 +163,7 @@ export struct DisplayMonitorEventOpenOptions {
 /// Open a global monitor-event stream.
 @binding("destack.display.monitor.eventOpen", {
     effect: "external",
-    requires: ["display.read"],
+    requires: ["host.display.read"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -175,7 +175,7 @@ export declare function monitorEventOpen(
 /// Close a global monitor-event stream.
 @binding("destack.display.monitor.eventClose", {
     effect: "external",
-    requires: ["display.read"],
+    requires: ["host.display.read"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -185,7 +185,7 @@ export declare function monitorEventClose(handle: DisplayEventHandle): Result<vo
 /// Wait for a monitor event.
 @binding("destack.display.monitor.eventRead", {
     effect: "external",
-    requires: ["display.read"],
+    requires: ["host.display.read"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -198,7 +198,7 @@ export declare function monitorEventRead(
 /// Poll a monitor event without blocking.
 @binding("destack.display.monitor.eventTryRead", {
     effect: "external",
-    requires: ["display.read"],
+    requires: ["host.display.read"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -210,7 +210,7 @@ export declare function monitorEventTryRead(
 /// Wait for a batch of monitor events.
 @binding("destack.display.monitor.eventReadBatch", {
     effect: "external",
-    requires: ["display.read"],
+    requires: ["host.display.read"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -224,7 +224,7 @@ export declare function monitorEventReadBatch(
 /// Poll a batch of monitor events without blocking.
 @binding("destack.display.monitor.eventTryReadBatch", {
     effect: "external",
-    requires: ["display.read"],
+    requires: ["host.display.read"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",

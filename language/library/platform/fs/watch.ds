@@ -59,7 +59,7 @@ export struct FileWatchBatch {
 /// Start watching one filesystem entry.
 @binding("destack.fs.watch.open", {
     effect: "external",
-    requires: ["fs.watch"],
+    requires: ["host.fs.watch"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -71,7 +71,7 @@ export declare function openFileWatch(
 /// Read watch events into an output slice.
 @binding("destack.fs.watch.read", {
     effect: "external",
-    requires: ["fs.watch"],
+    requires: ["host.fs.watch"],
     families: ["windows", "unix"],
     simulation: true,
 })

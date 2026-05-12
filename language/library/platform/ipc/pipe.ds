@@ -21,7 +21,7 @@ export struct PipePair {
 /// Create one anonymous pipe pair.
 @binding("destack.ipc.pipe.create", {
     effect: "external",
-    requires: ["ipc.pipe"],
+    requires: ["host.ipc.pipe"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -30,7 +30,7 @@ export declare function createPipe(flags: PipeFlags): Result<PipePair, PlatformE
 /// Close one pipe endpoint.
 @binding("destack.ipc.pipe.close", {
     effect: "external",
-    requires: ["ipc.pipe"],
+    requires: ["host.ipc.pipe"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -39,7 +39,7 @@ export declare function closePipe(pipe: PipeHandle): Result<void, PlatformError>
 /// Read bytes from one pipe endpoint.
 @binding("destack.ipc.pipe.read", {
     effect: "external",
-    requires: ["ipc.pipe"],
+    requires: ["host.ipc.pipe"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -51,7 +51,7 @@ export declare function readPipe(
 /// Write bytes to one pipe endpoint.
 @binding("destack.ipc.pipe.write", {
     effect: "external",
-    requires: ["ipc.pipe"],
+    requires: ["host.ipc.pipe"],
     families: ["windows", "unix"],
     simulation: true,
 })

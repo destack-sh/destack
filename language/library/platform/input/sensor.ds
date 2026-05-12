@@ -85,7 +85,7 @@ export struct InputSensorEffectiveConfig {
 /// List supported sensors for one opened input device.
 @binding("destack.input.sensor.list", {
     effect: "external",
-    requires: ["input.read"],
+    requires: ["host.input.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -96,7 +96,7 @@ export declare function sensorList(
 /// Configure one sensor stream.
 @binding("destack.input.sensor.configure", {
     effect: "external",
-    requires: ["input.control"],
+    requires: ["host.input.control"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -109,7 +109,7 @@ export declare function sensorConfigure(
 /// Read one sensor sample.
 @binding("destack.input.sensor.read", {
     effect: "external",
-    requires: ["input.read"],
+    requires: ["host.input.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -121,7 +121,7 @@ export declare function sensorRead(
 /// Poll one sensor sample without blocking.
 @binding("destack.input.sensor.tryRead", {
     effect: "external",
-    requires: ["input.read"],
+    requires: ["host.input.read"],
     families: ["windows", "unix"],
     simulation: true,
 })

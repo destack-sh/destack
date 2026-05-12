@@ -94,7 +94,7 @@ export struct GpuQuerySetInfo {
 /// Create a synchronization fence.
 @binding("destack.gpu.sync.fenceCreate", {
     effect: "external",
-    requires: ["gpu.sync"],
+    requires: ["host.gpu.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -106,7 +106,7 @@ export declare function fenceCreate(
 /// Destroy a synchronization fence.
 @binding("destack.gpu.sync.fenceDestroy", {
     effect: "external",
-    requires: ["gpu.sync"],
+    requires: ["host.gpu.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -115,7 +115,7 @@ export declare function fenceDestroy(handle: GpuFenceHandle): Result<void, Platf
 /// Signal a fence value from a queue.
 @binding("destack.gpu.sync.queueSignal", {
     effect: "external",
-    requires: ["gpu.sync"],
+    requires: ["host.gpu.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -128,7 +128,7 @@ export declare function queueSignal(
 /// Wait for a fence value.
 @binding("destack.gpu.sync.queueWait", {
     effect: "external",
-    requires: ["gpu.sync"],
+    requires: ["host.gpu.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -142,7 +142,7 @@ export declare function queueWait(
 /// Wait for all previously submitted queue work.
 @binding("destack.gpu.sync.queueWorkDone", {
     effect: "external",
-    requires: ["gpu.sync"],
+    requires: ["host.gpu.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -154,7 +154,7 @@ export declare function queueWorkDone(
 /// Read a queue timestamp period.
 @binding("destack.gpu.sync.queueTimestampPeriod", {
     effect: "external",
-    requires: ["gpu.sync"],
+    requires: ["host.gpu.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -163,7 +163,7 @@ export declare function queueTimestampPeriod(queue: GpuQueueHandle): Result<floa
 /// Create a query set.
 @binding("destack.gpu.sync.querySetCreate", {
     effect: "external",
-    requires: ["gpu.sync"],
+    requires: ["host.gpu.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -175,7 +175,7 @@ export declare function querySetCreate(
 /// Destroy a query set.
 @binding("destack.gpu.sync.querySetDestroy", {
     effect: "external",
-    requires: ["gpu.sync"],
+    requires: ["host.gpu.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -184,7 +184,7 @@ export declare function querySetDestroy(handle: GpuQuerySetHandle): Result<void,
 /// Read a query-set metadata snapshot.
 @binding("destack.gpu.sync.querySetInfo", {
     effect: "external",
-    requires: ["gpu.sync"],
+    requires: ["host.gpu.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -193,7 +193,7 @@ export declare function querySetInfo(handle: GpuQuerySetHandle): Result<GpuQuery
 /// Write a timestamp query from a command encoder.
 @binding("destack.gpu.sync.commandWriteTimestamp", {
     effect: "external",
-    requires: ["gpu.sync"],
+    requires: ["host.gpu.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -206,7 +206,7 @@ export declare function commandWriteTimestamp(
 /// Begin an occlusion query.
 @binding("destack.gpu.sync.commandBeginOcclusionQuery", {
     effect: "external",
-    requires: ["gpu.sync"],
+    requires: ["host.gpu.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -219,7 +219,7 @@ export declare function commandBeginOcclusionQuery(
 /// End an occlusion query.
 @binding("destack.gpu.sync.commandEndOcclusionQuery", {
     effect: "external",
-    requires: ["gpu.sync"],
+    requires: ["host.gpu.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -230,7 +230,7 @@ export declare function commandEndOcclusionQuery(
 /// Begin a pipeline-statistics query in a render pass.
 @binding("destack.gpu.sync.commandBeginRenderPipelineStatisticsQuery", {
     effect: "external",
-    requires: ["gpu.sync.pipeline.statistics"],
+    requires: ["host.gpu.sync.pipeline.statistics"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -243,7 +243,7 @@ export declare function commandBeginRenderPipelineStatisticsQuery(
 /// End a pipeline-statistics query in a render pass.
 @binding("destack.gpu.sync.commandEndRenderPipelineStatisticsQuery", {
     effect: "external",
-    requires: ["gpu.sync.pipeline.statistics"],
+    requires: ["host.gpu.sync.pipeline.statistics"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -254,7 +254,7 @@ export declare function commandEndRenderPipelineStatisticsQuery(
 /// Begin a pipeline-statistics query in a compute pass.
 @binding("destack.gpu.sync.commandBeginComputePipelineStatisticsQuery", {
     effect: "external",
-    requires: ["gpu.sync.pipeline.statistics"],
+    requires: ["host.gpu.sync.pipeline.statistics"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -267,7 +267,7 @@ export declare function commandBeginComputePipelineStatisticsQuery(
 /// End a pipeline-statistics query in a compute pass.
 @binding("destack.gpu.sync.commandEndComputePipelineStatisticsQuery", {
     effect: "external",
-    requires: ["gpu.sync.pipeline.statistics"],
+    requires: ["host.gpu.sync.pipeline.statistics"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -278,7 +278,7 @@ export declare function commandEndComputePipelineStatisticsQuery(
 /// Resolve one query range into one destination buffer.
 @binding("destack.gpu.sync.commandResolveQueries", {
     effect: "external",
-    requires: ["gpu.sync"],
+    requires: ["host.gpu.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })

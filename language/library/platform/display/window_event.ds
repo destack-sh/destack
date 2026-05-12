@@ -606,7 +606,7 @@ export struct WindowEventOpenOptions {
 /// Open a global window-event stream.
 @binding("destack.display.window.eventOpen", {
     effect: "external",
-    requires: ["display.window.events"],
+    requires: ["host.display.window.events"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -618,7 +618,7 @@ export declare function windowEventOpen(
 /// Close a global window-event stream.
 @binding("destack.display.window.eventClose", {
     effect: "external",
-    requires: ["display.window.events"],
+    requires: ["host.display.window.events"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -628,7 +628,7 @@ export declare function windowEventClose(handle: WindowEventHandle): Result<void
 /// Wait for a window event.
 @binding("destack.display.window.eventRead", {
     effect: "external",
-    requires: ["display.window.events"],
+    requires: ["host.display.window.events"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -641,7 +641,7 @@ export declare function windowEventRead(
 /// Poll a window event without blocking.
 @binding("destack.display.window.eventTryRead", {
     effect: "external",
-    requires: ["display.window.events"],
+    requires: ["host.display.window.events"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -653,7 +653,7 @@ export declare function windowEventTryRead(
 /// Wait for a batch of window events.
 @binding("destack.display.window.eventReadBatch", {
     effect: "external",
-    requires: ["display.window.events"],
+    requires: ["host.display.window.events"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -667,7 +667,7 @@ export declare function windowEventReadBatch(
 /// Poll a batch of window events without blocking.
 @binding("destack.display.window.eventTryReadBatch", {
     effect: "external",
-    requires: ["display.window.events"],
+    requires: ["host.display.window.events"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",

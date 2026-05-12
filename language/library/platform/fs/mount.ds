@@ -17,7 +17,7 @@ export struct FileMount {
 /// List filesystem mounts.
 @binding("destack.fs.mount.list", {
     effect: "external",
-    requires: ["fs.mount.list"],
+    requires: ["host.fs.mount.list"],
     families: ["windows", "unix"],
     simulation: true,
 })

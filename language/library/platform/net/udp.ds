@@ -45,7 +45,7 @@ export newtype MulticastOptionValue =
 /// Join one multicast group.
 @binding("destack.net.udp.joinMulticast", {
     effect: "external",
-    requires: ["net.multicast"],
+    requires: ["host.net.multicast"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -57,7 +57,7 @@ export declare function joinMulticast(
 /// Leave one multicast group.
 @binding("destack.net.udp.leaveMulticast", {
     effect: "external",
-    requires: ["net.multicast"],
+    requires: ["host.net.multicast"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -69,7 +69,7 @@ export declare function leaveMulticast(
 /// Join one source-specific multicast group.
 @binding("destack.net.udp.joinSourceMulticast", {
     effect: "external",
-    requires: ["net.multicast"],
+    requires: ["host.net.multicast"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -81,7 +81,7 @@ export declare function joinSourceMulticast(
 /// Leave one source-specific multicast group.
 @binding("destack.net.udp.leaveSourceMulticast", {
     effect: "external",
-    requires: ["net.multicast"],
+    requires: ["host.net.multicast"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -93,7 +93,7 @@ export declare function leaveSourceMulticast(
 /// Set one multicast option.
 @binding("destack.net.udp.setMulticastOption", {
     effect: "external",
-    requires: ["net.multicast"],
+    requires: ["host.net.multicast"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -105,7 +105,7 @@ export declare function setMulticastOption(
 /// Read one multicast option.
 @binding("destack.net.udp.getMulticastOption", {
     effect: "external",
-    requires: ["net.multicast"],
+    requires: ["host.net.multicast"],
     families: ["windows", "unix"],
     simulation: true,
 })

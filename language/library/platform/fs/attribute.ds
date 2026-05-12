@@ -21,7 +21,7 @@ export const FILE_ACCESS_READ: FileAccessMask = FileAccessMask(0x4);
 /// Check access to a filesystem entry.
 @binding("destack.fs.attribute.checkAccess", {
     effect: "external",
-    requires: ["fs.metadata"],
+    requires: ["host.fs.metadata"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -33,7 +33,7 @@ export declare function checkFileAccess(
 /// Set the permission mode for an entry.
 @binding("destack.fs.attribute.mode", {
     effect: "external",
-    requires: ["fs.mode"],
+    requires: ["host.fs.mode"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -46,7 +46,7 @@ export declare function setEntryMode(
 /// Set the permission mode for an open file.
 @binding("destack.fs.attribute.fileMode", {
     effect: "external",
-    requires: ["fs.mode"],
+    requires: ["host.fs.mode"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -55,7 +55,7 @@ export declare function setFileMode(file: FileHandle, mode: FileMode): Result<vo
 /// Set the owner for an entry.
 @binding("destack.fs.attribute.owner", {
     effect: "external",
-    requires: ["fs.owner"],
+    requires: ["host.fs.owner"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -68,7 +68,7 @@ export declare function setEntryOwner(
 /// Set the owner for an open file.
 @binding("destack.fs.attribute.fileOwner", {
     effect: "external",
-    requires: ["fs.owner"],
+    requires: ["host.fs.owner"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -80,7 +80,7 @@ export declare function setFileOwner(
 /// Set access and modification times for an entry.
 @binding("destack.fs.attribute.times", {
     effect: "external",
-    requires: ["fs.metadata"],
+    requires: ["host.fs.metadata"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -93,7 +93,7 @@ export declare function setEntryTimes(
 /// Set access and modification times for an open file.
 @binding("destack.fs.attribute.fileTimes", {
     effect: "external",
-    requires: ["fs.metadata"],
+    requires: ["host.fs.metadata"],
     families: ["windows", "unix"],
     simulation: true,
 })

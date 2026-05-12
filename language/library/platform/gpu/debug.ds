@@ -4,7 +4,7 @@ import { ResourceId } from "destack:platform/resource";
 /// Set a debug label on a GPU resource object.
 @binding("destack.gpu.debug.setLabel", {
     effect: "external",
-    requires: ["gpu.debug"],
+    requires: ["host.gpu.debug"],
     families: ["windows", "unix"],
     simulation: true,
 })

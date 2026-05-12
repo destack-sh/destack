@@ -22,7 +22,7 @@ export newtype ResourceKind = string;
 /// Remove a resource from the table.
 @binding("destack.resource.id.remove", {
     effect: "deterministic",
-    requires: ["resource.manage"],
+    requires: ["runtime.resource.manage"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -32,7 +32,7 @@ export declare function remove(id: ResourceId): Result<void, PlatformError>;
 /// Describe a resource kind.
 @binding("destack.resource.id.kind", {
     effect: "deterministic",
-    requires: ["resource.read"],
+    requires: ["runtime.resource.read"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -42,7 +42,7 @@ export declare function kind(id: ResourceId): Result<ResourceKind, PlatformError
 /// Transfer resource ownership.
 @binding("destack.resource.id.transfer", {
     effect: "deterministic",
-    requires: ["resource.transfer"],
+    requires: ["runtime.resource.transfer"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -55,7 +55,7 @@ export declare function transfer(
 /// Close a resource by identifier.
 @binding("destack.resource.id.close", {
     effect: "external",
-    requires: ["resource.close"],
+    requires: ["runtime.resource.close"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",

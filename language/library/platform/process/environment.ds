@@ -20,7 +20,7 @@ export struct RawEnvironmentVariable {
 /// Read an environment variable.
 @binding("destack.process.environment.get", {
     effect: "external",
-    requires: ["process.environment.read"],
+    requires: ["host.process.environment.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -31,7 +31,7 @@ export declare function getEnvironment(
 /// List environment variables.
 @binding("destack.process.environment.list", {
     effect: "external",
-    requires: ["process.environment.read"],
+    requires: ["host.process.environment.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -40,7 +40,7 @@ export declare function listEnvironment(): Result<^Array<EnvironmentVariable>, P
 /// Set an environment variable.
 @binding("destack.process.environment.set", {
     effect: "external",
-    requires: ["process.environment.write"],
+    requires: ["host.process.environment.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -52,7 +52,7 @@ export declare function setEnvironment(
 /// Remove an environment variable.
 @binding("destack.process.environment.remove", {
     effect: "external",
-    requires: ["process.environment.write"],
+    requires: ["host.process.environment.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -61,7 +61,7 @@ export declare function removeEnvironment(name: &readonly string): Result<void, 
 /// Read a raw Unix environment variable.
 @binding("destack.process.environment.getRaw", {
     effect: "external",
-    requires: ["process.environment.read"],
+    requires: ["host.process.environment.read"],
     families: ["unix"],
     simulation: true,
 })
@@ -72,7 +72,7 @@ export declare function getRawEnvironment(
 /// List raw Unix environment variables.
 @binding("destack.process.environment.listRaw", {
     effect: "external",
-    requires: ["process.environment.read"],
+    requires: ["host.process.environment.read"],
     families: ["unix"],
     simulation: true,
 })
@@ -84,7 +84,7 @@ export declare function listRawEnvironment(): Result<
 /// Set a raw Unix environment variable.
 @binding("destack.process.environment.setRaw", {
     effect: "external",
-    requires: ["process.environment.write"],
+    requires: ["host.process.environment.write"],
     families: ["unix"],
     simulation: true,
 })
@@ -96,7 +96,7 @@ export declare function setRawEnvironment(
 /// Remove a raw Unix environment variable.
 @binding("destack.process.environment.removeRaw", {
     effect: "external",
-    requires: ["process.environment.write"],
+    requires: ["host.process.environment.write"],
     families: ["unix"],
     simulation: true,
 })

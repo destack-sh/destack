@@ -20,7 +20,7 @@ export struct SemaphoreOptions {
 /// Create one named semaphore.
 @binding("destack.ipc.semaphore.create", {
     effect: "external",
-    requires: ["ipc.semaphore"],
+    requires: ["host.ipc.semaphore"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -32,7 +32,7 @@ export declare function createSemaphore(
 /// Open one named semaphore.
 @binding("destack.ipc.semaphore.open", {
     effect: "external",
-    requires: ["ipc.semaphore"],
+    requires: ["host.ipc.semaphore"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -44,7 +44,7 @@ export declare function openSemaphore(
 /// Close one semaphore handle.
 @binding("destack.ipc.semaphore.close", {
     effect: "external",
-    requires: ["ipc.semaphore"],
+    requires: ["host.ipc.semaphore"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -55,7 +55,7 @@ export declare function closeSemaphore(
 /// Remove one named semaphore.
 @binding("destack.ipc.semaphore.remove", {
     effect: "external",
-    requires: ["ipc.semaphore"],
+    requires: ["host.ipc.semaphore"],
     families: ["unix"],
     simulation: true,
 })
@@ -64,7 +64,7 @@ export declare function removeSemaphore(name: &readonly string): Result<void, Pl
 /// Wait for one semaphore count.
 @binding("destack.ipc.semaphore.wait", {
     effect: "external",
-    requires: ["ipc.semaphore"],
+    requires: ["host.ipc.semaphore"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -76,7 +76,7 @@ export declare function waitSemaphore(
 /// Increment one semaphore count.
 @binding("destack.ipc.semaphore.post", {
     effect: "external",
-    requires: ["ipc.semaphore"],
+    requires: ["host.ipc.semaphore"],
     families: ["windows", "unix"],
     simulation: true,
 })

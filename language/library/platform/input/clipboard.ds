@@ -71,7 +71,7 @@ export struct ClipboardItem {
 /// Query whether text clipboard payload exists.
 @binding("destack.input.clipboard.hasText", {
     effect: "external",
-    requires: ["input.clipboard.read"],
+    requires: ["host.input.clipboard.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -80,7 +80,7 @@ export declare function clipboardHasText(): Result<boolean, PlatformError>;
 /// List clipboard items.
 @binding("destack.input.clipboard.listItems", {
     effect: "external",
-    requires: ["input.clipboard.read"],
+    requires: ["host.input.clipboard.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -89,7 +89,7 @@ export declare function clipboardListItems(): Result<Slice<ClipboardItemDescript
 /// Read one text clipboard payload.
 @binding("destack.input.clipboard.readText", {
     effect: "external",
-    requires: ["input.clipboard.read"],
+    requires: ["host.input.clipboard.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -98,7 +98,7 @@ export declare function clipboardReadText(): Result<string, PlatformError>;
 /// Read one text clipboard item representation.
 @binding("destack.input.clipboard.readItemText", {
     effect: "external",
-    requires: ["input.clipboard.read"],
+    requires: ["host.input.clipboard.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -110,7 +110,7 @@ export declare function clipboardReadItemText(
 /// Read one binary clipboard item representation.
 @binding("destack.input.clipboard.readItemBytes", {
     effect: "external",
-    requires: ["input.clipboard.read"],
+    requires: ["host.input.clipboard.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -122,7 +122,7 @@ export declare function clipboardReadItemBytes(
 /// Read one filesystem clipboard item representation.
 @binding("destack.input.clipboard.readItemPath", {
     effect: "external",
-    requires: ["input.clipboard.read"],
+    requires: ["host.input.clipboard.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -135,7 +135,7 @@ export declare function clipboardReadItemPath(
 @binding("destack.input.clipboard.writeText", {
     effect: "external",
     replay: "forbidden",
-    requires: ["input.clipboard.write"],
+    requires: ["host.input.clipboard.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -145,7 +145,7 @@ export declare function clipboardWriteText(text: string): Result<void, PlatformE
 @binding("destack.input.clipboard.writeItems", {
     effect: "external",
     replay: "forbidden",
-    requires: ["input.clipboard.write"],
+    requires: ["host.input.clipboard.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -154,7 +154,7 @@ export declare function clipboardWriteItems(items: Slice<ClipboardItem>): Result
 /// Read clipboard sequence number.
 @binding("destack.input.clipboard.sequence", {
     effect: "external",
-    requires: ["input.clipboard.read"],
+    requires: ["host.input.clipboard.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -164,7 +164,7 @@ export declare function clipboardSequence(): Result<uint64, PlatformError>;
 @binding("destack.input.clipboard.clear", {
     effect: "external",
     replay: "forbidden",
-    requires: ["input.clipboard.write"],
+    requires: ["host.input.clipboard.write"],
     families: ["windows", "unix"],
     simulation: true,
 })

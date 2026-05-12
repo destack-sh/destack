@@ -1,5 +1,5 @@
 import { Slice } from "destack:collections";
-import { BackendSupport } from "destack:platform/core";
+import { HostBackendStatus } from "destack:platform/core";
 import { PlatformError } from "destack:platform/error";
 
 /// Display backend selector.
@@ -57,8 +57,8 @@ export struct DisplayBackendDescriptor {
     backend: DisplayBackend;
     /// Stable backend name.
     name: string;
-    /// Host backend support state for this selector.
-    support: BackendSupport;
+    /// Host backend availability status for this selector.
+    status: HostBackendStatus;
     /// Priority in default auto-selection order, or zero when auto does not consider this selector.
     priority: uint16;
     /// Backend-level action flags.
@@ -195,7 +195,7 @@ export const DISPLAY_BACKEND_CAP_BEGIN_FRAME_TIMING: DisplayBackendCapabilityFla
 /// List host display backends.
 @binding("destack.display.backend.list", {
     effect: "external",
-    requires: ["display.read"],
+    requires: ["host.display.read"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",

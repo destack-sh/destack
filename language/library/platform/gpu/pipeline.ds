@@ -522,7 +522,7 @@ export struct GpuRenderPipelineOptions {
 /// Create a shader module.
 @binding("destack.gpu.pipeline.shaderCreate", {
     effect: "external",
-    requires: ["gpu.shader"],
+    requires: ["host.gpu.shader"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -535,7 +535,7 @@ export declare function shaderCreate(
 /// Destroy a shader module.
 @binding("destack.gpu.pipeline.shaderDestroy", {
     effect: "external",
-    requires: ["gpu.shader"],
+    requires: ["host.gpu.shader"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -544,7 +544,7 @@ export declare function shaderDestroy(handle: GpuShaderHandle): Result<void, Pla
 /// Read a shader-compilation diagnostics snapshot.
 @binding("destack.gpu.pipeline.shaderCompilationInfo", {
     effect: "external",
-    requires: ["gpu.shader"],
+    requires: ["host.gpu.shader"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -556,7 +556,7 @@ export declare function shaderCompilationInfo(
 /// Create a compute pipeline.
 @binding("destack.gpu.pipeline.computeCreate", {
     effect: "external",
-    requires: ["gpu.compute"],
+    requires: ["host.gpu.compute"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -568,7 +568,7 @@ export declare function computePipelineCreate(
 /// Create a render pipeline.
 @binding("destack.gpu.pipeline.renderCreate", {
     effect: "external",
-    requires: ["gpu.render"],
+    requires: ["host.gpu.render"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -580,7 +580,7 @@ export declare function renderPipelineCreate(
 /// Resolve one bind-group layout from one pipeline.
 @binding("destack.gpu.pipeline.bindGroupLayout", {
     effect: "external",
-    requires: ["gpu.bind"],
+    requires: ["host.gpu.bind"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -592,7 +592,7 @@ export declare function pipelineBindGroupLayout(
 /// Destroy a pipeline object.
 @binding("destack.gpu.pipeline.destroy", {
     effect: "external",
-    requires: ["gpu.compute", "gpu.render"],
+    requires: ["host.gpu.compute", "host.gpu.render"],
     families: ["windows", "unix"],
     simulation: true,
 })

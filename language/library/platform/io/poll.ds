@@ -44,7 +44,7 @@ export struct IoPollEvent {
 /// Open a readiness poller.
 @binding("destack.io.poll.open", {
     effect: "external",
-    requires: ["io.poll"],
+    requires: ["host.io.poll"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -53,7 +53,7 @@ export declare function openIoPoll(backend: IoPollBackend): Result<IoPollHandle,
 /// Close a readiness poller.
 @binding("destack.io.poll.close", {
     effect: "external",
-    requires: ["io.poll"],
+    requires: ["host.io.poll"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -62,7 +62,7 @@ export declare function closeIoPoll(poll: IoPollHandle): Result<void, PlatformEr
 /// Add one resource to a readiness poller.
 @binding("destack.io.poll.add", {
     effect: "external",
-    requires: ["io.poll"],
+    requires: ["host.io.poll"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -76,7 +76,7 @@ export declare function addIoPoll(
 /// Update one resource in a readiness poller.
 @binding("destack.io.poll.update", {
     effect: "external",
-    requires: ["io.poll"],
+    requires: ["host.io.poll"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -90,7 +90,7 @@ export declare function updateIoPoll(
 /// Remove one resource from a readiness poller.
 @binding("destack.io.poll.remove", {
     effect: "external",
-    requires: ["io.poll"],
+    requires: ["host.io.poll"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -102,7 +102,7 @@ export declare function removeIoPoll(
 /// Wait for readiness events.
 @binding("destack.io.poll.wait", {
     effect: "external",
-    requires: ["io.poll"],
+    requires: ["host.io.poll"],
     families: ["windows", "unix"],
     simulation: true,
 })

@@ -59,7 +59,7 @@ export struct PermissionEntry {
 /// Read one permission state.
 @binding("destack.security.permission.read", {
     effect: "external",
-    requires: ["security.permission.read"],
+    requires: ["runtime.security.permission.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -70,7 +70,7 @@ export declare function readPermission(
 /// Read permission states.
 @binding("destack.security.permission.readMany", {
     effect: "external",
-    requires: ["security.permission.read"],
+    requires: ["runtime.security.permission.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -82,7 +82,7 @@ export declare function readPermissions(
 @binding("destack.security.permission.request.open", {
     effect: "external",
     replay: "forbidden",
-    requires: ["security.permission.request"],
+    requires: ["runtime.security.permission.request"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -94,7 +94,7 @@ export declare function openPermissionRequest(
 @binding("destack.security.permission.request.openMany", {
     effect: "external",
     replay: "forbidden",
-    requires: ["security.permission.request"],
+    requires: ["runtime.security.permission.request"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -106,7 +106,7 @@ export declare function openPermissionRequestMany(
 @binding("destack.security.permission.request.close", {
     effect: "external",
     replay: "forbidden",
-    requires: ["security.permission.request"],
+    requires: ["runtime.security.permission.request"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -118,7 +118,7 @@ export declare function closePermissionRequest(
 @binding("destack.security.permission.request.read", {
     effect: "external",
     replay: "forbidden",
-    requires: ["security.permission.request"],
+    requires: ["runtime.security.permission.request"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -131,7 +131,7 @@ export declare function readPermissionRequest(
 @binding("destack.security.permission.request.tryRead", {
     effect: "external",
     replay: "forbidden",
-    requires: ["security.permission.request"],
+    requires: ["runtime.security.permission.request"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -143,7 +143,7 @@ export declare function tryReadPermissionRequest(
 @binding("destack.security.permission.settings.open", {
     effect: "external",
     replay: "forbidden",
-    requires: ["security.permission.request"],
+    requires: ["runtime.security.permission.request"],
     families: ["windows", "unix"],
     simulation: true,
 })

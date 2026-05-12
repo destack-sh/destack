@@ -188,7 +188,7 @@ export struct CryptoKeyWrapParameters {
 @binding("destack.crypto.key.secret.generate", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.key.generate"],
+    requires: ["host.crypto.key.generate"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -202,7 +202,7 @@ export declare function generateSecretKey(
 @binding("destack.crypto.key.pair.generate", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.key.generate"],
+    requires: ["host.crypto.key.generate"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -216,7 +216,7 @@ export declare function generateKeyPair(
 @binding("destack.crypto.key.import", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.key.import", "crypto.store.write"],
+    requires: ["host.crypto.key.import", "host.crypto.store.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -230,7 +230,7 @@ export declare function importKey(
 @binding("destack.crypto.key.public.export", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.key.export", "crypto.store.read"],
+    requires: ["host.crypto.key.export", "host.crypto.store.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -243,7 +243,7 @@ export declare function exportPublicKey(
 @binding("destack.crypto.key.private.export", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.key.export", "crypto.store.read"],
+    requires: ["host.crypto.key.export", "host.crypto.store.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -256,7 +256,7 @@ export declare function exportPrivateKey(
 @binding("destack.crypto.key.secret.export", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.key.export", "crypto.store.read"],
+    requires: ["host.crypto.key.export", "host.crypto.store.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -269,7 +269,7 @@ export declare function exportSecretKey(
 @binding("destack.crypto.key.describe", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.store.read"],
+    requires: ["host.crypto.store.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -281,7 +281,7 @@ export declare function describeKey(
 @binding("destack.crypto.key.sign", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.key.sign"],
+    requires: ["host.crypto.key.sign"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -295,7 +295,7 @@ export declare function signWithKey(
 @binding("destack.crypto.key.verify", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.key.verify"],
+    requires: ["host.crypto.key.verify"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -310,7 +310,7 @@ export declare function verifyWithKey(
 @binding("destack.crypto.key.encrypt", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.key.encrypt"],
+    requires: ["host.crypto.key.encrypt"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -324,7 +324,7 @@ export declare function encryptWithKey(
 @binding("destack.crypto.key.decrypt", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.key.decrypt"],
+    requires: ["host.crypto.key.decrypt"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -338,7 +338,7 @@ export declare function decryptWithKey(
 @binding("destack.crypto.key.wrap", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.key.wrap"],
+    requires: ["host.crypto.key.wrap"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -353,7 +353,7 @@ export declare function wrapKey(
 @binding("destack.crypto.key.unwrap", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.key.unwrap", "crypto.store.write"],
+    requires: ["host.crypto.key.unwrap", "host.crypto.store.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -369,7 +369,7 @@ export declare function unwrapKey(
 @binding("destack.crypto.key.delete", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.key.delete", "crypto.store.write"],
+    requires: ["host.crypto.key.delete", "host.crypto.store.write"],
     families: ["windows", "unix"],
     simulation: true,
 })

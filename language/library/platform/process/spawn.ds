@@ -125,7 +125,7 @@ export struct ProcessSpawnOptions {
 /// Spawn a child process.
 @binding("destack.process.spawn", {
     effect: "external",
-    requires: ["process.spawn"],
+    requires: ["host.process.spawn"],
     families: ["windows", "unix"],
     simulation: true,
 })

@@ -4,7 +4,7 @@ import { SandboxHandle } from "destack:platform/resource";
 /// Enter a sandbox scope.
 @binding("destack.security.sandbox.enter", {
     effect: "external",
-    requires: ["security.sandbox"],
+    requires: ["runtime.security.sandbox"],
     families: ["windows", "unix"],
     provider: "runtime",
 })
@@ -13,7 +13,7 @@ export declare function sandboxEnter(name: string): Result<SandboxHandle, Platfo
 /// Leave a sandbox scope.
 @binding("destack.security.sandbox.exit", {
     effect: "external",
-    requires: ["security.sandbox"],
+    requires: ["runtime.security.sandbox"],
     families: ["windows", "unix"],
     provider: "runtime",
 })

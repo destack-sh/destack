@@ -37,7 +37,7 @@ export struct InputHapticEffectParameters {
 /// List supported haptic effects.
 @binding("destack.input.haptics.effects", {
     effect: "external",
-    requires: ["input.haptics"],
+    requires: ["host.input.haptics"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -48,7 +48,7 @@ export declare function hapticsEffects(
 /// Play one haptic effect.
 @binding("destack.input.haptics.play", {
     effect: "external",
-    requires: ["input.haptics"],
+    requires: ["host.input.haptics"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -61,7 +61,7 @@ export declare function hapticsPlay(
 /// Stop active haptic effects.
 @binding("destack.input.haptics.stop", {
     effect: "external",
-    requires: ["input.haptics"],
+    requires: ["host.input.haptics"],
     families: ["windows", "unix"],
     simulation: true,
 })

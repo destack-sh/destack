@@ -25,7 +25,7 @@ export struct IoControlResult {
 /// Execute one resource control request.
 @binding("destack.io.control", {
     effect: "external",
-    requires: ["io.control"],
+    requires: ["host.io.control"],
     families: ["windows", "unix"],
     simulation: true,
 })

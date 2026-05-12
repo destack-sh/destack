@@ -209,7 +209,7 @@ export newtype CameraWatchEvent =
 /// List camera devices.
 @binding("destack.device.camera.list", {
     effect: "external",
-    requires: ["device.camera.list"],
+    requires: ["host.device.camera.list"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -218,7 +218,7 @@ export declare function listCameraDevices(): Result<^Array<CameraDevice>, Platfo
 /// Open a camera topology watch.
 @binding("destack.device.camera.watch.open", {
     effect: "external",
-    requires: ["device.camera.list"],
+    requires: ["host.device.camera.list"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -227,7 +227,7 @@ export declare function openCameraWatch(): Result<CameraWatchHandle, PlatformErr
 /// Close a camera topology watch.
 @binding("destack.device.camera.watch.close", {
     effect: "external",
-    requires: ["device.camera.list"],
+    requires: ["host.device.camera.list"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -236,7 +236,7 @@ export declare function closeCameraWatch(watch: CameraWatchHandle): Result<void,
 /// Read one camera topology event.
 @binding("destack.device.camera.watch.read", {
     effect: "external",
-    requires: ["device.camera.list"],
+    requires: ["host.device.camera.list"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -248,7 +248,7 @@ export declare function readCameraWatch(
 /// Open a camera device.
 @binding("destack.device.camera.open", {
     effect: "external",
-    requires: ["device.camera.open"],
+    requires: ["host.device.camera.open"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -259,7 +259,7 @@ export declare function openCameraDevice(
 /// Close a camera device.
 @binding("destack.device.camera.close", {
     effect: "external",
-    requires: ["device.camera.open"],
+    requires: ["host.device.camera.open"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -268,7 +268,7 @@ export declare function closeCameraDevice(camera: CameraDeviceHandle): Result<vo
 /// Describe a camera device.
 @binding("destack.device.camera.describe", {
     effect: "external",
-    requires: ["device.camera.open"],
+    requires: ["host.device.camera.open"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -279,7 +279,7 @@ export declare function describeCameraDevice(
 /// List camera stream formats.
 @binding("destack.device.camera.format.list", {
     effect: "external",
-    requires: ["device.camera.open"],
+    requires: ["host.device.camera.open"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -290,7 +290,7 @@ export declare function listCameraFormats(
 /// Open a camera stream.
 @binding("destack.device.camera.stream.open", {
     effect: "external",
-    requires: ["device.camera.capture"],
+    requires: ["host.device.camera.capture"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -302,7 +302,7 @@ export declare function openCameraStream(
 /// Close a camera stream.
 @binding("destack.device.camera.stream.close", {
     effect: "external",
-    requires: ["device.camera.capture"],
+    requires: ["host.device.camera.capture"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -311,7 +311,7 @@ export declare function closeCameraStream(stream: CameraStreamHandle): Result<vo
 /// Start camera stream capture.
 @binding("destack.device.camera.stream.start", {
     effect: "external",
-    requires: ["device.camera.capture"],
+    requires: ["host.device.camera.capture"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -320,7 +320,7 @@ export declare function startCameraStream(stream: CameraStreamHandle): Result<vo
 /// Stop camera stream capture.
 @binding("destack.device.camera.stream.stop", {
     effect: "external",
-    requires: ["device.camera.capture"],
+    requires: ["host.device.camera.capture"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -329,7 +329,7 @@ export declare function stopCameraStream(stream: CameraStreamHandle): Result<voi
 /// Read one camera frame.
 @binding("destack.device.camera.frame.read", {
     effect: "external",
-    requires: ["device.camera.capture"],
+    requires: ["host.device.camera.capture"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -343,7 +343,7 @@ export declare function readCameraFrame(
 /// List camera control capabilities.
 @binding("destack.device.camera.control.list", {
     effect: "external",
-    requires: ["device.camera.configure"],
+    requires: ["host.device.camera.configure"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -354,7 +354,7 @@ export declare function listCameraControls(
 /// Read camera control values.
 @binding("destack.device.camera.control.get", {
     effect: "external",
-    requires: ["device.camera.configure"],
+    requires: ["host.device.camera.configure"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -367,7 +367,7 @@ export declare function getCameraControls(
 /// Update camera control values.
 @binding("destack.device.camera.control.set", {
     effect: "external",
-    requires: ["device.camera.configure"],
+    requires: ["host.device.camera.configure"],
     families: ["windows", "unix"],
     simulation: true,
 })

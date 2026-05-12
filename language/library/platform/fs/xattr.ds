@@ -19,7 +19,7 @@ export newtype XattrTarget =
 /// Read one extended attribute into an output buffer.
 @binding("destack.fs.xattr.read", {
     effect: "external",
-    requires: ["fs.xattr"],
+    requires: ["host.fs.xattr"],
     families: ["unix"],
     simulation: true,
 })
@@ -32,7 +32,7 @@ export declare function readXattr(
 /// Write one extended attribute.
 @binding("destack.fs.xattr.write", {
     effect: "external",
-    requires: ["fs.xattr"],
+    requires: ["host.fs.xattr"],
     families: ["unix"],
     simulation: true,
 })
@@ -46,7 +46,7 @@ export declare function writeXattr(
 /// List extended attribute names into an output buffer.
 @binding("destack.fs.xattr.list", {
     effect: "external",
-    requires: ["fs.xattr"],
+    requires: ["host.fs.xattr"],
     families: ["unix"],
     simulation: true,
 })
@@ -58,7 +58,7 @@ export declare function listXattrs(
 /// Remove one extended attribute.
 @binding("destack.fs.xattr.remove", {
     effect: "external",
-    requires: ["fs.xattr"],
+    requires: ["host.fs.xattr"],
     families: ["unix"],
     simulation: true,
 })

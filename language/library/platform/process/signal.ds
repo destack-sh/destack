@@ -16,7 +16,7 @@ export struct SignalEvent {
 /// Send a signal to a target process.
 @binding("destack.process.signal.send", {
     effect: "external",
-    requires: ["process.signal.send"],
+    requires: ["host.process.signal.send"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -25,7 +25,7 @@ export declare function sendSignal(pid: ProcessId, signal: Signal): Result<void,
 /// Send a signal to a target process handle.
 @binding("destack.process.signal.handle", {
     effect: "external",
-    requires: ["process.signal.send"],
+    requires: ["host.process.signal.send"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -37,7 +37,7 @@ export declare function signalProcess(
 /// Subscribe to one signal value.
 @binding("destack.process.signal.subscribe", {
     effect: "external",
-    requires: ["process.signal.receive"],
+    requires: ["host.process.signal.receive"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -46,7 +46,7 @@ export declare function subscribeSignal(signal: Signal): Result<SignalHandle, Pl
 /// Remove a signal subscription handle.
 @binding("destack.process.signal.unsubscribe", {
     effect: "external",
-    requires: ["process.signal.receive"],
+    requires: ["host.process.signal.receive"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -55,7 +55,7 @@ export declare function unsubscribeSignal(handle: SignalHandle): Result<void, Pl
 /// Receive the next signal event from a subscription.
 @binding("destack.process.signal.receive", {
     effect: "external",
-    requires: ["process.signal.receive"],
+    requires: ["host.process.signal.receive"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -64,7 +64,7 @@ export declare function receiveSignal(handle: SignalHandle): Result<SignalEvent,
 /// Poll one signal event without blocking.
 @binding("destack.process.signal.tryReceive", {
     effect: "external",
-    requires: ["process.signal.receive"],
+    requires: ["host.process.signal.receive"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -73,7 +73,7 @@ export declare function tryReceiveSignal(handle: SignalHandle): Result<SignalEve
 /// Wait for one signal from a requested set.
 @binding("destack.process.signal.wait", {
     effect: "external",
-    requires: ["process.signal.receive"],
+    requires: ["host.process.signal.receive"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -84,7 +84,7 @@ export declare function waitSignal(
 /// Poll one signal from a requested set without blocking.
 @binding("destack.process.signal.tryWait", {
     effect: "external",
-    requires: ["process.signal.receive"],
+    requires: ["host.process.signal.receive"],
     families: ["windows", "unix"],
     simulation: true,
 })

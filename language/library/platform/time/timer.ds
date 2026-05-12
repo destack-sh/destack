@@ -23,7 +23,7 @@ export struct TimerOptions {
 /// Schedule a one-shot timer.
 @binding("destack.time.timer.once", {
     effect: "external",
-    requires: ["time.timer"],
+    requires: ["host.time.timer"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -36,7 +36,7 @@ export declare function timerOnce(
 /// Schedule a repeating timer.
 @binding("destack.time.timer.interval", {
     effect: "external",
-    requires: ["time.timer"],
+    requires: ["host.time.timer"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -49,7 +49,7 @@ export declare function timerInterval(
 /// Schedule a timer for an absolute deadline.
 @binding("destack.time.timer.at", {
     effect: "external",
-    requires: ["time.timer"],
+    requires: ["host.time.timer"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -62,7 +62,7 @@ export declare function timerAt(
 /// Cancel one scheduled timer.
 @binding("destack.time.timer.cancel", {
     effect: "external",
-    requires: ["time.timer"],
+    requires: ["host.time.timer"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -72,7 +72,7 @@ export declare function timerCancel(handle: TimerHandle): Result<void, PlatformE
 /// Pause one running timer.
 @binding("destack.time.timer.pause", {
     effect: "external",
-    requires: ["time.timer"],
+    requires: ["host.time.timer"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -82,7 +82,7 @@ export declare function timerPause(handle: TimerHandle): Result<void, PlatformEr
 /// Resume one paused timer.
 @binding("destack.time.timer.resume", {
     effect: "external",
-    requires: ["time.timer"],
+    requires: ["host.time.timer"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -92,7 +92,7 @@ export declare function timerResume(handle: TimerHandle): Result<void, PlatformE
 /// Return whether one timer is currently active.
 @binding("destack.time.timer.isActive", {
     effect: "external",
-    requires: ["time.timer"],
+    requires: ["host.time.timer"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -102,7 +102,7 @@ export declare function timerIsActive(handle: TimerHandle): Result<boolean, Plat
 /// Return remaining timer delay in nanoseconds.
 @binding("destack.time.timer.remainingNs", {
     effect: "external",
-    requires: ["time.timer"],
+    requires: ["host.time.timer"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -112,7 +112,7 @@ export declare function timerRemainingNs(handle: TimerHandle): Result<uint64, Pl
 /// Reset one timer with a new relative delay.
 @binding("destack.time.timer.reset", {
     effect: "external",
-    requires: ["time.timer"],
+    requires: ["host.time.timer"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -122,7 +122,7 @@ export declare function timerReset(handle: TimerHandle, delayNs: uint64): Result
 /// Update one timer interval period.
 @binding("destack.time.timer.updateInterval", {
     effect: "external",
-    requires: ["time.timer"],
+    requires: ["host.time.timer"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",

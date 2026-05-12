@@ -45,7 +45,7 @@ export struct FilesystemNodeOptions {
 /// Rename or exchange one filesystem entry.
 @binding("destack.fs.namespace.rename", {
     effect: "external",
-    requires: ["fs.write"],
+    requires: ["host.fs.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -58,7 +58,7 @@ export declare function renameEntry(
 /// Remove one non-directory filesystem entry.
 @binding("destack.fs.namespace.unlink", {
     effect: "external",
-    requires: ["fs.write"],
+    requires: ["host.fs.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -69,7 +69,7 @@ export declare function unlinkEntry(
 /// Create one hard link.
 @binding("destack.fs.namespace.link", {
     effect: "external",
-    requires: ["fs.link"],
+    requires: ["host.fs.link"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -82,7 +82,7 @@ export declare function linkEntry(
 /// Create one symbolic link.
 @binding("destack.fs.namespace.symlink", {
     effect: "external",
-    requires: ["fs.link"],
+    requires: ["host.fs.link"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -95,7 +95,7 @@ export declare function symlinkEntry(
 /// Read a symbolic link into an output buffer.
 @binding("destack.fs.namespace.readLink", {
     effect: "external",
-    requires: ["fs.read"],
+    requires: ["host.fs.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -107,7 +107,7 @@ export declare function readSymlink(
 /// Resolve an entry into an output buffer.
 @binding("destack.fs.namespace.canonicalize", {
     effect: "external",
-    requires: ["fs.metadata"],
+    requires: ["host.fs.metadata"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -119,7 +119,7 @@ export declare function canonicalizeEntry(
 /// Create one FIFO node.
 @binding("destack.fs.namespace.fifo", {
     effect: "external",
-    requires: ["fs.node"],
+    requires: ["host.fs.node"],
     families: ["unix"],
     simulation: true,
 })
@@ -131,7 +131,7 @@ export declare function createFifoEntry(
 /// Create one host filesystem node.
 @binding("destack.fs.namespace.node", {
     effect: "external",
-    requires: ["fs.node"],
+    requires: ["host.fs.node"],
     families: ["unix"],
     simulation: true,
 })

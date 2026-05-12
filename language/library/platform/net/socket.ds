@@ -175,7 +175,7 @@ export struct SocketSendBatchEntry {
 /// Create a socket.
 @binding("destack.net.socket.open", {
     effect: "external",
-    requires: ["net.open"],
+    requires: ["host.net.open"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -186,7 +186,7 @@ export declare function openSocket(
 /// Create a connected socket pair.
 @binding("destack.net.socket.pair", {
     effect: "external",
-    requires: ["net.open"],
+    requires: ["host.net.open"],
     families: ["unix"],
     simulation: true,
 })
@@ -197,7 +197,7 @@ export declare function openSocketPair(
 /// Bind a socket to a local address.
 @binding("destack.net.socket.bind", {
     effect: "external",
-    requires: ["net.listen"],
+    requires: ["host.net.listen"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -209,7 +209,7 @@ export declare function bindSocket(
 /// Mark a bound stream socket as a listener.
 @binding("destack.net.socket.listen", {
     effect: "external",
-    requires: ["net.listen"],
+    requires: ["host.net.listen"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -221,7 +221,7 @@ export declare function listenSocket(
 /// Accept one connection from a listener socket.
 @binding("destack.net.socket.accept", {
     effect: "external",
-    requires: ["net.accept"],
+    requires: ["host.net.accept"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -233,7 +233,7 @@ export declare function acceptSocket(
 /// Connect a socket to a remote address.
 @binding("destack.net.socket.connect", {
     effect: "external",
-    requires: ["net.connect"],
+    requires: ["host.net.connect"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -245,7 +245,7 @@ export declare function connectSocket(
 /// Close a socket handle.
 @binding("destack.net.socket.close", {
     effect: "external",
-    requires: ["net.close"],
+    requires: ["host.net.close"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -254,7 +254,7 @@ export declare function closeSocket(socket: SocketHandle): Result<void, Platform
 /// Shut down a socket for reads, writes, or both.
 @binding("destack.net.socket.shutdown", {
     effect: "external",
-    requires: ["net.close"],
+    requires: ["host.net.close"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -266,7 +266,7 @@ export declare function shutdownSocket(
 /// Enable or disable nonblocking mode on a socket.
 @binding("destack.net.socket.nonblocking", {
     effect: "external",
-    requires: ["net.option"],
+    requires: ["host.net.option"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -278,7 +278,7 @@ export declare function setSocketNonblocking(
 /// Read the local socket address.
 @binding("destack.net.socket.localAddress", {
     effect: "external",
-    requires: ["net.status"],
+    requires: ["host.net.status"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -289,7 +289,7 @@ export declare function localSocketAddress(
 /// Read the remote socket address.
 @binding("destack.net.socket.peerAddress", {
     effect: "external",
-    requires: ["net.status"],
+    requires: ["host.net.status"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -300,7 +300,7 @@ export declare function peerSocketAddress(
 /// Receive bytes from a socket.
 @binding("destack.net.socket.receive", {
     effect: "external",
-    requires: ["net.read"],
+    requires: ["host.net.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -313,7 +313,7 @@ export declare function receiveSocket(
 /// Send bytes to a socket.
 @binding("destack.net.socket.send", {
     effect: "external",
-    requires: ["net.write"],
+    requires: ["host.net.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -326,7 +326,7 @@ export declare function sendSocket(
 /// Receive bytes and source address from a socket.
 @binding("destack.net.socket.receiveFrom", {
     effect: "external",
-    requires: ["net.read"],
+    requires: ["host.net.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -339,7 +339,7 @@ export declare function receiveSocketFrom(
 /// Send bytes to a destination address.
 @binding("destack.net.socket.sendTo", {
     effect: "external",
-    requires: ["net.write"],
+    requires: ["host.net.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -353,7 +353,7 @@ export declare function sendSocketTo(
 /// Receive one message with ancillary data.
 @binding("destack.net.socket.receiveMessage", {
     effect: "external",
-    requires: ["net.read"],
+    requires: ["host.net.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -368,7 +368,7 @@ export declare function receiveSocketMessage(
 /// Send one message with ancillary data.
 @binding("destack.net.socket.sendMessage", {
     effect: "external",
-    requires: ["net.write"],
+    requires: ["host.net.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -381,7 +381,7 @@ export declare function sendSocketMessage(
 /// Receive multiple messages into caller-owned buffers.
 @binding("destack.net.socket.receiveBatch", {
     effect: "external",
-    requires: ["net.read"],
+    requires: ["host.net.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -394,7 +394,7 @@ export declare function receiveSocketBatch(
 /// Send multiple messages from caller-owned buffers.
 @binding("destack.net.socket.sendBatch", {
     effect: "external",
-    requires: ["net.write"],
+    requires: ["host.net.write"],
     families: ["windows", "unix"],
     simulation: true,
 })

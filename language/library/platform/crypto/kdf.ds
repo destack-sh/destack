@@ -156,7 +156,7 @@ export struct CryptoKdfBits {
 @binding("destack.crypto.kdf.deriveBits", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.kdf"],
+    requires: ["host.crypto.kdf"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -168,7 +168,7 @@ export declare function deriveKdfBits(
 @binding("destack.crypto.kdf.deriveKey", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.kdf", "crypto.store.write"],
+    requires: ["host.crypto.kdf", "host.crypto.store.write"],
     families: ["windows", "unix"],
     simulation: true,
 })

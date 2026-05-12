@@ -13,7 +13,7 @@ export const EVENT_COUNTER_CLOEXEC: EventCounterFlags = EventCounterFlags(0x2);
 /// Create one Linux event counter.
 @binding("destack.ipc.eventCounter.create", {
     effect: "external",
-    requires: ["ipc.eventCounter"],
+    requires: ["host.ipc.eventCounter"],
     platforms: ["linux"],
     simulation: true,
 })
@@ -25,7 +25,7 @@ export declare function createEventCounter(
 /// Close one event counter handle.
 @binding("destack.ipc.eventCounter.close", {
     effect: "external",
-    requires: ["ipc.eventCounter"],
+    requires: ["host.ipc.eventCounter"],
     platforms: ["linux"],
     simulation: true,
 })
@@ -34,7 +34,7 @@ export declare function closeEventCounter(event: EventCounterHandle): Result<voi
 /// Read one event counter value.
 @binding("destack.ipc.eventCounter.read", {
     effect: "external",
-    requires: ["ipc.eventCounter"],
+    requires: ["host.ipc.eventCounter"],
     platforms: ["linux"],
     simulation: true,
 })
@@ -43,7 +43,7 @@ export declare function readEventCounter(event: EventCounterHandle): Result<uint
 /// Add one value to an event counter.
 @binding("destack.ipc.eventCounter.write", {
     effect: "external",
-    requires: ["ipc.eventCounter"],
+    requires: ["host.ipc.eventCounter"],
     platforms: ["linux"],
     simulation: true,
 })

@@ -36,7 +36,7 @@ export struct UringBuffer {
 /// Open an io_uring ring.
 @binding("destack.io.uring.open", {
     effect: "external",
-    requires: ["io.uring"],
+    requires: ["host.io.uring"],
     platforms: ["linux"],
     simulation: true,
 })
@@ -47,7 +47,7 @@ export declare function openUring(
 /// Close an io_uring ring.
 @binding("destack.io.uring.close", {
     effect: "external",
-    requires: ["io.uring"],
+    requires: ["host.io.uring"],
     platforms: ["linux"],
     simulation: true,
 })
@@ -56,7 +56,7 @@ export declare function closeUring(ring: UringHandle): Result<void, PlatformErro
 /// Read io_uring feature support.
 @binding("destack.io.uring.features", {
     effect: "external",
-    requires: ["io.uring"],
+    requires: ["host.io.uring"],
     platforms: ["linux"],
     simulation: true,
 })
@@ -65,7 +65,7 @@ export declare function getUringFeatures(ring: UringHandle): Result<UringFeature
 /// Register fixed files with an io_uring ring.
 @binding("destack.io.uring.registerFiles", {
     effect: "external",
-    requires: ["io.uring"],
+    requires: ["host.io.uring"],
     platforms: ["linux"],
     simulation: true,
 })
@@ -77,7 +77,7 @@ export declare function registerUringFiles(
 /// Unregister fixed files from an io_uring ring.
 @binding("destack.io.uring.unregisterFiles", {
     effect: "external",
-    requires: ["io.uring"],
+    requires: ["host.io.uring"],
     platforms: ["linux"],
     simulation: true,
 })
@@ -86,7 +86,7 @@ export declare function unregisterUringFiles(ring: UringHandle): Result<void, Pl
 /// Register fixed buffers with an io_uring ring.
 @binding("destack.io.uring.registerBuffers", {
     effect: "external",
-    requires: ["io.uring"],
+    requires: ["host.io.uring"],
     platforms: ["linux"],
     simulation: true,
 })
@@ -98,7 +98,7 @@ export declare function registerUringBuffers(
 /// Unregister fixed buffers from an io_uring ring.
 @binding("destack.io.uring.unregisterBuffers", {
     effect: "external",
-    requires: ["io.uring"],
+    requires: ["host.io.uring"],
     platforms: ["linux"],
     simulation: true,
 })

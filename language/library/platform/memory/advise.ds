@@ -18,7 +18,7 @@ export enum MemoryAdvice {
 /// Apply memory access advice.
 @binding("destack.memory.advise", {
     effect: "external",
-    requires: ["memory.advise"],
+    requires: ["host.memory.advise"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -30,7 +30,7 @@ export declare function adviseMemory(
 /// Discard memory contents.
 @binding("destack.memory.discard", {
     effect: "external",
-    requires: ["memory.discard"],
+    requires: ["host.memory.discard"],
     families: ["windows", "unix"],
     simulation: true,
 })

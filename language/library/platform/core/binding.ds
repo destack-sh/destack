@@ -1,4 +1,8 @@
 import { HostAction } from "./action.ds";
+import { RuntimeAction } from "../runtime/action.ds";
+
+/// Actions for binding policy and sandboxing.
+export type Action = HostAction | RuntimeAction;
 
 /// Platform tags accepted by runtime bindings.
 export type PlatformTag =
@@ -28,8 +32,8 @@ export type HostTag = "native" | "browser" | "wasi" | "emscripten" | "freestandi
 export type BindingOptions = {
     /// Effect kind for the binding.
     effect: "pure" | "deterministic" | "external";
-    /// Host actions required by this binding.
-    requires: HostAction[];
+    /// Actions required by this binding.
+    requires: Action[];
     /// Platforms that support this binding.
     platforms?: PlatformTag[];
     /// Platform families that support this binding.
@@ -51,7 +55,7 @@ export type BindingOptions = {
 /// ```
 /// @binding("destack.fs.open", {
 ///   effect: "external",
-///   requires: ["fs.open"],
+///   requires: ["host.fs.open"],
 ///   families: ["wasm"],
 ///   hosts: ["wasi"],
 ///   simulation: true,

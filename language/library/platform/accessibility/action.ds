@@ -288,7 +288,7 @@ export newtype AccessibilityAction =
 /// Open one inbound accessibility-action stream for one window.
 @binding("destack.accessibility.action.open", {
     effect: "external",
-    requires: ["accessibility.actions"],
+    requires: ["host.accessibility.actions"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -300,7 +300,7 @@ export declare function actionOpen(
 /// Close one inbound accessibility-action stream.
 @binding("destack.accessibility.action.close", {
     effect: "external",
-    requires: ["accessibility.actions"],
+    requires: ["host.accessibility.actions"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -309,7 +309,7 @@ export declare function actionClose(handle: AccessibilityActionHandle): Result<v
 /// Wait for one accessibility action.
 @binding("destack.accessibility.action.read", {
     effect: "external",
-    requires: ["accessibility.actions"],
+    requires: ["host.accessibility.actions"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -321,7 +321,7 @@ export declare function actionRead(
 /// Poll one accessibility action without blocking.
 @binding("destack.accessibility.action.tryRead", {
     effect: "external",
-    requires: ["accessibility.actions"],
+    requires: ["host.accessibility.actions"],
     families: ["windows", "unix"],
     simulation: true,
 })

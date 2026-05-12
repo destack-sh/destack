@@ -32,7 +32,7 @@ export enum ProcessNamespaceKind {
 @binding("destack.process.isolation.enterNamespace", {
     effect: "external",
     replay: "forbidden",
-    requires: ["process.namespace"],
+    requires: ["host.process.namespace"],
     platforms: ["linux"],
     simulation: true,
 })
@@ -45,7 +45,7 @@ export declare function enterNamespace(
 @binding("destack.process.isolation.unshare", {
     effect: "external",
     replay: "forbidden",
-    requires: ["process.namespace"],
+    requires: ["host.process.namespace"],
     platforms: ["linux"],
     simulation: true,
 })
@@ -55,7 +55,7 @@ export declare function unshare(flags: ProcessUnshareFlags): Result<void, Platfo
 @binding("destack.process.isolation.chroot", {
     effect: "external",
     replay: "forbidden",
-    requires: ["security.restrict"],
+    requires: ["runtime.security.restrict"],
     families: ["unix"],
     simulation: true,
 })
@@ -65,7 +65,7 @@ export declare function chroot(path: &readonly Path): Result<void, PlatformError
 @binding("destack.process.isolation.syscallFilter", {
     effect: "external",
     replay: "forbidden",
-    requires: ["security.filter"],
+    requires: ["runtime.security.filter"],
     platforms: ["linux"],
     simulation: true,
 })
@@ -78,7 +78,7 @@ export declare function setSyscallFilter(
 @binding("destack.process.isolation.hostname", {
     effect: "external",
     replay: "forbidden",
-    requires: ["process.namespace"],
+    requires: ["host.process.namespace"],
     platforms: ["linux"],
     simulation: true,
 })
@@ -88,7 +88,7 @@ export declare function setHostname(name: &readonly string): Result<void, Platfo
 @binding("destack.process.isolation.networkNamespace", {
     effect: "external",
     replay: "forbidden",
-    requires: ["process.namespace"],
+    requires: ["host.process.namespace"],
     platforms: ["linux"],
     simulation: true,
 })

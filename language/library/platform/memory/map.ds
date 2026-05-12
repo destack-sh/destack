@@ -41,7 +41,7 @@ export const MAPPED_MEMORY_SYNC_WAIT: MappedMemorySyncFlags = MappedMemorySyncFl
 /// Map a file backed memory range.
 @binding("destack.memory.map.file", {
     effect: "external",
-    requires: ["memory.map"],
+    requires: ["host.memory.map"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -58,7 +58,7 @@ export declare function mapFileMemory(
 /// Map an anonymous memory range.
 @binding("destack.memory.map.anonymous", {
     effect: "external",
-    requires: ["memory.map"],
+    requires: ["host.memory.map"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -73,7 +73,7 @@ export declare function mapAnonymousMemory(
 /// Unmap a mapped memory range.
 @binding("destack.memory.map.unmap", {
     effect: "external",
-    requires: ["memory.map"],
+    requires: ["host.memory.map"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -82,7 +82,7 @@ export declare function unmapMemory(range: VirtualMemoryRange): Result<void, Pla
 /// Flush mapped memory to backing storage.
 @binding("destack.memory.map.sync", {
     effect: "external",
-    requires: ["memory.map"],
+    requires: ["host.memory.map"],
     families: ["windows", "unix"],
     simulation: true,
 })

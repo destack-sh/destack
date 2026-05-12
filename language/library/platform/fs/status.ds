@@ -191,7 +191,7 @@ export struct FileStatus {
 /// Read status for a filesystem entry.
 @binding("destack.fs.status.entry", {
     effect: "external",
-    requires: ["fs.metadata"],
+    requires: ["host.fs.metadata"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -203,7 +203,7 @@ export declare function readEntryStatus(
 /// Read status for an open file.
 @binding("destack.fs.status.file", {
     effect: "external",
-    requires: ["fs.metadata"],
+    requires: ["host.fs.metadata"],
     families: ["windows", "unix"],
     simulation: true,
 })

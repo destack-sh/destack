@@ -35,7 +35,7 @@ export struct ProcessLimit {
 /// Read a process resource limit.
 @binding("destack.process.limit.get", {
     effect: "external",
-    requires: ["process.limit.read"],
+    requires: ["host.process.limit.read"],
     families: ["unix"],
     simulation: true,
 })
@@ -46,7 +46,7 @@ export declare function getProcessLimit(
 /// Set a process resource limit.
 @binding("destack.process.limit.set", {
     effect: "external",
-    requires: ["process.limit.write"],
+    requires: ["host.process.limit.write"],
     families: ["unix"],
     simulation: true,
 })

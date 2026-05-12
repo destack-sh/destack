@@ -21,7 +21,7 @@ export enum CgroupController {
 @binding("destack.process.cgroup.join", {
     effect: "external",
     replay: "forbidden",
-    requires: ["process.cgroup.write"],
+    requires: ["host.process.cgroup.write"],
     platforms: ["linux"],
     simulation: true,
 })
@@ -31,7 +31,7 @@ export declare function joinCgroup(path: &readonly CgroupPath): Result<void, Pla
 @binding("destack.process.cgroup.read", {
     effect: "external",
     replay: "forbidden",
-    requires: ["process.cgroup.read"],
+    requires: ["host.process.cgroup.read"],
     platforms: ["linux"],
     simulation: true,
 })
@@ -45,7 +45,7 @@ export declare function readCgroup(
 @binding("destack.process.cgroup.write", {
     effect: "external",
     replay: "forbidden",
-    requires: ["process.cgroup.write"],
+    requires: ["host.process.cgroup.write"],
     platforms: ["linux"],
     simulation: true,
 })
