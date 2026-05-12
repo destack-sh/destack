@@ -266,7 +266,7 @@ enum Priority {
 ### Tagged Unions
 
 Discriminated unions are very convenient and fit well into existing TypeScript, but by themselves lack nominal containers (and items) to attach behavior to.
-Using Destack's nominality `newtype` and the builtin `Tagged` derive provider, plain old discriminated unions become pretty presentable sum types:
+Using Destack's nominality `newtype` and the builtin `Tagged` `derive`, the well known discriminated unions become pretty presentable sum types:
 
 ```ds
 @derive(Tagged)
@@ -279,8 +279,8 @@ extension of Shape {
     
     variant() {
         match (this) {
-            Shape.Rectangle(_) => "rectangle"
-            Shape.Circle(_) => "circle"
+            Shape.Rectangle { ... } => "rectangle"
+            Shape.Circle { ... } => "circle"
         }
     }
 }
