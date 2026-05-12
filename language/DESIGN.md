@@ -1047,7 +1047,9 @@ function parse(input: int32): int32 {
 }
 ```
 
-Members work the same way (after receiver lookup): inherent members first, then visible extension members in declaration order.
+Members work in much the same way (after receiver lookup): inherent members first, then visible extension members in declaration order.
+Unlike in TypeScript, because we have strict sound types, property access and method calls use different access paths - this means a field and method can share a source name: `value.name` resolves the field/accessor projection, while `value.name()` resolves the method-call projection.
+(Fields and accessors share the property projection and therefore cannot share a name.)
 
 #### Operators
 
