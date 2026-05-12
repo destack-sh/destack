@@ -228,7 +228,9 @@ impl ModuleLowerer<'_> {
                 declarators,
             } => {
                 let keyword = match mutability {
-                    dir::Mutability::Mutable | dir::Mutability::Exclusive => js::BindingKeyword::Let,
+                    dir::Mutability::Mutable | dir::Mutability::Exclusive => {
+                        js::BindingKeyword::Let
+                    }
                     dir::Mutability::Immutable => js::BindingKeyword::Const,
                 };
                 let mut lowered_declarators = Vec::with_capacity(declarators.len());

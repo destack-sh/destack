@@ -281,12 +281,6 @@ impl ModuleLowerer<'_> {
                     value_type,
                 }
             }
-            dir::TypeMember::Embed { .. } => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: member_id.into_global_any(self.module.id),
-                    message: Some("embedded type members are not lowered to JS".to_string()),
-                });
-            }
             dir::TypeMember::Error { .. } => {
                 return Err(CodegenJsError::UnsupportedConstruct {
                     node: member_id.into_global_any(self.module.id),
@@ -419,12 +413,6 @@ impl ModuleLowerer<'_> {
                     signature,
                     body,
                 }
-            }
-            dir::Member::Embed { .. } => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: member_id.into_global_any(self.module.id),
-                    message: Some("type embedding should be expanded before codegen".to_string()),
-                });
             }
             dir::Member::StaticBlock { body, .. } => {
                 let body = self.lower_expression_as_block(*body)?;
