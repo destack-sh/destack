@@ -66,8 +66,6 @@ pub enum NominalRelation {
     Extends,
     /// Interface implementation edge.
     Implements,
-    /// Embedded nominal edge.
-    Embeds,
 }
 
 /// Return the stable ordering key for one nominal entry.
