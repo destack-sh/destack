@@ -1106,8 +1106,8 @@ mod tests {
     #[test]
     fn test_module_platform_implementation_prefix_parses_nested_paths() {
         assert_eq!(
-            module_platform_implementation_prefix("library://platform/device/midi/backend.ds"),
-            Some("midi".to_string())
+            module_platform_implementation_prefix("library://platform/device/controller/backend.ds"),
+            Some("controller".to_string())
         );
         assert_eq!(
             module_platform_implementation_prefix("library://platform/display/window.ds"),
@@ -1120,9 +1120,9 @@ mod tests {
     fn test_module_platform_implementation_prefix_from_path_parses_nested_paths() {
         assert_eq!(
             module_platform_implementation_prefix_from_path(Path::new(
-                "/tmp/destack/language/library/platform/device/midi/backend.ds"
+                "/tmp/destack/language/library/platform/device/controller/backend.ds"
             )),
-            Some("midi".to_string())
+            Some("controller".to_string())
         );
         assert_eq!(
             module_platform_implementation_prefix_from_path(Path::new(
@@ -1138,22 +1138,22 @@ mod tests {
         assert_eq!(
             qualify_platform_implementation_name(
                 Some(Path::new(
-                    "/tmp/destack/language/library/platform/device/midi/backend.ds"
+                    "/tmp/destack/language/library/platform/device/controller/backend.ds"
                 )),
-                "library://platform/device/midi/backend.ds",
+                "library://platform/device/controller/backend.ds",
                 "backend.list"
             ),
-            "midi.backend.list".to_string()
+            "controller.backend.list".to_string()
         );
         assert_eq!(
             qualify_platform_implementation_name(
                 Some(Path::new(
-                    "/tmp/destack/language/library/platform/device/midi/backend.ds"
+                    "/tmp/destack/language/library/platform/device/controller/backend.ds"
                 )),
-                "library://platform/device/midi/backend.ds",
-                "midi.backend.list"
+                "library://platform/device/controller/backend.ds",
+                "controller.backend.list"
             ),
-            "midi.backend.list".to_string()
+            "controller.backend.list".to_string()
         );
         assert_eq!(
             qualify_platform_implementation_name(

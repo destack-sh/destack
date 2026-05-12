@@ -129,8 +129,8 @@ export newtype MidiInputPortHandle = ResourceId;
 /// Handle for one opened MIDI output endpoint.
 export newtype MidiOutputPortHandle = ResourceId;
 
-/// Handle for one MIDI topology event stream.
-export newtype MidiEventHandle = ResourceId;
+/// Handle for one MIDI topology watch.
+export newtype MidiWatchHandle = ResourceId;
 
 /// Handle for one display device endpoint.
 export newtype DisplayHandle = ResourceId;
@@ -270,19 +270,19 @@ export newtype GpuPipelineHandle = ResourceId;
 /// Handle for one serial-port endpoint.
 export newtype SerialPortHandle = ResourceId;
 
-/// Handle for one serial topology watch stream.
+/// Handle for one serial topology watch.
 export newtype SerialWatchHandle = ResourceId;
 
 /// Handle for one USB device endpoint.
 export newtype UsbDeviceHandle = ResourceId;
 
-/// Handle for one USB hotplug watch stream.
+/// Handle for one USB topology watch.
 export newtype UsbWatchHandle = ResourceId;
 
 /// Handle for one Bluetooth scan session.
 export newtype BluetoothScanHandle = ResourceId;
 
-/// Handle for one Bluetooth adapter watch stream.
+/// Handle for one Bluetooth adapter topology watch.
 export newtype BluetoothAdapterWatchHandle = ResourceId;
 
 /// Handle for one Bluetooth device session.
