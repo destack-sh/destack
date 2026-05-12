@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-/// App declaration used for host integration.
+/// App declaration used for product integration.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct AppOptions {
     /// Stable app identity for packaging and host-facing integration.
@@ -418,7 +418,7 @@ pub enum AppNotificationActionStyle {
     TextInput,
 }
 
-/// Background execution declaration for one target app.
+/// Background execution declaration for one product app.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct AppBackgroundOptions {
     /// Declared background execution modes.
@@ -436,7 +436,7 @@ impl From<&AppBackgroundOptionsJson> for AppBackgroundOptions {
     }
 }
 
-/// Background execution declaration JSON for one target app.
+/// Background execution declaration JSON for one product app.
 #[derive(Debug, Clone, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
@@ -474,7 +474,7 @@ pub enum AppBackgroundMode {
     PictureInPicture,
 }
 
-/// Foreground or persistent service declaration for one target app.
+/// Foreground or persistent service declaration for one product app.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct AppServiceOptions {
     /// Declared foreground service classes.
@@ -489,7 +489,7 @@ impl From<&AppServiceOptionsJson> for AppServiceOptions {
     }
 }
 
-/// Foreground or persistent service declaration JSON for one target app.
+/// Foreground or persistent service declaration JSON for one product app.
 #[derive(Debug, Clone, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
@@ -525,7 +525,7 @@ pub enum AppForegroundMode {
     Health,
 }
 
-/// Document-provider declaration for one target app.
+/// Document-provider declaration for one product app.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct AppDocumentOptions {
     /// File or content types the app can open from document providers.
@@ -546,7 +546,7 @@ impl From<&AppDocumentOptionsJson> for AppDocumentOptions {
     }
 }
 
-/// Document-provider declaration JSON for one target app.
+/// Document-provider declaration JSON for one product app.
 #[derive(Debug, Clone, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
@@ -559,7 +559,7 @@ pub struct AppDocumentOptionsJson {
     pub supports_open_in_place: Option<bool>,
 }
 
-/// Credential and secure-store declaration for one target app.
+/// Credential and secure-store declaration for one product app.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct AppCredentialOptions {
     /// Human-facing usage text for biometric authentication on hosts that require one.
@@ -580,7 +580,7 @@ impl From<&AppCredentialOptionsJson> for AppCredentialOptions {
     }
 }
 
-/// Credential and secure-store declaration JSON for one target app.
+/// Credential and secure-store declaration JSON for one product app.
 #[derive(Debug, Clone, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
@@ -593,7 +593,7 @@ pub struct AppCredentialOptionsJson {
     pub credential_domains: Option<Vec<String>>,
 }
 
-/// Location declaration for one target app.
+/// Location declaration for one product app.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct AppLocationOptions {
     /// Whether the app expects background location updates.
@@ -614,7 +614,7 @@ impl From<&AppLocationOptionsJson> for AppLocationOptions {
     }
 }
 
-/// Location declaration JSON for one target app.
+/// Location declaration JSON for one product app.
 #[derive(Debug, Clone, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]

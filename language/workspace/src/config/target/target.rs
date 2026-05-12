@@ -10,7 +10,6 @@ use crate::{CompilerOptions, PolicyOptions, PolicyOptionsJson};
 use super::super::runtime::{
     ExecutionMode, ExecutionModeJson, RuntimeConfigJson, RuntimeOptions, runtime_options_with_base,
 };
-use super::app::*;
 use super::codegen::*;
 use super::js::*;
 use super::link::*;
@@ -73,8 +72,6 @@ pub struct Target {
     pub bundle_output: BundleOutputOptions,
     /// Minification options.
     pub minify: BundleMinifyOptions,
-    /// App declaration used for host integration.
-    pub app: AppOptions,
     /// Policy declarations and rules for this target.
     pub policy: PolicyOptions,
     /// Emitted artifact family (js, ts, html, wasm, native).
@@ -379,7 +376,6 @@ impl Target {
             Some(self.assembly),
             self.discovery,
             self.entry.len(),
-            &self.app,
             self.emit,
             self.preserve_modules,
             self.manual_chunks.is_empty(),
@@ -860,8 +856,6 @@ pub struct TargetOptions {
     pub bundle_output: BundleOutputOptions,
     /// Minification options.
     pub minify: BundleMinifyOptions,
-    /// App declaration used for host integration.
-    pub app: AppOptions,
     /// Policy declarations and rules for this target.
     pub policy: PolicyOptions,
 
@@ -941,7 +935,6 @@ impl Default for TargetOptions {
             bundle_assets: BundleAssetOptions::default(),
             bundle_output: BundleOutputOptions::default(),
             minify: BundleMinifyOptions::default(),
-            app: AppOptions::default(),
             policy: PolicyOptions::default(),
             optimize_level: OptimizeLevel::O0,
             lto_mode: LtoMode::default(),
@@ -1033,7 +1026,6 @@ impl TargetOptions {
             bundle_assets: self.bundle_assets.clone(),
             bundle_output: self.bundle_output.clone(),
             minify: self.minify.clone(),
-            app: self.app.clone(),
             policy: self.policy.clone(),
             optimize_level: self.optimize_level,
             lto_mode: self.lto_mode,
@@ -1087,9 +1079,6 @@ impl TargetOptions {
             runtime_options.set_execution_mode(execution_mode);
         }
 
-        // resolve one target app declaration for runtime host planning
-        let app = json.app.as_ref().map(AppOptions::from).unwrap_or_default();
-
         // merge target policy over package policy
         let policy = PolicyOptions::from_json_with_parent(json.policy.as_ref(), base_policy);
 
@@ -1131,9 +1120,6 @@ impl TargetOptions {
             preserve_modules,
             manual_chunks.is_empty(),
         );
-        // seed runtime options with the resolved target app declaration
-        runtime_options.app = app.clone();
-
         let checks = json
             .checks
             .clone()
@@ -1227,7 +1213,6 @@ impl TargetOptions {
             bundle_assets,
             bundle_output,
             minify,
-            app,
             policy,
             optimize_level: json.optimize.map(OptimizeLevel::from).unwrap_or_default(),
             lto_mode: json.lto_mode.map(LtoMode::from).unwrap_or_default(),
@@ -1392,8 +1377,6 @@ pub struct TargetJson {
     pub output: Option<BundleOutputOptionsJson>,
     /// Minification options.
     pub minify: Option<BundleMinifyOptionsJson>,
-    /// App declaration used for host integration.
-    pub app: Option<AppOptionsJson>,
     /// Policy declarations and rules for this target.
     pub policy: Option<PolicyOptionsJson>,
     // optimization
@@ -1469,7 +1452,6 @@ fn is_assembled_target(
     explicit_bundle_mode: Option<BundleMode>,
     discovery: TargetDiscovery,
     entry_count: usize,
-    app: &AppOptions,
     emit: EmitFormat,
     preserve_modules: bool,
     manual_chunks_is_empty: bool,
@@ -1486,10 +1468,6 @@ fn is_assembled_target(
     );
 
     if out_file || emit.is_single_file() {
-        return true;
-    }
-
-    if !app.is_empty() {
         return true;
     }
 
