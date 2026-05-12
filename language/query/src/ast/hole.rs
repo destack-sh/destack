@@ -389,7 +389,6 @@ fn expression_slot_position_in_member(
 
             None
         }
-        ast::Member::Embed { .. } => None,
         ast::Member::StaticBlock { body, .. } | ast::Member::ComptimeBlock { body, .. } => {
             if *body == expr_id {
                 return Some(ExpressionSlotPosition::Value);

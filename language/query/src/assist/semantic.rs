@@ -413,7 +413,6 @@ pub fn semantic_tokens(
                 }
                 (SemanticTokenType::Method, mods)
             }
-            dir::Member::Embed { .. } => continue,
             dir::Member::StaticBlock { .. } => continue,
             dir::Member::ComptimeBlock { .. } => continue,
             dir::Member::Error { .. } => continue,

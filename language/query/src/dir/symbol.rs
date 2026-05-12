@@ -409,8 +409,7 @@ fn symbol_index_kind_for_member(member: &dir::Member) -> Option<SymbolEntryKind>
         dir::Member::AssociatedConst { .. } => Some(SymbolEntryKind::Constant),
         dir::Member::Field { .. } => Some(SymbolEntryKind::Field),
         dir::Member::Method { .. } => Some(SymbolEntryKind::Method),
-        dir::Member::Embed { .. }
-        | dir::Member::StaticBlock { .. }
+        dir::Member::StaticBlock { .. }
         | dir::Member::ComptimeBlock { .. }
         | dir::Member::Error { .. } => None,
     }
@@ -426,7 +425,6 @@ fn symbol_index_kind_for_type_member(member: &dir::TypeMember) -> Option<SymbolE
         dir::TypeMember::CallSignature { .. } => Some(SymbolEntryKind::Method),
         dir::TypeMember::ConstructSignature { .. } => Some(SymbolEntryKind::Method),
         dir::TypeMember::IndexSignature { .. } => None,
-        dir::TypeMember::Embed { .. } => None,
         dir::TypeMember::Error { .. } => None,
     }
 }

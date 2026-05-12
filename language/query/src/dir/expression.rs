@@ -106,7 +106,6 @@ pub(crate) fn expression_is_type_position(
                     ast::Member::AssociatedType { .. } => false,
                     ast::Member::AssociatedConst { .. } => false,
                     ast::Member::Field { .. } => false,
-                    ast::Member::Embed { .. } => false,
                     _ => false,
                 };
             }
