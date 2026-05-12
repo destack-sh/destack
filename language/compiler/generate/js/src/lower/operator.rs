@@ -32,12 +32,6 @@ impl ModuleLowerer<'_> {
             dir::UnaryOperator::Not => unary(js::UnaryOperator::Not),
             dir::UnaryOperator::Plus => unary(js::UnaryOperator::Plus),
             dir::UnaryOperator::Negate => unary(js::UnaryOperator::Negate),
-            dir::UnaryOperator::WrappingNegate => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(self.module.id),
-                    message: Some("wrapping negate is not lowered to JS".to_string()),
-                });
-            }
             dir::UnaryOperator::ElementwiseNot => unary(js::UnaryOperator::ElementwiseNot),
             dir::UnaryOperator::Typeof => unary(js::UnaryOperator::Typeof),
             dir::UnaryOperator::Void => unary(js::UnaryOperator::Void),
@@ -107,12 +101,6 @@ impl ModuleLowerer<'_> {
             dir::BinaryOperator::Or => binary(js::BinaryOperator::Or),
             dir::BinaryOperator::Coalesce => binary(js::BinaryOperator::Coalesce),
             dir::BinaryOperator::In => binary(js::BinaryOperator::In),
-            _ => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(self.module.id),
-                    message: Some(format!("unsupported binary operator: {operator:?}")),
-                });
-            }
         };
 
         Ok(expression_id)
@@ -181,12 +169,6 @@ impl ModuleLowerer<'_> {
             dir::AssignOperator::OrAssign => assign_binary(js::AssignOperator::OrAssign),
             dir::AssignOperator::CoalesceAssign => {
                 assign_binary(js::AssignOperator::CoalesceAssign)
-            }
-            _ => {
-                return Err(CodegenJsError::UnsupportedConstruct {
-                    node: expression_id.into_global_any(self.module.id),
-                    message: Some(format!("unsupported assign operator: {operator:?}")),
-                });
             }
         };
 

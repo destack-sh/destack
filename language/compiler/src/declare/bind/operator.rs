@@ -14,7 +14,6 @@ impl Compiler {
             ast::UnaryOperator::Not => UnaryOperator::Not,
             ast::UnaryOperator::Negate => UnaryOperator::Negate,
             ast::UnaryOperator::Plus => UnaryOperator::Plus,
-            ast::UnaryOperator::WrappingNegate => UnaryOperator::WrappingNegate,
             ast::UnaryOperator::ElementwiseNot => UnaryOperator::ElementwiseNot,
             ast::UnaryOperator::Typeof => UnaryOperator::Typeof,
             ast::UnaryOperator::Void => UnaryOperator::Void,
@@ -31,33 +30,16 @@ impl Compiler {
         match binary_operator {
             // multiplication
             ast::BinaryOperator::Multiply => destack_dir::BinaryOperator::Multiply,
-            ast::BinaryOperator::WrappingMultiply => destack_dir::BinaryOperator::WrappingMultiply,
-            ast::BinaryOperator::SaturatingMultiply => {
-                destack_dir::BinaryOperator::SaturatingMultiply
-            }
             ast::BinaryOperator::Exponent => destack_dir::BinaryOperator::Exponent,
-            ast::BinaryOperator::WrappingExponent => destack_dir::BinaryOperator::WrappingExponent,
-            ast::BinaryOperator::SaturatingExponent => {
-                destack_dir::BinaryOperator::SaturatingExponent
-            }
             ast::BinaryOperator::Divide => destack_dir::BinaryOperator::Divide,
             ast::BinaryOperator::Remainder => destack_dir::BinaryOperator::Remainder,
 
             // addition
             ast::BinaryOperator::Add => destack_dir::BinaryOperator::Add,
-            ast::BinaryOperator::WrappingAdd => destack_dir::BinaryOperator::WrappingAdd,
-            ast::BinaryOperator::SaturatingAdd => destack_dir::BinaryOperator::SaturatingAdd,
             ast::BinaryOperator::Subtract => destack_dir::BinaryOperator::Subtract,
-            ast::BinaryOperator::WrappingSubtract => destack_dir::BinaryOperator::WrappingSubtract,
-            ast::BinaryOperator::SaturatingSubtract => {
-                destack_dir::BinaryOperator::SaturatingSubtract
-            }
 
             // shift
             ast::BinaryOperator::ShiftLeft => destack_dir::BinaryOperator::ShiftLeft,
-            ast::BinaryOperator::SaturatingShiftLeft => {
-                destack_dir::BinaryOperator::SaturatingShiftLeft
-            }
             ast::BinaryOperator::ShiftRight => destack_dir::BinaryOperator::ShiftRight,
             ast::BinaryOperator::UnsignedShiftRight => {
                 destack_dir::BinaryOperator::UnsignedShiftRight
@@ -105,33 +87,16 @@ impl Compiler {
 
             // assignment multiplication
             ast::AssignOperator::MultiplyAssign => AssignOperator::MultiplyAssign,
-            ast::AssignOperator::WrappingMultiplyAssign => AssignOperator::WrappingMultiplyAssign,
-            ast::AssignOperator::SaturatingMultiplyAssign => {
-                AssignOperator::SaturatingMultiplyAssign
-            }
             ast::AssignOperator::ExponentAssign => AssignOperator::ExponentAssign,
-            ast::AssignOperator::WrappingExponentAssign => AssignOperator::WrappingExponentAssign,
-            ast::AssignOperator::SaturatingExponentAssign => {
-                AssignOperator::SaturatingExponentAssign
-            }
             ast::AssignOperator::DivideAssign => AssignOperator::DivideAssign,
             ast::AssignOperator::RemainderAssign => AssignOperator::RemainderAssign,
 
             // assignment addition
             ast::AssignOperator::AddAssign => AssignOperator::AddAssign,
-            ast::AssignOperator::WrappingAddAssign => AssignOperator::WrappingAddAssign,
-            ast::AssignOperator::SaturatingAddAssign => AssignOperator::SaturatingAddAssign,
             ast::AssignOperator::SubtractAssign => AssignOperator::SubtractAssign,
-            ast::AssignOperator::WrappingSubtractAssign => AssignOperator::WrappingSubtractAssign,
-            ast::AssignOperator::SaturatingSubtractAssign => {
-                AssignOperator::SaturatingSubtractAssign
-            }
 
             // assignment shift
             ast::AssignOperator::ShiftLeftAssign => AssignOperator::ShiftLeftAssign,
-            ast::AssignOperator::SaturatingShiftLeftAssign => {
-                AssignOperator::SaturatingShiftLeftAssign
-            }
             ast::AssignOperator::ShiftRightAssign => AssignOperator::ShiftRightAssign,
             ast::AssignOperator::UnsignedShiftRightAssign => {
                 AssignOperator::UnsignedShiftRightAssign
