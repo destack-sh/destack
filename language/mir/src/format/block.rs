@@ -204,7 +204,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             format_call_continuations(normal_target, unwind_target, f)
         }
 
-        Terminator::InvokeVirtual {
+        Terminator::InvokeClass {
             receiver,
             call,
             declaring_type,
@@ -216,7 +216,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             write!(
                 f,
                 [
-                    token("invoke.virtual"),
+                    token("invoke.class"),
                     space(),
                     receiver,
                     token(","),
@@ -291,7 +291,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             format_call_signature_suffix(call.signature, f)
         }
 
-        Terminator::TailCallVirtual {
+        Terminator::TailCallClass {
             receiver,
             call,
             declaring_type,
@@ -301,7 +301,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             write!(
                 f,
                 [
-                    token("tailCall.virtual"),
+                    token("tailCall.class"),
                     space(),
                     receiver,
                     token(","),

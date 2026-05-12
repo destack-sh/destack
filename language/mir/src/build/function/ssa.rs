@@ -297,7 +297,7 @@ impl<'a> FunctionBuilder<'a> {
                 unwind_target,
                 ..
             }
-            | Terminator::InvokeVirtual {
+            | Terminator::InvokeClass {
                 normal_target,
                 unwind_target,
                 ..

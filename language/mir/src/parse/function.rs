@@ -461,12 +461,12 @@ impl Parser {
                 || self.peek_token(TokenType::Unreachable)
                 || self.peek_token(TokenType::TailCall)
                 || self.peek_token(TokenType::TailCallIndirect)
-                || self.peek_token(TokenType::TailCallVirtual)
+                || self.peek_token(TokenType::TailCallClass)
                 || self.peek_token(TokenType::TailCallInterface)
                 || (self.is_call_terminator_line()
                     && (self.peek_token(TokenType::Invoke)
                         || self.peek_token(TokenType::InvokeIndirect)
-                        || self.peek_token(TokenType::InvokeVirtual)
+                        || self.peek_token(TokenType::InvokeClass)
                         || self.peek_token(TokenType::InvokeInterface)))
             {
                 let recovery_pos = self.pos();
@@ -945,11 +945,11 @@ impl Parser {
                     unwind_target,
                 })
             }
-            TokenType::TailCallVirtual => {
+            TokenType::TailCallClass => {
                 self.bump();
                 let (receiver, declaring_type, slot, arguments, signature) =
-                    self.parse_virtual_call_target()?;
-                Ok(Terminator::TailCallVirtual {
+                    self.parse_class_call_target()?;
+                Ok(Terminator::TailCallClass {
                     receiver,
                     declaring_type,
                     slot,
@@ -957,12 +957,12 @@ impl Parser {
                     call: Call::new(arguments, signature),
                 })
             }
-            TokenType::InvokeVirtual => {
+            TokenType::InvokeClass => {
                 self.bump();
                 let (receiver, declaring_type, slot, arguments, signature) =
-                    self.parse_virtual_call_target()?;
+                    self.parse_class_call_target()?;
                 let (normal_target, unwind_target) = self.parse_call_continuations()?;
-                Ok(Terminator::InvokeVirtual {
+                Ok(Terminator::InvokeClass {
                     receiver,
                     declaring_type,
                     slot,
@@ -980,7 +980,6 @@ impl Parser {
                     receiver,
                     declaring_type,
                     slot,
-                    declared_target: None,
                     call: Call::new(arguments, signature),
                 })
             }
@@ -993,7 +992,6 @@ impl Parser {
                     receiver,
                     declaring_type,
                     slot,
-                    declared_target: None,
                     call: Call::new(arguments, signature),
                     normal_target,
                     unwind_target,

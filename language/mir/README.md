@@ -67,11 +67,11 @@ The terminators themselves are also quite straightforward: essentially, control 
 | `switch` | Jumps to one of many blocks based on an integer value. | `switch v0, b3, 0 => b1, 1 => b2` |
 | `invoke` | Calls a static function that may unwind; branches to explicit success and exception successors. | `invoke foo(v0): (int32) -> int32 -> okBlock, catch errBlock` |
 | `invoke.indirect` | Calls a function value that may unwind; branches to explicit success and exception successors. | `invoke.indirect v1(v0): (int32) -> int32 -> okBlock, catch errBlock` |
-| `invoke.virtual` | Dispatches a virtual method that may unwind; branches to explicit success and exception successors. | `invoke.virtual receiver, TypeName, 3(v0): (ref<TypeName, managed, readonly>) -> int32 -> okBlock, catch errBlock` |
+| `invoke.class` | Dispatches a class method that may unwind; branches to explicit success and exception successors. | `invoke.class receiver, TypeName, 3(v0): (ref<TypeName, managed, readonly>) -> int32 -> okBlock, catch errBlock` |
 | `invoke.interface` | Dispatches through an interface table and branches to explicit success and exception successors. | `invoke.interface receiver, InterfaceName, 3(v0): (any<InterfaceName>) -> int32 -> okBlock, catch errBlock` |
 | `tailCall` | Calls a static function and reuses the current frame, never returning to the caller. | `tailCall foo(v0): (int32) -> void` |
 | `tailCall.indirect` | Tail-calls through a function value, reusing the current frame. | `tailCall.indirect v1(v0): (int32) -> void` |
-| `tailCall.virtual` | Tail-calls a virtual method, reusing the current frame. | `tailCall.virtual receiver, TypeName, 3(v0): (ref<TypeName, managed, readonly>) -> void` |
+| `tailCall.class` | Tail-calls a class method, reusing the current frame. | `tailCall.class receiver, TypeName, 3(v0): (ref<TypeName, managed, readonly>) -> void` |
 | `tailCall.interface` | Tail-calls through an interface table, reusing the current frame. | `tailCall.interface receiver, InterfaceName, 3(v0): (any<InterfaceName>) -> void` |
 | `yield` | Suspends the coroutine, returning a value and remembering where to resume in a "resume block". | `yield v0, resume(v1)` |
 | `throw` | Exits abruptly through the exception path, carrying a managed exception object. | `throw v0` |
@@ -95,7 +95,7 @@ Instructions perform "operations" and may produce SSA `Value`s.
 | Aggregates | `struct`, `tuple`, `array`, `field.get`, `field.set`, `field.address`, `element.get`, `element.set`, `element.address` |
 | Vector | `vector.*` (splat, extract, insert, shuffle, select, reduce, compare, convert) |
 | Tensor | `tensor.*` (splat, extract, load, store, fill, copy, reshape, broadcast, transpose, cast, view, slice, pad, concat, compare, select, reduce, dot, convolution, gather, scatter, convert) |
-| Calls | `call`, `call.virtual`, `call.interface`, `call.indirect` |
+| Calls | `call`, `call.class`, `call.interface`, `call.indirect` |
 | Allocation | `new`, `new.slice`, `raw.alloc`, `raw.free`, `stack.alloc` |
 | Intrinsics | `intrinsic.*` |
 

@@ -51,8 +51,8 @@ impl ArgumentSlice {
 pub enum CallDispatchKind {
     /// Direct function call.
     Direct,
-    /// Virtual call through a vtable slot.
-    Virtual {
+    /// Class call through a class dispatch slot.
+    Class {
         /// The dispatch slot for the method.
         slot: DispatchSlot,
     },
@@ -638,7 +638,7 @@ pub enum Instruction {
         tensor: ValueReference,
     },
 
-    // function calls (call, call.virtual, call.interface, call.indirect)
+    // function calls (call, call.class, call.interface, call.indirect)
     /// Call a function directly.
     Call {
         /// The SSA value to define with the return value, if any.
@@ -648,13 +648,13 @@ pub enum Instruction {
         /// The shared call payload.
         call: Call<ArgumentSlice>,
     },
-    /// Call a virtual method through a vtable slot.
-    CallVirtual {
+    /// Call a class method through a class dispatch slot.
+    CallClass {
         /// The SSA value to define with the return value, if any.
         destination: Option<ValueReference>,
         /// The receiver value for dispatch.
         receiver: ValueReference,
-        /// The declaring type for this virtual call.
+        /// The declaring type for this class call.
         declaring_type: TypeReference,
         /// The dispatch slot for the method.
         slot: DispatchSlot,
@@ -673,8 +673,6 @@ pub enum Instruction {
         declaring_type: TypeReference,
         /// The dispatch slot for the method.
         slot: DispatchSlot,
-        /// The declared method target when known.
-        declared_target: Option<FunctionReference>,
         /// The shared call payload.
         call: Call<ArgumentSlice>,
     },
@@ -927,7 +925,7 @@ impl Instruction {
             Instruction::TensorScatter { destination, .. } => Some(*destination),
             Instruction::TensorConvert { destination, .. } => Some(*destination),
             Instruction::Call { destination, .. } => *destination,
-            Instruction::CallVirtual { destination, .. } => *destination,
+            Instruction::CallClass { destination, .. } => *destination,
             Instruction::CallInterface { destination, .. } => *destination,
             Instruction::CallIndirect { destination, .. } => *destination,
             Instruction::New { destination, .. } => Some(*destination),
@@ -951,7 +949,7 @@ impl Instruction {
 
     /// Get inline values used by this instruction (excludes externalized arguments).
     ///
-    /// For Call, CallVirtual, CallInterface, CallIndirect, and Intrinsic, the arguments are stored externally
+    /// For Call, CallClass, CallInterface, CallIndirect, and Intrinsic, the arguments are stored externally
     /// in Tree's argument buffer and must be fetched via `Tree::get_arguments()`.
     pub fn uses(&self) -> SmallVec<[ValueReference; 4]> {
         match self {
@@ -1046,7 +1044,7 @@ impl Instruction {
             } => smallvec![*operand, *indices, *updates],
             Instruction::TensorConvert { tensor, .. } => smallvec![*tensor],
             Instruction::Call { .. } => smallvec![],
-            Instruction::CallVirtual { receiver, .. } => smallvec![*receiver],
+            Instruction::CallClass { receiver, .. } => smallvec![*receiver],
             Instruction::CallInterface { receiver, .. } => smallvec![*receiver],
             Instruction::CallIndirect { callee, .. } => smallvec![*callee],
             Instruction::New { .. } => smallvec![],
@@ -1080,7 +1078,7 @@ impl Instruction {
 
     /// Get the argument slice for instructions that have externalized arguments.
     ///
-    /// Returns `Some(ArgumentSlice)` for Struct, Tuple, Array, Call, CallVirtual, CallInterface,
+    /// Returns `Some(ArgumentSlice)` for Struct, Tuple, Array, Call, CallClass, CallInterface,
     /// CallIndirect, Intrinsic, and tensor instructions that externalize value lists.
     /// Returns `None` for all other instructions.
     pub fn argument_slice(&self) -> Option<ArgumentSlice> {
@@ -1097,7 +1095,7 @@ impl Instruction {
             Instruction::TensorPad { arguments, .. } => Some(*arguments),
             Instruction::TensorConcat { tensors, .. } => Some(*tensors),
             Instruction::Call { call, .. } => Some(call.arguments),
-            Instruction::CallVirtual { call, .. } => Some(call.arguments),
+            Instruction::CallClass { call, .. } => Some(call.arguments),
             Instruction::CallInterface { call, .. } => Some(call.arguments),
             Instruction::CallIndirect { call, .. } => Some(call.arguments),
             Instruction::Intrinsic { arguments, .. } => Some(*arguments),
@@ -1109,9 +1107,7 @@ impl Instruction {
     pub fn call_dispatch_kind(&self) -> Option<CallDispatchKind> {
         match self {
             Instruction::Call { .. } => Some(CallDispatchKind::Direct),
-            Instruction::CallVirtual { slot, .. } => {
-                Some(CallDispatchKind::Virtual { slot: *slot })
-            }
+            Instruction::CallClass { slot, .. } => Some(CallDispatchKind::Class { slot: *slot }),
             Instruction::CallInterface { slot, .. } => {
                 Some(CallDispatchKind::Interface { slot: *slot })
             }
@@ -1124,7 +1120,7 @@ impl Instruction {
     pub fn call_signature(&self) -> Option<TypeReference> {
         match self {
             Instruction::Call { call, .. }
-            | Instruction::CallVirtual { call, .. }
+            | Instruction::CallClass { call, .. }
             | Instruction::CallInterface { call, .. }
             | Instruction::CallIndirect { call, .. } => Some(call.signature),
             _ => None,
@@ -1135,10 +1131,7 @@ impl Instruction {
     pub fn call_declared_target(&self) -> Option<FunctionReference> {
         match self {
             Instruction::Call { function, .. } => Some(*function),
-            Instruction::CallVirtual {
-                declared_target, ..
-            }
-            | Instruction::CallInterface {
+            Instruction::CallClass {
                 declared_target, ..
             } => *declared_target,
             _ => None,
@@ -1149,7 +1142,7 @@ impl Instruction {
     pub fn call_memory_effect(&self) -> Option<&MemoryEffect> {
         match self {
             Instruction::Call { call, .. }
-            | Instruction::CallVirtual { call, .. }
+            | Instruction::CallClass { call, .. }
             | Instruction::CallInterface { call, .. }
             | Instruction::CallIndirect { call, .. } => call.memory_effect.as_ref(),
             _ => None,
@@ -1160,7 +1153,7 @@ impl Instruction {
     pub fn call_memory_effect_mut(&mut self) -> Option<&mut Option<MemoryEffect>> {
         match self {
             Instruction::Call { call, .. }
-            | Instruction::CallVirtual { call, .. }
+            | Instruction::CallClass { call, .. }
             | Instruction::CallInterface { call, .. }
             | Instruction::CallIndirect { call, .. } => Some(&mut call.memory_effect),
             _ => None,
@@ -1171,7 +1164,7 @@ impl Instruction {
     pub fn call_behavior(&self) -> Option<&CallBehavior> {
         match self {
             Instruction::Call { call, .. }
-            | Instruction::CallVirtual { call, .. }
+            | Instruction::CallClass { call, .. }
             | Instruction::CallInterface { call, .. }
             | Instruction::CallIndirect { call, .. } => call.behavior.as_ref(),
             _ => None,
@@ -1182,7 +1175,7 @@ impl Instruction {
     pub fn call_behavior_mut(&mut self) -> Option<&mut Option<CallBehavior>> {
         match self {
             Instruction::Call { call, .. }
-            | Instruction::CallVirtual { call, .. }
+            | Instruction::CallClass { call, .. }
             | Instruction::CallInterface { call, .. }
             | Instruction::CallIndirect { call, .. } => Some(&mut call.behavior),
             _ => None,
@@ -1193,7 +1186,7 @@ impl Instruction {
     pub fn call_allocation_size(&self) -> Option<AllocationSize> {
         match self {
             Instruction::Call { call, .. }
-            | Instruction::CallVirtual { call, .. }
+            | Instruction::CallClass { call, .. }
             | Instruction::CallInterface { call, .. }
             | Instruction::CallIndirect { call, .. } => call.allocation_size,
             _ => None,
@@ -1204,7 +1197,7 @@ impl Instruction {
     pub fn call_allocation_size_mut(&mut self) -> Option<&mut Option<AllocationSize>> {
         match self {
             Instruction::Call { call, .. }
-            | Instruction::CallVirtual { call, .. }
+            | Instruction::CallClass { call, .. }
             | Instruction::CallInterface { call, .. }
             | Instruction::CallIndirect { call, .. } => Some(&mut call.allocation_size),
             _ => None,
@@ -1215,7 +1208,7 @@ impl Instruction {
     pub fn call_argument_attributes(&self) -> Option<&[ArgumentAttribute]> {
         match self {
             Instruction::Call { call, .. }
-            | Instruction::CallVirtual { call, .. }
+            | Instruction::CallClass { call, .. }
             | Instruction::CallInterface { call, .. }
             | Instruction::CallIndirect { call, .. } => Some(&call.argument_attributes),
             _ => None,
@@ -1226,7 +1219,7 @@ impl Instruction {
     pub fn call_argument_attributes_mut(&mut self) -> Option<&mut Vec<ArgumentAttribute>> {
         match self {
             Instruction::Call { call, .. }
-            | Instruction::CallVirtual { call, .. }
+            | Instruction::CallClass { call, .. }
             | Instruction::CallInterface { call, .. }
             | Instruction::CallIndirect { call, .. } => Some(&mut call.argument_attributes),
             _ => None,
@@ -1237,7 +1230,7 @@ impl Instruction {
     pub fn call_return_attribute(&self) -> Option<&PointerAttribute> {
         match self {
             Instruction::Call { call, .. }
-            | Instruction::CallVirtual { call, .. }
+            | Instruction::CallClass { call, .. }
             | Instruction::CallInterface { call, .. }
             | Instruction::CallIndirect { call, .. } => Some(&call.return_attribute),
             _ => None,
@@ -1248,7 +1241,7 @@ impl Instruction {
     pub fn call_return_attribute_mut(&mut self) -> Option<&mut PointerAttribute> {
         match self {
             Instruction::Call { call, .. }
-            | Instruction::CallVirtual { call, .. }
+            | Instruction::CallClass { call, .. }
             | Instruction::CallInterface { call, .. }
             | Instruction::CallIndirect { call, .. } => Some(&mut call.return_attribute),
             _ => None,

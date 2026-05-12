@@ -200,11 +200,11 @@ impl Parser {
                     call: Call::new(arguments, signature),
                 }
             }
-            "call.virtual" => {
+            "call.class" => {
                 let (receiver, declaring_type, slot, arguments, signature) =
-                    self.parse_virtual_call_target_segments(&mut segment_spans)?;
+                    self.parse_class_call_target_segments(&mut segment_spans)?;
                 let arguments = self.tree.add_arguments(&arguments);
-                Instruction::CallVirtual {
+                Instruction::CallClass {
                     destination,
                     receiver,
                     declaring_type,
@@ -222,7 +222,6 @@ impl Parser {
                     receiver,
                     declaring_type,
                     slot,
-                    declared_target: None,
                     call: Call::new(arguments, signature),
                 }
             }
@@ -1650,8 +1649,8 @@ impl Parser {
         Ok((function, arguments, signature))
     }
 
-    /// Parse one virtual call target and signature.
-    pub(super) fn parse_virtual_call_target(
+    /// Parse one class call target and signature.
+    pub(super) fn parse_class_call_target(
         &mut self,
     ) -> ParseResult<(
         ValueReference,
@@ -1661,11 +1660,11 @@ impl Parser {
         TypeReference,
     )> {
         let mut segment_spans = Vec::new();
-        self.parse_virtual_call_target_segments(&mut segment_spans)
+        self.parse_class_call_target_segments(&mut segment_spans)
     }
 
-    /// Parse one virtual call target and signature with source segments.
-    pub(super) fn parse_virtual_call_target_segments(
+    /// Parse one class call target and signature with source segments.
+    pub(super) fn parse_class_call_target_segments(
         &mut self,
         segment_spans: &mut Vec<Span>,
     ) -> ParseResult<(
@@ -1680,8 +1679,8 @@ impl Parser {
         let declaring_type = self.parse_type_segment(segment_spans)?;
         self.eat_token(TokenType::Comma)?;
         let slot = self.parse_int_segment(segment_spans)?;
-        let slot =
-            u32::try_from(slot).map_err(|_| ParseError::invalid("vtable slot", self.pos()))?;
+        let slot = u32::try_from(slot)
+            .map_err(|_| ParseError::invalid("class dispatch slot", self.pos()))?;
         let slot = DispatchSlot::new(slot);
         let arguments = self.parse_call_argument_segments(segment_spans)?;
         let signature = self.parse_required_call_signature_segment(segment_spans)?;
