@@ -3,55 +3,14 @@
 #![allow(unused_imports)]
 #![allow(unused_macros)]
 
-#[cfg(feature = "generator")]
-/// One generator-only native-array placeholder.
-#[derive(Clone, Copy, Debug)]
-pub struct HostAbiGeneratedNativeArray<T> {
-    /// The element pointer.
-    pub data: *mut T,
-    /// The number of elements.
-    pub len: u32,
-    /// The allocated capacity.
-    pub capacity: u32,
-}
-
-#[cfg(not(feature = "generator"))]
 /// One authored native-array projection.
 pub type HostAbiNativeArray<T> = crate::platform::abi::NativeArray<T>;
-#[cfg(feature = "generator")]
-/// One generator-only native-array projection.
-pub type HostAbiNativeArray<T> = HostAbiGeneratedNativeArray<T>;
 
-#[cfg(not(feature = "generator"))]
 /// One authored runtime-status projection.
 pub type HostAbiRuntimeStatus = crate::platform::RuntimeStatus;
-#[cfg(feature = "generator")]
-/// One generator-only runtime-status placeholder.
-pub type HostAbiRuntimeStatus = crate::host::abi::describe::HostAbiGeneratedRuntimeStatus;
 
-#[cfg(feature = "generator")]
-/// One generator-only runtime-status placeholder.
-#[derive(Clone, Copy, Debug)]
-pub struct HostAbiGeneratedRuntimeStatus {
-    /// The status code.
-    pub code: u32,
-    /// The optional error identifier.
-    pub error_id: u64,
-}
-
-#[cfg(not(feature = "generator"))]
 /// One authored platform-path projection.
 pub type HostAbiOsPath = crate::platform::fs::OsPath;
-#[cfg(feature = "generator")]
-/// One generator-only platform-path placeholder.
-#[derive(Clone, Copy, Debug)]
-pub struct HostAbiGeneratedOsPath {
-    /// The opaque generator marker.
-    pub _opaque: u8,
-}
-#[cfg(feature = "generator")]
-/// One generator-only platform-path projection.
-pub type HostAbiOsPath = HostAbiGeneratedOsPath;
 
 /// One generated host ABI module.
 #[derive(Clone, Debug)]
@@ -549,13 +508,6 @@ macro_rules! host_abi_types {
     ) => {
         $crate::host::abi::describe::host_abi_types!(@emit_items $($items)*);
 
-        /// Return the authored host ABI type declarations for this module.
-        #[cfg(feature = "generator")]
-        pub(crate) fn $function_name() -> Vec<$crate::host::abi::describe::HostAbiNamedType> {
-            let mut types = Vec::new();
-            $crate::host::abi::describe::host_abi_types!(@push types; $($items)*);
-            types
-        }
     };
     (@emit_items) => {};
     (@value_path_string) => {
@@ -780,7 +732,6 @@ macro_rules! host_abi_types {
             )*
         }
     ) => {
-        #[cfg(not(feature = "generator"))]
         impl $crate::platform::NativeAbiCodec for $name {
             type Value = $value_path;
 
@@ -824,7 +775,6 @@ macro_rules! host_abi_types {
             )*
         }
     ) => {
-        #[cfg(not(feature = "generator"))]
         impl $crate::platform::NativeAbiCodec for $name {
             type Value = $value_path;
 
@@ -863,7 +813,6 @@ macro_rules! host_abi_types {
             )*
         }
     ) => {
-        #[cfg(not(feature = "generator"))]
         impl $crate::platform::NativeAbiCodec for $name {
             type Value = $value_path;
 

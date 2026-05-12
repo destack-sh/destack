@@ -10,5 +10,5 @@ pub mod platform;
 pub mod runtime;
 pub mod simulation;
 
-#[doc(hidden)]
-pub mod tests;
+#[cfg(test)]
+mod tests;

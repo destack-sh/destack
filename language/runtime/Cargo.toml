@@ -35,10 +35,6 @@ audio-pulseaudio = []
 audio-jack = []
 audio-aaudio = []
 audio-opensles = []
-[[test]]
-name = "runtime_execution"
-path = "src/tests/driver.rs"
-harness = false
 
 [dependencies]
 # language
