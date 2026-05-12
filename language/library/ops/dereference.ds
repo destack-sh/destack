@@ -1,4 +1,4 @@
-import { type Access } from "destack:memory";
+import { Access } from "destack:memory";
 
 /// Interface for dereference projection `*a`.
 ///

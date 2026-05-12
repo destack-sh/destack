@@ -1,5 +1,5 @@
-import { type Error, type Result } from "destack:error";
-import { type From, type TryFrom } from "./from.ds";
+import { Error, Result } from "destack:error";
+import { From, TryFrom } from "./from.ds";
 
 /// Infallible conversion into `T`.
 export newtype interface Into<T> {

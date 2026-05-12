@@ -1,4 +1,4 @@
-import { type Error, type Result } from "destack:error";
+import { Error, Result } from "destack:error";
 
 /// Infallible conversion from `T`.
 export newtype interface From<T> {

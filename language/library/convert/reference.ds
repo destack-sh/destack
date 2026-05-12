@@ -1,4 +1,4 @@
-import { type Access, type WithAccess } from "destack:memory";
+import { Access, WithAccess } from "destack:memory";
 
 /// Interface for reference conversion.
 ///
