@@ -614,6 +614,65 @@ fn diagnostic_inner(input: DeriveInput) -> Result<TokenStream2> {
         .map(|variant| message_arm(variant, &formatter_name))
         .collect::<Result<Vec<_>>>()?;
 
+    let sub_code_body = if variants.is_empty() {
+        quote! { match *self {} }
+    } else {
+        quote! {
+            match self {
+                #(#sub_code_arms),*
+            }
+        }
+    };
+    let code_body = if variants.is_empty() {
+        quote! { match *self {} }
+    } else {
+        quote! {
+            match self {
+                #(#code_arms),*
+            }
+        }
+    };
+    let anchor_body = if variants.is_empty() {
+        quote! { match *self {} }
+    } else {
+        quote! {
+            match self {
+                #(#primary_anchor_arms),*
+            }
+        }
+    };
+    let message_body = if variants.is_empty() {
+        quote! { match *self {} }
+    } else {
+        quote! {
+            let message = match self {
+                #(#message_arms),*
+            };
+
+            Ok(message)
+        }
+    };
+    let diagnostic_body = if variants.is_empty() {
+        quote! { match *self {} }
+    } else {
+        quote! {
+            let primary_anchor = self.anchor();
+            let #formatter_name =
+                destack_artifact::DiagnosticFormatter::new(#context_name);
+            let message = self.message(&#formatter_name)?;
+            let primary_label = #context_name.label(&primary_anchor, Some(message.clone()))?;
+
+            let __diagnostic = destack_source::Diagnostic::new(
+                self.code(),
+                destack_source::DiagnosticSeverity::#severity_ident,
+                message.clone(),
+                primary_label,
+            );
+
+            Ok(__diagnostic)
+        }
+    };
+
     let result_alias = result_alias(enum_name, &result_name, is_error);
     let into_impl = aggregate_impl(enum_name, options, is_error);
 
@@ -650,26 +709,20 @@ fn diagnostic_inner(input: DeriveInput) -> Result<TokenStream2> {
             /// Return the numeric sub-code of the diagnostic.
             #[inline]
             pub fn sub_code(&self) -> u16 {
-                match self {
-                    #(#sub_code_arms),*
-                }
+                #sub_code_body
             }
 
             /// Return the full diagnostic code.
             #[inline]
             pub fn code(&self) -> &'static str {
-                match self {
-                    #(#code_arms),*
-                }
+                #code_body
             }
 
             /// Return the anchor for this diagnostic.
             pub fn anchor(
                 &self,
             ) -> destack_artifact::DiagnosticAnchor {
-                match self {
-                    #(#primary_anchor_arms),*
-                }
+                #anchor_body
             }
 
             /// Return the message for this diagnostic.
@@ -679,11 +732,7 @@ fn diagnostic_inner(input: DeriveInput) -> Result<TokenStream2> {
                 #formatter_name: &destack_artifact::DiagnosticFormatter<'_>,
             ) -> Result<String, destack_artifact::DiagnosticError>
             {
-                let message = match self {
-                    #(#message_arms),*
-                };
-
-                Ok(message)
+                #message_body
             }
 
             /// Return the source diagnostic for this provider diagnostic.
@@ -692,20 +741,7 @@ fn diagnostic_inner(input: DeriveInput) -> Result<TokenStream2> {
                 #context_name: &dyn destack_artifact::DiagnosticContext,
             ) -> Result<destack_source::Diagnostic, destack_artifact::DiagnosticError>
             {
-                let primary_anchor = self.anchor();
-                let #formatter_name =
-                    destack_artifact::DiagnosticFormatter::new(#context_name);
-                let message = self.message(&#formatter_name)?;
-                let primary_label = #context_name.label(&primary_anchor, Some(message.clone()))?;
-
-                let __diagnostic = destack_source::Diagnostic::new(
-                    self.code(),
-                    destack_source::DiagnosticSeverity::#severity_ident,
-                    message.clone(),
-                    primary_label,
-                );
-
-                Ok(__diagnostic)
+                #diagnostic_body
             }
 
             /// Start a decorated diagnostic builder.
