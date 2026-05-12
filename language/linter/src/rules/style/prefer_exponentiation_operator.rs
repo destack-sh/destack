@@ -4,8 +4,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
-    expression_is_symbol, expression_static_property_access,
-    span_has_comment,
+    expression_is_symbol, expression_static_property_access, span_has_comment,
 };
 use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
@@ -51,8 +50,6 @@ struct ExponentiationVisitor<'a, 'b> {
     meta: &'a LintMeta,
     /// The Math symbol for this module.
     math_symbol: dir::GlobalSymbolId,
-    /// The Math member name.
-    math_name: StringId,
     /// The pow member name.
     pow_name: StringId,
     /// The visitor options.
@@ -70,7 +67,6 @@ impl<'a, 'b> ExponentiationVisitor<'a, 'b> {
             ctx,
             meta,
             math_symbol,
-            math_name,
             pow_name,
             options: NodeVisitorOptions::default(),
         }
@@ -191,11 +187,7 @@ impl<'a, 'b> ExponentiationVisitor<'a, 'b> {
 
     /// Return true when the expression is a Math object reference.
     fn is_math_object(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        expression_is_symbol(
-            self.ctx,
-            expression_id,
-            self.math_symbol,
-        )
+        expression_is_symbol(self.ctx, expression_id, self.math_symbol)
     }
 }
 

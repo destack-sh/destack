@@ -3,9 +3,7 @@ use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression}
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
-use crate::rules::common::{
-    expression_is_symbol, expression_static_property_access,
-};
+use crate::rules::common::{expression_is_symbol, expression_static_property_access};
 use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -51,8 +49,6 @@ struct NoInsecureRandomVisitor<'a, 'b> {
     meta: &'a LintMeta,
     /// The Math symbol for this module.
     math_symbol: dir::GlobalSymbolId,
-    /// The Math member name.
-    math_name: StringId,
     /// The random member name.
     random_name: StringId,
     /// The visitor options.
@@ -70,7 +66,6 @@ impl<'a, 'b> NoInsecureRandomVisitor<'a, 'b> {
             ctx,
             meta,
             math_symbol,
-            math_name,
             random_name,
             options: NodeVisitorOptions::default(),
         }
@@ -138,11 +133,7 @@ impl<'a, 'b> NoInsecureRandomVisitor<'a, 'b> {
 
     /// Return true when the expression is a Math object reference.
     fn is_math_object(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        expression_is_symbol(
-            self.ctx,
-            expression_id,
-            self.math_symbol,
-        )
+        expression_is_symbol(self.ctx, expression_id, self.math_symbol)
     }
 }
 

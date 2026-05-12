@@ -62,12 +62,6 @@ struct NoImpliedEvalVisitor<'a, 'b> {
     set_interval_symbol: Option<dir::GlobalSymbolId>,
     /// The setImmediate symbol for this module.
     set_immediate_symbol: Option<dir::GlobalSymbolId>,
-    /// The setTimeout member name.
-    set_timeout_name: StringId,
-    /// The setInterval member name.
-    set_interval_name: StringId,
-    /// The setImmediate member name.
-    set_immediate_name: StringId,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -93,9 +87,6 @@ impl<'a, 'b> NoImpliedEvalVisitor<'a, 'b> {
             set_timeout_symbol,
             set_interval_symbol,
             set_immediate_symbol,
-            set_timeout_name,
-            set_interval_name,
-            set_immediate_name,
             options: NodeVisitorOptions::default(),
         }
     }

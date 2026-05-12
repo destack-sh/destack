@@ -163,7 +163,8 @@ pub fn expression_is_any_symbol(
     expression_id: dir::LocalNodeId<dir::Expression>,
     symbols: &[dir::GlobalSymbolId],
 ) -> bool {
-    expression_target_symbol(ctx, expression_id).is_some_and(|symbol_id| symbols.contains(&symbol_id))
+    expression_target_symbol(ctx, expression_id)
+        .is_some_and(|symbol_id| symbols.contains(&symbol_id))
 }
 
 /// Return one static string literal value from an expression.

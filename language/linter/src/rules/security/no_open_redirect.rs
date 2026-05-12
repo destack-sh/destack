@@ -49,8 +49,6 @@ struct NoOpenRedirectVisitor<'a, 'b> {
     meta: &'a LintMeta,
     /// The location lib symbol.
     location_symbol: dir::GlobalSymbolId,
-    /// The `location` name.
-    location_name: StringId,
     /// The `href` property name.
     href_name: StringId,
     /// The `assign` method name.
@@ -79,7 +77,6 @@ impl<'a, 'b> NoOpenRedirectVisitor<'a, 'b> {
             ctx,
             meta,
             location_symbol,
-            location_name,
             href_name,
             assign_name,
             replace_name,
@@ -172,11 +169,7 @@ impl<'a, 'b> NoOpenRedirectVisitor<'a, 'b> {
     /// Return true when the expression is a location target.
     fn is_location_target(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
         // match location directly
-        if expression_is_symbol(
-            self.ctx,
-            expression_id,
-            self.location_symbol,
-        ) {
+        if expression_is_symbol(self.ctx, expression_id, self.location_symbol) {
             return true;
         }
 
@@ -187,7 +180,6 @@ impl<'a, 'b> NoOpenRedirectVisitor<'a, 'b> {
             if property_name == self.href_name && self.is_location_ref(receiver_id) {
                 return true;
             }
-
         }
 
         false

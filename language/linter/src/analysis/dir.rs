@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use destack_dir as dir;
+
 use crate::ConstValue;
 
 /// Cache shared analysis results for DIR lint rules.
