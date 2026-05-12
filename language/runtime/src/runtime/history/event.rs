@@ -1,9 +1,10 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::ResourceId;
 use crate::runtime::trace::{
     Observation, ObservationCategory, ObservationRecord, ObservationScope, Outcome, Trace,
     TraceRecord, TraceSequence,
 };
-use crate::runtime::world::{Command, World, WorldResourceId};
+use crate::runtime::world::{Command, World};
 use crate::runtime::{RuntimeId, WorkerId};
 
 use super::{BranchId, LineageView, Moment};
@@ -302,7 +303,7 @@ impl EventSet {
     }
 
     /// Keep only resource-scoped observation events.
-    pub fn resource(self, resource_id: WorldResourceId) -> Self {
+    pub fn resource(self, resource_id: ResourceId) -> Self {
         self.filter(|event| {
             event.scope().and_then(|scope| scope.resource_id()) == Some(resource_id)
         })

@@ -2,9 +2,9 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::platform::{ResourceBacking, ResourceCapture, ResourcePortability};
+use crate::platform::{ResourceBacking, ResourceCapture, ResourceId, ResourcePortability};
 use crate::runtime::time::Instant;
-use crate::runtime::world::{Moment, WorldResourceId};
+use crate::runtime::world::Moment;
 use crate::runtime::{RuntimeId, WorkerId};
 
 /// Stable sequence number for one observation entry.
@@ -94,8 +94,8 @@ pub enum ObservationScope {
     Resource {
         /// Worker identifier that owns the resource.
         worker_id: WorkerId,
-        /// Logical world resource identifier.
-        resource_id: WorldResourceId,
+        /// World resource identifier.
+        resource_id: ResourceId,
     },
 }
 
@@ -133,7 +133,7 @@ impl ObservationScope {
     }
 
     /// Create one resource scope.
-    pub const fn resource(worker_id: WorkerId, resource_id: WorldResourceId) -> Self {
+    pub const fn resource(worker_id: WorkerId, resource_id: ResourceId) -> Self {
         Self::Resource {
             worker_id,
             resource_id,
@@ -178,7 +178,7 @@ impl ObservationScope {
     }
 
     /// Return the resource id for this scope when present.
-    pub const fn resource_id(&self) -> Option<WorldResourceId> {
+    pub const fn resource_id(&self) -> Option<ResourceId> {
         match self {
             Self::Resource { resource_id, .. } => Some(*resource_id),
             _ => None,
@@ -378,7 +378,7 @@ impl Observation {
     /// Create one resource-attached observation.
     pub fn resource_attached(
         worker_id: WorkerId,
-        resource_id: WorldResourceId,
+        resource_id: ResourceId,
         backing: ResourceBacking,
         capture: ResourceCapture,
         portability: ResourcePortability,
@@ -389,7 +389,7 @@ impl Observation {
             "resource.attached",
             [
                 ("worker_id", worker_id.0.to_string()),
-                ("resource_id", resource_id.resource_id.0.to_string()),
+                ("resource_id", resource_id.local_id.to_string()),
                 ("backing", format!("{backing:?}")),
                 ("capture", format!("{capture:?}")),
                 ("portability", format!("{portability:?}")),
@@ -398,14 +398,14 @@ impl Observation {
     }
 
     /// Create one resource-detached observation.
-    pub fn resource_detached(worker_id: WorkerId, resource_id: WorldResourceId) -> Self {
+    pub fn resource_detached(worker_id: WorkerId, resource_id: ResourceId) -> Self {
         Self::annotations(
             ObservationCategory::Resource,
             ObservationScope::resource(worker_id, resource_id),
             "resource.detached",
             [
                 ("worker_id", worker_id.0.to_string()),
-                ("resource_id", resource_id.resource_id.0.to_string()),
+                ("resource_id", resource_id.local_id.to_string()),
             ],
         )
     }

@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use destack_artifact::Platform;
-use destack_workspace::{AppOptions, PlatformHostOptions, PlatformOsOptions, RuntimeOptions};
+use destack_workspace::{AppOptions, HostOptions, HostOsOptions, RuntimeOptions};
 
 use crate::diagnostic::RuntimeResult;
 use crate::host::core::adapter::{HostAdapter, PollResult};
@@ -13,7 +13,7 @@ use crate::host::core::registry::{
 use crate::host::core::request::{
     HostRequest, HostRequestId, HostRequestOutcome, RequestContext, SessionContext,
 };
-use crate::host::core::target::{default_compile_target_parts, host_options_for_target};
+use crate::host::core::target::default_compile_target_parts;
 use crate::host::operation::HostOperation;
 use crate::host::policy::require_declared_request;
 use crate::runtime::action::{HostAction, HostActionId, HostActionSet};
@@ -40,9 +40,9 @@ pub struct Session {
     /// Static host action set reported by the host adapter.
     adapter_actions: HostActionSet,
     /// Resolved host integration options for this runtime target.
-    host_options: PlatformHostOptions,
+    host_options: HostOptions,
     /// Resolved OS runtime options for host-backed services.
-    os_options: PlatformOsOptions,
+    os_options: HostOsOptions,
     /// Resolved target app declaration for request availability checks.
     app_declaration: AppOptions,
 }
@@ -59,10 +59,6 @@ impl std::fmt::Debug for Session {
             )
             .field("adapter_action_count", &self.adapter_actions.len())
             .field("session_action_count", &self.session_actions().len())
-            .field(
-                "event_queue_capacity",
-                &self.host_options.event_queue_capacity,
-            )
             .finish()
     }
 }
@@ -71,11 +67,9 @@ impl Session {
     /// Capture host restore configuration from runtime options.
     pub(crate) fn restore_config_from_runtime_options(
         options: &RuntimeOptions,
-    ) -> (PlatformHostOptions, PlatformOsOptions, AppOptions) {
-        // resolve compile-target host integration once
-        let (platform, _adapter, _cleanup) = default_compile_target_parts();
-        let host_options = host_options_for_target(platform, options);
-        let os_options = options.os.clone();
+    ) -> (HostOptions, HostOsOptions, AppOptions) {
+        let host_options = options.host.clone();
+        let os_options = options.host.os.clone();
         let app_declaration = options.app.clone();
 
         (host_options, os_options, app_declaration)
@@ -86,8 +80,8 @@ impl Session {
         adapter: Arc<dyn HostAdapter>,
         cleanup: Option<HostCleanup>,
         runtime_id: RuntimeId,
-        host_options: PlatformHostOptions,
-        os_options: PlatformOsOptions,
+        host_options: HostOptions,
+        os_options: HostOsOptions,
         app_declaration: AppOptions,
         is_native_ingress_enabled: bool,
     ) -> Self {
@@ -107,8 +101,8 @@ impl Session {
         adapter: Arc<dyn HostAdapter>,
         cleanup: Option<HostCleanup>,
         runtime_id: RuntimeId,
-        host_options: PlatformHostOptions,
-        os_options: PlatformOsOptions,
+        host_options: HostOptions,
+        os_options: HostOsOptions,
         app_declaration: AppOptions,
         is_native_ingress_enabled: bool,
     ) -> Self {
@@ -123,12 +117,6 @@ impl Session {
             Arc::clone(&queue),
             cleanup,
         );
-
-        // apply queue policy to the shared host event queue
-        let queue_capacity = host_options
-            .event_queue_capacity
-            .and_then(|capacity| usize::try_from(capacity).ok());
-        queue.configure_capacity(queue_capacity);
 
         let adapter_actions = adapter.static_actions();
         Self {
@@ -167,8 +155,8 @@ impl Session {
     /// Create one session from one captured host-restore configuration.
     pub(crate) fn from_restore_config(
         runtime_id: RuntimeId,
-        host_options: PlatformHostOptions,
-        os_options: PlatformOsOptions,
+        host_options: HostOptions,
+        os_options: HostOsOptions,
         app_declaration: AppOptions,
     ) -> Self {
         // resolve compile-target host integration once
@@ -371,12 +359,10 @@ mod tests {
     use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
-    use destack_workspace::{
-        AppIntentOptions, AppNotificationOptions, AppOptions, PlatformOsOptions,
-    };
+    use destack_workspace::{AppIntentOptions, AppNotificationOptions, AppOptions, HostOsOptions};
 
     use super::{
-        HostAdapter, HostCleanup, HostRequest, HostRequestOutcome, Platform, PlatformHostOptions,
+        HostAdapter, HostCleanup, HostOptions, HostRequest, HostRequestOutcome, Platform,
         RequestContext, RuntimeId, RuntimeResult, Session,
     };
     use crate::host::{HostRequestResult, HostSessionId};
@@ -449,8 +435,8 @@ mod tests {
         });
         let cleanup: Option<HostCleanup> = None;
         let runtime_id = RuntimeId(91);
-        let host_options = PlatformHostOptions::default();
-        let os_options = PlatformOsOptions::default();
+        let host_options = HostOptions::default();
+        let os_options = HostOsOptions::default();
         let session = Session::new_with_options(
             adapter,
             cleanup,

@@ -1,9 +1,8 @@
 use std::collections::BTreeMap;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::world::{
-    BranchId, Edge, Entity, Revision, RuntimeId, WorldImage, WorldResource, WorldResourceId,
-};
+use crate::platform::ResourceId;
+use crate::runtime::world::{BranchId, Edge, Entity, Resource, Revision, RuntimeId, WorldImage};
 use crate::runtime::{RuntimeImage, WorkerId, WorkerImage};
 
 /// Runtime list filter decoded from one low-level ABI surface.
@@ -232,7 +231,7 @@ pub(crate) fn worker_in_image(
 /// Return whether one logical resource matches the structured filter.
 pub(crate) fn resource_matches_filter(
     image: &WorldImage,
-    resource: &WorldResource,
+    resource: &Resource,
     filter: &ResourceListFilter,
 ) -> bool {
     if let Some(runtime_id) = filter.runtime_id {
@@ -270,9 +269,9 @@ pub(crate) fn resource_matches_filter(
 pub(crate) fn list_resources<'a>(
     image: &'a WorldImage,
     filter: &ResourceListFilter,
-    after: Option<WorldResourceId>,
+    after: Option<ResourceId>,
     limit: Option<usize>,
-) -> Vec<&'a WorldResource> {
+) -> Vec<&'a Resource> {
     let mut resources = Vec::new();
 
     // stable resource scan
@@ -302,11 +301,11 @@ pub(crate) fn list_resources<'a>(
 /// Resolve one logical resource from one pinned image.
 pub(crate) fn resource_in_image(
     image: &WorldImage,
-    resource_id: WorldResourceId,
-) -> RuntimeResult<&WorldResource> {
+    resource_id: ResourceId,
+) -> RuntimeResult<&Resource> {
     image.resource(resource_id).ok_or_else(|| {
         RuntimeError::ResourceNotFound {
-            resource_id: resource_id.resource_id.0,
+            resource_id: resource_id.local_id,
             resource_kind: None,
         }
         .boxed()

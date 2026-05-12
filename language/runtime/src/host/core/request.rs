@@ -17,7 +17,7 @@ use crate::platform::os::{
     MediaAssetKind, NotificationPermissionState, Permission, PermissionEntry, PermissionState,
 };
 use crate::platform::{PlatformError, fs};
-use destack_workspace::{AppIdentityOptions, PlatformOsOptions};
+use destack_workspace::{AppIdentityOptions, HostOsOptions};
 
 /// Stable runtime-session-scoped identifier for one outbound host request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -31,7 +31,7 @@ pub(crate) struct SessionContext {
     /// Host platform for the active adapter.
     pub(crate) platform: Platform,
     /// Runtime OS options for host-backed service state.
-    pub(crate) os_options: PlatformOsOptions,
+    pub(crate) os_options: HostOsOptions,
     /// Runtime app identity for host-facing integration.
     pub(crate) app_identity: AppIdentityOptions,
     /// Whether the caller already runs on the process main context.
@@ -48,7 +48,7 @@ pub(crate) struct RequestContext {
     /// Host platform for the active adapter.
     pub(crate) platform: Platform,
     /// Runtime OS options for host-backed service state.
-    pub(crate) os_options: PlatformOsOptions,
+    pub(crate) os_options: HostOsOptions,
     /// Runtime app identity for host-facing integration.
     pub(crate) app_identity: AppIdentityOptions,
     /// Whether the caller already runs on the process main context.

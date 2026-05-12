@@ -158,7 +158,7 @@ impl EventLoop {
             (
                 self.source_order(event.source),
                 event.token.0,
-                event.resource_id.0,
+                event.resource_id.local_id,
                 event.mask.0,
                 event.flags.0,
                 self.payload_sort_key(event.payload),
@@ -222,16 +222,18 @@ mod tests {
     use super::EventLoop;
     use crate::host::{HostEvent, HostLifecycleEvent, HostLifecycleSourceKind, HostLifecycleState};
     use crate::platform::ResourceId;
-    use crate::runtime::DropReason;
     use crate::runtime::poller::{
         PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
         PollerToken,
     };
     use crate::runtime::scheduler::Runnable;
+    use crate::runtime::{DropReason, WorkerId};
+
+    const TEST_WORKER_ID: WorkerId = WorkerId(1);
 
     fn io_poller_event(token: u64) -> PollerEvent {
         PollerEvent {
-            resource_id: ResourceId(1),
+            resource_id: ResourceId::new(TEST_WORKER_ID, 1),
             source: PollerEventSource::Io,
             mask: PollerEventMask::READABLE,
             flags: PollerEventFlags::NONE,

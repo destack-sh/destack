@@ -6,17 +6,13 @@ use destack_workspace::{ExecutionMode, RandomMode, RuntimeOptions};
 use {destack_engine as engine, destack_vm as vm};
 
 #[cfg(test)]
-use crate::diagnostic::{DiagnosticId, RuntimeError, RuntimeResult, RuntimeStatus};
+use crate::diagnostic::RuntimeResult;
 use crate::host::Session;
 #[cfg(test)]
-use crate::platform::PlatformError;
-#[cfg(test)]
-use crate::platform::diagnostic::PlatformErrorCode;
-#[cfg(test)]
-use crate::platform::random::{
-    RandomStream, destack_random_stream_next_u64, destack_random_stream_next_u64_from,
-};
+use crate::platform::random::RandomStream;
 use crate::runtime::binding::BindingEngine;
+#[cfg(test)]
+use crate::runtime::random::native::{destack_random_next_u64, destack_random_next_u64_from};
 use crate::runtime::{
     BindingCallContext, SharedHeap, Worker, WorkerOptions, World, WorldState,
     enter_binding_call_context, enter_current_worker_context,
@@ -91,7 +87,7 @@ impl TestRuntime {
         options.set_execution_mode(ExecutionMode::Fast);
         options.set_random_mode(RandomMode::Deterministic);
         options.simulation.random.seed = Some(0);
-        options.crypto.host_store_paths.user = Some(user_store_path);
+        options.host.crypto.key_store_paths.user = Some(user_store_path);
 
         options
     }
@@ -260,63 +256,29 @@ impl TestRuntime {
     /// Execute the native random binding with deterministic runtime state.
     #[cfg(test)]
     pub(crate) fn call_native_next_u64(&mut self) -> RuntimeResult<u64> {
-        let (status, out) = self.with_native_call_context(|_| {
+        self.with_native_call_context(|binding| {
             let mut out = 0u64;
-            let status = unsafe { destack_random_stream_next_u64(&mut out) };
-            (status, out)
-        });
 
-        self.status_value(status, "random stream nextU64", out)
+            unsafe {
+                destack_random_next_u64(binding, &mut out)?;
+            }
+
+            Ok(out)
+        })
     }
 
     /// Execute the native stream binding with deterministic runtime state.
     #[cfg(test)]
     pub(crate) fn call_native_next_u64_from(&mut self, stream: u64) -> RuntimeResult<u64> {
-        let (status, out) = self.with_native_call_context(|_| {
+        self.with_native_call_context(|binding| {
             let mut out = 0u64;
-            let status =
-                unsafe { destack_random_stream_next_u64_from(&mut out, RandomStream(stream)) };
-            (status, out)
-        });
 
-        self.status_value(status, "random stream nextU64From", out)
-    }
-
-    /// Convert a native status and value into a runtime result.
-    #[cfg(test)]
-    fn status_value<T>(&self, status: RuntimeStatus, label: &str, value: T) -> RuntimeResult<T> {
-        // return the produced value on success
-        if status == RuntimeStatus::OK {
-            return Ok(value);
-        }
-
-        // synthesize a diagnostic when the runtime status lacks an error id
-        if status.error_id == 0 {
-            if status.code == PlatformErrorCode::NotSupported.number().saturating_add(1) {
-                let error = RuntimeError::from(PlatformError::not_supported(label));
-                return Err(error.boxed());
+            unsafe {
+                destack_random_next_u64_from(binding, &mut out, RandomStream(stream))?;
             }
 
-            let error = RuntimeError::from(PlatformError::io(format!(
-                "{label} failed without runtime error id",
-            )));
-            return Err(error.boxed());
-        }
-
-        // take the stored runtime error
-        let error_id = DiagnosticId::from_raw(status.error_id);
-        let error = self
-            .worker
-            .diagnostics
-            .take_error(error_id)
-            .unwrap_or_else(|| {
-                RuntimeError::from(PlatformError::io(format!(
-                    "{label} failed with missing runtime error",
-                )))
-                .boxed()
-            });
-
-        Err(error)
+            Ok(out)
+        })
     }
 }
 

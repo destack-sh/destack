@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use destack_artifact::Platform;
-use destack_workspace::{PlatformHostOptions, RuntimeOptions};
 
 use crate::host::HostAdapter;
 use crate::host::core::registry::HostCleanup;
@@ -80,19 +79,4 @@ pub(crate) fn default_compile_target_parts() -> (Platform, Arc<dyn HostAdapter>,
         windows,
     )))]
     return (Platform::Unknown, Arc::new(UnsupportedHost::new()), None);
-}
-
-/// Return host event queue options for one compile target platform.
-pub(crate) fn host_options_for_target(
-    platform: Platform,
-    options: &RuntimeOptions,
-) -> PlatformHostOptions {
-    match platform {
-        Platform::Android => options.platform.android.clone(),
-        Platform::IOS => options.platform.ios.clone(),
-        Platform::Linux => options.platform.linux.clone(),
-        Platform::MacOS => options.platform.macos.clone(),
-        Platform::Windows => options.platform.windows.host_options(),
-        _ => PlatformHostOptions::default(),
-    }
 }

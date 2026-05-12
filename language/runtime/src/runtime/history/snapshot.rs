@@ -5,13 +5,14 @@ use destack_core::{CaptureMode, fnv1a_128};
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::ResourceId;
 use crate::platform::resource::ResourceRebinders;
 use crate::runtime::binding::BindingReplayPayload;
 use crate::runtime::policy::{Policy, PolicyState};
 use crate::runtime::random::RandomImage;
 use crate::runtime::time::ClockImage;
 use crate::runtime::topology::{Edge, Entity, RuntimeId, Topology};
-use crate::runtime::world::{World, WorldResource, WorldResourceId};
+use crate::runtime::world::{Resource, World};
 use crate::runtime::{Runtime, RuntimeImage, WorkerId, WorkerImage};
 use crate::simulation::Simulation;
 use destack_workspace::{
@@ -81,8 +82,8 @@ pub struct WorldImage {
     pub(crate) policy: PolicyState,
     /// Captured topology metadata graph.
     pub(crate) topology: Topology,
-    /// Captured logical world resources.
-    pub(crate) resources: BTreeMap<WorldResourceId, WorldResource>,
+    /// Captured world resources.
+    pub(crate) resources: BTreeMap<ResourceId, Resource>,
     /// Captured simulation state.
     pub(crate) simulation: Simulation,
     /// Captured world clock state.
@@ -111,8 +112,8 @@ impl WorldImage {
         &self.workers
     }
 
-    /// Return the captured logical world resources keyed by resource id.
-    pub fn resources(&self) -> &BTreeMap<WorldResourceId, WorldResource> {
+    /// Return the captured world resources keyed by resource id.
+    pub fn resources(&self) -> &BTreeMap<ResourceId, Resource> {
         &self.resources
     }
 
@@ -151,8 +152,8 @@ impl WorldImage {
         self.workers.contains_key(&worker_id)
     }
 
-    /// Report whether one logical resource exists in this image.
-    pub fn has_resource(&self, resource_id: WorldResourceId) -> bool {
+    /// Report whether one resource exists in this image.
+    pub fn has_resource(&self, resource_id: ResourceId) -> bool {
         self.resources.contains_key(&resource_id)
     }
 
@@ -263,7 +264,7 @@ impl WorldImage {
     }
 
     /// Return one logical world resource by id.
-    pub fn resource(&self, resource_id: WorldResourceId) -> Option<&WorldResource> {
+    pub fn resource(&self, resource_id: ResourceId) -> Option<&Resource> {
         self.resources.get(&resource_id)
     }
 

@@ -188,7 +188,7 @@ impl HostPoller for KqueuePoller {
         // resolve the existing registration
         let entry = self.registrations.get_mut(&resource_id).ok_or_else(|| {
             RuntimeError::ResourceNotFound {
-                resource_id: resource_id.0,
+                resource_id: resource_id.local_id,
                 resource_kind: None,
             }
             .boxed()
@@ -640,6 +640,9 @@ mod tests {
         HostPoller, HostPollerFlags, KqueuePoller, PlatformHandle, PlatformInterest, PollerToken,
         ResourceId,
     };
+    use crate::runtime::WorkerId;
+
+    const TEST_WORKER_ID: WorkerId = WorkerId(1);
 
     /// Ensures kqueue emits a readable event when data is available.
     #[test]
@@ -656,7 +659,7 @@ mod tests {
         let handle = PlatformHandle::from_raw_fd(read_fd);
         poller
             .register(
-                ResourceId(1),
+                ResourceId::new(TEST_WORKER_ID, 1),
                 handle,
                 PollerToken(1),
                 PlatformInterest::READABLE,

@@ -22,7 +22,7 @@ import {
     TraceDescriptor,
     WorldDescriptor,
     WorldHandle,
-    WorldResourceId,
+    ResourceId,
     WorldViewHandle,
     WorldViewOptions,
 } from "./types.ds";
@@ -168,7 +168,7 @@ export declare function workerView(
 export declare function resourceList(
     view: WorldViewHandle,
     filter?: ResourceFilter,
-    after?: WorldResourceId,
+    after?: ResourceId,
     limit?: uint32,
 ): Result<Array<ResourceDescriptor>, PlatformError>;
 
@@ -183,7 +183,7 @@ export declare function resourceList(
 })
 export declare function resourceView(
     view: WorldViewHandle,
-    resourceId: WorldResourceId,
+    resourceId: ResourceId,
 ): Result<ResourceDescriptor, PlatformError>;
 
 /// List topology entities visible through one pinned world view.

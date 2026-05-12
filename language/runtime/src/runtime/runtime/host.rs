@@ -5,17 +5,15 @@ use crate::host::Session;
 use crate::runtime::poller::HostPoller;
 use crate::runtime::runtime::poller_for_backend;
 use crate::runtime::world::RuntimeId;
-use destack_workspace::{
-    AppOptions, PlatformHostOptions, PlatformOsOptions, PollerBackend, RuntimeOptions,
-};
+use destack_workspace::{AppOptions, HostOptions, HostOsOptions, PollerBackend, RuntimeOptions};
 
 /// Immutable runtime host reconstruction settings.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RuntimeHostOptions {
     /// Captured host options for runtime restore.
-    pub host_options: PlatformHostOptions,
+    pub host_options: HostOptions,
     /// Captured OS service options for runtime restore.
-    pub os_options: PlatformOsOptions,
+    pub os_options: HostOsOptions,
     /// Captured app declaration for runtime restore.
     pub app_declaration: AppOptions,
     /// Captured poller backend for runtime restore.

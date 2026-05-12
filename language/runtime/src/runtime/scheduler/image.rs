@@ -19,8 +19,6 @@ pub struct EventLoopState {
     pub next_task_id: u64,
     /// The next microtask identifier to issue.
     pub next_microtask_id: u64,
-    /// The next queue sequence to issue.
-    pub next_sequence: u64,
     /// Host-event fairness counter.
     pub host_events_since_poller: u64,
     /// Captured execution context id when initialized.
@@ -199,7 +197,6 @@ impl EventLoop {
         let state = EventLoopState {
             next_task_id: self.next_task_id,
             next_microtask_id: self.next_microtask_id,
-            next_sequence: self.next_sequence,
             host_events_since_poller: self.host_events_since_poller,
             execution_context_id: self.execution_context_id.get().copied(),
         };
@@ -255,7 +252,6 @@ impl EventLoop {
         let state = snapshot.state();
         self.next_task_id = state.next_task_id;
         self.next_microtask_id = state.next_microtask_id;
-        self.next_sequence = state.next_sequence;
         self.host_events_since_poller = state.host_events_since_poller;
 
         // preserve or initialize the execution context id

@@ -2,11 +2,12 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::ResourceId;
 use crate::runtime::policy::Policy;
 use crate::runtime::topology::{
     Edge, EdgeDefinition, EdgeKind, Entity, EntityDefinition, EntityKind, RuntimeId,
 };
-use crate::runtime::world::{WorldResource, WorldResourceId};
+use crate::runtime::world::Resource;
 use crate::runtime::{RuntimeImage, WorkerId, WorkerImage};
 
 use super::{Moment, WorldImage};
@@ -62,8 +63,8 @@ impl WorldView {
         self.image.workers()
     }
 
-    /// Return all logical world resources visible at this moment.
-    pub fn resources(&self) -> &BTreeMap<WorldResourceId, WorldResource> {
+    /// Return all world resources visible at this moment.
+    pub fn resources(&self) -> &BTreeMap<ResourceId, Resource> {
         self.image.resources()
     }
 
@@ -113,7 +114,7 @@ impl WorldView {
     }
 
     /// Report whether one resource exists at this moment.
-    pub fn has_resource(&self, resource_id: WorldResourceId) -> bool {
+    pub fn has_resource(&self, resource_id: ResourceId) -> bool {
         self.image.has_resource(resource_id)
     }
 
@@ -151,7 +152,7 @@ impl WorldView {
     }
 
     /// Return one resource by id when present.
-    pub fn resource(&self, resource_id: WorldResourceId) -> Option<&WorldResource> {
+    pub fn resource(&self, resource_id: ResourceId) -> Option<&Resource> {
         self.image.resource(resource_id)
     }
 

@@ -1,7 +1,12 @@
 import { PlatformError } from "destack:platform/error";
 
 /// Opaque identifier for a runtime-managed resource.
-export newtype ResourceId = uint64;
+export struct ResourceId {
+    /// Owning worker identifier.
+    workerId: uint64;
+    /// Worker-local resource identifier.
+    localId: uint64;
+}
 
 /// Resource ownership mode.
 export enum ResourceOwnership {

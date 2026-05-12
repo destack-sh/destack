@@ -4,9 +4,10 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::ResourceId;
 use crate::runtime::engine::Entry;
 use crate::runtime::policy::{Policy, Rule, RuleId};
-use crate::runtime::{WorkerId, WorldResource, WorldResourceId};
+use crate::runtime::{Resource, WorkerId};
 
 use super::{Edge, EdgeDefinition, EdgeId, Entity, EntityDefinition, EntityId, RuntimeId, World};
 
@@ -38,12 +39,12 @@ pub enum Command {
     /// Create one logical world resource.
     CreateResource {
         /// Resource payload to create.
-        resource: WorldResource,
+        resource: Resource,
     },
     /// Destroy one logical world resource.
     DestroyResource {
         /// Resource identifier to destroy.
-        resource_id: WorldResourceId,
+        resource_id: ResourceId,
     },
     /// Replace the active world policy.
     SetPolicy {
@@ -261,12 +262,12 @@ impl World {
     }
 
     /// Create one world resource.
-    pub fn create_resource(&mut self, resource: WorldResource) -> RuntimeResult<()> {
+    pub fn create_resource(&mut self, resource: Resource) -> RuntimeResult<()> {
         self.command(Command::CreateResource { resource })
     }
 
     /// Destroy one world resource.
-    pub fn destroy_resource(&mut self, resource_id: WorldResourceId) -> RuntimeResult<()> {
+    pub fn destroy_resource(&mut self, resource_id: ResourceId) -> RuntimeResult<()> {
         self.command(Command::DestroyResource { resource_id })
     }
 
