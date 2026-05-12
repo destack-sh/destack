@@ -19,8 +19,7 @@ use crate::runtime::trace::{
     EntropyKind, EntropySubject, EnvironmentConfig, Trace, TraceError, TraceHeader,
 };
 use crate::runtime::world::{
-    Command, RuntimeId, WorldEntity, WorldEntityKind, WorldEntityKindDefinition, WorldResource,
-    WorldResourceId,
+    Command, Entity, EntityDefinition, EntityKind, RuntimeId, WorldResource, WorldResourceId,
 };
 use destack_vm as vm;
 use destack_workspace::config::ExecutionMode;
@@ -385,7 +384,7 @@ fn test_record_replay_policy_command() {
 fn test_record_replay_topology_command() {
     // build one topology command payload
     let command = Command::DefineEntityKind {
-        kind: WorldEntityKindDefinition {
+        kind: EntityDefinition {
             kind: "test.entity".into(),
             labels: Default::default(),
             supported_faults: Default::default(),
@@ -412,14 +411,14 @@ fn test_record_replay_world_commands() {
     // build two command payloads
     let commands = vec![
         Command::DefineEntityKind {
-            kind: WorldEntityKindDefinition {
+            kind: EntityDefinition {
                 kind: "test.program.entity".into(),
                 labels: Default::default(),
                 supported_faults: Default::default(),
             },
         },
         Command::UpsertEntity {
-            entity: WorldEntity {
+            entity: Entity {
                 id: "test.program.entity.1".into(),
                 kind: "test.program.entity".into(),
                 labels: Default::default(),
@@ -488,7 +487,7 @@ fn test_record_replay_resource_command() {
     let command = Command::CreateResource {
         resource: WorldResource::new(
             WorldResourceId::new(WorkerId(42), ResourceId(7)),
-            WorldEntityKind::from("resource.timer"),
+            EntityKind::from("resource.timer"),
             Some("test-timer".to_string()),
             ResourceBacking::Virtual,
             ResourceCapture::State,

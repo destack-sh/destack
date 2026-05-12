@@ -2,8 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::world::{
-    BranchId, Revision, RuntimeId, WorldEdge, WorldEntity, WorldImage, WorldResource,
-    WorldResourceId,
+    BranchId, Edge, Entity, Revision, RuntimeId, WorldImage, WorldResource, WorldResourceId,
 };
 use crate::runtime::{RuntimeImage, WorkerId, WorkerImage};
 
@@ -320,7 +319,7 @@ pub(crate) fn list_entities<'a>(
     filter: &EntityListFilter,
     after: Option<&str>,
     limit: Option<usize>,
-) -> Vec<&'a WorldEntity> {
+) -> Vec<&'a Entity> {
     let mut entities = Vec::new();
 
     // stable topology entity scan
@@ -357,7 +356,7 @@ pub(crate) fn list_entities<'a>(
 pub(crate) fn entity_in_image<'a>(
     image: &'a WorldImage,
     entity_id: &str,
-) -> RuntimeResult<&'a WorldEntity> {
+) -> RuntimeResult<&'a Entity> {
     image.entity(entity_id).ok_or_else(|| {
         RuntimeError::ResourceNotFound {
             resource_id: 0,
@@ -373,7 +372,7 @@ pub(crate) fn list_edges<'a>(
     filter: &EdgeListFilter,
     after: Option<&str>,
     limit: Option<usize>,
-) -> Vec<&'a WorldEdge> {
+) -> Vec<&'a Edge> {
     let mut edges = Vec::new();
 
     // stable topology edge scan
@@ -419,10 +418,7 @@ pub(crate) fn list_edges<'a>(
 }
 
 /// Resolve one topology edge from one pinned image.
-pub(crate) fn edge_in_image<'a>(
-    image: &'a WorldImage,
-    edge_id: &str,
-) -> RuntimeResult<&'a WorldEdge> {
+pub(crate) fn edge_in_image<'a>(image: &'a WorldImage, edge_id: &str) -> RuntimeResult<&'a Edge> {
     image.edge(edge_id).ok_or_else(|| {
         RuntimeError::ResourceNotFound {
             resource_id: 0,

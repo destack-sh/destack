@@ -13,9 +13,8 @@ use super::builtin::{
     builtin_entity_kinds, builtin_resource_entity_kinds,
 };
 use super::{
-    RuntimeId, TopologyEntityRole, TopologyError, TopologyResult, WorldEdge, WorldEdgeId,
-    WorldEdgeKind, WorldEdgeKindDefinition, WorldEntity, WorldEntityId, WorldEntityKind,
-    WorldEntityKindDefinition,
+    Edge, EdgeDefinition, EdgeId, EdgeKind, Entity, EntityDefinition, EntityId, EntityKind,
+    EntityRole, RuntimeId, TopologyError, TopologyResult,
 };
 use crate::runtime::WorkerId;
 use crate::runtime::world::WorldResourceId;
@@ -24,13 +23,13 @@ use crate::runtime::world::WorldResourceId;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct Topology {
     /// Registered entity kinds by kind id.
-    entity_kinds: BTreeMap<WorldEntityKind, WorldEntityKindDefinition>,
+    entity_kinds: BTreeMap<EntityKind, EntityDefinition>,
     /// Registered edge kinds by kind id.
-    edge_kinds: BTreeMap<WorldEdgeKind, WorldEdgeKindDefinition>,
+    edge_kinds: BTreeMap<EdgeKind, EdgeDefinition>,
     /// Topology entities by entity identifier.
-    entities: BTreeMap<WorldEntityId, WorldEntity>,
+    entities: BTreeMap<EntityId, Entity>,
     /// Topology edges by edge identifier.
-    edges: BTreeMap<WorldEdgeId, WorldEdge>,
+    edges: BTreeMap<EdgeId, Edge>,
 }
 
 impl Default for Topology {
@@ -58,12 +57,12 @@ impl Topology {
     }
 
     /// Return all registered entity kinds.
-    pub(crate) fn entity_kinds(&self) -> &BTreeMap<WorldEntityKind, WorldEntityKindDefinition> {
+    pub(crate) fn entity_kinds(&self) -> &BTreeMap<EntityKind, EntityDefinition> {
         &self.entity_kinds
     }
 
     /// Return all registered edge kinds.
-    pub(crate) fn edge_kinds(&self) -> &BTreeMap<WorldEdgeKind, WorldEdgeKindDefinition> {
+    pub(crate) fn edge_kinds(&self) -> &BTreeMap<EdgeKind, EdgeDefinition> {
         &self.edge_kinds
     }
 
@@ -80,12 +79,12 @@ impl Topology {
     }
 
     /// Return all topology entities.
-    pub(crate) fn entities(&self) -> &BTreeMap<WorldEntityId, WorldEntity> {
+    pub(crate) fn entities(&self) -> &BTreeMap<EntityId, Entity> {
         &self.entities
     }
 
     /// Return all topology edges.
-    pub(crate) fn edges(&self) -> &BTreeMap<WorldEdgeId, WorldEdge> {
+    pub(crate) fn edges(&self) -> &BTreeMap<EdgeId, Edge> {
         &self.edges
     }
 
@@ -140,14 +139,13 @@ impl Topology {
         }
 
         // runtime entity
-        let runtime_entity =
-            WorldEntity::new(runtime_id.entity_id(), BUILTIN_RUNTIME_KIND_ID).labels(
-                entity_labels_with_name(runtime_labels, LABEL_RUNTIME_NAME, runtime_name),
-            );
+        let runtime_entity = Entity::new(runtime_id.entity_id(), BUILTIN_RUNTIME_KIND_ID).labels(
+            entity_labels_with_name(runtime_labels, LABEL_RUNTIME_NAME, runtime_name),
+        );
         self.upsert_entity(runtime_entity)?;
 
         // default worker entity
-        let worker_entity = WorldEntity::new(default_worker_id.entity_id(), BUILTIN_WORKER_KIND_ID)
+        let worker_entity = Entity::new(default_worker_id.entity_id(), BUILTIN_WORKER_KIND_ID)
             .labels(entity_labels_with_name(
                 default_worker_labels,
                 LABEL_WORKER_NAME,
@@ -156,7 +154,7 @@ impl Topology {
         self.upsert_entity(worker_entity)?;
 
         // ownership edge
-        let edge = WorldEdge::new(
+        let edge = Edge::new(
             runtime_id.owns_worker_edge_id(default_worker_id),
             BUILTIN_RUNTIME_OWNS_WORKER_EDGE_KIND_ID,
             runtime_id.entity_id(),
@@ -179,7 +177,7 @@ impl Topology {
         if !self.entities.contains_key(&runtime_id.entity_id()) {
             return Err(TopologyError::UnknownEntity {
                 entity_id: runtime_id.entity_id(),
-                role: TopologyEntityRole::Source,
+                role: EntityRole::Source,
             });
         }
 
@@ -191,13 +189,13 @@ impl Topology {
         }
 
         // worker entity
-        let worker_entity = WorldEntity::new(worker_id.entity_id(), BUILTIN_WORKER_KIND_ID).labels(
+        let worker_entity = Entity::new(worker_id.entity_id(), BUILTIN_WORKER_KIND_ID).labels(
             entity_labels_with_name(worker_labels, LABEL_WORKER_NAME, worker_name),
         );
         self.upsert_entity(worker_entity)?;
 
         // ownership edge
-        let edge = WorldEdge::new(
+        let edge = Edge::new(
             runtime_id.owns_worker_edge_id(worker_id),
             BUILTIN_RUNTIME_OWNS_WORKER_EDGE_KIND_ID,
             runtime_id.entity_id(),
@@ -244,7 +242,7 @@ impl Topology {
     pub(crate) fn attach_resource(
         &mut self,
         resource_id: WorldResourceId,
-        resource_kind: WorldEntityKind,
+        resource_kind: EntityKind,
         resource_label: Option<&str>,
     ) -> TopologyResult<()> {
         // reject missing owning worker
@@ -254,7 +252,7 @@ impl Topology {
         {
             return Err(TopologyError::UnknownEntity {
                 entity_id: resource_id.worker_id.entity_id(),
-                role: TopologyEntityRole::Source,
+                role: EntityRole::Source,
             });
         }
 
@@ -263,12 +261,11 @@ impl Topology {
         if let Some(resource_label) = resource_label {
             labels.insert(LABEL_RESOURCE_LABEL.to_string(), resource_label.to_string());
         }
-        let resource_entity =
-            WorldEntity::new(resource_id.entity_id(), resource_kind).labels(labels);
+        let resource_entity = Entity::new(resource_id.entity_id(), resource_kind).labels(labels);
         self.upsert_entity(resource_entity)?;
 
         // ownership edge
-        let edge = WorldEdge::new(
+        let edge = Edge::new(
             resource_id.ownership_edge_id(),
             BUILTIN_WORKER_OWNS_RESOURCE_EDGE_KIND_ID,
             resource_id.worker_id.entity_id(),
@@ -285,10 +282,7 @@ impl Topology {
     }
 
     /// Define one entity kind in topology.
-    pub(crate) fn define_entity_kind(
-        &mut self,
-        mut kind: WorldEntityKindDefinition,
-    ) -> TopologyResult<()> {
+    pub(crate) fn define_entity_kind(&mut self, mut kind: EntityDefinition) -> TopologyResult<()> {
         // reject empty kind identifiers
         if kind.kind.as_str().is_empty() {
             return Err(TopologyError::EmptyKindId);
@@ -313,10 +307,7 @@ impl Topology {
     }
 
     /// Define one edge kind in topology.
-    pub(crate) fn define_edge_kind(
-        &mut self,
-        mut kind: WorldEdgeKindDefinition,
-    ) -> TopologyResult<()> {
+    pub(crate) fn define_edge_kind(&mut self, mut kind: EdgeDefinition) -> TopologyResult<()> {
         // reject empty kind identifiers
         if kind.kind.as_str().is_empty() {
             return Err(TopologyError::EmptyKindId);
@@ -341,7 +332,7 @@ impl Topology {
     }
 
     /// Upsert one topology entity.
-    pub(crate) fn upsert_entity(&mut self, entity: WorldEntity) -> TopologyResult<()> {
+    pub(crate) fn upsert_entity(&mut self, entity: Entity) -> TopologyResult<()> {
         self.expect_entity_kind(entity.kind.as_str())?;
         self.entities.insert(entity.id.clone(), entity);
         Ok(())
@@ -355,10 +346,10 @@ impl Topology {
     }
 
     /// Upsert one topology edge.
-    pub(crate) fn upsert_edge(&mut self, edge: WorldEdge) -> TopologyResult<()> {
+    pub(crate) fn upsert_edge(&mut self, edge: Edge) -> TopologyResult<()> {
         self.expect_edge_kind(edge.kind.as_str())?;
-        self.expect_entity(edge.from.as_str(), TopologyEntityRole::Source)?;
-        self.expect_entity(edge.to.as_str(), TopologyEntityRole::Destination)?;
+        self.expect_entity(edge.from.as_str(), EntityRole::Source)?;
+        self.expect_entity(edge.to.as_str(), EntityRole::Destination)?;
         self.edges.insert(edge.id.clone(), edge);
         Ok(())
     }
@@ -375,7 +366,7 @@ impl Topology {
         }
 
         Err(TopologyError::UnknownEntityKind {
-            kind: WorldEntityKind::from(kind_id),
+            kind: EntityKind::from(kind_id),
         })
     }
 
@@ -386,18 +377,18 @@ impl Topology {
         }
 
         Err(TopologyError::UnknownEdgeKind {
-            kind: WorldEdgeKind::from(kind_id),
+            kind: EdgeKind::from(kind_id),
         })
     }
 
     /// Expect one entity to exist.
-    fn expect_entity(&self, entity_id: &str, role: TopologyEntityRole) -> TopologyResult<()> {
+    fn expect_entity(&self, entity_id: &str, role: EntityRole) -> TopologyResult<()> {
         if self.entities.contains_key(entity_id) {
             return Ok(());
         }
 
         Err(TopologyError::UnknownEntity {
-            entity_id: WorldEntityId::from(entity_id),
+            entity_id: EntityId::from(entity_id),
             role,
         })
     }
@@ -412,7 +403,7 @@ impl Topology {
     }
 
     /// Return the owning runtime id for one worker entity.
-    fn worker_runtime_entity_id(&self, worker_id: WorkerId) -> Option<WorldEntityId> {
+    fn worker_runtime_entity_id(&self, worker_id: WorkerId) -> Option<EntityId> {
         let worker_entity_id = worker_id.entity_id();
         let edge = self.edges.values().find(|edge| {
             edge.kind.as_str() == BUILTIN_RUNTIME_OWNS_WORKER_EDGE_KIND_ID

@@ -8,10 +8,7 @@ use crate::runtime::engine::Entry;
 use crate::runtime::policy::{Policy, Rule, RuleId};
 use crate::runtime::{WorkerId, WorldResource, WorldResourceId};
 
-use super::{
-    RuntimeId, World, WorldEdge, WorldEdgeId, WorldEdgeKindDefinition, WorldEntity, WorldEntityId,
-    WorldEntityKindDefinition,
-};
+use super::{Edge, EdgeDefinition, EdgeId, Entity, EntityDefinition, EntityId, RuntimeId, World};
 
 /// One world command recorded in authoritative trace.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -83,32 +80,32 @@ pub enum Command {
     /// Define one entity kind in world topology.
     DefineEntityKind {
         /// Entity kind definition.
-        kind: WorldEntityKindDefinition,
+        kind: EntityDefinition,
     },
     /// Define one edge kind in world topology.
     DefineEdgeKind {
         /// Edge kind definition.
-        kind: WorldEdgeKindDefinition,
+        kind: EdgeDefinition,
     },
     /// Upsert one entity in world topology.
     UpsertEntity {
         /// Entity payload.
-        entity: WorldEntity,
+        entity: Entity,
     },
     /// Remove one entity from world topology.
     RemoveEntity {
         /// Stable entity identifier.
-        entity_id: WorldEntityId,
+        entity_id: EntityId,
     },
     /// Upsert one edge in world topology.
     UpsertEdge {
         /// Edge payload.
-        edge: WorldEdge,
+        edge: Edge,
     },
     /// Remove one edge from world topology.
     RemoveEdge {
         /// Stable edge identifier.
-        edge_id: WorldEdgeId,
+        edge_id: EdgeId,
     },
 }
 
@@ -313,32 +310,32 @@ impl World {
     }
 
     /// Define one world entity kind.
-    pub fn define_entity_kind(&mut self, kind: WorldEntityKindDefinition) -> RuntimeResult<()> {
+    pub fn define_entity_kind(&mut self, kind: EntityDefinition) -> RuntimeResult<()> {
         self.command(Command::DefineEntityKind { kind })
     }
 
     /// Define one world edge kind.
-    pub fn define_edge_kind(&mut self, kind: WorldEdgeKindDefinition) -> RuntimeResult<()> {
+    pub fn define_edge_kind(&mut self, kind: EdgeDefinition) -> RuntimeResult<()> {
         self.command(Command::DefineEdgeKind { kind })
     }
 
     /// Upsert one world entity.
-    pub fn upsert_entity(&mut self, entity: WorldEntity) -> RuntimeResult<()> {
+    pub fn upsert_entity(&mut self, entity: Entity) -> RuntimeResult<()> {
         self.command(Command::UpsertEntity { entity })
     }
 
     /// Remove one world entity.
-    pub fn remove_entity(&mut self, entity_id: WorldEntityId) -> RuntimeResult<()> {
+    pub fn remove_entity(&mut self, entity_id: EntityId) -> RuntimeResult<()> {
         self.command(Command::RemoveEntity { entity_id })
     }
 
     /// Upsert one world edge.
-    pub fn upsert_edge(&mut self, edge: WorldEdge) -> RuntimeResult<()> {
+    pub fn upsert_edge(&mut self, edge: Edge) -> RuntimeResult<()> {
         self.command(Command::UpsertEdge { edge })
     }
 
     /// Remove one world edge.
-    pub fn remove_edge(&mut self, edge_id: WorldEdgeId) -> RuntimeResult<()> {
+    pub fn remove_edge(&mut self, edge_id: EdgeId) -> RuntimeResult<()> {
         self.command(Command::RemoveEdge { edge_id })
     }
 
