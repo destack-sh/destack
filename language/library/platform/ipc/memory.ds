@@ -7,17 +7,17 @@ export newtype SharedMemoryFlags = uint32;
 /// Create the object only when it does not already exist.
 export const SHARED_MEMORY_CREATE_EXCLUSIVE: SharedMemoryFlags = SharedMemoryFlags(0x1);
 
-/// Mapping protection flags.
-export newtype MemoryMapFlags = uint32;
+/// Shared memory mapping protection flags.
+export newtype SharedMemoryMapFlags = uint32;
 
 /// Map the range readable.
-export const MEMORY_MAP_READ: MemoryMapFlags = MemoryMapFlags(0x1);
+export const SHARED_MEMORY_MAP_READ: SharedMemoryMapFlags = SharedMemoryMapFlags(0x1);
 
 /// Map the range writable.
-export const MEMORY_MAP_WRITE: MemoryMapFlags = MemoryMapFlags(0x2);
+export const SHARED_MEMORY_MAP_WRITE: SharedMemoryMapFlags = SharedMemoryMapFlags(0x2);
 
 /// Shared memory mapping result.
-export struct SharedMemoryMapping {
+export struct SharedMemoryMap {
     /// Base address in process virtual memory.
     address: uint64;
     /// Mapping length in bytes.
@@ -92,8 +92,8 @@ export declare function mapSharedMemory(
     memory: SharedMemoryHandle,
     offset: uint64,
     length: uint64,
-    flags: MemoryMapFlags,
-): Result<SharedMemoryMapping, PlatformError>;
+    flags: SharedMemoryMapFlags,
+): Result<SharedMemoryMap, PlatformError>;
 
 /// Unmap one shared memory range.
 @binding("destack.ipc.memory.unmap", {

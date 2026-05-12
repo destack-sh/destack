@@ -29,7 +29,7 @@ export struct IoControlResult {
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function controlResource(
+export declare function executeIoControl(
     resource: ResourceId,
     request: IoControlRequest,
     input: &readonly [uint8],
