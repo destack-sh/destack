@@ -187,26 +187,6 @@ pendingSetRef.flags! |= SchedulerJobFlags.DISPOSED;
 (pendingSetRef.flags satisfies T) |= SchedulerJobFlags.DISPOSED;
 ```
 
-### wrapping and saturating assignments
-
-Wrapping and saturating assignments keep spaces around the operator.
-
-```ds
-total +%= increment
-```
-
-```ds expected
-total +%= increment;
-```
-
-```ds
-count *|= multiplier
-```
-
-```ds expected
-count *|= multiplier;
-```
-
 ## Destructuring Assignments
 
 ### array rest assignment

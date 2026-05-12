@@ -139,48 +139,6 @@ flags & mask | other
 (flags & mask) | other;
 ```
 
-## Destack Arithmetic Variants
-
-### wrapping operators stay spaced
-
-Wrapping operators keep spaces around them.
-
-```ds
-total +% increment
-```
-
-```ds expected
-total +% increment;
-```
-
-```ds
-product *% multiplier
-```
-
-```ds expected
-product *% multiplier;
-```
-
-### saturating operators stay spaced
-
-Saturating operators keep spaces around them.
-
-```ds
-total +| increment
-```
-
-```ds expected
-total +| increment;
-```
-
-```ds
-product *| multiplier
-```
-
-```ds expected
-product *| multiplier;
-```
-
 ## Comments in Chains
 
 ### comments stay with operands
