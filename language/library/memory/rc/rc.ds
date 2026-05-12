@@ -1,11 +1,10 @@
-import { todo, type Result } from "destack:error";
-import { type Dereference } from "destack:ops";
-import { type AllocationError } from "../allocator.ds";
-import { type Clone, type Unpin, type Zeroable } from "../capability.ds";
-import { type MaybeUninit } from "../init.ds";
-import { type Pin } from "../pin.ds";
-import { type NonNull } from "../raw.ds";
-import { type Weak } from "./weak.ds";
+import { todo, Result } from "destack:error";
+import { Dereference } from "destack:ops";
+import { AllocationError } from "../allocator.ds";
+import { Clone, Unpin, Zeroable } from "../capability.ds";
+import { MaybeUninit } from "../init.ds";
+import { Pin } from "../pin.ds";
+import { Weak } from "./weak.ds";
 
 /// Reference-counted allocation for one worker.
 export struct RcAllocation<T> {
@@ -24,7 +23,7 @@ extension<T> of Rc<T> implements Unpin {}
 /// Local reference-counted ownership.
 export struct Rc<T> {
     /// The allocation.
-    allocation: NonNull<RcAllocation<T>>;
+    allocation: *RcAllocation<T>;
 }
 
 extension<T> of Rc<T> implements Clone, Dereference {
@@ -69,7 +68,8 @@ extension<T> of Rc<T> implements Clone, Dereference {
     }
 
     /// Create a reference-counted handle from a raw value pointer.
-    static fromRaw(pointer: NonNull<T>): Rc<T> {
+    @unsafe
+    static fromRaw(pointer: *T): Rc<T> {
         todo("Rc.fromRaw")
     }
 
@@ -130,12 +130,12 @@ extension<T> of Rc<T> implements Clone, Dereference {
     }
 
     /// Return the raw pointer to the referenced value.
-    asPointer(): NonNull<T> {
+    asPointer(): *T {
         todo("Rc.asPointer")
     }
 
     /// Move this handle into a raw value pointer.
-    intoRaw(this: ^Rc<T>): NonNull<T> {
+    intoRaw(this: ^Rc<T>): *T {
         todo("Rc.intoRaw")
     }
 

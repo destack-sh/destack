@@ -1,6 +1,6 @@
 import { todo } from "destack:error";
-import { type Clone } from "../capability.ds";
-import { type BaseOf } from "../form.ds";
+import { Clone } from "../capability.ds";
+import { BaseOf } from "../form.ds";
 
 /// Borrowed copy-on-write value.
 export struct CowBorrowed<T> {

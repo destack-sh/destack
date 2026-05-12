@@ -1,8 +1,7 @@
 import { todo } from "destack:error";
-import { type Dereference } from "destack:ops";
-import { type Dispose } from "../dispose.ds";
-import { type NonNull } from "../raw.ds";
-import { Cell, type UnsafeCell } from "./cell.ds";
+import { Dereference } from "destack:ops";
+import { Dispose } from "../dispose.ds";
+import { Cell, UnsafeCell } from "./cell.ds";
 
 /// Runtime-checked interior mutable storage.
 export struct RefCell<T> {
@@ -66,7 +65,7 @@ export extension<T> of RefCell<T> {
 /// Active readonly ref cell borrow.
 export struct Ref<T> {
     /// The borrowed cell.
-    cell: NonNull<RefCell<T>>;
+    cell: *RefCell<T>;
 }
 
 extension<T> of Ref<T> implements Dispose, Dereference<"readonly"> {
@@ -87,7 +86,7 @@ extension<T> of Ref<T> implements Dispose, Dereference<"readonly"> {
 /// Active exclusive ref cell borrow.
 export struct ExclusiveRef<T> {
     /// The borrowed cell.
-    cell: NonNull<RefCell<T>>;
+    cell: *RefCell<T>;
 }
 
 extension<T> of ExclusiveRef<T> implements Dispose, Dereference<"exclusive"> {

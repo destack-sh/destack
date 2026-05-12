@@ -1,4 +1,4 @@
-import { type Promise } from "destack:async";
+import { Promise } from "destack:async";
 
 /// Deterministic synchronous cleanup capability, called at the end of a `using` scope.
 export newtype interface Dispose {

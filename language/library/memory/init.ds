@@ -1,4 +1,4 @@
-import { type Zeroable } from "./capability.ds";
+import { Zeroable } from "./capability.ds";
 
 /// Storage for `T` whose lifetime may not have started.
 export newtype MaybeUninit<T> = intrinsic;
@@ -30,26 +30,32 @@ export extension<T> of MaybeUninit<T> {
     asExclusivePointer(this: &exclusive MaybeUninit<T>): *T;
 
     /// Borrow initialized storage.
+    @unsafe
     @intrinsic("memory.init.assumeInitReference")
     assumeInitReference(this: &MaybeUninit<T>): &T;
 
     /// Borrow initialized storage with readonly access.
+    @unsafe
     @intrinsic("memory.init.assumeInitReadonlyReference")
     assumeInitReadonlyReference(this: &readonly MaybeUninit<T>): &readonly T;
 
     /// Borrow initialized storage with exclusive access.
+    @unsafe
     @intrinsic("memory.init.assumeInitExclusiveReference")
     assumeInitExclusiveReference(this: &exclusive MaybeUninit<T>): &exclusive T;
 
     /// Move initialized storage out as `T`.
+    @unsafe
     @intrinsic("memory.init.assumeInit")
     assumeInit(this: ^MaybeUninit<T>): ^T;
 
     /// Copy initialized storage out without ending this storage.
+    @unsafe
     @intrinsic("memory.init.assumeInitRead")
     assumeInitRead(this: &MaybeUninit<T>): ^T;
 
     /// Drop initialized storage in place.
+    @unsafe
     @intrinsic("memory.init.assumeInitDrop")
     assumeInitDrop(this: &exclusive MaybeUninit<T>): void;
 }

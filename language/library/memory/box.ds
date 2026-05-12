@@ -1,11 +1,10 @@
-import { todo, type Result } from "destack:error";
-import { type Dereference } from "destack:ops";
-import { type AllocationError } from "./allocator.ds";
-import { type Clone, type Unpin, type Zeroable } from "./capability.ds";
-import { type Access, type Unique, type WithAccess } from "./form.ds";
-import { type MaybeUninit } from "./init.ds";
-import { type Pin } from "./pin.ds";
-import { type NonNull } from "./raw.ds";
+import { todo, Result } from "destack:error";
+import { Dereference } from "destack:ops";
+import { AllocationError } from "./allocator.ds";
+import { Clone, Unpin, Zeroable } from "./capability.ds";
+import { Access, Unique, WithAccess } from "./form.ds";
+import { MaybeUninit } from "./init.ds";
+import { Pin } from "./pin.ds";
 
 /// A uniquely owned heap allocation.
 export newtype Box<T> = Unique<T>;
@@ -72,7 +71,7 @@ extension<T, A: Access = "readonly"> of Box<T> implements Dereference<A> {
     }
 
     /// Return the raw pointer to the boxed value.
-    asPointer(): NonNull<T> {
+    asPointer(): *T {
         todo("Box.asPointer")
     }
 
