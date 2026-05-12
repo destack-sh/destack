@@ -174,23 +174,56 @@ function pick<A: Lifetime, B: Lifetime>(
 
 ## suspension
 
-### borrow across await is rejected
+### owned borrow across await is allowed
 
-Borrowed access cannot live across an async suspension point.
+The async frame stores owned values that are used after suspension.
 
 ```ds
 declare function ready(): Promise<void>;
 
 async function read(value: int32): Promise<int32> {
-    let borrow = &value;
+    let borrow = &readonly value;
     await ready();
-    let after = borrow;
-    after satisfies &int32;
-    return value;
+    borrow satisfies &readonly int32;
+    return *borrow;
 }
 ```
 
-- contains: borrow
+### managed borrow across await is allowed
+
+The async frame keeps managed handles live for interior borrows.
+
+```ds
+class User {
+    name: string = "";
+}
+
+declare function ready(): Promise<void>;
+
+async function read(user: User): Promise<string> {
+    let name = &readonly user.name;
+    await ready();
+    name satisfies &readonly string;
+    return name.clone();
+}
+```
+
+### async borrow cannot escape its owner
+
+Returned borrowed access still needs an owner that outlives the promise result.
+
+```ds
+class User {
+    name: string = "";
+}
+
+async function read(): Promise<&readonly string> {
+    let user: ^User = new User();
+    return &readonly user.name;
+}
+```
+
+- contains: lifetime
 
 ### borrow after await is allowed
 
@@ -207,20 +240,32 @@ async function read(value: int32): Promise<int32> {
 }
 ```
 
-### borrow across yield is rejected
+### exclusive borrow across await is rejected
 
-Borrowed access cannot live across a generator suspension point.
+Exclusive borrowed access cannot cross a reentrant suspension point.
 
 ```ds
-function* read(value: int32): Generator<int32, void, unknown> {
-    let borrow = &value;
-    yield 1;
-    let after = borrow;
-    after satisfies &int32;
+declare function ready(): Promise<void>;
+
+async function write(value: &exclusive int32): Promise<void> {
+    await ready();
+    *value = 1;
 }
 ```
 
-- contains: borrow
+- contains: exclusive
+
+### owned borrow across yield is allowed
+
+The generator frame stores owned values that are used after suspension.
+
+```ds
+function* read(value: int32): Generator<int32, void, unknown> {
+    let borrow = &readonly value;
+    yield 1;
+    borrow satisfies &readonly int32;
+}
+```
 
 ### borrow after yield is allowed
 

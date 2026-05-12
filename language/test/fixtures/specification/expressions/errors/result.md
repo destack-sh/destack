@@ -26,23 +26,6 @@ const value: Result<int, string> = Ok { value: 1 };
 
 - contains: not assignable
 
-### throwing functions can be wrapped
-
-`Result.try` maps thrown values into typed errors.
-
-```ds
-newtype ParseError = string;
-
-declare function parseInteger(raw: string): int;
-
-const value = Result.try(
-    () => parseInteger("42"),
-    (error) => ParseError(String(error)),
-);
-
-value satisfies Result<int, ParseError>;
-```
-
 ## narrowing
 
 ### patterns narrow result variants

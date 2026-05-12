@@ -10,7 +10,7 @@ Never is the bottom type, assignable to any type.
 
 ```ds
 function fail(): never {
-    throw "error";
+    panic("error");
 }
 const x: number = fail();
 ```
@@ -21,7 +21,7 @@ A function returning never can be assigned to any type.
 
 ```ds
 function fail(): never {
-    throw "error";
+    panic("error");
 }
 const x: string = fail();
 ```

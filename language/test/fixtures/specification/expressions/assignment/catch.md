@@ -7,8 +7,10 @@
 Catch bindings can be reassigned.
 
 ```ds
+declare function fail(): Result<void, string>;
+
 try {
-    throw "boom";
+    fail()?;
 } catch (e) {
     e = "fix";
 }
@@ -19,8 +21,10 @@ try {
 Narrowing does not make a catch binding immutable.
 
 ```ds
+declare function fail(): Result<void, string>;
+
 try {
-    throw "boom";
+    fail()?;
 } catch (e) {
     if (typeof e === "string") {
         e = e.toUpperCase();
@@ -35,8 +39,10 @@ try {
 Catch bindings can be annotated as `unknown`.
 
 ```ds
+declare function fail(): Result<void, string>;
+
 try {
-    throw "boom";
+    fail()?;
 } catch (e: unknown) {
     e = "fix";
 }
@@ -47,8 +53,10 @@ try {
 Concrete catch annotations are not filters.
 
 ```ds
+declare function fail(): Result<void, string>;
+
 try {
-    throw "boom";
+    fail()?;
 } catch (e: string) {
     e = "fix";
 }

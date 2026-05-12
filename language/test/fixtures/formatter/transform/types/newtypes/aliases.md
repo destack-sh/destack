@@ -43,11 +43,11 @@ newtype extern = (string,);
 Parenthesized tuple rest elements keep array suffixes on the rest type.
 
 ```ds
-newtype require = (...PlatformCapability[])
+newtype require = (...HostAction[])
 ```
 
 ```ds expected
-newtype require = (...PlatformCapability[],);
+newtype require = (...HostAction[],);
 ```
 
 ### newtype object
