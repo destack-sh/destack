@@ -420,32 +420,6 @@ impl Compiler {
                     is_accessor: *is_accessor,
                 }
             }
-            dir::Member::Embed {
-                value,
-                visibility,
-                is_ambient,
-                is_static,
-                ..
-            } => {
-                let value = self.unbind_type_expression(
-                    module,
-                    *value,
-                    tree,
-                    symbols,
-                    types,
-                    ast_tree,
-                    ast_strings,
-                    context,
-                );
-
-                ast::Member::Embed {
-                    value,
-                    visibility: visibility
-                        .map(|visibility| self.unbind_visibility(visibility, context)),
-                    is_ambient: self.unbind_ambientness(*is_ambient, context),
-                    is_static: *is_static,
-                }
-            }
             dir::Member::StaticBlock { body, .. } => {
                 let body = self.unbind_expression(
                     module,

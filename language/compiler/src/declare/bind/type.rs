@@ -627,37 +627,6 @@ impl Compiler {
                 symbols.declare_symbol(symbol_id, member_id);
                 member_id
             }
-            ast::TypeMember::Embed { value } => {
-                // member symbol
-                let (symbol_id, _) =
-                    self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
-
-                // member syntax
-                let value = self.bind_type_expression(
-                    module,
-                    ast,
-                    namespace_scope,
-                    global_scope,
-                    declared_modules,
-                    scope,
-                    *value,
-                    Some(member_id.into()),
-                    tree,
-                    symbols,
-                    types,
-                    space,
-                );
-
-                let member_id = tree.insert(
-                    member_id,
-                    TypeMember::Embed {
-                        value,
-                        symbol: symbol_id,
-                    },
-                );
-                symbols.declare_symbol(symbol_id, member_id);
-                member_id
-            }
             ast::TypeMember::AssociatedType {
                 name,
                 generic_parameters,

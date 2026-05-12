@@ -666,41 +666,6 @@ impl Compiler {
                 symbols.declare_symbol(symbol_id, member_id);
                 member_id
             }
-            ast::Member::Embed {
-                value,
-                visibility,
-                is_ambient,
-                is_static,
-            } => {
-                let value = self.bind_type_expression(
-                    module,
-                    ast,
-                    namespace_scope,
-                    global_scope,
-                    declared_modules,
-                    scope,
-                    *value,
-                    Some(member_id.into()),
-                    tree,
-                    symbols,
-                    types,
-                    SymbolSpace::Type,
-                );
-                let (symbol_id, _) =
-                    self.bind_anonymous_item(module, ast, SymbolSpace::Value, scope, None, symbols);
-                let member_id = tree.insert(
-                    member_id,
-                    Member::Embed {
-                        value,
-                        visibility: visibility.map(|visibility| self.bind_visibility(visibility)),
-                        is_ambient: self.bind_ambientness(*is_ambient),
-                        is_static: *is_static,
-                        symbol: symbol_id,
-                    },
-                );
-                symbols.declare_symbol(symbol_id, member_id);
-                member_id
-            }
             ast::Member::StaticBlock { body } => {
                 let body = self.bind_expression(
                     module,
