@@ -31,7 +31,7 @@ export interface Iterator<T, TReturn = unknown, TNext = unknown> {
 
 /// A value that can produce an iterator.
 export interface Iterable<T, TReturn = unknown, TNext = unknown> {
-    /// Return a new iterator for this value.
+    /// Return a new iterator for this receiver form.
     iterator(): Iterator<T, TReturn, TNext>;
 }
 

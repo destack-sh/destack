@@ -1,19 +1,9 @@
 import { todo } from "destack:error";
-import { type Iterable, type Iterator } from "destack:iter";
-import { type Index, type IndexSet } from "destack:ops";
-import { type MaybeUninit, type Unique } from "destack:memory";
-
-/// A growable contiguous array.
-export class Array<T> {
-    /// The backing storage.
-    storage: Unique<[MaybeUninit<T>]>;
-
-    /// The number of initialized elements.
-    initializedLength: usize = 0;
-
-    /// The allocated element count.
-    capacity: usize = 0;
-}
+import { Iterable, Iterator } from "destack:iter";
+import { MaybeUninit, Unique } from "destack:memory";
+import { Index, IndexSet } from "destack:ops";
+import { From } from "destack:convert";
+import { PackedArray } from "./packed-array.ds";
 
 /// Readonly view of a dynamic array.
 export type ReadonlyArray<T> = readonly T[];
@@ -21,176 +11,263 @@ export type ReadonlyArray<T> = readonly T[];
 /// Fixed-size array alias.
 export type FixedArray<T, comptime N: number> = [T; N];
 
-extension<T> of Array<T> implements Index<number>, IndexSet<number, T>, Iterable<T> {
+/// One stable array segment.
+struct ArraySegment<T> {
+    /// The segment storage.
+    storage: Unique<[MaybeUninit<T>]>;
+
+    /// The number of initialized elements.
+    length: usize = 0;
+
+    /// The allocated element count.
+    capacity: usize = 0;
+}
+
+/// A growable borrow-stable array.
+export class Array<T> {
+    /// The segment table.
+    segments: Unique<[MaybeUninit<ArraySegment<T>>]>;
+
+    /// The number of initialized segments.
+    segmentCount: usize = 0;
+
+    /// The number of initialized elements.
+    elementCount: usize = 0;
+}
+
+extension<T> of Array<T> implements
+    Index<number>,
+    IndexSet<number, T>,
+    Iterable<T>,
+    Iterable<&T>,
+    Iterable<&readonly T>,
+    Iterable<&exclusive T>,
+    From<PackedArray<T>>
+{
     /// The indexed output type.
     type Output = T;
 
-    /// Get the length of the array.
+    /// Create an empty array.
+    static new(): Array<T> {
+        todo("Array.new")
+    }
+
+    /// Create an array with room for at least `capacity` elements.
+    static withCapacity(capacity: usize): Array<T> {
+        todo("Array.withCapacity")
+    }
+
+    /// Create an array from `values`.
+    static from(values: Iterable<T>): Array<T> {
+        todo("Array.from")
+    }
+
+    /// Create an array from a packed array.
+    static from(value: PackedArray<T>): Array<T> {
+        todo("Array.fromPackedArray")
+    }
+
+    /// Return the number of elements.
     get length(): number {
-        this.initializedLength as number
+        this.elementCount as number
     }
 
-    /// Check if the array is empty.
+    /// Return the number of elements.
+    get size(): usize {
+        this.elementCount
+    }
+
+    /// Return whether this array has no elements.
     get isEmpty(): boolean {
-        this.initializedLength == 0
+        this.elementCount == 0
     }
 
-    /// Get the element at the index with bounds checks.
-    index(i: number): T {
+    /// Return the element at `index` by value.
+    index(index: number): T {
         todo("Array.index")
     }
 
-    /// Borrow the element at the index with bounds checks.
-    index(this: &Array<T>, i: number): &T {
+    /// Borrow the element at `index`.
+    index(this: &Array<T>, index: number): &T {
         todo("Array.index")
     }
 
-    /// Borrow the element at the index with readonly access.
-    index(this: &readonly Array<T>, i: number): &readonly T {
+    /// Borrow the element at `index` with readonly access.
+    index(this: &readonly Array<T>, index: number): &readonly T {
         todo("Array.index")
     }
 
-    /// Borrow the element at the index with exclusive access.
-    index(this: &exclusive Array<T>, i: number): &exclusive T {
+    /// Borrow the element at `index` with exclusive access.
+    index(this: &exclusive Array<T>, index: number): &exclusive T {
         todo("Array.index")
     }
 
-    /// Set the element at the index with bounds checks.
-    indexSet(i: number, value: T): void {
+    /// Replace the element at `index`.
+    indexSet(this: &exclusive Array<T>, index: number, value: T): void {
         todo("Array.indexSet")
     }
 
-    /// Get element at index without bounds checks.
-    unsafeGet(i: usize): T {
-        todo("Array.unsafeGet")
-    }
-
-    /// Set element at index without bounds checks.
-    unsafeSet(i: usize, value: T): void {
-        todo("Array.unsafeSet")
-    }
-
-    /// Return the initialized mutable slice.
-    asSlice(this: &Array<T>): &[T] {
-        todo("Array.asSlice")
-    }
-
-    /// Return the initialized readonly slice.
-    asReadonlySlice(this: &readonly Array<T>): &readonly [T] {
-        todo("Array.asReadonlySlice")
-    }
-
-    /// Push an element to the end.
-    push(this: &exclusive Array<T>, value: T): void {
-        todo("Array.push")
-    }
-
-    /// Pop an element from the end.
-    pop(this: &exclusive Array<T>): T | undefined {
-        todo("Array.pop")
-    }
-
-    /// Get the first element.
+    /// Return the first element by value.
     first(): T | undefined {
         todo("Array.first")
     }
 
-    /// Get the last element.
+    /// Borrow the first element.
+    first(this: &Array<T>): &T | undefined {
+        todo("Array.first")
+    }
+
+    /// Borrow the first element with readonly access.
+    first(this: &readonly Array<T>): &readonly T | undefined {
+        todo("Array.first")
+    }
+
+    /// Borrow the first element with exclusive access.
+    first(this: &exclusive Array<T>): &exclusive T | undefined {
+        todo("Array.first")
+    }
+
+    /// Return the last element by value.
     last(): T | undefined {
         todo("Array.last")
     }
 
-    /// Clear all elements.
+    /// Borrow the last element.
+    last(this: &Array<T>): &T | undefined {
+        todo("Array.last")
+    }
+
+    /// Borrow the last element with readonly access.
+    last(this: &readonly Array<T>): &readonly T | undefined {
+        todo("Array.last")
+    }
+
+    /// Borrow the last element with exclusive access.
+    last(this: &exclusive Array<T>): &exclusive T | undefined {
+        todo("Array.last")
+    }
+
+    /// Append `value`.
+    push(this: &Array<T>, value: T): void {
+        todo("Array.push")
+    }
+
+    /// Append all `values`.
+    extend(this: &Array<T>, values: Iterable<T>): void {
+        todo("Array.extend")
+    }
+
+    /// Remove and return the last element.
+    pop(this: &exclusive Array<T>): T | undefined {
+        todo("Array.pop")
+    }
+
+    /// Insert `value` at `index`.
+    insert(this: &exclusive Array<T>, index: usize, value: T): void {
+        todo("Array.insert")
+    }
+
+    /// Remove and return the element at `index`.
+    removeAt(this: &exclusive Array<T>, index: usize): T {
+        todo("Array.removeAt")
+    }
+
+    /// Remove all elements.
     clear(this: &exclusive Array<T>): void {
         todo("Array.clear")
     }
 
-    /// Reserve capacity for at least `additional` more elements.
-    reserve(this: &exclusive Array<T>, additional: usize): void {
+    /// Retain only elements accepted by `predicate`.
+    retain(this: &exclusive Array<T>, predicate: (value: &T, index: usize) => boolean): void {
+        todo("Array.retain")
+    }
+
+    /// Reserve room for at least `additional` more elements.
+    reserve(this: &Array<T>, additional: usize): void {
         todo("Array.reserve")
     }
 
-    /// Shrink capacity to fit current length.
-    shrinkToFit(this: &exclusive Array<T>): void {
-        todo("Array.shrinkToFit")
+    /// Release unused segments.
+    compact(this: &exclusive Array<T>): void {
+        todo("Array.compact")
     }
 
-    /// Create an iterator over the array.
-    iterator(): Iterator<T> {
-        todo("Array.iterator")
-    }
-
-    /// Map each element to a new value.
-    map<U>(f: (value: T, index: number) => U): Array<U> {
-        todo("Array.map")
-    }
-
-    /// Filter elements by predicate.
-    filter(predicate: (value: T, index: number) => boolean): Array<T> {
-        todo("Array.filter")
-    }
-
-    /// Reduce array to single value.
-    reduce<U>(f: (acc: U, value: T, index: number) => U, initial: U): U {
-        todo("Array.reduce")
-    }
-
-    /// Find first element matching predicate.
-    find(predicate: (value: T, index: number) => boolean): T | undefined {
-        todo("Array.find")
-    }
-
-    /// Find index of first element matching predicate.
-    findIndex(predicate: (value: T, index: number) => boolean): number {
-        todo("Array.findIndex")
-    }
-
-    /// Check if any element matches predicate.
-    some(predicate: (value: T, index: number) => boolean): boolean {
-        todo("Array.some")
-    }
-
-    /// Check if all elements match predicate.
-    every(predicate: (value: T, index: number) => boolean): boolean {
-        todo("Array.every")
-    }
-
-    /// Execute function for each element.
-    forEach(f: (value: T, index: number) => void): void {
-        todo("Array.forEach")
-    }
-
-    /// Check if array includes a value.
-    includes(value: T, fromIndex?: number): boolean {
-        todo("Array.includes")
-    }
-
-    /// Find the index of a value.
-    indexOf(value: T, fromIndex?: number): number {
-        todo("Array.indexOf")
-    }
-
-    /// Join elements into a string.
-    join(separator?: string): string {
-        todo("Array.join")
-    }
-
-    /// Reverse the array in place.
-    reverse(this: &exclusive Array<T>): this {
-        todo("Array.reverse")
-    }
-
-    /// Sort the array in place.
-    sort(this: &exclusive Array<T>, compareFn?: (a: T, b: T) => number): this {
-        todo("Array.sort")
-    }
-
-    /// Get a slice of the array.
+    /// Return a copy of the selected range.
     slice(start?: number, end?: number): Array<T> {
         todo("Array.slice")
     }
 
-    /// Splice elements.
+    /// Concatenate arrays.
+    concat(...items: Array<T>[]): Array<T> {
+        todo("Array.concat")
+    }
+
+    /// Map each element to a new array.
+    map<U>(f: (value: T, index: number) => U): Array<U> {
+        todo("Array.map")
+    }
+
+    /// Filter elements into a new array.
+    filter(predicate: (value: T, index: number) => boolean): Array<T> {
+        todo("Array.filter")
+    }
+
+    /// Reduce this array to one value.
+    reduce<U>(f: (accumulator: U, value: T, index: number) => U, initial: U): U {
+        todo("Array.reduce")
+    }
+
+    /// Return the first element accepted by `predicate`.
+    find(predicate: (value: T, index: number) => boolean): T | undefined {
+        todo("Array.find")
+    }
+
+    /// Return the index of the first element accepted by `predicate`.
+    findIndex(predicate: (value: T, index: number) => boolean): number {
+        todo("Array.findIndex")
+    }
+
+    /// Return whether any element is accepted by `predicate`.
+    some(predicate: (value: T, index: number) => boolean): boolean {
+        todo("Array.some")
+    }
+
+    /// Return whether every element is accepted by `predicate`.
+    every(predicate: (value: T, index: number) => boolean): boolean {
+        todo("Array.every")
+    }
+
+    /// Call `f` for each element.
+    forEach(f: (value: T, index: number) => void): void {
+        todo("Array.forEach")
+    }
+
+    /// Return whether this array includes `value`.
+    includes(value: T, fromIndex?: number): boolean {
+        todo("Array.includes")
+    }
+
+    /// Return the first index of `value`.
+    indexOf(value: T, fromIndex?: number): number {
+        todo("Array.indexOf")
+    }
+
+    /// Join all elements into a string.
+    join(separator?: string): string {
+        todo("Array.join")
+    }
+
+    /// Reverse this array in place.
+    reverse(this: &exclusive Array<T>): this {
+        todo("Array.reverse")
+    }
+
+    /// Sort this array in place.
+    sort(this: &exclusive Array<T>, compare?: (a: &readonly T, b: &readonly T) => number): this {
+        todo("Array.sort")
+    }
+
+    /// Splice this array.
     splice(
         this: &exclusive Array<T>,
         start: number,
@@ -200,29 +277,39 @@ extension<T> of Array<T> implements Index<number>, IndexSet<number, T>, Iterable
         todo("Array.splice")
     }
 
-    /// Concatenate arrays.
-    concat(...items: Array<T>[]): Array<T> {
-        todo("Array.concat")
-    }
-
     /// Flatten nested arrays.
     flat<D extends number = 1>(depth?: D): Array<unknown> {
         todo("Array.flat")
     }
 
-    /// Map and flatten.
+    /// Map and flatten nested arrays.
     flatMap<U>(f: (value: T, index: number) => Array<U>): Array<U> {
         todo("Array.flatMap")
     }
 
-    /// Create an array from an iterable.
-    static from<T>(values: Iterable<T>): Array<T> {
-        todo("Array.from")
+    /// Return an iterator over copied values.
+    iterator(): Iterator<T> {
+        todo("Array.iterator")
     }
 
-    /// Create an array from a fixed-size array.
-    static fromSized<T>(values: readonly T[]): Array<T> {
-        todo("Array.fromSized")
+    /// Return an iterator over borrowed values.
+    iterator(this: &Array<T>): Iterator<&T> {
+        todo("Array.iterator")
+    }
+
+    /// Return an iterator over readonly borrowed values.
+    iterator(this: &readonly Array<T>): Iterator<&readonly T> {
+        todo("Array.iterator")
+    }
+
+    /// Return an iterator over exclusive borrowed values.
+    iterator(this: &exclusive Array<T>): Iterator<&exclusive T> {
+        todo("Array.iterator")
+    }
+
+    /// Consume this array into owned values.
+    iterator(this: ^Array<T>): Iterator<T> {
+        todo("Array.iterator")
     }
 }
 
@@ -231,7 +318,7 @@ export function arrayOf<T>(...elements: T[]): Array<T> {
     todo("arrayOf")
 }
 
-/// Create an array with the given length, filled with a value.
+/// Create an array with `length` copies of `value`.
 export function arrayFill<T>(length: usize, value: T): Array<T> {
     todo("arrayFill")
 }

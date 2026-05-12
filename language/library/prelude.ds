@@ -69,7 +69,6 @@ export {
     Sync,
     defaultAllocator,
     drop,
-    NonNull,
 } from "destack:memory";
 
 // operators
@@ -99,6 +98,8 @@ export {
     Compare,
     PartialCompare,
     Ordering,
+    Hash,
+    Hasher,
     Display,
     Debug,
     Index,
@@ -167,6 +168,31 @@ export {
     Iterable,
     IterableIterator,
 } from "destack:iter";
+export {
+    Array,
+    BinaryHeap,
+    Deque,
+    FixedArray,
+    LinkedList,
+    Map,
+    MapEntry,
+    PackedArray,
+    PackedDeque,
+    PackedMap,
+    PackedMapEntry,
+    PackedSet,
+    Queue,
+    ReadonlyArray,
+    Record,
+    Set,
+    Slice,
+    SortedMap,
+    SortedSet,
+    Stack,
+    arrayFill,
+    arrayOf,
+    sliceFromRaw,
+} from "destack:collections";
 
 // vector
 export {
@@ -220,6 +246,9 @@ export {
     taint,
     sink,
     sanitizer,
+    unsafe,
+    allowUnsafe,
+    trusted,
 } from "destack:decorator";
 
 // macros

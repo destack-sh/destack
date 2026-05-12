@@ -1,0 +1,125 @@
+import { todo } from "destack:error";
+import { Iterable, Iterator } from "destack:iter";
+import { Equal, Hash } from "destack:ops";
+import { From } from "destack:convert";
+import { PackedMap } from "./packed-map.ds";
+import { Set } from "./set.ds";
+
+/// A packed open-addressing hash set.
+export struct PackedSet<T> {
+    /// The backing packed map.
+    map: PackedMap<T, void>;
+}
+
+extension<T: Hash> of PackedSet<T> implements
+    Iterable<T>,
+    Iterable<&T>,
+    Iterable<&readonly T>,
+    Iterable<&exclusive T>,
+    From<Set<T>>
+where T implements Equal<T> {
+    /// Create an empty packed set.
+    static new(): PackedSet<T> {
+        todo("PackedSet.new")
+    }
+
+    /// Create a packed set with room for at least `capacity` elements.
+    static withCapacity(capacity: usize): PackedSet<T> {
+        todo("PackedSet.withCapacity")
+    }
+
+    /// Create a packed set from values.
+    static from(values: Iterable<T>): PackedSet<T> {
+        todo("PackedSet.from")
+    }
+
+    /// Create a packed set from a stable set.
+    static from(value: Set<T>): PackedSet<T> {
+        todo("PackedSet.fromSet")
+    }
+
+    /// Return the number of elements.
+    get size(): number {
+        this.map.size
+    }
+
+    /// Return the allocated element count.
+    get capacity(): usize {
+        this.map.capacity
+    }
+
+    /// Return whether this set has no elements.
+    get isEmpty(): boolean {
+        this.map.isEmpty
+    }
+
+    /// Return whether `value` is present.
+    has(value: &readonly T): boolean {
+        todo("PackedSet.has")
+    }
+
+    /// Borrow the stored value equal to `value`.
+    get(this: &PackedSet<T>, value: &readonly T): &T | undefined {
+        todo("PackedSet.get")
+    }
+
+    /// Borrow the stored value equal to `value` with readonly access.
+    get(this: &readonly PackedSet<T>, value: &readonly T): &readonly T | undefined {
+        todo("PackedSet.get")
+    }
+
+    /// Borrow the stored value equal to `value` with exclusive access.
+    get(this: &exclusive PackedSet<T>, value: &readonly T): &exclusive T | undefined {
+        todo("PackedSet.get")
+    }
+
+    /// Add `value`.
+    add(this: &exclusive PackedSet<T>, value: T): boolean {
+        todo("PackedSet.add")
+    }
+
+    /// Remove `value`.
+    remove(this: &exclusive PackedSet<T>, value: &readonly T): T | undefined {
+        todo("PackedSet.remove")
+    }
+
+    /// Remove all elements.
+    clear(this: &exclusive PackedSet<T>): void {
+        todo("PackedSet.clear")
+    }
+
+    /// Reserve room for at least `additional` more elements.
+    reserve(this: &exclusive PackedSet<T>, additional: usize): void {
+        todo("PackedSet.reserve")
+    }
+
+    /// Shrink capacity to fit current elements.
+    shrinkToFit(this: &exclusive PackedSet<T>): void {
+        todo("PackedSet.shrinkToFit")
+    }
+
+    /// Return an iterator over copied values.
+    iterator(): Iterator<T> {
+        todo("PackedSet.iterator")
+    }
+
+    /// Return an iterator over borrowed values.
+    iterator(this: &PackedSet<T>): Iterator<&T> {
+        todo("PackedSet.iterator")
+    }
+
+    /// Return an iterator over readonly borrowed values.
+    iterator(this: &readonly PackedSet<T>): Iterator<&readonly T> {
+        todo("PackedSet.iterator")
+    }
+
+    /// Return an iterator over exclusive borrowed values.
+    iterator(this: &exclusive PackedSet<T>): Iterator<&exclusive T> {
+        todo("PackedSet.iterator")
+    }
+
+    /// Consume this set into owned values.
+    iterator(this: ^PackedSet<T>): Iterator<T> {
+        todo("PackedSet.iterator")
+    }
+}

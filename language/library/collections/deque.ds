@@ -1,0 +1,166 @@
+import { todo } from "destack:error";
+import { Iterable, Iterator } from "destack:iter";
+import { MaybeUninit, Unique } from "destack:memory";
+import { From } from "destack:convert";
+import { PackedDeque } from "./packed-deque.ds";
+
+/// One stable deque segment.
+struct DequeSegment<T> {
+    /// The segment storage.
+    storage: Unique<[MaybeUninit<T>]>;
+
+    /// The first initialized slot.
+    start: usize = 0;
+
+    /// The number of initialized slots.
+    length: usize = 0;
+}
+
+/// A borrow-stable double-ended queue.
+export class Deque<T> {
+    /// The segment table.
+    segments: Unique<[MaybeUninit<DequeSegment<T>>]>;
+
+    /// The first live segment.
+    firstSegment: usize = 0;
+
+    /// The number of live segments.
+    segmentCount: usize = 0;
+
+    /// The number of elements.
+    elementCount: usize = 0;
+}
+
+extension<T> of Deque<T> implements
+    Iterable<T>,
+    Iterable<&T>,
+    Iterable<&readonly T>,
+    Iterable<&exclusive T>,
+    From<PackedDeque<T>>
+{
+    /// Create an empty deque.
+    static new(): Deque<T> {
+        todo("Deque.new")
+    }
+
+    /// Create a deque with room for at least `capacity` elements.
+    static withCapacity(capacity: usize): Deque<T> {
+        todo("Deque.withCapacity")
+    }
+
+    /// Create a deque from values.
+    static from(values: Iterable<T>): Deque<T> {
+        todo("Deque.from")
+    }
+
+    /// Create a deque from a packed deque.
+    static from(value: PackedDeque<T>): Deque<T> {
+        todo("Deque.fromPackedDeque")
+    }
+
+    /// Return the number of elements.
+    get length(): number {
+        this.elementCount as number
+    }
+
+    /// Return the number of elements.
+    get size(): usize {
+        this.elementCount
+    }
+
+    /// Return whether this deque has no elements.
+    get isEmpty(): boolean {
+        this.elementCount == 0
+    }
+
+    /// Push `value` to the back.
+    pushBack(this: &Deque<T>, value: T): void {
+        todo("Deque.pushBack")
+    }
+
+    /// Push `value` to the front.
+    pushFront(this: &Deque<T>, value: T): void {
+        todo("Deque.pushFront")
+    }
+
+    /// Remove and return the back element.
+    popBack(this: &exclusive Deque<T>): T | undefined {
+        todo("Deque.popBack")
+    }
+
+    /// Remove and return the front element.
+    popFront(this: &exclusive Deque<T>): T | undefined {
+        todo("Deque.popFront")
+    }
+
+    /// Borrow the front element.
+    front(this: &Deque<T>): &T | undefined {
+        todo("Deque.front")
+    }
+
+    /// Borrow the front element with readonly access.
+    front(this: &readonly Deque<T>): &readonly T | undefined {
+        todo("Deque.front")
+    }
+
+    /// Borrow the front element with exclusive access.
+    front(this: &exclusive Deque<T>): &exclusive T | undefined {
+        todo("Deque.front")
+    }
+
+    /// Borrow the back element.
+    back(this: &Deque<T>): &T | undefined {
+        todo("Deque.back")
+    }
+
+    /// Borrow the back element with readonly access.
+    back(this: &readonly Deque<T>): &readonly T | undefined {
+        todo("Deque.back")
+    }
+
+    /// Borrow the back element with exclusive access.
+    back(this: &exclusive Deque<T>): &exclusive T | undefined {
+        todo("Deque.back")
+    }
+
+    /// Remove all elements.
+    clear(this: &exclusive Deque<T>): void {
+        todo("Deque.clear")
+    }
+
+    /// Rebuild storage and release empty segments.
+    compact(this: &exclusive Deque<T>): void {
+        todo("Deque.compact")
+    }
+
+    /// Return an iterator over copied values.
+    iterator(): Iterator<T> {
+        todo("Deque.iterator")
+    }
+
+    /// Return an iterator over borrowed values.
+    iterator(this: &Deque<T>): Iterator<&T> {
+        todo("Deque.iterator")
+    }
+
+    /// Return an iterator over readonly borrowed values.
+    iterator(this: &readonly Deque<T>): Iterator<&readonly T> {
+        todo("Deque.iterator")
+    }
+
+    /// Return an iterator over exclusive borrowed values.
+    iterator(this: &exclusive Deque<T>): Iterator<&exclusive T> {
+        todo("Deque.iterator")
+    }
+
+    /// Consume this deque into owned values.
+    iterator(this: ^Deque<T>): Iterator<T> {
+        todo("Deque.iterator")
+    }
+}
+
+/// FIFO queue alias.
+export type Queue<T> = Deque<T>;
+
+/// LIFO stack alias.
+export type Stack<T> = Deque<T>;

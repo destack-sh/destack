@@ -1,0 +1,112 @@
+import { todo } from "destack:error";
+import { Iterable, Iterator } from "destack:iter";
+import { Compare } from "destack:ops";
+import { SortedMap } from "./sorted-map.ds";
+
+/// A borrow-stable sorted set.
+export class SortedSet<T> {
+    /// The backing sorted map.
+    map: SortedMap<T, void>;
+}
+
+extension<T: Compare<T>> of SortedSet<T> implements Iterable<T>, Iterable<&T>, Iterable<&readonly T>, Iterable<&exclusive T> {
+    /// Create an empty sorted set.
+    static new(): SortedSet<T> {
+        todo("SortedSet.new")
+    }
+
+    /// Create a sorted set from values.
+    static from(values: Iterable<T>): SortedSet<T> {
+        todo("SortedSet.from")
+    }
+
+    /// Return the number of elements.
+    get size(): number {
+        this.map.size
+    }
+
+    /// Return whether this set has no elements.
+    get isEmpty(): boolean {
+        this.map.isEmpty
+    }
+
+    /// Return whether `value` is present.
+    has(value: &readonly T): boolean {
+        todo("SortedSet.has")
+    }
+
+    /// Borrow the stored value equal to `value`.
+    get(this: &SortedSet<T>, value: &readonly T): &T | undefined {
+        todo("SortedSet.get")
+    }
+
+    /// Borrow the stored value equal to `value` with readonly access.
+    get(this: &readonly SortedSet<T>, value: &readonly T): &readonly T | undefined {
+        todo("SortedSet.get")
+    }
+
+    /// Borrow the stored value equal to `value` with exclusive access.
+    get(this: &exclusive SortedSet<T>, value: &readonly T): &exclusive T | undefined {
+        todo("SortedSet.get")
+    }
+
+    /// Add `value` when absent.
+    add(this: &SortedSet<T>, value: T): boolean {
+        todo("SortedSet.add")
+    }
+
+    /// Remove `value`.
+    remove(this: &exclusive SortedSet<T>, value: &readonly T): T | undefined {
+        todo("SortedSet.remove")
+    }
+
+    /// Remove all values.
+    clear(this: &exclusive SortedSet<T>): void {
+        todo("SortedSet.clear")
+    }
+
+    /// Return the first value.
+    first(this: &readonly SortedSet<T>): &readonly T | undefined {
+        todo("SortedSet.first")
+    }
+
+    /// Return the first value with exclusive access.
+    first(this: &exclusive SortedSet<T>): &exclusive T | undefined {
+        todo("SortedSet.first")
+    }
+
+    /// Return the last value.
+    last(this: &readonly SortedSet<T>): &readonly T | undefined {
+        todo("SortedSet.last")
+    }
+
+    /// Return the last value with exclusive access.
+    last(this: &exclusive SortedSet<T>): &exclusive T | undefined {
+        todo("SortedSet.last")
+    }
+
+    /// Return an iterator over copied values.
+    iterator(): Iterator<T> {
+        todo("SortedSet.iterator")
+    }
+
+    /// Return an iterator over borrowed values.
+    iterator(this: &SortedSet<T>): Iterator<&T> {
+        todo("SortedSet.iterator")
+    }
+
+    /// Return an iterator over readonly borrowed values.
+    iterator(this: &readonly SortedSet<T>): Iterator<&readonly T> {
+        todo("SortedSet.iterator")
+    }
+
+    /// Return an iterator over exclusive borrowed values.
+    iterator(this: &exclusive SortedSet<T>): Iterator<&exclusive T> {
+        todo("SortedSet.iterator")
+    }
+
+    /// Consume this set into owned values.
+    iterator(this: ^SortedSet<T>): Iterator<T> {
+        todo("SortedSet.iterator")
+    }
+}

@@ -1,38 +1,14 @@
 import { todo } from "destack:error";
-import { type Iterable, type Iterator } from "destack:iter";
-import { type MaybeUninit, type Unique } from "destack:memory";
-import { type Index, type IndexSet } from "destack:ops";
+import { Iterable, Iterator } from "destack:iter";
+import { MaybeUninit, Unique } from "destack:memory";
+import { Equal, Hash, Index, IndexSet } from "destack:ops";
+import { From } from "destack:convert";
+import { Array } from "./array.ds";
+import { PackedMap } from "./packed-map.ds";
 
-/// Ordered hash map with one hash index and one ordered entry array.
-export class Map<K, V> {
-    /// The hash table storage.
-    table: HashTable<K, V>;
-}
-
-/// Ordered open-addressing hash table.
-export struct HashTable<K, V> {
-    /// Number of initialized entries.
-    length: uint32 = 0;
-
-    /// Number of allocated hash slots.
-    tableCapacity: uint32 = 0;
-
-    /// Number of allocated entry slots.
-    entryCapacity: uint32 = 0;
-
-    /// Control-byte storage.
-    control: Unique<[uint8]>;
-
-    /// Bucket-to-entry index storage.
-    buckets: Unique<[uint32]>;
-
-    /// Ordered entry storage.
-    entries: Unique<[MaybeUninit<HashEntry<K, V>>]>;
-}
-
-/// One stored table entry in insertion order.
-export struct HashEntry<K, V> {
-    /// Cached hash for lookup.
+/// One stable map entry.
+export struct MapEntry<K, V> {
+    /// The cached key hash.
     hash: uint64;
 
     /// The entry key.
@@ -42,95 +18,222 @@ export struct HashEntry<K, V> {
     value: V;
 }
 
+/// One stable map entry segment.
+struct MapEntrySegment<K, V> {
+    /// The entry storage.
+    entries: Unique<[MaybeUninit<MapEntry<K, V>>]>;
+
+    /// The number of initialized entries.
+    length: usize = 0;
+
+    /// The allocated entry count.
+    capacity: usize = 0;
+}
+
+/// A borrow-stable hash map.
+export class Map<K, V> {
+    /// The entry segments.
+    segments: Array<MapEntrySegment<K, V>>;
+
+    /// The hash index.
+    index: Unique<[uint32]>;
+
+    /// The number of live entries.
+    entryCount: usize = 0;
+}
+
 /// Key-value map alias.
 export type Record<K, V> = Map<K, V>;
 
-extension<K, V> of Map<K, V> implements Index<K>, IndexSet<K, V>, Iterable<[K, V]> {
+extension<K: Hash, V> of Map<K, V> implements
+    Index<K>,
+    IndexSet<K, V>,
+    Iterable<[K, V]>,
+    Iterable<&MapEntry<K, V>>,
+    Iterable<&readonly MapEntry<K, V>>,
+    Iterable<&exclusive MapEntry<K, V>>,
+    From<PackedMap<K, V>>
+where K implements Equal<K> {
     /// The indexed output type.
     type Output = V | undefined;
 
-    /// Get the number of entries.
-    get size(): number {
-        this.table.length as number
-    }
-
-    /// Check if the map is empty.
-    get isEmpty(): boolean {
-        this.table.length == 0
-    }
-
-    /// Get a value by key.
-    get(key: K): V | undefined {
-        todo("Map.get")
-    }
-
-    /// Index operator for get.
-    index(key: K): V | undefined {
-        this.get(key)
-    }
-
-    /// Set a key-value pair.
-    set(key: K, value: V): this {
-        todo("Map.set")
-    }
-
-    /// Index operator for set.
-    indexSet(key: K, value: V): void {
-        this.set(key, value)
-    }
-
-    /// Check if a key exists.
-    has(key: K): boolean {
-        todo("Map.has")
-    }
-
-    /// Delete a key-value pair.
-    delete(key: K): boolean {
-        todo("Map.delete")
-    }
-
-    /// Clear all entries.
-    clear(): void {
-        todo("Map.clear")
-    }
-
-    /// Get all keys.
-    keys(): Iterator<K> {
-        todo("Map.keys")
-    }
-
-    /// Get all values.
-    values(): Iterator<V> {
-        todo("Map.values")
-    }
-
-    /// Get all entries.
-    entries(): Iterator<[K, V]> {
-        todo("Map.entries")
-    }
-
-    /// Iterate over entries.
-    iterator(): Iterator<[K, V]> {
-        this.entries()
-    }
-
-    /// Execute function for each entry.
-    forEach(f: (value: V, key: K, map: Map<K, V>) => void, thisArg?: unknown): void {
-        todo("Map.forEach")
-    }
-
-    /// Create a new map from entries.
-    static from<K, V>(entries: Iterable<[K, V]>): Map<K, V> {
-        todo("Map.from")
-    }
-
     /// Create an empty map.
-    static new<K, V>(): Map<K, V> {
+    static new(): Map<K, V> {
         todo("Map.new")
     }
 
-    /// Create a map with pre-allocated capacity.
-    static withCapacity<K, V>(capacity: uint32): Map<K, V> {
+    /// Create a map with room for at least `capacity` entries.
+    static withCapacity(capacity: usize): Map<K, V> {
         todo("Map.withCapacity")
+    }
+
+    /// Create a map from entries.
+    static from(entries: Iterable<[K, V]>): Map<K, V> {
+        todo("Map.from")
+    }
+
+    /// Create a map from a packed map.
+    static from(value: PackedMap<K, V>): Map<K, V> {
+        todo("Map.fromPackedMap")
+    }
+
+    /// Return the number of entries.
+    get size(): number {
+        this.entryCount as number
+    }
+
+    /// Return whether this map has no entries.
+    get isEmpty(): boolean {
+        this.entryCount == 0
+    }
+
+    /// Return a value by key.
+    get(key: &readonly K): V | undefined {
+        todo("Map.get")
+    }
+
+    /// Borrow a value by key.
+    get(this: &Map<K, V>, key: &readonly K): &V | undefined {
+        todo("Map.get")
+    }
+
+    /// Borrow a value by key with readonly access.
+    get(this: &readonly Map<K, V>, key: &readonly K): &readonly V | undefined {
+        todo("Map.get")
+    }
+
+    /// Borrow a value by key with exclusive access.
+    get(this: &exclusive Map<K, V>, key: &readonly K): &exclusive V | undefined {
+        todo("Map.get")
+    }
+
+    /// Return an entry by key.
+    entry(this: &Map<K, V>, key: &readonly K): &MapEntry<K, V> | undefined {
+        todo("Map.entry")
+    }
+
+    /// Return an entry by key with readonly access.
+    entry(this: &readonly Map<K, V>, key: &readonly K): &readonly MapEntry<K, V> | undefined {
+        todo("Map.entry")
+    }
+
+    /// Return an entry by key with exclusive access.
+    entry(this: &exclusive Map<K, V>, key: &readonly K): &exclusive MapEntry<K, V> | undefined {
+        todo("Map.entry")
+    }
+
+    /// Return a value by key through the index operator.
+    index(key: K): V | undefined {
+        todo("Map.index")
+    }
+
+    /// Replace a key-value pair through the index operator.
+    indexSet(this: &exclusive Map<K, V>, key: K, value: V): void {
+        this.set(key, value);
+    }
+
+    /// Return whether `key` exists.
+    has(key: &readonly K): boolean {
+        todo("Map.has")
+    }
+
+    /// Insert a key-value pair only when `key` is absent.
+    insert(this: &Map<K, V>, key: K, value: V): boolean {
+        todo("Map.insert")
+    }
+
+    /// Return the existing value or insert a new value.
+    getOrInsert(this: &Map<K, V>, key: K, value: V): &V {
+        todo("Map.getOrInsert")
+    }
+
+    /// Return the existing value or insert a value produced by `makeValue`.
+    getOrInsertWith(this: &Map<K, V>, key: K, makeValue: () => V): &V {
+        todo("Map.getOrInsertWith")
+    }
+
+    /// Insert or replace a key-value pair.
+    set(this: &exclusive Map<K, V>, key: K, value: V): this {
+        todo("Map.set")
+    }
+
+    /// Remove a key-value pair.
+    remove(this: &exclusive Map<K, V>, key: &readonly K): V | undefined {
+        todo("Map.remove")
+    }
+
+    /// Remove all entries.
+    clear(this: &exclusive Map<K, V>): void {
+        todo("Map.clear")
+    }
+
+    /// Reserve room for at least `additional` more entries.
+    reserve(this: &Map<K, V>, additional: usize): void {
+        todo("Map.reserve")
+    }
+
+    /// Rebuild storage and release tombstones.
+    compact(this: &exclusive Map<K, V>): void {
+        todo("Map.compact")
+    }
+
+    /// Return all keys.
+    keys(this: &readonly Map<K, V>): Iterator<&readonly K> {
+        todo("Map.keys")
+    }
+
+    /// Return all values.
+    values(this: &Map<K, V>): Iterator<&V> {
+        todo("Map.values")
+    }
+
+    /// Return all values with readonly access.
+    values(this: &readonly Map<K, V>): Iterator<&readonly V> {
+        todo("Map.values")
+    }
+
+    /// Return all entries.
+    entries(this: &Map<K, V>): Iterator<&MapEntry<K, V>> {
+        todo("Map.entries")
+    }
+
+    /// Return all entries with readonly access.
+    entries(this: &readonly Map<K, V>): Iterator<&readonly MapEntry<K, V>> {
+        todo("Map.entries")
+    }
+
+    /// Return all entries with exclusive access.
+    entries(this: &exclusive Map<K, V>): Iterator<&exclusive MapEntry<K, V>> {
+        todo("Map.entries")
+    }
+
+    /// Return an iterator over copied entries.
+    iterator(): Iterator<[K, V]> {
+        todo("Map.iterator")
+    }
+
+    /// Return an iterator over borrowed entries.
+    iterator(this: &Map<K, V>): Iterator<&MapEntry<K, V>> {
+        todo("Map.iterator")
+    }
+
+    /// Return an iterator over readonly borrowed entries.
+    iterator(this: &readonly Map<K, V>): Iterator<&readonly MapEntry<K, V>> {
+        todo("Map.iterator")
+    }
+
+    /// Return an iterator over exclusive borrowed entries.
+    iterator(this: &exclusive Map<K, V>): Iterator<&exclusive MapEntry<K, V>> {
+        todo("Map.iterator")
+    }
+
+    /// Consume this map into owned entries.
+    iterator(this: ^Map<K, V>): Iterator<[K, V]> {
+        todo("Map.iterator")
+    }
+
+    /// Call `f` for each entry.
+    forEach(f: (value: V, key: K, map: Map<K, V>) => void): void {
+        todo("Map.forEach")
     }
 }

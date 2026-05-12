@@ -1,0 +1,133 @@
+import { todo } from "destack:error";
+import { Iterable, Iterator } from "destack:iter";
+
+/// One linked-list node.
+struct LinkedListNode<T> {
+    /// The previous node.
+    previous?: *LinkedListNode<T>;
+
+    /// The next node.
+    next?: *LinkedListNode<T>;
+
+    /// The stored value.
+    value: T;
+}
+
+/// A borrow-stable linked list.
+export class LinkedList<T> {
+    /// The first node.
+    head?: *LinkedListNode<T>;
+
+    /// The last node.
+    tail?: *LinkedListNode<T>;
+
+    /// The number of nodes.
+    elementCount: usize = 0;
+}
+
+extension<T> of LinkedList<T> implements Iterable<T>, Iterable<&T>, Iterable<&readonly T>, Iterable<&exclusive T> {
+    /// Create an empty list.
+    static new(): LinkedList<T> {
+        todo("LinkedList.new")
+    }
+
+    /// Create a list from values.
+    static from(values: Iterable<T>): LinkedList<T> {
+        todo("LinkedList.from")
+    }
+
+    /// Return the number of elements.
+    get length(): number {
+        this.elementCount as number
+    }
+
+    /// Return the number of elements.
+    get size(): usize {
+        this.elementCount
+    }
+
+    /// Return whether this list has no elements.
+    get isEmpty(): boolean {
+        this.elementCount == 0
+    }
+
+    /// Push `value` to the back.
+    pushBack(this: &LinkedList<T>, value: T): void {
+        todo("LinkedList.pushBack")
+    }
+
+    /// Push `value` to the front.
+    pushFront(this: &LinkedList<T>, value: T): void {
+        todo("LinkedList.pushFront")
+    }
+
+    /// Remove and return the back element.
+    popBack(this: &exclusive LinkedList<T>): T | undefined {
+        todo("LinkedList.popBack")
+    }
+
+    /// Remove and return the front element.
+    popFront(this: &exclusive LinkedList<T>): T | undefined {
+        todo("LinkedList.popFront")
+    }
+
+    /// Borrow the front element.
+    front(this: &LinkedList<T>): &T | undefined {
+        todo("LinkedList.front")
+    }
+
+    /// Borrow the front element with readonly access.
+    front(this: &readonly LinkedList<T>): &readonly T | undefined {
+        todo("LinkedList.front")
+    }
+
+    /// Borrow the front element with exclusive access.
+    front(this: &exclusive LinkedList<T>): &exclusive T | undefined {
+        todo("LinkedList.front")
+    }
+
+    /// Borrow the back element.
+    back(this: &LinkedList<T>): &T | undefined {
+        todo("LinkedList.back")
+    }
+
+    /// Borrow the back element with readonly access.
+    back(this: &readonly LinkedList<T>): &readonly T | undefined {
+        todo("LinkedList.back")
+    }
+
+    /// Borrow the back element with exclusive access.
+    back(this: &exclusive LinkedList<T>): &exclusive T | undefined {
+        todo("LinkedList.back")
+    }
+
+    /// Remove all elements.
+    clear(this: &exclusive LinkedList<T>): void {
+        todo("LinkedList.clear")
+    }
+
+    /// Return an iterator over copied values.
+    iterator(): Iterator<T> {
+        todo("LinkedList.iterator")
+    }
+
+    /// Return an iterator over borrowed values.
+    iterator(this: &LinkedList<T>): Iterator<&T> {
+        todo("LinkedList.iterator")
+    }
+
+    /// Return an iterator over readonly borrowed values.
+    iterator(this: &readonly LinkedList<T>): Iterator<&readonly T> {
+        todo("LinkedList.iterator")
+    }
+
+    /// Return an iterator over exclusive borrowed values.
+    iterator(this: &exclusive LinkedList<T>): Iterator<&exclusive T> {
+        todo("LinkedList.iterator")
+    }
+
+    /// Consume this list into owned values.
+    iterator(this: ^LinkedList<T>): Iterator<T> {
+        todo("LinkedList.iterator")
+    }
+}
