@@ -90,10 +90,7 @@ impl Parser {
             }
 
             parser.bump();
-            matches!(
-                parser.peek_token_type(),
-                TokenType::ShiftLeft | TokenType::SaturatingShiftLeft
-            )
+            parser.peek_is(TokenType::ShiftLeft)
         })
     }
 

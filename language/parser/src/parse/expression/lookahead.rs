@@ -207,7 +207,7 @@ impl Parser {
                     match token_type {
                         TokenType::LessThan => angle_depth += 1,
                         TokenType::GreaterThan => angle_depth = angle_depth.saturating_sub(1),
-                        TokenType::ShiftLeft | TokenType::SaturatingShiftLeft => angle_depth += 2,
+                        TokenType::ShiftLeft => angle_depth += 2,
                         TokenType::ShiftRight => angle_depth = angle_depth.saturating_sub(2),
                         TokenType::UnsignedShiftRight => {
                             angle_depth = angle_depth.saturating_sub(3);
