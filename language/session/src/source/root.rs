@@ -7,14 +7,15 @@ use destack_source::{File, FileId, FileSystem, FileType, Uri};
 use destack_workspace::{DestackConfig, HostEnvironment, Ref, Repository, RepositoryError};
 
 use super::reload::{RELOAD_EXCLUDED_DIRECTORY_NAMES, is_reload_path};
-use super::{FileSystemSource, RepositoryChange};
+use super::{FileSystemSource, SourceSync, apply_edits};
+use crate::SessionError;
 
 /// Open one repository after discovering the workspace root from one path.
 pub fn open_repository_from_fs(
     path: PathBuf,
     fs: Arc<dyn FileSystem>,
     environment: HostEnvironment,
-) -> Result<Repository, RepositoryError> {
+) -> Result<Repository, SessionError> {
     let root = find_source_root_from_fs(fs.as_ref(), &path)?;
 
     // create repository at the selected source root
@@ -30,9 +31,9 @@ pub fn open_repository_from_fs(
     // import the initial filesystem truth
     let mut source = FileSystemSource::new(&repository, &root)
         .with_excluded_directory_names(RELOAD_EXCLUDED_DIRECTORY_NAMES)
-        .with_tracked_path(is_reload_path);
-    let change = RepositoryChange::from_source(&repository, base_revision, &mut source)?;
-    let revision = change.apply(&repository, base_revision)?;
+        .with_include_path(is_reload_path);
+    let edits = SourceSync::new(&repository, base_revision, &mut source).all()?;
+    let revision = apply_edits(&repository, base_revision, edits)?;
 
     repository.set_ref(&workspace_ref, revision)?;
 
