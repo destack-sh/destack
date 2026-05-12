@@ -19,15 +19,15 @@ use super::{
     ResourceRoute,
 };
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::Hooks;
 use crate::runtime::binding::{BindingAffinity, BindingEngine};
 use crate::runtime::world::WorldState;
+use crate::runtime::{Hooks, WorkerId};
 
 /// Durable resource-table state captured at one checkpoint.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ResourceTableSnapshot {
-    /// The next resource identifier to allocate.
-    pub next_id: u64,
+    /// The next worker-local resource sequence to allocate.
+    pub next_sequence: u64,
     /// Captured resource entries keyed by table id.
     pub entries: Vec<ResourceImageEntry>,
 }
@@ -350,8 +350,10 @@ impl ResourceEntry {
 
 /// External resource table and finalizer registry.
 pub struct ResourceTable {
-    /// Next resource identifier to allocate.
-    next_id: AtomicU64,
+    /// Worker that owns this resource table.
+    worker_id: WorkerId,
+    /// Next worker-local resource sequence to allocate.
+    next_sequence: AtomicU64,
     /// Stored resource entries.
     entries: RwLock<HashMap<ResourceId, ResourceEntry>>,
     /// Registered resource providers keyed by resource kind.
@@ -366,7 +368,8 @@ impl fmt::Debug for ResourceTable {
         let provider_count = self.providers.read().len();
 
         f.debug_struct("ResourceTable")
-            .field("next_id", &self.next_id.load(Ordering::Relaxed))
+            .field("worker_id", &self.worker_id)
+            .field("next_sequence", &self.next_sequence.load(Ordering::Relaxed))
             .field("entry_count", &entry_count)
             .field("provider_count", &provider_count)
             .field("has_hooks", &self.hooks.read().is_some())
@@ -375,6 +378,24 @@ impl fmt::Debug for ResourceTable {
 }
 
 impl ResourceTable {
+    /// Create one resource table owned by one worker.
+    pub fn new(worker_id: WorkerId) -> Self {
+        Self {
+            worker_id,
+            next_sequence: AtomicU64::new(1),
+            entries: RwLock::new(HashMap::new()),
+            providers: RwLock::new(HashMap::new()),
+            hooks: RwLock::new(None),
+        }
+    }
+
+    /// Allocate one new resource identifier.
+    fn allocate_id(&self) -> ResourceId {
+        let local_id = self.next_sequence.fetch_add(1, Ordering::Relaxed);
+
+        ResourceId::new(self.worker_id, local_id)
+    }
+
     /// Register one resource provider for a resource kind.
     pub fn register_provider(
         &self,
@@ -408,7 +429,8 @@ impl ResourceTable {
 
         // clone shared providers and allocator state onto one fresh table
         let forked = Self {
-            next_id: AtomicU64::new(self.next_id.load(Ordering::Relaxed)),
+            worker_id: self.worker_id,
+            next_sequence: AtomicU64::new(self.next_sequence.load(Ordering::Relaxed)),
             entries: RwLock::new(HashMap::new()),
             providers: RwLock::new(self.providers.read().clone()),
             hooks: RwLock::new(Some(hooks)),
@@ -425,7 +447,7 @@ impl ResourceTable {
         engine: Option<BindingEngine>,
     ) -> ResourceId {
         // allocate one new id and persist the entry first
-        let id = ResourceId(self.next_id.fetch_add(1, Ordering::Relaxed));
+        let id = self.allocate_id();
         let resource_kind = entry.kind;
         let resource_label = entry.label.clone();
         let resource_backing = entry.backing;
@@ -455,7 +477,7 @@ impl ResourceTable {
     /// Allocate and insert one resource entry outside world hooks.
     pub(crate) fn insert_untracked(&self, entry: ResourceEntry) -> ResourceId {
         // resource table
-        let id = ResourceId(self.next_id.fetch_add(1, Ordering::Relaxed));
+        let id = self.allocate_id();
         self.entries.write().insert(id, entry);
 
         id
@@ -476,7 +498,8 @@ impl ResourceTable {
         let resource_capture = entry.capture;
         let resource_portability = entry.portability;
         self.entries.write().insert(resource_id, entry);
-        self.next_id.fetch_max(resource_id.0 + 1, Ordering::Relaxed);
+        self.next_sequence
+            .fetch_max(resource_id.local_id + 1, Ordering::Relaxed);
 
         // notify runtime hooks about the restored resource
         if let Some(hooks) = self.hooks.read().as_ref().cloned()
@@ -587,7 +610,7 @@ impl ResourceTable {
                 return Err(RuntimeError::Internal {
                     message: format!(
                         "resource {} of kind {:?} does not support capture",
-                        resource_id.0, entry.kind
+                        resource_id.local_id, entry.kind
                     ),
                 }
                 .boxed());
@@ -601,7 +624,7 @@ impl ResourceTable {
                     return Err(RuntimeError::Internal {
                         message: format!(
                             "resource {} of kind {:?} is missing one resource provider",
-                            resource_id.0, entry.kind
+                            resource_id.local_id, entry.kind
                         ),
                     }
                     .boxed());
@@ -611,7 +634,7 @@ impl ResourceTable {
                     RuntimeError::Internal {
                         message: format!(
                             "resource {} of kind {:?} failed to capture: {error}",
-                            resource_id.0, entry.kind
+                            resource_id.local_id, entry.kind
                         ),
                     }
                     .boxed()
@@ -641,7 +664,7 @@ impl ResourceTable {
             .collect::<RuntimeResult<Vec<_>>>()?;
 
         Ok(ResourceTableSnapshot {
-            next_id: self.next_id.load(Ordering::Relaxed),
+            next_sequence: self.next_sequence.load(Ordering::Relaxed),
             entries,
         })
     }
@@ -653,7 +676,8 @@ impl ResourceTable {
         rebind_context: Option<&ResourceRebinders>,
     ) -> RuntimeResult<()> {
         self.restore_barrier()?;
-        self.next_id.store(snapshot.next_id, Ordering::Relaxed);
+        self.next_sequence
+            .store(snapshot.next_sequence, Ordering::Relaxed);
 
         let mut entries = self.entries.write();
         for image_entry in &snapshot.entries {
@@ -664,7 +688,7 @@ impl ResourceTable {
                         RuntimeError::Internal {
                             message: format!(
                                 "resource {} of kind {:?} is missing one captured payload",
-                                image_entry.resource_id.0, image_entry.kind
+                                image_entry.resource_id.local_id, image_entry.kind
                             ),
                         }
                         .boxed()
@@ -677,7 +701,7 @@ impl ResourceTable {
                                 RuntimeError::Internal {
                                     message: format!(
                                         "resource {} of kind {:?} requires one external rebinding hook",
-                                        image_entry.resource_id.0, image_entry.kind
+                                        image_entry.resource_id.local_id, image_entry.kind
                                     ),
                                 }
                                 .boxed()
@@ -687,7 +711,7 @@ impl ResourceTable {
                             RuntimeError::Internal {
                                 message: format!(
                                     "resource {} of kind {:?} failed to rebind: {error}",
-                                    image_entry.resource_id.0, image_entry.kind
+                                    image_entry.resource_id.local_id, image_entry.kind
                                 ),
                             }
                             .boxed()
@@ -702,7 +726,7 @@ impl ResourceTable {
                                 RuntimeError::Internal {
                                     message: format!(
                                         "resource {} of kind {:?} is missing one restore provider",
-                                        image_entry.resource_id.0, image_entry.kind
+                                        image_entry.resource_id.local_id, image_entry.kind
                                     ),
                                 }
                                 .boxed()
@@ -712,7 +736,7 @@ impl ResourceTable {
                             RuntimeError::Internal {
                                 message: format!(
                                     "resource {} of kind {:?} failed to restore: {error}",
-                                    image_entry.resource_id.0, image_entry.kind
+                                    image_entry.resource_id.local_id, image_entry.kind
                                 ),
                             }
                             .boxed()
@@ -760,17 +784,6 @@ impl Capture for ResourceTable {
     }
 }
 
-impl Default for ResourceTable {
-    fn default() -> Self {
-        Self {
-            next_id: AtomicU64::new(1),
-            entries: RwLock::new(HashMap::new()),
-            providers: RwLock::new(HashMap::new()),
-            hooks: RwLock::new(None),
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
@@ -786,13 +799,24 @@ mod tests {
     };
 
     use super::{ResourceEntry, ResourceFinalizer, ResourceKind, ResourceProvider, ResourceTable};
+    use crate::runtime::WorkerId;
     use crate::runtime::world::World;
+
+    const TEST_WORKER_ID: WorkerId = WorkerId(1);
+
+    fn test_resource_id(local_id: u64) -> ResourceId {
+        ResourceId::new(TEST_WORKER_ID, local_id)
+    }
+
+    fn test_resource_table() -> ResourceTable {
+        ResourceTable::new(TEST_WORKER_ID)
+    }
 
     /// Ensures entries can be inserted, removed, and finalized.
     #[test]
     fn test_insert_remove_and_finalize() {
         // create a new resource table
-        let table = ResourceTable::default();
+        let table = test_resource_table();
         let mut world = World::from_options(&RuntimeOptions::default())
             .expect("resource-table test world should build");
         let world_state = &mut world.state;
@@ -823,7 +847,7 @@ mod tests {
         let mut world = World::from_options(&RuntimeOptions::default())
             .expect("resource-table test world should build");
         let world_state = &mut world.state;
-        let table = ResourceTable::default();
+        let table = test_resource_table();
         let provider = Arc::new(TestResourceProvider);
         table.register_provider(ResourceKind::Timer, provider);
 
@@ -835,7 +859,7 @@ mod tests {
         let snapshot = table
             .snapshot(CaptureMode::Fork)
             .expect("capture resource table");
-        let restored = ResourceTable::default();
+        let restored = test_resource_table();
         restored.register_provider(ResourceKind::Timer, Arc::new(TestResourceProvider));
         restored
             .restore_snapshot(&snapshot, None)
@@ -852,7 +876,7 @@ mod tests {
         let mut world = World::from_options(&RuntimeOptions::default())
             .expect("resource-table test world should build");
         let world_state = &mut world.state;
-        let table = ResourceTable::default();
+        let table = test_resource_table();
         let provider = Arc::new(TestResourceProvider);
         table.register_provider(ResourceKind::Timer, provider);
 
@@ -864,7 +888,7 @@ mod tests {
         let snapshot = table
             .snapshot(CaptureMode::Hibernate)
             .expect("external resources should capture with one recipe");
-        let restored = ResourceTable::default();
+        let restored = test_resource_table();
         let error = restored
             .restore_snapshot(&snapshot, None)
             .expect_err("external resources should require rebinding");
@@ -882,7 +906,7 @@ mod tests {
             .restore_snapshot(&snapshot, Some(&rebind_context))
             .expect("external resources should restore with rebinding");
         assert_eq!(
-            restored.with_entry(ResourceId(1), |entry| entry.kind),
+            restored.with_entry(test_resource_id(1), |entry| entry.kind),
             Some(ResourceKind::Timer)
         );
     }

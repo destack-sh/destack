@@ -493,7 +493,7 @@ pub(super) fn input_not_found(
         None,
         Some(operation.to_string()),
         None,
-        format!("input device handle {} not found", handle.0.0),
+        format!("input device handle {} not found", handle.0.local_id),
     ))
     .boxed()
 }
@@ -956,7 +956,7 @@ pub(super) fn set_xinput_player_index_override(
 pub(super) fn has_explicit_window_target(target: InputWindowTarget) -> bool {
     target
         .window
-        .is_some_and(|window| window.0.0 != WINDOW_TARGET_DEFAULT_RESOURCE_ID)
+        .is_some_and(|window| window.0.local_id != WINDOW_TARGET_DEFAULT_RESOURCE_ID)
 }
 
 /// Build io-not-found for one missing explicit window target handle.
@@ -964,7 +964,7 @@ fn window_target_not_found(
     operation: &'static str,
     target: InputWindowTarget,
 ) -> Box<RuntimeError> {
-    let window = target.window.unwrap_or(WindowHandle(ResourceId(0)));
+    let window = target.window.unwrap_or(WindowHandle(ResourceId::local(0)));
 
     RuntimeError::from(PlatformError::io_with(
         Some(PlatformErrorCode::IoNotFound),
@@ -972,7 +972,7 @@ fn window_target_not_found(
         None,
         Some(operation.to_string()),
         None,
-        format!("window handle {} not found", window.0.0),
+        format!("window handle {} not found", window.0.local_id),
     ))
     .boxed()
 }

@@ -543,7 +543,7 @@ fn text_session_not_found(
         None,
         Some(operation.to_string()),
         None,
-        format!("text session {} not found", session.0.0),
+        format!("text session {} not found", session.0.local_id),
     ))
     .boxed()
 }

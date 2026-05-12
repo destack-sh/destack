@@ -65,7 +65,7 @@ fn test_midi_event_subscriptions_open_or_report_expected_errors() {
 #[test]
 fn test_midi_missing_event_handles_fail_with_expected_errors() {
     with_harness_context(|mut context| {
-        let missing_event_handle = resource::MidiEventHandle(resource::ResourceId(0));
+        let missing_event_handle = resource::MidiEventHandle(resource::ResourceId::local(0));
 
         // handle failures
         assert_platform_error_codes(

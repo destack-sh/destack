@@ -9,7 +9,7 @@ use crate::platform::audio::{
 use crate::platform::core::{BackendSupport, aggregate_backend_support, backend_support_error};
 use crate::runtime::BindingCallContext;
 
-use super::native as native_audio;
+use super::host as host_audio;
 
 /// Audio backend selectors exposed through the platform surface.
 const AUDIO_BACKEND_SELECTORS: &[AudioBackend] = &[
@@ -84,19 +84,19 @@ impl AudioBackendDescriptorLanes {
 
 /// Return the first available host backend on this target.
 fn active_host_backend() -> Option<AudioBackend> {
-    native_audio::preferred_host_backends()
+    host_audio::preferred_host_backends()
         .iter()
         .copied()
-        .find(|backend| native_audio::backend_support(*backend).is_available())
+        .find(|backend| host_audio::backend_support(*backend).is_available())
 }
 
 /// Return combined support for the default host backend lane.
 fn auto_backend_support() -> BackendSupport {
     aggregate_backend_support(
-        native_audio::preferred_host_backends()
+        host_audio::preferred_host_backends()
             .iter()
             .copied()
-            .map(native_audio::backend_support),
+            .map(host_audio::backend_support),
     )
 }
 
@@ -134,7 +134,7 @@ pub(crate) fn backend_support(backend: AudioBackend) -> BackendSupport {
     match backend {
         AudioBackend::Auto => auto_backend_support(),
         AudioBackend::Null => BackendSupport::Available,
-        _ => native_audio::backend_support(backend),
+        _ => host_audio::backend_support(backend),
     }
 }
 
@@ -161,7 +161,7 @@ fn backend_capability_flags(
     }
 
     // unavailable stream backends only expose availability and route events
-    if !native_audio::backend_stream_supported(backend) {
+    if !host_audio::backend_stream_supported(backend) {
         return AudioBackendCapabilityFlags(flags);
     }
 
@@ -225,8 +225,7 @@ fn backend_capability_flags(
     }
 
     // native device-event ingress
-    if backend != AudioBackend::Null
-        && native_audio::backend_supports_native_device_monitor(backend)
+    if backend != AudioBackend::Null && host_audio::backend_supports_native_device_monitor(backend)
     {
         flags |= audio_core::BACKEND_CAPABILITY_NATIVE_EVENT_FEED.0;
     }
@@ -266,7 +265,7 @@ fn backend_priority(backend: AudioBackend) -> u16 {
         return u16::MAX;
     }
 
-    native_audio::preferred_host_backends()
+    host_audio::preferred_host_backends()
         .iter()
         .position(|candidate| *candidate == backend)
         .map(|index| u16::MAX.saturating_sub(index as u16 + 1))
@@ -286,7 +285,7 @@ fn descriptor_lanes(
 
     // advertise stream-related lanes only when stream creation is usable
     let is_stream_supported = descriptor_backend == AudioBackend::Null
-        || native_audio::backend_stream_supported(descriptor_backend);
+        || host_audio::backend_stream_supported(descriptor_backend);
 
     AudioBackendDescriptorLanes::for_backend(descriptor_backend, is_stream_supported)
 }
@@ -376,7 +375,7 @@ pub(crate) fn resolve_requested_backend(
 
 /// Return whether one backend supports native device-event monitoring.
 pub(crate) fn backend_supports_native_device_monitor(backend: AudioBackend) -> bool {
-    native_audio::backend_supports_native_device_monitor(backend)
+    host_audio::backend_supports_native_device_monitor(backend)
 }
 
 /// Start one backend native device-event monitor.
@@ -391,12 +390,12 @@ pub(crate) fn start_backend_native_device_events(
         ));
     }
 
-    native_audio::start_backend_native_device_events_impl(backend)
+    host_audio::start_backend_native_device_events_impl(backend)
 }
 
 /// Enumerate host devices for one resolved backend.
 pub(crate) fn enumerate_host_devices(
     backend: AudioBackend,
 ) -> RuntimeResult<Vec<audio_core::HostDeviceDescriptor>> {
-    native_audio::enumerate_host_devices(backend)
+    host_audio::enumerate_host_devices(backend)
 }

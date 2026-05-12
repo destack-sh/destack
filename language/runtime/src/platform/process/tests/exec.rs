@@ -21,8 +21,8 @@ fn test_process_exec_error_paths() {
             PlatformErrorCode::ProcessNotFound,
         )?;
 
-        let missing_directory = DirectoryHandle(ResourceId(0));
-        let missing_file = FileHandle(ResourceId(0));
+        let missing_directory = DirectoryHandle(ResourceId::local(0));
+        let missing_file = FileHandle(ResourceId::local(0));
 
         // invalid handles should map to invalid-argument errors
         assert_platform_error_code_with_privileged_policy(

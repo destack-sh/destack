@@ -75,7 +75,7 @@ fn test_message_queue_open_rejects_unsupported_flags() {
 fn test_message_queue_rejects_unknown_handle() {
     with_harness_context(|mut context| {
         // build one unknown message queue handle
-        let unknown = resource::MessageQueueHandle(resource::ResourceId(0));
+        let unknown = resource::MessageQueueHandle(resource::ResourceId::local(0));
 
         // close should fail with invalid-argument for unknown handle
         let close_error = context

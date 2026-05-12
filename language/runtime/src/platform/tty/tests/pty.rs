@@ -52,7 +52,7 @@ fn test_tty_pty_open_rejects_zero_dimensions() {
 #[test]
 fn test_tty_pty_close_rejects_unknown_handle() {
     with_harness_context(|mut context| {
-        let unknown = PtyHandle(ResourceId(0));
+        let unknown = PtyHandle(ResourceId::local(0));
         let result = context.destack_tty_pty_close(unknown);
         assert_platform_error_codes(result, &[PlatformErrorCode::InvalidArgumentValue])
     });

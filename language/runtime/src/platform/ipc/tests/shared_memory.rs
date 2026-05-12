@@ -85,7 +85,7 @@ fn test_shared_memory_rejects_unsupported_flags() {
 fn test_shared_memory_rejects_unknown_handle() {
     with_harness_context(|mut context| {
         // build one unknown shared-memory handle
-        let unknown = resource::SharedMemoryHandle(resource::ResourceId(0));
+        let unknown = resource::SharedMemoryHandle(resource::ResourceId::local(0));
 
         // map should fail with invalid-argument for unknown handle
         let map_error = context.destack_ipc_shared_memory_map(unknown, 0, 4096, 0);

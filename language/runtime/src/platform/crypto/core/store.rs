@@ -1171,7 +1171,7 @@ pub(crate) fn store_close(
         return Err(handle_not_found(
             "destack.crypto.store.close",
             "crypto store",
-            handle.0.0,
+            handle.0.local_id,
         ));
     };
 
@@ -1180,7 +1180,7 @@ pub(crate) fn store_close(
         return Err(handle_not_found(
             "destack.crypto.store.close",
             "crypto store",
-            handle.0.0,
+            handle.0.local_id,
         ));
     }
 

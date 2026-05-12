@@ -13,7 +13,7 @@ fn test_net_shutdown() {
     with_harness_context(|mut context| {
         // start listening on an ephemeral port
         let listener = context.destack_net_listen(
-            context.socket_address_value_for_host_port("127.0.0.1", 0)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", 0)?,
             16,
         )?;
         let port = context.listener_port(listener);
@@ -26,7 +26,7 @@ fn test_net_shutdown() {
         )?;
         context.destack_net_connect(
             client,
-            context.socket_address_value_for_host_port("127.0.0.1", port)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", port)?,
         )?;
 
         // accept on the server side
@@ -64,7 +64,7 @@ fn test_net_shutdown_write_keeps_read_path() {
     with_harness_context(|mut context| {
         // start listening on an ephemeral port
         let listener = context.destack_net_listen(
-            context.socket_address_value_for_host_port("127.0.0.1", 0)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", 0)?,
             16,
         )?;
         let port = context.listener_port(listener);
@@ -77,7 +77,7 @@ fn test_net_shutdown_write_keeps_read_path() {
         )?;
         context.destack_net_connect(
             client,
-            context.socket_address_value_for_host_port("127.0.0.1", port)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", port)?,
         )?;
 
         // accept on the server side
@@ -123,7 +123,7 @@ fn test_net_shutdown_read_keeps_write_path() {
     with_harness_context(|mut context| {
         // start listening on an ephemeral port
         let listener = context.destack_net_listen(
-            context.socket_address_value_for_host_port("127.0.0.1", 0)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", 0)?,
             16,
         )?;
         let port = context.listener_port(listener);
@@ -136,7 +136,7 @@ fn test_net_shutdown_read_keeps_write_path() {
         )?;
         context.destack_net_connect(
             client,
-            context.socket_address_value_for_host_port("127.0.0.1", port)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", port)?,
         )?;
 
         // accept on the server side

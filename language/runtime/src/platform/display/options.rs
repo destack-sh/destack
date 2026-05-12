@@ -6,7 +6,7 @@ const DEFAULT_EVENT_QUEUE_CAPACITY: usize = 256;
 
 /// Return the configured default display event queue capacity.
 pub(crate) fn default_event_queue_capacity(binding: &BindingCallContext) -> usize {
-    let configured = binding.worker().options.display.event_queue_capacity;
+    let configured = binding.worker().options.host.display.event_queue_capacity;
     core_platform::option_u64_to_usize_or_min(configured, DEFAULT_EVENT_QUEUE_CAPACITY, 1)
 }
 

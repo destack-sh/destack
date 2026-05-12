@@ -609,7 +609,7 @@ pub(super) fn resolve_key_resource(
 
     resolved
         .flatten()
-        .ok_or_else(|| handle_not_found(operation, "crypto key", handle.0.0))
+        .ok_or_else(|| handle_not_found(operation, "crypto key", handle.0.local_id))
 }
 
 /// Resolve one store from one handle.
@@ -632,7 +632,7 @@ pub(super) fn resolve_store_resource(
 
     resolved
         .flatten()
-        .ok_or_else(|| handle_not_found(operation, "crypto store", handle.0.0))
+        .ok_or_else(|| handle_not_found(operation, "crypto store", handle.0.local_id))
 }
 
 /// Enforce key storage policy against one store kind.
@@ -861,7 +861,7 @@ pub(super) fn resolve_certificate_resource(
 
     resolved
         .flatten()
-        .ok_or_else(|| handle_not_found(operation, "crypto certificate", handle.0.0))
+        .ok_or_else(|| handle_not_found(operation, "crypto certificate", handle.0.local_id))
 }
 
 /// Resolve one digest state from one handle.
@@ -884,7 +884,7 @@ pub(super) fn resolve_digest_resource(
 
     resolved
         .flatten()
-        .ok_or_else(|| handle_not_found(operation, "crypto digest", handle.0.0))
+        .ok_or_else(|| handle_not_found(operation, "crypto digest", handle.0.local_id))
 }
 
 /// Resolve one mac state from one handle.
@@ -907,7 +907,7 @@ pub(super) fn resolve_mac_resource(
 
     resolved
         .flatten()
-        .ok_or_else(|| handle_not_found(operation, "crypto mac", handle.0.0))
+        .ok_or_else(|| handle_not_found(operation, "crypto mac", handle.0.local_id))
 }
 
 /// Resolve one cipher state from one handle.
@@ -930,7 +930,7 @@ pub(super) fn resolve_cipher_resource(
 
     resolved
         .flatten()
-        .ok_or_else(|| handle_not_found(operation, "crypto cipher", handle.0.0))
+        .ok_or_else(|| handle_not_found(operation, "crypto cipher", handle.0.local_id))
 }
 
 /// Insert one key resource and return its handle.

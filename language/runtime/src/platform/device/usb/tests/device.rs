@@ -58,8 +58,8 @@ fn test_device_usb_open_queries_descriptor_and_closes_first_device_when_present(
 #[test]
 fn test_device_usb_rejects_unknown_handles() {
     with_harness_context(|mut context| {
-        let unknown_device = UsbDeviceHandle(ResourceId(0));
-        let unknown_watch = UsbWatchHandle(ResourceId(0));
+        let unknown_device = UsbDeviceHandle(ResourceId::local(0));
+        let unknown_watch = UsbWatchHandle(ResourceId::local(0));
 
         // reject every public device lane with one invalid handle
         assert_invalid_usb_device_handle(&mut context, unknown_device)?;

@@ -3,7 +3,7 @@ use super::core::*;
 /// Return common soname candidates for the host libusb runtime.
 #[cfg(target_os = "macos")]
 pub(super) fn libusb_library_candidates() -> &'static [&'static str] {
-    &["libusb-1.0.0.dylib", "libusb-1.0.dylib"]
+    &["libusb-1.0.local_id.dylib", "libusb-1.0.dylib"]
 }
 
 /// Return common soname candidates for the host libusb runtime.

@@ -72,7 +72,7 @@ fn resolve_display_backend_by_handle(
 
         Err(core_platform::io_not_found(
             operation,
-            format!("display handle {} was not found", handle.0.0),
+            format!("display handle {} was not found", handle.0.local_id),
         ))
     }
 
@@ -104,7 +104,7 @@ fn resolve_window_backend_by_handle(
 
         Err(core_platform::io_not_found(
             operation,
-            format!("window handle {} was not found", window.0.0),
+            format!("window handle {} was not found", window.0.local_id),
         ))
     }
 
@@ -136,7 +136,7 @@ fn resolve_monitor_event_backend_by_handle(
 
         Err(core_platform::io_not_found(
             operation,
-            format!("display event handle {} was not found", handle.0.0),
+            format!("display event handle {} was not found", handle.0.local_id),
         ))
     }
 
@@ -168,7 +168,7 @@ fn resolve_window_event_backend_by_handle(
 
         Err(core_platform::io_not_found(
             operation,
-            format!("window event handle {} was not found", handle.0.0),
+            format!("window event handle {} was not found", handle.0.local_id),
         ))
     }
 

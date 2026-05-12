@@ -17,6 +17,3 @@ pub(crate) use unix::*;
 pub(crate) use unsupported::*;
 #[cfg(windows)]
 pub(crate) use windows::*;
-
-#[cfg(test)]
-mod tests;

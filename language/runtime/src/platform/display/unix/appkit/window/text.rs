@@ -395,7 +395,7 @@ pub(crate) fn activate_window_text_session(
         let Some(text_host) = text_input.as_ref() else {
             return Err(core_platform::io_not_found(
                 "destack.input.text.open",
-                format!("window handle {} lost its text host", window.0.0),
+                format!("window handle {} lost its text host", window.0.local_id),
             ));
         };
 
@@ -459,7 +459,7 @@ pub(crate) fn synchronize_window_text_session(
             let Some(text_host) = text_input.as_ref() else {
                 return Err(core_platform::io_not_found(
                     "destack.input.text.syncWindowRepository",
-                    format!("window handle {} lost its text host", window.0.0),
+                    format!("window handle {} lost its text host", window.0.local_id),
                 ));
             };
 

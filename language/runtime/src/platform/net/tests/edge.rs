@@ -10,16 +10,16 @@ use crate::platform::resource::{ListenerHandle, ResourceId, SocketHandle};
 fn test_net_invalid_handles() {
     with_harness_context(|mut context| {
         assert_platform_error_codes_with_privileged_policy(
-            context.destack_net_close(SocketHandle(ResourceId(9999))),
+            context.destack_net_close(SocketHandle(ResourceId::local(9999))),
             &[PlatformErrorCode::InvalidArgumentValue],
         )?;
         assert_platform_error_codes_with_privileged_policy(
-            context.destack_net_close_listener(ListenerHandle(ResourceId(9999))),
+            context.destack_net_close_listener(ListenerHandle(ResourceId::local(9999))),
             &[PlatformErrorCode::InvalidArgumentValue],
         )?;
         assert_platform_error_codes_with_privileged_policy(
             context.destack_net_write(
-                SocketHandle(ResourceId(9999)),
+                SocketHandle(ResourceId::local(9999)),
                 context.bytes_slice_value(b"data")?,
             ),
             &[PlatformErrorCode::InvalidArgumentValue],
@@ -27,7 +27,7 @@ fn test_net_invalid_handles() {
 
         let buffer = context.zeroed_bytes_slice_value(8)?;
         assert_platform_error_codes_with_privileged_policy(
-            context.destack_net_read(SocketHandle(ResourceId(9999)), buffer),
+            context.destack_net_read(SocketHandle(ResourceId::local(9999)), buffer),
             &[PlatformErrorCode::InvalidArgumentValue],
         )?;
 
@@ -42,7 +42,7 @@ fn test_net_accept_after_close() {
     with_harness_context(|mut context| {
         // start listening on an ephemeral port
         let listener = context.destack_net_listen(
-            context.socket_address_value_for_host_port("127.0.0.1", 0)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", 0)?,
             8,
         )?;
 

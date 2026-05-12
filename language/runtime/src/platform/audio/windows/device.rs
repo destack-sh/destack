@@ -67,7 +67,7 @@ pub(crate) unsafe fn destack_audio_device_close(
     if removed.is_none() {
         return Err(audio_not_found(
             "destack.audio.device.close",
-            format!("unknown audio device handle {}", handle.0.0),
+            format!("unknown audio device handle {}", handle.0.local_id),
         ));
     }
 

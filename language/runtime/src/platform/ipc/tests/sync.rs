@@ -56,7 +56,7 @@ fn test_semaphore_create_rejects_unsupported_flags() {
 fn test_semaphore_rejects_unknown_handle() {
     with_harness_context(|mut context| {
         // build one unknown semaphore handle
-        let unknown = resource::SemaphoreHandle(resource::ResourceId(0));
+        let unknown = resource::SemaphoreHandle(resource::ResourceId::local(0));
 
         // post should fail with invalid-argument for unknown handle
         let post_error = context.destack_ipc_semaphore_post(unknown, 1);

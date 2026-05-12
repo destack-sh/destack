@@ -64,7 +64,7 @@ fn monitor_not_found(
         None,
         Some(operation.to_string()),
         None,
-        format!("input monitor handle {} not found", handle.0.0),
+        format!("input monitor handle {} not found", handle.0.local_id),
     ))
     .boxed()
 }

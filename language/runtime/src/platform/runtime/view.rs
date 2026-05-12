@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::ResourceId;
 use crate::platform::runtime::{
     EngineDescriptor, EventLoopDescriptor, HeapDescriptor, ImageDescriptor,
     ResourceDescriptorValue, RevisionDescriptor, RuntimeDescriptorValue, TopologyEdgeValue,
@@ -191,7 +192,7 @@ impl PinnedWorldView {
     /// Return one owned resource descriptor from this pinned world view.
     pub(crate) fn resource_descriptor(
         &self,
-        resource_id: runtime::world::WorldResourceId,
+        resource_id: ResourceId,
     ) -> RuntimeResult<ResourceDescriptorValue> {
         let resource = resource_in_image(&self.image, resource_id)?;
 
@@ -202,7 +203,7 @@ impl PinnedWorldView {
     pub(crate) fn resource_descriptors(
         &self,
         filter: &ResourceListFilter,
-        after: Option<runtime::world::WorldResourceId>,
+        after: Option<ResourceId>,
         limit: Option<usize>,
     ) -> RuntimeResult<Vec<ResourceDescriptorValue>> {
         let resources = list_resources(&self.image, filter, after, limit);

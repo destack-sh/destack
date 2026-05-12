@@ -44,7 +44,7 @@ pub(crate) unsafe fn window_close(
     if !removed {
         return Err(core_platform::io_not_found(
             "destack.display.window.close",
-            format!("window handle {} was not found", window_handle.0.0),
+            format!("window handle {} was not found", window_handle.0.local_id),
         ));
     }
 

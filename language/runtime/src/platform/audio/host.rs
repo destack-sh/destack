@@ -1,17 +1,8 @@
 #[cfg(unix)]
-#[path = "unix/mod.rs"]
-mod unix;
-#[cfg(unix)]
-pub(crate) use unix::*;
+pub(crate) use super::unix::*;
 
 #[cfg(windows)]
-#[path = "windows/mod.rs"]
-mod windows;
-#[cfg(windows)]
-pub(crate) use windows::*;
+pub(crate) use super::windows::*;
 
 #[cfg(not(any(unix, windows)))]
-#[path = "unsupported.rs"]
-mod unsupported;
-#[cfg(not(any(unix, windows)))]
-pub(crate) use unsupported::*;
+pub(crate) use super::unsupported::*;

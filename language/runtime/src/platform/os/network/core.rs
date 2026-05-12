@@ -7,7 +7,7 @@ use crate::platform::abi::NativeArray;
 use crate::platform::core::{io_would_block, monotonic_now_ns};
 use crate::platform::net::{
     NetInterface, NetInterfaceValue, RouteEntry, RouteEntryValue, RouteKind, SocketFamily,
-    native as native_net,
+    host as host_net,
 };
 use crate::platform::resource::{ResourceEntry, ResourceKind};
 use crate::platform::{NativeAbiCodec, resource};
@@ -175,7 +175,7 @@ fn list_interfaces(binding: &BindingCallContext) -> RuntimeResult<Vec<NetInterfa
 
     // delegate to the audited net substrate
     unsafe {
-        native_net::destack_net_list_interfaces(binding, &mut out)?;
+        host_net::destack_net_list_interfaces(binding, &mut out)?;
     }
 
     let interfaces = unsafe { out.as_slice()? };
@@ -201,7 +201,7 @@ fn list_routes(
 
     // delegate to the audited net substrate
     unsafe {
-        native_net::destack_net_route_list(binding, &mut out, family)?;
+        host_net::destack_net_route_list(binding, &mut out, family)?;
     }
 
     let routes = unsafe { out.as_slice()? };

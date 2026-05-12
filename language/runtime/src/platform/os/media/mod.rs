@@ -4,8 +4,6 @@ mod core;
 mod roots;
 mod scan;
 mod storage;
-#[cfg(test)]
-mod tests;
 
 pub(crate) use catalog::{list_media_assets, read_media_asset};
 pub(crate) use core::*;

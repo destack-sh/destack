@@ -782,7 +782,7 @@ fn test_process_fd_validation_errors_are_specific() {
         )?;
         context.destack_process_process_fd_close(handle)?;
 
-        let invalid_handle = ProcessFdHandle(ResourceId(0));
+        let invalid_handle = ProcessFdHandle(ResourceId::local(0));
         assert_platform_error_code_with_privileged_policy(
             context.destack_process_process_fd_try_wait(invalid_handle),
             PlatformErrorCode::InvalidArgumentValue,

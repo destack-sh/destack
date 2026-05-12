@@ -215,8 +215,8 @@ impl<'call> TlsHarnessContext<'call> {
                 }
                 None => {
                     let mut pair = SocketPair {
-                        first: resource::SocketHandle(ResourceId(0)),
-                        second: resource::SocketHandle(ResourceId(0)),
+                        first: resource::SocketHandle(ResourceId::local(0)),
+                        second: resource::SocketHandle(ResourceId::local(0)),
                     };
                     unsafe {
                         net_native::destack_net_uds_socket_pair(
@@ -245,8 +245,8 @@ impl<'call> TlsHarnessContext<'call> {
                 }
                 None => {
                     let mut pair = SocketPair {
-                        first: resource::SocketHandle(ResourceId(0)),
-                        second: resource::SocketHandle(ResourceId(0)),
+                        first: resource::SocketHandle(ResourceId::local(0)),
+                        second: resource::SocketHandle(ResourceId::local(0)),
                     };
                     unsafe {
                         net_native::destack_net_socket_pair(

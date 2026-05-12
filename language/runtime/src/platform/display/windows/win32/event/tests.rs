@@ -157,7 +157,7 @@ fn subscribed_window_stream_with_filter(
         filter,
     });
     runtime_state.register_window_stream(Arc::clone(&window_event_stream));
-    let window = WindowHandle(ResourceId(123));
+    let window = WindowHandle(ResourceId::local(123));
 
     (runtime_state, window_event_stream, window)
 }
@@ -273,8 +273,8 @@ fn test_text_drop_publisher_preserves_text_and_position_payloads() {
 /// Window-event filters should restrict delivery to one target window.
 #[test]
 fn test_window_event_filter_restricts_window_handle() {
-    let target_window = WindowHandle(ResourceId(200));
-    let other_window = WindowHandle(ResourceId(201));
+    let target_window = WindowHandle(ResourceId::local(200));
+    let other_window = WindowHandle(ResourceId::local(201));
     let (runtime_state, stream, _) = subscribed_window_stream_with_filter(
         WindowEventFilterState::new(Some(target_window), None),
     );

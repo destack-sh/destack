@@ -2706,13 +2706,13 @@ pub(crate) fn key_delete(
     else {
         return Err(core_platform::io_not_found(
             "destack.crypto.key.delete",
-            format!("unknown crypto key handle {}", handle.0.0),
+            format!("unknown crypto key handle {}", handle.0.local_id),
         ));
     };
     if entry.kind != CRYPTO_KEY_RESOURCE_KIND {
         return Err(core_platform::io_not_found(
             "destack.crypto.key.delete",
-            format!("unknown crypto key handle {}", handle.0.0),
+            format!("unknown crypto key handle {}", handle.0.local_id),
         ));
     }
 

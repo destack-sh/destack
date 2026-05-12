@@ -3,8 +3,6 @@ mod display;
 mod publish;
 mod queue;
 mod stream;
-#[cfg(test)]
-mod tests;
 mod window;
 
 pub(crate) use display::*;

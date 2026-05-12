@@ -10,7 +10,12 @@ pub(crate) fn configured_system_certificate_files(
     default_files: &[&str],
 ) -> Vec<PathBuf> {
     // prefer explicit runtime option overrides
-    let configured_files = &binding.worker().options.crypto.system_certificate_files;
+    let configured_files = &binding
+        .worker()
+        .options
+        .host
+        .crypto
+        .system_certificate_files;
     if !configured_files.is_empty() {
         return configured_files.clone();
     }
@@ -28,6 +33,7 @@ pub(crate) fn configured_system_certificate_directories(
     let configured_directories = &binding
         .worker()
         .options
+        .host
         .crypto
         .system_certificate_directories;
     if !configured_directories.is_empty() {
@@ -47,15 +53,17 @@ pub(crate) fn configured_keystore_path(
         CryptoStoreKind::User => binding
             .worker()
             .options
+            .host
             .crypto
-            .host_store_paths
+            .key_store_paths
             .user
             .clone(),
         CryptoStoreKind::Machine => binding
             .worker()
             .options
+            .host
             .crypto
-            .host_store_paths
+            .key_store_paths
             .machine
             .clone(),
         _ => None,

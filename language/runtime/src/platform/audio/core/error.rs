@@ -174,7 +174,7 @@ pub(crate) fn resolve_device_host_state(
     .ok_or_else(|| {
         audio_not_found(
             operation,
-            format!("unknown audio device handle {}", handle.0.0),
+            format!("unknown audio device handle {}", handle.0.local_id),
         )
     })
 }
@@ -194,7 +194,7 @@ pub(crate) fn resolve_stream_host_state(
     .ok_or_else(|| {
         audio_not_found(
             operation,
-            format!("unknown audio stream handle {}", handle.0.0),
+            format!("unknown audio stream handle {}", handle.0.local_id),
         )
     })
 }
@@ -214,7 +214,7 @@ pub(crate) fn resolve_event_stream(
     .ok_or_else(|| {
         audio_not_found(
             operation,
-            format!("unknown audio event handle {}", handle.0.0),
+            format!("unknown audio event handle {}", handle.0.local_id),
         )
     })
 }

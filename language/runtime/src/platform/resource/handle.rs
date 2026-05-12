@@ -1,27 +1,30 @@
-use crate::diagnostic::RuntimeResult;
-use crate::platform::{NativeAbiCodec, VmAbiCodec, VmCollectionElement, VmValueCodec};
-use crate::runtime::BindingCallContext;
-use destack_vm;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::platform::{
+    NativeAbiCodec, PlatformError, VmAbiCodec, VmCollectionElement, VmValueCodec,
+};
+use crate::runtime::{BindingCallContext, WorkerId};
+use destack_vm as vm;
 use serde::{Deserialize, Serialize};
 
 use super::ResourceKind;
 use super::kind::for_each_resource_handle_kind;
 
-/// The identifier for one runtime-managed resource table entry.
-#[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ResourceId(
-    /// The inner identifier value.
-    pub u64,
-);
+/// The global identifier for one runtime-managed resource.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct ResourceId {
+    /// Worker that owns this resource.
+    pub worker_id: WorkerId,
+    /// Worker-local resource identifier.
+    pub local_id: u64,
+}
 
-impl VmValueCodec for ResourceId {
-    fn decode(value: destack_vm::Word) -> RuntimeResult<Self> {
-        Ok(Self(<u64 as VmValueCodec>::decode(value)?))
-    }
-
-    fn encode(self) -> destack_vm::Word {
-        <u64 as VmValueCodec>::encode(self.0)
+impl ResourceId {
+    /// Build a resource identifier from its owning worker and local sequence.
+    pub const fn new(worker_id: WorkerId, local_id: u64) -> Self {
+        Self {
+            worker_id,
+            local_id,
+        }
     }
 }
 
@@ -37,22 +40,36 @@ impl NativeAbiCodec for ResourceId {
     }
 }
 
+impl VmValueCodec for ResourceId {
+    fn decode(_value: vm::Word) -> RuntimeResult<Self> {
+        Err(RuntimeError::from(PlatformError::invalid_argument_type(
+            "resource",
+            "binding-scoped resource id",
+        ))
+        .boxed())
+    }
+
+    fn encode(self) -> vm::Word {
+        vm::Word::uint(self.local_id, 64)
+    }
+}
+
+impl VmCollectionElement for ResourceId {}
+
 impl VmAbiCodec for ResourceId {
     type Value = Self;
 
-    fn into_value(self, _context: &destack_vm::BindingRead<'_, '_>) -> RuntimeResult<Self::Value> {
+    fn into_value(self, _context: &vm::BindingRead<'_, '_>) -> RuntimeResult<Self::Value> {
         Ok(self)
     }
 
     fn from_value(
-        _context: &mut destack_vm::BindingWrite<'_, '_>,
+        _context: &mut vm::BindingWrite<'_, '_>,
         value: Self::Value,
     ) -> RuntimeResult<Self> {
         Ok(value)
     }
 }
-
-impl VmCollectionElement for ResourceId {}
 
 /// The ownership mode for one transferred resource.
 #[repr(u8)]
@@ -114,16 +131,6 @@ macro_rules! define_resource_handle_types {
                 }
             }
 
-            impl VmValueCodec for $handle {
-                fn decode(value: destack_vm::Word) -> RuntimeResult<Self> {
-                    Ok(Self(<ResourceId as VmValueCodec>::decode(value)?))
-                }
-
-                fn encode(self) -> destack_vm::Word {
-                    <ResourceId as VmValueCodec>::encode(self.0)
-                }
-            }
-
             impl NativeAbiCodec for $handle {
                 type Value = Self;
 
@@ -141,16 +148,26 @@ macro_rules! define_resource_handle_types {
 
                 fn into_value(
                     self,
-                    _context: &destack_vm::BindingRead<'_, '_>,
+                    _context: &vm::BindingRead<'_, '_>,
                 ) -> RuntimeResult<Self::Value> {
                     Ok(self)
                 }
 
                 fn from_value(
-                    _context: &mut destack_vm::BindingWrite<'_, '_>,
+                    _context: &mut vm::BindingWrite<'_, '_>,
                     value: Self::Value,
                 ) -> RuntimeResult<Self> {
                     Ok(value)
+                }
+            }
+
+            impl VmValueCodec for $handle {
+                fn decode(value: vm::Word) -> RuntimeResult<Self> {
+                    Ok(Self(ResourceId::decode(value)?))
+                }
+
+                fn encode(self) -> vm::Word {
+                    self.0.encode()
                 }
             }
 

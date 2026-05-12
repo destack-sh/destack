@@ -19,7 +19,7 @@ use crate::platform::resource::{ResourceId, SerialPortHandle, SerialWatchHandle}
 #[test]
 fn test_device_serial_rejects_one_unknown_handle_across_session_operations() {
     with_harness_context(|mut context| {
-        let unknown = SerialPortHandle(ResourceId(0));
+        let unknown = SerialPortHandle(ResourceId::local(0));
 
         // reject every public session lane with one invalid handle
         assert_invalid_serial_port_handle(&mut context, unknown)?;
@@ -32,7 +32,7 @@ fn test_device_serial_rejects_one_unknown_handle_across_session_operations() {
 #[test]
 fn test_device_serial_rejects_one_unknown_watch_handle() {
     with_harness_context(|mut context| {
-        let unknown = SerialWatchHandle(ResourceId(0));
+        let unknown = SerialWatchHandle(ResourceId::local(0));
 
         // reject every public watch lane with one invalid handle
         let close_result = context.destack_device_serial_watch_close(unknown);

@@ -130,12 +130,12 @@ fn test_process_helper_variants_constructible() {
     let file_stdio = ProcessStdioSpec {
         kind: ProcessStdioKind::File,
         descriptor: 0,
-        resource_id: Some(ResourceId(7)),
+        resource_id: Some(ResourceId::local(7)),
     };
     let pipe_stdio = ProcessStdioSpec {
         kind: ProcessStdioKind::Pipe,
         descriptor: 0,
-        resource_id: Some(ResourceId(9)),
+        resource_id: Some(ResourceId::local(9)),
     };
 
     // construct close fd-action helper
@@ -720,7 +720,10 @@ pub(crate) fn shell_sleep_then_exit_command(seconds: u32, code: i32) -> (String,
             "cmd".to_string(),
             vec![
                 "/C".to_string(),
-                format!("ping -n {} 127.0.0.1 >NUL & exit /B {code}", seconds + 1),
+                format!(
+                    "ping -n {} 127.0.local_id.1 >NUL & exit /B {code}",
+                    seconds + 1
+                ),
             ],
         )
     }

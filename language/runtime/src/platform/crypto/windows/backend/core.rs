@@ -87,15 +87,17 @@ pub(super) fn windows_configured_keystore_path(
         CryptoStoreKind::User => binding
             .worker()
             .options
+            .host
             .crypto
-            .host_store_paths
+            .key_store_paths
             .user
             .clone(),
         CryptoStoreKind::Machine => binding
             .worker()
             .options
+            .host
             .crypto
-            .host_store_paths
+            .key_store_paths
             .machine
             .clone(),
         _ => None,

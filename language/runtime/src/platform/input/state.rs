@@ -281,7 +281,7 @@ impl PlatformInputState {
         let Some(session) = sessions.get_mut(&session_id) else {
             return Err(text_session_not_found(
                 "destack.input.text.setGeometry",
-                resource::InputTextSessionHandle(resource::ResourceId(session_id)),
+                resource::InputTextSessionHandle(resource::ResourceId::local(session_id)),
             ));
         };
 
@@ -301,7 +301,7 @@ impl PlatformInputState {
         let Some(session) = sessions.get_mut(&session_id) else {
             return Err(text_session_not_found(
                 "destack.input.text.setState",
-                resource::InputTextSessionHandle(resource::ResourceId(session_id)),
+                resource::InputTextSessionHandle(resource::ResourceId::local(session_id)),
             ));
         };
 

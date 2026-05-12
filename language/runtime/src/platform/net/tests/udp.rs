@@ -21,7 +21,7 @@ fn test_net_udp_roundtrip() {
         let server = context.destack_net_udp_socket(SocketFamily::IPv4)?;
         context.destack_net_udp_bind(
             server,
-            context.socket_address_value_for_host_port("127.0.0.1", 0)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", 0)?,
         )?;
 
         // resolve server port
@@ -34,7 +34,7 @@ fn test_net_udp_roundtrip() {
         // send a datagram
         let sent = context.destack_net_udp_send_to(
             client,
-            context.socket_address_value_for_host_port("127.0.0.1", port)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", port)?,
             context.bytes_slice_value(b"ping")?,
             UdpMessageFlags(0),
         )?;
@@ -50,7 +50,7 @@ fn test_net_udp_roundtrip() {
 
         // sender metadata and payload should match the sent datagram
         assert_eq!(family, SocketFamily::IPv4);
-        assert_eq!(host, "127.0.0.1");
+        assert_eq!(host, "127.0.local_id.1");
         assert!(recv_port > 0);
         assert_eq!(recv_flags, 0);
         assert_eq!(buffer, b"ping");
@@ -72,7 +72,7 @@ fn test_net_udp_connect_roundtrip() {
         let server = context.destack_net_udp_socket(SocketFamily::IPv4)?;
         context.destack_net_udp_bind(
             server,
-            context.socket_address_value_for_host_port("127.0.0.1", 0)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", 0)?,
         )?;
         let server_address = context.destack_net_local_address(server)?;
         let (_host, port, _family) = context.socket_address_from_value(server_address)?;
@@ -81,7 +81,7 @@ fn test_net_udp_connect_roundtrip() {
         let client = context.destack_net_udp_socket(SocketFamily::IPv4)?;
         context.destack_net_udp_connect(
             client,
-            context.socket_address_value_for_host_port("127.0.0.1", port)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", port)?,
         )?;
 
         // write through connected udp socket
@@ -115,7 +115,7 @@ fn test_net_udp_recv_from_reports_truncation_flags() {
         let server = context.destack_net_udp_socket(SocketFamily::IPv4)?;
         context.destack_net_udp_bind(
             server,
-            context.socket_address_value_for_host_port("127.0.0.1", 0)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", 0)?,
         )?;
         let server_address = context.destack_net_local_address(server)?;
         let (_host, port, _family) = context.socket_address_from_value(server_address)?;
@@ -127,7 +127,7 @@ fn test_net_udp_recv_from_reports_truncation_flags() {
         let payload = b"truncated-datagram";
         let sent = context.destack_net_udp_send_to(
             client,
-            context.socket_address_value_for_host_port("127.0.0.1", port)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", port)?,
             context.bytes_slice_value(payload)?,
             UdpMessageFlags(0),
         )?;
@@ -163,7 +163,7 @@ fn test_net_recv_from_reports_truncation_flags() {
         let server = context.destack_net_udp_socket(SocketFamily::IPv4)?;
         context.destack_net_bind(
             server,
-            context.socket_address_value_for_host_port("127.0.0.1", 0)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", 0)?,
         )?;
         let server_address = context.destack_net_local_address(server)?;
         let (_host, port, _family) = context.socket_address_from_value(server_address)?;
@@ -173,7 +173,7 @@ fn test_net_recv_from_reports_truncation_flags() {
 
         // build one oversized sendTo payload
         let payload = b"truncated-sendto";
-        let destination = context.socket_address_value_for_host_port("127.0.0.1", port)?;
+        let destination = context.socket_address_value_for_host_port("127.0.local_id.1", port)?;
         let message = match destination {
             HarnessValue::Native(address) => context.harness_value(SocketSendTo {
                 address,
@@ -230,7 +230,7 @@ fn test_net_send_to_recv_from_roundtrip() {
         let server = context.destack_net_udp_socket(SocketFamily::IPv4)?;
         context.destack_net_bind(
             server,
-            context.socket_address_value_for_host_port("127.0.0.1", 0)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", 0)?,
         )?;
         let server_address = context.destack_net_local_address(server)?;
         let (_host, port, _family) = context.socket_address_from_value(server_address)?;
@@ -239,7 +239,7 @@ fn test_net_send_to_recv_from_roundtrip() {
         let client = context.destack_net_udp_socket(SocketFamily::IPv4)?;
 
         // build one sendTo message payload with destination metadata
-        let destination = context.socket_address_value_for_host_port("127.0.0.1", port)?;
+        let destination = context.socket_address_value_for_host_port("127.0.local_id.1", port)?;
         let message = match destination {
             HarnessValue::Native(address) => context.harness_value(SocketSendTo {
                 address,
@@ -279,7 +279,7 @@ fn test_net_send_to_recv_from_roundtrip() {
         assert_eq!(payload, b"ping");
         assert_eq!(recv_flags, 0);
         assert_eq!(family, SocketFamily::IPv4);
-        assert_eq!(host, "127.0.0.1");
+        assert_eq!(host, "127.0.local_id.1");
         assert!(source_port > 0);
 
         // close sockets
@@ -299,7 +299,7 @@ fn test_net_udp_recv_from_nonblocking_reports_would_block() {
         let socket = context.destack_net_udp_socket(SocketFamily::IPv4)?;
         context.destack_net_udp_bind(
             socket,
-            context.socket_address_value_for_host_port("127.0.0.1", 0)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", 0)?,
         )?;
         context.destack_net_set_nonblocking(socket, true)?;
 

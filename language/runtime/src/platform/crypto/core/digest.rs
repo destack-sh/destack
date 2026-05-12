@@ -123,13 +123,13 @@ pub(crate) fn digest_close(
     else {
         return Err(core_platform::io_not_found(
             "destack.crypto.digest.close",
-            format!("unknown crypto digest handle {}", handle.0.0),
+            format!("unknown crypto digest handle {}", handle.0.local_id),
         ));
     };
     if entry.kind != CRYPTO_DIGEST_RESOURCE_KIND {
         return Err(core_platform::io_not_found(
             "destack.crypto.digest.close",
-            format!("unknown crypto digest handle {}", handle.0.0),
+            format!("unknown crypto digest handle {}", handle.0.local_id),
         ));
     }
 

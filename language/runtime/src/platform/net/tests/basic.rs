@@ -20,7 +20,7 @@ fn test_net_roundtrip() {
     with_harness_context(|mut context| {
         // start listening on an ephemeral port
         let listener = context.destack_net_listen(
-            context.socket_address_value_for_host_port("127.0.0.1", 0)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", 0)?,
             128,
         )?;
         let port = context.listener_port(listener);
@@ -33,7 +33,7 @@ fn test_net_roundtrip() {
         )?;
         context.destack_net_connect(
             client,
-            context.socket_address_value_for_host_port("127.0.0.1", port)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", port)?,
         )?;
 
         // accept on the server side
@@ -72,8 +72,8 @@ fn test_net_roundtrip() {
         assert_eq!(local_family, SocketFamily::IPv4);
         assert_eq!(peer_family, SocketFamily::IPv4);
         assert_eq!(peer_port, port);
-        assert_eq!(peer_host, "127.0.0.1");
-        assert_eq!(local_host, "127.0.0.1");
+        assert_eq!(peer_host, "127.0.local_id.1");
+        assert_eq!(local_host, "127.0.local_id.1");
         assert!(local_port > 0);
 
         // close sockets and listener
@@ -148,7 +148,7 @@ fn test_net_readv_writev_roundtrip() {
     with_harness_context(|mut context| {
         // start listening on an ephemeral port
         let listener = context.destack_net_listen(
-            context.socket_address_value_for_host_port("127.0.0.1", 0)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", 0)?,
             128,
         )?;
         let port = context.listener_port(listener);
@@ -161,7 +161,7 @@ fn test_net_readv_writev_roundtrip() {
         )?;
         context.destack_net_connect(
             client,
-            context.socket_address_value_for_host_port("127.0.0.1", port)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", port)?,
         )?;
         let server = context.destack_net_accept(listener, AcceptFlags(0))?;
 
@@ -205,7 +205,7 @@ fn test_net_vm_connect_text_roundtrip() {
         let result: crate::diagnostic::RuntimeResult<()> = harness.with_context(|mut context| {
             // start one IPv4 listener on loopback
             let listener = context.destack_net_listen(
-                context.socket_address_value_for_host_port("127.0.0.1", 0)?,
+                context.socket_address_value_for_host_port("127.0.local_id.1", 0)?,
                 128,
             )?;
             let port = context.listener_port(listener);
@@ -246,7 +246,7 @@ fn test_net_vm_listen_text_roundtrip() {
 
         let result: crate::diagnostic::RuntimeResult<()> = harness.with_context(|mut context| {
             // start one listener through the vm text helper
-            let listener = context.vm_listen_text("127.0.0.1", 0, 128)?;
+            let listener = context.vm_listen_text("127.0.local_id.1", 0, 128)?;
             let port = context.listener_port(listener);
 
             // connect one raw ipv4 client
@@ -257,7 +257,7 @@ fn test_net_vm_listen_text_roundtrip() {
             )?;
             context.destack_net_connect(
                 client,
-                context.socket_address_value_for_host_port("127.0.0.1", port)?,
+                context.socket_address_value_for_host_port("127.0.local_id.1", port)?,
             )?;
             let server = context.destack_net_accept(listener, AcceptFlags(0))?;
 
@@ -289,7 +289,7 @@ fn test_net_accept_applies_requested_flags() {
     with_harness_context(|mut context| {
         // start listening on one ephemeral loopback port
         let listener = context.destack_net_listen(
-            context.socket_address_value_for_host_port("127.0.0.1", 0)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", 0)?,
             128,
         )?;
         let port = context.listener_port(listener);
@@ -302,7 +302,7 @@ fn test_net_accept_applies_requested_flags() {
         )?;
         context.destack_net_connect(
             client,
-            context.socket_address_value_for_host_port("127.0.0.1", port)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", port)?,
         )?;
 
         // accept with explicit normalized flags
@@ -346,7 +346,7 @@ fn test_net_accept_rejects_unknown_flags() {
     with_harness_context(|mut context| {
         // start listening on one valid loopback endpoint
         let listener = context.destack_net_listen(
-            context.socket_address_value_for_host_port("127.0.0.1", 0)?,
+            context.socket_address_value_for_host_port("127.0.local_id.1", 0)?,
             128,
         )?;
 

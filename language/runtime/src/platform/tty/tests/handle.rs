@@ -66,7 +66,7 @@ fn register_non_terminal_file(binding: &BindingCallContext) -> RuntimeResult<Fil
 #[test]
 fn test_tty_handle_close_rejects_unknown_handle() {
     with_harness_context(|mut context| {
-        let unknown = TtyHandle(ResourceId(0));
+        let unknown = TtyHandle(ResourceId::local(0));
         let result = context.destack_tty_close(unknown);
         assert_platform_error_codes(result, &[PlatformErrorCode::InvalidArgumentValue])
     });
@@ -98,7 +98,7 @@ fn test_tty_handle_close_rejects_double_close() {
 #[test]
 fn test_tty_handle_is_terminal_file_rejects_unknown_handle() {
     with_harness_context(|mut context| {
-        let unknown = FileHandle(ResourceId(0));
+        let unknown = FileHandle(ResourceId::local(0));
         let result = context.destack_tty_is_terminal_file(unknown);
         assert_platform_error_codes(result, &[PlatformErrorCode::InvalidArgumentValue])
     });

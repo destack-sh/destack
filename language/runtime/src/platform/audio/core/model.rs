@@ -237,7 +237,8 @@ impl AudioStreamHostState {
         runtime_state: &Arc<AudioRuntimeState>,
         handle: resource::AudioStreamHandle,
     ) {
-        self.stream_handle_raw.store(handle.0.0, Ordering::Release);
+        self.stream_handle_raw
+            .store(handle.0.local_id, Ordering::Release);
 
         let mut owner = self
             .runtime_owner
@@ -276,7 +277,14 @@ impl AudioStreamHostState {
             return None;
         }
 
-        Some(resource::AudioStreamHandle(resource::ResourceId(raw)))
+        let owner = self
+            .runtime_owner
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        let worker_id = owner.as_ref()?.upgrade()?.worker_id;
+        let resource_id = resource::ResourceId::new(worker_id, raw);
+
+        Some(resource::AudioStreamHandle(resource_id))
     }
 
     /// Return one buffered playback frame count.

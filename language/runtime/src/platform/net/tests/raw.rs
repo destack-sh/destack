@@ -634,7 +634,7 @@ fn test_net_raw_socket_and_header_included_lanes() {
 fn test_net_packet_control_invalid_handle_contracts() {
     with_harness_context(|mut context| {
         // prepare one invalid packet socket handle
-        let invalid_socket = SocketHandle(ResourceId(0));
+        let invalid_socket = SocketHandle(ResourceId::local(0));
 
         // build one packet fanout options payload
         let fanout_options = PacketFanoutOptions {

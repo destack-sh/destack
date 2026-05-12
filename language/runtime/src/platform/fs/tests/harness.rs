@@ -722,7 +722,7 @@ impl<'call> FsHarnessContext<'call> {
                 let address =
                     socket_address_native_from_host_port(self.call_context, host, port, family)?;
 
-                let mut handle = ListenerHandle(ResourceId(0));
+                let mut handle = ListenerHandle(ResourceId::local(0));
                 let status = unsafe {
                     core_net::destack_net_listener_listen(&mut handle, address.address(), backlog)
                 };
@@ -742,7 +742,7 @@ impl<'call> FsHarnessContext<'call> {
                 platform_net_vm::destack_net_accept(self.call_context, context, listener, flags)
             }
             None => {
-                let mut handle = SocketHandle(ResourceId(0));
+                let mut handle = SocketHandle(ResourceId::local(0));
                 let status =
                     unsafe { core_net::destack_net_listener_accept(&mut handle, listener, flags) };
                 self.status_ok(status, "accept")?;
@@ -786,7 +786,7 @@ impl<'call> FsHarnessContext<'call> {
             None => {
                 let address =
                     socket_address_native_from_host_port(self.call_context, host, port, family)?;
-                let mut handle = SocketHandle(ResourceId(0));
+                let mut handle = SocketHandle(ResourceId::local(0));
                 let socket_status = unsafe {
                     core_net::destack_net_socket_open(&mut handle, family, socket_type, protocol)
                 };
@@ -872,9 +872,9 @@ impl<'call> FsHarnessContext<'call> {
     /// Build a connected socket pair.
     #[cfg(any(unix, windows))]
     pub(crate) fn tcp_pair(&mut self) -> RuntimeResult<(SocketHandle, SocketHandle)> {
-        let listener = self.listen("127.0.0.1", 0, 1)?;
+        let listener = self.listen("127.0.local_id.1", 0, 1)?;
         let port = self.listener_port(listener);
-        let client = self.connect("127.0.0.1", port)?;
+        let client = self.connect("127.0.local_id.1", port)?;
         let server = self.accept(listener)?;
         self.close_listener(listener)?;
 

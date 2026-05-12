@@ -77,7 +77,7 @@ fn test_tty_mode_roundtrip() {
 #[test]
 fn test_tty_mode_rejects_unknown_handle() {
     with_harness_context(|mut context| {
-        let unknown = TtyHandle(ResourceId(0));
+        let unknown = TtyHandle(ResourceId::local(0));
 
         let get_result = context.destack_tty_get_mode(unknown);
         assert_platform_error_codes(get_result, &[PlatformErrorCode::InvalidArgumentValue])?;
@@ -184,7 +184,7 @@ fn test_tty_mode_set_raw_mode_roundtrip() {
 #[test]
 fn test_tty_mode_set_raw_mode_rejects_unknown_handle() {
     with_harness_context(|mut context| {
-        let unknown = TtyHandle(ResourceId(0));
+        let unknown = TtyHandle(ResourceId::local(0));
         let result = context.destack_tty_set_raw_mode(unknown, true);
         assert_platform_error_codes(result, &[PlatformErrorCode::InvalidArgumentValue])
     });

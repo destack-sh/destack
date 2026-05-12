@@ -18,7 +18,7 @@ fn test_net_bind_privileged_port_succeeds_in_privileged_mode() {
         // iterate common privileged ports until one bind succeeds
         for port in PRIVILEGED_PORTS {
             match context.destack_net_listen(
-                context.socket_address_value_for_host_port("127.0.0.1", port)?,
+                context.socket_address_value_for_host_port("127.0.local_id.1", port)?,
                 32,
             ) {
                 Ok(listener) => {

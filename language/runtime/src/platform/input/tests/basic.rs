@@ -353,7 +353,7 @@ fn open_first_windows_pointer_device_or_skip(
 #[cfg(windows)]
 fn default_input_target() -> InputWindowTarget {
     InputWindowTarget {
-        window: Some(WindowHandle(ResourceId(0))),
+        window: Some(WindowHandle(ResourceId::local(0))),
     }
 }
 
@@ -361,7 +361,7 @@ fn default_input_target() -> InputWindowTarget {
 #[cfg(windows)]
 fn explicit_input_target() -> InputWindowTarget {
     InputWindowTarget {
-        window: Some(WindowHandle(ResourceId(1))),
+        window: Some(WindowHandle(ResourceId::local(1))),
     }
 }
 
@@ -585,7 +585,7 @@ fn test_input_macos_pointer_state_and_relative_mode_surface_matches_capabilities
         context.destack_input_pointer_set_relative_mode(handle, false)?;
 
         let target = InputWindowTarget {
-            window: Some(WindowHandle(ResourceId(0))),
+            window: Some(WindowHandle(ResourceId::local(0))),
         };
         assert_not_supported_result(context.destack_input_pointer_capture(
             handle,
@@ -613,7 +613,7 @@ fn test_input_macos_pointer_state_and_relative_mode_surface_matches_capabilities
 fn test_input_harness_window_target_helper_roundtrip() {
     with_harness_context(|context| {
         let target = InputWindowTarget {
-            window: Some(WindowHandle(ResourceId(1))),
+            window: Some(WindowHandle(ResourceId::local(1))),
         };
         let _ = context.window_target(target);
 
@@ -985,7 +985,7 @@ fn test_input_close_rejects_non_input_handle() {
 #[test]
 fn test_input_read_rejects_unknown_handle() {
     with_harness_context(|mut context| {
-        let invalid = InputDeviceHandle(ResourceId(u64::MAX));
+        let invalid = InputDeviceHandle(ResourceId::local(u64::MAX));
         assert_platform_error_code(
             context.destack_input_read(invalid),
             PlatformErrorCode::IoNotFound,
@@ -999,7 +999,7 @@ fn test_input_read_rejects_unknown_handle() {
 #[test]
 fn test_input_try_read_rejects_unknown_handle() {
     with_harness_context(|mut context| {
-        let invalid = InputDeviceHandle(ResourceId(u64::MAX - 1));
+        let invalid = InputDeviceHandle(ResourceId::local(u64::MAX - 1));
         assert_platform_error_code(
             context.destack_input_try_read(invalid),
             PlatformErrorCode::IoNotFound,
@@ -1013,7 +1013,7 @@ fn test_input_try_read_rejects_unknown_handle() {
 #[test]
 fn test_input_set_grab_rejects_unknown_handle() {
     with_harness_context(|mut context| {
-        let invalid = InputDeviceHandle(ResourceId(u64::MAX - 2));
+        let invalid = InputDeviceHandle(ResourceId::local(u64::MAX - 2));
         assert_platform_error_code(
             context.destack_input_set_exclusive_grab(invalid, false),
             PlatformErrorCode::IoNotFound,
@@ -1184,7 +1184,7 @@ fn test_input_set_grab_rejects_closed_handle() {
 #[test]
 fn test_input_read_batch_rejects_unknown_handle() {
     with_harness_context(|mut context| {
-        let invalid = InputDeviceHandle(ResourceId(u64::MAX - 3));
+        let invalid = InputDeviceHandle(ResourceId::local(u64::MAX - 3));
         assert_platform_error_code(
             context.destack_input_read_batch(invalid, 4),
             PlatformErrorCode::IoNotFound,
@@ -1198,7 +1198,7 @@ fn test_input_read_batch_rejects_unknown_handle() {
 #[test]
 fn test_input_read_batch_rejects_zero_maxevents() {
     with_harness_context(|mut context| {
-        let invalid = InputDeviceHandle(ResourceId(u64::MAX - 4));
+        let invalid = InputDeviceHandle(ResourceId::local(u64::MAX - 4));
         assert_platform_error_code(
             context.destack_input_read_batch(invalid, 0),
             PlatformErrorCode::InvalidArgumentValue,
@@ -1212,7 +1212,7 @@ fn test_input_read_batch_rejects_zero_maxevents() {
 #[test]
 fn test_input_read_batch_rejects_excessive_maxevents() {
     with_harness_context(|mut context| {
-        let invalid = InputDeviceHandle(ResourceId(u64::MAX - 34));
+        let invalid = InputDeviceHandle(ResourceId::local(u64::MAX - 34));
         assert_platform_error_code(
             context.destack_input_read_batch(invalid, MAX_READ_BATCH_EVENTS + 1),
             PlatformErrorCode::InvalidArgumentValue,
@@ -1244,7 +1244,7 @@ fn test_input_read_batch_rejects_closed_handle() {
 #[test]
 fn test_input_set_read_mode_rejects_unknown_handle() {
     with_harness_context(|mut context| {
-        let invalid = InputDeviceHandle(ResourceId(u64::MAX - 5));
+        let invalid = InputDeviceHandle(ResourceId::local(u64::MAX - 5));
         assert_platform_error_code(
             context.destack_input_set_read_mode(invalid, InputReadMode::Cooked),
             PlatformErrorCode::IoNotFound,
@@ -1335,7 +1335,7 @@ fn test_input_set_read_mode_matches_device_capabilities() {
 #[test]
 fn test_input_capabilities_rejects_unknown_handle() {
     with_harness_context(|mut context| {
-        let invalid = InputDeviceHandle(ResourceId(u64::MAX - 9));
+        let invalid = InputDeviceHandle(ResourceId::local(u64::MAX - 9));
         assert_platform_error_code(
             context.destack_input_capabilities(invalid),
             PlatformErrorCode::IoNotFound,
@@ -1483,7 +1483,7 @@ fn test_input_monitor_open_rejects_second_handle() {
 #[test]
 fn test_input_monitor_close_rejects_unknown_handle() {
     with_harness_context(|mut context| {
-        let invalid = InputMonitorHandle(ResourceId(u64::MAX - 6));
+        let invalid = InputMonitorHandle(ResourceId::local(u64::MAX - 6));
         assert_platform_error_code(
             context.destack_input_monitor_close(invalid),
             PlatformErrorCode::IoNotFound,
@@ -1497,7 +1497,7 @@ fn test_input_monitor_close_rejects_unknown_handle() {
 #[test]
 fn test_input_monitor_read_rejects_unknown_handle() {
     with_harness_context(|mut context| {
-        let invalid = InputMonitorHandle(ResourceId(u64::MAX - 7));
+        let invalid = InputMonitorHandle(ResourceId::local(u64::MAX - 7));
         assert_platform_error_code(
             context.destack_input_monitor_read(invalid),
             PlatformErrorCode::IoNotFound,
@@ -1511,7 +1511,7 @@ fn test_input_monitor_read_rejects_unknown_handle() {
 #[test]
 fn test_input_monitor_try_read_rejects_unknown_handle() {
     with_harness_context(|mut context| {
-        let invalid = InputMonitorHandle(ResourceId(u64::MAX - 8));
+        let invalid = InputMonitorHandle(ResourceId::local(u64::MAX - 8));
         assert_platform_error_code(
             context.destack_input_monitor_try_read(invalid),
             PlatformErrorCode::IoNotFound,
@@ -1630,7 +1630,7 @@ fn test_input_linux_pointer_capture_reports_not_supported() {
         );
 
         let target = InputWindowTarget {
-            window: Some(WindowHandle(ResourceId(0))),
+            window: Some(WindowHandle(ResourceId::local(0))),
         };
         assert_not_supported_result(context.destack_input_pointer_capture(
             handle,
@@ -1930,7 +1930,7 @@ fn test_input_windows_raw_gamepad_state_surface_matches_capabilities() {
 #[test]
 fn test_input_windows_gamepad_set_light_rejects_unknown_handle() {
     with_harness_context(|mut context| {
-        let invalid = InputDeviceHandle(ResourceId(u64::MAX - 21));
+        let invalid = InputDeviceHandle(ResourceId::local(u64::MAX - 21));
         assert_platform_error_code(
             context.destack_input_gamepad_set_light(invalid, 1, 2, 3),
             PlatformErrorCode::IoNotFound,
@@ -1945,7 +1945,7 @@ fn test_input_windows_gamepad_set_light_rejects_unknown_handle() {
 #[test]
 fn test_input_windows_raw_hid_rejects_zero_maxbytes() {
     with_harness_context(|mut context| {
-        let invalid = InputDeviceHandle(ResourceId(u64::MAX - 22));
+        let invalid = InputDeviceHandle(ResourceId::local(u64::MAX - 22));
 
         assert_platform_error_code(
             context.destack_input_raw_hid_read(invalid, 0, 0),
@@ -1970,7 +1970,7 @@ fn test_input_windows_raw_hid_rejects_zero_maxbytes() {
 #[test]
 fn test_input_raw_hid_rejects_excessive_maxbytes() {
     with_harness_context(|mut context| {
-        let invalid = InputDeviceHandle(ResourceId(u64::MAX - 35));
+        let invalid = InputDeviceHandle(ResourceId::local(u64::MAX - 35));
         let excessive_maxbytes = MAX_RAW_HID_BYTES + 1;
 
         assert_platform_error_code(
@@ -2304,7 +2304,7 @@ fn test_input_linux_sensor_surface_matches_capabilities() {
 #[test]
 fn test_input_windows_sensor_read_rejects_unknown_handle() {
     with_harness_context(|mut context| {
-        let invalid = InputDeviceHandle(ResourceId(u64::MAX - 23));
+        let invalid = InputDeviceHandle(ResourceId::local(u64::MAX - 23));
         assert_platform_error_code(
             context.destack_input_sensor_read(invalid, InputSensorKind::Accelerometer),
             PlatformErrorCode::IoNotFound,
@@ -2319,8 +2319,8 @@ fn test_input_windows_sensor_read_rejects_unknown_handle() {
 #[test]
 fn test_input_windows_extended_surface_rejects_unknown_handle() {
     with_harness_context(|mut context| {
-        let invalid = InputDeviceHandle(ResourceId(u64::MAX - 24));
-        let invalid_text_session = InputTextSessionHandle(ResourceId(u64::MAX - 25));
+        let invalid = InputDeviceHandle(ResourceId::local(u64::MAX - 24));
+        let invalid_text_session = InputTextSessionHandle(ResourceId::local(u64::MAX - 25));
         let target = context.window_target(default_input_target());
 
         assert_platform_error_code(
