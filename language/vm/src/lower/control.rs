@@ -443,11 +443,11 @@ impl<'a> BlockLowerer<'a> {
 
             mir::Terminator::Invoke { .. }
             | mir::Terminator::InvokeIndirect { .. }
-            | mir::Terminator::InvokeVirtual { .. }
+            | mir::Terminator::InvokeClass { .. }
             | mir::Terminator::InvokeInterface { .. }
             | mir::Terminator::TailCall { .. }
             | mir::Terminator::TailCallIndirect { .. }
-            | mir::Terminator::TailCallVirtual { .. }
+            | mir::Terminator::TailCallClass { .. }
             | mir::Terminator::TailCallInterface { .. } => {
                 self.lower_call_terminator(term, pool)?
             }

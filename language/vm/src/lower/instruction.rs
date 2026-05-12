@@ -97,13 +97,13 @@ impl<'a> BlockLowerer<'a> {
                 ..
             } => self.lower_call(*destination, *function, call, pool)?,
 
-            mir::Instruction::CallVirtual {
+            mir::Instruction::CallClass {
                 destination,
                 receiver,
                 slot: method,
                 call,
                 ..
-            } => self.lower_virtual_call(*destination, *receiver, *method, call, pool)?,
+            } => self.lower_class_call(*destination, *receiver, *method, call, pool)?,
 
             mir::Instruction::CallInterface {
                 destination,

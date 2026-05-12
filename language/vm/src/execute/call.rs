@@ -9,10 +9,9 @@ use super::{access, callable};
 use crate::diagnostic::Error;
 use crate::interpreter::{Frame, Machine};
 use crate::program::{
-    ArgumentRange, Call, CallBranch, CallIndirect, CallIndirectBranch, CallInterface,
-    CallInterfaceBranch, CallTarget, CallVirtual, CallVirtualBranch, CallableBind, Function,
-    Instruction, MoveRange, Projection, TailCall, TailCallIndirect, TailCallInterface,
-    TailCallVirtual, Transfer, WordLayout,
+    ArgumentRange, Call, CallBranch, CallClass, CallClassBranch, CallIndirect, CallIndirectBranch,
+    CallInterface, CallInterfaceBranch, CallTarget, CallableBind, Function, Instruction, MoveRange,
+    Projection, TailCall, TailCallClass, TailCallIndirect, TailCallInterface, Transfer, WordLayout,
 };
 use crate::{FunctionPointer, Word};
 use destack_mir as mir;
@@ -71,8 +70,8 @@ fn load_function_pointer(address: usize, pointer_bytes: usize) -> Result<Word, E
     Ok(WordLayout::FunctionPointer.decode(raw))
 }
 
-/// Resolve the callee for one virtual call.
-fn resolve_virtual_callee<const IS_SHARED: bool>(
+/// Resolve the callee for one class call.
+fn resolve_class_callee<const IS_SHARED: bool>(
     machine: &mut Machine<'_, '_>,
     receiver: Word,
     table_field: Projection,
@@ -92,11 +91,11 @@ fn resolve_interface_callee<const IS_SHARED: bool>(
     table_field: Projection,
     slot: u32,
 ) -> Result<mir::LocalNodeId<mir::Function>, Error> {
-    // load the itab pointer from the interface reference
-    let itab_value = load_receiver_field::<IS_SHARED>(machine, receiver, table_field)?;
-    let itab_pointer = itab_value.as_static_pointer();
+    // load the interface table pointer from the erased receiver
+    let interface_table_value = load_receiver_field::<IS_SHARED>(machine, receiver, table_field)?;
+    let interface_table_pointer = interface_table_value.as_static_pointer();
 
-    load_dispatch_slot(machine, itab_pointer, slot)
+    load_dispatch_slot(machine, interface_table_pointer, slot)
 }
 
 /// Resolve the callee for one indirect call.
@@ -424,26 +423,26 @@ pub(crate) fn execute_invoke(machine: &mut Machine<'_, '_>, instruction: &Instru
     )
 }
 
-/// Execute a virtual function call with a statically known receiver heap.
-fn execute_call_virtual<const IS_SHARED: bool>(
+/// Execute a class function call with a statically known receiver heap.
+fn execute_call_class<const IS_SHARED: bool>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
     pc: usize,
 ) -> Transfer {
     // decode side records
-    let CallVirtual {
+    let CallClass {
         dest,
         receiver_offset,
         table_field,
         slot,
         arguments,
-    } = machine.side::<CallVirtual>(instruction);
+    } = machine.side::<CallClass>(instruction);
 
     // resolve dynamic callee
     let receiver_value = machine.load_word_at(*receiver_offset);
     let table_field = machine.projection(*table_field);
     let function_id =
-        match resolve_virtual_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
+        match resolve_class_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
             Ok(function_id) => function_id,
             Err(error) => return Transfer::Error(error),
         };
@@ -468,42 +467,42 @@ fn execute_call_virtual<const IS_SHARED: bool>(
     )
 }
 
-/// Execute virtual function call through a local heap receiver.
-pub(crate) fn execute_call_virtual_heap(
+/// Execute class function call through a local heap receiver.
+pub(crate) fn execute_call_class_heap(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
     pc: usize,
 ) -> Transfer {
-    execute_call_virtual::<false>(machine, instruction, pc)
+    execute_call_class::<false>(machine, instruction, pc)
 }
 
-/// Execute virtual function call through a shared heap receiver.
-pub(crate) fn execute_call_virtual_shared_heap(
+/// Execute class function call through a shared heap receiver.
+pub(crate) fn execute_call_class_shared_heap(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
     pc: usize,
 ) -> Transfer {
-    execute_call_virtual::<true>(machine, instruction, pc)
+    execute_call_class::<true>(machine, instruction, pc)
 }
 
-/// Execute an exceptional virtual call with a statically known receiver heap.
-fn execute_invoke_virtual<const IS_SHARED: bool>(
+/// Execute an exceptional class call with a statically known receiver heap.
+fn execute_invoke_class<const IS_SHARED: bool>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let CallVirtualBranch {
+    let CallClassBranch {
         receiver_offset,
         table_field,
         slot,
         arguments,
         normal_state,
         unwind_state,
-    } = machine.side::<CallVirtualBranch>(instruction);
+    } = machine.side::<CallClassBranch>(instruction);
 
     let receiver_value = machine.load_word_at(*receiver_offset);
     let table_field = machine.projection(*table_field);
     let function_id =
-        match resolve_virtual_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
+        match resolve_class_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
             Ok(function_id) => function_id,
             Err(error) => return Transfer::Error(error),
         };
@@ -522,20 +521,20 @@ fn execute_invoke_virtual<const IS_SHARED: bool>(
     )
 }
 
-/// Execute exceptional virtual call through a local heap receiver.
-pub(crate) fn execute_invoke_virtual_heap(
+/// Execute exceptional class call through a local heap receiver.
+pub(crate) fn execute_invoke_class_heap(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_invoke_virtual::<false>(machine, instruction)
+    execute_invoke_class::<false>(machine, instruction)
 }
 
-/// Execute exceptional virtual call through a shared heap receiver.
-pub(crate) fn execute_invoke_virtual_shared_heap(
+/// Execute exceptional class call through a shared heap receiver.
+pub(crate) fn execute_invoke_class_shared_heap(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_invoke_virtual::<true>(machine, instruction)
+    execute_invoke_class::<true>(machine, instruction)
 }
 
 /// Execute an interface function call with a statically known receiver heap.
@@ -994,24 +993,24 @@ pub(crate) fn execute_tail_call_callable(
     execute_indirect_tail_call::<true>(machine, instruction)
 }
 
-/// Execute a virtual tail call with a statically known receiver heap.
-fn execute_tail_call_virtual<const IS_SHARED: bool>(
+/// Execute a class tail call with a statically known receiver heap.
+fn execute_tail_call_class<const IS_SHARED: bool>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
     // decode side records
-    let TailCallVirtual {
+    let TailCallClass {
         receiver_offset,
         table_field,
         slot,
         arguments,
-    } = machine.side::<TailCallVirtual>(instruction);
+    } = machine.side::<TailCallClass>(instruction);
 
     // resolve dynamic callee
     let receiver_value = machine.load_word_at(*receiver_offset);
     let table_field = machine.projection(*table_field);
     let function_id =
-        match resolve_virtual_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
+        match resolve_class_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
             Ok(function_id) => function_id,
             Err(error) => return Transfer::Error(error),
         };
@@ -1029,20 +1028,20 @@ fn execute_tail_call_virtual<const IS_SHARED: bool>(
     }
 }
 
-/// Execute virtual tail call through a local heap receiver.
-pub(crate) fn execute_tail_call_virtual_heap(
+/// Execute class tail call through a local heap receiver.
+pub(crate) fn execute_tail_call_class_heap(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_tail_call_virtual::<false>(machine, instruction)
+    execute_tail_call_class::<false>(machine, instruction)
 }
 
-/// Execute virtual tail call through a shared heap receiver.
-pub(crate) fn execute_tail_call_virtual_shared_heap(
+/// Execute class tail call through a shared heap receiver.
+pub(crate) fn execute_tail_call_class_shared_heap(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_tail_call_virtual::<true>(machine, instruction)
+    execute_tail_call_class::<true>(machine, instruction)
 }
 
 /// Execute an interface tail call with a statically known receiver heap.

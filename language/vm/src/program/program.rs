@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt;
 
 use destack_core::StringPool;
-use destack_mir::{LayoutId, LayoutKind, LayoutTable, ReferenceMap};
+use destack_mir::{LayoutId, LayoutShape, LayoutTable, ReferenceMap};
 use {destack_engine as engine, destack_heap as heap, destack_mir as mir};
 
 use super::layout::{Layout, LayoutIndex, build_layouts, callable_object_layout};
@@ -754,7 +754,7 @@ impl ProgramBuilder {
             .unwrap_or(0);
         let mut table = LayoutTable::new();
         table.layouts.resize_with(max_layout_id, || mir::Layout {
-            kind: LayoutKind::Struct,
+            shape: LayoutShape::Struct,
             size: 0,
             alignment: 1,
             reference_map: ReferenceMap::empty(),
@@ -773,7 +773,7 @@ impl ProgramBuilder {
                     callable_object_layout(self.tree.pointer_bytes() as usize).table_layout()
                 }
                 _ => mir::Layout {
-                    kind: LayoutKind::Struct,
+                    shape: LayoutShape::Struct,
                     size: layout.byte_len as u32,
                     alignment: layout.alignment() as u32,
                     reference_map: layout.reference_map.clone(),
@@ -944,7 +944,7 @@ impl ProgramBuilder {
 
         match instruction {
             mir::Instruction::Call { destination, .. }
-            | mir::Instruction::CallVirtual { destination, .. }
+            | mir::Instruction::CallClass { destination, .. }
             | mir::Instruction::CallInterface { destination, .. }
             | mir::Instruction::CallIndirect { destination, .. } => (*destination)
                 .map(|value| {
@@ -1148,7 +1148,7 @@ impl ProgramBuilder {
                         unwind_target,
                         ..
                     }
-                    | mir::Terminator::InvokeVirtual {
+                    | mir::Terminator::InvokeClass {
                         normal_target,
                         unwind_target,
                         ..
