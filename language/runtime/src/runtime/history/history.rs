@@ -124,7 +124,7 @@ impl World {
     }
 
     /// Replace labels for one specific checkpoint.
-    pub(crate) fn set_checkpoint_labels(
+    pub fn set_checkpoint_labels(
         &self,
         checkpoint_id: CheckpointId,
         labels: BTreeMap<String, String>,

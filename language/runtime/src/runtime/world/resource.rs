@@ -1,5 +1,8 @@
-use crate::platform::{ResourceBacking, ResourceCapture, ResourceId, ResourcePortability};
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
+
+use crate::platform::{ResourceBacking, ResourceCapture, ResourceId, ResourcePortability};
 
 use super::topology::{EdgeId, EntityId, EntityKind};
 
@@ -10,8 +13,8 @@ pub struct Resource {
     pub id: ResourceId,
     /// Resource kind identifier.
     pub kind: EntityKind,
-    /// Optional resource label.
-    pub label: Option<String>,
+    /// Resource labels.
+    pub labels: BTreeMap<String, String>,
     /// Backing model for this resource.
     pub backing: ResourceBacking,
     /// Capture model for this resource.
@@ -21,11 +24,13 @@ pub struct Resource {
 }
 
 impl Resource {
+    /// System label key that stores one resource display name.
+    pub const LABEL_NAME: &'static str = "runtime.resource.name";
+
     /// Create one world resource record.
     pub fn new(
         id: ResourceId,
         kind: impl Into<EntityKind>,
-        label: Option<String>,
         backing: ResourceBacking,
         capture: ResourceCapture,
         portability: ResourcePortability,
@@ -33,26 +38,38 @@ impl Resource {
         Self {
             id,
             kind: kind.into(),
-            label,
+            labels: BTreeMap::new(),
             backing,
             capture,
             portability,
         }
     }
-}
 
-/// Return the canonical topology entity id for one resource.
-pub(crate) fn resource_entity_id(resource_id: ResourceId) -> EntityId {
-    EntityId::new(format!(
-        "resource.{}.{}",
-        resource_id.worker_id.0, resource_id.local_id
-    ))
-}
+    /// Add one resource label.
+    pub fn label(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
+        self.labels.insert(key.into(), value.into());
+        self
+    }
 
-/// Return the canonical ownership edge id for one resource.
-pub(crate) fn resource_ownership_edge_id(resource_id: ResourceId) -> EdgeId {
-    EdgeId::new(format!(
-        "worker.{}.owns.resource.{}",
-        resource_id.worker_id.0, resource_id.local_id
-    ))
+    /// Replace resource labels.
+    pub fn labels(mut self, labels: BTreeMap<String, String>) -> Self {
+        self.labels = labels;
+        self
+    }
+
+    /// Return the canonical topology entity id for this resource.
+    pub fn entity_id(&self) -> EntityId {
+        EntityId::new(format!(
+            "runtime.resource.{}.{}",
+            self.id.worker_id.0, self.id.local_id
+        ))
+    }
+
+    /// Return the canonical ownership edge id for this resource.
+    pub fn ownership_edge_id(&self) -> EdgeId {
+        EdgeId::new(format!(
+            "runtime.worker.{}.owns.resource.{}",
+            self.id.worker_id.0, self.id.local_id
+        ))
+    }
 }

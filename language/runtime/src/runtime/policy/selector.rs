@@ -4,26 +4,26 @@ use crate::runtime::binding::{
     BindingAffinity, BindingDescriptor, BindingEffect, BindingEngine, BindingProvider,
     current_platform_name,
 };
+use crate::runtime::world::{EdgeId, EntityId};
 use destack_source::matches as glob_matches;
 use destack_workspace::{
     ExecutionMode, RuntimeIdentitySelector, RuntimeLabelOperator, RuntimeLabelRequirement,
     RuntimeLabelSelector,
 };
+use serde::{Deserialize, Serialize};
 
-/// Selector clauses for runtime binding policies.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, serde::Serialize, serde::Deserialize)]
-pub struct RuntimeSelector {
+/// Selector clauses for binding call policies.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct CallSelector {
     /// Glob selector for full binding names.
     pub binding: Option<String>,
-    /// Glob selector for full userland function names.
-    pub function: Option<String>,
-    /// Glob selector for action names.
+    /// Glob selector for required action names.
     pub action: Option<String>,
-    /// Glob selector for component names.
+    /// Glob selector for binding component names.
     pub component: Option<String>,
-    /// Glob selector for module names.
+    /// Glob selector for binding module names.
     pub module: Option<String>,
-    /// Engine selector.
+    /// Binding engine selector.
     pub engine: Option<BindingEngine>,
     /// Execution selector.
     pub execution: Option<Vec<ExecutionMode>>,
@@ -41,9 +41,9 @@ pub struct RuntimeSelector {
     pub worker: Option<RuntimeIdentitySelector>,
 }
 
-/// Selector matching subject for one runtime policy check.
+/// Selector matching subject for one binding call.
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct RuntimeSubject<'a> {
+pub(crate) struct CallSubject<'a> {
     /// Runtime name for selector matching.
     pub(crate) runtime_name: &'a str,
     /// Runtime labels for selector matching.
@@ -60,19 +60,167 @@ pub(crate) struct RuntimeSubject<'a> {
     pub(crate) engine: Option<BindingEngine>,
 }
 
-impl RuntimeSelector {
+/// Selector for one topology entity target.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum EntitySelector {
+    /// Match all entities of this class.
+    Any,
+    /// Match one entity by stable id.
+    Id {
+        /// Stable topology entity identifier.
+        entity_id: EntityId,
+    },
+    /// Match a fixed set of entities by stable id.
+    Ids {
+        /// Stable topology entity identifiers.
+        entity_ids: Vec<EntityId>,
+    },
+    /// Match entities by label constraints.
+    Labels {
+        /// Label selector expression.
+        labels: RuntimeLabelSelector,
+    },
+    /// Match one deterministically chosen entity from one selector result set.
+    ChooseOne {
+        /// Source selector for deterministic sampling.
+        selector: Box<EntitySelector>,
+    },
+}
+
+impl EntitySelector {
+    /// Match all entities.
+    pub fn any() -> Self {
+        Self::Any
+    }
+
+    /// Match one entity id.
+    pub fn id(entity_id: impl Into<EntityId>) -> Self {
+        Self::Id {
+            entity_id: entity_id.into(),
+        }
+    }
+
+    /// Match many entity ids.
+    pub fn ids(entity_ids: Vec<EntityId>) -> Self {
+        Self::Ids { entity_ids }
+    }
+
+    /// Match entities by one explicit label selector.
+    pub fn labels(labels: RuntimeLabelSelector) -> Self {
+        Self::Labels { labels }
+    }
+
+    /// Match entities by exact label key-value pairs.
+    pub fn labels_exact(match_labels: BTreeMap<String, String>) -> Self {
+        Self::Labels {
+            labels: RuntimeLabelSelector {
+                match_labels,
+                match_expressions: Vec::new(),
+            },
+        }
+    }
+
+    /// Match entities by one exact label key-value pair.
+    pub fn label(key: impl Into<String>, value: impl Into<String>) -> Self {
+        let mut match_labels = BTreeMap::new();
+        match_labels.insert(key.into(), value.into());
+
+        Self::labels_exact(match_labels)
+    }
+
+    /// Select one deterministic entity from one selector result set.
+    pub fn choose_one(selector: EntitySelector) -> Self {
+        Self::ChooseOne {
+            selector: Box::new(selector),
+        }
+    }
+}
+
+/// Selector for one topology edge target.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum EdgeSelector {
+    /// Match all edges of this class.
+    Any,
+    /// Match one edge by stable id.
+    Id {
+        /// Stable topology edge identifier.
+        edge_id: EdgeId,
+    },
+    /// Match a fixed set of edges by stable id.
+    Ids {
+        /// Stable topology edge identifiers.
+        edge_ids: Vec<EdgeId>,
+    },
+    /// Match edges incident to one entity selector.
+    Incident {
+        /// Incident entity selector expression.
+        entity: EntitySelector,
+    },
+    /// Match edges by source and destination entity selectors.
+    Between {
+        /// Source entity selector expression.
+        from: EntitySelector,
+        /// Destination entity selector expression.
+        to: EntitySelector,
+    },
+    /// Match edges by label constraints.
+    Labels {
+        /// Label selector expression.
+        labels: RuntimeLabelSelector,
+    },
+}
+
+impl EdgeSelector {
+    /// Match all edges.
+    pub fn any() -> Self {
+        Self::Any
+    }
+
+    /// Match one edge id.
+    pub fn id(edge_id: impl Into<EdgeId>) -> Self {
+        Self::Id {
+            edge_id: edge_id.into(),
+        }
+    }
+
+    /// Match many edge ids.
+    pub fn ids(edge_ids: Vec<EdgeId>) -> Self {
+        Self::Ids { edge_ids }
+    }
+
+    /// Match edges incident to one entity selector.
+    pub fn incident(entity: EntitySelector) -> Self {
+        Self::Incident { entity }
+    }
+
+    /// Match edges between one source and destination entity selector.
+    pub fn between(from: EntitySelector, to: EntitySelector) -> Self {
+        Self::Between { from, to }
+    }
+
+    /// Match edges by one explicit label selector.
+    pub fn labels(labels: RuntimeLabelSelector) -> Self {
+        Self::Labels { labels }
+    }
+
+    /// Match edges by exact label key-value pairs.
+    pub fn labels_exact(match_labels: BTreeMap<String, String>) -> Self {
+        Self::Labels {
+            labels: RuntimeLabelSelector {
+                match_labels,
+                match_expressions: Vec::new(),
+            },
+        }
+    }
+}
+
+impl CallSelector {
     /// Create one selector for one binding name glob.
     pub fn binding(pattern: impl Into<String>) -> Self {
         Self {
             binding: Some(pattern.into()),
-            ..Self::default()
-        }
-    }
-
-    /// Create one selector for one function name glob.
-    pub fn function(pattern: impl Into<String>) -> Self {
-        Self {
-            function: Some(pattern.into()),
             ..Self::default()
         }
     }
@@ -154,7 +302,6 @@ impl RuntimeSelector {
     /// Return true when this selector has no clauses.
     pub fn is_empty(&self) -> bool {
         self.binding.is_none()
-            && self.function.is_none()
             && self.action.is_none()
             && self.component.is_none()
             && self.module.is_none()
@@ -171,7 +318,6 @@ impl RuntimeSelector {
     /// Return true when this selector requires binding metadata.
     pub fn requires_binding(&self) -> bool {
         self.binding.is_some()
-            || self.function.is_some()
             || self.action.is_some()
             || self.component.is_some()
             || self.module.is_some()
@@ -180,8 +326,8 @@ impl RuntimeSelector {
             || self.effect.is_some()
     }
 
-    /// Return true when this selector matches one runtime policy subject.
-    pub(crate) fn matches(&self, subject: RuntimeSubject<'_>) -> bool {
+    /// Return true when this selector matches one binding call.
+    pub(crate) fn matches(&self, subject: CallSubject<'_>) -> bool {
         // binding metadata
         if self.requires_binding() && subject.binding.is_none() {
             return false;
@@ -211,7 +357,7 @@ impl RuntimeSelector {
     }
 
     /// Return true when runtime and worker identity clauses match.
-    fn matches_identity(&self, subject: RuntimeSubject<'_>) -> bool {
+    fn matches_identity(&self, subject: CallSubject<'_>) -> bool {
         if let Some(runtime) = &self.runtime
             && !matches_identity_selector(runtime, subject.runtime_name, subject.runtime_labels)
         {
@@ -228,7 +374,7 @@ impl RuntimeSelector {
     }
 
     /// Return true when execution mode and engine clauses match.
-    fn matches_execution(&self, subject: RuntimeSubject<'_>) -> bool {
+    fn matches_execution(&self, subject: CallSubject<'_>) -> bool {
         if let Some(engine) = self.engine
             && subject.engine != Some(engine)
         {
@@ -262,10 +408,6 @@ impl RuntimeSelector {
         if let Some(pattern) = &self.binding
             && !glob_match(pattern, binding.name)
         {
-            return false;
-        }
-
-        if self.function.is_some() {
             return false;
         }
 

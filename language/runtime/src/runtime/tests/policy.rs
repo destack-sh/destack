@@ -6,8 +6,8 @@ use crate::runtime::binding::{
     BindingReplayPayload, RuntimeAccess,
 };
 use crate::runtime::policy::{
-    ActivationWindow, EdgeSelector, EntitySelector, Fault, FaultTarget, FaultType, Hook, HookEvent,
-    Lifetime, Policy, PolicyCallId, PolicyState, Rule, RuleAction, RuleId, RuntimeSelector,
+    ActivationWindow, CallSelector, EdgeSelector, EntitySelector, Fault, FaultTarget, FaultType,
+    Hook, HookEvent, Lifetime, Policy, PolicyCallId, PolicyState, Rule, RuleAction, RuleId,
     Trigger,
 };
 use crate::runtime::random::Random;
@@ -296,7 +296,7 @@ fn test_policy_validate_rejects_fault_rule_without_trigger() {
         rules: vec![Rule {
             id: RuleId("test.policy.shape.fault_missing_trigger".to_string()),
             enabled: true,
-            when: Some(RuntimeSelector::default()),
+            call: Some(CallSelector::default()),
             action: RuleAction::Fault {
                 fault: Fault {
                     target: FaultTarget::Call {},
@@ -322,7 +322,7 @@ fn test_policy_validate_rejects_binding_rule_with_trigger() {
         rules: vec![Rule {
             id: RuleId("test.policy.shape.binding_with_trigger".to_string()),
             enabled: true,
-            when: Some(RuntimeSelector::default()),
+            call: Some(CallSelector::default()),
             action: RuleAction::SetAccess {
                 access: RuntimeAccess::Allow,
             },
@@ -343,7 +343,7 @@ fn test_policy_validate_rejects_binding_rule_without_call_selector() {
         rules: vec![Rule {
             id: RuleId("test.policy.shape.binding_missing_call_selector".to_string()),
             enabled: true,
-            when: None,
+            call: None,
             action: RuleAction::SetAccess {
                 access: RuntimeAccess::Allow,
             },
@@ -364,7 +364,7 @@ fn test_policy_validate_rejects_call_fault_without_call_selector() {
         rules: vec![Rule {
             id: RuleId("test.policy.shape.call_fault_missing_call_selector".to_string()),
             enabled: true,
-            when: None,
+            call: None,
             action: RuleAction::Fault {
                 fault: Fault {
                     target: FaultTarget::Call {},
@@ -390,7 +390,7 @@ fn test_policy_validate_rejects_unknown_entity_kind() {
         rules: vec![Rule {
             id: RuleId("test.policy.kind.unknown".to_string()),
             enabled: true,
-            when: None,
+            call: None,
             action: RuleAction::Fault {
                 fault: Fault {
                     target: FaultTarget::Entity {
@@ -417,11 +417,11 @@ fn test_policy_validate_accepts_registered_compatible_fault_kind() {
         rules: vec![Rule {
             id: RuleId("test.policy.kind.compatible".to_string()),
             enabled: true,
-            when: None,
+            call: None,
             action: RuleAction::Fault {
                 fault: Fault {
                     target: FaultTarget::Entity {
-                        kind: EntityKind("net.socket".to_string()),
+                        kind: EntityKind("host.net.socket".to_string()),
                         selector: EntitySelector::Any,
                     },
                     fault_type: FaultType::Drop {},
@@ -444,11 +444,11 @@ fn test_policy_validate_rejects_registered_incompatible_fault_kind() {
         rules: vec![Rule {
             id: RuleId("test.policy.kind.incompatible".to_string()),
             enabled: true,
-            when: None,
+            call: None,
             action: RuleAction::Fault {
                 fault: Fault {
                     target: FaultTarget::Entity {
-                        kind: EntityKind("fs.inode".to_string()),
+                        kind: EntityKind("host.fs.inode".to_string()),
                         selector: EntitySelector::Any,
                     },
                     fault_type: FaultType::Drop {},
@@ -471,11 +471,11 @@ fn test_policy_validate_accepts_registered_compatible_fault_edge_kind() {
         rules: vec![Rule {
             id: RuleId("test.policy.edge.compatible".to_string()),
             enabled: true,
-            when: None,
+            call: None,
             action: RuleAction::Fault {
                 fault: Fault {
                     target: FaultTarget::Edge {
-                        kind: EdgeKind("net.stream_link".to_string()),
+                        kind: EdgeKind("host.net.stream_link".to_string()),
                         selector: EdgeSelector::Any,
                         direction: None,
                     },
@@ -499,11 +499,11 @@ fn test_policy_validate_rejects_registered_incompatible_fault_edge_kind() {
         rules: vec![Rule {
             id: RuleId("test.policy.edge.incompatible".to_string()),
             enabled: true,
-            when: None,
+            call: None,
             action: RuleAction::Fault {
                 fault: Fault {
                     target: FaultTarget::Edge {
-                        kind: EdgeKind("fs.parent_child".to_string()),
+                        kind: EdgeKind("host.fs.parent_child".to_string()),
                         selector: EdgeSelector::Any,
                         direction: None,
                     },
@@ -524,7 +524,7 @@ fn action_rule(id_suffix: &str, trigger: Trigger) -> Rule {
     Rule {
         id: RuleId(format!("test.active.{id_suffix}")),
         enabled: true,
-        when: Some(RuntimeSelector::default()),
+        call: Some(CallSelector::default()),
         action: RuleAction::Fault {
             fault: Fault {
                 target: FaultTarget::Call {},

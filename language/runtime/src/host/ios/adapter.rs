@@ -6,7 +6,7 @@ use crate::host::os::ios::request::submit_request;
 use crate::host::{
     HostAdapter, HostRequest, HostRequestOutcome, HostSessionId, Platform, RequestContext,
 };
-use crate::runtime::action::HostActionSet;
+use crate::runtime::action::ActionSet;
 
 /// iOS host implementation.
 #[derive(Debug, Default)]
@@ -24,7 +24,7 @@ impl HostAdapter for IosHost {
         Platform::IOS
     }
 
-    fn static_actions(&self) -> HostActionSet {
+    fn static_actions(&self) -> ActionSet {
         action::static_actions()
     }
 
@@ -39,7 +39,7 @@ impl HostAdapter for IosHost {
         Ok(())
     }
 
-    fn session_actions(&self, host_session_id: HostSessionId) -> HostActionSet {
+    fn session_actions(&self, host_session_id: HostSessionId) -> ActionSet {
         action::session_actions(host_session_id)
     }
 

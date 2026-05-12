@@ -386,7 +386,7 @@ impl Observation {
         Self::annotations(
             ObservationCategory::Resource,
             ObservationScope::resource(worker_id, resource_id),
-            "resource.attached",
+            "runtime.resource.attached",
             [
                 ("worker_id", worker_id.0.to_string()),
                 ("resource_id", resource_id.local_id.to_string()),
@@ -402,7 +402,7 @@ impl Observation {
         Self::annotations(
             ObservationCategory::Resource,
             ObservationScope::resource(worker_id, resource_id),
-            "resource.detached",
+            "runtime.resource.detached",
             [
                 ("worker_id", worker_id.0.to_string()),
                 ("resource_id", resource_id.local_id.to_string()),
@@ -415,7 +415,7 @@ impl Observation {
         Self::new(
             ObservationCategory::Scheduler,
             ObservationScope::world(),
-            "scheduler.progressed",
+            "runtime.scheduler.progressed",
         )
     }
 
@@ -424,7 +424,7 @@ impl Observation {
         Self::annotations(
             ObservationCategory::Scheduler,
             ObservationScope::world(),
-            "scheduler.advanced_time",
+            "runtime.scheduler.advanced_time",
             [("deadline_ns", deadline.get().to_string())],
         )
     }

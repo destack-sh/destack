@@ -6,7 +6,7 @@ use super::service::{
     CAMERA_WATCH_QUEUE_CAPACITY, LinuxCameraWatchRecord, LinuxCameraWatchResource,
     LinuxCameraWatchService,
 };
-use crate::runtime::control::queue::BoundedQueue;
+use crate::platform::core::BoundedQueue;
 
 /// Finalizer for one opened Linux camera watch.
 struct LinuxCameraWatchFinalizer {

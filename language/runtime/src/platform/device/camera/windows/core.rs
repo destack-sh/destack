@@ -32,6 +32,7 @@ pub(super) use windows_future::IAsyncAction;
 
 pub(super) use crate::diagnostic::{RuntimeError, RuntimeResult};
 pub(super) use crate::platform::abi::{NativeSlice, NativeStringRef};
+pub(super) use crate::platform::core::BoundedQueue;
 pub(super) use crate::platform::device::{
     CameraColorSpace, CameraDeviceDescriptor, CameraDeviceDescriptorValue, CameraDynamicRange,
     CameraExposureCompensationRange, CameraExposureMode, CameraExposureTimeRange, CameraFacingMode,
@@ -49,7 +50,6 @@ pub(super) use crate::platform::device::{
 pub(super) use crate::platform::resource::{ResourceEntry, ResourceFinalizer, ResourceKind};
 pub(super) use crate::platform::{NativeAbiCodec, PlatformError, core as core_platform, resource};
 pub(super) use crate::runtime::BindingCallContext;
-pub(super) use crate::runtime::control::queue::BoundedQueue;
 
 pub(super) use crate::platform::device::camera::core::{
     CAMERA_DEVICE_RESOURCE_LABEL, CAMERA_STREAM_RESOURCE_LABEL, CAMERA_WATCH_RESOURCE_LABEL,

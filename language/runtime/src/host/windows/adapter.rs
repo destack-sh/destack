@@ -5,7 +5,7 @@ use crate::host::{
     HostAdapter, HostRequest, HostRequestOutcome, HostSessionId, Platform, RequestContext,
     SessionContext,
 };
-use crate::runtime::action::HostActionSet;
+use crate::runtime::action::ActionSet;
 
 /// Windows host implementation.
 #[derive(Debug, Default)]
@@ -23,11 +23,11 @@ impl HostAdapter for WindowsHost {
         Platform::Windows
     }
 
-    fn static_actions(&self) -> HostActionSet {
+    fn static_actions(&self) -> ActionSet {
         action::static_actions()
     }
 
-    fn session_actions(&self, _host_runtime_id: HostSessionId) -> HostActionSet {
+    fn session_actions(&self, _host_runtime_id: HostSessionId) -> ActionSet {
         action::session_actions()
     }
 

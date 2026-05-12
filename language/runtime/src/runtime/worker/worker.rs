@@ -78,11 +78,11 @@ pub struct WorkerId(pub u64);
 
 /// Worker creation options.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
-pub(crate) struct WorkerOptions {
+pub struct WorkerOptions {
     /// Worker name used for identity selection and diagnostics.
-    pub(crate) name: Option<String>,
+    pub name: Option<String>,
     /// Worker labels used for topology and policy selection.
-    pub(crate) labels: BTreeMap<String, String>,
+    pub labels: BTreeMap<String, String>,
 }
 
 /// Materialized worker metadata captured in one world image.
@@ -383,7 +383,7 @@ impl Worker {
         self.resources.len()
     }
 
-    /// Register one new runtime and one default worker in one world.
+    /// Register one new runtime and its first worker in one world.
     fn register_runtime(
         world: &mut WorldState,
         options: &RuntimeOptions,
@@ -405,11 +405,12 @@ impl Worker {
             .unwrap_or_else(|| format!("worker-{}", worker_id.0));
         let worker_labels = worker_options.labels.clone();
 
-        // register runtime and worker directly in world topology
-        world.register_runtime_topology(
+        // runtime metadata
+        world.register_runtime_topology(runtime_id, runtime_name, runtime_labels)?;
+
+        // worker metadata
+        world.register_worker_topology(
             runtime_id,
-            runtime_name,
-            runtime_labels,
             worker_id,
             worker_name.clone(),
             worker_labels,

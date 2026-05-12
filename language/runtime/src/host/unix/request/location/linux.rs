@@ -20,7 +20,7 @@ use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::abi_generated::{
     LocationAccuracy, LocationSampleValue, LocationWatchOptionsValue,
 };
-use crate::runtime::action::{HostAction, HostActionSet};
+use crate::runtime::action::ActionSet;
 use crate::runtime::service::Service;
 use crate::runtime::{ExecutionMode, ExecutionPolicy, WorkerLoop};
 
@@ -261,15 +261,8 @@ impl Service for LinuxLocationService {
 }
 
 /// Return dynamic Unix location actions for Linux hosts.
-pub(crate) fn request_actions() -> HostActionSet {
-    let mut actions = HostActionSet::default();
-
-    // expose location reads and watches only when GeoClue is reachable
-    if geoclue_is_available() {
-        actions.extend_actions([HostAction::OsLocationRead, HostAction::OsLocationWatch]);
-    }
-
-    actions
+pub(crate) fn request_actions() -> ActionSet {
+    ActionSet::new()
 }
 
 /// Submit one Linux location request through GeoClue.

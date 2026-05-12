@@ -1,10 +1,10 @@
 use crate::diagnostic::RuntimeResult;
 use crate::host::os::unix::request as unix_request;
 use crate::host::{HostRequest, HostRequestOutcome, HostSessionId, RequestContext};
-use crate::runtime::action::HostActionSet;
+use crate::runtime::action::ActionSet;
 
 /// Return dynamic Linux request actions.
-pub(crate) fn request_actions() -> HostActionSet {
+pub(crate) fn request_actions() -> ActionSet {
     unix_request::request_actions()
 }
 

@@ -3,7 +3,7 @@ use crate::host::core::error::not_supported;
 use crate::host::core::registry::HostSessionId;
 use crate::host::core::request::{HostRequest, HostRequestOutcome, RequestContext, SessionContext};
 use crate::host::{HostEvent, Platform};
-use crate::runtime::action::{HostAction, HostActionSet};
+use crate::runtime::action::{Action, ActionSet};
 
 /// Host poll output containing queued events and queue-pressure drops.
 #[derive(Debug, Default)]
@@ -22,18 +22,18 @@ pub(crate) trait HostAdapter: std::fmt::Debug + Send + Sync {
     fn platform(&self) -> Platform;
 
     /// Return static host actions for this host adapter target.
-    fn static_actions(&self) -> HostActionSet {
-        let mut actions = HostActionSet::new();
+    fn static_actions(&self) -> ActionSet {
+        let mut actions = ActionSet::new();
 
         // power state is a broadly available host binding family
-        actions.insert_action(HostAction::OsPower);
+        actions.insert_action(Action::OsPowerRead);
 
         actions
     }
 
     /// Return dynamic session actions for one attached runtime session.
-    fn session_actions(&self, _host_runtime_id: HostSessionId) -> HostActionSet {
-        HostActionSet::new()
+    fn session_actions(&self, _host_runtime_id: HostSessionId) -> ActionSet {
+        ActionSet::new()
     }
 
     /// Return whether the current execution context is the process main context.

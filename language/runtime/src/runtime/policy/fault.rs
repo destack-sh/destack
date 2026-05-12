@@ -1,13 +1,12 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::world::topology::Topology;
-use crate::runtime::world::{EdgeId, EdgeKind, EntityId, EntityKind};
-use destack_workspace as workspace;
+use crate::runtime::world::{EdgeKind, EntityKind};
 
-use super::{Rule, RuleAction};
+use super::{EdgeSelector, EntitySelector, Rule, RuleAction};
 
 /// Jitter distribution for runtime delay faults.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -96,161 +95,6 @@ pub enum FaultResourceKind {
     Queue,
     /// Timer budget.
     Timer,
-}
-
-/// Selector for one simulation-world entity target.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum EntitySelector {
-    /// Match all entities of this class.
-    Any,
-    /// Match one entity by stable id.
-    Id {
-        /// Stable simulation-world entity identifier.
-        entity_id: EntityId,
-    },
-    /// Match a fixed set of entities by stable id.
-    Ids {
-        /// Stable simulation-world entity identifiers.
-        entity_ids: Vec<EntityId>,
-    },
-    /// Match entities by label constraints.
-    Labels {
-        /// Label selector expression.
-        labels: workspace::RuntimeLabelSelector,
-    },
-    /// Match one deterministically chosen entity from one selector result set.
-    ChooseOne {
-        /// Source selector for deterministic sampling.
-        selector: Box<EntitySelector>,
-    },
-}
-
-impl EntitySelector {
-    /// Match all entities.
-    pub fn any() -> Self {
-        Self::Any
-    }
-
-    /// Match one entity id.
-    pub fn id(entity_id: impl Into<EntityId>) -> Self {
-        Self::Id {
-            entity_id: entity_id.into(),
-        }
-    }
-
-    /// Match many entity ids.
-    pub fn ids(entity_ids: Vec<EntityId>) -> Self {
-        Self::Ids { entity_ids }
-    }
-
-    /// Match entities by one explicit label selector.
-    pub fn labels(labels: workspace::RuntimeLabelSelector) -> Self {
-        Self::Labels { labels }
-    }
-
-    /// Match entities by exact label key-value pairs.
-    pub fn labels_exact(match_labels: BTreeMap<String, String>) -> Self {
-        Self::Labels {
-            labels: workspace::RuntimeLabelSelector {
-                match_labels,
-                match_expressions: Vec::new(),
-            },
-        }
-    }
-
-    /// Match entities by one exact label key-value pair.
-    pub fn label(key: impl Into<String>, value: impl Into<String>) -> Self {
-        let mut match_labels = BTreeMap::new();
-        match_labels.insert(key.into(), value.into());
-        Self::labels_exact(match_labels)
-    }
-
-    /// Select one deterministic entity from one selector result set.
-    pub fn choose_one(selector: EntitySelector) -> Self {
-        Self::ChooseOne {
-            selector: Box::new(selector),
-        }
-    }
-}
-
-/// Selector for one simulation-world edge target.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum EdgeSelector {
-    /// Match all edges of this class.
-    Any,
-    /// Match one edge by stable id.
-    Id {
-        /// Stable simulation-world edge identifier.
-        edge_id: EdgeId,
-    },
-    /// Match a fixed set of edges by stable id.
-    Ids {
-        /// Stable simulation-world edge identifiers.
-        edge_ids: Vec<EdgeId>,
-    },
-    /// Match edges incident to one entity selector.
-    Incident {
-        /// Incident entity selector expression.
-        entity: EntitySelector,
-    },
-    /// Match edges by source and destination entity selectors.
-    Between {
-        /// Source entity selector expression.
-        from: EntitySelector,
-        /// Destination entity selector expression.
-        to: EntitySelector,
-    },
-    /// Match edges by label constraints.
-    Labels {
-        /// Label selector expression.
-        labels: workspace::RuntimeLabelSelector,
-    },
-}
-
-impl EdgeSelector {
-    /// Match all edges.
-    pub fn any() -> Self {
-        Self::Any
-    }
-
-    /// Match one edge id.
-    pub fn id(edge_id: impl Into<EdgeId>) -> Self {
-        Self::Id {
-            edge_id: edge_id.into(),
-        }
-    }
-
-    /// Match many edge ids.
-    pub fn ids(edge_ids: Vec<EdgeId>) -> Self {
-        Self::Ids { edge_ids }
-    }
-
-    /// Match edges incident to one entity selector.
-    pub fn incident(entity: EntitySelector) -> Self {
-        Self::Incident { entity }
-    }
-
-    /// Match edges between one source and destination entity selector.
-    pub fn between(from: EntitySelector, to: EntitySelector) -> Self {
-        Self::Between { from, to }
-    }
-
-    /// Match edges by one explicit label selector.
-    pub fn labels(labels: workspace::RuntimeLabelSelector) -> Self {
-        Self::Labels { labels }
-    }
-
-    /// Match edges by exact label key-value pairs.
-    pub fn labels_exact(match_labels: BTreeMap<String, String>) -> Self {
-        Self::Labels {
-            labels: workspace::RuntimeLabelSelector {
-                match_labels,
-                match_expressions: Vec::new(),
-            },
-        }
-    }
 }
 
 /// Fault target selector.
@@ -656,32 +500,32 @@ impl FaultType {
     /// Return the stable hierarchical identifier for this fault verb.
     pub fn verb_id(&self) -> &'static str {
         match self {
-            FaultType::Error { .. } => "call.error",
-            FaultType::Timeout { .. } => "call.timeout",
-            FaultType::Delay { .. } => "timing.delay",
-            FaultType::Block {} => "call.block",
-            FaultType::Starve { .. } => "scheduler.starve",
-            FaultType::Drop {} => "transport.drop",
-            FaultType::Duplicate { .. } => "transport.duplicate",
-            FaultType::Reorder { .. } => "transport.reorder",
-            FaultType::Corrupt { .. } => "transport.corrupt",
-            FaultType::Truncate { .. } => "transport.truncate",
-            FaultType::Partial { .. } => "transport.partial",
-            FaultType::Disconnect {} => "transport.disconnect",
-            FaultType::Reset {} => "transport.reset",
-            FaultType::Partition { .. } => "transport.partition",
-            FaultType::Blackhole { .. } => "transport.blackhole",
-            FaultType::Throttle { .. } => "transport.throttle",
-            FaultType::Limit { .. } => "transport.limit",
-            FaultType::Exhaust { .. } => "resource.exhaust",
-            FaultType::Quota { .. } => "resource.quota",
-            FaultType::Crash { .. } => "process.crash",
-            FaultType::Restart { .. } => "process.restart",
-            FaultType::Reboot {} => "process.reboot",
-            FaultType::ClockJump { .. } => "clock.jump",
-            FaultType::ClockDrift { .. } => "clock.drift",
-            FaultType::ClockFreeze {} => "clock.freeze",
-            FaultType::DurabilityViolation { .. } => "durability.violate",
+            FaultType::Error { .. } => "runtime.fault.call.error",
+            FaultType::Timeout { .. } => "runtime.fault.call.timeout",
+            FaultType::Delay { .. } => "runtime.fault.timing.delay",
+            FaultType::Block {} => "runtime.fault.call.block",
+            FaultType::Starve { .. } => "runtime.fault.scheduler.starve",
+            FaultType::Drop {} => "runtime.fault.transport.drop",
+            FaultType::Duplicate { .. } => "runtime.fault.transport.duplicate",
+            FaultType::Reorder { .. } => "runtime.fault.transport.reorder",
+            FaultType::Corrupt { .. } => "runtime.fault.transport.corrupt",
+            FaultType::Truncate { .. } => "runtime.fault.transport.truncate",
+            FaultType::Partial { .. } => "runtime.fault.transport.partial",
+            FaultType::Disconnect {} => "runtime.fault.transport.disconnect",
+            FaultType::Reset {} => "runtime.fault.transport.reset",
+            FaultType::Partition { .. } => "runtime.fault.transport.partition",
+            FaultType::Blackhole { .. } => "runtime.fault.transport.blackhole",
+            FaultType::Throttle { .. } => "runtime.fault.transport.throttle",
+            FaultType::Limit { .. } => "runtime.fault.transport.limit",
+            FaultType::Exhaust { .. } => "runtime.fault.resource.exhaust",
+            FaultType::Quota { .. } => "runtime.fault.resource.quota",
+            FaultType::Crash { .. } => "runtime.fault.process.crash",
+            FaultType::Restart { .. } => "runtime.fault.process.restart",
+            FaultType::Reboot {} => "runtime.fault.process.reboot",
+            FaultType::ClockJump { .. } => "runtime.fault.clock.jump",
+            FaultType::ClockDrift { .. } => "runtime.fault.clock.drift",
+            FaultType::ClockFreeze {} => "runtime.fault.clock.freeze",
+            FaultType::DurabilityViolation { .. } => "runtime.fault.durability.violate",
         }
     }
 

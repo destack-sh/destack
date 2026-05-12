@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use parking_lot::Mutex;
 
+use crate::platform::core::BoundedQueue;
 use crate::platform::device::midi::core::{
     MidiEventValue, MidiInputRecordValue, MidiOutputRecordValue, MidiPortDescriptorValue,
     define_backend_midi_resource_inserters,
@@ -11,7 +12,6 @@ use crate::platform::device::{
     MidiBackend, MidiDataFormat, MidiEventOverflowPolicy, MidiEventSubscriptionFlags,
     MidiPortDirection, MidiPortDirectionFlags, MidiProtocol,
 };
-use crate::runtime::control::queue::BoundedQueue;
 use crate::runtime::service::executor::periodic::PeriodicTaskHandle;
 
 use super::super::abi::{JackClient, JackPort};

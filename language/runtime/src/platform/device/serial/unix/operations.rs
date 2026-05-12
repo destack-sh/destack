@@ -4,6 +4,7 @@ use super::core::*;
 use super::identity::*;
 use super::io::*;
 use super::state::*;
+use crate::platform::core::BoundedQueue;
 #[cfg(test)]
 use crate::platform::device::serial::{
     close_test_serial_resource, test_serial_config, test_serial_configure, test_serial_descriptor,
@@ -12,7 +13,6 @@ use crate::platform::device::serial::{
     test_serial_set_signals, test_serial_try_read_event, test_serial_try_read_into,
     test_serial_write, try_open_test_serial,
 };
-use crate::runtime::control::queue::BoundedQueue;
 
 /// Close one serial endpoint.
 pub(crate) unsafe fn destack_device_serial_close(

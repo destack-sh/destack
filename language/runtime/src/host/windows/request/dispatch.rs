@@ -2,32 +2,11 @@ use crate::diagnostic::RuntimeResult;
 use crate::host::{HostRequest, HostRequestOutcome, HostRequestResult, RequestContext};
 use crate::platform::core::not_supported;
 use crate::platform::os::PermissionEntry;
-use crate::runtime::action::{HostAction, HostActionSet};
+use crate::runtime::action::ActionSet;
 
 /// Return dynamic Windows request actions.
-pub(crate) fn request_actions() -> HostActionSet {
-    let mut actions = HostActionSet::from_actions([
-        HostAction::OsBackgroundControl,
-        HostAction::OsBackgroundRead,
-        HostAction::OsCalendarRead,
-        HostAction::OsCalendarWrite,
-        HostAction::OsContactRead,
-        HostAction::OsContactWrite,
-        HostAction::OsDocumentControl,
-        HostAction::OsDocumentPick,
-        HostAction::OsDocumentWrite,
-        HostAction::OsIntentWrite,
-        HostAction::OsLocationRead,
-        HostAction::OsLocationWatch,
-        HostAction::OsMediaRead,
-        HostAction::OsMediaWrite,
-    ]);
-    actions.extend_actions([
-        HostAction::OsNotificationPermission,
-        HostAction::OsNotificationPost,
-    ]);
-
-    actions
+pub(crate) fn request_actions() -> ActionSet {
+    ActionSet::new()
 }
 
 /// Submit one normalized Windows host request.

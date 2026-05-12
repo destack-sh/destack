@@ -1,13 +1,10 @@
-use crate::runtime::action::{HostAction, HostActionSet};
+use crate::runtime::action::{Action, ActionSet};
 
 /// Return the static macOS host actions.
-pub(crate) fn static_actions() -> HostActionSet {
-    let mut host_actions = HostActionSet::new();
+pub(crate) fn static_actions() -> ActionSet {
+    let mut host_actions = ActionSet::new();
 
-    host_actions.insert_action(HostAction::OsLifecycleRead);
-    host_actions.insert_action(HostAction::OsIntentRead);
-    host_actions.insert_action(HostAction::OsPower);
-    host_actions.insert_action(HostAction::OsPermissionRead);
+    host_actions.insert_action(Action::OsPowerRead);
 
     host_actions
 }

@@ -110,6 +110,12 @@ pub struct Entity {
 }
 
 impl Entity {
+    /// System label key that stores one runtime display name.
+    pub const LABEL_RUNTIME_NAME: &'static str = "runtime.instance.name";
+
+    /// System label key that stores one worker display name.
+    pub const LABEL_WORKER_NAME: &'static str = "runtime.worker.name";
+
     /// Create one entity payload.
     pub fn new(id: impl Into<EntityId>, kind: impl Into<EntityKind>) -> Self {
         Self {

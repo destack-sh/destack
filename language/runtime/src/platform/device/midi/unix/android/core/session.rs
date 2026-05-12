@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use parking_lot::Mutex;
 
+use crate::platform::core::BoundedQueue;
 use crate::platform::device::midi::core::{
     MidiEventValue, MidiPortDescriptorValue, define_backend_midi_resource_inserters,
 };
@@ -13,7 +14,6 @@ use crate::platform::device::{
     MidiProtocol, MidiProtocolFlags,
 };
 use crate::runtime::WorkerCallbackHandle;
-use crate::runtime::control::queue::BoundedQueue;
 
 /// One resolved Android backend description.
 #[derive(Clone, Copy, Debug)]

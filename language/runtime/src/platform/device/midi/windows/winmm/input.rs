@@ -12,7 +12,7 @@ use windows_sys::Win32::Media::{
 };
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::core::{self as core_platform};
+use crate::platform::core::{self as core_platform, BoundedQueue};
 use crate::platform::device::midi::core::{
     MidiInputRecordValue, MidiPortDescriptorValue, binding_timestamp_now, input_queue_capacity,
     read_queued_batch, read_queued_item, remove_midi_input_resource,
@@ -25,7 +25,6 @@ use crate::platform::device::{
 };
 use crate::platform::resource;
 use crate::runtime::BindingCallContext;
-use crate::runtime::control::queue::BoundedQueue;
 
 use super::core::{
     DEFAULT_SYSEX_BUFFER_COUNT, WinMmInputCallbackContext, WinMmInputRepository,

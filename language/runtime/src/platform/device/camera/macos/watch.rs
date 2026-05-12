@@ -8,7 +8,7 @@ use super::service::{
     CAMERA_WATCH_QUEUE_CAPACITY, MacosCameraWatchRecord, MacosCameraWatchResource,
     MacosCameraWatchService,
 };
-use crate::runtime::control::queue::BoundedQueue;
+use crate::platform::core::BoundedQueue;
 
 /// Finalizer for one opened macOS camera watch.
 struct MacosCameraWatchFinalizer {

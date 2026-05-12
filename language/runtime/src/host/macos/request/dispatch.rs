@@ -3,33 +3,11 @@ use crate::host::os::unix::request;
 use crate::host::{HostRequest, HostRequestOutcome, HostRequestResult, RequestContext};
 use crate::platform::core::not_supported;
 use crate::platform::os::{Permission, PermissionEntry, PermissionState};
-use crate::runtime::action::{HostAction, HostActionSet};
+use crate::runtime::action::ActionSet;
 
 /// Return dynamic macOS request actions.
-pub(crate) fn request_actions() -> HostActionSet {
-    let mut actions = request::request_actions();
-    actions.extend_actions([
-        HostAction::OsBackgroundControl,
-        HostAction::OsBackgroundRead,
-        HostAction::OsCalendarRead,
-        HostAction::OsCalendarWrite,
-        HostAction::OsContactRead,
-        HostAction::OsContactWrite,
-        HostAction::OsDocumentControl,
-        HostAction::OsDocumentPick,
-        HostAction::OsDocumentWrite,
-        HostAction::OsLocationRead,
-        HostAction::OsLocationWatch,
-        HostAction::OsMediaRead,
-        HostAction::OsMediaWrite,
-        HostAction::OsNotificationPermission,
-        HostAction::OsNotificationPost,
-    ]);
-
-    // document picking is live on the concrete macOS host
-    actions.insert_action(HostAction::OsDocumentPick);
-
-    actions
+pub(crate) fn request_actions() -> ActionSet {
+    request::request_actions()
 }
 
 /// Submit one normalized macOS host request.

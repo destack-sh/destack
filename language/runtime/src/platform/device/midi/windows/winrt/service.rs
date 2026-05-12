@@ -11,7 +11,7 @@ use windows::Storage::Streams::DataWriter;
 use windows::core::{Error as WinError, HSTRING, Ref};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::core::{self as core_platform};
+use crate::platform::core::{self as core_platform, BoundedQueue};
 use crate::platform::device::midi::core::{
     MidiInputRecordValue, MidiOutputRecordValue, MidiPortDescriptorValue, MidiRecordBytes,
     binding_timestamp_now,
@@ -19,7 +19,6 @@ use crate::platform::device::midi::core::{
 use crate::platform::device::{
     MidiDataFormat, MidiEventSource, MidiPortDirection, MidiProtocol, MidiRecordFraming,
 };
-use crate::runtime::control::queue::BoundedQueue;
 use crate::runtime::service::executor::thread::ServiceThreadExecutor;
 use crate::runtime::service::{Service, spawn_service_thread};
 use crate::runtime::{ExecutionAffinity, ExecutionMode, ExecutionPolicy};

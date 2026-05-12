@@ -5,7 +5,7 @@ use crate::runtime::trace::{
 use destack_workspace::ExecutionMode;
 
 /// Trace channel name for entropy events.
-const ENTROPY_CHANNEL: &str = "entropy";
+pub(super) const ENTROPY_CHANNEL: &str = "runtime.random.entropy";
 
 impl Trace {
     /// Return one trace mismatch error for the entropy channel.

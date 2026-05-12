@@ -3,7 +3,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use crate::runtime::policy::RuntimeSelector;
+use crate::runtime::policy::CallSelector;
 use destack_engine as engine;
 use destack_workspace::RuntimeOptions;
 
@@ -159,7 +159,7 @@ fn test_on_before_binding_runs_custom_action_handler() {
                 CustomAction::new("test.custom.handler").payload("{\"mock\":true}"),
                 Trigger::once(Hook::BindingBefore),
             )
-            .when(RuntimeSelector::binding("destack.test.hook.custom.*")),
+            .call(CallSelector::binding("destack.test.hook.custom.*")),
         )
         .expect("custom rule should install");
 

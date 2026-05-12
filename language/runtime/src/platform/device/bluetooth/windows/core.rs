@@ -37,7 +37,7 @@ pub(super) use crate::platform::{NativeAbiCodec, PlatformError, resource};
 pub(super) use crate::runtime::BindingCallContext;
 
 pub(super) use crate::diagnostic::{RuntimeError, RuntimeResult as DiagnosticResult};
-pub(super) use crate::platform::core::{self as core_platform};
+pub(super) use crate::platform::core::{self as core_platform, BoundedQueue};
 pub(super) use crate::platform::device::bluetooth::core::{
     BLUETOOTH_ADAPTER_WATCH_RESOURCE_LABEL, BLUETOOTH_DEVICE_RESOURCE_LABEL,
     BLUETOOTH_NOTIFICATION_QUEUE_CAPACITY, BLUETOOTH_SCAN_EVENT_QUEUE_CAPACITY,
@@ -57,7 +57,6 @@ pub(super) use crate::platform::device::{
     BluetoothLeTransport, BluetoothPairState, BluetoothScanEventValue, BluetoothScanFilterValue,
     BluetoothScanMode, BluetoothSessionEventValue,
 };
-pub(super) use crate::runtime::control::queue::BoundedQueue;
 
 /// One stable device identifier prefix.
 pub(super) const WINDOWS_BLUETOOTH_DEVICE_ID_PREFIX: &str = "winrt-bluetoothle";

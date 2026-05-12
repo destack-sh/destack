@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use crate::runtime::binding::RuntimeAccess;
-use crate::runtime::policy::RuntimeSelector;
+use crate::runtime::policy::CallSelector;
 use destack_mir::ReferenceMap;
 use destack_workspace::{
     ExecutionMode, RandomMode, RuntimeIdentitySelector, RuntimeOptions, TimeMode,
@@ -32,8 +32,8 @@ use crate::runtime::trace::{
     Observation, ObservationCategory, ObservationOptions, Trace, TraceRecord, TraceSequence,
 };
 use crate::runtime::{
-    BranchId, Command, Edge, EdgeDefinition, Entity, EntityDefinition, TickResult, Worker,
-    WorkerId, WorkerOptions, World, WorldSnapshot, resource_entity_id, resource_ownership_edge_id,
+    BranchId, Command, Edge, EdgeDefinition, Entity, EntityDefinition, Resource, TickResult,
+    Worker, WorkerId, WorkerOptions, World, WorldSnapshot,
 };
 
 /// Return one byte payload shape for runtime tests.
@@ -811,13 +811,13 @@ fn test_world_observe_records_control_and_resource_events() {
     assert!(
         records
             .iter()
-            .any(|record| record.observation.name == "resource.attached"),
+            .any(|record| record.observation.name == "runtime.resource.attached"),
         "expected one resource attach observation event"
     );
     assert!(
         records
             .iter()
-            .any(|record| record.observation.name == "resource.detached"),
+            .any(|record| record.observation.name == "runtime.resource.detached"),
         "expected one resource detach observation event"
     );
     assert!(
@@ -929,7 +929,7 @@ fn test_world_observe_subscriptions_report_scheduler_progress() {
     assert_eq!(records.len(), 1, "expected one scheduler observation");
     assert!(
         records.first().is_some_and(|record| {
-            record.observation.name == "scheduler.advanced_time"
+            record.observation.name == "runtime.scheduler.advanced_time"
                 && record.observation.annotation("deadline_ns") == Some("5000")
         }),
         "expected one advanced-time scheduler observation"
@@ -1189,7 +1189,10 @@ fn test_world_events_between_projects_trace_and_observation() {
     assert_eq!(events.len(), 2);
     assert_eq!(events[0].moment, end);
     assert!(events[0].is_input());
-    assert_eq!(events[0].name(), Some("topology.define_entity_kind"));
+    assert_eq!(
+        events[0].name(),
+        Some("runtime.topology.entity.kind.define")
+    );
     assert_eq!(events[1].moment, end);
     assert!(events[1].is_observation());
 
@@ -1207,7 +1210,7 @@ fn test_world_events_between_projects_trace_and_observation() {
         .between(start, end)
         .expect("event query should succeed")
         .inputs()
-        .name("topology.define_entity_kind");
+        .name("runtime.topology.entity.kind.define");
 
     assert_eq!(trace_events.len(), 1);
 }
@@ -1309,7 +1312,10 @@ fn test_lineage_events_on_project_committed_trace_and_observation() {
 
     assert_eq!(events.len(), 2);
     assert!(events[0].is_input());
-    assert_eq!(events[0].name(), Some("topology.define_entity_kind"));
+    assert_eq!(
+        events[0].name(),
+        Some("runtime.topology.entity.kind.define")
+    );
     assert!(events[1].is_observation());
 
     let Some(Command::DefineEntityKind { .. }) = events[0].input() else {
@@ -1868,9 +1874,9 @@ fn test_world_shared_commands_affect_detached_workers() {
         .install_rule(Rule {
             id: RuleId("test.shared_heap.world.command".to_string()),
             enabled: true,
-            when: Some(RuntimeSelector {
+            call: Some(CallSelector {
                 binding: Some("destack.test.shared_heap.world".to_string()),
-                ..RuntimeSelector::default()
+                ..CallSelector::default()
             }),
             action: RuleAction::SetAccess {
                 access: RuntimeAccess::Deny,
@@ -1941,9 +1947,9 @@ fn test_worker_world_control_update_refreshes_policy() {
             rules: vec![Rule {
                 id: RuleId("test.runtime.live.policy".to_string()),
                 enabled: true,
-                when: Some(RuntimeSelector {
+                call: Some(CallSelector {
                     binding: Some("destack.test.live.policy".to_string()),
-                    ..RuntimeSelector::default()
+                    ..CallSelector::default()
                 }),
                 action: RuleAction::SetAccess {
                     access: RuntimeAccess::Deny,
@@ -1999,7 +2005,7 @@ fn test_worker_world_control_update_refreshes_hooks() {
             rules: vec![Rule {
                 id: RuleId("test.runtime.live.hooks".to_string()),
                 enabled: true,
-                when: Some(RuntimeSelector::default()),
+                call: Some(CallSelector::default()),
                 action: RuleAction::Fault {
                     fault: Fault {
                         target: FaultTarget::Call {},
@@ -2081,12 +2087,12 @@ fn test_worker_world_control_worker_selector() {
             rules: vec![Rule {
                 id: RuleId("test.runtime.selector.instance".to_string()),
                 enabled: true,
-                when: Some(RuntimeSelector {
+                call: Some(CallSelector {
                     worker: Some(RuntimeIdentitySelector {
                         name: Some("worker-a".to_string()),
                         labels: None,
                     }),
-                    ..RuntimeSelector::default()
+                    ..CallSelector::default()
                 }),
                 action: RuleAction::Fault {
                     fault: Fault {
@@ -2174,9 +2180,9 @@ fn test_world_apply_policy_command_updates_rules() {
         .install_rule(Rule {
             id: RuleId("test.runtime.program.policy".to_string()),
             enabled: true,
-            when: Some(RuntimeSelector {
+            call: Some(CallSelector {
                 binding: Some("destack.test.program.policy".to_string()),
-                ..RuntimeSelector::default()
+                ..CallSelector::default()
             }),
             action: RuleAction::SetAccess {
                 access: RuntimeAccess::Deny,
@@ -2310,12 +2316,16 @@ fn test_world_resource_lifecycle_updates_topology() {
     let world_resource = resources
         .get(&resource_id)
         .expect("resource should exist in world resource state");
-    let resource_entity_id = resource_entity_id(resource_id);
-    let resource_edge_id = resource_ownership_edge_id(resource_id);
+    let resource_entity_id = world_resource.entity_id();
+    let resource_edge_id = world_resource.ownership_edge_id();
     let entities = world.entities();
     let edges = world.edges();
+    let resource_name = world_resource
+        .labels
+        .get(Resource::LABEL_NAME)
+        .map(String::as_str);
     assert_eq!(world_resource.kind.as_str(), ResourceKind::Timer.kind_id());
-    assert_eq!(world_resource.label.as_deref(), Some("test-timer"));
+    assert_eq!(resource_name, Some("test-timer"));
     assert!(entities.contains_key(&resource_entity_id));
     assert!(edges.contains_key(&resource_edge_id));
 

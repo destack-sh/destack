@@ -3,9 +3,8 @@ use std::collections::BTreeMap;
 use destack_workspace::{RandomMode, TimeMode};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
 use crate::runtime::policy::{HookEvent, PolicyDecision, PolicyState, RuleSubject};
-use crate::runtime::random::{Random, RandomStreamId};
+use crate::runtime::random::Random;
 use crate::runtime::time::{Clock, Instant, Nanos};
 use crate::runtime::trace::{Observation, ObservationSequence, Observations, Trace};
 use crate::runtime::{RuntimeId, WorkerId};
@@ -75,24 +74,16 @@ impl WorldState {
         &self.topology
     }
 
-    /// Register one runtime and its default worker in world topology.
+    /// Register one runtime in world topology.
     pub(crate) fn register_runtime_topology(
         &mut self,
         runtime_id: RuntimeId,
         runtime_name: String,
         runtime_labels: BTreeMap<String, String>,
-        default_worker_id: WorkerId,
-        default_worker_name: String,
-        default_worker_labels: BTreeMap<String, String>,
     ) -> RuntimeResult<()> {
-        let result = self.topology.add_runtime(
-            runtime_id,
-            runtime_name,
-            runtime_labels,
-            default_worker_id,
-            default_worker_name,
-            default_worker_labels,
-        );
+        let result = self
+            .topology
+            .add_runtime(runtime_id, runtime_name, runtime_labels);
 
         result.map_err(|message| {
             RuntimeError::Internal {
@@ -124,11 +115,7 @@ impl WorldState {
 
     /// Attach one resource to the world topology and resource table.
     pub(crate) fn attach_resource(&mut self, resource: Resource) -> RuntimeResult<()> {
-        let result = self.topology.attach_resource(
-            resource.id,
-            resource.kind.clone(),
-            resource.label.as_deref(),
-        );
+        let result = self.topology.attach_resource(&resource);
         result.map_err(|message| {
             RuntimeError::Internal {
                 message: message.to_string(),
@@ -143,8 +130,10 @@ impl WorldState {
 
     /// Detach one resource from the world topology and resource table.
     pub(crate) fn detach_resource(&mut self, resource_id: ResourceId) {
-        self.topology.detach_resource(resource_id);
-        self.resources.remove(&resource_id);
+        let resource = self.resources.remove(&resource_id);
+        if let Some(resource) = resource {
+            self.topology.detach_resource(&resource);
+        }
     }
 
     /// Borrow the shared world clock.
@@ -221,53 +210,6 @@ impl WorldState {
     /// Return the current world monotonic time in nanoseconds.
     pub(crate) fn mono_nanos(&self) -> u64 {
         self.mono().get()
-    }
-
-    /// Fill one buffer with secure world-routed random bytes.
-    pub(crate) fn fill_secure_bytes(&self, buffer: &mut [u8]) -> RuntimeResult<()> {
-        if self.random_mode == RandomMode::Deterministic {
-            return Err(RuntimeError::from(PlatformError::not_supported(
-                "destack.random.secure.bytes",
-            ))
-            .boxed());
-        }
-
-        self.random().fill_secure_bytes(buffer)
-    }
-
-    /// Try to fill one buffer with secure world-routed random bytes without blocking.
-    pub(crate) fn try_fill_secure_bytes(&self, buffer: &mut [u8]) -> RuntimeResult<()> {
-        if self.random_mode == RandomMode::Deterministic {
-            return Err(RuntimeError::from(PlatformError::not_supported(
-                "destack.random.secure.bytesTry",
-            ))
-            .boxed());
-        }
-
-        self.random().try_fill_secure_bytes(buffer)
-    }
-
-    /// Return one world-routed random u64 from one stream.
-    pub(crate) fn next_stream_u64(&self, stream_id: RandomStreamId) -> RuntimeResult<u64> {
-        match self.random_mode {
-            RandomMode::Host => self.random().next_secure_u64(),
-            RandomMode::Deterministic => Ok(self.random().next_stream_u64(stream_id)),
-        }
-    }
-
-    /// Fill one buffer with world-routed random bytes from one stream.
-    pub(crate) fn fill_stream_bytes(
-        &self,
-        stream_id: RandomStreamId,
-        buffer: &mut [u8],
-    ) -> RuntimeResult<()> {
-        match self.random_mode {
-            RandomMode::Host => self.random().fill_secure_bytes(buffer),
-            RandomMode::Deterministic => {
-                self.random().fill_stream_bytes(stream_id, buffer);
-                Ok(())
-            }
-        }
     }
 
     /// Return the effective world time mode.

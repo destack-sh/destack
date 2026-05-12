@@ -259,8 +259,6 @@ impl HookEvent {
 pub struct HookSelector {
     /// Glob selector for one binding name.
     pub binding: Option<String>,
-    /// Glob selector for one function name.
-    pub function: Option<String>,
 }
 
 impl HookSelector {
@@ -273,15 +271,6 @@ impl HookSelector {
     pub fn binding(pattern: impl Into<String>) -> Self {
         Self {
             binding: Some(pattern.into()),
-            function: None,
-        }
-    }
-
-    /// Match one function glob for call hook events.
-    pub fn function(pattern: impl Into<String>) -> Self {
-        Self {
-            binding: None,
-            function: Some(pattern.into()),
         }
     }
 }
@@ -415,9 +404,6 @@ impl HookRegistry {
             return false;
         }
 
-        if callback.selector.function.is_some() {
-            return false;
-        }
         let Some(binding_pattern) = &callback.selector.binding else {
             return true;
         };
@@ -744,11 +730,18 @@ impl Hooks {
         let resource = Resource::new(
             resource_id,
             EntityKind::from(resource_kind.kind_id()),
-            resource_label.map(ToString::to_string),
             resource_backing,
             resource_capture,
             resource_portability,
         );
+
+        // display name
+        let resource = if let Some(resource_label) = resource_label {
+            resource.label(Resource::LABEL_NAME, resource_label)
+        } else {
+            resource
+        };
+
         world.attach_resource(resource)?;
         world.observe(Observation::resource_attached(
             self.worker_id,

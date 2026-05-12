@@ -4,9 +4,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use block2::{Block, RcBlock};
 
+use crate::platform::core::BoundedQueue;
 use crate::platform::device::midi::core::{MidiInputRecordValue, MidiRecordBytes};
 use crate::platform::device::{MidiDataFormat, MidiProtocol, MidiRecordFraming};
-use crate::runtime::control::queue::BoundedQueue;
 
 use super::abi::{
     K_MIDI_PROTOCOL_2_0, MIDIEventList, MIDIPacketList, midi_event_packet_next, midi_packet_next,

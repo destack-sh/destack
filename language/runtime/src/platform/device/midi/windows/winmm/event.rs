@@ -4,7 +4,7 @@ use std::sync::{Arc, Weak};
 use parking_lot::Mutex;
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::core::{self as core_platform};
+use crate::platform::core::{self as core_platform, BoundedQueue};
 use crate::platform::device::midi::core::{
     MidiEventValue, MidiPortDescriptorValue, direction_mask_includes, event_queue_capacity,
     event_snapshot_list_flags, read_queued_event, read_queued_event_batch,
@@ -17,7 +17,6 @@ use crate::platform::device::{
 };
 use crate::platform::resource;
 use crate::runtime::BindingCallContext;
-use crate::runtime::control::queue::BoundedQueue;
 use crate::runtime::service::Service;
 use crate::runtime::service::executor::periodic::open_periodic_task;
 

@@ -1,134 +1,20 @@
 use crate::host::HostSessionId;
-use crate::host::os::android::abi::registry::resolve_android_bindings;
-use crate::runtime::action::{HostAction, HostActionSet};
+use crate::runtime::action::{Action, ActionSet};
 
 /// Return the static Android host actions.
-pub(crate) fn static_actions() -> HostActionSet {
-    let mut host_actions = HostActionSet::new();
+pub(crate) fn static_actions() -> ActionSet {
+    let mut host_actions = ActionSet::new();
 
-    host_actions.insert_action(HostAction::OsLifecycleRead);
-    host_actions.insert_action(HostAction::OsIntentRead);
-    host_actions.insert_action(HostAction::OsPower);
-    host_actions.insert_action(HostAction::OsPermissionRead);
-    host_actions.insert_action(HostAction::OsNotificationPermission);
+    host_actions.insert_action(Action::OsPowerRead);
 
     host_actions
 }
 
 /// Return the runtime-dependent Android host actions.
-pub(crate) fn session_actions(host_session_id: HostSessionId) -> HostActionSet {
-    let Ok(bindings) = resolve_android_bindings(host_session_id.0) else {
-        return HostActionSet::new();
-    };
+pub(crate) fn session_actions(host_session_id: HostSessionId) -> ActionSet {
+    let _ = host_session_id;
 
-    let document_callbacks = &bindings.document;
-    let has_document_pick_callbacks = document_callbacks.pick.is_some();
-
-    let permission_callbacks = &bindings.permission;
-    let has_permission_request_callbacks = permission_callbacks.request.is_some();
-
-    let callbacks = &bindings.intent;
-    let has_intent_callbacks = callbacks.can_open_url.is_some()
-        || callbacks.open_url.is_some()
-        || callbacks.open_path.is_some()
-        || callbacks.share_text.is_some()
-        || callbacks.share_paths.is_some();
-
-    let location_callbacks = &bindings.location;
-    let has_location_read_callbacks =
-        location_callbacks.services_enabled.is_some() || location_callbacks.last_known.is_some();
-    let has_location_watch_callbacks =
-        location_callbacks.watch_open.is_some() || location_callbacks.watch_close.is_some();
-
-    let background_callbacks = &bindings.background;
-    let has_background_callbacks = background_callbacks.status.is_some()
-        || background_callbacks.list.is_some()
-        || background_callbacks.register_task.is_some()
-        || background_callbacks.unregister.is_some()
-        || background_callbacks.trigger_test.is_some()
-        || background_callbacks.complete.is_some();
-
-    let calendar_callbacks = &bindings.calendar;
-    let has_calendar_read_callbacks = calendar_callbacks.list.is_some()
-        || calendar_callbacks.event_list.is_some()
-        || calendar_callbacks.event_read.is_some();
-    let has_calendar_write_callbacks = calendar_callbacks.event_create.is_some()
-        || calendar_callbacks.event_update.is_some()
-        || calendar_callbacks.event_delete.is_some();
-
-    let contact_callbacks = &bindings.contact;
-    let has_contact_read_callbacks = contact_callbacks.list.is_some()
-        || contact_callbacks.search.is_some()
-        || contact_callbacks.read.is_some();
-    let has_contact_write_callbacks = contact_callbacks.create.is_some()
-        || contact_callbacks.update.is_some()
-        || contact_callbacks.delete_contact.is_some();
-
-    let media_callbacks = &bindings.media;
-    let has_media_read_callbacks = media_callbacks.list.is_some() || media_callbacks.read.is_some();
-    let has_media_write_callbacks =
-        media_callbacks.import_path.is_some() || media_callbacks.delete.is_some();
-
-    let notification_callbacks = &bindings.notification;
-    let has_notification_post_callbacks = notification_callbacks.cancel.is_some()
-        || notification_callbacks.cancel_all.is_some()
-        || notification_callbacks.post.is_some();
-
-    let mut actions = HostActionSet::new();
-
-    if has_document_pick_callbacks {
-        actions.insert_action(HostAction::OsDocumentPick);
-    }
-
-    if has_permission_request_callbacks {
-        actions.insert_action(HostAction::OsPermissionRequest);
-    }
-
-    if has_intent_callbacks {
-        actions.insert_action(HostAction::OsIntentWrite);
-    }
-
-    if has_location_read_callbacks {
-        actions.insert_action(HostAction::OsLocationRead);
-    }
-
-    if has_location_watch_callbacks {
-        actions.insert_action(HostAction::OsLocationWatch);
-    }
-
-    if has_background_callbacks {
-        actions.insert_action(HostAction::OsBackgroundControl);
-    }
-
-    if has_calendar_read_callbacks {
-        actions.insert_action(HostAction::OsCalendarRead);
-    }
-
-    if has_calendar_write_callbacks {
-        actions.insert_action(HostAction::OsCalendarWrite);
-    }
-
-    if has_contact_read_callbacks {
-        actions.insert_action(HostAction::OsContactRead);
-    }
-
-    if has_contact_write_callbacks {
-        actions.insert_action(HostAction::OsContactWrite);
-    }
-
-    if has_media_read_callbacks {
-        actions.insert_action(HostAction::OsMediaRead);
-    }
-
-    if has_media_write_callbacks {
-        actions.insert_action(HostAction::OsMediaWrite);
-    }
-
-    if has_notification_post_callbacks {
-        actions.insert_action(HostAction::OsNotificationPost);
-    }
-
-    actions
+    ActionSet::new()
 }
 
 #[cfg(test)]
@@ -169,7 +55,7 @@ mod tests {
     };
     use crate::host::{HOST_STATUS_OK, HostSessionId};
     use crate::platform::abi::NativeStringRef;
-    use crate::runtime::action::HostAction;
+    use crate::runtime::action::Action;
 
     use super::{session_actions, static_actions};
 
@@ -326,11 +212,7 @@ mod tests {
     fn test_static_actions_report_android_host_baseline() {
         let actions = static_actions();
 
-        assert!(actions.contains_action(HostAction::OsLifecycleRead));
-        assert!(actions.contains_action(HostAction::OsIntentRead));
-        assert!(actions.contains_action(HostAction::OsPower));
-        assert!(actions.contains_action(HostAction::OsPermissionRead));
-        assert!(actions.contains_action(HostAction::OsNotificationPermission));
+        assert!(actions.contains_action(Action::OsPowerRead));
     }
 
     /// Report no session actions without one registered Android bindings table.
@@ -339,21 +221,7 @@ mod tests {
         let _lock = callback_test_lock().lock().unwrap();
         let (_queue, _registration, runtime_id) = register_android_runtime();
 
-        let actions = session_actions(HostSessionId(runtime_id));
-
-        assert!(!actions.contains_action(HostAction::OsDocumentPick));
-        assert!(!actions.contains_action(HostAction::OsPermissionRequest));
-        assert!(!actions.contains_action(HostAction::OsIntentWrite));
-        assert!(!actions.contains_action(HostAction::OsLocationRead));
-        assert!(!actions.contains_action(HostAction::OsLocationWatch));
-        assert!(!actions.contains_action(HostAction::OsBackgroundControl));
-        assert!(!actions.contains_action(HostAction::OsCalendarRead));
-        assert!(!actions.contains_action(HostAction::OsCalendarWrite));
-        assert!(!actions.contains_action(HostAction::OsContactRead));
-        assert!(!actions.contains_action(HostAction::OsContactWrite));
-        assert!(!actions.contains_action(HostAction::OsMediaRead));
-        assert!(!actions.contains_action(HostAction::OsMediaWrite));
-        assert!(!actions.contains_action(HostAction::OsNotificationPost));
+        assert!(session_actions(HostSessionId(runtime_id)).is_empty());
     }
 
     /// Report session actions from the registered Android bindings table.
@@ -415,21 +283,6 @@ mod tests {
         );
         assert_eq!(status, HOST_STATUS_OK);
 
-        // derive one runtime-scoped action set from that table
-        let actions = session_actions(HostSessionId(runtime_id));
-
-        assert!(actions.contains_action(HostAction::OsDocumentPick));
-        assert!(actions.contains_action(HostAction::OsPermissionRequest));
-        assert!(actions.contains_action(HostAction::OsIntentWrite));
-        assert!(actions.contains_action(HostAction::OsLocationRead));
-        assert!(actions.contains_action(HostAction::OsLocationWatch));
-        assert!(actions.contains_action(HostAction::OsBackgroundControl));
-        assert!(actions.contains_action(HostAction::OsCalendarRead));
-        assert!(actions.contains_action(HostAction::OsCalendarWrite));
-        assert!(actions.contains_action(HostAction::OsContactRead));
-        assert!(actions.contains_action(HostAction::OsContactWrite));
-        assert!(actions.contains_action(HostAction::OsMediaRead));
-        assert!(actions.contains_action(HostAction::OsMediaWrite));
-        assert!(actions.contains_action(HostAction::OsNotificationPost));
+        assert!(session_actions(HostSessionId(runtime_id)).is_empty());
     }
 }

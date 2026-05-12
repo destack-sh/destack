@@ -12,7 +12,7 @@ use crate::runtime::binding::{
     BindingReplayKind, BindingReplayPayload, RuntimeAccess,
 };
 use crate::runtime::engine::Entry;
-use crate::runtime::policy::{Rule, RuleAction, RuleId, RuntimeSelector};
+use crate::runtime::policy::{CallSelector, Rule, RuleAction, RuleId};
 use crate::runtime::random::RandomStreamId;
 use crate::runtime::time::Instant;
 use crate::runtime::trace::{
@@ -352,9 +352,9 @@ fn test_record_replay_policy_command() {
         rule: Rule {
             id: RuleId("test.runtime.policy.command".to_string()),
             enabled: true,
-            when: Some(RuntimeSelector {
+            call: Some(CallSelector {
                 binding: Some("destack.test.policy.command".to_string()),
-                ..RuntimeSelector::default()
+                ..CallSelector::default()
             }),
             action: RuleAction::SetAccess {
                 access: RuntimeAccess::Deny,
@@ -485,12 +485,12 @@ fn test_record_replay_resource_command() {
     let command = Command::CreateResource {
         resource: Resource::new(
             ResourceId::new(WorkerId(42), 7),
-            EntityKind::from("resource.timer"),
-            Some("test-timer".to_string()),
+            EntityKind::from("host.time.timer"),
             ResourceBacking::Virtual,
             ResourceCapture::State,
             ResourcePortability::Portable,
-        ),
+        )
+        .label(Resource::LABEL_NAME, "test-timer"),
     };
 
     // record the command to the replay log

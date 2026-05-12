@@ -11,6 +11,7 @@ use windows_sys::Win32::Foundation::{
 use super::service::WindowsSerialService;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::NativeAbi;
+use crate::platform::core::BoundedQueue;
 use crate::platform::device::{
     SerialDisconnectedEvent, SerialErrorEvent, SerialErrorKind, SerialEvent, SerialEventMetadata,
     SerialInputSignals, SerialModemStatusChangedEvent, SerialPortDescriptor, SerialPortTransport,
@@ -21,7 +22,6 @@ use crate::platform::fs::core::path_ref_from_utf16;
 use crate::platform::resource::{ResourceFinalizer, ResourceKind};
 use crate::platform::{NativeArray, PlatformError, core as core_platform, fs, resource};
 use crate::runtime::BindingCallContext;
-use crate::runtime::control::queue::BoundedQueue;
 
 /// One queued windows serial event record.
 #[derive(Debug, Clone, Copy)]

@@ -9,7 +9,7 @@ use super::core::SERIAL_PORT_RESOURCE_LABEL;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::{NativeAbi, NativeSlice};
 use crate::platform::core::{
-    io_operation_error, io_would_block, monotonic_now_ns, timeout_deadline,
+    BoundedQueue, io_operation_error, io_would_block, monotonic_now_ns, timeout_deadline,
 };
 use crate::platform::device::{
     SerialDataBits, SerialDisconnectedEvent, SerialEvent, SerialEventMetadata, SerialFlowControl,
@@ -22,7 +22,6 @@ use crate::platform::fs::core as core_fs;
 use crate::platform::resource::{ResourceEntry, ResourceFinalizer, ResourceKind};
 use crate::platform::{PlatformError, fs, resource};
 use crate::runtime::BindingCallContext;
-use crate::runtime::control::queue::BoundedQueue;
 
 /// Prefix used by test-only virtual serial identifiers.
 pub(crate) const TEST_SERIAL_ID_PREFIX: &str = "serial-test:";

@@ -62,25 +62,10 @@ pub(crate) fn background_event_open(
     binding: &BindingCallContext,
     options: BackgroundEventOpenOptionsValue,
 ) -> RuntimeResult<resource::BackgroundEventHandle> {
-    if !binding.host().has_host_action(HostAction::OsBackgroundRead) {
-        return Err(not_supported("destack.os.background.event.open"));
-    }
+    let _ = binding;
+    let _ = options;
 
-    let runtime_state = os_state(binding)?;
-    let stream = Arc::new(BackgroundEventStream::new(options));
-    let stream_id = runtime_state.insert_background_stream(stream);
-
-    // stream registration comes before handle publication
-    let entry = ResourceEntry::new(ResourceKind::BackgroundEvent)
-        .with_label("os.background.event")
-        .with_payload(stream_id);
-
-    let handle = binding
-        .worker()
-        .resources
-        .insert(binding.world(), entry, Some(binding.engine()));
-
-    Ok(resource::BackgroundEventHandle(handle))
+    Err(not_supported("destack.os.background.event.open"))
 }
 
 /// Close one background event stream.
