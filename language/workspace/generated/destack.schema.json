@@ -117,6 +117,17 @@
         "$ref": "#/$defs/DependencyOptionsJson"
       }
     },
+    "vendoring": {
+      "description": "Vendored dependency resolution options.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/VendorOptionsJson"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "compiler": {
       "description": "Compiler options.",
       "$ref": "#/$defs/CompilerOptionsJson"
@@ -285,6 +296,48 @@
           ]
         }
       }
+    },
+    "VendorOptionsJson": {
+      "description": "Vendor options accepted by `destack.json`.",
+      "type": "object",
+      "properties": {
+        "mode": {
+          "description": "Vendored dependency resolution mode.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/VendorMode"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "VendorMode": {
+      "description": "Vendored dependency resolution mode.",
+      "oneOf": [
+        {
+          "description": "Use the vendor directory when it is complete.",
+          "type": "string",
+          "const": "auto"
+        },
+        {
+          "description": "Use vendored packages when present and fall back to normal resolution.",
+          "type": "string",
+          "const": "prefer"
+        },
+        {
+          "description": "Require every resolved package to be vendored.",
+          "type": "string",
+          "const": "require"
+        },
+        {
+          "description": "Ignore vendored packages.",
+          "type": "string",
+          "const": "ignore"
+        }
+      ]
     },
     "CompilerOptionsJson": {
       "description": "Destack configuration compiler options.",

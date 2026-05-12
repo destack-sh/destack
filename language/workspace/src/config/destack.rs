@@ -11,9 +11,10 @@ use crate::config::{
     CompilerOptions, DependencyJsonMap, DependencyMap, EnvironmentOptions, FormatterOptions,
     LinterOptions, ModeOptions, PolicyOptions, PolicyOptionsJson, ProductOptions,
     ProductOptionsJson, ProfileOptions, ProfileOptionsJson, RuntimeOptions, TargetOptions,
-    builtin_modes, dependency_options_from_json, environment_options_from_json,
-    extend_environment_options, parse_jsonc_file, runtime_options_from_json,
-    runtime_options_with_base, validate_dependency_json_map,
+    VendorOptions, VendorOptionsJson, builtin_modes, dependency_options_from_json,
+    environment_options_from_json, extend_environment_options, parse_jsonc_file,
+    runtime_options_from_json, runtime_options_with_base, validate_dependency_json_map,
+    vendor_options_with_base,
 };
 
 use super::compiler::CompilerOptionsJson;
@@ -58,6 +59,8 @@ pub struct DestackOptions {
     pub exclude: Option<Vec<String>>,
     /// Package dependencies.
     pub dependencies: Option<DependencyJsonMap>,
+    /// Vendored dependency resolution options.
+    pub vendoring: Option<VendorOptionsJson>,
     /// Compiler options.
     pub compiler: CompilerOptionsJson,
     /// Package policy declarations and rules.
@@ -138,6 +141,8 @@ pub struct DestackConfig {
     pub exclude: Vec<String>,
     /// Package dependencies.
     pub dependencies: DependencyMap,
+    /// Vendored dependency resolution options.
+    pub vendoring: VendorOptions,
     /// Compiler options.
     pub compiler: CompilerOptions,
     /// Package policy declarations and rules.
@@ -221,6 +226,7 @@ impl DestackConfig {
         })?;
         let compiler = CompilerOptions::from(&options.compiler);
         let dependencies = dependency_options_from_json(&options.dependencies);
+        let vendoring = VendorOptions::from_json(options.vendoring.as_ref());
         let mut policy = PolicyOptions::default();
         options.policy.apply_to(&mut policy);
         let runtime = runtime_options_from_json(Some(&options.runtime));
@@ -293,6 +299,7 @@ impl DestackConfig {
             include: options.include.clone().unwrap_or_default(),
             exclude: options.exclude.clone().unwrap_or_default(),
             dependencies,
+            vendoring,
             compiler,
             policy,
             runtime,
@@ -458,6 +465,9 @@ impl DestackConfig {
                 self.dependencies.insert(name.clone(), dependency.clone());
             }
         }
+        self.vendoring =
+            vendor_options_with_base(&parent.vendoring, self.options.vendoring.as_ref());
+
         // compiler
         let parent_compiler = &parent.compiler;
         let compiler = &mut self.compiler;

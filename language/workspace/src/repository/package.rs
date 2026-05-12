@@ -63,6 +63,7 @@ impl Repository {
                 .map(|config| config.dependencies.clone())
                 .unwrap_or_default(),
             mode_dependencies,
+            vendoring: config.map(|config| config.vendoring).unwrap_or_default(),
             destack_file_id,
             targets,
         };
@@ -225,6 +226,7 @@ impl Repository {
             version: None,
             dependencies: IndexMap::new(),
             mode_dependencies: IndexMap::new(),
+            vendoring: Default::default(),
             destack_file_id: None,
             targets: IndexMap::new(),
         }
