@@ -1,12 +1,11 @@
-import { todo, type Result } from "destack:error";
-import { type Dereference } from "destack:ops";
-import { type Atomic } from "destack:sync";
-import { type AllocationError } from "../allocator.ds";
-import { type Clone, type Unpin, type Zeroable } from "../capability.ds";
-import { type MaybeUninit } from "../init.ds";
-import { type Pin } from "../pin.ds";
-import { type NonNull } from "../raw.ds";
-import { type Weak } from "./weak.ds";
+import { todo, Result } from "destack:error";
+import { Dereference } from "destack:ops";
+import { Atomic } from "destack:sync";
+import { AllocationError } from "../allocator.ds";
+import { Clone, Unpin, Zeroable } from "../capability.ds";
+import { MaybeUninit } from "../init.ds";
+import { Pin } from "../pin.ds";
+import { Weak } from "./weak.ds";
 
 /// Reference-counted allocation for shared storage.
 export struct ArcAllocation<T> {
@@ -25,7 +24,7 @@ extension<T> of Arc<T> implements Unpin {}
 /// Shared reference-counted ownership.
 export struct Arc<T> {
     /// The allocation.
-    allocation: NonNull<ArcAllocation<T>>;
+    allocation: *ArcAllocation<T>;
 }
 
 extension<T> of Arc<T> implements Clone, Dereference {
@@ -70,7 +69,8 @@ extension<T> of Arc<T> implements Clone, Dereference {
     }
 
     /// Create a shared reference-counted handle from a raw value pointer.
-    static fromRaw(pointer: NonNull<T>): Arc<T> {
+    @unsafe
+    static fromRaw(pointer: *T): Arc<T> {
         todo("Arc.fromRaw")
     }
 
@@ -131,12 +131,12 @@ extension<T> of Arc<T> implements Clone, Dereference {
     }
 
     /// Return the raw pointer to the referenced value.
-    asPointer(): NonNull<T> {
+    asPointer(): *T {
         todo("Arc.asPointer")
     }
 
     /// Move this handle into a raw value pointer.
-    intoRaw(this: ^Arc<T>): NonNull<T> {
+    intoRaw(this: ^Arc<T>): *T {
         todo("Arc.intoRaw")
     }
 

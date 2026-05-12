@@ -1,6 +1,6 @@
 import { todo } from "destack:error";
-import { type Dereference } from "destack:ops";
-import { type Unpin } from "./capability.ds";
+import { Dereference } from "destack:ops";
+import { Unpin } from "./capability.ds";
 
 /// Address-stable storage wrapper.
 @languageItem("Pin")

@@ -1,7 +1,6 @@
-import { todo, type Result } from "destack:error";
+import { todo, Result } from "destack:error";
 import { alignOf, sizeOf } from "destack:reflect";
-import { type Space, type WithSpace } from "./form.ds";
-import { type NonNull } from "./raw.ds";
+import { Space, WithSpace } from "./form.ds";
 
 /// Layout requested from an allocator.
 export struct AllocationLayout {
@@ -67,7 +66,7 @@ export extension of AllocationLayout {
 /// Raw allocation in space `S`, viewed as elements of `T`.
 export newtype Allocation<T = uint8, S: Space = "local"> = {
     /// The allocated pointer.
-    pointer: WithSpace<NonNull<T>, S>;
+    pointer: WithSpace<*T, S>;
     /// The allocated layout.
     layout: AllocationLayout;
 };
@@ -75,21 +74,26 @@ export newtype Allocation<T = uint8, S: Space = "local"> = {
 /// Low-level allocator for raw memory in space `S`.
 export newtype interface Allocator<S: Space = "local"> {
     /// Allocate raw memory.
+    @unsafe
     allocate<T = uint8>(layout: AllocationLayout): Result<Allocation<T, S>, AllocationError>;
 
     /// Allocate zero-filled raw memory.
+    @unsafe
     allocateZeroed<T = uint8>(layout: AllocationLayout): Result<Allocation<T, S>, AllocationError>;
 
     /// Free raw memory.
+    @unsafe
     deallocate<T>(allocation: Allocation<T, S>): void;
 
     /// Grow raw memory to a larger layout.
+    @unsafe
     grow<T>(
         allocation: Allocation<T, S>,
         layout: AllocationLayout,
     ): Result<Allocation<T, S>, AllocationError>;
 
     /// Shrink raw memory to a smaller layout.
+    @unsafe
     shrink<T>(
         allocation: Allocation<T, S>,
         layout: AllocationLayout,

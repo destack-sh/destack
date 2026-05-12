@@ -1,11 +1,11 @@
-import { todo, type Result } from "destack:error";
+import { todo, Result } from "destack:error";
 import {
-    type Allocation,
-    type AllocationError,
-    type AllocationLayout,
-    type Allocator,
+    Allocation,
+    AllocationError,
+    AllocationLayout,
+    Allocator,
 } from "../allocator.ds";
-import { type Space } from "../form.ds";
+import { Space } from "../form.ds";
 
 /// Bump allocator in space `S`.
 export struct Bump<S: Space = "local"> {
@@ -26,21 +26,25 @@ export extension<S: Space = "local"> of Bump<S> implements Allocator<S> {
     }
 
     /// Allocate raw memory.
+    @unsafe
     allocate<T = uint8>(layout: AllocationLayout): Result<Allocation<T, S>, AllocationError> {
         todo("Bump.allocate")
     }
 
     /// Allocate zero-filled raw memory.
+    @unsafe
     allocateZeroed<T = uint8>(layout: AllocationLayout): Result<Allocation<T, S>, AllocationError> {
         todo("Bump.allocateZeroed")
     }
 
     /// Free raw memory.
+    @unsafe
     deallocate<T>(allocation: Allocation<T, S>): void {
         todo("Bump.deallocate")
     }
 
     /// Grow raw memory to a larger layout.
+    @unsafe
     grow<T>(
         allocation: Allocation<T, S>,
         layout: AllocationLayout,
@@ -49,6 +53,7 @@ export extension<S: Space = "local"> of Bump<S> implements Allocator<S> {
     }
 
     /// Shrink raw memory to a smaller layout.
+    @unsafe
     shrink<T>(
         allocation: Allocation<T, S>,
         layout: AllocationLayout,
