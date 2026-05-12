@@ -35,7 +35,7 @@ pub struct EventLoop {
     /// Pending microtasks that drain before macrotasks.
     pub(super) microtasks: VecDeque<Microtask>,
     /// Pending platform events.
-    pub(super) events: VecDeque<PollerEvent>,
+    pub(super) poller_events: VecDeque<PollerEvent>,
     /// Pending host semantic events.
     pub(super) host_events: VecDeque<HostEvent>,
     /// Ready timers waiting for dispatch.
@@ -44,6 +44,8 @@ pub struct EventLoop {
     pub(super) timers: Mutex<TimerQueue>,
     /// Timer handles canceled after scheduling and before dispatch.
     pub(super) canceled_timers: Mutex<FxHashSet<TimerHandle>>,
+    /// Configured event loop options.
+    pub(super) options: SchedulerOptions,
 
     /// Timer watch dispatch table keyed by timer handle.
     pub(super) timer_watches: FxHashMap<ResourceId, EventLoopWatch>,
@@ -51,15 +53,11 @@ pub struct EventLoop {
     pub(super) poller_event_watches: FxHashMap<PollerToken, EventLoopWatch>,
     /// Host event watch dispatch table keyed by host event kind.
     pub(super) host_event_watches: FxHashMap<HostEventKind, EventLoopWatch>,
-    /// Configured event loop options.
-    pub(super) options: SchedulerOptions,
 
     /// Next task identifier to issue.
     pub(super) next_task_id: u64,
     /// Next microtask identifier to issue.
     pub(super) next_microtask_id: u64,
-    /// Next task queue sequence identifier to issue.
-    pub(super) next_sequence: u64,
     /// Drop accounting at the event-loop boundary.
     pub(super) drop_counts: DropCounts,
     /// Number of host semantic events dispatched since the last poller event.
@@ -137,7 +135,7 @@ impl EventLoop {
     pub fn enqueue_events(&mut self, events: Vec<PollerEvent>) {
         let mut events = events;
         self.sort_platform_events(&mut events);
-        self.events.extend(events);
+        self.poller_events.extend(events);
     }
 
     /// Enqueue host semantic events.
@@ -159,13 +157,6 @@ impl EventLoop {
         id
     }
 
-    /// Allocate the next task queue sequence identifier.
-    pub fn next_sequence(&mut self) -> u64 {
-        let sequence = self.next_sequence;
-        self.next_sequence = self.next_sequence.wrapping_add(1);
-        sequence
-    }
-
     /// Pop the next microtask if available.
     pub fn pop_microtask(&mut self) -> Option<Microtask> {
         self.microtasks.pop_front()
@@ -185,7 +176,7 @@ impl EventLoop {
     pub(super) fn is_quiescent(&self) -> bool {
         if !self.tasks.is_empty()
             || !self.microtasks.is_empty()
-            || !self.events.is_empty()
+            || !self.poller_events.is_empty()
             || !self.host_events.is_empty()
             || !self.ready_timers.lock().is_empty()
         {

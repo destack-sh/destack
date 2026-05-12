@@ -8,30 +8,25 @@ use super::random::{RandomMode, RandomOptions, RandomOptionsJson};
 use super::replay::ReplayOptions;
 use super::time::{TimeMode, TimeOptions, TimeOptionsJson};
 use super::{
-    HeapOptions, HeapOptionsJson, PlatformAudioOptions, PlatformAudioOptionsJson,
-    PlatformCryptoOptions, PlatformCryptoOptionsJson, PlatformDeviceOptions,
-    PlatformDeviceOptionsJson, PlatformDisplayOptions, PlatformDisplayOptionsJson,
-    PlatformFsOptions, PlatformFsOptionsJson, PlatformGpuOptions, PlatformGpuOptionsJson,
-    PlatformInputOptions, PlatformInputOptionsJson, PlatformIpcOptions, PlatformIpcOptionsJson,
-    PlatformNetOptions, PlatformNetOptionsJson, PlatformOptions, PlatformOptionsJson,
-    PlatformOsOptions, PlatformOsOptionsJson, PlatformProcessOptions, PlatformProcessOptionsJson,
-    PlatformSecurityOptions, PlatformSecurityOptionsJson, PlatformTlsOptions,
-    PlatformTlsOptionsJson, RuntimeDiagnosticOptions, RuntimeDiagnosticOptionsJson, SchedulerMode,
+    HeapOptions, HeapOptionsJson, HostOptions, HostOptionsJson, PlatformOptions,
+    PlatformOptionsJson, RuntimeDiagnosticOptions, RuntimeDiagnosticOptionsJson, SchedulerMode,
     SchedulerOptions, SchedulerOptionsJson, SimulationOptions, SimulationOptionsJson, TraceMode,
-    TraceOptions, TraceOptionsJson,
+    TraceOptions, TraceOptionsJson, WorkerOptions, WorkerOptionsJson,
 };
 
 /// Runtime configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct RuntimeOptions {
-    /// Runtime environment family.
-    pub environment: Runtime,
+    /// Runtime implementation family.
+    pub runtime: Runtime,
     /// Stable runtime name for policy selection.
     pub name: Option<String>,
     /// App declaration used for host support checks.
     pub app: AppOptions,
     /// Runtime scheduler configuration.
     pub scheduler: SchedulerOptions,
+    /// Runtime worker configuration.
+    pub worker: WorkerOptions,
     /// Runtime clock source configuration.
     pub time: TimeOptions,
     /// Runtime randomness source configuration.
@@ -44,32 +39,8 @@ pub struct RuntimeOptions {
     pub heap: HeapOptions,
     /// Runtime diagnostics configuration.
     pub diagnostic: RuntimeDiagnosticOptions,
-    /// Global filesystem runtime defaults.
-    pub fs: PlatformFsOptions,
-    /// Global network runtime defaults.
-    pub net: PlatformNetOptions,
-    /// Global process runtime defaults.
-    pub process: PlatformProcessOptions,
-    /// Global audio runtime defaults.
-    pub audio: PlatformAudioOptions,
-    /// Global input runtime defaults.
-    pub input: PlatformInputOptions,
-    /// Global GPU runtime defaults.
-    pub gpu: PlatformGpuOptions,
-    /// Global TLS runtime defaults.
-    pub tls: PlatformTlsOptions,
-    /// Global security runtime defaults.
-    pub security: PlatformSecurityOptions,
-    /// Global OS service runtime defaults.
-    pub os: PlatformOsOptions,
-    /// Global device service runtime defaults.
-    pub device: PlatformDeviceOptions,
-    /// Display runtime options.
-    pub display: PlatformDisplayOptions,
-    /// IPC runtime options.
-    pub ipc: PlatformIpcOptions,
-    /// Global crypto runtime defaults.
-    pub crypto: PlatformCryptoOptions,
+    /// Runtime host module defaults.
+    pub host: HostOptions,
     /// Platform-specific host runtime overrides.
     pub platform: PlatformOptions,
 }
@@ -191,8 +162,8 @@ impl RuntimeOptions {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(untagged)]
 pub enum RuntimeConfigJson {
-    /// Runtime environment shorthand.
-    Environment(Runtime),
+    /// Runtime implementation shorthand.
+    Runtime(Runtime),
     /// Full runtime configuration object.
     Options(Box<RuntimeOptionsJson>),
 }
@@ -207,8 +178,8 @@ impl RuntimeConfigJson {
     /// Return this runtime config as object form.
     pub fn as_options_json(&self) -> RuntimeOptionsJson {
         match self {
-            Self::Environment(environment) => RuntimeOptionsJson {
-                environment: Some(*environment),
+            Self::Runtime(runtime) => RuntimeOptionsJson {
+                runtime: Some(*runtime),
                 ..RuntimeOptionsJson::default()
             },
             Self::Options(options) => options.as_ref().clone(),
@@ -241,12 +212,14 @@ pub(crate) fn runtime_options_with_base(
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeOptionsJson {
-    /// Runtime environment family.
-    pub environment: Option<Runtime>,
+    /// Runtime implementation family.
+    pub runtime: Option<Runtime>,
     /// Stable runtime name for policy selection.
     pub name: Option<String>,
     /// Runtime scheduler configuration.
     pub scheduler: Option<SchedulerOptionsJson>,
+    /// Runtime worker configuration.
+    pub worker: Option<WorkerOptionsJson>,
     /// Runtime clock source configuration.
     pub time: Option<TimeOptionsJson>,
     /// Runtime randomness source configuration.
@@ -259,32 +232,8 @@ pub struct RuntimeOptionsJson {
     pub heap: Option<HeapOptionsJson>,
     /// Runtime diagnostics configuration.
     pub diagnostic: Option<RuntimeDiagnosticOptionsJson>,
-    /// Global filesystem runtime defaults.
-    pub fs: Option<PlatformFsOptionsJson>,
-    /// Global network runtime defaults.
-    pub net: Option<PlatformNetOptionsJson>,
-    /// Global process runtime defaults.
-    pub process: Option<PlatformProcessOptionsJson>,
-    /// Global audio runtime defaults.
-    pub audio: Option<PlatformAudioOptionsJson>,
-    /// Global input runtime defaults.
-    pub input: Option<PlatformInputOptionsJson>,
-    /// Global GPU runtime defaults.
-    pub gpu: Option<PlatformGpuOptionsJson>,
-    /// Global TLS runtime defaults.
-    pub tls: Option<PlatformTlsOptionsJson>,
-    /// Global security runtime defaults.
-    pub security: Option<PlatformSecurityOptionsJson>,
-    /// Global OS service runtime defaults.
-    pub os: Option<PlatformOsOptionsJson>,
-    /// Global device service runtime defaults.
-    pub device: Option<PlatformDeviceOptionsJson>,
-    /// Global crypto runtime defaults.
-    pub crypto: Option<PlatformCryptoOptionsJson>,
-    /// Global display runtime defaults.
-    pub display: Option<PlatformDisplayOptionsJson>,
-    /// Global ipc runtime defaults.
-    pub ipc: Option<PlatformIpcOptionsJson>,
+    /// Runtime host module defaults.
+    pub host: Option<HostOptionsJson>,
     /// Platform-specific host runtime overrides.
     pub platform: Option<PlatformOptionsJson>,
 }
@@ -292,8 +241,8 @@ pub struct RuntimeOptionsJson {
 impl RuntimeOptionsJson {
     /// Inherit unset runtime settings from one parent config.
     pub fn extend_from(&mut self, parent: &Self) {
-        if self.environment.is_none() {
-            self.environment = parent.environment;
+        if self.runtime.is_none() {
+            self.runtime = parent.runtime;
         }
         if self.name.is_none() {
             self.name = parent.name.clone();
@@ -304,6 +253,13 @@ impl RuntimeOptionsJson {
             }
         } else {
             self.scheduler = parent.scheduler.clone();
+        }
+        if let Some(worker) = &mut self.worker {
+            if let Some(parent_worker) = &parent.worker {
+                worker.extend_from(parent_worker);
+            }
+        } else {
+            self.worker = parent.worker.clone();
         }
         if let Some(time) = &mut self.time {
             if let Some(parent_time) = &parent.time {
@@ -343,44 +299,12 @@ impl RuntimeOptionsJson {
         if self.diagnostic.is_none() {
             self.diagnostic = parent.diagnostic.clone();
         }
-        if self.fs.is_none() {
-            self.fs = parent.fs.clone();
-        }
-        if self.net.is_none() {
-            self.net = parent.net.clone();
-        }
-        if self.process.is_none() {
-            self.process = parent.process.clone();
-        }
-        if self.audio.is_none() {
-            self.audio = parent.audio.clone();
-        }
-        if self.input.is_none() {
-            self.input = parent.input.clone();
-        }
-        if self.gpu.is_none() {
-            self.gpu = parent.gpu.clone();
-        }
-        if self.tls.is_none() {
-            self.tls = parent.tls.clone();
-        }
-        if self.security.is_none() {
-            self.security = parent.security.clone();
-        }
-        if self.os.is_none() {
-            self.os = parent.os.clone();
-        }
-        if self.device.is_none() {
-            self.device = parent.device.clone();
-        }
-        if self.crypto.is_none() {
-            self.crypto = parent.crypto.clone();
-        }
-        if self.display.is_none() {
-            self.display = parent.display.clone();
-        }
-        if self.ipc.is_none() {
-            self.ipc = parent.ipc.clone();
+        if let Some(host) = &mut self.host {
+            if let Some(parent_host) = &parent.host {
+                host.extend_from(parent_host);
+            }
+        } else {
+            self.host = parent.host.clone();
         }
         if self.platform.is_none() {
             self.platform = parent.platform.clone();
@@ -389,9 +313,9 @@ impl RuntimeOptionsJson {
 
     /// Apply runtime option overrides to a base set of options.
     pub fn apply_to(&self, options: &mut RuntimeOptions) {
-        // environment
-        if let Some(environment) = self.environment {
-            options.environment = environment;
+        // runtime
+        if let Some(runtime) = self.runtime {
+            options.runtime = runtime;
         }
 
         // runtime identity
@@ -402,6 +326,10 @@ impl RuntimeOptionsJson {
         // apply runtime planes
         if let Some(scheduler) = &self.scheduler {
             scheduler.apply_to(&mut options.scheduler);
+        }
+
+        if let Some(worker) = &self.worker {
+            worker.apply_to(&mut options.worker);
         }
 
         if let Some(time) = &self.time {
@@ -430,69 +358,9 @@ impl RuntimeOptionsJson {
             diagnostic.apply_to(&mut options.diagnostic);
         }
 
-        // apply filesystem defaults
-        if let Some(fs) = &self.fs {
-            fs.apply_to(&mut options.fs);
-        }
-
-        // apply network defaults
-        if let Some(net) = &self.net {
-            net.apply_to(&mut options.net);
-        }
-
-        // apply process defaults
-        if let Some(process) = &self.process {
-            process.apply_to(&mut options.process);
-        }
-
-        // apply audio defaults
-        if let Some(audio) = &self.audio {
-            audio.apply_to(&mut options.audio);
-        }
-
-        // apply input defaults
-        if let Some(input) = &self.input {
-            input.apply_to(&mut options.input);
-        }
-
-        // apply gpu defaults
-        if let Some(gpu) = &self.gpu {
-            gpu.apply_to(&mut options.gpu);
-        }
-
-        // apply tls defaults
-        if let Some(tls) = &self.tls {
-            tls.apply_to(&mut options.tls);
-        }
-
-        // apply security defaults
-        if let Some(security) = &self.security {
-            security.apply_to(&mut options.security);
-        }
-
-        // apply os defaults
-        if let Some(os) = &self.os {
-            os.apply_to(&mut options.os);
-        }
-
-        // apply device defaults
-        if let Some(device) = &self.device {
-            device.apply_to(&mut options.device);
-        }
-
-        // apply crypto defaults
-        if let Some(crypto) = &self.crypto {
-            crypto.apply_to(&mut options.crypto);
-        }
-
-        // apply display defaults
-        if let Some(display) = &self.display {
-            display.apply_to(&mut options.display);
-        }
-
-        // apply ipc defaults
-        if let Some(ipc) = &self.ipc {
-            ipc.apply_to(&mut options.ipc);
+        // apply host module defaults
+        if let Some(host) = &self.host {
+            host.apply_to(&mut options.host);
         }
 
         // apply platform overrides

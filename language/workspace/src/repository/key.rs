@@ -32,7 +32,7 @@ pub(crate) fn profile_key_for_target(
 
     // runtime surface
     let runtime = profile_config
-        .and_then(|profile| profile.runtime.as_ref().map(|runtime| runtime.environment))
+        .and_then(|profile| profile.runtime.as_ref().map(|runtime| runtime.runtime))
         .unwrap_or(target.runtime);
     let platform = profile_config
         .and_then(|profile| profile.platform)

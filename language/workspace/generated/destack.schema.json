@@ -123,28 +123,17 @@
       "description": "Runtime options.",
       "$ref": "#/$defs/RuntimeConfigJson",
       "default": {
-        "environment": null,
+        "runtime": null,
         "name": null,
         "scheduler": null,
+        "worker": null,
         "time": null,
         "random": null,
         "simulation": null,
         "trace": null,
         "heap": null,
         "diagnostic": null,
-        "fs": null,
-        "net": null,
-        "process": null,
-        "audio": null,
-        "input": null,
-        "gpu": null,
-        "tls": null,
-        "security": null,
-        "os": null,
-        "device": null,
-        "crypto": null,
-        "display": null,
-        "ipc": null,
+        "host": null,
         "platform": null
       }
     },
@@ -451,7 +440,7 @@
           }
         },
         "rules": {
-          "description": "Ordered policy rules.",
+          "description": "Ordered authorization rules.",
           "type": [
             "array",
             "null"
@@ -552,7 +541,7 @@
           "description": "Package selector.",
           "anyOf": [
             {
-              "$ref": "#/$defs/RuntimePackageSelectorJson"
+              "$ref": "#/$defs/PackageSelectorJson"
             },
             {
               "type": "null"
@@ -583,7 +572,7 @@
         }
       }
     },
-    "RuntimePackageSelectorJson": {
+    "PackageSelectorJson": {
       "description": "Package selector accepted by static policy JSON.",
       "anyOf": [
         {
@@ -599,11 +588,11 @@
         },
         {
           "description": "Structured package selector.",
-          "$ref": "#/$defs/RuntimePackageSelectorJsonObject"
+          "$ref": "#/$defs/PackageSelectorJsonObject"
         }
       ]
     },
-    "RuntimePackageSelectorJsonObject": {
+    "PackageSelectorJsonObject": {
       "description": "Structured package selector accepted by static policy JSON.",
       "type": "object",
       "properties": {
@@ -754,7 +743,7 @@
       "description": "Runtime config JSON.",
       "anyOf": [
         {
-          "description": "Runtime environment shorthand.",
+          "description": "Runtime implementation shorthand.",
           "$ref": "#/$defs/Runtime"
         },
         {
@@ -782,8 +771,8 @@
       "description": "Runtime options (object form).",
       "type": "object",
       "properties": {
-        "environment": {
-          "description": "Runtime environment family.",
+        "runtime": {
+          "description": "Runtime implementation family.",
           "anyOf": [
             {
               "$ref": "#/$defs/Runtime"
@@ -805,6 +794,17 @@
           "anyOf": [
             {
               "$ref": "#/$defs/SchedulerOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "worker": {
+          "description": "Runtime worker configuration.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WorkerOptionsJson"
             },
             {
               "type": "null"
@@ -877,143 +877,11 @@
             }
           ]
         },
-        "fs": {
-          "description": "Global filesystem runtime defaults.",
+        "host": {
+          "description": "Runtime host module defaults.",
           "anyOf": [
             {
-              "$ref": "#/$defs/PlatformFsOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "net": {
-          "description": "Global network runtime defaults.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PlatformNetOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "process": {
-          "description": "Global process runtime defaults.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PlatformProcessOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "audio": {
-          "description": "Global audio runtime defaults.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PlatformAudioOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "input": {
-          "description": "Global input runtime defaults.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PlatformInputOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "gpu": {
-          "description": "Global GPU runtime defaults.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PlatformGpuOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "tls": {
-          "description": "Global TLS runtime defaults.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PlatformTlsOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "security": {
-          "description": "Global security runtime defaults.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PlatformSecurityOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "os": {
-          "description": "Global OS service runtime defaults.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PlatformOsOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "device": {
-          "description": "Global device service runtime defaults.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PlatformDeviceOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "crypto": {
-          "description": "Global crypto runtime defaults.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PlatformCryptoOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "display": {
-          "description": "Global display runtime defaults.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PlatformDisplayOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "ipc": {
-          "description": "Global ipc runtime defaults.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PlatformIpcOptionsJson"
+              "$ref": "#/$defs/HostOptionsJson"
             },
             {
               "type": "null"
@@ -1213,6 +1081,39 @@
           "const": "work_stealing"
         }
       ]
+    },
+    "WorkerOptionsJson": {
+      "description": "Runtime worker configuration for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "limit": {
+          "description": "Maximum number of live workers in one runtime.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "threadLimit": {
+          "description": "Maximum number of host threads allocated to workers.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "stackBytes": {
+          "description": "Stack reservation in bytes for one worker.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        }
+      }
     },
     "TimeOptionsJson": {
       "description": "Runtime time options for JSON deserialization.",
@@ -1752,17 +1653,115 @@
         }
       ]
     },
-    "PlatformFsOptionsJson": {
-      "description": "Filesystem runtime options.",
+    "HostOptionsJson": {
+      "description": "Runtime host module defaults for JSON deserialization.",
       "type": "object",
       "properties": {
-        "sandboxRoot": {
-          "description": "Optional sandbox root for filesystem operations.",
-          "type": [
-            "string",
-            "null"
+        "fs": {
+          "description": "Filesystem host defaults.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HostFsOptionsJson"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
+        "net": {
+          "description": "Network host defaults.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HostNetOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "process": {
+          "description": "Process host defaults.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HostProcessOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "audio": {
+          "description": "Audio host defaults.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HostAudioOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "input": {
+          "description": "Input host defaults.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HostInputOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "gpu": {
+          "description": "GPU host defaults.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HostGpuOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tls": {
+          "description": "TLS host defaults.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HostTlsOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "os": {
+          "description": "OS host defaults.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HostOsOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "crypto": {
+          "description": "Crypto host defaults.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HostCryptoOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "HostFsOptionsJson": {
+      "description": "Filesystem host defaults for JSON deserialization.",
+      "type": "object",
+      "properties": {
         "temporaryDirectory": {
           "description": "Optional temporary directory override.",
           "type": [
@@ -1779,8 +1778,8 @@
         }
       }
     },
-    "PlatformNetOptionsJson": {
-      "description": "Network runtime options.",
+    "HostNetOptionsJson": {
+      "description": "Network host defaults for JSON deserialization.",
       "type": "object",
       "properties": {
         "dnsServers": {
@@ -1809,8 +1808,8 @@
         }
       }
     },
-    "PlatformProcessOptionsJson": {
-      "description": "Process runtime options.",
+    "HostProcessOptionsJson": {
+      "description": "Process host defaults for JSON deserialization.",
       "type": "object",
       "properties": {
         "defaultWorkingDirectory": {
@@ -1839,8 +1838,8 @@
         }
       }
     },
-    "PlatformAudioOptionsJson": {
-      "description": "Audio runtime options.",
+    "HostAudioOptionsJson": {
+      "description": "Audio host defaults for JSON deserialization.",
       "type": "object",
       "properties": {
         "backend": {
@@ -1881,74 +1880,11 @@
           ],
           "format": "uint32",
           "minimum": 0
-        },
-        "eventMonitorPollIntervalNs": {
-          "description": "Optional monitor worker poll interval in nanoseconds.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "eventQueueCapacity": {
-          "description": "Optional audio event queue capacity override.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "defaultEventPollIntervalNs": {
-          "description": "Optional default audio event poll interval in nanoseconds.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "streamWaitSliceNs": {
-          "description": "Optional stream wait slice in nanoseconds.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "maxStreamReadBytes": {
-          "description": "Optional maximum stream read bytes per operation.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "maxQueuedFrames": {
-          "description": "Optional maximum queued stream frame budget.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "workerPollIntervalNs": {
-          "description": "Optional worker poll interval in nanoseconds.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
         }
       }
     },
-    "PlatformInputOptionsJson": {
-      "description": "Input runtime options.",
+    "HostInputOptionsJson": {
+      "description": "Input host defaults for JSON deserialization.",
       "type": "object",
       "properties": {
         "backend": {
@@ -1957,20 +1893,11 @@
             "string",
             "null"
           ]
-        },
-        "eventQueueCapacity": {
-          "description": "Optional input event queue capacity override.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
         }
       }
     },
-    "PlatformGpuOptionsJson": {
-      "description": "GPU runtime options.",
+    "HostGpuOptionsJson": {
+      "description": "GPU host defaults for JSON deserialization.",
       "type": "object",
       "properties": {
         "backend": {
@@ -1986,25 +1913,11 @@
             "string",
             "null"
           ]
-        },
-        "powerPreference": {
-          "description": "Optional power preference hint.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "shaderCacheDirectory": {
-          "description": "Optional shader cache directory override.",
-          "type": [
-            "string",
-            "null"
-          ]
         }
       }
     },
-    "PlatformTlsOptionsJson": {
-      "description": "TLS runtime options.",
+    "HostTlsOptionsJson": {
+      "description": "TLS host defaults for JSON deserialization.",
       "type": "object",
       "properties": {
         "trustStorePath": {
@@ -2023,28 +1936,8 @@
         }
       }
     },
-    "PlatformSecurityOptionsJson": {
-      "description": "Security runtime options.",
-      "type": "object",
-      "properties": {
-        "sandboxProfile": {
-          "description": "Optional sandbox profile selector.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "actionProfile": {
-          "description": "Optional action profile selector.",
-          "type": [
-            "string",
-            "null"
-          ]
-        }
-      }
-    },
-    "PlatformOsOptionsJson": {
-      "description": "OS service runtime options.",
+    "HostOsOptionsJson": {
+      "description": "OS host defaults for JSON deserialization.",
       "type": "object",
       "properties": {
         "defaultLocale": {
@@ -2070,41 +1963,15 @@
         }
       }
     },
-    "PlatformDeviceOptionsJson": {
-      "description": "Device service runtime options.",
+    "HostCryptoOptionsJson": {
+      "description": "Crypto host defaults for JSON deserialization.",
       "type": "object",
       "properties": {
-        "allowClasses": {
-          "description": "Optional allow-list of device classes.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
-        },
-        "denyClasses": {
-          "description": "Optional deny-list of device classes.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
-            "type": "string"
-          }
-        }
-      }
-    },
-    "PlatformCryptoOptionsJson": {
-      "description": "Crypto runtime options.",
-      "type": "object",
-      "properties": {
-        "hostStorePaths": {
-          "description": "Host key-store path overrides for crypto store lanes.",
+        "keyStorePaths": {
+          "description": "Host key store path overrides.",
           "anyOf": [
             {
-              "$ref": "#/$defs/PlatformCryptoHostStorePathsJson"
+              "$ref": "#/$defs/HostCryptoStorePathsJson"
             },
             {
               "type": "null"
@@ -2130,36 +1997,22 @@
           "items": {
             "type": "string"
           }
-        },
-        "macosKeychainSnapshotService": {
-          "description": "Override service name for macOS keychain snapshot storage.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "macosKeychainSnapshotAccount": {
-          "description": "Override account name for macOS keychain snapshot storage.",
-          "type": [
-            "string",
-            "null"
-          ]
         }
       }
     },
-    "PlatformCryptoHostStorePathsJson": {
-      "description": "Host key-store path overrides for crypto store lanes.",
+    "HostCryptoStorePathsJson": {
+      "description": "Host key store path overrides for JSON deserialization.",
       "type": "object",
       "properties": {
         "user": {
-          "description": "Override path for the user store lane.",
+          "description": "Override path for the user store.",
           "type": [
             "string",
             "null"
           ]
         },
         "machine": {
-          "description": "Override path for the machine store lane.",
+          "description": "Override path for the machine store.",
           "type": [
             "string",
             "null"
@@ -2167,98 +2020,15 @@
         }
       }
     },
-    "PlatformDisplayOptionsJson": {
-      "description": "Display runtime options.",
-      "type": "object",
-      "properties": {
-        "eventQueueCapacity": {
-          "description": "Optional display event queue capacity override.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
-        "streamWaitSliceNs": {
-          "description": "Optional display stream wait slice in nanoseconds.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        }
-      }
-    },
-    "PlatformIpcOptionsJson": {
-      "description": "IPC runtime options.",
-      "type": "object",
-      "properties": {
-        "unixSemaphorePollIntervalNs": {
-          "description": "Optional Unix semaphore poll interval in nanoseconds.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        }
-      }
-    },
     "PlatformOptionsJson": {
-      "description": "Platform-specific host runtime overrides.",
+      "description": "Platform-specific runtime overrides for JSON deserialization.",
       "type": "object",
       "properties": {
-        "android": {
-          "description": "Android-specific runtime host overrides.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PlatformHostOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "ios": {
-          "description": "iOS-specific runtime host overrides.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PlatformHostOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "linux": {
-          "description": "Linux-specific runtime host overrides.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PlatformHostOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "macos": {
-          "description": "macOS-specific runtime host overrides.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PlatformHostOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "windows": {
-          "description": "Windows-specific runtime host overrides.",
+          "description": "Windows runtime overrides.",
           "anyOf": [
             {
-              "$ref": "#/$defs/PlatformWindowsOptionsJson"
+              "$ref": "#/$defs/WindowsOptionsJson"
             },
             {
               "type": "null"
@@ -2267,34 +2037,10 @@
         }
       }
     },
-    "PlatformHostOptionsJson": {
-      "description": "Host runtime options.",
+    "WindowsOptionsJson": {
+      "description": "Windows runtime overrides for JSON deserialization.",
       "type": "object",
       "properties": {
-        "eventQueueCapacity": {
-          "description": "Queue capacity for host events before drop behavior applies.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        }
-      }
-    },
-    "PlatformWindowsOptionsJson": {
-      "description": "Windows runtime host overrides.",
-      "type": "object",
-      "properties": {
-        "eventQueueCapacity": {
-          "description": "Queue capacity for host events before drop behavior applies.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint64",
-          "minimum": 0
-        },
         "posixDomainSid": {
           "description": "Optional POSIX domain SID for uid or gid mapping.",
           "type": [
@@ -2302,11 +2048,11 @@
             "null"
           ]
         },
-        "netPacketBackend": {
-          "description": "Packet backend mode for Windows packet lanes.",
+        "net": {
+          "description": "Windows network overrides.",
           "anyOf": [
             {
-              "$ref": "#/$defs/PlatformWindowsPacketBackendJson"
+              "$ref": "#/$defs/WindowsNetOptionsJson"
             },
             {
               "type": "null"
@@ -2315,11 +2061,28 @@
         }
       }
     },
-    "PlatformWindowsPacketBackendJson": {
+    "WindowsNetOptionsJson": {
+      "description": "Windows network overrides for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "packetBackend": {
+          "description": "Packet backend mode for Windows packet operations.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WindowsPacketBackendJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "WindowsPacketBackendJson": {
       "description": "Windows packet backend selection for JSON deserialization.",
       "oneOf": [
         {
-          "description": "Disable packet backend lanes.",
+          "description": "Disable packet backends.",
           "type": "string",
           "const": "disabled"
         },
@@ -2331,7 +2094,7 @@
         {
           "description": "Use the host-bridge packet backend.",
           "type": "string",
-          "const": "hostBackend"
+          "const": "hostBridge"
         }
       ]
     },

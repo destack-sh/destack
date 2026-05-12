@@ -1,6 +1,7 @@
 mod diagnostic;
 mod execution;
 mod heap;
+mod host;
 mod platform;
 mod random;
 mod replay;
@@ -10,10 +11,12 @@ mod selectors;
 mod simulation;
 mod time;
 mod trace;
+mod worker;
 
 pub use diagnostic::*;
 pub use execution::*;
 pub use heap::*;
+pub use host::*;
 pub use platform::*;
 pub use random::*;
 pub use replay::*;
@@ -23,3 +26,4 @@ pub use selectors::*;
 pub use simulation::*;
 pub use time::*;
 pub use trace::*;
+pub use worker::*;

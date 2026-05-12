@@ -206,7 +206,7 @@ impl EventLoop {
 
         if tasks.is_empty()
             && microtasks.is_empty()
-            && self.events.is_empty()
+            && self.poller_events.is_empty()
             && self.host_events.is_empty()
             && self.ready_timers.lock().is_empty()
             && timers.is_empty()
@@ -222,7 +222,7 @@ impl EventLoop {
             state,
             tasks,
             microtasks,
-            events: self.events.iter().copied().collect(),
+            events: self.poller_events.iter().copied().collect(),
             host_events: self.host_events.iter().cloned().collect(),
             ready_timers: self.ready_timers.lock().iter().copied().collect(),
             timers,
@@ -242,7 +242,7 @@ impl EventLoop {
         // clear dynamic state before rebuilding the image
         self.tasks.clear();
         self.microtasks.clear();
-        self.events.clear();
+        self.poller_events.clear();
         self.host_events.clear();
         self.ready_timers.lock().clear();
         self.timers.lock().restore_image(&[]);
@@ -316,7 +316,7 @@ impl EventLoop {
         // queue payloads
         self.tasks.extend(tasks);
         self.microtasks.extend(microtasks);
-        self.events.extend(snapshot.events.iter().copied());
+        self.poller_events.extend(snapshot.events.iter().copied());
         self.host_events
             .extend(snapshot.host_events.iter().cloned());
         self.ready_timers
