@@ -19,7 +19,7 @@ export type PlatformTag =
     | "android";
 
 /// Platform family selectors accepted by runtime bindings.
-export type PlatformFamilyTag = "windows" | "unix";
+export type PlatformFamilyTag = "windows" | "unix" | "wasm";
 
 /// Host tags accepted by runtime bindings.
 export type HostTag = "native" | "browser" | "wasi" | "emscripten" | "freestanding";
@@ -52,7 +52,8 @@ export type BindingOptions = {
 /// @binding("destack.fs.open", {
 ///   effect: "external",
 ///   requires: ["fs.open"],
-///   families: ["windows", "unix"],
+///   families: ["wasm"],
+///   hosts: ["wasi"],
 ///   simulation: true,
 /// })
 /// function open() { }
