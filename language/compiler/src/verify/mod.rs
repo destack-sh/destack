@@ -1,8 +1,16 @@
+mod drop;
 mod error;
+mod memory;
 mod provide;
 mod state;
+mod value;
 mod warning;
 
+pub(crate) use drop::*;
 pub use error::*;
-pub(in crate::verify) use state::*;
+pub(crate) use memory::*;
+pub(crate) use state::*;
 pub use warning::*;
+
+#[cfg(test)]
+mod tests;

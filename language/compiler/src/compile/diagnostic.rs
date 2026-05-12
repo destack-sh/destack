@@ -4,7 +4,7 @@ use crate::{
     CheckError, CheckWarning, DeclareError, DeclareWarning, ElaborateError, ElaborateWarning,
     ExpandError, ExpandWarning, ExportError, ExportWarning, GenerateError, GenerateWarning,
     ImportError, ImportWarning, LinkError, LinkWarning, LowerError, LowerWarning, MaterializeError,
-    MaterializeWarning, OptimizeError, OptimizeWarning, VerifyError,
+    MaterializeWarning, OptimizeError, OptimizeWarning, VerifyError, VerifyWarning,
 };
 
 /// Registry of all compiler diagnostic codes.

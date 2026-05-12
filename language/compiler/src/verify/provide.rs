@@ -2,7 +2,7 @@ use destack_artifact::{ArtifactKey, ArtifactPayload, MirVerified};
 use destack_source::{ModuleId, TargetId};
 use destack_workspace::{ProfileId, ProviderContext};
 
-use crate::verify::VerifyState;
+use crate::verify::{DropInsert, MemoryCheck, VerifyState};
 use crate::{Compiler, CompilerError, CompilerResult};
 
 impl Compiler {
@@ -14,7 +14,7 @@ impl Compiler {
         target: TargetId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
-        let state = VerifyState::new(module, profile, target, context);
+        let mut state = VerifyState::new(module, profile, target, context);
 
         state
             .context
@@ -27,9 +27,17 @@ impl Compiler {
         let lowered = self
             .mir_lowered(state.context, state.module, state.profile, &state.target)
             .map_err(CompilerError::from)?;
+        let mut tree = lowered.tree.clone();
 
-        Ok(ArtifactPayload::MirVerified(MirVerified::new(
-            &lowered.tree,
-        )))
+        MemoryCheck.run(&mut tree, &mut state);
+        if !state.has_errors() {
+            DropInsert.run(&mut tree, &mut state);
+        }
+
+        for diagnostic in state.take_diagnostics() {
+            state.context.emit(diagnostic.as_ref())?;
+        }
+
+        Ok(ArtifactPayload::MirVerified(MirVerified::from_tree(tree)))
     }
 }
