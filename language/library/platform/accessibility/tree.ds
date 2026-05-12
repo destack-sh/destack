@@ -1,6 +1,6 @@
-import { Slice } from "core";
-import type { PlatformError } from "../error/index.ds";
-import { WindowHandle } from "../resource/index.ds";
+import { Slice } from "destack:collections";
+import { PlatformError } from "destack:platform/error";
+import { WindowHandle } from "destack:platform/resource";
 import { AccessibilityNode } from "./node.ds";
 import { AccessibilityNodeId } from "./role.ds";
 

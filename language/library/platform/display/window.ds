@@ -1,6 +1,6 @@
-import { Slice } from "core";
-import type { PlatformError } from "../error/index.ds";
-import { DisplayHandle, WindowHandle } from "../resource/index.ds";
+import { Slice } from "destack:collections";
+import { PlatformError } from "destack:platform/error";
+import { DisplayHandle, WindowHandle } from "destack:platform/resource";
 import {
     DisplayBackend,
     DisplayBackendCapabilityFlags,

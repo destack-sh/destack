@@ -1,6 +1,6 @@
-import { Array, Slice } from "core";
-import type { PlatformError } from "../error/index.ds";
-import { CryptoCertificateHandle, CryptoKeyHandle, CryptoStoreHandle } from "../resource/index.ds";
+import { Array, Slice } from "destack:collections";
+import { PlatformError } from "destack:platform/error";
+import { CryptoCertificateHandle, CryptoKeyHandle, CryptoStoreHandle } from "destack:platform/resource";
 import {
     CryptoAsymmetricEncryptionAlgorithm,
     CryptoCipherAlgorithm,

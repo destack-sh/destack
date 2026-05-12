@@ -1,5 +1,5 @@
-import type { PlatformError } from "../error/index.ds";
-import { PipeHandle } from "../resource/index.ds";
+import { PlatformError } from "destack:platform/error";
+import { PipeHandle } from "destack:platform/resource";
 
 /// Pipe creation flags.
 export newtype PipeFlags = uint32;

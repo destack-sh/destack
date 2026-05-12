@@ -1,5 +1,5 @@
-import type { PlatformError } from "../error/index.ds";
-import { IoCompletionHandle, ResourceId } from "../resource/index.ds";
+import { PlatformError } from "destack:platform/error";
+import { IoCompletionHandle, ResourceId } from "destack:platform/resource";
 
 /// Completion event flags.
 export newtype IoCompletionFlags = uint32;

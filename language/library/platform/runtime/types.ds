@@ -1,4 +1,4 @@
-import { ResourceId } from "../resource/index.ds";
+import { ResourceId } from "destack:platform/resource";
 
 /// Handle for one live world control object.
 export newtype WorldHandle = ResourceId;

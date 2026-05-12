@@ -1,5 +1,5 @@
-import type { PlatformError } from "../error/index.ds";
-import { WindowHandle } from "../resource/index.ds";
+import { PlatformError } from "destack:platform/error";
+import { WindowHandle } from "destack:platform/resource";
 import { AccessibilityLiveRegionPoliteness } from "./state.ds";
 import { AccessibilityNodeId } from "./role.ds";
 import { AccessibilityTextRange } from "./text.ds";

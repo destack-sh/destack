@@ -1,5 +1,5 @@
-import { TimerHandle } from "../resource/index.ds";
-import type { PlatformError } from "../error/index.ds";
+import { TimerHandle } from "destack:platform/resource";
+import { PlatformError } from "destack:platform/error";
 
 /// Flags for timer scheduling behavior.
 export newtype TimerFlags = uint32;

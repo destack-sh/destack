@@ -1,4 +1,4 @@
-import type { PlatformError } from "../error/index.ds";
+import { PlatformError } from "destack:platform/error";
 import { FilesystemEntry } from "./entry.ds";
 import { Path, PathBuffer } from "./path.ds";
 import { FileMode } from "./status.ds";

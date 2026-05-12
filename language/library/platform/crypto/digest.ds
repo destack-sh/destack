@@ -1,6 +1,6 @@
-import { Slice } from "core";
-import type { PlatformError } from "../error/index.ds";
-import { CryptoDigestHandle } from "../resource/index.ds";
+import { Slice } from "destack:collections";
+import { PlatformError } from "destack:platform/error";
+import { CryptoDigestHandle } from "destack:platform/resource";
 import { CryptoDigestAlgorithm } from "./algorithm.ds";
 
 /// Compute one digest in one shot.

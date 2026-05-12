@@ -1,4 +1,4 @@
-import { Slice } from "core";
+import { Slice } from "destack:collections";
 
 /// Text offset range in UTF-16 code units.
 export struct AccessibilityTextRange {

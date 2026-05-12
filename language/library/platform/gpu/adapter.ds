@@ -1,6 +1,6 @@
-import { Array, Slice } from "core";
-import type { PlatformError } from "../error/index.ds";
-import { GpuAdapterHandle, GpuSurfaceHandle } from "../resource/index.ds";
+import { Array, Slice } from "destack:collections";
+import { PlatformError } from "destack:platform/error";
+import { GpuAdapterHandle, GpuSurfaceHandle } from "destack:platform/resource";
 import { GpuTextureFormat, GpuTextureUsageMask } from "./resource.ds";
 
 /// GPU backend selector.

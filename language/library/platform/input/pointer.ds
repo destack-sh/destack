@@ -1,5 +1,5 @@
-import type { PlatformError } from "../error/index.ds";
-import { InputDeviceHandle } from "../resource/index.ds";
+import { PlatformError } from "destack:platform/error";
+import { InputDeviceHandle } from "destack:platform/resource";
 import { InputModifierState } from "./keyboard.ds";
 import { InputWindowTarget } from "./target.ds";
 

@@ -1,8 +1,8 @@
-import { Slice } from "core";
-import type { HostAction } from "../core/action.ds";
-import type { PlatformError } from "../error/index.ds";
+import { Slice } from "destack:collections";
+import { HostAction } from "destack:platform/core";
+import { PlatformError } from "destack:platform/error";
 
-export type { HostAction } from "../core/action.ds";
+export { HostAction } from "destack:platform/core";
 
 /// List active actions.
 @binding("destack.security.action.list", {

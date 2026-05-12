@@ -1,4 +1,4 @@
-import { Slice } from "core";
+import { Slice } from "destack:collections";
 import { AccessibilityNodeRelations } from "./relation.ds";
 import { AccessibilityNodeId, AccessibilityRole } from "./role.ds";
 import { AccessibilityNodeState } from "./state.ds";

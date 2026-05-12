@@ -1,5 +1,5 @@
-import type { PlatformError } from "../error/index.ds";
-import { ProcessHandle, SignalHandle } from "../resource/index.ds";
+import { PlatformError } from "destack:platform/error";
+import { ProcessHandle, SignalHandle } from "destack:platform/resource";
 import { ProcessId } from "./identity.ds";
 
 /// Signal number for process control.

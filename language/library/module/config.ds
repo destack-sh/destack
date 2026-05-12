@@ -15,7 +15,7 @@ export interface Module {
     readonly noHeap?: boolean;
     /// Forbid runtime-dependent language features in this module.
     readonly noRuntime?: boolean;
-    /// Forbid `throw` in this module.
+    /// Forbid exception syntax in this module.
     readonly noExceptions?: boolean;
     /// Forbid dispatch that cannot be resolved statically in this module.
     readonly noImplicitDynamicDispatch?: boolean;

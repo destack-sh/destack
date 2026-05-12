@@ -1,5 +1,5 @@
-import type { PlatformError } from "../error/index.ds";
-import { InspectorHandle } from "../resource/index.ds";
+import { PlatformError } from "destack:platform/error";
+import { InspectorHandle } from "destack:platform/resource";
 
 /// Inspector endpoint metadata.
 export struct InspectorEndpoint {

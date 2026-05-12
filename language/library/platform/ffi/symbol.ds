@@ -1,5 +1,5 @@
-import type { PlatformError } from "../error/index.ds";
-import { LibraryHandle, SymbolHandle } from "../resource/index.ds";
+import { PlatformError } from "destack:platform/error";
+import { LibraryHandle, SymbolHandle } from "destack:platform/resource";
 
 /// Resolve a symbol from a loaded library.
 @binding("destack.ffi.symbol.lookup", {

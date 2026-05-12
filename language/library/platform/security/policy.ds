@@ -1,6 +1,6 @@
-import { Slice } from "core";
-import type { PlatformError } from "../error/index.ds";
-import type { HostAction } from "./action.ds";
+import { Slice } from "destack:collections";
+import { PlatformError } from "destack:platform/error";
+import { HostAction } from "./action.ds";
 
 /// Policy decision mode for one action entry.
 export enum SecurityPolicyMode {

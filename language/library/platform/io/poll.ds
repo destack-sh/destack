@@ -1,5 +1,5 @@
-import type { PlatformError } from "../error/index.ds";
-import { IoPollHandle, ResourceId } from "../resource/index.ds";
+import { PlatformError } from "destack:platform/error";
+import { IoPollHandle, ResourceId } from "destack:platform/resource";
 
 /// Readiness backend selector.
 export enum IoPollBackend {

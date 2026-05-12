@@ -1,4 +1,4 @@
-import { Slice } from "core";
+import { Slice } from "destack:collections";
 import { AccessibilityNodeId } from "./role.ds";
 
 /// Accessibility relations that correspond to ARIA id reference properties.

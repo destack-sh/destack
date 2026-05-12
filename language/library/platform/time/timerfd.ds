@@ -1,5 +1,5 @@
-import type { PlatformError } from "../error/index.ds";
-import { TimerFdHandle } from "../resource/index.ds";
+import { PlatformError } from "destack:platform/error";
+import { TimerFdHandle } from "destack:platform/resource";
 
 /// Linux timerfd clock.
 export enum TimerFdClock {

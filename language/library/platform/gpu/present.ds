@@ -1,6 +1,6 @@
-import { Array, Slice } from "core";
-import type { PlatformError } from "../error/index.ds";
-import { DisplayColorSpace, DisplayHdrMode } from "../display/monitor.ds";
+import { Array, Slice } from "destack:collections";
+import { PlatformError } from "destack:platform/error";
+import { DisplayColorSpace, DisplayHdrMode } from "destack:platform/display";
 import {
     GpuAdapterHandle,
     GpuDeviceHandle,
@@ -8,7 +8,7 @@ import {
     GpuSurfacePresentationHandle,
     GpuTextureHandle,
     WindowHandle,
-} from "../resource/index.ds";
+} from "destack:platform/resource";
 import { GpuTextureFormat, GpuTextureUsageMask } from "./resource.ds";
 
 /// Surface present mode selector.

@@ -1,5 +1,5 @@
-import type { PlatformError } from "../error/index.ds";
-import { EventCounterHandle } from "../resource/index.ds";
+import { PlatformError } from "destack:platform/error";
+import { EventCounterHandle } from "destack:platform/resource";
 
 /// Event counter creation flags.
 export newtype EventCounterFlags = uint32;

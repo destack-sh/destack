@@ -1,4 +1,4 @@
-import type { PlatformError } from "../error/index.ds";
+import { PlatformError } from "destack:platform/error";
 import { ObservationHandle, ObservationOptions, ObservationRecord, WorldHandle } from "./types.ds";
 
 /// Open one runtime observation subscription.

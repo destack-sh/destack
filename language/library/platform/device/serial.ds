@@ -1,6 +1,6 @@
-import type { PlatformError } from "../error/index.ds";
-import { Path } from "../fs/path.ds";
-import { SerialPortHandle, SerialWatchHandle } from "../resource/index.ds";
+import { PlatformError } from "destack:platform/error";
+import { Path } from "destack:platform/fs";
+import { SerialPortHandle, SerialWatchHandle } from "destack:platform/resource";
 
 /// Serial port creation flags.
 export newtype SerialOpenFlags = uint32;

@@ -1,6 +1,6 @@
 import * as platform from "destack:platform";
 import { type TimerHandle } from "destack:resource";
-import type { PlatformError } from "destack:platform/error";
+import { PlatformError } from "destack:platform/error";
 
 /// Return wall clock time in nanoseconds since the runtime epoch.
 export function wallNs(): Result<uint64, PlatformError> {

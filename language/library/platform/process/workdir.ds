@@ -1,5 +1,5 @@
-import type { PlatformError } from "../error/index.ds";
-import { Path } from "../fs/path.ds";
+import { PlatformError } from "destack:platform/error";
+import { Path } from "destack:platform/fs";
 
 /// Return the current working directory.
 @binding("destack.process.workdir.get", {
