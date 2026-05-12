@@ -17,56 +17,55 @@ Embracing TypeScript and "the web ecosystem" lets us build a new toolchain that 
 
 ## Compatibility
 
-**Destack is a superset of "modern strict" TypeScript**.
-The intended use case is for TS-shaped code that can be type checked, optimized, and compiled ahead of time without pretending every value might turn into a different shape at runtime; in other words, Destack is based on the sound subset of TypeScript.
-Accordingly, Destack excludes legacy syntax and all sorts of dynamic shapes and protocols that are not statically fixed / knowable.
+**Destack is a superset of the "modern strict" subset of TypeScript**.
+The intended use case for Destack is making TS-shaped code optimal and correct, which requires cutting all accumulated dynamic magic that might smuggle in ambiguity or unsoundness at runtime.
+Accordingly, Destack excludes legacy syntax and all sorts of dynamic shapes and protocols that are not statically sound, and also removes a few rarely used footguns.
 
-### Syntax
+### Expressions
 
-Some JS/TS syntax and legacy behavior is either ambiguous, obsolete, or just not worth carrying forward.
+Some JS/TS syntax and legacy behavior is either ambiguous, obsolete, or just not worth carrying forward:
 
-- **Ambiguous generic arrow**: `<T>() => ...` is ambiguous in `.tsx`, and `.ds` inherits this since it supports TSX syntax natively.
-- **Sequence expressions**: `(A, B, C)` is - confusingly - a "sequence expression" in JS, which nobody ever really types out by hand, and `.ds` instead uses `(A, B, C)` for explicit tuples.
-- **Single-quoted literals**: In `'A'` is a `char`, not a `string`. Use double-quoted string literals for text, while `.ts` and `.tsx` keep TypeScript's ordinary single-quoted strings.
-- **Enum coercion**: `enum Level { A = 1, B = 2, C = 3 }` is _just_ an alias in TypeScript, but we do _not_ coerce `Level.A` to `number` without an explicit cast.
-- **Flow and JSDoc _typing_**: We support TypeScript only.
-  Flow syntax and special JSDoc type analysis are not part of `.ds`.
 - **Sloppy mode**: Destack targets modern strict-mode JavaScript/TypeScript.
-  Non-strict ("sloppy mode") behaviors like duplicate function declarations, `arguments` magic, `caller` / `callee`, or `yield` as an identifier are not supported.
-- **`any`**: `.ds` uses `unknown` as the top type.
-  TypeScript `any` is rejected because it makes arbitrary property access, calls, and assignments appear valid without proof.
-  Existing TS code must narrow through `unknown` or use explicit casts at interop boundaries.
+  All non-strict ("sloppy mode") behaviors like duplicate function declarations, `arguments` magic, `caller` / `callee`, or `yield` as an identifier are not supported.
+- **Type-only imports and exports**: `.ds` accepts `import type` and `export type` for TypeScript familiarity, but they behave the same.
 - **CommonJS**: Destack source does not support `require`, `module.exports`, mutable `exports`, require-cache monkeypatching, `export =`, or `import x = require("x")`.
-- **Definite assignment assertions**: `let x!: T` and `field!: T` are rejected in `.ds`.
-  Locals and fields must be actually initialized before use, either by an initializer or by ordinary definite assignment analysis.
+- **Ambiguous generic arrow**: `<T>() => ...` is ambiguous in `.tsx` because it might be a TSX tree, and `.ds` inherits this since we support TSX syntax natively.
+  To disambiguate, use `<T,>() => ...`.
+- **Sequence expressions**: `(A, B, C)` is - confusingly - a "sequence expression" in JS, which nobody ever really types out by hand, and `.ds` instead claims `(A, B, C)` for explicit tuples.
+- **Single-quoted literals**: In `'A'` is a `char`, not a `string`.
+  Use double-quoted string literals for text, while `.ts` and `.tsx` keep TypeScript's ordinary single-quoted strings.
+- **Loose equality coercion**: Object coercion through `==` and `!=` is not allowed.
 - **XML namespace resolution**: Destack does not implement XML `xmlns` namespace binding semantics.
   Namespaced tree tags like `<svg:path />` are treated as intrinsic string tag names (`"svg:path"`).
-- **Type-only imports and exports**: `.ds` accepts `import type` and `export type` for TypeScript familiarity, but they behave the same.
-
-### Shapes
-
-Dynamic shapes and strict native compilation do not like to mix.
-In `.ds`, values have statically known shape, and classes have a fixed static object model instead of some mutable JS constructor object.
-
-- **Declaration expressions**: Declaration expressions like `const C = class { }` require runtime type generation, which is incompatible with proper AOT compilation.
+- **Dynamic module loading**: Runtime `import(expr)` is not general module loading in source code.
+  JS output may still use dynamic imports for chunk loading when the target requires it.
 - **Dynamic code generation**: Dynamic _runtime_ `eval` / `new Function` / class generation are in conflict with a strict AOT model and unsupported, **but** Destack supports explicit `comptime eval` / `new Function`.
-- **Dynamic imports**: Dynamic `import(..)`, `require(..)` is not general module loading in source code.
+- **Exceptions**: Destack does not support _executing_ exceptions in any way - `.ds` still supports `throw`, `try`, `catch`, and `finally` syntax for JS-target compatibility, and try-catch-finally even work with our `Try` / `Result` types, but that's it. No runtime exceptions of any kind.
+
+### Types
+
+Dynamic shapes and unsound types are incompatible with a strict sound compilation model:
+
+- **Flow and JSDoc _typing_**: We support TypeScript only.
+  Flow syntax and special JSDoc type analysis are ignored / rejected where they are not valid TS/TS++.
+- **Thenables**: `await` only works on the well known `Promise<T>`, not "anything with `.then`".
+- **`any`**: `.ds` uses `unknown` as the top type which must be explicitly cast before using it.
+  TypeScript `any` is rejected because it makes arbitrary property access, calls, and assignments appear valid without proof.
+- **Definite assignment assertions**: `let x!: T` and `field!: T` are rejected in `.ds`.
+  Locals and fields must be actually initialized before use, whether directly with an initializer or just with control flow.
+- **Declaration expressions**: Declaration expressions like `const C = class { }` require runtime type generation, which is incompatible with proper AOT compilation.
 - **Prototype objects**: `.prototype`, `.__proto__`, `.constructor`, `Object.getPrototypeOf`, `Object.setPrototypeOf`, and `Object.create(proto)` all rely on the prototype-based object model and are not supported.
 - **Shape mutation**: `delete`, `Object.defineProperty`, `Object.defineProperties`, `Reflect.defineProperty`, `Reflect.deleteProperty`, and shape-changing `Object.assign` are forbidden.
 - **Metaobject dispatch**: `Proxy` and most `Reflect.*` APIs exist to intercept or emulate dynamic object behavior, so they are also unsupported.
-- **Class index signatures**: TypeScript permits structural index signatures inside classes, but Destack classes have fixed declared members. Put index signatures on structural object types or interfaces instead.
-- **Circular inference**: Destack does not support circular inference _across_ modules. Modules may export types they can establish from local declarations _and_ imports, and downstream modules may build on those exports, but downstream uses do not refine upstream declarations.
-
-### Protocols
-
-JS also has a lot of behavior where the runtime secretly calls user code through special names or symbols.
-Destack instead uses typed protocols, declared members, static members, and extensions instead.
-
-- **Thenables**: `await` does not mean "anything with a `.then` property". It targets `Promise<T>` or another typed async protocol.
-- **Coercion hooks**: `valueOf`, `toString`, and `Symbol.toPrimitive` do not participate in implicit object coercion. Use explicit conversions, formatting/display protocols, interpolation, or operator overloads.
-- **Loose equality coercion**: Object coercion through `==` and `!=` is not part of `.ds`.
-- **Well-known symbol magic**: `Symbol.hasInstance`, `Symbol.species`, `Symbol.isConcatSpreadable`, and similar hooks are not language semantics. Iteration can still exist as a typed `Iterable<T>` protocol, even if a JS target lowers it to symbols.
-- **Implicit call and construct hooks**: Arbitrary `[[Call]]`, `[[Construct]]`, and `Function.prototype.call` / `apply` / `bind` are not implicit members. Callable and constructable values must have declared callable or constructable types.
+- **Class index signatures**: TypeScript permits structural index signatures inside classes, but Destack classes have fixed declared members.
+  Put index signatures on structural object types or interfaces instead.
+- **Array holes**: Destack does not permit "holes" in arrays like `[1,,3]`.
+- **Circular inference**: Destack does not support circular inference _across_ modules.
+  Modules may export types they can establish from local declarations _and_ imports, and downstream modules may build on those exports, but downstream uses do not refine upstream declarations.
+- **Enum coercion**: `enum Level { A = 1, B = 2, C = 3 }` is _just_ an alias in TypeScript, but Destack does _not_ coerce `Level.A` to `number` without an explicit cast for better soundness.
+- **Coercion hooks**: `valueOf`, `toString`, and `Symbol.toPrimitive` do not participate in implicit object coercion.
+- **Symbol magic**: `Symbol.hasInstance`, `Symbol.species`, `Symbol.isConcatSpreadable`, and other such hooks are not supported.
+  Use typed `iterator()` / `asyncIterator()` protocols.
 
 # Language
 
@@ -76,7 +75,7 @@ TypeScript++ adds some new features to TypeScript that wouldn't fit in TypeScrip
 
 There are solid arguments that a language should be minimal (like Zig or Go or even C), but we do not believe "language minimalism" to be pragmatic for the universal language and toolchain we want.
 That said, TypeScript is already not a simple language, and any additional language features risk becoming unwieldy.
-We embrace this tradeoff, and as needed _some_ additions for serious systems programming, we took the opportunity to round out the language with modern ergonomics like patterns, operator overloading, reflection, and comptime.
+We embrace this tradeoff, and as we needed _some_ additions for serious systems programming, we took the opportunity to round out the language with modern ergonomics like patterns, operator overloading, reflection, and comptime.
 
 ## Types
 
@@ -194,6 +193,71 @@ newtype interface Add<T = this> {
 
 Nominal interfaces require **explicit `implements`** declarations - structural compatibility alone doesn't satisfy the constraint, unlike for regular `interface`.
 Newtype interfaces are used for explicit behavioral traits like operator interfaces (e.g., `Add`, `Compare`), and for capability traits (e.g., `Send`, `Sync`, `Copy`, and `Clone`).
+
+### Any
+
+All type constraints - structural and nominal `interface`s, `type`s, whatever - are represented internally as _static_ value constraints by default, and thus any bare `T` of an `interface` or `type` becomes an implicit generic parameter that is monomorphized on application (similar to Rust's `impl T`).
+When explicit _runtime_ indirection is desired, Destack also provides an intrinsic `Any<T>` wrapper as the explicit erased runtime value satisfying some `T`.
+
+For example, consider the following representation-equivalent `Writer` interfaces:
+
+```ds
+// regular interface
+interface Writer {
+    write(bytes: [uint8]): Result<uint, Error>;
+}
+
+// nominal interface
+newtype interface Writer {
+    write(bytes: [uint8]): Result<uint, Error>;
+}
+
+// regular type
+type Writer = {
+    write(bytes: [uint8]): Result<uint, Error>;
+}
+
+// nominal type
+newtype Writer = {
+    write(bytes: [uint8]): Result<uint, Error>;
+}
+```
+
+The following two functions are conceptually equivalent:
+
+```ds
+// use Writer as a regular parameter type, no explicit generics
+function write(writer: Writer, bytes: [uint8]): Result<uint, Error> {
+    writer.write(bytes)
+}
+
+// behaves exactly as if write had been written
+function write<T: Writer>(writer: T, bytes: [uint8]): Result<uint, Error> {
+    writer.write(bytes)
+}
+```
+
+This is generally great for performance in a `type`-heavy language like TypeScript, and it works extra well because we always compile statically from source.
+Sometimes we still want to trade runtime overhead for code size or just have a fixed layout for some other reason:
+
+```ds
+// just like the function, this Logger is implicitly generic over Writer
+struct Logger {
+    writer: Writer;
+}
+
+// the Logger above is the same as Logger<T: Writer>
+struct Logger<T: Writer> {
+    writer: T;
+}
+
+// for fixed layout, use Any<Writer>
+struct LoggerFor {
+    writer: Any<Writer>;
+}
+```
+
+In general `Any` behaves just like one would expect, and `Any<type {}>` is the empty erased type matching any value, akin to Go's `interface{}`.
 
 ### Extensions
 
@@ -806,16 +870,24 @@ When paused, the runtime parks the live frame in a Worker-local continuation han
 | `AsyncGenerator<Y, R, N>` | Worker-local suspended async generator |
 | produced `T` | value eventually produced by async code |
 
-As in TypeScript, `await` and `yield` are the suspension points for the `Promise`s and `Generator` (and `AsyncGenerator`) coroutines.
-When using standard managed values, these coroutines work exactly as before with no special regard for memory ownership.
-When using owned and borrowed values, beware that borrows cannot live safely across suspension points:
+As in TypeScript, `await` and `yield` are the suspension points for the `Promise`s and `Generator` (and `AsyncGenerator`) coroutines where the entire stack up to that point is parked, and some other task is run.
+In standard managed land, this works as before of course, and managed values can be stored in parked frames just fine.
+Borrows are valid only when the origin value is kept alive during suspension:
 
 ```ds
 async function read(user: User): Promise<string> {
-    const id = user.id;
+    const name = &readonly user.name;
     await tick();
+    return name.clone(); // valid because `user` is kept alive during suspension
+}
+```
 
-    const name = &user.name; // borrow after suspension
+For the same reason, frame-owned values can also be borrowed across suspension points:
+
+```ds
+async function read(user: ^User): Promise<string> {
+    const name = &readonly user.name;
+    await tick();
     return name.clone();
 }
 ```
@@ -944,7 +1016,7 @@ We just follow that proposal with `using` / `await using` as explicit scoped cle
 - `null` and `undefined` are ignored, following the spec.
 
 Resources are cleaned up at lexical scope exit in LIFO order, and `await using` runs async cleanup when required.
-Cleanup - that is, the dispose function - runs when the scope exits for any reason: fallthrough, `return`, `break`, `continue`, `throw`, or `?`.
+Cleanup - that is, the dispose function - runs when the scope exits for any reason: fallthrough, `return`, `break`, `continue`, or `?`.
 The same using form also works in loop form, where it applies for every iteration, just like in the TC39 proposal.
 
 ```ds
@@ -1168,8 +1240,9 @@ function writeAll(sink: TcpStream | MemoryBuffer, chunk: [byte]) {
 
 ### Errors
 
-Exceptions are deeply enmeshed into TypeScript, and therefore Destack supports them, too (alas).
-However, Destack also supports and strongly encourages **Result-first error handling** inspired by Rust: recoverable errors use `Result<T, E>`, integrate with `try` / `catch`, and can be opened with `?`, `??`, and postfix `!`.
+Banishing exceptions is Destack's biggest divergence from TypeScript: Destack uses **Result-first error handling** exclusively, and throwing exceptions is not allowed in any native Destack code.
+Recoverable errors use `Result<T, E>`, integrate with `try` / `catch`, and can be opened with `?`, `??`, and postfix `!`.
+(JavaScript exceptions remain valid _syntax_ because we need to integrate with JS targets directly, but in regular userland, exceptions are basically forbidden.)
 
 #### Result
 
@@ -1323,7 +1396,7 @@ The branch names describe the operator's control flow, not the data constructors
 
 #### Try-Catch-Finally
 
-The well known `try`/`catch` forms work for both exceptions and explicit `Try` propagation:
+The well known `try`/`catch` forms work with explicit `Try` propagation:
 
 ```ds
 declare function readConfig(path: string): Result<Config, IOError>;
@@ -1341,7 +1414,7 @@ The example uses `Result`, but any type implementing `Try` behaves the same:
 - Use `?` inside the block to propagate `Try` failures into the catch
 - Use `??` inside the block when the failure should be handled locally with a fallback
 
-When the propagated failures are statically known, the new `catch match` form can branch on them directly for some particularly pleasant syntactic sugar:
+For convenience, Destack introduces a new `catch match` form that can branch on `Try` failures directly for some pretty pleasant syntactic sugar:
 
 ```ds
 try {
@@ -1353,7 +1426,7 @@ try {
 }
 ```
 
-Finally arms work as before.
+Finally arms run as usual after the `try` / `catch` body, including when `?` leaves the block early.
 
 ### Trees (TSX)
 
@@ -1490,7 +1563,7 @@ module {
     derive: [Debug, Clone];
 
     noHeap: true;
-    noThrow: true;
+    noExceptions: true;
 }
 ```
 
@@ -2114,7 +2187,7 @@ process(&exclusive user); // exclusive borrowed access
 process(^user);           // owned value
 ```
 
-Dispatch resolution uses the actual form during overload resolution, so container interfaces like `Iterable<T>` can support ordinary TypeScript iteration and borrowed iteration without adding Rust-style method family explosion (if they don't need want to):
+Dispatch resolution uses the actual form during overload resolution, so container interfaces like `Iterable<T>` can support ordinary TypeScript iteration and borrowed iteration without adding Rust-style method family explosion:
 
 ```ds
 declare type Point = { x: number; y: number };
