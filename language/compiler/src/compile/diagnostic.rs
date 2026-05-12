@@ -4,7 +4,7 @@ use crate::{
     CheckError, CheckWarning, DeclareError, DeclareWarning, ElaborateError, ElaborateWarning,
     ExpandError, ExpandWarning, ExportError, ExportWarning, GenerateError, GenerateWarning,
     ImportError, ImportWarning, LinkError, LinkWarning, LowerError, LowerWarning, MaterializeError,
-    MaterializeWarning, OptimizeError, OptimizeWarning, VerifyError, VerifyWarning,
+    MaterializeWarning, OptimizeError, OptimizeWarning, VerifyError,
 };
 
 /// Registry of all compiler diagnostic codes.
@@ -159,7 +159,7 @@ impl DiagnosticRegistry {
             'E' => ElaborateWarning::ALL_CODES,
             'M' => MaterializeWarning::ALL_CODES,
             'L' => LowerWarning::ALL_CODES,
-            'V' => VerifyWarning::ALL_CODES,
+            'V' => &[],
             'O' => OptimizeWarning::ALL_CODES,
             'G' => GenerateWarning::ALL_CODES,
             'K' => LinkWarning::ALL_CODES,

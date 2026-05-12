@@ -5,44 +5,6 @@ use destack_artifact_macros::Diagnostic;
 #[derive(Debug, Clone, PartialEq, Diagnostic)]
 #[diagnostic(severity = Warning, phase = Optimize)]
 pub enum OptimizeWarning {
-    // -------------------------------------------------------------------------
-    // 1xx: Aliasing warnings
-    // -------------------------------------------------------------------------
-    /// Potential aliasing violation (hint mode warning).
-    #[diagnostic(code = "WO100", message = "potential aliasing")]
-    PotentialAliasingViolation {
-        anchor: DiagnosticAnchor,
-        existing_borrow: DiagnosticAnchor,
-    },
-
-    /// Reference may be invalidated by mutation (hint mode warning).
-    #[diagnostic(code = "WO101", message = "reference may be invalidated")]
-    PotentialInvalidatedReference {
-        anchor: DiagnosticAnchor,
-        mutation_at: DiagnosticAnchor,
-    },
-
-    /// Borrow may escape its scope (hint mode warning).
-    #[diagnostic(code = "WO102", message = "borrow may escape scope")]
-    PotentialBorrowEscape { anchor: DiagnosticAnchor },
-
-    /// Declared return lifetime does not cover the returned borrow.
-    #[diagnostic(
-        code = "WO103",
-        message = "return lifetime does not cover returned borrow"
-    )]
-    PotentialReturnLifetimeMismatch { anchor: DiagnosticAnchor },
-
-    /// Declared return lifetime was ignored for a non borrowed return.
-    #[diagnostic(
-        code = "WO104",
-        message = "return lifetime ignored for non borrowed return"
-    )]
-    ReturnLifetimeIgnored { anchor: DiagnosticAnchor },
-
-    // -------------------------------------------------------------------------
-    // 2xx: Unused value warnings
-    // -------------------------------------------------------------------------
     /// Owned value created but never used.
     #[diagnostic(code = "WO200", message = "owned value is never used")]
     UnusedOwnedValue { anchor: DiagnosticAnchor },
@@ -51,9 +13,6 @@ pub enum OptimizeWarning {
     #[diagnostic(code = "WO201", message = "value created and immediately dropped")]
     ImmediatelyDropped { anchor: DiagnosticAnchor },
 
-    // -------------------------------------------------------------------------
-    // 3xx: Optimization missed warnings
-    // -------------------------------------------------------------------------
     /// Class call could not be devirtualized.
     #[diagnostic(code = "WO300", message = "cannot devirtualize: {reason}")]
     CannotDevirtualize {
@@ -96,9 +55,6 @@ pub enum OptimizeWarning {
         reason: String,
     },
 
-    // -------------------------------------------------------------------------
-    // 9xx: Hint / skipped warnings
-    // -------------------------------------------------------------------------
     /// Optimization hint annotation was ignored.
     #[diagnostic(code = "WO900", message = "optimization hint ignored: {reason}")]
     IgnoredHint {
