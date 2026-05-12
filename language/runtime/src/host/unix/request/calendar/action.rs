@@ -1,12 +1,12 @@
-use crate::runtime::action::{HostAction, HostActionSet};
+use crate::runtime::action::{Action, ActionSet};
 
 /// Return the static desktop calendar action ids for the Unix host family.
-pub(crate) fn desktop_actions() -> [HostAction; 2] {
-    [HostAction::OsCalendarRead, HostAction::OsCalendarWrite]
+pub(crate) fn desktop_actions() -> [Action; 0] {
+    []
 }
 
 /// Return dynamic Unix calendar request actions.
-pub(crate) fn request_actions() -> HostActionSet {
+pub(crate) fn request_actions() -> ActionSet {
     #[cfg(all(not(test), target_os = "linux"))]
     {
         return super::linux::request_actions();

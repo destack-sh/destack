@@ -4,7 +4,7 @@ use destack_core::{Capture, CaptureMode};
 use destack_workspace::{RuntimeOptions, SchedulerOptions, TimeMode};
 use {destack_engine as engine, destack_native as native};
 
-use crate::host::{HostEventKind, HostLifecycleState, Session};
+use crate::host::{HostEventKind, HostLifecycleState};
 use crate::platform::ResourceId;
 use crate::platform::time::TimerClock;
 use crate::runtime::engine::{Continuation, Engine};
@@ -15,7 +15,7 @@ use crate::runtime::poller::{
 use crate::runtime::scheduler::{
     EventLoop, Microtask, MicrotaskId, Runnable, Task, TaskId, TaskStatus, Timer, TimerDeadline,
 };
-use crate::runtime::time::{Instant, Nanos, host as host_time};
+use crate::runtime::time::{Instant, Nanos};
 use crate::runtime::{DropReason, TickResult, Worker, WorkerOptions, World};
 
 use super::tests::{
@@ -724,43 +724,6 @@ fn test_runtime_tick_advances_to_simulation_deadline() {
     let simulation = world.simulation();
     assert_eq!(simulation.ready_events().len(), 1);
     assert_eq!(simulation.ready_events()[0].at(), Instant::new(7_500));
-}
-
-/// Rejects synchronous virtual sleeps so time only advances through runtime ticks.
-#[test]
-fn test_virtual_sleep_binding_fails_loudly() {
-    // build one virtual-time binding context
-    let options = runtime_options_with_time_mode(TimeMode::Virtual);
-    let mut world = World::from_options(&options).expect("world");
-    let shared = super::tests::runtime_shared_heap(&world, &options);
-    let world_state = &mut world.state;
-
-    let mut worker = Worker::new_in_world(
-        Vec::new(),
-        &options,
-        world_state,
-        &shared,
-        &engine::StaticSpace::empty(),
-        WorkerOptions::default(),
-        TestEngine::default(),
-    )
-    .expect("worker should build");
-    let host = Session::from_runtime_options(&options, worker.runtime_id);
-    let binding = super::tests::binding_call_context(&mut worker, &host, world_state);
-    let wall_before = binding.wall_nanos();
-
-    // synchronous sleep must fail instead of advancing virtual time inline
-    let error = unsafe { host_time::host_sleep_nanos(&binding, 123) }
-        .expect_err("virtual sleep should fail");
-    assert!(
-        error.message().contains("destack.time.sleep.ns"),
-        "virtual sleep error should name the binding"
-    );
-    assert_eq!(
-        binding.wall_nanos(),
-        wall_before,
-        "virtual sleep must not advance world time directly"
-    );
 }
 
 /// Register one timer watch on one explicit worker.

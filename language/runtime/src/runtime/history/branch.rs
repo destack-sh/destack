@@ -86,7 +86,7 @@ impl World {
     }
 
     /// Replace labels for one specific branch.
-    pub(crate) fn set_branch_labels(
+    pub fn set_branch_labels(
         &self,
         branch_id: BranchId,
         labels: BTreeMap<String, String>,

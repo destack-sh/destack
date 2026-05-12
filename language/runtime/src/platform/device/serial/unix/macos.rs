@@ -13,7 +13,7 @@ use super::identity::serial_descriptor_snapshot;
 use super::state::UnixSerialDescriptorInfo;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
-use crate::runtime::control::queue::BoundedQueue;
+use crate::platform::core::BoundedQueue;
 use crate::runtime::service::Service;
 use crate::runtime::{ExecutionMode, ExecutionPolicy, WorkerLoop};
 

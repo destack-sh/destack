@@ -12,8 +12,8 @@ use crate::runtime::random::Random;
 use destack_workspace::{ExecutionMode, ReplayPayloadMode};
 
 use super::{
-    FaultKindCatalog, FaultTarget, Hook, HookEvent, Lifetime, PolicyCallId, ProbabilityPpm, Rule,
-    RuleAction, RuleId, RuntimeSubject, Trigger, validate_rule_fault_compatibility,
+    CallSubject, FaultKindCatalog, FaultTarget, Hook, HookEvent, Lifetime, PolicyCallId,
+    ProbabilityPpm, Rule, RuleAction, RuleId, Trigger, validate_rule_fault_compatibility,
 };
 
 /// Runtime policy specification.
@@ -237,12 +237,12 @@ impl Policy {
     /// Validate rule shape invariants.
     fn validate_rule_shape(rule: &Rule) -> RuntimeResult<()> {
         let has_trigger = rule.trigger.is_some();
-        let has_call_selector = rule.when.is_some();
+        let has_call_selector = rule.call.is_some();
 
         // binding decisions require an explicit call selector
         if Self::is_binding_decision_action(&rule.action) && !has_call_selector {
             return Err(Self::invalid_policy_error(format!(
-                "runtime binding decision rule {} requires when",
+                "runtime binding decision rule {} requires a call selector",
                 rule.id.0
             )));
         }
@@ -273,7 +273,7 @@ impl Policy {
             && !has_call_selector
         {
             return Err(Self::invalid_policy_error(format!(
-                "runtime call fault rule {} requires when",
+                "runtime call fault rule {} requires a call selector",
                 rule.id.0
             )));
         }
@@ -688,11 +688,11 @@ impl PolicyState {
         mode: ExecutionMode,
         engine: Option<BindingEngine>,
     ) -> bool {
-        let Some(selector) = &rule.when else {
+        let Some(selector) = &rule.call else {
             return true;
         };
 
-        let subject = RuntimeSubject {
+        let subject = CallSubject {
             runtime_name,
             runtime_labels,
             worker_name,

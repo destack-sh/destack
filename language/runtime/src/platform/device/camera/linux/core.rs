@@ -43,7 +43,7 @@ pub(super) use crate::platform::{NativeAbiCodec, PlatformError, core as core_pla
 pub(super) use crate::runtime::BindingCallContext;
 
 pub(super) use super::recording::stop_active_recording_worker;
-pub(super) use crate::runtime::control::BoundedQueue;
+pub(super) use crate::platform::core::BoundedQueue;
 
 /// Stable camera descriptor snapshot carried by one opened device resource.
 #[derive(Debug, Clone)]

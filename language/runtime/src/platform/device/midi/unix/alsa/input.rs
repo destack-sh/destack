@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::core::{self as core_platform};
+use crate::platform::core::{self as core_platform, BoundedQueue};
 use crate::platform::device::midi::core::{
     MidiInputRecordValue, MidiPortDescriptorValue, input_queue_capacity, read_queued_batch,
     read_queued_item, remove_midi_input_resource, resolve_descriptor_open_transport,
@@ -14,7 +14,6 @@ use crate::platform::device::{
     MidiPortListOptions, MidiProtocol, MidiVirtualInputCreateOptions,
 };
 use crate::platform::resource;
-use crate::runtime::control::queue::BoundedQueue;
 use crate::runtime::{BindingCallContext, ExecutionMode, ExecutionPolicy, start_with_policy};
 
 use super::abi::{POLLIN, SND_SEQ_OPEN_DUPLEX, poll, pollfd, snd_seq_event_t};

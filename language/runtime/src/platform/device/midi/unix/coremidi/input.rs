@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::core::{self as core_platform};
+use crate::platform::core::{self as core_platform, BoundedQueue};
 use crate::platform::device::midi::core::{
     MidiInputRecordValue, MidiPortDescriptorValue, input_queue_capacity, read_queued_batch,
     read_queued_item, remove_labeled_resource, resolve_descriptor_open_transport,
@@ -15,7 +15,6 @@ use crate::platform::device::{
 };
 use crate::platform::resource;
 use crate::runtime::BindingCallContext;
-use crate::runtime::control::queue::BoundedQueue;
 
 use super::abi::{
     MIDIDestinationCreate, MIDIDestinationCreateWithProtocol, MIDIInputPortCreate,

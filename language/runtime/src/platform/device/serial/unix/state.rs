@@ -7,6 +7,7 @@ use parking_lot::Mutex;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::NativeAbi;
+use crate::platform::core::BoundedQueue;
 use crate::platform::device::{
     SerialDisconnectedEvent, SerialErrorEvent, SerialErrorKind, SerialEvent, SerialEventMetadata,
     SerialInputSignals, SerialModemStatusChangedEvent, SerialPortDescriptor, SerialPortTransport,
@@ -17,7 +18,6 @@ use crate::platform::fs::core::path_ref_from_bytes;
 use crate::platform::resource::{ResourceFinalizer, ResourceKind};
 use crate::platform::{NativeArray, PlatformError, core as core_platform, fs, resource};
 use crate::runtime::BindingCallContext;
-use crate::runtime::control::queue::BoundedQueue;
 
 /// Maximum queued serial session events per open unix port.
 pub(super) const SERIAL_EVENT_QUEUE_CAPACITY: usize = 128;

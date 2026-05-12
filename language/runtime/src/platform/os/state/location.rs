@@ -4,35 +4,18 @@ use super::*;
 
 /// Read whether host location services are enabled.
 pub(crate) fn location_services_enabled(binding: &BindingCallContext) -> RuntimeResult<bool> {
-    require_location_capability(
-        binding,
-        HostAction::OsLocationRead,
-        "destack.os.location.servicesEnabled",
-    )?;
+    let _ = binding;
 
-    binding
-        .host()
-        .submit_operation(host_location::services_enabled())
+    Err(not_supported("destack.os.location.servicesEnabled"))
 }
 
 /// Read one cached host location sample.
 pub(crate) fn location_last_known(
     binding: &BindingCallContext,
 ) -> RuntimeResult<LocationSampleValue> {
-    require_location_capability(
-        binding,
-        HostAction::OsLocationRead,
-        "destack.os.location.lastKnown",
-    )?;
+    let _ = binding;
 
-    let runtime_state = os_state(binding)?;
-
-    // prefer the last observed runtime sample when available
-    if let Some(sample) = runtime_state.last_location_sample() {
-        return Ok(sample);
-    }
-
-    binding.host().submit_operation(host_location::last_known())
+    Err(not_supported("destack.os.location.lastKnown"))
 }
 
 /// Open one location watch stream.
@@ -40,37 +23,10 @@ pub(crate) fn location_watch_open(
     binding: &BindingCallContext,
     options: LocationWatchOptionsValue,
 ) -> RuntimeResult<resource::LocationWatchHandle> {
-    require_location_capability(
-        binding,
-        HostAction::OsLocationWatch,
-        "destack.os.location.watchOpen",
-    )?;
+    let _ = binding;
+    let _ = options;
 
-    let runtime_state = os_state(binding)?;
-    let watch_id = runtime_state.next_location_watch_id();
-    let stream = Arc::new(LocationWatchStream::new());
-
-    // register before host open so early samples are not lost
-    runtime_state.insert_location_watch(watch_id.clone(), stream);
-
-    if let Err(error) = binding
-        .host()
-        .submit_operation(host_location::watch_open(watch_id.clone(), options))
-    {
-        runtime_state.remove_location_watch(watch_id.as_str());
-        return Err(error);
-    }
-
-    let entry = ResourceEntry::new(ResourceKind::LocationWatch)
-        .with_label("os.location.watch")
-        .with_payload(watch_id);
-
-    let handle = binding
-        .worker()
-        .resources
-        .insert(binding.world(), entry, Some(binding.engine()));
-
-    Ok(resource::LocationWatchHandle(handle))
+    Err(not_supported("destack.os.location.watchOpen"))
 }
 
 /// Close one location watch stream.
@@ -163,19 +119,6 @@ pub(crate) fn location_watch_read(
         },
         |duration| stream.wait_once(duration),
     )
-}
-
-/// Require one live location host action before opening or reading location state.
-fn require_location_capability(
-    binding: &BindingCallContext,
-    action: HostAction,
-    operation: &'static str,
-) -> RuntimeResult<()> {
-    if binding.host().has_host_action(action) {
-        return Ok(());
-    }
-
-    Err(not_supported(operation))
 }
 
 /// Runtime-owned location watch stream.

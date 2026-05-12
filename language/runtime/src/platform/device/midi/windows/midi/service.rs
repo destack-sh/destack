@@ -7,7 +7,8 @@ use windows::core::{Error as WinError, HSTRING, IInspectable, Ref};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::core::{
-    self as core_platform, qpc_hundred_nanos_to_process_nanos, qpc_process_nanos_to_hundred_nanos,
+    self as core_platform, BoundedQueue, qpc_hundred_nanos_to_process_nanos,
+    qpc_process_nanos_to_hundred_nanos,
 };
 use crate::platform::device::midi::core::{
     MidiInputRecordValue, MidiOutputRecordValue, MidiPortDescriptorValue, MidiRecordBytes,
@@ -16,7 +17,6 @@ use crate::platform::device::midi::core::{
 use crate::platform::device::{
     MidiDataFormat, MidiEventSource, MidiPortDirection, MidiProtocol, MidiRecordFraming,
 };
-use crate::runtime::control::queue::BoundedQueue;
 use crate::runtime::service::executor::thread::ServiceThreadExecutor;
 use crate::runtime::service::{Service, spawn_service_thread};
 use crate::runtime::{ExecutionAffinity, ExecutionMode, ExecutionPolicy};

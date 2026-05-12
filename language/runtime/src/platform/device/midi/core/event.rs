@@ -4,13 +4,13 @@ use std::sync::{Arc, Weak};
 use parking_lot::Mutex;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core::BoundedQueue;
 use crate::platform::device::midi::core::{
     MidiEventMetadataValue, MidiEventValue, MidiPortDescriptorValue,
 };
 use crate::platform::device::{
     MidiBackend, MidiEventOverflowPolicy, MidiEventSource, MidiPortDirection,
 };
-use crate::runtime::control::queue::BoundedQueue;
 
 use super::{binding_timestamp_now, endpoint_direction_name, push_event_with_overflow_policy};
 

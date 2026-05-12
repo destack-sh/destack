@@ -34,7 +34,8 @@ pub(super) use crate::platform::core::android::{
     checked_u32_length, host_session_id, host_status_result, invalid_data,
 };
 pub(super) use crate::platform::core::{
-    self as core_platform, NativeAbiCodec, decode_optional_string, decode_required_string,
+    self as core_platform, BoundedQueue, NativeAbiCodec, decode_optional_string,
+    decode_required_string,
 };
 pub(super) use crate::platform::device::bluetooth::core::{
     BLUETOOTH_ADAPTER_WATCH_RESOURCE_LABEL, BLUETOOTH_DEVICE_RESOURCE_LABEL,
@@ -60,7 +61,6 @@ pub(super) use crate::platform::device::{
 pub(super) use crate::platform::resource::{ResourceEntry, ResourceFinalizer, ResourceKind};
 pub(super) use crate::platform::{PlatformError, resource};
 pub(super) use crate::runtime::BindingCallContext;
-pub(super) use crate::runtime::control::queue::BoundedQueue;
 
 /// Initial Android Bluetooth row scratch capacity.
 pub(super) const INITIAL_BLUETOOTH_ROW_CAPACITY: usize = 8;

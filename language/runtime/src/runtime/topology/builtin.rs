@@ -2,19 +2,18 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::platform::ResourceKind;
 use crate::platform::resource::ResourceFacet;
-use crate::runtime::world::LABEL_TOPOLOGY_KIND;
 
-use super::{EdgeDefinition, EntityDefinition};
+use super::{EdgeDefinition, EntityDefinition, EntityKind};
 
 /// Base fault verbs supported by all entity kinds.
 const BASE_ENTITY_FAULTS: &[&str] = &[
-    "call.error",
-    "call.timeout",
-    "timing.delay",
-    "call.block",
-    "scheduler.starve",
-    "resource.exhaust",
-    "resource.quota",
+    "runtime.fault.call.error",
+    "runtime.fault.call.timeout",
+    "runtime.fault.timing.delay",
+    "runtime.fault.call.block",
+    "runtime.fault.scheduler.starve",
+    "runtime.fault.resource.exhaust",
+    "runtime.fault.resource.quota",
 ];
 
 /// Base fault verbs supported by all edge kinds.
@@ -22,39 +21,47 @@ const BASE_EDGE_FAULTS: &[&str] = BASE_ENTITY_FAULTS;
 
 /// Transport fault verbs for stream and link kinds.
 const TRANSPORT_FAULTS: &[&str] = &[
-    "transport.drop",
-    "transport.duplicate",
-    "transport.reorder",
-    "transport.corrupt",
-    "transport.truncate",
-    "transport.partial",
-    "transport.disconnect",
-    "transport.reset",
-    "transport.partition",
-    "transport.blackhole",
-    "transport.throttle",
-    "transport.limit",
+    "runtime.fault.transport.drop",
+    "runtime.fault.transport.duplicate",
+    "runtime.fault.transport.reorder",
+    "runtime.fault.transport.corrupt",
+    "runtime.fault.transport.truncate",
+    "runtime.fault.transport.partial",
+    "runtime.fault.transport.disconnect",
+    "runtime.fault.transport.reset",
+    "runtime.fault.transport.partition",
+    "runtime.fault.transport.blackhole",
+    "runtime.fault.transport.throttle",
+    "runtime.fault.transport.limit",
 ];
 
 /// Lifecycle fault verbs for process and thread kinds.
-const LIFECYCLE_FAULTS: &[&str] = &["process.crash", "process.restart", "process.reboot"];
+const LIFECYCLE_FAULTS: &[&str] = &[
+    "runtime.fault.process.crash",
+    "runtime.fault.process.restart",
+    "runtime.fault.process.reboot",
+];
 
 /// Clock fault verbs for time-bearing kinds.
-const CLOCK_FAULTS: &[&str] = &["clock.jump", "clock.drift", "clock.freeze"];
+const CLOCK_FAULTS: &[&str] = &[
+    "runtime.fault.clock.jump",
+    "runtime.fault.clock.drift",
+    "runtime.fault.clock.freeze",
+];
 
 /// Durability fault verbs for persistent-state kinds.
-const DURABILITY_FAULTS: &[&str] = &["durability.violate"];
+const DURABILITY_FAULTS: &[&str] = &["runtime.fault.durability.violate"];
 
-/// Builtin entity kind specification.
-struct BuiltinEntityKindSpec {
+/// Builtin entity kind descriptor.
+struct BuiltinEntityKindDescriptor {
     /// Stable kind identifier.
     kind_id: &'static str,
     /// Semantic behavior facets for this kind.
     facets: &'static [ResourceFacet],
 }
 
-/// Builtin edge kind specification.
-struct BuiltinEdgeKindSpec {
+/// Builtin edge kind descriptor.
+struct BuiltinEdgeKindDescriptor {
     /// Stable kind identifier.
     kind_id: &'static str,
     /// Semantic behavior facets for this kind.
@@ -62,217 +69,153 @@ struct BuiltinEdgeKindSpec {
 }
 
 /// Builtin entity kind catalog.
-const BUILTIN_ENTITY_KIND_SPECS: &[BuiltinEntityKindSpec] = &[
-    BuiltinEntityKindSpec {
+const BUILTIN_ENTITY_KIND_DESCRIPTORS: &[BuiltinEntityKindDescriptor] = &[
+    BuiltinEntityKindDescriptor {
         kind_id: "runtime.instance",
         facets: &[ResourceFacet::Clock],
     },
-    BuiltinEntityKindSpec {
+    BuiltinEntityKindDescriptor {
         kind_id: "runtime.worker",
         facets: &[],
     },
-    BuiltinEntityKindSpec {
-        kind_id: "process.instance",
+    BuiltinEntityKindDescriptor {
+        kind_id: "host.process.instance",
         facets: &[ResourceFacet::Process],
     },
-    BuiltinEntityKindSpec {
-        kind_id: "time.timer",
-        facets: &[ResourceFacet::Timer, ResourceFacet::Clock],
-    },
-    BuiltinEntityKindSpec {
-        kind_id: "thread.instance",
-        facets: &[ResourceFacet::Thread],
-    },
-    BuiltinEntityKindSpec {
-        kind_id: "io.stream",
+    BuiltinEntityKindDescriptor {
+        kind_id: "host.io.stream",
         facets: &[ResourceFacet::Stream],
     },
-    BuiltinEntityKindSpec {
-        kind_id: "fs.inode",
+    BuiltinEntityKindDescriptor {
+        kind_id: "host.fs.inode",
         facets: &[ResourceFacet::Storage],
     },
-    BuiltinEntityKindSpec {
-        kind_id: "fs.dentry",
+    BuiltinEntityKindDescriptor {
+        kind_id: "host.fs.dentry",
         facets: &[ResourceFacet::Storage],
     },
-    BuiltinEntityKindSpec {
-        kind_id: "fs.open_file",
+    BuiltinEntityKindDescriptor {
+        kind_id: "host.fs.mount",
         facets: &[ResourceFacet::Storage],
     },
-    BuiltinEntityKindSpec {
-        kind_id: "fs.mount",
-        facets: &[ResourceFacet::Storage],
+    BuiltinEntityKindDescriptor {
+        kind_id: "host.net.namespace",
+        facets: &[],
     },
-    BuiltinEntityKindSpec {
-        kind_id: "fs.watch",
+    BuiltinEntityKindDescriptor {
+        kind_id: "host.net.interface",
+        facets: &[],
+    },
+    BuiltinEntityKindDescriptor {
+        kind_id: "host.net.connection",
+        facets: &[ResourceFacet::Stream],
+    },
+    BuiltinEntityKindDescriptor {
+        kind_id: "host.net.resolver",
         facets: &[ResourceFacet::EventSource],
     },
-    BuiltinEntityKindSpec {
-        kind_id: "net.namespace",
-        facets: &[],
-    },
-    BuiltinEntityKindSpec {
-        kind_id: "net.interface",
-        facets: &[],
-    },
-    BuiltinEntityKindSpec {
-        kind_id: "net.socket",
-        facets: &[ResourceFacet::Stream],
-    },
-    BuiltinEntityKindSpec {
-        kind_id: "net.listener",
-        facets: &[ResourceFacet::Stream],
-    },
-    BuiltinEntityKindSpec {
-        kind_id: "net.connection",
-        facets: &[ResourceFacet::Stream],
-    },
-    BuiltinEntityKindSpec {
-        kind_id: "net.resolver",
+    BuiltinEntityKindDescriptor {
+        kind_id: "host.ipc.channel",
         facets: &[ResourceFacet::EventSource],
     },
-    BuiltinEntityKindSpec {
-        kind_id: "process.child",
-        facets: &[ResourceFacet::Process],
-    },
-    BuiltinEntityKindSpec {
-        kind_id: "audio.device",
+    BuiltinEntityKindDescriptor {
+        kind_id: "host.display.surface",
         facets: &[],
     },
-    BuiltinEntityKindSpec {
-        kind_id: "audio.stream",
-        facets: &[ResourceFacet::Stream],
-    },
-    BuiltinEntityKindSpec {
-        kind_id: "input.device",
-        facets: &[],
-    },
-    BuiltinEntityKindSpec {
-        kind_id: "gpu.device",
-        facets: &[],
-    },
-    BuiltinEntityKindSpec {
-        kind_id: "gpu.queue",
-        facets: &[],
-    },
-    BuiltinEntityKindSpec {
-        kind_id: "ipc.channel",
-        facets: &[ResourceFacet::EventSource],
-    },
-    BuiltinEntityKindSpec {
-        kind_id: "device.handle",
-        facets: &[],
-    },
-    BuiltinEntityKindSpec {
-        kind_id: "display.surface",
-        facets: &[],
-    },
-    BuiltinEntityKindSpec {
-        kind_id: "memory.region",
+    BuiltinEntityKindDescriptor {
+        kind_id: "host.memory.region",
         facets: &[ResourceFacet::Memory],
     },
-    BuiltinEntityKindSpec {
-        kind_id: "thread.worker",
-        facets: &[ResourceFacet::Thread],
-    },
-    BuiltinEntityKindSpec {
-        kind_id: "time.clock",
+    BuiltinEntityKindDescriptor {
+        kind_id: "host.time.clock",
         facets: &[ResourceFacet::Clock],
     },
-    BuiltinEntityKindSpec {
-        kind_id: "tls.session",
-        facets: &[ResourceFacet::Stream],
-    },
-    BuiltinEntityKindSpec {
-        kind_id: "security.policy",
+    BuiltinEntityKindDescriptor {
+        kind_id: "runtime.security.policy",
         facets: &[],
     },
-    BuiltinEntityKindSpec {
-        kind_id: "os.service",
+    BuiltinEntityKindDescriptor {
+        kind_id: "host.os.service",
         facets: &[],
     },
-    BuiltinEntityKindSpec {
-        kind_id: "random.stream",
+    BuiltinEntityKindDescriptor {
+        kind_id: "host.random.stream",
         facets: &[ResourceFacet::EventSource],
     },
-    BuiltinEntityKindSpec {
-        kind_id: "resource.handle",
+    BuiltinEntityKindDescriptor {
+        kind_id: "runtime.resource",
         facets: &[],
     },
-    BuiltinEntityKindSpec {
-        kind_id: "tty.device",
+    BuiltinEntityKindDescriptor {
+        kind_id: "host.tty.device",
         facets: &[ResourceFacet::Stream],
     },
-    BuiltinEntityKindSpec {
-        kind_id: "ffi.handle",
+    BuiltinEntityKindDescriptor {
+        kind_id: "host.ffi.handle",
         facets: &[],
     },
-    BuiltinEntityKindSpec {
-        kind_id: "crypto.key_store",
-        facets: &[ResourceFacet::Storage],
-    },
-    BuiltinEntityKindSpec {
-        kind_id: "error.channel",
+    BuiltinEntityKindDescriptor {
+        kind_id: "runtime.error.channel",
         facets: &[ResourceFacet::EventSource],
     },
-    BuiltinEntityKindSpec {
-        kind_id: "debug.channel",
+    BuiltinEntityKindDescriptor {
+        kind_id: "runtime.debug.channel",
         facets: &[ResourceFacet::EventSource],
     },
 ];
 
 /// Builtin edge kind catalog.
-const BUILTIN_EDGE_KIND_SPECS: &[BuiltinEdgeKindSpec] = &[
-    BuiltinEdgeKindSpec {
-        kind_id: "fs.parent_child",
+const BUILTIN_EDGE_KIND_DESCRIPTORS: &[BuiltinEdgeKindDescriptor] = &[
+    BuiltinEdgeKindDescriptor {
+        kind_id: "host.fs.parent_child",
         facets: &[],
     },
-    BuiltinEdgeKindSpec {
-        kind_id: "fs.fd_binding",
+    BuiltinEdgeKindDescriptor {
+        kind_id: "host.fs.fd_binding",
         facets: &[],
     },
-    BuiltinEdgeKindSpec {
-        kind_id: "fs.mount_attachment",
+    BuiltinEdgeKindDescriptor {
+        kind_id: "host.fs.mount_attachment",
         facets: &[],
     },
-    BuiltinEdgeKindSpec {
-        kind_id: "net.network_link",
+    BuiltinEdgeKindDescriptor {
+        kind_id: "host.net.network_link",
         facets: &[ResourceFacet::Stream],
     },
-    BuiltinEdgeKindSpec {
-        kind_id: "net.stream_link",
+    BuiltinEdgeKindDescriptor {
+        kind_id: "host.net.stream_link",
         facets: &[ResourceFacet::Stream],
     },
-    BuiltinEdgeKindSpec {
-        kind_id: "net.route",
+    BuiltinEdgeKindDescriptor {
+        kind_id: "host.net.route",
         facets: &[ResourceFacet::Stream],
     },
-    BuiltinEdgeKindSpec {
+    BuiltinEdgeKindDescriptor {
         kind_id: "runtime.instance.owns.worker",
         facets: &[],
     },
-    BuiltinEdgeKindSpec {
+    BuiltinEdgeKindDescriptor {
         kind_id: "runtime.worker.owns.resource",
         facets: &[],
     },
-    BuiltinEdgeKindSpec {
-        kind_id: "ipc.channel",
+    BuiltinEdgeKindDescriptor {
+        kind_id: "host.ipc.channel",
         facets: &[ResourceFacet::EventSource],
     },
-    BuiltinEdgeKindSpec {
-        kind_id: "process.pipe",
+    BuiltinEdgeKindDescriptor {
+        kind_id: "host.process.pipe",
         facets: &[ResourceFacet::Stream],
     },
 ];
 
 /// Return builtin entity kind definitions.
 pub(super) fn builtin_entity_kinds() -> Vec<EntityDefinition> {
-    BUILTIN_ENTITY_KIND_SPECS
+    BUILTIN_ENTITY_KIND_DESCRIPTORS
         .iter()
-        .map(|spec| {
-            EntityDefinition::new(spec.kind_id)
-                .labels(labels_for_kind(spec.kind_id))
-                .supports_faults(faults_for_facets(BASE_ENTITY_FAULTS, spec.facets))
+        .map(|descriptor| {
+            EntityDefinition::new(descriptor.kind_id)
+                .labels(labels_for_kind(descriptor.kind_id))
+                .supports_faults(faults_for_facets(BASE_ENTITY_FAULTS, descriptor.facets))
         })
         .collect()
 }
@@ -292,12 +235,12 @@ pub(super) fn builtin_resource_entity_kinds() -> Vec<EntityDefinition> {
 
 /// Return builtin edge kind definitions.
 pub(super) fn builtin_edge_kinds() -> Vec<EdgeDefinition> {
-    BUILTIN_EDGE_KIND_SPECS
+    BUILTIN_EDGE_KIND_DESCRIPTORS
         .iter()
-        .map(|spec| {
-            EdgeDefinition::new(spec.kind_id)
-                .labels(labels_for_kind(spec.kind_id))
-                .supports_faults(faults_for_facets(BASE_EDGE_FAULTS, spec.facets))
+        .map(|descriptor| {
+            EdgeDefinition::new(descriptor.kind_id)
+                .labels(labels_for_kind(descriptor.kind_id))
+                .supports_faults(faults_for_facets(BASE_EDGE_FAULTS, descriptor.facets))
         })
         .collect()
 }
@@ -351,7 +294,7 @@ fn strings<'a>(faults: &'a [&'a str]) -> impl Iterator<Item = String> + 'a {
 /// Build system labels for one kind id.
 fn labels_for_kind(kind_id: &str) -> BTreeMap<String, String> {
     let mut labels = BTreeMap::new();
-    labels.insert(LABEL_TOPOLOGY_KIND.to_string(), kind_id.to_string());
+    labels.insert(EntityKind::LABEL_KIND.to_string(), kind_id.to_string());
 
     labels
 }
@@ -361,18 +304,18 @@ mod tests {
     use std::collections::BTreeSet;
 
     use super::{
-        BUILTIN_EDGE_KIND_SPECS, BUILTIN_ENTITY_KIND_SPECS, builtin_edge_kinds,
+        BUILTIN_EDGE_KIND_DESCRIPTORS, BUILTIN_ENTITY_KIND_DESCRIPTORS, builtin_edge_kinds,
         builtin_entity_kinds, builtin_resource_entity_kinds, resource_faults,
     };
     use crate::platform::ResourceKind;
 
-    /// Ensure builtin entity kind specs stay unique.
+    /// Ensure builtin entity kind descriptors stay unique.
     #[test]
-    fn test_builtin_entity_kind_specs_are_unique() {
+    fn test_builtin_entity_kind_descriptors_are_unique() {
         // collect all builtin entity kind ids
-        let kind_ids = BUILTIN_ENTITY_KIND_SPECS
+        let kind_ids = BUILTIN_ENTITY_KIND_DESCRIPTORS
             .iter()
-            .map(|spec| spec.kind_id)
+            .map(|descriptor| descriptor.kind_id)
             .collect::<Vec<_>>();
         let unique_kind_ids = kind_ids.iter().copied().collect::<BTreeSet<_>>();
 
@@ -381,13 +324,13 @@ mod tests {
         assert_eq!(builtin_entity_kinds().len(), unique_kind_ids.len());
     }
 
-    /// Ensure builtin edge kind specs stay unique.
+    /// Ensure builtin edge kind descriptors stay unique.
     #[test]
-    fn test_builtin_edge_kind_specs_are_unique() {
+    fn test_builtin_edge_kind_descriptors_are_unique() {
         // collect all builtin edge kind ids
-        let kind_ids = BUILTIN_EDGE_KIND_SPECS
+        let kind_ids = BUILTIN_EDGE_KIND_DESCRIPTORS
             .iter()
-            .map(|spec| spec.kind_id)
+            .map(|descriptor| descriptor.kind_id)
             .collect::<Vec<_>>();
         let unique_kind_ids = kind_ids.iter().copied().collect::<BTreeSet<_>>();
 
@@ -426,12 +369,12 @@ mod tests {
         let poll_faults = resource_faults(ResourceKind::Poll);
         let watch_faults = resource_faults(ResourceKind::Watch);
 
-        assert!(socket_faults.contains("transport.drop"));
-        assert!(file_faults.contains("durability.violate"));
-        assert!(timer_faults.contains("clock.jump"));
-        assert!(process_faults.contains("process.crash"));
-        assert!(!shared_memory_faults.contains("durability.violate"));
-        assert!(!poll_faults.contains("transport.drop"));
-        assert!(watch_faults.contains("transport.drop"));
+        assert!(socket_faults.contains("runtime.fault.transport.drop"));
+        assert!(file_faults.contains("runtime.fault.durability.violate"));
+        assert!(timer_faults.contains("runtime.fault.clock.jump"));
+        assert!(process_faults.contains("runtime.fault.process.crash"));
+        assert!(!shared_memory_faults.contains("runtime.fault.durability.violate"));
+        assert!(!poll_faults.contains("runtime.fault.transport.drop"));
+        assert!(watch_faults.contains("runtime.fault.transport.drop"));
     }
 }

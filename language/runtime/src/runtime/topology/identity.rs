@@ -12,12 +12,15 @@ pub struct RuntimeId(pub u64);
 impl RuntimeId {
     /// Return the canonical topology entity id for this runtime.
     pub fn entity_id(self) -> EntityId {
-        EntityId::new(format!("runtime.{}", self.0))
+        EntityId::new(format!("runtime.instance.{}", self.0))
     }
 
     /// Return the canonical ownership edge id for one worker owned by this runtime.
     pub fn owns_worker_edge_id(self, worker_id: WorkerId) -> EdgeId {
-        EdgeId::new(format!("runtime.{}.owns.worker.{}", self.0, worker_id.0))
+        EdgeId::new(format!(
+            "runtime.instance.{}.owns.worker.{}",
+            self.0, worker_id.0
+        ))
     }
 }
 
@@ -30,7 +33,7 @@ impl fmt::Display for RuntimeId {
 impl WorkerId {
     /// Return the canonical topology entity id for this worker.
     pub fn entity_id(self) -> EntityId {
-        EntityId::new(format!("worker.{}", self.0))
+        EntityId::new(format!("runtime.worker.{}", self.0))
     }
 }
 
@@ -122,6 +125,15 @@ impl fmt::Display for EdgeId {
 pub struct EntityKind(pub String);
 
 impl EntityKind {
+    /// System label key that stores one topology kind id.
+    pub const LABEL_KIND: &'static str = "runtime.topology.kind";
+
+    /// Builtin runtime entity kind id.
+    pub const RUNTIME: &'static str = "runtime.instance";
+
+    /// Builtin worker entity kind id.
+    pub const WORKER: &'static str = "runtime.worker";
+
     /// Create one entity kind id.
     pub fn new(value: impl Into<String>) -> Self {
         Self(value.into())
@@ -163,6 +175,12 @@ impl fmt::Display for EntityKind {
 pub struct EdgeKind(pub String);
 
 impl EdgeKind {
+    /// Builtin runtime-to-worker edge kind id.
+    pub const RUNTIME_OWNS_WORKER: &'static str = "runtime.instance.owns.worker";
+
+    /// Builtin worker-to-resource edge kind id.
+    pub const WORKER_OWNS_RESOURCE: &'static str = "runtime.worker.owns.resource";
+
     /// Create one edge kind id.
     pub fn new(value: impl Into<String>) -> Self {
         Self(value.into())

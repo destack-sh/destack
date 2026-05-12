@@ -16,7 +16,7 @@ use crate::host::core::request::{
 use crate::host::core::target::default_compile_target_parts;
 use crate::host::operation::HostOperation;
 use crate::host::policy::require_declared_request;
-use crate::runtime::action::{HostAction, HostActionId, HostActionSet};
+use crate::runtime::action::{Action, ActionId, ActionSet};
 use crate::runtime::poller::PollerWakeHandle;
 use crate::runtime::world::RuntimeId;
 
@@ -38,7 +38,7 @@ pub struct Session {
     next_host_request_id: AtomicU64,
 
     /// Static host action set reported by the host adapter.
-    adapter_actions: HostActionSet,
+    adapter_actions: ActionSet,
     /// Resolved host integration options for this runtime target.
     host_options: HostOptions,
     /// Resolved OS runtime options for host-backed services.
@@ -201,29 +201,29 @@ impl Session {
     }
 
     /// Return effective host actions reported by the host adapter and session wiring.
-    pub fn host_actions(&self) -> HostActionSet {
+    pub fn host_actions(&self) -> ActionSet {
         let session_actions = self.session_actions();
 
         merge_actions(self.adapter_actions.clone(), session_actions)
     }
 
     /// Return the static host actions reported by this host adapter.
-    pub fn adapter_actions(&self) -> &HostActionSet {
+    pub fn adapter_actions(&self) -> &ActionSet {
         &self.adapter_actions
     }
 
     /// Return the dynamic session actions reported by the active host adapter.
-    pub fn session_actions(&self) -> HostActionSet {
+    pub fn session_actions(&self) -> ActionSet {
         self.adapter.session_actions(self.host_session_id)
     }
 
     /// Return whether the host adapter and session wiring report one host action id.
-    pub fn has_host_action_id(&self, action_id: HostActionId) -> bool {
+    pub fn has_host_action_id(&self, action_id: ActionId) -> bool {
         self.adapter_actions.contains_id(action_id) || self.session_actions().contains_id(action_id)
     }
 
     /// Return whether the host adapter and session wiring report one host action.
-    pub fn has_host_action(&self, action: HostAction) -> bool {
+    pub fn has_host_action(&self, action: Action) -> bool {
         self.has_host_action_id(action.id())
     }
 
@@ -344,7 +344,7 @@ impl Session {
 }
 
 /// Merge one static and one dynamic action set into one effective set.
-fn merge_actions(static_actions: HostActionSet, dynamic_actions: HostActionSet) -> HostActionSet {
+fn merge_actions(static_actions: ActionSet, dynamic_actions: ActionSet) -> ActionSet {
     let mut merged = static_actions;
 
     for action_id in dynamic_actions.iter() {
@@ -368,7 +368,7 @@ mod tests {
     use crate::host::{HostRequestResult, HostSessionId};
     use crate::platform::os::abi_generated::DocumentPickOptionsValue;
     use crate::platform::os::{NotificationPermissionState, Permission, PermissionState};
-    use crate::runtime::action::HostActionSet;
+    use crate::runtime::action::ActionSet;
 
     /// Test host adapter that records request submissions.
     #[derive(Debug)]
@@ -386,13 +386,13 @@ mod tests {
         }
 
         /// Return one empty static action set for focused request tests.
-        fn static_actions(&self) -> HostActionSet {
-            HostActionSet::new()
+        fn static_actions(&self) -> ActionSet {
+            ActionSet::new()
         }
 
         /// Return one empty session action set for focused request tests.
-        fn session_actions(&self, _runtime_id: HostSessionId) -> HostActionSet {
-            HostActionSet::new()
+        fn session_actions(&self, _runtime_id: HostSessionId) -> ActionSet {
+            ActionSet::new()
         }
 
         /// Submit one request and return one deterministic test payload.

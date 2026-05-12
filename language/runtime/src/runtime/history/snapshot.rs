@@ -185,7 +185,7 @@ impl WorldImage {
         &self,
         runtime_id: RuntimeId,
     ) -> RuntimeResult<&BTreeMap<String, String>> {
-        let entity_id = format!("runtime.{}", runtime_id.0);
+        let entity_id = runtime_id.entity_id();
         let entity = self.topology.entities().get(entity_id.as_str()).ok_or(
             RuntimeError::RuntimeNotFound {
                 runtime_id: runtime_id.0,
@@ -222,7 +222,7 @@ impl WorldImage {
 
     /// Return labels for one worker image.
     pub fn worker_labels(&self, worker_id: WorkerId) -> RuntimeResult<&BTreeMap<String, String>> {
-        let entity_id = format!("worker.{}", worker_id.0);
+        let entity_id = worker_id.entity_id();
         let entity = self.topology.entities().get(entity_id.as_str()).ok_or(
             RuntimeError::WorkerNotFound {
                 worker_id: worker_id.0,

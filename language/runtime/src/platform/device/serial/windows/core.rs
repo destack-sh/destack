@@ -50,6 +50,7 @@ pub(super) use windows_sys::Win32::System::WindowsProgramming::{
 
 pub(super) use crate::diagnostic::{RuntimeError, RuntimeResult};
 pub(super) use crate::platform::abi::{NativeSlice, NativeStringRef};
+pub(super) use crate::platform::core::BoundedQueue;
 pub(super) use crate::platform::device::{
     SerialDataBits, SerialErrorKind, SerialEvent, SerialFlowControl, SerialInputSignals,
     SerialOutputSignals, SerialParity, SerialPortConfig, SerialPortDescriptor,
@@ -59,7 +60,6 @@ pub(super) use crate::platform::diagnostic::PlatformErrorCode;
 pub(super) use crate::platform::resource::{ResourceEntry, ResourceKind};
 pub(super) use crate::platform::{PlatformError, core as core_platform, resource};
 pub(super) use crate::runtime::BindingCallContext;
-pub(super) use crate::runtime::control::queue::BoundedQueue;
 
 /// Default serial queue size hint used when the caller supplies no override.
 pub(super) const DEFAULT_SERIAL_BUFFER_SIZE: u32 = 4096;

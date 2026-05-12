@@ -4,7 +4,7 @@ use std::sync::{Arc, Weak};
 use parking_lot::Mutex;
 
 use crate::diagnostic::RuntimeResult;
-use crate::platform::core::{self as core_platform};
+use crate::platform::core::{self as core_platform, BoundedQueue};
 use crate::platform::device::midi::core::{
     MidiEventValue, MidiPortDescriptorValue, collect_live_event_sessions, direction_mask_includes,
     event_poll_interval, event_queue_capacity, event_snapshot_list_flags,
@@ -19,7 +19,6 @@ use crate::platform::device::{
 };
 use crate::platform::resource;
 use crate::runtime::BindingCallContext;
-use crate::runtime::control::queue::BoundedQueue;
 use crate::runtime::service::Service;
 use crate::runtime::service::executor::periodic::open_periodic_task;
 
@@ -353,13 +352,13 @@ mod tests {
     use std::sync::Arc;
 
     use super::queue_backend_disconnected_event;
+    use crate::platform::core::BoundedQueue;
     use crate::platform::device::midi::core::MidiEventValue;
     use crate::platform::device::{
         MIDI_EVENT_SUBSCRIPTION_INCLUDE_DISCONNECTED, MIDI_PORT_DIRECTION_FLAG_OUTPUT, MidiBackend,
         MidiEventOverflowPolicy, MidiEventSource, MidiEventSubscriptionFlags,
         MidiPortDirectionFlags,
     };
-    use crate::runtime::control::queue::BoundedQueue;
 
     use super::super::core::{JackEventDeliveryKind, JackEventRepository};
 

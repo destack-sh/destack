@@ -1,10 +1,10 @@
 use crate::diagnostic::RuntimeResult;
 use crate::host::{HostRequest, HostRequestOutcome, RequestContext};
-use crate::runtime::action::HostActionSet;
+use crate::runtime::action::ActionSet;
 
 /// Return no Unix contact actions on unsupported hosts.
-pub(crate) fn request_actions() -> HostActionSet {
-    HostActionSet::default()
+pub(crate) fn request_actions() -> ActionSet {
+    ActionSet::default()
 }
 
 /// Decline Unix contact requests on unsupported hosts.

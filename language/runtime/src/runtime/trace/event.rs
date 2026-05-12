@@ -79,11 +79,11 @@ impl Outcome {
     /// Return the stable outcome name.
     pub fn name(&self) -> &'static str {
         match self {
-            Self::TimeAdvance(_) => "time.advance",
-            Self::Entropy(_) => "entropy",
-            Self::BindingCall(_) => "binding.call",
-            Self::RuntimeSpawned { .. } => "runtime.spawned",
-            Self::WorkerSpawned { .. } => "worker.spawned",
+            Self::TimeAdvance(_) => "runtime.time.advance",
+            Self::Entropy(_) => "runtime.random.entropy",
+            Self::BindingCall(_) => "runtime.binding.call",
+            Self::RuntimeSpawned { .. } => "runtime.instance.spawned",
+            Self::WorkerSpawned { .. } => "runtime.worker.spawned",
         }
     }
 }
@@ -139,7 +139,7 @@ pub enum TraceError {
         name: String,
     },
     /// Action-violation runtime error payload.
-    HostActionDenied {
+    ActionDenied {
         /// Fully qualified binding name.
         name: String,
         /// Missing required action.
@@ -205,7 +205,7 @@ impl From<&RuntimeError> for TraceError {
             RuntimeError::Platform(error) => Self::Platform(error.as_ref().clone()),
             RuntimeError::BindingNotFound { name } => Self::BindingNotFound { name: name.clone() },
             RuntimeError::PolicyViolation { name } => Self::PolicyViolation { name: name.clone() },
-            RuntimeError::HostActionDenied { name, action } => Self::HostActionDenied {
+            RuntimeError::ActionDenied { name, action } => Self::ActionDenied {
                 name: name.clone(),
                 action: action.clone(),
             },
@@ -252,9 +252,7 @@ impl From<TraceError> for RuntimeError {
             TraceError::Platform(error) => Self::Platform(error.boxed()),
             TraceError::BindingNotFound { name } => Self::BindingNotFound { name },
             TraceError::PolicyViolation { name } => Self::PolicyViolation { name },
-            TraceError::HostActionDenied { name, action } => {
-                Self::HostActionDenied { name, action }
-            }
+            TraceError::ActionDenied { name, action } => Self::ActionDenied { name, action },
             TraceError::AffinityViolation { name, affinity } => {
                 Self::AffinityViolation { name, affinity }
             }

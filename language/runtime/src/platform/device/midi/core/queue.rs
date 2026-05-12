@@ -14,7 +14,7 @@ const DEFAULT_EVENT_QUEUE_CAPACITY: usize = 256;
 /// Default synthetic event poll interval.
 const DEFAULT_EVENT_POLL_INTERVAL: Duration = Duration::from_millis(100);
 
-pub(crate) use crate::runtime::control::queue::BoundedQueue;
+pub(crate) use crate::platform::core::BoundedQueue;
 /// Push one event item with one explicit overflow policy.
 pub(crate) fn push_event_with_overflow_policy<T>(
     queue: &BoundedQueue<T>,
@@ -237,10 +237,9 @@ pub(crate) fn try_read_queued_batch<T>(
 mod tests {
     use parking_lot::Mutex;
 
-    use crate::platform::core::{self as core_platform};
+    use crate::platform::core::{self as core_platform, BoundedQueue};
     use crate::platform::device::MidiEventOverflowPolicy;
     use crate::platform::diagnostic::PlatformErrorCode;
-    use crate::runtime::control::queue::BoundedQueue;
 
     use super::{
         push_event_with_overflow_policy, read_queued_batch, read_queued_event,

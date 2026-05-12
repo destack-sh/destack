@@ -14,7 +14,7 @@ use crate::platform::os::abi_generated::{
     CalendarAccess, CalendarDescriptorValue, CalendarEventDraftValue, CalendarEventQueryValue,
     CalendarEventValue,
 };
-use crate::runtime::action::{HostAction, HostActionSet};
+use crate::runtime::action::ActionSet;
 
 use super::draft::{calendar_component_from_draft, create_calendar_event, validate_event_draft};
 use super::event::{
@@ -32,21 +32,8 @@ use super::{
 };
 
 /// Return dynamic Unix calendar actions for Linux hosts.
-pub(crate) fn request_actions() -> HostActionSet {
-    let mut actions = HostActionSet::default();
-    let Ok(sources) = list_eds_sources(EdsSourceKind::Calendar, CALENDAR_LIST_OPERATION) else {
-        return actions;
-    };
-
-    // provider read support
-    actions.insert_action(HostAction::OsCalendarRead);
-
-    // writable calendars
-    if sources.iter().any(|source| source.is_writable) {
-        actions.insert_action(HostAction::OsCalendarWrite);
-    }
-
-    actions
+pub(crate) fn request_actions() -> ActionSet {
+    ActionSet::new()
 }
 
 /// Submit one Linux calendar request through EDS.

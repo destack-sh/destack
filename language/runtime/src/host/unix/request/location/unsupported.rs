@@ -1,11 +1,11 @@
 use crate::diagnostic::RuntimeResult;
 use crate::host::{HostRequest, HostRequestOutcome, RequestContext};
 use crate::platform::core::not_supported;
-use crate::runtime::action::HostActionSet;
+use crate::runtime::action::ActionSet;
 
 /// Return the empty action set for unsupported Unix location backends.
-pub(crate) fn request_actions() -> HostActionSet {
-    HostActionSet::default()
+pub(crate) fn request_actions() -> ActionSet {
+    ActionSet::default()
 }
 
 /// Reject Unix location requests on hosts without a concrete provider.

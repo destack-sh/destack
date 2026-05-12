@@ -7,9 +7,9 @@ use super::identity::serial_descriptor_snapshot;
 use super::service::{WindowsSerialService, WindowsSerialWatchRecord, WindowsSerialWatchResource};
 use super::state::serial_descriptor_from_info;
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core::BoundedQueue;
 use crate::platform::resource::{ResourceEntry, ResourceFinalizer, ResourceKind};
 use crate::platform::{core as core_platform, resource};
-use crate::runtime::control::queue::BoundedQueue;
 
 use super::super::core::{
     SERIAL_WATCH_RESOURCE_LABEL, SerialWatchEventState, attached_watch_event,

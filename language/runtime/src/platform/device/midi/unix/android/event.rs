@@ -4,6 +4,7 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 
 use crate::diagnostic::RuntimeResult;
+use crate::platform::core::BoundedQueue;
 use crate::platform::device::midi::core::{
     MidiEventValue, MidiPortDescriptorValue, direction_mask_includes, event_poll_interval,
     event_queue_capacity, event_snapshot_list_flags, push_backend_disconnected_event,
@@ -17,7 +18,6 @@ use crate::platform::device::{
     MidiPortDirectionFlags,
 };
 use crate::platform::{core as core_platform, resource};
-use crate::runtime::control::queue::BoundedQueue;
 use crate::runtime::{BindingCallContext, WorkerCallbackControl, WorkerCallbackHandle};
 
 use super::backend::resolve_backend;

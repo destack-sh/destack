@@ -8,8 +8,8 @@ use parking_lot::Mutex;
 use super::device::camera_descriptor_snapshot;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::PlatformError;
+use crate::platform::core::BoundedQueue;
 use crate::platform::device::CameraDeviceDescriptorValue;
-use crate::runtime::control::queue::BoundedQueue;
 use crate::runtime::service::Service;
 use crate::runtime::service::executor::periodic::{PeriodicTaskHandle, open_periodic_task};
 use crate::runtime::{ExecutionMode, ExecutionPolicy};
@@ -234,8 +234,8 @@ mod tests {
         CAMERA_WATCH_QUEUE_CAPACITY, LinuxCameraWatchRecord, LinuxCameraWatchResource,
         publish_watch_delta,
     };
+    use crate::platform::core::BoundedQueue;
     use crate::platform::device::{CameraDeviceDescriptorValue, CameraFacingMode};
-    use crate::runtime::control::queue::BoundedQueue;
 
     /// Return one deterministic camera descriptor fixture.
     fn test_camera_descriptor(id: &str, name: &str) -> CameraDeviceDescriptorValue {

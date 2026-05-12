@@ -16,7 +16,7 @@ use super::state::{
     is_disconnected_code, serial_io_error, serial_io_error_with_code,
 };
 use crate::platform::PlatformError;
-use crate::runtime::control::queue::BoundedQueue;
+use crate::platform::core::BoundedQueue;
 use crate::runtime::service::Service;
 use crate::runtime::service::windows::WindowsRegisteredWait;
 use crate::runtime::{ExecutionMode, ExecutionPolicy};

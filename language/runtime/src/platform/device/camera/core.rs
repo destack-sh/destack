@@ -10,6 +10,8 @@ use std::time::Duration;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform::abi::NativeSlice;
+#[cfg(target_os = "windows")]
+use crate::platform::core::BoundedQueue;
 #[cfg(any(target_os = "android", target_os = "linux"))]
 use crate::platform::device::CameraPhoto;
 use crate::platform::device::{
@@ -50,8 +52,6 @@ use crate::platform::fs::{abi_generated::OsPathValue, core as core_fs};
 use crate::platform::resource::ResourceKind;
 use crate::platform::{NativeAbiCodec, PlatformError, core as core_platform, resource};
 use crate::runtime::BindingCallContext;
-#[cfg(target_os = "windows")]
-use crate::runtime::control::queue::BoundedQueue;
 use parking_lot::Mutex;
 
 /// Resource-table label for one camera device handle.

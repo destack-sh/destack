@@ -1,6 +1,7 @@
 use parking_lot::Mutex;
 
 use crate::diagnostic::RuntimeError;
+use crate::platform::core::BoundedQueue;
 use crate::platform::device::{
     SerialAttachedEvent, SerialDetachedEvent, SerialEvent, SerialOverflowEvent,
     SerialOverflowEventMetadata, SerialPortDescriptor, SerialWatchEvent, SerialWatchEventMetadata,
@@ -10,7 +11,6 @@ use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::resource::ResourceKind;
 use crate::platform::{core as core_platform, resource};
 use crate::runtime::BindingCallContext;
-use crate::runtime::control::queue::BoundedQueue;
 
 /// Resource-table label for one serial session.
 pub(super) const SERIAL_PORT_RESOURCE_LABEL: &str = "device.serial.port";

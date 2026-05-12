@@ -2,10 +2,10 @@ use crate::diagnostic::RuntimeResult;
 #[cfg(target_os = "linux")]
 use crate::host::HostSessionId;
 use crate::host::{HostRequest, HostRequestOutcome, RequestContext};
-use crate::runtime::action::HostActionSet;
+use crate::runtime::action::ActionSet;
 
 /// Return dynamic Unix desktop request actions.
-pub(crate) fn request_actions() -> HostActionSet {
+pub(crate) fn request_actions() -> ActionSet {
     let mut actions = super::intent::request_actions();
     let location_actions = super::location::request_actions();
 

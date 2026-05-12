@@ -1,4 +1,4 @@
-use crate::runtime::action::{HostAction, HostActionSet};
+use crate::runtime::action::{Action, ActionSet};
 
 /// Builtin profile name for one empty action set.
 pub const ACTION_PROFILE_NONE: &str = "none";
@@ -16,23 +16,23 @@ pub const fn builtin_action_profiles() -> &'static [&'static str] {
 ///
 /// Supports builtin profile names (`none`, `all`, `full`) and explicit
 /// comma or whitespace separated action name lists.
-pub fn resolve_action_profile(profile: &str) -> Result<HostActionSet, String> {
+pub fn resolve_action_profile(profile: &str) -> Result<ActionSet, String> {
     let profile = profile.trim();
     if profile.is_empty() {
         return Err("action profile must not be empty".to_string());
     }
 
     if profile.eq_ignore_ascii_case(ACTION_PROFILE_NONE) {
-        return Ok(HostActionSet::new());
+        return Ok(ActionSet::new());
     }
 
     if profile.eq_ignore_ascii_case(ACTION_PROFILE_ALL)
         || profile.eq_ignore_ascii_case(ACTION_PROFILE_FULL)
     {
-        return Ok(HostActionSet::from_actions(HostAction::ALL.iter().copied()));
+        return Ok(ActionSet::from_actions(Action::ALL.iter().copied()));
     }
 
-    let mut set = HostActionSet::new();
+    let mut set = ActionSet::new();
     for action_name in profile_tokens(profile) {
         if !is_known_action_name(action_name) {
             return Err(format!(
@@ -62,7 +62,7 @@ fn profile_tokens(profile: &str) -> impl Iterator<Item = &str> {
 
 /// Return true when one action name exists in the canonical action table.
 fn is_known_action_name(action_name: &str) -> bool {
-    HostAction::ALL
+    Action::ALL
         .iter()
         .any(|action| action.name() == action_name)
 }
@@ -86,19 +86,19 @@ mod tests {
 
     #[test]
     fn test_resolve_action_profile_accepts_explicit_action_list() {
-        let set = resolve_action_profile("fs.read, net.connect random.secure")
+        let set = resolve_action_profile("host.fs.read, host.net.connect host.random.secure")
             .expect("action list should resolve");
 
-        assert!(set.contains_name("fs.read"));
-        assert!(set.contains_name("net.connect"));
-        assert!(set.contains_name("random.secure"));
+        assert!(set.contains_name("host.fs.read"));
+        assert!(set.contains_name("host.net.connect"));
+        assert!(set.contains_name("host.random.secure"));
         assert_eq!(set.len(), 3);
     }
 
     #[test]
     fn test_resolve_action_profile_rejects_unknown_action_name() {
-        let error =
-            resolve_action_profile("fs.read,not.a.action").expect_err("unknown action should fail");
+        let error = resolve_action_profile("host.fs.read,not.a.action")
+            .expect_err("unknown action should fail");
 
         assert!(error.contains("unknown action"));
     }

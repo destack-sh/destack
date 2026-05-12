@@ -11,6 +11,7 @@ use windows_sys::Win32::Media::Audio::{
     midiOutClose, midiOutReset,
 };
 
+use crate::platform::core::BoundedQueue;
 use crate::platform::device::midi::core::{
     MidiEventValue, MidiInputRecordValue, MidiPortDescriptorValue,
     define_backend_midi_resource_inserters,
@@ -19,7 +20,6 @@ use crate::platform::device::{
     MidiBackend, MidiDataFormat, MidiEventOverflowPolicy, MidiEventSubscriptionFlags,
     MidiPortDirection, MidiPortDirectionFlags, MidiProtocol,
 };
-use crate::runtime::control::queue::BoundedQueue;
 use crate::runtime::service::executor::periodic::PeriodicTaskHandle;
 
 use super::super::service::WinMmService;

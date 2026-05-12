@@ -14,7 +14,7 @@ use crate::platform::diagnostic::PlatformErrorCode;
 use crate::platform::os::abi_generated::{
     ContactDraftValue, ContactPageValue, ContactQueryValue, ContactValue,
 };
-use crate::runtime::action::{HostAction, HostActionSet};
+use crate::runtime::action::ActionSet;
 
 /// The contact list operation name.
 const CONTACT_LIST_OPERATION: &str = "destack.os.contact.list";
@@ -35,21 +35,8 @@ const CONTACT_UPDATE_OPERATION: &str = "destack.os.contact.update";
 const CONTACT_DELETE_OPERATION: &str = "destack.os.contact.delete";
 
 /// Return dynamic Unix contact actions for Linux hosts.
-pub(crate) fn request_actions() -> HostActionSet {
-    let mut actions = HostActionSet::default();
-    let Ok(sources) = list_eds_sources(EdsSourceKind::AddressBook, CONTACT_LIST_OPERATION) else {
-        return actions;
-    };
-
-    // provider read support
-    actions.insert_action(HostAction::OsContactRead);
-
-    // writable address books
-    if sources.iter().any(|source| source.is_writable) {
-        actions.insert_action(HostAction::OsContactWrite);
-    }
-
-    actions
+pub(crate) fn request_actions() -> ActionSet {
+    ActionSet::new()
 }
 
 /// Submit one Linux contact request through EDS.

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::runtime::binding::{RuntimeAccess, RuntimeWorld};
 use destack_workspace::ReplayPayloadMode;
 
-use super::{Fault, Hook, RuntimeSelector, Trigger};
+use super::{CallSelector, Fault, Hook, Trigger};
 
 /// Stable identifier for one runtime rule.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -107,7 +107,7 @@ pub struct Rule {
     /// Whether this rule is enabled.
     pub enabled: bool,
     /// Optional selector for this rule.
-    pub when: Option<RuntimeSelector>,
+    pub call: Option<CallSelector>,
     /// Action payload for this rule.
     pub action: RuleAction,
     /// Trigger controls for action rules.
@@ -121,15 +121,15 @@ impl Rule {
         Self {
             id: RuleId::new(id),
             enabled: true,
-            when: None,
+            call: None,
             action,
             trigger: None,
         }
     }
 
     /// Attach one call selector to this rule.
-    pub fn when(mut self, selector: RuntimeSelector) -> Self {
-        self.when = Some(selector);
+    pub fn call(mut self, selector: CallSelector) -> Self {
+        self.call = Some(selector);
         self
     }
 
@@ -146,22 +146,22 @@ impl Rule {
     }
 
     /// Create one enabled access decision rule.
-    pub fn access(id: impl Into<String>, selector: RuntimeSelector, access: RuntimeAccess) -> Self {
-        Self::new(id, RuleAction::set_access(access)).when(selector)
+    pub fn access(id: impl Into<String>, selector: CallSelector, access: RuntimeAccess) -> Self {
+        Self::new(id, RuleAction::set_access(access)).call(selector)
     }
 
     /// Create one enabled world decision rule.
-    pub fn world(id: impl Into<String>, selector: RuntimeSelector, world: RuntimeWorld) -> Self {
-        Self::new(id, RuleAction::set_world(world)).when(selector)
+    pub fn world(id: impl Into<String>, selector: CallSelector, world: RuntimeWorld) -> Self {
+        Self::new(id, RuleAction::set_world(world)).call(selector)
     }
 
     /// Create one enabled replay decision rule.
     pub fn replay(
         id: impl Into<String>,
-        selector: RuntimeSelector,
+        selector: CallSelector,
         payload: ReplayPayloadMode,
     ) -> Self {
-        Self::new(id, RuleAction::set_replay(payload)).when(selector)
+        Self::new(id, RuleAction::set_replay(payload)).call(selector)
     }
 
     /// Create one enabled fault rule with one trigger.

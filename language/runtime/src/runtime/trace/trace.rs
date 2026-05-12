@@ -1,5 +1,6 @@
 use destack_core::{Capture, CaptureMode, SnapshotCodec};
 
+use super::entropy::ENTROPY_CHANNEL;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::binding::{BindingDescriptor, BindingReplayKind, BindingReplayPayload};
 use crate::runtime::time::Instant;
@@ -45,7 +46,7 @@ impl Validator {
                             && *time_nanos < last
                         {
                             return Err(RuntimeError::TraceMismatch {
-                                name: "entropy".to_string(),
+                                name: ENTROPY_CHANNEL.to_string(),
                             }
                             .boxed());
                         }
@@ -61,7 +62,7 @@ impl Validator {
                 } => {
                     if bytes.len() != *len as usize {
                         return Err(RuntimeError::TraceMismatch {
-                            name: "entropy".to_string(),
+                            name: ENTROPY_CHANNEL.to_string(),
                         }
                         .boxed());
                     }
