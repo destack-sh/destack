@@ -161,47 +161,31 @@ block3:
     assert_eq!(output, expected);
 }
 
-/// Exceptional call terminators carry explicit success and exception continuations.
+/// Call terminators carry an explicit continuation.
 #[test]
-fn test_build_function_with_exceptional_call_terminator() {
+fn test_build_function_with_call_terminator() {
     // setup
     let mut module = ModuleBuilder::new();
     let i32_type = module.type_i32();
-    let exception_type = module.type_managed_reference(i32_type);
     let signature = module.type_function_signature(vec![i32_type], i32_type);
     let callee = module.extern_function("callee", &[i32_type], i32_type);
 
     // build function
     let mut builder = module.function("caller", &[i32_type], i32_type);
     let entry_block = builder.block();
-    let normal_block = builder.block();
-    let unwind_block = builder.block();
+    let target_block = builder.block();
 
-    // entry: branch through the exceptional call
+    // entry: branch through the call
     builder.switch_to_block(entry_block);
     let argument = builder.function_parameter(0);
-    let result = builder.add_block_parameter(normal_block, i32_type);
-    let exception = builder.add_block_parameter(unwind_block, exception_type);
-    builder.call_branch(
-        callee,
-        signature,
-        vec![argument],
-        normal_block,
-        Vec::new(),
-        unwind_block,
-        Vec::new(),
-    );
+    let result = builder.add_block_parameter(target_block, i32_type);
+    builder.call_branch(callee, signature, vec![argument], target_block, Vec::new());
     builder.seal_block(entry_block);
 
-    // success continuation
-    builder.switch_to_block(normal_block);
+    // continuation
+    builder.switch_to_block(target_block);
     builder.return_(Some(result));
-    builder.seal_block(normal_block);
-
-    // exception continuation
-    builder.switch_to_block(unwind_block);
-    builder.throw(exception);
-    builder.seal_block(unwind_block);
+    builder.seal_block(target_block);
     builder.finish();
 
     // verify output
@@ -212,13 +196,10 @@ extern function callee(int32): int32
 
 function caller(value0: int32): int32 {
 entry0(value0: int32):
-    invoke callee(value0): (int32) -> int32 -> block1, catch block2
+    call callee(value0): (int32) -> int32 -> block1
 
 block1(value1: int32):
     return value1
-
-block2(value2: ref<int32, managed, readonly>):
-    throw value2
 }";
     assert_eq!(output, expected);
 }

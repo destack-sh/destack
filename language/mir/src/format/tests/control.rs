@@ -43,22 +43,19 @@ block1(value2: int32, value3: int32):
     );
 }
 
-/// Formats exceptional invokes and throws canonically.
+/// Formats call terminators canonically.
 #[test]
-fn test_format_invoke_and_throw() {
+fn test_format_call_terminator() {
     assert_format(
         r#"
 extern function callee(int32): int32
 
 function caller(value0: int32): int32 {
 entry0(value0: int32):
-    invoke callee(value0): (int32) -> int32 -> block1, catch block2
+    call callee(value0): (int32) -> int32 -> block1
 
 block1(value1: int32):
     return value1
-
-block2(value2: ref<int32, managed, readonly>):
-    throw value2
 }
 "#,
     );

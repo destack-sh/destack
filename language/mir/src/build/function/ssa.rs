@@ -287,31 +287,12 @@ impl<'a> FunctionBuilder<'a> {
                     }
                 }
             }
-            Terminator::Invoke {
-                normal_target,
-                unwind_target,
-                ..
-            }
-            | Terminator::InvokeIndirect {
-                normal_target,
-                unwind_target,
-                ..
-            }
-            | Terminator::InvokeClass {
-                normal_target,
-                unwind_target,
-                ..
-            }
-            | Terminator::InvokeInterface {
-                normal_target,
-                unwind_target,
-                ..
-            } => {
-                if normal_target.block == BlockReference::Block(to_block) {
-                    normal_target.arguments.push(value.into());
-                }
-                if unwind_target.block == BlockReference::Block(to_block) {
-                    unwind_target.arguments.push(value.into());
+            Terminator::Call { target, .. }
+            | Terminator::CallIndirect { target, .. }
+            | Terminator::CallClass { target, .. }
+            | Terminator::CallInterface { target, .. } => {
+                if target.block == BlockReference::Block(to_block) {
+                    target.arguments.push(value.into());
                 }
             }
             other => {

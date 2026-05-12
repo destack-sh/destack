@@ -84,6 +84,22 @@ entry0:
     );
 }
 
+/// Formats void calls with callable type arguments canonically.
+#[test]
+fn test_format_void_call_with_callable_argument() {
+    assert_format(
+        r#"
+extern function consume(() -> int32): void
+
+function caller(value0: () -> int32): void {
+entry0(value0: () -> int32):
+    call consume(value0): (() -> int32) -> void
+    return
+}
+"#,
+    );
+}
+
 /// Formats scalar instruction families canonically.
 #[test]
 fn test_format_scalar_instruction_families() {
