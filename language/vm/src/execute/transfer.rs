@@ -157,8 +157,7 @@ impl Interpreter {
                 target,
                 arguments,
                 env,
-                normal_state,
-                unwind_state,
+                target_state,
             } => {
                 self.complete_call_branch(
                     program,
@@ -171,8 +170,7 @@ impl Interpreter {
                     target,
                     arguments,
                     env,
-                    normal_state,
-                    unwind_state,
+                    target_state,
                 )?;
                 Ok(None)
             }
@@ -212,7 +210,6 @@ impl Interpreter {
                     frame_state,
                 )
                 .map(Some),
-            Transfer::Throw(value) => self.complete_throw(program, value),
             Transfer::Return(value) => {
                 self.complete_return(program, heap, shared, shared_allocator, shared_gc, value)
             }

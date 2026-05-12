@@ -981,26 +981,6 @@ pub(crate) fn execute_panic(machine: &mut Machine<'_, '_>, instruction: &Instruc
     Transfer::Error(Error::Panic { message })
 }
 
-/// Execute word throw.
-pub(crate) fn execute_throw_word(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Transfer {
-    let value = machine.load_word_at(instruction.a);
-
-    Transfer::Throw(value)
-}
-
-/// Execute address throw.
-pub(crate) fn execute_throw_address(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Transfer {
-    let value = frame_address(machine, instruction.a);
-
-    Transfer::Throw(value)
-}
-
 /// Execute unreachable (errors).
 pub(crate) fn execute_unreachable(
     _machine: &mut Machine<'_, '_>,

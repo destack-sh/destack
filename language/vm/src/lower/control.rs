@@ -422,29 +422,10 @@ impl<'a> BlockLowerer<'a> {
                 )
             }
 
-            mir::Terminator::Throw { value } => {
-                let value = (*value)
-                    .value()
-                    .ok_or_else(|| Error::MissingRepresentation {
-                        context: "throw value".to_string(),
-                    })?;
-
-                let value_type = self.value_type_for_value(value)?;
-                let is_word = self.layout_for_type(value_type)?.is_word();
-
-                let op = if is_word {
-                    Op::ThrowWord
-                } else {
-                    Op::ThrowAddress
-                };
-
-                Instruction::new(op, value_offset(self, value)?, 0, 0, 0)
-            }
-
-            mir::Terminator::Invoke { .. }
-            | mir::Terminator::InvokeIndirect { .. }
-            | mir::Terminator::InvokeClass { .. }
-            | mir::Terminator::InvokeInterface { .. }
+            mir::Terminator::Call { .. }
+            | mir::Terminator::CallIndirect { .. }
+            | mir::Terminator::CallClass { .. }
+            | mir::Terminator::CallInterface { .. }
             | mir::Terminator::TailCall { .. }
             | mir::Terminator::TailCallIndirect { .. }
             | mir::Terminator::TailCallClass { .. }

@@ -24,24 +24,24 @@ impl<'a> BlockLowerer<'a> {
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
         Ok(match term {
-            mir::Terminator::Invoke { function, call, .. } => {
-                self.lower_invoke(*function, call, pool)?
+            mir::Terminator::Call { function, call, .. } => {
+                self.lower_call_branch(*function, call, pool)?
             }
-            mir::Terminator::InvokeIndirect { callee, call, .. } => {
-                self.lower_indirect_invoke(*callee, call, pool)?
+            mir::Terminator::CallIndirect { callee, call, .. } => {
+                self.lower_indirect_call_branch(*callee, call, pool)?
             }
-            mir::Terminator::InvokeClass {
+            mir::Terminator::CallClass {
                 receiver,
                 slot,
                 call,
                 ..
-            } => self.lower_class_invoke(*receiver, *slot, call, pool)?,
-            mir::Terminator::InvokeInterface {
+            } => self.lower_class_call_branch(*receiver, *slot, call, pool)?,
+            mir::Terminator::CallInterface {
                 receiver,
                 slot,
                 call,
                 ..
-            } => self.lower_interface_invoke(*receiver, *slot, call, pool)?,
+            } => self.lower_interface_call_branch(*receiver, *slot, call, pool)?,
             mir::Terminator::TailCall { function, call, .. } => {
                 self.lower_tail_call(*function, call, pool)?
             }
@@ -329,16 +329,13 @@ impl<'a> BlockLowerer<'a> {
             .transpose()
     }
 
-    /// Return the normal and unwind frame states for an exceptional call.
-    fn exceptional_call_states(&self) -> Result<(engine::FrameStateId, engine::FrameStateId)> {
-        self.exceptional_call_frame_states
+    /// Return the frame state for a call terminator.
+    fn call_target_state(&self) -> Result<engine::FrameStateId> {
+        self.call_frame_states
             .get(&self.block_id())
             .copied()
             .ok_or_else(|| Error::InvariantViolation {
-                context: format!(
-                    "missing exceptional call frame states for block: {:?}",
-                    self.block_id()
-                ),
+                context: format!("missing call frame state for block: {:?}", self.block_id()),
             })
     }
 
@@ -371,8 +368,8 @@ impl<'a> BlockLowerer<'a> {
         })
     }
 
-    /// Lower one direct exceptional call.
-    fn lower_invoke(
+    /// Lower one direct call terminator.
+    fn lower_call_branch(
         &self,
         function: mir::FunctionReference,
         call: &mir::Call<Vec<mir::ValueReference>>,
@@ -381,53 +378,51 @@ impl<'a> BlockLowerer<'a> {
         let function = function
             .function()
             .ok_or_else(|| Error::MissingRepresentation {
-                context: "invoke callee".to_string(),
+                context: "call callee".to_string(),
             })?;
         let arguments =
-            pool.argument_reference_range(call.arguments.as_slice(), "invoke argument")?;
-        let (normal_state, unwind_state) = self.exceptional_call_states()?;
+            pool.argument_reference_range(call.arguments.as_slice(), "call argument")?;
+        let target_state = self.call_target_state()?;
 
         Ok(pool.instruction_with_side(
-            Op::Invoke,
+            Op::CallBranch,
             CallBranch {
                 function: function.id,
                 target: self.call_target(function)?,
                 arguments,
-                normal_state,
-                unwind_state,
+                target_state,
             },
         ))
     }
 
-    /// Lower one indirect exceptional call.
-    fn lower_indirect_invoke(
+    /// Lower one indirect call terminator.
+    fn lower_indirect_call_branch(
         &self,
         callee: mir::ValueReference,
         call: &mir::Call<Vec<mir::ValueReference>>,
         pool: &mut Pool<'_, '_>,
     ) -> Result<Instruction> {
         let callee = callee.value().ok_or_else(|| Error::MissingRepresentation {
-            context: "invoke indirect callee".to_string(),
+            context: "call indirect callee".to_string(),
         })?;
         let arguments =
-            pool.argument_reference_range(call.arguments.as_slice(), "invoke indirect argument")?;
-        let (normal_state, unwind_state) = self.exceptional_call_states()?;
+            pool.argument_reference_range(call.arguments.as_slice(), "call indirect argument")?;
+        let target_state = self.call_target_state()?;
         let callee = self.indirect_callee(callee)?;
 
         Ok(pool.instruction_with_side(
-            indirect_invoke_op(&callee),
+            indirect_call_branch_op(&callee),
             CallIndirectBranch {
                 callee_offset: callee.offset,
                 signature: callee.signature,
                 arguments,
-                normal_state,
-                unwind_state,
+                target_state,
             },
         ))
     }
 
-    /// Lower one class exceptional call.
-    fn lower_class_invoke(
+    /// Lower one class call terminator.
+    fn lower_class_call_branch(
         &self,
         receiver: mir::ValueReference,
         method: mir::DispatchSlot,
@@ -437,11 +432,11 @@ impl<'a> BlockLowerer<'a> {
         let receiver = receiver
             .value()
             .ok_or_else(|| Error::MissingRepresentation {
-                context: "invoke class receiver".to_string(),
+                context: "call class receiver".to_string(),
             })?;
         let arguments =
-            pool.argument_reference_range(call.arguments.as_slice(), "invoke class argument")?;
-        let (normal_state, unwind_state) = self.exceptional_call_states()?;
+            pool.argument_reference_range(call.arguments.as_slice(), "call class argument")?;
+        let target_state = self.call_target_state()?;
         let pointer_class = pointer_class_for_value(self.value_layout_map(), receiver);
         let table_field = vtable_projection(
             self.tree,
@@ -449,25 +444,24 @@ impl<'a> BlockLowerer<'a> {
             heap_pointee_type_for_value(self.tree, self.value_type(), receiver),
         )
         .ok_or_else(|| Error::MissingRepresentation {
-            context: "invoke class table field".to_string(),
+            context: "call class table field".to_string(),
         })?;
         let table_field = pool.projection(table_field);
 
         Ok(pool.instruction_with_side(
-            class_invoke_op(pointer_class)?,
+            class_call_branch_op(pointer_class)?,
             CallClassBranch {
                 receiver_offset: word_offset(self, receiver)?,
                 table_field,
                 slot: method.0,
                 arguments,
-                normal_state,
-                unwind_state,
+                target_state,
             },
         ))
     }
 
-    /// Lower one interface exceptional call.
-    fn lower_interface_invoke(
+    /// Lower one interface call terminator.
+    fn lower_interface_call_branch(
         &self,
         receiver: mir::ValueReference,
         method: mir::DispatchSlot,
@@ -477,11 +471,11 @@ impl<'a> BlockLowerer<'a> {
         let receiver = receiver
             .value()
             .ok_or_else(|| Error::MissingRepresentation {
-                context: "invoke interface receiver".to_string(),
+                context: "call interface receiver".to_string(),
             })?;
         let arguments =
-            pool.argument_reference_range(call.arguments.as_slice(), "invoke interface argument")?;
-        let (normal_state, unwind_state) = self.exceptional_call_states()?;
+            pool.argument_reference_range(call.arguments.as_slice(), "call interface argument")?;
+        let target_state = self.call_target_state()?;
         let pointer_class = pointer_class_for_value(self.value_layout_map(), receiver);
         let table_field = interface_table_projection(
             self.tree,
@@ -489,19 +483,18 @@ impl<'a> BlockLowerer<'a> {
             heap_pointee_type_for_value(self.tree, self.value_type(), receiver),
         )
         .ok_or_else(|| Error::MissingRepresentation {
-            context: "invoke interface table field".to_string(),
+            context: "call interface table field".to_string(),
         })?;
         let table_field = pool.projection(table_field);
 
         Ok(pool.instruction_with_side(
-            interface_invoke_op(pointer_class)?,
+            interface_call_branch_op(pointer_class)?,
             CallInterfaceBranch {
                 receiver_offset: word_offset(self, receiver)?,
                 table_field,
                 slot: method.0,
                 arguments,
-                normal_state,
-                unwind_state,
+                target_state,
             },
         ))
     }
@@ -676,11 +669,11 @@ fn class_call_op(pointer_class: PointerClass) -> Result<Op> {
     }
 }
 
-/// Return the class invoke op for one receiver pointer class.
-fn class_invoke_op(pointer_class: PointerClass) -> Result<Op> {
+/// Return the class call terminator op for one receiver pointer class.
+fn class_call_branch_op(pointer_class: PointerClass) -> Result<Op> {
     match pointer_class {
-        PointerClass::Heap => Ok(Op::InvokeClassHeap),
-        PointerClass::SharedHeap => Ok(Op::InvokeClassSharedHeap),
+        PointerClass::Heap => Ok(Op::CallClassHeapBranch),
+        PointerClass::SharedHeap => Ok(Op::CallClassSharedHeapBranch),
         _ => Err(Error::InvalidPointerType {
             actual: format!("{pointer_class:?}"),
         }),
@@ -709,11 +702,11 @@ fn interface_call_op(pointer_class: PointerClass) -> Result<Op> {
     }
 }
 
-/// Return the interface invoke op for one receiver pointer class.
-fn interface_invoke_op(pointer_class: PointerClass) -> Result<Op> {
+/// Return the interface call terminator op for one receiver pointer class.
+fn interface_call_branch_op(pointer_class: PointerClass) -> Result<Op> {
     match pointer_class {
-        PointerClass::Heap => Ok(Op::InvokeInterfaceHeap),
-        PointerClass::SharedHeap => Ok(Op::InvokeInterfaceSharedHeap),
+        PointerClass::Heap => Ok(Op::CallInterfaceHeapBranch),
+        PointerClass::SharedHeap => Ok(Op::CallInterfaceSharedHeapBranch),
         _ => Err(Error::InvalidPointerType {
             actual: format!("{pointer_class:?}"),
         }),
@@ -740,13 +733,13 @@ fn indirect_call_op(callee: &IndirectCallee) -> Op {
     Op::CallIndirect
 }
 
-/// Select one exceptional indirect call opcode from callee shape.
-fn indirect_invoke_op(callee: &IndirectCallee) -> Op {
+/// Select one indirect call terminator opcode from callee shape.
+fn indirect_call_branch_op(callee: &IndirectCallee) -> Op {
     if callee.has_environment {
-        return Op::InvokeCallable;
+        return Op::CallCallableBranch;
     }
 
-    Op::InvokeIndirect
+    Op::CallIndirectBranch
 }
 
 /// Select one indirect tail call opcode from callee shape.

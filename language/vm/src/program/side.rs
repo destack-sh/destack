@@ -260,7 +260,7 @@ pub(crate) struct Call {
     pub(crate) moves: MoveRange,
 }
 
-/// Function call terminator with explicit normal and unwind continuations.
+/// Function call terminator with an explicit continuation.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct CallBranch {
     /// The callee function index.
@@ -269,10 +269,8 @@ pub(crate) struct CallBranch {
     pub(crate) target: CallTarget,
     /// The pooled argument range.
     pub(crate) arguments: ArgumentRange,
-    /// The normal continuation frame state.
-    pub(crate) normal_state: engine::FrameStateId,
-    /// The unwind continuation frame state.
-    pub(crate) unwind_state: engine::FrameStateId,
+    /// The continuation frame state.
+    pub(crate) target_state: engine::FrameStateId,
 }
 
 /// Class method call.
@@ -290,7 +288,7 @@ pub(crate) struct CallClass {
     pub(crate) arguments: ArgumentRange,
 }
 
-/// Class method call terminator with explicit normal and unwind continuations.
+/// Class method call terminator with an explicit continuation.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct CallClassBranch {
     /// The receiver word offset.
@@ -301,10 +299,8 @@ pub(crate) struct CallClassBranch {
     pub(crate) slot: u32,
     /// The pooled argument range.
     pub(crate) arguments: ArgumentRange,
-    /// The normal continuation frame state.
-    pub(crate) normal_state: engine::FrameStateId,
-    /// The unwind continuation frame state.
-    pub(crate) unwind_state: engine::FrameStateId,
+    /// The continuation frame state.
+    pub(crate) target_state: engine::FrameStateId,
 }
 
 /// Interface method call.
@@ -322,7 +318,7 @@ pub(crate) struct CallInterface {
     pub(crate) arguments: ArgumentRange,
 }
 
-/// Interface method call terminator with explicit normal and unwind continuations.
+/// Interface method call terminator with an explicit continuation.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct CallInterfaceBranch {
     /// The receiver word offset.
@@ -333,10 +329,8 @@ pub(crate) struct CallInterfaceBranch {
     pub(crate) slot: u32,
     /// The pooled argument range.
     pub(crate) arguments: ArgumentRange,
-    /// The normal continuation frame state.
-    pub(crate) normal_state: engine::FrameStateId,
-    /// The unwind continuation frame state.
-    pub(crate) unwind_state: engine::FrameStateId,
+    /// The continuation frame state.
+    pub(crate) target_state: engine::FrameStateId,
 }
 
 /// Indirect function call.
@@ -352,7 +346,7 @@ pub(crate) struct CallIndirect {
     pub(crate) arguments: ArgumentRange,
 }
 
-/// Indirect call terminator with explicit normal and unwind continuations.
+/// Indirect call terminator with an explicit continuation.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct CallIndirectBranch {
     /// The callee word offset.
@@ -361,10 +355,8 @@ pub(crate) struct CallIndirectBranch {
     pub(crate) signature: mir::LocalNodeId<mir::Type>,
     /// The pooled argument range.
     pub(crate) arguments: ArgumentRange,
-    /// The normal continuation frame state.
-    pub(crate) normal_state: engine::FrameStateId,
-    /// The unwind continuation frame state.
-    pub(crate) unwind_state: engine::FrameStateId,
+    /// The continuation frame state.
+    pub(crate) target_state: engine::FrameStateId,
 }
 
 /// Load a tensor element from a view.

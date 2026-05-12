@@ -722,32 +722,32 @@ pub(crate) enum Op {
     // ============================================================================
     /// Call a known function.
     Call,
-    /// Invoke a known function with normal and unwind targets.
-    Invoke,
+    /// Call a known function with an explicit continuation.
+    CallBranch,
     /// Call a function pointer.
     CallIndirect,
     /// Call a callable value.
     CallCallable,
-    /// Invoke a function pointer with normal and unwind targets.
-    InvokeIndirect,
-    /// Invoke a callable value with normal and unwind targets.
-    InvokeCallable,
+    /// Call a function pointer with an explicit continuation.
+    CallIndirectBranch,
+    /// Call a callable value with an explicit continuation.
+    CallCallableBranch,
     /// Call a class method through a local heap receiver.
     CallClassHeap,
     /// Call a class method through a shared heap receiver.
     CallClassSharedHeap,
-    /// Invoke a class method through a local heap receiver.
-    InvokeClassHeap,
-    /// Invoke a class method through a shared heap receiver.
-    InvokeClassSharedHeap,
+    /// Call a class method through a local heap receiver with an explicit continuation.
+    CallClassHeapBranch,
+    /// Call a class method through a shared heap receiver with an explicit continuation.
+    CallClassSharedHeapBranch,
     /// Call an interface method through a local heap receiver.
     CallInterfaceHeap,
     /// Call an interface method through a shared heap receiver.
     CallInterfaceSharedHeap,
-    /// Invoke an interface method through a local heap receiver.
-    InvokeInterfaceHeap,
-    /// Invoke an interface method through a shared heap receiver.
-    InvokeInterfaceSharedHeap,
+    /// Call an interface method through a local heap receiver with an explicit continuation.
+    CallInterfaceHeapBranch,
+    /// Call an interface method through a shared heap receiver with an explicit continuation.
+    CallInterfaceSharedHeapBranch,
     /// Tail call a known function.
     TailCall,
     /// Tail call the current function.
@@ -874,10 +874,6 @@ pub(crate) enum Op {
     YieldWord,
     /// Yield one frame address from the current function.
     YieldAddress,
-    /// Throw one word value.
-    ThrowWord,
-    /// Throw one frame address.
-    ThrowAddress,
     /// Abort execution.
     Abort,
     /// Panic with a runtime payload.

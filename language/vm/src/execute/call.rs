@@ -346,23 +346,21 @@ fn enter_call(
     }
 }
 
-/// Build one call branch transfer.
+/// Build one call terminator transfer.
 fn call_branch_transfer(
     function_id: mir::LocalNodeId<mir::Function>,
     target: CallTarget,
     arguments: ArgumentRange,
     env: Option<Word>,
-    normal_state: engine::FrameStateId,
-    unwind_state: engine::FrameStateId,
+    target_state: engine::FrameStateId,
 ) -> Transfer {
-    // exceptional calls always use explicit transfer handling
+    // call terminators always use explicit transfer handling
     Transfer::CallBranch {
         function: function_id.id,
         target,
         arguments,
         env,
-        normal_state,
-        unwind_state,
+        target_state,
     }
 }
 
@@ -401,26 +399,21 @@ pub(crate) fn execute_call(
     )
 }
 
-/// Execute exceptional direct call terminator.
-pub(crate) fn execute_invoke(machine: &mut Machine<'_, '_>, instruction: &Instruction) -> Transfer {
+/// Execute direct call terminator.
+pub(crate) fn execute_call_branch(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Transfer {
     let CallBranch {
         function,
         target,
         arguments,
-        normal_state,
-        unwind_state,
+        target_state,
     } = machine.side::<CallBranch>(instruction);
 
     let function_id = mir::LocalNodeId::<mir::Function>::new(*function);
 
-    call_branch_transfer(
-        function_id,
-        *target,
-        *arguments,
-        None,
-        *normal_state,
-        *unwind_state,
-    )
+    call_branch_transfer(function_id, *target, *arguments, None, *target_state)
 }
 
 /// Execute a class function call with a statically known receiver heap.
@@ -485,8 +478,8 @@ pub(crate) fn execute_call_class_shared_heap(
     execute_call_class::<true>(machine, instruction, pc)
 }
 
-/// Execute an exceptional class call with a statically known receiver heap.
-fn execute_invoke_class<const IS_SHARED: bool>(
+/// Execute a class call terminator with a statically known receiver heap.
+fn execute_call_class_branch<const IS_SHARED: bool>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
@@ -495,8 +488,7 @@ fn execute_invoke_class<const IS_SHARED: bool>(
         table_field,
         slot,
         arguments,
-        normal_state,
-        unwind_state,
+        target_state,
     } = machine.side::<CallClassBranch>(instruction);
 
     let receiver_value = machine.load_word_at(*receiver_offset);
@@ -511,30 +503,23 @@ fn execute_invoke_class<const IS_SHARED: bool>(
         Err(error) => return Transfer::Error(error),
     };
 
-    call_branch_transfer(
-        function_id,
-        target,
-        *arguments,
-        None,
-        *normal_state,
-        *unwind_state,
-    )
+    call_branch_transfer(function_id, target, *arguments, None, *target_state)
 }
 
-/// Execute exceptional class call through a local heap receiver.
-pub(crate) fn execute_invoke_class_heap(
+/// Execute class call terminator through a local heap receiver.
+pub(crate) fn execute_call_class_heap_branch(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_invoke_class::<false>(machine, instruction)
+    execute_call_class_branch::<false>(machine, instruction)
 }
 
-/// Execute exceptional class call through a shared heap receiver.
-pub(crate) fn execute_invoke_class_shared_heap(
+/// Execute class call terminator through a shared heap receiver.
+pub(crate) fn execute_call_class_shared_heap_branch(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_invoke_class::<true>(machine, instruction)
+    execute_call_class_branch::<true>(machine, instruction)
 }
 
 /// Execute an interface function call with a statically known receiver heap.
@@ -599,8 +584,8 @@ pub(crate) fn execute_call_interface_shared_heap(
     execute_call_interface::<true>(machine, instruction, pc)
 }
 
-/// Execute an exceptional interface call with a statically known receiver heap.
-fn execute_invoke_interface<const IS_SHARED: bool>(
+/// Execute an interface call terminator with a statically known receiver heap.
+fn execute_call_interface_branch<const IS_SHARED: bool>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
@@ -609,8 +594,7 @@ fn execute_invoke_interface<const IS_SHARED: bool>(
         table_field,
         slot,
         arguments,
-        normal_state,
-        unwind_state,
+        target_state,
     } = machine.side::<CallInterfaceBranch>(instruction);
 
     let receiver_value = machine.load_word_at(*receiver_offset);
@@ -625,30 +609,23 @@ fn execute_invoke_interface<const IS_SHARED: bool>(
         Err(error) => return Transfer::Error(error),
     };
 
-    call_branch_transfer(
-        function_id,
-        target,
-        *arguments,
-        None,
-        *normal_state,
-        *unwind_state,
-    )
+    call_branch_transfer(function_id, target, *arguments, None, *target_state)
 }
 
-/// Execute exceptional interface call through a local heap receiver.
-pub(crate) fn execute_invoke_interface_heap(
+/// Execute interface call terminator through a local heap receiver.
+pub(crate) fn execute_call_interface_heap_branch(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_invoke_interface::<false>(machine, instruction)
+    execute_call_interface_branch::<false>(machine, instruction)
 }
 
-/// Execute exceptional interface call through a shared heap receiver.
-pub(crate) fn execute_invoke_interface_shared_heap(
+/// Execute interface call terminator through a shared heap receiver.
+pub(crate) fn execute_call_interface_shared_heap_branch(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_invoke_interface::<true>(machine, instruction)
+    execute_call_interface_branch::<true>(machine, instruction)
 }
 
 /// Execute an indirect call with a statically known callee shape.
@@ -721,8 +698,8 @@ pub(crate) fn execute_call_callable(
     execute_indirect_call::<true>(machine, instruction, pc)
 }
 
-/// Execute an exceptional indirect call with a statically known callee shape.
-fn execute_indirect_invoke<const HAS_ENVIRONMENT: bool>(
+/// Execute an indirect call terminator with a statically known callee shape.
+fn execute_indirect_call_branch<const HAS_ENVIRONMENT: bool>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
@@ -730,8 +707,7 @@ fn execute_indirect_invoke<const HAS_ENVIRONMENT: bool>(
         callee_offset,
         signature,
         arguments,
-        normal_state,
-        unwind_state,
+        target_state,
     } = machine.side::<CallIndirectBranch>(instruction);
 
     let callee_value = machine.load_word_at(*callee_offset);
@@ -753,30 +729,23 @@ fn execute_indirect_invoke<const HAS_ENVIRONMENT: bool>(
         Err(error) => return Transfer::Error(error),
     };
 
-    call_branch_transfer(
-        function_id,
-        target,
-        *arguments,
-        env,
-        *normal_state,
-        *unwind_state,
-    )
+    call_branch_transfer(function_id, target, *arguments, env, *target_state)
 }
 
-/// Execute exceptional indirect call terminator.
-pub(crate) fn execute_invoke_indirect(
+/// Execute indirect call terminator.
+pub(crate) fn execute_call_indirect_branch(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_indirect_invoke::<false>(machine, instruction)
+    execute_indirect_call_branch::<false>(machine, instruction)
 }
 
-/// Execute exceptional callable call terminator.
-pub(crate) fn execute_invoke_callable(
+/// Execute callable call terminator.
+pub(crate) fn execute_call_callable_branch(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_indirect_invoke::<true>(machine, instruction)
+    execute_indirect_call_branch::<true>(machine, instruction)
 }
 
 /// Enter a tail call by reusing the current frame.

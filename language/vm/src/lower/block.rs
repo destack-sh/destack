@@ -97,34 +97,13 @@ impl BlockOrder {
                         }
                     })?);
                 }
-                mir::Terminator::Invoke {
-                    normal_target,
-                    unwind_target,
-                    ..
-                }
-                | mir::Terminator::InvokeIndirect {
-                    normal_target,
-                    unwind_target,
-                    ..
-                }
-                | mir::Terminator::InvokeClass {
-                    normal_target,
-                    unwind_target,
-                    ..
-                }
-                | mir::Terminator::InvokeInterface {
-                    normal_target,
-                    unwind_target,
-                    ..
-                } => {
-                    queue.push((normal_target.block).block().ok_or_else(|| {
+                mir::Terminator::Call { target, .. }
+                | mir::Terminator::CallIndirect { target, .. }
+                | mir::Terminator::CallClass { target, .. }
+                | mir::Terminator::CallInterface { target, .. } => {
+                    queue.push((target.block).block().ok_or_else(|| {
                         Error::MissingRepresentation {
-                            context: "invoke normal target".to_string(),
-                        }
-                    })?);
-                    queue.push((unwind_target.block).block().ok_or_else(|| {
-                        Error::MissingRepresentation {
-                            context: "invoke unwind target".to_string(),
+                            context: "call target".to_string(),
                         }
                     })?);
                 }
@@ -134,7 +113,6 @@ impl BlockOrder {
                     });
                 }
                 mir::Terminator::Return { .. }
-                | mir::Terminator::Throw { .. }
                 | mir::Terminator::Trap { .. }
                 | mir::Terminator::Unreachable
                 | mir::Terminator::TailCall { .. }
@@ -163,9 +141,8 @@ pub(super) struct FunctionContext<'a> {
     pub(super) entry_block: u32,
     /// The lowered yield frame state by MIR block id.
     pub(super) yield_frame_states: &'a HashMap<mir::LocalNodeId<mir::Block>, engine::FrameStateId>,
-    /// The lowered exceptional call frame states by MIR block id.
-    pub(super) exceptional_call_frame_states:
-        &'a HashMap<mir::LocalNodeId<mir::Block>, (engine::FrameStateId, engine::FrameStateId)>,
+    /// The lowered call terminator frame state by MIR block id.
+    pub(super) call_frame_states: &'a HashMap<mir::LocalNodeId<mir::Block>, engine::FrameStateId>,
     /// The call target by MIR function id.
     pub(super) call_targets: &'a HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
     /// The byte layout for this lowered function frame.

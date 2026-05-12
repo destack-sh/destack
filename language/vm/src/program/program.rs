@@ -871,7 +871,7 @@ impl ProgramBuilder {
         // derive the logical frame shape before lowering
         let frame_layout = self.build_frame_layout(function, &value_types, layouts)?;
         let liveness = { mir::FunctionLiveness::build(function, &self.tree) };
-        let (yield_frame_states, exceptional_call_frame_states) =
+        let (yield_frame_states, call_frame_states) =
             self.build_frame_states(function_id, &frame_layout, &liveness)?;
 
         // lower the function with the preassigned yield resume ids
@@ -880,7 +880,7 @@ impl ProgramBuilder {
             function_id,
             &frame_layout,
             &yield_frame_states,
-            &exceptional_call_frame_states,
+            &call_frame_states,
             call_targets,
             layouts,
             layout_id_by_type,
@@ -1082,13 +1082,13 @@ impl ProgramBuilder {
         liveness: &mir::FunctionLiveness,
     ) -> Result<(
         HashMap<mir::LocalNodeId<mir::Block>, engine::FrameStateId>,
-        HashMap<mir::LocalNodeId<mir::Block>, (engine::FrameStateId, engine::FrameStateId)>,
+        HashMap<mir::LocalNodeId<mir::Block>, engine::FrameStateId>,
     )> {
         let block_ids = self.tree.get(function_id).blocks.clone();
         let mut yield_frame_states = HashMap::new();
-        let mut exceptional_call_frame_states = HashMap::new();
+        let mut call_frame_states = HashMap::new();
 
-        // assign frame states to suspension and exceptional call edges
+        // assign frame states to suspension and call edges
         for block_id in block_ids {
             let yield_edge = {
                 let block = self.tree.get(block_id);
@@ -1134,59 +1134,27 @@ impl ProgramBuilder {
                 continue;
             }
 
-            let exceptional_call_edge = {
+            let call_edge = {
                 let block = self.tree.get(block_id);
                 let terminator = self.tree.get(block.terminator);
                 match terminator {
-                    mir::Terminator::Invoke {
-                        normal_target,
-                        unwind_target,
-                        ..
-                    }
-                    | mir::Terminator::InvokeIndirect {
-                        normal_target,
-                        unwind_target,
-                        ..
-                    }
-                    | mir::Terminator::InvokeClass {
-                        normal_target,
-                        unwind_target,
-                        ..
-                    }
-                    | mir::Terminator::InvokeInterface {
-                        normal_target,
-                        unwind_target,
-                        ..
-                    } => Some((
-                        (normal_target.block).block().ok_or_else(|| {
-                            Error::MissingRepresentation {
-                                context: "invoke normal target".to_string(),
-                            }
-                        })?,
-                        normal_target
+                    mir::Terminator::Call { target, .. }
+                    | mir::Terminator::CallIndirect { target, .. }
+                    | mir::Terminator::CallClass { target, .. }
+                    | mir::Terminator::CallInterface { target, .. } => Some((
+                        (target.block)
+                            .block()
+                            .ok_or_else(|| Error::MissingRepresentation {
+                                context: "call target".to_string(),
+                            })?,
+                        target
                             .arguments
                             .iter()
                             .map(|argument| {
                                 (*argument)
                                     .value()
                                     .ok_or_else(|| Error::MissingRepresentation {
-                                        context: "invoke normal argument".to_string(),
-                                    })
-                            })
-                            .collect::<Result<Vec<_>>>()?,
-                        (unwind_target.block).block().ok_or_else(|| {
-                            Error::MissingRepresentation {
-                                context: "invoke unwind target".to_string(),
-                            }
-                        })?,
-                        unwind_target
-                            .arguments
-                            .iter()
-                            .map(|argument| {
-                                (*argument)
-                                    .value()
-                                    .ok_or_else(|| Error::MissingRepresentation {
-                                        context: "invoke unwind argument".to_string(),
+                                        context: "call argument".to_string(),
                                     })
                             })
                             .collect::<Result<Vec<_>>>()?,
@@ -1195,38 +1163,23 @@ impl ProgramBuilder {
                 }
             };
 
-            // exceptional call continuations branch to normal or unwind states
-            if let Some((normal_target, normal_arguments, unwind_target, unwind_arguments)) =
-                exceptional_call_edge
-            {
-                // normal and unwind edges may each bind one trailing implicit value
-                let normal_received_value =
-                    self.received_value(normal_target, normal_arguments.len())?;
-                let normal_state_id = self.append_entry_state(
+            // call continuations may bind one trailing return value
+            if let Some((target, arguments)) = call_edge {
+                let received_value = self.received_value(target, arguments.len())?;
+                let target_state_id = self.append_entry_state(
                     function_id,
                     frame_layout,
                     liveness,
-                    normal_target,
-                    &normal_arguments,
-                    normal_received_value,
+                    target,
+                    &arguments,
+                    received_value,
                 )?;
 
-                let unwind_received_value =
-                    self.received_value(unwind_target, unwind_arguments.len())?;
-                let unwind_state_id = self.append_entry_state(
-                    function_id,
-                    frame_layout,
-                    liveness,
-                    unwind_target,
-                    &unwind_arguments,
-                    unwind_received_value,
-                )?;
-
-                exceptional_call_frame_states.insert(block_id, (normal_state_id, unwind_state_id));
+                call_frame_states.insert(block_id, target_state_id);
             }
         }
 
-        Ok((yield_frame_states, exceptional_call_frame_states))
+        Ok((yield_frame_states, call_frame_states))
     }
 
     /// Return the trailing received value for one edge when present.

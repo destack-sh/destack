@@ -4,7 +4,7 @@ use destack_heap::{Heap, SharedAllocator, SharedGcWorker};
 use super::frame::{frame_value_from_word, materialize_value, store_frame_value};
 use crate::SharedHeap;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::interpreter::{ExceptionalCall, Interpreter, Outcome};
+use crate::interpreter::{Interpreter, Outcome, PendingCall};
 use crate::program::Program;
 
 impl Interpreter {
@@ -49,18 +49,18 @@ impl Interpreter {
             return Ok(Some(self.complete_execution(value)));
         }
 
-        // otherwise take the exceptional edge before resuming the caller
+        // otherwise take the call terminator edge before resuming the caller
         let caller_index = self.frames.len() - 1;
-        let exceptional_call = self
+        let pending_call = self
             .frames
             .get_mut(caller_index)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?
-            .exceptional_call
+            .pending_call
             .take();
 
-        // exceptional callers resume through their normal edge
-        if let Some(ExceptionalCall { normal_state, .. }) = exceptional_call {
-            self.enter_caller_state(program, normal_state, returned)?;
+        // call terminators resume through their explicit edge
+        if let Some(PendingCall { target_state }) = pending_call {
+            self.enter_caller_state(program, target_state, returned)?;
             return Ok(None);
         }
 
@@ -75,49 +75,5 @@ impl Interpreter {
         }
 
         Ok(None)
-    }
-
-    /// Complete one thrown exception value through exceptional call edges.
-    pub(crate) fn complete_throw(
-        &mut self,
-        program: &Program,
-        value: Word,
-    ) -> RuntimeResult<Option<Outcome>> {
-        loop {
-            // discard one frame of live machine first
-            let frame = self
-                .frames
-                .pop()
-                .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-            self.truncate_stack(frame.stack_offset);
-
-            // fail loudly once the exception escapes the whole stack
-            if self.frames.is_empty() {
-                return Err(self.runtime_error(
-                    program,
-                    Error::Panic {
-                        message: format!("uncaught exception: {value:?}"),
-                    },
-                ));
-            }
-
-            // take the exceptional edge before deciding how to unwind
-            let caller = self
-                .frames
-                .last_mut()
-                .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-            let exceptional_call = caller.exceptional_call.take();
-
-            // resume the first caller that owns an unwind edge
-            match exceptional_call {
-                Some(ExceptionalCall { unwind_state, .. }) => {
-                    self.enter_caller_state_word(program, unwind_state, value)?;
-                    return Ok(None);
-                }
-
-                // otherwise keep unwinding outward
-                None => continue,
-            }
-        }
     }
 }
