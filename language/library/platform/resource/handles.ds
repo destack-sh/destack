@@ -37,13 +37,13 @@ export newtype SharedMemoryHandle = ResourceId;
 export newtype SemaphoreHandle = ResourceId;
 
 /// Handle for an IPC event counter.
-export newtype IpcEventHandle = ResourceId;
+export newtype EventCounterHandle = ResourceId;
 
 /// Handle for a readiness poll instance.
-export newtype PollHandle = ResourceId;
+export newtype IoPollHandle = ResourceId;
 
 /// Handle for a completion queue instance.
-export newtype CompletionHandle = ResourceId;
+export newtype IoCompletionHandle = ResourceId;
 
 /// Handle for an io_uring ring instance.
 export newtype UringHandle = ResourceId;

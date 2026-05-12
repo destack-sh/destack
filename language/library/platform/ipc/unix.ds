@@ -2,8 +2,8 @@ import type { PlatformError } from "../error/index.ds";
 import { SocketHandle, TransferredHandle } from "../resource/index.ds";
 import { SocketMessageFlags } from "../net/socket.ds";
 
-/// Unix peer credentials.
-export struct UnixCredentials {
+/// Unix socket peer credentials.
+export struct UnixSocketCredentials {
     /// Peer process identifier when available.
     pid?: uint32;
     /// Peer user identifier.
@@ -12,8 +12,8 @@ export struct UnixCredentials {
     gid: uint32;
 }
 
-/// Unix message receive result.
-export struct UnixMessage {
+/// Unix socket message receive result.
+export struct UnixSocketMessage {
     /// Payload bytes copied into the caller buffer.
     bytes: uint64;
     /// Transferred handles copied into the caller buffer.
@@ -21,7 +21,7 @@ export struct UnixMessage {
     /// Message flags returned by the host.
     flags: SocketMessageFlags;
     /// Peer credentials when available.
-    credentials?: UnixCredentials;
+    credentials?: UnixSocketCredentials;
 }
 
 /// Send one Unix-domain socket message with transferred handles.
@@ -31,7 +31,7 @@ export struct UnixMessage {
     families: ["unix"],
     simulation: true,
 })
-export declare function sendUnixMessage(
+export declare function sendUnixSocketMessage(
     socket: SocketHandle,
     payload: &readonly [uint8],
     handles: &readonly [TransferredHandle],
@@ -45,9 +45,9 @@ export declare function sendUnixMessage(
     families: ["unix"],
     simulation: true,
 })
-export declare function receiveUnixMessage(
+export declare function receiveUnixSocketMessage(
     socket: SocketHandle,
     payload: &[uint8],
     handles: &[TransferredHandle],
     flags: SocketMessageFlags,
-): Result<UnixMessage, PlatformError>;
+): Result<UnixSocketMessage, PlatformError>;
