@@ -2,9 +2,13 @@
 @intrinsic("panic")
 export declare function panic(message: string): never;
 
+/// Stop execution with a runtime trap.
+@intrinsic("trap")
+export declare function trap(message?: string): never;
+
 /// Stop execution immediately without cleanup.
 @intrinsic("abort")
-export declare function abort(): never;
+export declare function abort(message?: string): never;
 
 /// Stop execution because code is intentionally unfinished.
 @intrinsic("todo")
