@@ -13,7 +13,7 @@ export struct OsCapacity {
 /// Read operating-system capacity.
 @binding("destack.os.capacity.read", {
     effect: "external",
-    requires: ["os.capacity.read"],
+    requires: ["host.os.capacity.read"],
     families: ["windows", "unix"],
     simulation: true,
 })

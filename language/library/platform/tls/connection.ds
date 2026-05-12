@@ -23,7 +23,7 @@ export enum TlsResumptionState {
 /// Open one socket backed TLS connection.
 @binding("destack.tls.connection.open", {
     effect: "external",
-    requires: ["tls.connection"],
+    requires: ["host.tls.connection"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -36,7 +36,7 @@ export declare function openTlsConnection(
 /// Advance one TLS handshake state machine.
 @binding("destack.tls.connection.handshake", {
     effect: "external",
-    requires: ["tls.handshake"],
+    requires: ["host.tls.handshake"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -47,7 +47,7 @@ export declare function handshakeTlsConnection(
 /// Read decrypted application bytes from one TLS connection.
 @binding("destack.tls.connection.read", {
     effect: "external",
-    requires: ["tls.connection"],
+    requires: ["host.tls.connection"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -59,7 +59,7 @@ export declare function readTlsConnection(
 /// Write plaintext application bytes to one TLS connection.
 @binding("destack.tls.connection.write", {
     effect: "external",
-    requires: ["tls.connection"],
+    requires: ["host.tls.connection"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -71,7 +71,7 @@ export declare function writeTlsConnection(
 /// Shutdown one TLS connection.
 @binding("destack.tls.connection.shutdown", {
     effect: "external",
-    requires: ["tls.connection"],
+    requires: ["host.tls.connection"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -82,7 +82,7 @@ export declare function shutdownTlsConnection(
 /// Close one TLS connection.
 @binding("destack.tls.connection.close", {
     effect: "external",
-    requires: ["tls.connection"],
+    requires: ["host.tls.connection"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -93,7 +93,7 @@ export declare function closeTlsConnection(
 /// Read negotiated ALPN protocol bytes.
 @binding("destack.tls.connection.alpn.read", {
     effect: "external",
-    requires: ["tls.connection"],
+    requires: ["host.tls.connection"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -104,7 +104,7 @@ export declare function readTlsAlpn(
 /// Read the peer certificate chain in PEM encoding.
 @binding("destack.tls.connection.peerCertificates.pem.read", {
     effect: "external",
-    requires: ["tls.certificate.read"],
+    requires: ["host.tls.certificate.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -115,7 +115,7 @@ export declare function readTlsPeerCertificatesPem(
 /// Export keying material bytes for one TLS connection.
 @binding("destack.tls.connection.keyingMaterial.export", {
     effect: "external",
-    requires: ["tls.connection", "tls.exporter"],
+    requires: ["host.tls.connection", "host.tls.exporter"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -129,7 +129,7 @@ export declare function exportTlsKeyingMaterial(
 /// Return whether one connection resumed from cached state or ticket.
 @binding("destack.tls.connection.resumption.read", {
     effect: "external",
-    requires: ["tls.connection", "tls.resumption"],
+    requires: ["host.tls.connection", "host.tls.resumption"],
     families: ["windows", "unix"],
     simulation: true,
 })

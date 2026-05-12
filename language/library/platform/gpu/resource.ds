@@ -686,7 +686,7 @@ export struct GpuTextureInfo {
 /// Create a GPU buffer.
 @binding("destack.gpu.resource.bufferCreate", {
     effect: "external",
-    requires: ["gpu.memory"],
+    requires: ["host.gpu.memory"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -698,7 +698,7 @@ export declare function bufferCreate(
 /// Destroy a GPU buffer.
 @binding("destack.gpu.resource.bufferDestroy", {
     effect: "external",
-    requires: ["gpu.memory"],
+    requires: ["host.gpu.memory"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -707,7 +707,7 @@ export declare function bufferDestroy(handle: GpuBufferHandle): Result<void, Pla
 /// Write a byte range to a GPU buffer.
 @binding("destack.gpu.resource.bufferWrite", {
     effect: "external",
-    requires: ["gpu.memory"],
+    requires: ["host.gpu.memory"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -720,7 +720,7 @@ export declare function bufferWrite(
 /// Read a byte range from a GPU buffer.
 @binding("destack.gpu.resource.bufferRead", {
     effect: "external",
-    requires: ["gpu.memory"],
+    requires: ["host.gpu.memory"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -733,7 +733,7 @@ export declare function bufferRead(
 /// Map a buffer range.
 @binding("destack.gpu.resource.bufferMap", {
     effect: "external",
-    requires: ["gpu.memory"],
+    requires: ["host.gpu.memory"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -747,7 +747,7 @@ export declare function bufferMap(
 /// Unmap a mapped buffer.
 @binding("destack.gpu.resource.bufferUnmap", {
     effect: "external",
-    requires: ["gpu.memory"],
+    requires: ["host.gpu.memory"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -756,7 +756,7 @@ export declare function bufferUnmap(handle: GpuBufferHandle): Result<void, Platf
 /// Read a buffer metadata snapshot.
 @binding("destack.gpu.resource.bufferInfo", {
     effect: "external",
-    requires: ["gpu.memory"],
+    requires: ["host.gpu.memory"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -765,7 +765,7 @@ export declare function bufferInfo(handle: GpuBufferHandle): Result<GpuBufferInf
 /// Create a texture resource.
 @binding("destack.gpu.resource.textureCreate", {
     effect: "external",
-    requires: ["gpu.memory"],
+    requires: ["host.gpu.memory"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -777,7 +777,7 @@ export declare function textureCreate(
 /// Destroy a texture resource.
 @binding("destack.gpu.resource.textureDestroy", {
     effect: "external",
-    requires: ["gpu.memory"],
+    requires: ["host.gpu.memory"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -786,7 +786,7 @@ export declare function textureDestroy(handle: GpuTextureHandle): Result<void, P
 /// Read a texture metadata snapshot.
 @binding("destack.gpu.resource.textureInfo", {
     effect: "external",
-    requires: ["gpu.memory"],
+    requires: ["host.gpu.memory"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -795,7 +795,7 @@ export declare function textureInfo(handle: GpuTextureHandle): Result<GpuTexture
 /// Create a texture view.
 @binding("destack.gpu.resource.textureViewCreate", {
     effect: "external",
-    requires: ["gpu.memory"],
+    requires: ["host.gpu.memory"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -807,7 +807,7 @@ export declare function textureViewCreate(
 /// Destroy a texture view.
 @binding("destack.gpu.resource.textureViewDestroy", {
     effect: "external",
-    requires: ["gpu.memory"],
+    requires: ["host.gpu.memory"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -816,7 +816,7 @@ export declare function textureViewDestroy(handle: GpuTextureViewHandle): Result
 /// Create a sampler resource.
 @binding("destack.gpu.resource.samplerCreate", {
     effect: "external",
-    requires: ["gpu.memory"],
+    requires: ["host.gpu.memory"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -828,7 +828,7 @@ export declare function samplerCreate(
 /// Destroy a sampler resource.
 @binding("destack.gpu.resource.samplerDestroy", {
     effect: "external",
-    requires: ["gpu.memory"],
+    requires: ["host.gpu.memory"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -837,7 +837,7 @@ export declare function samplerDestroy(handle: GpuSamplerHandle): Result<void, P
 /// Create an external texture resource.
 @binding("destack.gpu.resource.externalTextureCreate", {
     effect: "external",
-    requires: ["gpu.memory"],
+    requires: ["host.gpu.memory"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -850,7 +850,7 @@ export declare function externalTextureCreate(
 /// Destroy an external texture resource.
 @binding("destack.gpu.resource.externalTextureDestroy", {
     effect: "external",
-    requires: ["gpu.memory"],
+    requires: ["host.gpu.memory"],
     families: ["windows", "unix"],
     simulation: true,
 })

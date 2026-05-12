@@ -81,7 +81,7 @@ export struct CryptoAgreementBits {
 @binding("destack.crypto.agreement.deriveSharedSecret", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.key.agree"],
+    requires: ["host.crypto.key.agree"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -95,7 +95,7 @@ export declare function deriveSharedSecret(
 @binding("destack.crypto.agreement.deriveBits", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.key.agree", "crypto.kdf"],
+    requires: ["host.crypto.key.agree", "host.crypto.kdf"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -109,7 +109,7 @@ export declare function deriveAgreementBits(
 @binding("destack.crypto.agreement.deriveKey", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.key.agree", "crypto.kdf", "crypto.store.write"],
+    requires: ["host.crypto.key.agree", "host.crypto.kdf", "host.crypto.store.write"],
     families: ["windows", "unix"],
     simulation: true,
 })

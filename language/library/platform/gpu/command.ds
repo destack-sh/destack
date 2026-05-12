@@ -215,7 +215,7 @@ export struct GpuBufferCopy {
 /// Open a command encoder.
 @binding("destack.gpu.command.encoderOpen", {
     effect: "external",
-    requires: ["gpu.queue"],
+    requires: ["host.gpu.queue"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -227,7 +227,7 @@ export declare function commandEncoderOpen(
 /// Close a command encoder.
 @binding("destack.gpu.command.encoderClose", {
     effect: "external",
-    requires: ["gpu.queue"],
+    requires: ["host.gpu.queue"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -238,7 +238,7 @@ export declare function commandEncoderClose(
 /// Finish one command encoder.
 @binding("destack.gpu.command.encoderFinish", {
     effect: "external",
-    requires: ["gpu.queue"],
+    requires: ["host.gpu.queue"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -250,7 +250,7 @@ export declare function commandEncoderFinish(
 /// Destroy one command buffer.
 @binding("destack.gpu.command.bufferDestroy", {
     effect: "external",
-    requires: ["gpu.queue"],
+    requires: ["host.gpu.queue"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -261,7 +261,7 @@ export declare function commandBufferDestroy(
 /// Open a render-bundle encoder.
 @binding("destack.gpu.command.renderBundleEncoderOpen", {
     effect: "external",
-    requires: ["gpu.render"],
+    requires: ["host.gpu.render"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -273,7 +273,7 @@ export declare function renderBundleEncoderOpen(
 /// Close a render-bundle encoder without producing a bundle.
 @binding("destack.gpu.command.renderBundleEncoderClose", {
     effect: "external",
-    requires: ["gpu.render"],
+    requires: ["host.gpu.render"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -284,7 +284,7 @@ export declare function renderBundleEncoderClose(
 /// Finish one render-bundle encoder.
 @binding("destack.gpu.command.renderBundleEncoderFinish", {
     effect: "external",
-    requires: ["gpu.render"],
+    requires: ["host.gpu.render"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -296,7 +296,7 @@ export declare function renderBundleEncoderFinish(
 /// Begin a compute pass.
 @binding("destack.gpu.command.computePassBegin", {
     effect: "external",
-    requires: ["gpu.compute"],
+    requires: ["host.gpu.compute"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -308,7 +308,7 @@ export declare function commandComputePassBegin(
 /// End a compute pass.
 @binding("destack.gpu.command.computePassEnd", {
     effect: "external",
-    requires: ["gpu.compute"],
+    requires: ["host.gpu.compute"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -319,7 +319,7 @@ export declare function commandComputePassEnd(
 /// Begin a render pass.
 @binding("destack.gpu.command.renderPassBegin", {
     effect: "external",
-    requires: ["gpu.render"],
+    requires: ["host.gpu.render"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -331,7 +331,7 @@ export declare function commandRenderPassBegin(
 /// End a render pass.
 @binding("destack.gpu.command.renderPassEnd", {
     effect: "external",
-    requires: ["gpu.render"],
+    requires: ["host.gpu.render"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -340,7 +340,7 @@ export declare function commandRenderPassEnd(handle: GpuRenderPassHandle): Resul
 /// Insert explicit resource transitions.
 @binding("destack.gpu.command.transitionResources", {
     effect: "external",
-    requires: ["gpu.queue"],
+    requires: ["host.gpu.queue"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -353,7 +353,7 @@ export declare function commandTransitionResources(
 /// Execute one batch of render bundles in the active render pass.
 @binding("destack.gpu.command.executeBundles", {
     effect: "external",
-    requires: ["gpu.render"],
+    requires: ["host.gpu.render"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -365,7 +365,7 @@ export declare function commandExecuteBundles(
 /// Destroy a render bundle.
 @binding("destack.gpu.command.renderBundleDestroy", {
     effect: "external",
-    requires: ["gpu.render"],
+    requires: ["host.gpu.render"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -374,7 +374,7 @@ export declare function renderBundleDestroy(handle: GpuRenderBundleHandle): Resu
 /// Bind one render pipeline for one bundle encoder.
 @binding("destack.gpu.command.renderBundleSetPipeline", {
     effect: "external",
-    requires: ["gpu.render"],
+    requires: ["host.gpu.render"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -386,7 +386,7 @@ export declare function renderBundleSetPipeline(
 /// Bind one bind group in one bundle encoder.
 @binding("destack.gpu.command.renderBundleSetBindGroup", {
     effect: "external",
-    requires: ["gpu.bind"],
+    requires: ["host.gpu.bind"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -400,7 +400,7 @@ export declare function renderBundleSetBindGroup(
 /// Bind one vertex buffer in one bundle encoder.
 @binding("destack.gpu.command.renderBundleSetVertexBuffer", {
     effect: "external",
-    requires: ["gpu.render"],
+    requires: ["host.gpu.render"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -415,7 +415,7 @@ export declare function renderBundleSetVertexBuffer(
 /// Bind one index buffer in one bundle encoder.
 @binding("destack.gpu.command.renderBundleSetIndexBuffer", {
     effect: "external",
-    requires: ["gpu.render"],
+    requires: ["host.gpu.render"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -430,7 +430,7 @@ export declare function renderBundleSetIndexBuffer(
 /// Encode one non-indexed draw in one bundle encoder.
 @binding("destack.gpu.command.renderBundleDraw", {
     effect: "external",
-    requires: ["gpu.render"],
+    requires: ["host.gpu.render"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -445,7 +445,7 @@ export declare function renderBundleDraw(
 /// Encode one indexed draw in one bundle encoder.
 @binding("destack.gpu.command.renderBundleDrawIndexed", {
     effect: "external",
-    requires: ["gpu.render"],
+    requires: ["host.gpu.render"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -461,7 +461,7 @@ export declare function renderBundleDrawIndexed(
 /// Encode one indirect non-indexed draw range in one bundle encoder.
 @binding("destack.gpu.command.renderBundleDrawIndirect", {
     effect: "external",
-    requires: ["gpu.render"],
+    requires: ["host.gpu.render"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -476,7 +476,7 @@ export declare function renderBundleDrawIndirect(
 /// Encode one indirect indexed draw range in one bundle encoder.
 @binding("destack.gpu.command.renderBundleDrawIndexedIndirect", {
     effect: "external",
-    requires: ["gpu.render"],
+    requires: ["host.gpu.render"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -491,7 +491,7 @@ export declare function renderBundleDrawIndexedIndirect(
 /// Insert one debug marker in one bundle encoder.
 @binding("destack.gpu.command.renderBundleInsertDebugMarker", {
     effect: "external",
-    requires: ["gpu.debug"],
+    requires: ["host.gpu.debug"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -503,7 +503,7 @@ export declare function renderBundleInsertDebugMarker(
 /// Push one debug group in one bundle encoder.
 @binding("destack.gpu.command.renderBundlePushDebugGroup", {
     effect: "external",
-    requires: ["gpu.debug"],
+    requires: ["host.gpu.debug"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -515,7 +515,7 @@ export declare function renderBundlePushDebugGroup(
 /// Pop one debug group in one bundle encoder.
 @binding("destack.gpu.command.renderBundlePopDebugGroup", {
     effect: "external",
-    requires: ["gpu.debug"],
+    requires: ["host.gpu.debug"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -526,7 +526,7 @@ export declare function renderBundlePopDebugGroup(
 /// Bind one compute pipeline.
 @binding("destack.gpu.command.bindComputePipeline", {
     effect: "external",
-    requires: ["gpu.compute"],
+    requires: ["host.gpu.compute"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -538,7 +538,7 @@ export declare function commandBindComputePipeline(
 /// Bind one render pipeline.
 @binding("destack.gpu.command.bindRenderPipeline", {
     effect: "external",
-    requires: ["gpu.render"],
+    requires: ["host.gpu.render"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -550,7 +550,7 @@ export declare function commandBindRenderPipeline(
 /// Bind one bind group for one compute pass.
 @binding("destack.gpu.command.setComputeBindGroup", {
     effect: "external",
-    requires: ["gpu.bind"],
+    requires: ["host.gpu.bind"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -564,7 +564,7 @@ export declare function commandSetComputeBindGroup(
 /// Bind one bind group for one render pass.
 @binding("destack.gpu.command.setRenderBindGroup", {
     effect: "external",
-    requires: ["gpu.bind"],
+    requires: ["host.gpu.bind"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -578,7 +578,7 @@ export declare function commandSetRenderBindGroup(
 /// Bind one vertex buffer for subsequent draw commands.
 @binding("destack.gpu.command.setVertexBuffer", {
     effect: "external",
-    requires: ["gpu.render"],
+    requires: ["host.gpu.render"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -593,7 +593,7 @@ export declare function commandSetVertexBuffer(
 /// Bind one index buffer for subsequent indexed draw commands.
 @binding("destack.gpu.command.setIndexBuffer", {
     effect: "external",
-    requires: ["gpu.render"],
+    requires: ["host.gpu.render"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -608,7 +608,7 @@ export declare function commandSetIndexBuffer(
 /// Set viewport state for the active render pass.
 @binding("destack.gpu.command.setViewport", {
     effect: "external",
-    requires: ["gpu.render"],
+    requires: ["host.gpu.render"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -625,7 +625,7 @@ export declare function commandSetViewport(
 /// Set a scissor rectangle for the active render pass.
 @binding("destack.gpu.command.setScissor", {
     effect: "external",
-    requires: ["gpu.render"],
+    requires: ["host.gpu.render"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -640,7 +640,7 @@ export declare function commandSetScissor(
 /// Set a blend constant for the active render pass.
 @binding("destack.gpu.command.setBlendConstant", {
     effect: "external",
-    requires: ["gpu.render"],
+    requires: ["host.gpu.render"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -655,7 +655,7 @@ export declare function commandSetBlendConstant(
 /// Set a stencil-reference value for the active render pass.
 @binding("destack.gpu.command.setStencilReference", {
     effect: "external",
-    requires: ["gpu.render"],
+    requires: ["host.gpu.render"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -667,7 +667,7 @@ export declare function commandSetStencilReference(
 /// Insert one debug marker in one command-encoder scope.
 @binding("destack.gpu.command.insertDebugMarker", {
     effect: "external",
-    requires: ["gpu.debug"],
+    requires: ["host.gpu.debug"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -679,7 +679,7 @@ export declare function commandInsertDebugMarker(
 /// Push one debug group in one command-encoder scope.
 @binding("destack.gpu.command.pushDebugGroup", {
     effect: "external",
-    requires: ["gpu.debug"],
+    requires: ["host.gpu.debug"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -691,7 +691,7 @@ export declare function commandPushDebugGroup(
 /// Pop one debug group in one command-encoder scope.
 @binding("destack.gpu.command.popDebugGroup", {
     effect: "external",
-    requires: ["gpu.debug"],
+    requires: ["host.gpu.debug"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -702,7 +702,7 @@ export declare function commandPopDebugGroup(
 /// Insert one debug marker in one compute-pass scope.
 @binding("destack.gpu.command.computePassInsertDebugMarker", {
     effect: "external",
-    requires: ["gpu.debug"],
+    requires: ["host.gpu.debug"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -714,7 +714,7 @@ export declare function commandComputePassInsertDebugMarker(
 /// Push one debug group in one compute-pass scope.
 @binding("destack.gpu.command.computePassPushDebugGroup", {
     effect: "external",
-    requires: ["gpu.debug"],
+    requires: ["host.gpu.debug"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -726,7 +726,7 @@ export declare function commandComputePassPushDebugGroup(
 /// Pop one debug group in one compute-pass scope.
 @binding("destack.gpu.command.computePassPopDebugGroup", {
     effect: "external",
-    requires: ["gpu.debug"],
+    requires: ["host.gpu.debug"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -737,7 +737,7 @@ export declare function commandComputePassPopDebugGroup(
 /// Insert one debug marker in one render-pass scope.
 @binding("destack.gpu.command.renderPassInsertDebugMarker", {
     effect: "external",
-    requires: ["gpu.debug"],
+    requires: ["host.gpu.debug"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -749,7 +749,7 @@ export declare function commandRenderPassInsertDebugMarker(
 /// Push one debug group in one render-pass scope.
 @binding("destack.gpu.command.renderPassPushDebugGroup", {
     effect: "external",
-    requires: ["gpu.debug"],
+    requires: ["host.gpu.debug"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -761,7 +761,7 @@ export declare function commandRenderPassPushDebugGroup(
 /// Pop one debug group in one render-pass scope.
 @binding("destack.gpu.command.renderPassPopDebugGroup", {
     effect: "external",
-    requires: ["gpu.debug"],
+    requires: ["host.gpu.debug"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -772,7 +772,7 @@ export declare function commandRenderPassPopDebugGroup(
 /// Dispatch one compute workgroup grid.
 @binding("destack.gpu.command.dispatch", {
     effect: "external",
-    requires: ["gpu.compute"],
+    requires: ["host.gpu.compute"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -786,7 +786,7 @@ export declare function commandDispatch(
 /// Dispatch one compute workload from one indirect buffer argument.
 @binding("destack.gpu.command.dispatchIndirect", {
     effect: "external",
-    requires: ["gpu.compute"],
+    requires: ["host.gpu.compute"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -799,7 +799,7 @@ export declare function commandDispatchIndirect(
 /// Draw one non-indexed primitive range.
 @binding("destack.gpu.command.draw", {
     effect: "external",
-    requires: ["gpu.render"],
+    requires: ["host.gpu.render"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -814,7 +814,7 @@ export declare function commandDraw(
 /// Draw one indexed primitive range.
 @binding("destack.gpu.command.drawIndexed", {
     effect: "external",
-    requires: ["gpu.render"],
+    requires: ["host.gpu.render"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -830,7 +830,7 @@ export declare function commandDrawIndexed(
 /// Draw one indirect non-indexed command range.
 @binding("destack.gpu.command.drawIndirect", {
     effect: "external",
-    requires: ["gpu.render"],
+    requires: ["host.gpu.render"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -845,7 +845,7 @@ export declare function commandDrawIndirect(
 /// Draw one indirect indexed command range.
 @binding("destack.gpu.command.drawIndexedIndirect", {
     effect: "external",
-    requires: ["gpu.render"],
+    requires: ["host.gpu.render"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -860,7 +860,7 @@ export declare function commandDrawIndexedIndirect(
 /// Draw multiple indirect non-indexed command ranges.
 @binding("destack.gpu.command.multiDrawIndirect", {
     effect: "external",
-    requires: ["gpu.render.multi.draw"],
+    requires: ["host.gpu.render.multi.draw"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -875,7 +875,7 @@ export declare function commandMultiDrawIndirect(
 /// Draw multiple indirect indexed command ranges.
 @binding("destack.gpu.command.multiDrawIndexedIndirect", {
     effect: "external",
-    requires: ["gpu.render.multi.draw"],
+    requires: ["host.gpu.render.multi.draw"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -890,7 +890,7 @@ export declare function commandMultiDrawIndexedIndirect(
 /// Draw multiple indirect non-indexed command ranges with a host-visible count buffer.
 @binding("destack.gpu.command.multiDrawIndirectCount", {
     effect: "external",
-    requires: ["gpu.render.multi.draw.count"],
+    requires: ["host.gpu.render.multi.draw.count"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -907,7 +907,7 @@ export declare function commandMultiDrawIndirectCount(
 /// Draw multiple indirect indexed command ranges with a host-visible count buffer.
 @binding("destack.gpu.command.multiDrawIndexedIndirectCount", {
     effect: "external",
-    requires: ["gpu.render.multi.draw.count"],
+    requires: ["host.gpu.render.multi.draw.count"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -924,7 +924,7 @@ export declare function commandMultiDrawIndexedIndirectCount(
 /// Copy one buffer range.
 @binding("destack.gpu.command.copyBuffer", {
     effect: "external",
-    requires: ["gpu.memory"],
+    requires: ["host.gpu.memory"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -940,7 +940,7 @@ export declare function commandCopyBuffer(
 /// Clear one buffer range.
 @binding("destack.gpu.command.clearBuffer", {
     effect: "external",
-    requires: ["gpu.memory"],
+    requires: ["host.gpu.memory"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -954,7 +954,7 @@ export declare function commandClearBuffer(
 /// Copy one texture range to another texture.
 @binding("destack.gpu.command.copyTextureToTexture", {
     effect: "external",
-    requires: ["gpu.memory"],
+    requires: ["host.gpu.memory"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -968,7 +968,7 @@ export declare function commandCopyTextureToTexture(
 /// Copy one texture range into one buffer range.
 @binding("destack.gpu.command.copyTextureToBuffer", {
     effect: "external",
-    requires: ["gpu.memory"],
+    requires: ["host.gpu.memory"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -982,7 +982,7 @@ export declare function commandCopyTextureToBuffer(
 /// Copy one buffer range into one texture range.
 @binding("destack.gpu.command.copyBufferToTexture", {
     effect: "external",
-    requires: ["gpu.memory"],
+    requires: ["host.gpu.memory"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -996,7 +996,7 @@ export declare function commandCopyBufferToTexture(
 /// Submit one command-buffer batch to one queue.
 @binding("destack.gpu.command.queueSubmit", {
     effect: "external",
-    requires: ["gpu.queue"],
+    requires: ["host.gpu.queue"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -1009,7 +1009,7 @@ export declare function queueSubmit(
 /// Write host bytes into one GPU buffer through one queue.
 @binding("destack.gpu.command.queueWriteBuffer", {
     effect: "external",
-    requires: ["gpu.queue", "gpu.memory"],
+    requires: ["host.gpu.queue", "host.gpu.memory"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -1025,7 +1025,7 @@ export declare function queueWriteBuffer(
 /// Write host bytes into one GPU texture through one queue.
 @binding("destack.gpu.command.queueWriteTexture", {
     effect: "external",
-    requires: ["gpu.queue", "gpu.memory"],
+    requires: ["host.gpu.queue", "host.gpu.memory"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -1040,7 +1040,7 @@ export declare function queueWriteTexture(
 /// Wait for a queue to become idle.
 @binding("destack.gpu.command.queueWaitIdle", {
     effect: "external",
-    requires: ["gpu.queue"],
+    requires: ["host.gpu.queue"],
     families: ["windows", "unix"],
     simulation: true,
 })

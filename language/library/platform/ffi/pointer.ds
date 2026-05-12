@@ -6,7 +6,7 @@ export newtype FfiPointer = uint64;
 /// Create a pointer from a raw address.
 @binding("destack.ffi.pointer.fromAddress", {
     effect: "deterministic",
-    requires: ["ffi.pointer"],
+    requires: ["host.ffi.pointer"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -15,7 +15,7 @@ export declare function fromAddress(address: uint64): Result<FfiPointer, Platfor
 /// Return the raw address for an opaque pointer.
 @binding("destack.ffi.pointer.address", {
     effect: "deterministic",
-    requires: ["ffi.pointer"],
+    requires: ["host.ffi.pointer"],
     families: ["windows", "unix"],
     simulation: true,
 })

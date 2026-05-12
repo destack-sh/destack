@@ -27,7 +27,7 @@ export struct UnixSocketMessage {
 /// Send one Unix-domain socket message with transferred handles.
 @binding("destack.ipc.unix.send", {
     effect: "external",
-    requires: ["ipc.unix", "ipc.handle.pass"],
+    requires: ["host.ipc.unix", "host.ipc.handle.pass"],
     families: ["unix"],
     simulation: true,
 })
@@ -41,7 +41,7 @@ export declare function sendUnixSocketMessage(
 /// Receive one Unix-domain socket message with transferred handles.
 @binding("destack.ipc.unix.receive", {
     effect: "external",
-    requires: ["ipc.unix", "ipc.handle.pass"],
+    requires: ["host.ipc.unix", "host.ipc.handle.pass"],
     families: ["unix"],
     simulation: true,
 })

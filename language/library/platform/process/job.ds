@@ -39,7 +39,7 @@ export struct JobLimit {
 @binding("destack.process.job.create", {
     effect: "external",
     replay: "forbidden",
-    requires: ["process.job"],
+    requires: ["host.process.job"],
     platforms: ["windows"],
     simulation: true,
 })
@@ -49,7 +49,7 @@ export declare function createJob(name?: &readonly string): Result<JobHandle, Pl
 @binding("destack.process.job.assign", {
     effect: "external",
     replay: "forbidden",
-    requires: ["process.job"],
+    requires: ["host.process.job"],
     platforms: ["windows"],
     simulation: true,
 })
@@ -62,7 +62,7 @@ export declare function assignJob(
 @binding("destack.process.job.limit", {
     effect: "external",
     replay: "forbidden",
-    requires: ["process.job"],
+    requires: ["host.process.job"],
     platforms: ["windows"],
     simulation: true,
 })

@@ -19,7 +19,7 @@ export struct PtyPair {
 /// Open one pseudo terminal pair.
 @binding("destack.tty.pty.open", {
     effect: "external",
-    requires: ["tty.pty"],
+    requires: ["host.tty.pty"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -28,7 +28,7 @@ export declare function openPty(options: &readonly PtyOpenOptions): Result<PtyPa
 /// Read bytes from one pseudo terminal controller.
 @binding("destack.tty.pty.read", {
     effect: "external",
-    requires: ["tty.pty.read"],
+    requires: ["host.tty.pty.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -40,7 +40,7 @@ export declare function readPty(
 /// Write bytes to one pseudo terminal controller.
 @binding("destack.tty.pty.write", {
     effect: "external",
-    requires: ["tty.pty.write"],
+    requires: ["host.tty.pty.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -52,7 +52,7 @@ export declare function writePty(
 /// Close one pseudo terminal controller.
 @binding("destack.tty.pty.close", {
     effect: "external",
-    requires: ["tty.close"],
+    requires: ["host.tty.close"],
     families: ["windows", "unix"],
     simulation: true,
 })

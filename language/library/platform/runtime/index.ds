@@ -1,4 +1,5 @@
 export { runtime } from "./core.ds";
+export * from "./action.ds";
 export * from "./types.ds";
 export * from "./core.ds";
 export * from "./lineage.ds";

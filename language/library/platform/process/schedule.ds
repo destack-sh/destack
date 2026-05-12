@@ -21,7 +21,7 @@ export struct ProcessAffinity {
 /// Read one process priority.
 @binding("destack.process.schedule.priority.read", {
     effect: "external",
-    requires: ["process.priority"],
+    requires: ["host.process.priority"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -32,7 +32,7 @@ export declare function readProcessPriority(
 /// Set one process priority.
 @binding("destack.process.schedule.priority.set", {
     effect: "external",
-    requires: ["process.priority"],
+    requires: ["host.process.priority"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -44,7 +44,7 @@ export declare function setProcessPriority(
 /// Read one process CPU affinity.
 @binding("destack.process.schedule.affinity.read", {
     effect: "external",
-    requires: ["process.affinity"],
+    requires: ["host.process.affinity"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -55,7 +55,7 @@ export declare function readProcessAffinity(
 /// Set one process CPU affinity.
 @binding("destack.process.schedule.affinity.set", {
     effect: "external",
-    requires: ["process.affinity"],
+    requires: ["host.process.affinity"],
     families: ["windows", "unix"],
     simulation: true,
 })

@@ -261,7 +261,7 @@ export struct BluetoothGattValueEvent {
 /// List Bluetooth adapters.
 @binding("destack.device.bluetooth.adapter.list", {
     effect: "external",
-    requires: ["device.bluetooth.list"],
+    requires: ["host.device.bluetooth.list"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -270,7 +270,7 @@ export declare function listBluetoothAdapters(): Result<^Array<BluetoothAdapter>
 /// Open a Bluetooth adapter topology watch.
 @binding("destack.device.bluetooth.adapter.watch.open", {
     effect: "external",
-    requires: ["device.bluetooth.list"],
+    requires: ["host.device.bluetooth.list"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -282,7 +282,7 @@ export declare function openBluetoothAdapterWatch(): Result<
 /// Close a Bluetooth adapter topology watch.
 @binding("destack.device.bluetooth.adapter.watch.close", {
     effect: "external",
-    requires: ["device.bluetooth.list"],
+    requires: ["host.device.bluetooth.list"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -293,7 +293,7 @@ export declare function closeBluetoothAdapterWatch(
 /// Read one Bluetooth adapter topology event.
 @binding("destack.device.bluetooth.adapter.watch.read", {
     effect: "external",
-    requires: ["device.bluetooth.list"],
+    requires: ["host.device.bluetooth.list"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -305,7 +305,7 @@ export declare function readBluetoothAdapterWatch(
 /// Open a Bluetooth LE scan.
 @binding("destack.device.bluetooth.scan.open", {
     effect: "external",
-    requires: ["device.bluetooth.scan"],
+    requires: ["host.device.bluetooth.scan"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -316,7 +316,7 @@ export declare function openBluetoothScan(
 /// Close a Bluetooth LE scan.
 @binding("destack.device.bluetooth.scan.close", {
     effect: "external",
-    requires: ["device.bluetooth.scan"],
+    requires: ["host.device.bluetooth.scan"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -325,7 +325,7 @@ export declare function closeBluetoothScan(scan: BluetoothScanHandle): Result<vo
 /// Read one Bluetooth scan event.
 @binding("destack.device.bluetooth.scan.read", {
     effect: "external",
-    requires: ["device.bluetooth.scan"],
+    requires: ["host.device.bluetooth.scan"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -337,7 +337,7 @@ export declare function readBluetoothScan(
 /// Open a Bluetooth device session.
 @binding("destack.device.bluetooth.open", {
     effect: "external",
-    requires: ["device.bluetooth.connect"],
+    requires: ["host.device.bluetooth.connect"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -348,7 +348,7 @@ export declare function openBluetoothDevice(
 /// Close a Bluetooth device session.
 @binding("destack.device.bluetooth.close", {
     effect: "external",
-    requires: ["device.bluetooth.connect"],
+    requires: ["host.device.bluetooth.connect"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -359,7 +359,7 @@ export declare function closeBluetoothDevice(
 /// Describe a Bluetooth device session.
 @binding("destack.device.bluetooth.describe", {
     effect: "external",
-    requires: ["device.bluetooth.connect"],
+    requires: ["host.device.bluetooth.connect"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -370,7 +370,7 @@ export declare function describeBluetoothDevice(
 /// Read one Bluetooth session event.
 @binding("destack.device.bluetooth.event.read", {
     effect: "external",
-    requires: ["device.bluetooth.connect"],
+    requires: ["host.device.bluetooth.connect"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -382,7 +382,7 @@ export declare function readBluetoothEvent(
 /// Pair a Bluetooth device.
 @binding("destack.device.bluetooth.pair", {
     effect: "external",
-    requires: ["device.bluetooth.connect"],
+    requires: ["host.device.bluetooth.connect"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -393,7 +393,7 @@ export declare function pairBluetoothDevice(
 /// Unpair a Bluetooth device.
 @binding("destack.device.bluetooth.unpair", {
     effect: "external",
-    requires: ["device.bluetooth.connect"],
+    requires: ["host.device.bluetooth.connect"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -404,7 +404,7 @@ export declare function unpairBluetoothDevice(
 /// Read Bluetooth signal strength.
 @binding("destack.device.bluetooth.rssi", {
     effect: "external",
-    requires: ["device.bluetooth.connect"],
+    requires: ["host.device.bluetooth.connect"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -415,7 +415,7 @@ export declare function readBluetoothRssi(
 /// List Bluetooth GATT services.
 @binding("destack.device.bluetooth.gatt.service.list", {
     effect: "external",
-    requires: ["device.bluetooth.gatt"],
+    requires: ["host.device.bluetooth.gatt"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -426,7 +426,7 @@ export declare function listBluetoothGattServices(
 /// List Bluetooth GATT characteristics.
 @binding("destack.device.bluetooth.gatt.characteristic.list", {
     effect: "external",
-    requires: ["device.bluetooth.gatt"],
+    requires: ["host.device.bluetooth.gatt"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -438,7 +438,7 @@ export declare function listBluetoothGattCharacteristics(
 /// List Bluetooth GATT descriptors.
 @binding("destack.device.bluetooth.gatt.descriptor.list", {
     effect: "external",
-    requires: ["device.bluetooth.gatt"],
+    requires: ["host.device.bluetooth.gatt"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -450,7 +450,7 @@ export declare function listBluetoothGattDescriptors(
 /// Read a Bluetooth GATT characteristic.
 @binding("destack.device.bluetooth.gatt.characteristic.read", {
     effect: "external",
-    requires: ["device.bluetooth.gatt"],
+    requires: ["host.device.bluetooth.gatt"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -463,7 +463,7 @@ export declare function readBluetoothGattCharacteristic(
 /// Write a Bluetooth GATT characteristic.
 @binding("destack.device.bluetooth.gatt.characteristic.write", {
     effect: "external",
-    requires: ["device.bluetooth.gatt"],
+    requires: ["host.device.bluetooth.gatt"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -477,7 +477,7 @@ export declare function writeBluetoothGattCharacteristic(
 /// Read a Bluetooth GATT descriptor.
 @binding("destack.device.bluetooth.gatt.descriptor.read", {
     effect: "external",
-    requires: ["device.bluetooth.gatt"],
+    requires: ["host.device.bluetooth.gatt"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -490,7 +490,7 @@ export declare function readBluetoothGattDescriptor(
 /// Write a Bluetooth GATT descriptor.
 @binding("destack.device.bluetooth.gatt.descriptor.write", {
     effect: "external",
-    requires: ["device.bluetooth.gatt"],
+    requires: ["host.device.bluetooth.gatt"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -503,7 +503,7 @@ export declare function writeBluetoothGattDescriptor(
 /// Subscribe to Bluetooth GATT value notifications.
 @binding("destack.device.bluetooth.gatt.subscribe", {
     effect: "external",
-    requires: ["device.bluetooth.gatt"],
+    requires: ["host.device.bluetooth.gatt"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -515,7 +515,7 @@ export declare function subscribeBluetoothGatt(
 /// Unsubscribe from Bluetooth GATT value notifications.
 @binding("destack.device.bluetooth.gatt.unsubscribe", {
     effect: "external",
-    requires: ["device.bluetooth.gatt"],
+    requires: ["host.device.bluetooth.gatt"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -526,7 +526,7 @@ export declare function unsubscribeBluetoothGatt(
 /// Read one Bluetooth GATT value notification.
 @binding("destack.device.bluetooth.gatt.event.read", {
     effect: "external",
-    requires: ["device.bluetooth.gatt"],
+    requires: ["host.device.bluetooth.gatt"],
     families: ["windows", "unix"],
     simulation: true,
 })

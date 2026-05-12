@@ -4,7 +4,7 @@ import { PlatformError } from "destack:platform/error";
 /// Return the process argument vector.
 @binding("destack.process.argument.list", {
     effect: "external",
-    requires: ["process.arguments"],
+    requires: ["host.process.arguments"],
     families: ["windows", "unix"],
     simulation: true,
 })

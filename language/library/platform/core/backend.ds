@@ -1,5 +1,5 @@
-/// Shared host backend support state.
-export enum BackendSupport {
+/// Host backend availability status.
+export enum HostBackendStatus {
     /// The backend integration is available on the current host.
     Available = 0,
     /// The backend is not supported on the active target platform.

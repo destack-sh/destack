@@ -472,7 +472,7 @@ export struct WindowState {
 /// Open a window.
 @binding("destack.display.window.open", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -482,7 +482,7 @@ export declare function windowOpen(options: WindowOptions): Result<WindowHandle,
 /// Close a window.
 @binding("destack.display.window.close", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -492,7 +492,7 @@ export declare function windowClose(window: WindowHandle): Result<void, Platform
 /// Read window descriptor metadata.
 @binding("destack.display.window.descriptor", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -502,7 +502,7 @@ export declare function windowDescriptor(window: WindowHandle): Result<WindowDes
 /// Read a window state snapshot.
 @binding("destack.display.window.state", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -512,7 +512,7 @@ export declare function windowState(window: WindowHandle): Result<WindowState, P
 /// Read the logical content rectangle for a window.
 @binding("destack.display.window.contentRect", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -524,7 +524,7 @@ export declare function windowContentRect(
 /// Read the drawable framebuffer size for a window.
 @binding("destack.display.window.framebufferSize", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -536,7 +536,7 @@ export declare function windowFramebufferSize(
 /// Read the render state for a window.
 @binding("destack.display.window.renderState", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -548,7 +548,7 @@ export declare function windowRenderState(
 /// Read the effective action set for a window.
 @binding("destack.display.window.actions", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -560,7 +560,7 @@ export declare function windowCapabilities(
 /// Set a window title string.
 @binding("destack.display.window.setTitle", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -573,7 +573,7 @@ export declare function windowSetTitle(
 /// Set a window icon set.
 @binding("destack.display.window.setIcons", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -586,7 +586,7 @@ export declare function windowSetIcons(
 /// Set a window position.
 @binding("destack.display.window.setPosition", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -599,7 +599,7 @@ export declare function windowSetPosition(
 /// Set a logical window size.
 @binding("destack.display.window.setSizeLogical", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -612,7 +612,7 @@ export declare function windowSetSizeLogical(
 /// Set a physical window size.
 @binding("destack.display.window.setSizePhysical", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -625,7 +625,7 @@ export declare function windowSetSizePhysical(
 /// Set logical size constraints.
 @binding("destack.display.window.setSizeConstraints", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -638,7 +638,7 @@ export declare function windowSetSizeConstraints(
 /// Set a window aspect-ratio lock.
 @binding("destack.display.window.setAspectRatio", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -651,7 +651,7 @@ export declare function windowSetAspectRatio(
 /// Set a window visibility state.
 @binding("destack.display.window.setVisibility", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -664,7 +664,7 @@ export declare function windowSetVisibility(
 /// Minimize a window.
 @binding("destack.display.window.minimize", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -674,7 +674,7 @@ export declare function windowMinimize(window: WindowHandle): Result<void, Platf
 /// Maximize a window.
 @binding("destack.display.window.maximize", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -684,7 +684,7 @@ export declare function windowMaximize(window: WindowHandle): Result<void, Platf
 /// Restore a window.
 @binding("destack.display.window.restore", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -694,7 +694,7 @@ export declare function windowRestore(window: WindowHandle): Result<void, Platfo
 /// Set a window mode.
 @binding("destack.display.window.setMode", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -707,7 +707,7 @@ export declare function windowSetMode(
 /// Set window resizable state.
 @binding("destack.display.window.setResizable", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -720,7 +720,7 @@ export declare function windowSetResizable(
 /// Set window decoration state.
 @binding("destack.display.window.setDecorated", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -733,7 +733,7 @@ export declare function windowSetDecorated(
 /// Set a window chrome style.
 @binding("destack.display.window.setChrome", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -746,7 +746,7 @@ export declare function windowSetChrome(
 /// Set taskbar visibility for a window.
 @binding("destack.display.window.setTaskbarVisible", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -759,7 +759,7 @@ export declare function windowSetTaskbarVisible(
 /// Set always-on-top state.
 @binding("destack.display.window.setAlwaysOnTop", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -772,7 +772,7 @@ export declare function windowSetAlwaysOnTop(
 /// Set a window opacity.
 @binding("destack.display.window.setOpacity", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -785,7 +785,7 @@ export declare function windowSetOpacity(
 /// Read a window opacity value.
 @binding("destack.display.window.opacity", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -795,7 +795,7 @@ export declare function windowOpacity(window: WindowHandle): Result<float64, Pla
 /// Focus a window.
 @binding("destack.display.window.focus", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -805,7 +805,7 @@ export declare function windowFocus(window: WindowHandle): Result<void, Platform
 /// Raise a window.
 @binding("destack.display.window.raise", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -815,7 +815,7 @@ export declare function windowRaise(window: WindowHandle): Result<void, Platform
 /// Set a parent window relationship.
 @binding("destack.display.window.setParent", {
     effect: "external",
-    requires: ["display.window.parenting"],
+    requires: ["host.display.window.parenting"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -828,7 +828,7 @@ export declare function windowSetParent(
 /// Set a transient-owner relationship.
 @binding("destack.display.window.setTransientFor", {
     effect: "external",
-    requires: ["display.window.parenting"],
+    requires: ["host.display.window.parenting"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -841,7 +841,7 @@ export declare function windowSetTransientFor(
 /// Set a window modal relationship.
 @binding("destack.display.window.setModal", {
     effect: "external",
-    requires: ["display.window.modal"],
+    requires: ["host.display.window.modal"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -854,7 +854,7 @@ export declare function windowSetModal(
 /// Set mouse passthrough behavior for a window.
 @binding("destack.display.window.setMousePassthrough", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -867,7 +867,7 @@ export declare function windowSetMousePassthrough(
 /// Invalidate a window for redraw.
 @binding("destack.display.window.invalidate", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -877,7 +877,7 @@ export declare function windowInvalidate(window: WindowHandle): Result<void, Pla
 /// Request user attention for a window.
 @binding("destack.display.window.requestAttention", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -890,7 +890,7 @@ export declare function windowRequestAttention(
 /// Set cursor interaction mode for a window.
 @binding("destack.display.window.setCursorMode", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -903,7 +903,7 @@ export declare function windowSetCursorMode(
 /// Set cursor icon for a window.
 @binding("destack.display.window.setCursorIcon", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -916,7 +916,7 @@ export declare function windowSetCursorIcon(
 /// Set cursor visibility for a window.
 @binding("destack.display.window.setCursorVisible", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -929,7 +929,7 @@ export declare function windowSetCursorVisible(
 /// Set cursor position for a window.
 @binding("destack.display.window.setCursorPosition", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -942,7 +942,7 @@ export declare function windowSetCursorPosition(
 /// Begin a native move-drag interaction.
 @binding("destack.display.window.beginMoveDrag", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -952,7 +952,7 @@ export declare function windowBeginMoveDrag(window: WindowHandle): Result<void, 
 /// Begin a native resize-drag interaction.
 @binding("destack.display.window.beginResizeDrag", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",

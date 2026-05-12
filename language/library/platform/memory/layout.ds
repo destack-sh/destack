@@ -13,7 +13,7 @@ export struct VirtualMemoryLayout {
 /// Read virtual memory layout constraints.
 @binding("destack.memory.layout.read", {
     effect: "external",
-    requires: ["memory.layout.read"],
+    requires: ["host.memory.layout.read"],
     families: ["windows", "unix"],
     simulation: true,
 })

@@ -203,7 +203,7 @@ export newtype UsbWatchEvent =
 /// List USB devices.
 @binding("destack.device.usb.list", {
     effect: "external",
-    requires: ["device.usb.list"],
+    requires: ["host.device.usb.list"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -212,7 +212,7 @@ export declare function listUsbDevices(): Result<^Array<UsbDevice>, PlatformErro
 /// Open a USB topology watch.
 @binding("destack.device.usb.watch.open", {
     effect: "external",
-    requires: ["device.usb.list"],
+    requires: ["host.device.usb.list"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -221,7 +221,7 @@ export declare function openUsbWatch(): Result<UsbWatchHandle, PlatformError>;
 /// Close a USB topology watch.
 @binding("destack.device.usb.watch.close", {
     effect: "external",
-    requires: ["device.usb.list"],
+    requires: ["host.device.usb.list"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -230,7 +230,7 @@ export declare function closeUsbWatch(watch: UsbWatchHandle): Result<void, Platf
 /// Read one USB topology event.
 @binding("destack.device.usb.watch.read", {
     effect: "external",
-    requires: ["device.usb.list"],
+    requires: ["host.device.usb.list"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -242,7 +242,7 @@ export declare function readUsbWatch(
 /// Open a USB device.
 @binding("destack.device.usb.open", {
     effect: "external",
-    requires: ["device.usb.open"],
+    requires: ["host.device.usb.open"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -253,7 +253,7 @@ export declare function openUsbDevice(
 /// Close a USB device.
 @binding("destack.device.usb.close", {
     effect: "external",
-    requires: ["device.usb.open"],
+    requires: ["host.device.usb.open"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -262,7 +262,7 @@ export declare function closeUsbDevice(device: UsbDeviceHandle): Result<void, Pl
 /// Describe an open USB device.
 @binding("destack.device.usb.describe", {
     effect: "external",
-    requires: ["device.usb.list"],
+    requires: ["host.device.usb.list"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -273,7 +273,7 @@ export declare function describeUsbDevice(
 /// List USB configurations.
 @binding("destack.device.usb.configuration.list", {
     effect: "external",
-    requires: ["device.usb.list"],
+    requires: ["host.device.usb.list"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -284,7 +284,7 @@ export declare function listUsbConfigurations(
 /// Read the active USB configuration.
 @binding("destack.device.usb.configuration.get", {
     effect: "external",
-    requires: ["device.usb.configure"],
+    requires: ["host.device.usb.configure"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -295,7 +295,7 @@ export declare function getUsbConfiguration(
 /// Select the active USB configuration.
 @binding("destack.device.usb.configuration.set", {
     effect: "external",
-    requires: ["device.usb.configure"],
+    requires: ["host.device.usb.configure"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -307,7 +307,7 @@ export declare function setUsbConfiguration(
 /// List USB interfaces.
 @binding("destack.device.usb.interface.list", {
     effect: "external",
-    requires: ["device.usb.list"],
+    requires: ["host.device.usb.list"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -319,7 +319,7 @@ export declare function listUsbInterfaces(
 /// Claim a USB interface.
 @binding("destack.device.usb.interface.claim", {
     effect: "external",
-    requires: ["device.usb.configure"],
+    requires: ["host.device.usb.configure"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -331,7 +331,7 @@ export declare function claimUsbInterface(
 /// Release a USB interface.
 @binding("destack.device.usb.interface.release", {
     effect: "external",
-    requires: ["device.usb.configure"],
+    requires: ["host.device.usb.configure"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -343,7 +343,7 @@ export declare function releaseUsbInterface(
 /// Select one USB interface alternate setting.
 @binding("destack.device.usb.interface.alternate.set", {
     effect: "external",
-    requires: ["device.usb.configure"],
+    requires: ["host.device.usb.configure"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -356,7 +356,7 @@ export declare function setUsbAlternateInterface(
 /// List USB endpoints.
 @binding("destack.device.usb.endpoint.list", {
     effect: "external",
-    requires: ["device.usb.list"],
+    requires: ["host.device.usb.list"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -369,7 +369,7 @@ export declare function listUsbEndpoints(
 /// Clear one halted USB endpoint.
 @binding("destack.device.usb.endpoint.clearHalt", {
     effect: "external",
-    requires: ["device.usb.configure"],
+    requires: ["host.device.usb.configure"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -381,7 +381,7 @@ export declare function clearUsbHalt(
 /// Reset one USB device.
 @binding("destack.device.usb.reset", {
     effect: "external",
-    requires: ["device.usb.configure"],
+    requires: ["host.device.usb.configure"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -390,7 +390,7 @@ export declare function resetUsbDevice(device: UsbDeviceHandle): Result<void, Pl
 /// Read one raw USB descriptor.
 @binding("destack.device.usb.descriptor.read", {
     effect: "external",
-    requires: ["device.usb.list"],
+    requires: ["host.device.usb.list"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -405,7 +405,7 @@ export declare function readUsbDescriptor(
 /// Read bytes with a USB control transfer.
 @binding("destack.device.usb.control.read", {
     effect: "external",
-    requires: ["device.usb.transfer"],
+    requires: ["host.device.usb.transfer"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -419,7 +419,7 @@ export declare function readUsbControl(
 /// Write bytes with a USB control transfer.
 @binding("destack.device.usb.control.write", {
     effect: "external",
-    requires: ["device.usb.transfer"],
+    requires: ["host.device.usb.transfer"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -433,7 +433,7 @@ export declare function writeUsbControl(
 /// Read bytes from a USB bulk endpoint.
 @binding("destack.device.usb.bulk.read", {
     effect: "external",
-    requires: ["device.usb.transfer"],
+    requires: ["host.device.usb.transfer"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -447,7 +447,7 @@ export declare function readUsbBulk(
 /// Write bytes to a USB bulk endpoint.
 @binding("destack.device.usb.bulk.write", {
     effect: "external",
-    requires: ["device.usb.transfer"],
+    requires: ["host.device.usb.transfer"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -461,7 +461,7 @@ export declare function writeUsbBulk(
 /// Read bytes from a USB interrupt endpoint.
 @binding("destack.device.usb.interrupt.read", {
     effect: "external",
-    requires: ["device.usb.transfer"],
+    requires: ["host.device.usb.transfer"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -475,7 +475,7 @@ export declare function readUsbInterrupt(
 /// Write bytes to a USB interrupt endpoint.
 @binding("destack.device.usb.interrupt.write", {
     effect: "external",
-    requires: ["device.usb.transfer"],
+    requires: ["host.device.usb.transfer"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -489,7 +489,7 @@ export declare function writeUsbInterrupt(
 /// Read USB isochronous packets.
 @binding("destack.device.usb.isochronous.read", {
     effect: "external",
-    requires: ["device.usb.transfer"],
+    requires: ["host.device.usb.transfer"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -505,7 +505,7 @@ export declare function readUsbIsochronous(
 /// Write USB isochronous packets.
 @binding("destack.device.usb.isochronous.write", {
     effect: "external",
-    requires: ["device.usb.transfer"],
+    requires: ["host.device.usb.transfer"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -521,7 +521,7 @@ export declare function writeUsbIsochronous(
 /// Cancel pending USB transfers.
 @binding("destack.device.usb.transfer.cancel", {
     effect: "external",
-    requires: ["device.usb.transfer"],
+    requires: ["host.device.usb.transfer"],
     families: ["windows", "unix"],
     simulation: true,
 })

@@ -496,7 +496,7 @@ export newtype PlatformError = {
 /// Error bindings for runtime error propagation.
 @binding("destack.error.error.takePlatformError", {
     effect: "deterministic",
-    requires: ["diagnostic.read"],
+    requires: ["runtime.diagnostic.read"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",

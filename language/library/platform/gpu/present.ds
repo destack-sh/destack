@@ -268,7 +268,7 @@ export struct GpuSurfacePresentationOpenOptions {
 @binding("destack.gpu.present.surfaceOpen", {
     effect: "external",
     replay: "forbidden",
-    requires: ["gpu.present"],
+    requires: ["host.gpu.present"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -278,7 +278,7 @@ export declare function surfaceOpen(window: WindowHandle): Result<GpuSurfaceHand
 @binding("destack.gpu.present.surfaceClose", {
     effect: "external",
     replay: "forbidden",
-    requires: ["gpu.present"],
+    requires: ["host.gpu.present"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -288,7 +288,7 @@ export declare function surfaceClose(surface: GpuSurfaceHandle): Result<void, Pl
 @binding("destack.gpu.present.surfacePresentationOpen", {
     effect: "external",
     replay: "forbidden",
-    requires: ["gpu.present"],
+    requires: ["host.gpu.present"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -301,7 +301,7 @@ export declare function surfacePresentationOpen(
 @binding("destack.gpu.present.surfacePresentationClose", {
     effect: "external",
     replay: "forbidden",
-    requires: ["gpu.present"],
+    requires: ["host.gpu.present"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -313,7 +313,7 @@ export declare function surfacePresentationClose(
 @binding("destack.gpu.present.surfaceCapabilities", {
     effect: "external",
     replay: "forbidden",
-    requires: ["gpu.present"],
+    requires: ["host.gpu.present"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -326,7 +326,7 @@ export declare function surfaceCapabilities(
 @binding("destack.gpu.present.surfaceConfigure", {
     effect: "external",
     replay: "forbidden",
-    requires: ["gpu.present"],
+    requires: ["host.gpu.present"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -340,7 +340,7 @@ export declare function surfaceConfigure(
 @binding("destack.gpu.present.surfaceUnconfigure", {
     effect: "external",
     replay: "forbidden",
-    requires: ["gpu.present"],
+    requires: ["host.gpu.present"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -350,7 +350,7 @@ export declare function surfaceUnconfigure(surface: GpuSurfaceHandle): Result<vo
 @binding("destack.gpu.present.surfaceStatus", {
     effect: "external",
     replay: "forbidden",
-    requires: ["gpu.present"],
+    requires: ["host.gpu.present"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -362,7 +362,7 @@ export declare function surfaceStatus(
 @binding("destack.gpu.present.surfacePresentationRead", {
     effect: "external",
     replay: "forbidden",
-    requires: ["gpu.present"],
+    requires: ["host.gpu.present"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -375,7 +375,7 @@ export declare function surfacePresentationRead(
 @binding("destack.gpu.present.surfacePresentationTryRead", {
     effect: "external",
     replay: "forbidden",
-    requires: ["gpu.present"],
+    requires: ["host.gpu.present"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -387,7 +387,7 @@ export declare function surfacePresentationTryRead(
 @binding("destack.gpu.present.surfacePresentationReadBatch", {
     effect: "external",
     replay: "forbidden",
-    requires: ["gpu.present"],
+    requires: ["host.gpu.present"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -401,7 +401,7 @@ export declare function surfacePresentationReadBatch(
 @binding("destack.gpu.present.surfacePresentationTryReadBatch", {
     effect: "external",
     replay: "forbidden",
-    requires: ["gpu.present"],
+    requires: ["host.gpu.present"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -414,7 +414,7 @@ export declare function surfacePresentationTryReadBatch(
 @binding("destack.gpu.present.surfaceAcquire", {
     effect: "external",
     replay: "forbidden",
-    requires: ["gpu.present"],
+    requires: ["host.gpu.present"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -427,7 +427,7 @@ export declare function surfaceAcquire(
 @binding("destack.gpu.present.surfacePresent", {
     effect: "external",
     replay: "forbidden",
-    requires: ["gpu.present"],
+    requires: ["host.gpu.present"],
     families: ["windows", "unix"],
     simulation: true,
 })

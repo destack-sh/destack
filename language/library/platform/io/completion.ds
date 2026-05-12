@@ -17,7 +17,7 @@ export struct IoCompletionEvent {
 /// Open a completion queue.
 @binding("destack.io.completion.open", {
     effect: "external",
-    requires: ["io.completion"],
+    requires: ["host.io.completion"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -28,7 +28,7 @@ export declare function openIoCompletion(
 /// Close a completion queue.
 @binding("destack.io.completion.close", {
     effect: "external",
-    requires: ["io.completion"],
+    requires: ["host.io.completion"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -39,7 +39,7 @@ export declare function closeIoCompletion(
 /// Bind one resource to a completion queue.
 @binding("destack.io.completion.bind", {
     effect: "external",
-    requires: ["io.completion"],
+    requires: ["host.io.completion"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -52,7 +52,7 @@ export declare function bindIoCompletion(
 /// Unbind one resource from a completion queue.
 @binding("destack.io.completion.unbind", {
     effect: "external",
-    requires: ["io.completion"],
+    requires: ["host.io.completion"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -64,7 +64,7 @@ export declare function unbindIoCompletion(
 /// Post one synthetic completion event.
 @binding("destack.io.completion.post", {
     effect: "external",
-    requires: ["io.completion"],
+    requires: ["host.io.completion"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -76,7 +76,7 @@ export declare function postIoCompletion(
 /// Wait for completion events.
 @binding("destack.io.completion.wait", {
     effect: "external",
-    requires: ["io.completion"],
+    requires: ["host.io.completion"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -89,7 +89,7 @@ export declare function waitIoCompletion(
 /// Cancel queued completions for one resource.
 @binding("destack.io.completion.cancel", {
     effect: "external",
-    requires: ["io.completion"],
+    requires: ["host.io.completion"],
     families: ["windows", "unix"],
     simulation: true,
 })

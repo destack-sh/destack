@@ -41,7 +41,7 @@ export struct ClockMetadata {
 /// Return wall clock time in nanoseconds since the runtime epoch.
 @binding("destack.time.clock.wallNs", {
     effect: "external",
-    requires: ["time.wall.read"],
+    requires: ["host.time.wall.read"],
     families: ["windows", "unix"],
     provider: "runtime",
 })
@@ -50,7 +50,7 @@ export declare function wallNs(): Result<uint64, PlatformError>;
 /// Return monotonic time in nanoseconds.
 @binding("destack.time.clock.monoNs", {
     effect: "external",
-    requires: ["time.monotonic.read"],
+    requires: ["host.time.monotonic.read"],
     families: ["windows", "unix"],
     provider: "runtime",
 })
@@ -59,7 +59,7 @@ export declare function monoNs(): Result<uint64, PlatformError>;
 /// Return process CPU time in nanoseconds.
 @binding("destack.time.clock.processCpuNs", {
     effect: "external",
-    requires: ["time.monotonic.read"],
+    requires: ["host.time.monotonic.read"],
     families: ["windows", "unix"],
     provider: "runtime",
 })
@@ -68,7 +68,7 @@ export declare function processCpuNs(): Result<uint64, PlatformError>;
 /// Read one selected clock in nanoseconds.
 @binding("destack.time.clock.nowNs", {
     effect: "external",
-    requires: ["time.monotonic.read"],
+    requires: ["host.time.monotonic.read"],
     families: ["windows", "unix"],
     provider: "runtime",
 })
@@ -77,7 +77,7 @@ export declare function nowNs(clock: ClockId): Result<uint64, PlatformError>;
 /// Query one selected clock metadata.
 @binding("destack.time.clock.metadata", {
     effect: "external",
-    requires: ["time.monotonic.read"],
+    requires: ["host.time.monotonic.read"],
     families: ["windows", "unix"],
     provider: "runtime",
 })

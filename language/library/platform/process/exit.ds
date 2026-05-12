@@ -3,7 +3,7 @@ import { PlatformError } from "destack:platform/error";
 /// Exit the current process with the given code.
 @binding("destack.process.exit", {
     effect: "external",
-    requires: ["process.exit"],
+    requires: ["host.process.exit"],
     families: ["windows", "unix"],
     simulation: true,
 })

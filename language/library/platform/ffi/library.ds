@@ -6,7 +6,7 @@ import { Path } from "destack:platform/fs";
 @binding("destack.ffi.library.open", {
     effect: "external",
     replay: "forbidden",
-    requires: ["ffi.load"],
+    requires: ["host.ffi.load"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -16,7 +16,7 @@ export declare function open(path: Path, flags: uint32): Result<LibraryHandle, P
 @binding("destack.ffi.library.close", {
     effect: "external",
     replay: "forbidden",
-    requires: ["ffi.load"],
+    requires: ["host.ffi.load"],
     families: ["windows", "unix"],
     simulation: true,
 })

@@ -1,5 +1,5 @@
 import { Slice } from "destack:collections";
-import { BackendSupport } from "destack:platform/core";
+import { HostBackendStatus } from "destack:platform/core";
 import { PlatformError } from "destack:platform/error";
 
 /// Audio backend selector.
@@ -63,13 +63,13 @@ export struct AudioBackendDescriptor {
     backend: AudioBackend;
     /// Stable backend name.
     name: string;
-    /// Host backend support state for this selector.
-    support: BackendSupport;
+    /// Host backend availability status for this selector.
+    status: HostBackendStatus;
     /// Priority in default auto-selection order, or zero when auto does not consider this selector.
     priority: uint16;
     /// Backend-level action flags.
     /// These are coarse feature categories.
-    /// Use `supported*` masks for lane-level support decisions.
+    /// Use `supported*` masks for fine-grained support decisions.
     capabilityFlags: AudioBackendCapabilityFlags;
     /// Supported device-list flags for this backend.
     supportedDeviceListFlags: AudioDeviceListFlags;
@@ -88,7 +88,7 @@ export struct AudioBackendDescriptor {
 /// List host audio backends.
 @binding("destack.audio.backend.list", {
     effect: "external",
-    requires: ["audio.device"],
+    requires: ["host.audio.device"],
     families: ["windows", "unix"],
     simulation: true,
 })

@@ -207,7 +207,7 @@ export struct ReverseAddressLookupResult {
 /// Resolve a host and service through host address lookup.
 @binding("destack.net.resolve.lookup", {
     effect: "external",
-    requires: ["net.dns"],
+    requires: ["host.net.dns"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -218,7 +218,7 @@ export declare function lookupAddress(
 /// Resolve DNS records.
 @binding("destack.net.resolve.record", {
     effect: "external",
-    requires: ["net.dns"],
+    requires: ["host.net.dns"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -229,7 +229,7 @@ export declare function resolveRecord(
 /// Reverse lookup a socket address into host and service names.
 @binding("destack.net.resolve.reverseLookup", {
     effect: "external",
-    requires: ["net.dns"],
+    requires: ["host.net.dns"],
     families: ["windows", "unix"],
     simulation: true,
 })

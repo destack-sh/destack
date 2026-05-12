@@ -243,7 +243,7 @@ export newtype AudioEvent =
 /// Open one audio event subscription.
 @binding("destack.audio.event.open", {
     effect: "external",
-    requires: ["audio.device.monitor"],
+    requires: ["host.audio.device.monitor"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -254,7 +254,7 @@ export declare function eventOpen(
 /// Close one audio event subscription.
 @binding("destack.audio.event.close", {
     effect: "external",
-    requires: ["audio.device.monitor"],
+    requires: ["host.audio.device.monitor"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -263,7 +263,7 @@ export declare function eventClose(handle: AudioEventHandle): Result<void, Platf
 /// Wait for one audio event.
 @binding("destack.audio.event.read", {
     effect: "external",
-    requires: ["audio.device.monitor"],
+    requires: ["host.audio.device.monitor"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -275,7 +275,7 @@ export declare function eventRead(
 /// Wait for one batch of audio events.
 @binding("destack.audio.event.readBatch", {
     effect: "external",
-    requires: ["audio.device.monitor"],
+    requires: ["host.audio.device.monitor"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -288,7 +288,7 @@ export declare function eventReadBatch(
 /// Poll one audio event without blocking.
 @binding("destack.audio.event.tryRead", {
     effect: "external",
-    requires: ["audio.device.monitor"],
+    requires: ["host.audio.device.monitor"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -297,7 +297,7 @@ export declare function eventTryRead(handle: AudioEventHandle): Result<AudioEven
 /// Poll one batch of audio events without blocking.
 @binding("destack.audio.event.tryReadBatch", {
     effect: "external",
-    requires: ["audio.device.monitor"],
+    requires: ["host.audio.device.monitor"],
     families: ["windows", "unix"],
     simulation: true,
 })

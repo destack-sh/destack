@@ -16,7 +16,7 @@ export enum TraceLevel {
 /// Start a debug trace stream.
 @binding("destack.debug.trace.start", {
     effect: "external",
-    requires: ["debug.trace"],
+    requires: ["runtime.debug.trace"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -29,7 +29,7 @@ export declare function traceStart(
 /// Stop a debug trace stream.
 @binding("destack.debug.trace.stop", {
     effect: "external",
-    requires: ["debug.trace"],
+    requires: ["runtime.debug.trace"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -39,7 +39,7 @@ export declare function traceStop(handle: TraceHandle): Result<void, PlatformErr
 /// Emit one debug trace event.
 @binding("destack.debug.trace.emit", {
     effect: "external",
-    requires: ["debug.trace"],
+    requires: ["runtime.debug.trace"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",

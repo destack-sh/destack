@@ -128,7 +128,7 @@ export struct DisplayDragBeginOptions {
 /// Read one text item from one drag session.
 @binding("destack.display.drag.sessionReadText", {
     effect: "external",
-    requires: ["display.window.events"],
+    requires: ["host.display.window.events"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -141,7 +141,7 @@ export declare function dragSessionReadText(
 /// Read one binary item from one drag session.
 @binding("destack.display.drag.sessionReadBytes", {
     effect: "external",
-    requires: ["display.window.events"],
+    requires: ["host.display.window.events"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -154,7 +154,7 @@ export declare function dragSessionReadBytes(
 /// Read one filesystem item from one drag session.
 @binding("destack.display.drag.sessionReadPath", {
     effect: "external",
-    requires: ["display.window.events"],
+    requires: ["host.display.window.events"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -168,7 +168,7 @@ export declare function dragSessionReadPath(
 @binding("destack.display.drag.sessionSetOperation", {
     effect: "external",
     replay: "forbidden",
-    requires: ["display.window.events"],
+    requires: ["host.display.window.events"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -181,7 +181,7 @@ export declare function dragSessionSetOperation(
 /// Close one drag session handle.
 @binding("destack.display.drag.sessionClose", {
     effect: "external",
-    requires: ["display.window.events"],
+    requires: ["host.display.window.events"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -194,7 +194,7 @@ export declare function dragSessionClose(
 @binding("destack.display.drag.begin", {
     effect: "external",
     replay: "forbidden",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",

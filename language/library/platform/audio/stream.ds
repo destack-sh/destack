@@ -206,7 +206,7 @@ export struct AudioStreamAvailability {
 /// Check one audio stream configuration for backend support.
 @binding("destack.audio.stream.support", {
     effect: "external",
-    requires: ["audio.stream"],
+    requires: ["host.audio.stream"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -219,7 +219,7 @@ export declare function streamSupport(
 /// Open one audio stream on one device.
 @binding("destack.audio.stream.open", {
     effect: "external",
-    requires: ["audio.stream"],
+    requires: ["host.audio.stream"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -232,7 +232,7 @@ export declare function streamOpen(
 /// Close one audio stream.
 @binding("destack.audio.stream.close", {
     effect: "external",
-    requires: ["audio.stream"],
+    requires: ["host.audio.stream"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -241,7 +241,7 @@ export declare function streamClose(handle: AudioStreamHandle): Result<void, Pla
 /// Start one audio stream.
 @binding("destack.audio.stream.start", {
     effect: "external",
-    requires: ["audio.stream"],
+    requires: ["host.audio.stream"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -250,7 +250,7 @@ export declare function streamStart(handle: AudioStreamHandle): Result<void, Pla
 /// Pause or resume one audio stream.
 @binding("destack.audio.stream.pause", {
     effect: "external",
-    requires: ["audio.stream"],
+    requires: ["host.audio.stream"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -262,7 +262,7 @@ export declare function streamPause(
 /// Stop one audio stream.
 @binding("destack.audio.stream.stop", {
     effect: "external",
-    requires: ["audio.stream"],
+    requires: ["host.audio.stream"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -271,7 +271,7 @@ export declare function streamStop(handle: AudioStreamHandle): Result<void, Plat
 /// Abort one audio stream immediately.
 @binding("destack.audio.stream.abort", {
     effect: "external",
-    requires: ["audio.stream"],
+    requires: ["host.audio.stream"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -280,7 +280,7 @@ export declare function streamAbort(handle: AudioStreamHandle): Result<void, Pla
 /// Read one stream state.
 @binding("destack.audio.stream.state", {
     effect: "external",
-    requires: ["audio.control"],
+    requires: ["host.audio.control"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -289,7 +289,7 @@ export declare function streamState(handle: AudioStreamHandle): Result<AudioStre
 /// Read one stream negotiated configuration descriptor.
 @binding("destack.audio.stream.descriptor", {
     effect: "external",
-    requires: ["audio.control"],
+    requires: ["host.audio.control"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -300,7 +300,7 @@ export declare function streamDescriptor(
 /// Read one stream timing sample.
 @binding("destack.audio.stream.timing", {
     effect: "external",
-    requires: ["audio.control"],
+    requires: ["host.audio.control"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -311,7 +311,7 @@ export declare function streamTiming(
 /// Read one stream immediate availability sample.
 @binding("destack.audio.stream.availability", {
     effect: "external",
-    requires: ["audio.control"],
+    requires: ["host.audio.control"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -322,7 +322,7 @@ export declare function streamAvailability(
 /// Flush buffered stream data.
 @binding("destack.audio.stream.flush", {
     effect: "external",
-    requires: ["audio.control"],
+    requires: ["host.audio.control"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -331,7 +331,7 @@ export declare function streamFlush(handle: AudioStreamHandle): Result<void, Pla
 /// Drain one playback stream.
 @binding("destack.audio.stream.drain", {
     effect: "external",
-    requires: ["audio.playback"],
+    requires: ["host.audio.playback"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -343,7 +343,7 @@ export declare function streamDrain(
 /// Set one stream name.
 @binding("destack.audio.stream.setName", {
     effect: "external",
-    requires: ["audio.control"],
+    requires: ["host.audio.control"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -355,7 +355,7 @@ export declare function streamSetName(
 /// Set one stream gain multiplier.
 @binding("destack.audio.stream.setVolume", {
     effect: "external",
-    requires: ["audio.control"],
+    requires: ["host.audio.control"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -367,7 +367,7 @@ export declare function streamSetVolume(
 /// Set one stream mute state.
 @binding("destack.audio.stream.setMute", {
     effect: "external",
-    requires: ["audio.control"],
+    requires: ["host.audio.control"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -379,7 +379,7 @@ export declare function streamSetMute(
 /// Write one packet of audio frames.
 @binding("destack.audio.stream.write", {
     effect: "external",
-    requires: ["audio.playback"],
+    requires: ["host.audio.playback"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -391,7 +391,7 @@ export declare function streamWrite(
 /// Try to write one packet of audio frames without blocking.
 @binding("destack.audio.stream.tryWrite", {
     effect: "external",
-    requires: ["audio.playback"],
+    requires: ["host.audio.playback"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -403,7 +403,7 @@ export declare function streamTryWrite(
 /// Write one packet from vectorized buffers.
 @binding("destack.audio.stream.writev", {
     effect: "external",
-    requires: ["audio.playback"],
+    requires: ["host.audio.playback"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -415,7 +415,7 @@ export declare function streamWritev(
 /// Try to write one packet from vectorized buffers without blocking.
 @binding("destack.audio.stream.tryWritev", {
     effect: "external",
-    requires: ["audio.playback"],
+    requires: ["host.audio.playback"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -427,7 +427,7 @@ export declare function streamTryWritev(
 /// Write one packet for one target presentation time.
 @binding("destack.audio.stream.writeAt", {
     effect: "external",
-    requires: ["audio.playback.schedule"],
+    requires: ["host.audio.playback.schedule"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -440,7 +440,7 @@ export declare function streamWriteAt(
 /// Write one vectorized packet for one target presentation time.
 @binding("destack.audio.stream.writeAtv", {
     effect: "external",
-    requires: ["audio.playback.schedule"],
+    requires: ["host.audio.playback.schedule"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -453,7 +453,7 @@ export declare function streamWriteAtv(
 /// Read one packet of captured audio frames.
 @binding("destack.audio.stream.read", {
     effect: "external",
-    requires: ["audio.capture"],
+    requires: ["host.audio.capture"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -465,7 +465,7 @@ export declare function streamRead(
 /// Try to read one packet of captured audio frames without blocking.
 @binding("destack.audio.stream.tryRead", {
     effect: "external",
-    requires: ["audio.capture"],
+    requires: ["host.audio.capture"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -477,7 +477,7 @@ export declare function streamTryRead(
 /// Read one packet into vectorized buffers.
 @binding("destack.audio.stream.readv", {
     effect: "external",
-    requires: ["audio.capture"],
+    requires: ["host.audio.capture"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -489,7 +489,7 @@ export declare function streamReadv(
 /// Try to read one packet into vectorized buffers without blocking.
 @binding("destack.audio.stream.tryReadv", {
     effect: "external",
-    requires: ["audio.capture"],
+    requires: ["host.audio.capture"],
     families: ["windows", "unix"],
     simulation: true,
 })

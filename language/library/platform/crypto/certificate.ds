@@ -188,7 +188,7 @@ export struct CryptoCertificateVerifyResult {
 @binding("destack.crypto.certificate.import", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.certificate.write"],
+    requires: ["host.crypto.certificate.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -202,7 +202,7 @@ export declare function importCertificate(
 @binding("destack.crypto.certificate.export", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.certificate.read"],
+    requires: ["host.crypto.certificate.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -215,7 +215,7 @@ export declare function exportCertificate(
 @binding("destack.crypto.certificate.describe", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.certificate.read"],
+    requires: ["host.crypto.certificate.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -227,7 +227,7 @@ export declare function describeCertificate(
 @binding("destack.crypto.certificate.verify", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.certificate.read"],
+    requires: ["host.crypto.certificate.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -239,7 +239,7 @@ export declare function verifyCertificateChain(
 @binding("destack.crypto.certificate.delete", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.certificate.write"],
+    requires: ["host.crypto.certificate.write"],
     families: ["windows", "unix"],
     simulation: true,
 })

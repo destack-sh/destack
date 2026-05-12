@@ -28,7 +28,7 @@ export struct TtySize {
 /// Open one standard input terminal handle.
 @binding("destack.tty.standardInput.open", {
     effect: "external",
-    requires: ["tty.open", "tty.read"],
+    requires: ["host.tty.open", "host.tty.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -37,7 +37,7 @@ export declare function openStandardInputTty(): Result<TtyHandle, PlatformError>
 /// Open one standard output terminal handle.
 @binding("destack.tty.standardOutput.open", {
     effect: "external",
-    requires: ["tty.open", "tty.write"],
+    requires: ["host.tty.open", "host.tty.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -46,7 +46,7 @@ export declare function openStandardOutputTty(): Result<TtyHandle, PlatformError
 /// Open one standard error terminal handle.
 @binding("destack.tty.standardError.open", {
     effect: "external",
-    requires: ["tty.open", "tty.write"],
+    requires: ["host.tty.open", "host.tty.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -55,7 +55,7 @@ export declare function openStandardErrorTty(): Result<TtyHandle, PlatformError>
 /// Close one terminal handle.
 @binding("destack.tty.close", {
     effect: "external",
-    requires: ["tty.close"],
+    requires: ["host.tty.close"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -64,7 +64,7 @@ export declare function closeTty(tty: TtyHandle): Result<void, PlatformError>;
 /// Return whether one file handle is attached to a terminal.
 @binding("destack.tty.file.isTerminal", {
     effect: "external",
-    requires: ["tty.status"],
+    requires: ["host.tty.status"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -73,7 +73,7 @@ export declare function isTerminalFile(handle: FileHandle): Result<boolean, Plat
 /// Read bytes from a terminal.
 @binding("destack.tty.read", {
     effect: "external",
-    requires: ["tty.read"],
+    requires: ["host.tty.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -82,7 +82,7 @@ export declare function readTty(tty: TtyHandle, buffer: &[uint8]): Result<uint64
 /// Write bytes to a terminal.
 @binding("destack.tty.write", {
     effect: "external",
-    requires: ["tty.write"],
+    requires: ["host.tty.write"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -94,7 +94,7 @@ export declare function writeTty(
 /// Read terminal mode flags.
 @binding("destack.tty.mode.read", {
     effect: "external",
-    requires: ["tty.mode"],
+    requires: ["host.tty.mode"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -103,7 +103,7 @@ export declare function readTtyMode(tty: TtyHandle): Result<TtyMode, PlatformErr
 /// Apply terminal mode flags.
 @binding("destack.tty.mode.set", {
     effect: "external",
-    requires: ["tty.mode"],
+    requires: ["host.tty.mode"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -115,7 +115,7 @@ export declare function setTtyMode(
 /// Enable or disable raw terminal mode.
 @binding("destack.tty.mode.raw.set", {
     effect: "external",
-    requires: ["tty.mode"],
+    requires: ["host.tty.mode"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -127,7 +127,7 @@ export declare function setRawTtyMode(
 /// Read terminal size.
 @binding("destack.tty.size.read", {
     effect: "external",
-    requires: ["tty.size"],
+    requires: ["host.tty.size"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -136,7 +136,7 @@ export declare function readTtySize(tty: TtyHandle): Result<TtySize, PlatformErr
 /// Apply terminal size.
 @binding("destack.tty.size.set", {
     effect: "external",
-    requires: ["tty.size"],
+    requires: ["host.tty.size"],
     families: ["windows", "unix"],
     simulation: true,
 })

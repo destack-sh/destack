@@ -20,7 +20,7 @@ export struct AccessibilityTreeUpdate {
 /// Apply one accessibility-tree update for one window.
 @binding("destack.accessibility.tree.apply", {
     effect: "external",
-    requires: ["accessibility.publish"],
+    requires: ["host.accessibility.publish"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -32,7 +32,7 @@ export declare function treeApply(
 /// Clear the published accessibility tree for one window.
 @binding("destack.accessibility.tree.clear", {
     effect: "external",
-    requires: ["accessibility.publish"],
+    requires: ["host.accessibility.publish"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -41,7 +41,7 @@ export declare function treeClear(window: WindowHandle): Result<void, PlatformEr
 /// Resolve one accessibility node at one window-local point.
 @binding("destack.accessibility.tree.hitTest", {
     effect: "external",
-    requires: ["accessibility.publish"],
+    requires: ["host.accessibility.publish"],
     families: ["windows", "unix"],
     simulation: true,
 })

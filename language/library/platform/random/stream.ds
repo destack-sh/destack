@@ -23,7 +23,7 @@ export struct RandomStreamState {
 /// Allocate a deterministic random stream identifier.
 @binding("destack.random.stream.create", {
     effect: "external",
-    requires: ["random.deterministic"],
+    requires: ["runtime.random.deterministic"],
     families: ["windows", "unix"],
     provider: "runtime",
 })
@@ -32,7 +32,7 @@ export declare function stream(): Result<RandomStream, PlatformError>;
 /// Allocate a deterministic random stream in one domain.
 @binding("destack.random.stream.in", {
     effect: "external",
-    requires: ["random.deterministic"],
+    requires: ["runtime.random.deterministic"],
     families: ["windows", "unix"],
     provider: "runtime",
 })
@@ -41,7 +41,7 @@ export declare function streamIn(domain: RandomStreamDomain): Result<RandomStrea
 /// Split a deterministic stream into one child stream.
 @binding("destack.random.stream.split", {
     effect: "external",
-    requires: ["random.deterministic"],
+    requires: ["runtime.random.deterministic"],
     families: ["windows", "unix"],
     provider: "runtime",
 })
@@ -50,7 +50,7 @@ export declare function streamSplit(parent: RandomStream): Result<RandomStream, 
 /// Advance a deterministic stream by one jump count.
 @binding("destack.random.stream.jump", {
     effect: "external",
-    requires: ["random.deterministic"],
+    requires: ["runtime.random.deterministic"],
     families: ["windows", "unix"],
     provider: "runtime",
 })
@@ -59,7 +59,7 @@ export declare function streamJump(stream: RandomStream, jump: uint64): Result<v
 /// Export deterministic stream state.
 @binding("destack.random.stream.export", {
     effect: "external",
-    requires: ["random.deterministic"],
+    requires: ["runtime.random.deterministic"],
     families: ["windows", "unix"],
     provider: "runtime",
 })
@@ -68,7 +68,7 @@ export declare function streamExport(stream: RandomStream): Result<RandomStreamS
 /// Import deterministic stream state.
 @binding("destack.random.stream.import", {
     effect: "external",
-    requires: ["random.deterministic"],
+    requires: ["runtime.random.deterministic"],
     families: ["windows", "unix"],
     provider: "runtime",
 })
@@ -80,7 +80,7 @@ export declare function streamImport(
 /// Return a deterministic random uint64 from the default stream.
 @binding("destack.random.stream.nextU64", {
     effect: "external",
-    requires: ["random.deterministic"],
+    requires: ["runtime.random.deterministic"],
     families: ["windows", "unix"],
     provider: "runtime",
 })
@@ -89,7 +89,7 @@ export declare function nextU64(): Result<uint64, PlatformError>;
 /// Return a deterministic random uint64 from a specific stream.
 @binding("destack.random.stream.nextU64From", {
     effect: "external",
-    requires: ["random.deterministic"],
+    requires: ["runtime.random.deterministic"],
     families: ["windows", "unix"],
     provider: "runtime",
 })
@@ -98,7 +98,7 @@ export declare function nextU64From(stream: RandomStream): Result<uint64, Platfo
 /// Fill a slice with deterministic random bytes from the default stream.
 @binding("destack.random.stream.fillBytes", {
     effect: "external",
-    requires: ["random.deterministic"],
+    requires: ["runtime.random.deterministic"],
     families: ["windows", "unix"],
     provider: "runtime",
 })
@@ -107,7 +107,7 @@ export declare function fillBytes(buffer: Slice<uint8>): Result<void, PlatformEr
 /// Fill a slice with deterministic random bytes from a specific stream.
 @binding("destack.random.stream.fillBytesFrom", {
     effect: "external",
-    requires: ["random.deterministic"],
+    requires: ["runtime.random.deterministic"],
     families: ["windows", "unix"],
     provider: "runtime",
 })

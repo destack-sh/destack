@@ -368,7 +368,7 @@ export newtype AccessibilityDocumentResponse =
 /// Open one inbound document-query stream for one window.
 @binding("destack.accessibility.document.open", {
     effect: "external",
-    requires: ["accessibility.publish"],
+    requires: ["host.accessibility.publish"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -380,7 +380,7 @@ export declare function documentOpen(
 /// Close one inbound document-query stream.
 @binding("destack.accessibility.document.close", {
     effect: "external",
-    requires: ["accessibility.publish"],
+    requires: ["host.accessibility.publish"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -389,7 +389,7 @@ export declare function documentClose(handle: AccessibilityDocumentHandle): Resu
 /// Wait for one document query.
 @binding("destack.accessibility.document.read", {
     effect: "external",
-    requires: ["accessibility.publish"],
+    requires: ["host.accessibility.publish"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -401,7 +401,7 @@ export declare function documentRead(
 /// Poll one document query without blocking.
 @binding("destack.accessibility.document.tryRead", {
     effect: "external",
-    requires: ["accessibility.publish"],
+    requires: ["host.accessibility.publish"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -412,7 +412,7 @@ export declare function documentTryRead(
 /// Respond to one document query.
 @binding("destack.accessibility.document.respond", {
     effect: "external",
-    requires: ["accessibility.publish"],
+    requires: ["host.accessibility.publish"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -424,7 +424,7 @@ export declare function documentRespond(
 /// Publish one advanced text-document snapshot for one node.
 @binding("destack.accessibility.document.set", {
     effect: "external",
-    requires: ["accessibility.publish"],
+    requires: ["host.accessibility.publish"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -437,7 +437,7 @@ export declare function documentSet(
 /// Clear the advanced text-document snapshot for one node.
 @binding("destack.accessibility.document.clear", {
     effect: "external",
-    requires: ["accessibility.publish"],
+    requires: ["host.accessibility.publish"],
     families: ["windows", "unix"],
     simulation: true,
 })

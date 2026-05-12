@@ -1,23 +1,23 @@
 import { Slice } from "destack:collections";
-import { HostAction } from "destack:platform/core";
+import { Action } from "destack:platform/core";
 import { PlatformError } from "destack:platform/error";
 
-export { HostAction } from "destack:platform/core";
+export { Action } from "destack:platform/core";
 
 /// List active actions.
 @binding("destack.security.action.list", {
     effect: "deterministic",
-    requires: ["security.policy.read"],
+    requires: ["runtime.security.policy.read"],
     families: ["windows", "unix"],
     provider: "runtime",
 })
-export declare function actionList(): Result<Slice<HostAction>, PlatformError>;
+export declare function actionList(): Result<Slice<Action>, PlatformError>;
 
 /// Check one action.
 @binding("destack.security.action.has", {
     effect: "deterministic",
-    requires: ["security.policy.read"],
+    requires: ["runtime.security.policy.read"],
     families: ["windows", "unix"],
     provider: "runtime",
 })
-export declare function actionHas(action: HostAction): Result<boolean, PlatformError>;
+export declare function actionHas(action: Action): Result<boolean, PlatformError>;

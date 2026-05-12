@@ -13,7 +13,7 @@ export enum OsPowerSource {
 /// Read operating-system power source.
 @binding("destack.os.powerSource.read", {
     effect: "external",
-    requires: ["os.power.read"],
+    requires: ["host.os.power.read"],
     families: ["windows", "unix"],
     simulation: true,
 })

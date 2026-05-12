@@ -37,7 +37,7 @@ export struct CryptoCipherOutput {
 @binding("destack.crypto.cipher.encrypt", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.cipher"],
+    requires: ["host.crypto.cipher"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -51,7 +51,7 @@ export declare function encryptCipher(
 @binding("destack.crypto.cipher.decrypt", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.cipher"],
+    requires: ["host.crypto.cipher"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -65,7 +65,7 @@ export declare function decryptCipher(
 @binding("destack.crypto.cipher.open", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.cipher"],
+    requires: ["host.crypto.cipher"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -79,7 +79,7 @@ export declare function openCipher(
 @binding("destack.crypto.cipher.additionalData.update", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.cipher"],
+    requires: ["host.crypto.cipher"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -92,7 +92,7 @@ export declare function updateCipherAdditionalData(
 @binding("destack.crypto.cipher.update", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.cipher"],
+    requires: ["host.crypto.cipher"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -105,7 +105,7 @@ export declare function updateCipher(
 @binding("destack.crypto.cipher.finish", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.cipher"],
+    requires: ["host.crypto.cipher"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -118,7 +118,7 @@ export declare function finishCipher(
 @binding("destack.crypto.cipher.close", {
     effect: "external",
     replay: "forbidden",
-    requires: ["crypto.cipher"],
+    requires: ["host.crypto.cipher"],
     families: ["windows", "unix"],
     simulation: true,
 })

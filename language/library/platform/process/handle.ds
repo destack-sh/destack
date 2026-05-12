@@ -17,7 +17,7 @@ export const PROCESS_OPEN_SIGNAL: ProcessOpenFlags = ProcessOpenFlags(0x4);
 /// Open one process handle for an existing process id.
 @binding("destack.process.handle.open", {
     effect: "external",
-    requires: ["process.handle"],
+    requires: ["host.process.handle"],
     families: ["windows", "unix"],
     simulation: true,
 })

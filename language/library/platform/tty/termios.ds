@@ -55,7 +55,7 @@ export struct TermiosAttributes {
 /// Read full POSIX termios attributes.
 @binding("destack.tty.termios.attributes.read", {
     effect: "external",
-    requires: ["tty.termios"],
+    requires: ["host.tty.termios"],
     families: ["unix"],
     simulation: true,
 })
@@ -66,7 +66,7 @@ export declare function readTermiosAttributes(
 /// Apply full termios attributes to one terminal handle.
 @binding("destack.tty.termios.attributes.set", {
     effect: "external",
-    requires: ["tty.termios"],
+    requires: ["host.tty.termios"],
     families: ["unix"],
     simulation: true,
 })
@@ -79,7 +79,7 @@ export declare function setTermiosAttributes(
 /// Wait for pending output to drain on one terminal handle.
 @binding("destack.tty.termios.drain", {
     effect: "external",
-    requires: ["tty.termios"],
+    requires: ["host.tty.termios"],
     families: ["unix"],
     simulation: true,
 })
@@ -88,7 +88,7 @@ export declare function drainTermios(tty: TtyHandle): Result<void, PlatformError
 /// Flush one terminal queue.
 @binding("destack.tty.termios.flush", {
     effect: "external",
-    requires: ["tty.termios"],
+    requires: ["host.tty.termios"],
     families: ["unix"],
     simulation: true,
 })
@@ -100,7 +100,7 @@ export declare function flushTermios(
 /// Apply terminal flow control action.
 @binding("destack.tty.termios.flow", {
     effect: "external",
-    requires: ["tty.termios"],
+    requires: ["host.tty.termios"],
     families: ["unix"],
     simulation: true,
 })
@@ -112,7 +112,7 @@ export declare function flowTermios(
 /// Send one terminal break condition.
 @binding("destack.tty.termios.break.send", {
     effect: "external",
-    requires: ["tty.termios"],
+    requires: ["host.tty.termios"],
     families: ["unix"],
     simulation: true,
 })
@@ -124,7 +124,7 @@ export declare function sendTermiosBreak(
 /// Read controlling terminal process group id.
 @binding("destack.tty.termios.processGroup.read", {
     effect: "external",
-    requires: ["tty.termios"],
+    requires: ["host.tty.termios"],
     families: ["unix"],
     simulation: true,
 })
@@ -133,7 +133,7 @@ export declare function readTermiosProcessGroup(tty: TtyHandle): Result<ProcessI
 /// Set controlling terminal process group id.
 @binding("destack.tty.termios.processGroup.set", {
     effect: "external",
-    requires: ["tty.termios"],
+    requires: ["host.tty.termios"],
     families: ["unix"],
     simulation: true,
 })

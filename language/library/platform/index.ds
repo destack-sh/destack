@@ -1,4 +1,4 @@
-export { BackendSupport } from "./core";
+export { HostAction, HostBackendStatus } from "./core";
 export { PlatformError } from "./error";
 export * as accessibility from "./accessibility";
 export * as audio from "./audio";

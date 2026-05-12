@@ -15,7 +15,7 @@ export struct OsIdentity {
 /// Read operating-system identity.
 @binding("destack.os.identity.read", {
     effect: "external",
-    requires: ["os.identity.read"],
+    requires: ["host.os.identity.read"],
     families: ["windows", "unix"],
     simulation: true,
 })

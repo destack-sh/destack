@@ -4,7 +4,7 @@ import { SharedMemoryHandle } from "destack:platform/resource";
 /// Wait on one shared-memory futex word.
 @binding("destack.ipc.futex.wait", {
     effect: "external",
-    requires: ["ipc.futex", "ipc.memory"],
+    requires: ["host.ipc.futex", "host.ipc.memory"],
     platforms: ["linux"],
     simulation: true,
 })
@@ -18,7 +18,7 @@ export declare function waitFutex(
 /// Wake futex waiters for one shared-memory word.
 @binding("destack.ipc.futex.wake", {
     effect: "external",
-    requires: ["ipc.futex", "ipc.memory"],
+    requires: ["host.ipc.futex", "host.ipc.memory"],
     platforms: ["linux"],
     simulation: true,
 })

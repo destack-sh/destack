@@ -227,7 +227,7 @@ export struct GpuBindGroupOptions {
 /// Create a bind group layout.
 @binding("destack.gpu.bind.groupLayoutCreate", {
     effect: "external",
-    requires: ["gpu.bind"],
+    requires: ["host.gpu.bind"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -240,7 +240,7 @@ export declare function bindGroupLayoutCreate(
 /// Destroy a bind group layout.
 @binding("destack.gpu.bind.groupLayoutDestroy", {
     effect: "external",
-    requires: ["gpu.bind"],
+    requires: ["host.gpu.bind"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -251,7 +251,7 @@ export declare function bindGroupLayoutDestroy(
 /// Create a pipeline layout.
 @binding("destack.gpu.bind.pipelineLayoutCreate", {
     effect: "external",
-    requires: ["gpu.bind"],
+    requires: ["host.gpu.bind"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -263,7 +263,7 @@ export declare function pipelineLayoutCreate(
 /// Destroy a pipeline layout.
 @binding("destack.gpu.bind.pipelineLayoutDestroy", {
     effect: "external",
-    requires: ["gpu.bind"],
+    requires: ["host.gpu.bind"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -274,7 +274,7 @@ export declare function pipelineLayoutDestroy(
 /// Create a bind group.
 @binding("destack.gpu.bind.groupCreate", {
     effect: "external",
-    requires: ["gpu.bind"],
+    requires: ["host.gpu.bind"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -288,7 +288,7 @@ export declare function bindGroupCreate(
 /// Destroy a bind group.
 @binding("destack.gpu.bind.groupDestroy", {
     effect: "external",
-    requires: ["gpu.bind"],
+    requires: ["host.gpu.bind"],
     families: ["windows", "unix"],
     simulation: true,
 })

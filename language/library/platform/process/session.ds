@@ -4,7 +4,7 @@ import { ProcessId } from "./identity.ds";
 /// Create a new Unix session and return the session leader id.
 @binding("destack.process.session.create", {
     effect: "external",
-    requires: ["process.session"],
+    requires: ["host.process.session"],
     families: ["unix"],
     simulation: true,
 })
@@ -13,7 +13,7 @@ export declare function createSession(): Result<ProcessId, PlatformError>;
 /// Set the process group id for one Unix process.
 @binding("destack.process.session.setGroup", {
     effect: "external",
-    requires: ["process.session"],
+    requires: ["host.process.session"],
     families: ["unix"],
     simulation: true,
 })
@@ -25,7 +25,7 @@ export declare function setProcessGroup(
 /// Read the process group id for one Unix process.
 @binding("destack.process.session.group", {
     effect: "external",
-    requires: ["process.session"],
+    requires: ["host.process.session"],
     families: ["unix"],
     simulation: true,
 })

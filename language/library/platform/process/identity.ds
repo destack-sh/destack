@@ -33,7 +33,7 @@ export struct ProcessGroupIds {
 /// Return the current process id.
 @binding("destack.process.identity.pid", {
     effect: "external",
-    requires: ["process.identity.read"],
+    requires: ["host.process.identity.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -42,7 +42,7 @@ export declare function getProcessId(): Result<ProcessId, PlatformError>;
 /// Return the parent process id.
 @binding("destack.process.identity.parentPid", {
     effect: "external",
-    requires: ["process.identity.read"],
+    requires: ["host.process.identity.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -51,7 +51,7 @@ export declare function getParentProcessId(): Result<ProcessId, PlatformError>;
 /// Return the current user identifier.
 @binding("destack.process.identity.uid", {
     effect: "external",
-    requires: ["process.identity.read"],
+    requires: ["host.process.identity.read"],
     families: ["unix"],
     simulation: true,
 })
@@ -60,7 +60,7 @@ export declare function getUid(): Result<UserId, PlatformError>;
 /// Return the current group identifier.
 @binding("destack.process.identity.gid", {
     effect: "external",
-    requires: ["process.identity.read"],
+    requires: ["host.process.identity.read"],
     families: ["unix"],
     simulation: true,
 })
@@ -69,7 +69,7 @@ export declare function getGid(): Result<GroupId, PlatformError>;
 /// Return the effective user identifier.
 @binding("destack.process.identity.euid", {
     effect: "external",
-    requires: ["process.identity.read"],
+    requires: ["host.process.identity.read"],
     families: ["unix"],
     simulation: true,
 })
@@ -78,7 +78,7 @@ export declare function getEffectiveUid(): Result<UserId, PlatformError>;
 /// Return the effective group identifier.
 @binding("destack.process.identity.egid", {
     effect: "external",
-    requires: ["process.identity.read"],
+    requires: ["host.process.identity.read"],
     families: ["unix"],
     simulation: true,
 })
@@ -87,7 +87,7 @@ export declare function getEffectiveGid(): Result<GroupId, PlatformError>;
 /// Return real, effective, and saved-set user identifiers.
 @binding("destack.process.identity.userIds", {
     effect: "external",
-    requires: ["process.identity.read"],
+    requires: ["host.process.identity.read"],
     families: ["unix"],
     simulation: true,
 })
@@ -96,7 +96,7 @@ export declare function getUserIds(): Result<ProcessUserIds, PlatformError>;
 /// Return real, effective, and saved-set group identifiers.
 @binding("destack.process.identity.groupIds", {
     effect: "external",
-    requires: ["process.identity.read"],
+    requires: ["host.process.identity.read"],
     families: ["unix"],
     simulation: true,
 })
@@ -105,7 +105,7 @@ export declare function getGroupIds(): Result<ProcessGroupIds, PlatformError>;
 /// Set the user identifier through host `setuid` behavior.
 @binding("destack.process.identity.setUid", {
     effect: "external",
-    requires: ["process.identity.write"],
+    requires: ["host.process.identity.write"],
     families: ["unix"],
     simulation: true,
 })
@@ -114,7 +114,7 @@ export declare function setUid(userId: UserId): Result<void, PlatformError>;
 /// Set the effective user identifier only.
 @binding("destack.process.identity.setEuid", {
     effect: "external",
-    requires: ["process.identity.write"],
+    requires: ["host.process.identity.write"],
     families: ["unix"],
     simulation: true,
 })
@@ -123,7 +123,7 @@ export declare function setEffectiveUid(userId: UserId): Result<void, PlatformEr
 /// Set the group identifier through host `setgid` behavior.
 @binding("destack.process.identity.setGid", {
     effect: "external",
-    requires: ["process.identity.write"],
+    requires: ["host.process.identity.write"],
     families: ["unix"],
     simulation: true,
 })
@@ -132,7 +132,7 @@ export declare function setGid(groupId: GroupId): Result<void, PlatformError>;
 /// Set the effective group identifier only.
 @binding("destack.process.identity.setEgid", {
     effect: "external",
-    requires: ["process.identity.write"],
+    requires: ["host.process.identity.write"],
     families: ["unix"],
     simulation: true,
 })
@@ -141,7 +141,7 @@ export declare function setEffectiveGid(groupId: GroupId): Result<void, Platform
 /// Set real, effective, and saved-set user identifiers together.
 @binding("destack.process.identity.setUserIds", {
     effect: "external",
-    requires: ["process.identity.write"],
+    requires: ["host.process.identity.write"],
     families: ["unix"],
     simulation: true,
 })
@@ -150,7 +150,7 @@ export declare function setUserIds(ids: ProcessUserIds): Result<void, PlatformEr
 /// Set real, effective, and saved-set group identifiers together.
 @binding("destack.process.identity.setGroupIds", {
     effect: "external",
-    requires: ["process.identity.write"],
+    requires: ["host.process.identity.write"],
     families: ["unix"],
     simulation: true,
 })
@@ -159,7 +159,7 @@ export declare function setGroupIds(ids: ProcessGroupIds): Result<void, Platform
 /// Return supplementary group identifiers.
 @binding("destack.process.identity.groups", {
     effect: "external",
-    requires: ["process.identity.read"],
+    requires: ["host.process.identity.read"],
     families: ["unix"],
     simulation: true,
 })
@@ -168,7 +168,7 @@ export declare function listSupplementaryGroups(): Result<^Array<GroupId>, Platf
 /// Set supplementary group identifiers.
 @binding("destack.process.identity.setGroups", {
     effect: "external",
-    requires: ["process.identity.write"],
+    requires: ["host.process.identity.write"],
     families: ["unix"],
     simulation: true,
 })

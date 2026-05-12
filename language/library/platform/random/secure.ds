@@ -36,7 +36,7 @@ export struct SecureRandomMetadata {
 /// Fill a slice with cryptographically secure random bytes.
 @binding("destack.random.secure.bytes", {
     effect: "external",
-    requires: ["random.secure"],
+    requires: ["host.random.secure"],
     families: ["windows", "unix"],
     provider: "runtime",
 })
@@ -45,7 +45,7 @@ export declare function secureBytes(buffer: Slice<uint8>): Result<void, Platform
 /// Fill a slice with secure random bytes without blocking.
 @binding("destack.random.secure.bytesTry", {
     effect: "external",
-    requires: ["random.secure"],
+    requires: ["host.random.secure"],
     families: ["windows", "unix"],
     provider: "runtime",
 })
@@ -54,7 +54,7 @@ export declare function secureBytesTry(buffer: Slice<uint8>): Result<void, Platf
 /// Query secure randomness source metadata.
 @binding("destack.random.secure.metadata", {
     effect: "external",
-    requires: ["random.secure"],
+    requires: ["host.random.secure"],
     families: ["windows", "unix"],
     provider: "runtime",
 })

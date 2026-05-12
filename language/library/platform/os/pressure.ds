@@ -21,7 +21,7 @@ export struct OsPressure {
 /// Read operating-system pressure.
 @binding("destack.os.pressure.read", {
     effect: "external",
-    requires: ["os.pressure.read"],
+    requires: ["host.os.pressure.read"],
     families: ["windows", "unix"],
     simulation: true,
 })

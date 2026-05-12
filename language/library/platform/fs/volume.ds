@@ -58,7 +58,7 @@ export struct FileVolumeStatus {
 /// Read status for the volume containing an entry.
 @binding("destack.fs.volume.entry", {
     effect: "external",
-    requires: ["fs.metadata"],
+    requires: ["host.fs.metadata"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -69,7 +69,7 @@ export declare function readEntryVolume(
 /// Read status for the volume containing an open file.
 @binding("destack.fs.volume.file", {
     effect: "external",
-    requires: ["fs.metadata"],
+    requires: ["host.fs.metadata"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -78,7 +78,7 @@ export declare function readFileVolume(file: FileHandle): Result<FileVolumeStatu
 /// Synchronize the volume containing an open file.
 @binding("destack.fs.volume.sync", {
     effect: "external",
-    requires: ["fs.sync"],
+    requires: ["host.fs.sync"],
     families: ["windows", "unix"],
     simulation: true,
 })

@@ -40,7 +40,7 @@ export const VIRTUAL_MEMORY_RESERVE_NO_RESERVE: VirtualMemoryReserveFlags =
 /// Reserve one virtual memory range.
 @binding("destack.memory.virtual.reserve", {
     effect: "external",
-    requires: ["memory.virtual"],
+    requires: ["host.memory.virtual"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -53,7 +53,7 @@ export declare function reserveVirtualMemory(
 /// Commit physical backing for one reserved virtual memory range.
 @binding("destack.memory.virtual.commit", {
     effect: "external",
-    requires: ["memory.virtual"],
+    requires: ["host.memory.virtual"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -65,7 +65,7 @@ export declare function commitVirtualMemory(
 /// Decommit physical backing from one virtual memory range.
 @binding("destack.memory.virtual.decommit", {
     effect: "external",
-    requires: ["memory.virtual"],
+    requires: ["host.memory.virtual"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -74,7 +74,7 @@ export declare function decommitVirtualMemory(range: VirtualMemoryRange): Result
 /// Release one reserved virtual memory range.
 @binding("destack.memory.virtual.release", {
     effect: "external",
-    requires: ["memory.virtual"],
+    requires: ["host.memory.virtual"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -83,7 +83,7 @@ export declare function releaseVirtualMemory(range: VirtualMemoryRange): Result<
 /// Change virtual memory protection for one range.
 @binding("destack.memory.virtual.protect", {
     effect: "external",
-    requires: ["memory.virtual"],
+    requires: ["host.memory.virtual"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -95,7 +95,7 @@ export declare function protectVirtualMemory(
 /// Flush instruction cache for one executable memory range.
 @binding("destack.memory.virtual.instructionCache.flush", {
     effect: "external",
-    requires: ["memory.execute"],
+    requires: ["host.memory.execute"],
     families: ["windows", "unix"],
     simulation: true,
 })

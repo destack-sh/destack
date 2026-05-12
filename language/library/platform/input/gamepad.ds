@@ -147,7 +147,7 @@ export struct InputGamepadState {
 /// Read one gamepad state snapshot.
 @binding("destack.input.gamepad.state", {
     effect: "external",
-    requires: ["input.read"],
+    requires: ["host.input.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -158,7 +158,7 @@ export declare function gamepadState(
 /// Set one gamepad player index.
 @binding("destack.input.gamepad.setPlayerIndex", {
     effect: "external",
-    requires: ["input.control"],
+    requires: ["host.input.control"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -170,7 +170,7 @@ export declare function gamepadSetPlayerIndex(
 /// Set one gamepad light color.
 @binding("destack.input.gamepad.setLight", {
     effect: "external",
-    requires: ["input.control"],
+    requires: ["host.input.control"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -184,7 +184,7 @@ export declare function gamepadSetLight(
 /// Enable or disable gamepad motion sensors.
 @binding("destack.input.gamepad.setMotionSensorsEnabled", {
     effect: "external",
-    requires: ["input.control"],
+    requires: ["host.input.control"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -196,7 +196,7 @@ export declare function gamepadSetMotionSensorsEnabled(
 /// Set the gamepad motion sensor sample rate.
 @binding("destack.input.gamepad.setMotionSensorSampleRate", {
     effect: "external",
-    requires: ["input.control"],
+    requires: ["host.input.control"],
     families: ["windows", "unix"],
     simulation: true,
 })

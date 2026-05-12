@@ -74,7 +74,7 @@ export newtype ProcessWaitStatus =
 /// Wait for a child process handle.
 @binding("destack.process.wait.handle", {
     effect: "external",
-    requires: ["process.wait"],
+    requires: ["host.process.wait"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -86,7 +86,7 @@ export declare function waitProcess(
 /// Poll a child process handle without blocking.
 @binding("destack.process.wait.poll", {
     effect: "external",
-    requires: ["process.wait"],
+    requires: ["host.process.wait"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -97,7 +97,7 @@ export declare function pollProcess(
 /// Wait for a process identifier.
 @binding("destack.process.wait.pid", {
     effect: "external",
-    requires: ["process.wait"],
+    requires: ["host.process.wait"],
     families: ["windows", "unix"],
     simulation: true,
 })

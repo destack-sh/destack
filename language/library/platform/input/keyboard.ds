@@ -83,7 +83,7 @@ export struct InputKeyboardState {
 /// Read one keyboard state snapshot.
 @binding("destack.input.keyboard.state", {
     effect: "external",
-    requires: ["input.read"],
+    requires: ["host.input.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -94,7 +94,7 @@ export declare function keyboardState(
 /// Query keyboard layout metadata.
 @binding("destack.input.keyboard.layout", {
     effect: "external",
-    requires: ["input.read"],
+    requires: ["host.input.read"],
     families: ["windows", "unix"],
     simulation: true,
 })

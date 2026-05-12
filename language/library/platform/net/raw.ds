@@ -147,7 +147,7 @@ export struct NetworkPacketRingOptions {
 /// List host packet backends.
 @binding("destack.net.raw.packetBackends", {
     effect: "external",
-    requires: ["net.raw"],
+    requires: ["host.net.raw"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -159,7 +159,7 @@ export declare function listPacketBackends(): Result<
 /// Open a raw IP socket.
 @binding("destack.net.raw.socket", {
     effect: "external",
-    requires: ["net.raw"],
+    requires: ["host.net.raw"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -171,7 +171,7 @@ export declare function openRawSocket(
 /// Enable or disable IP header inclusion on a raw socket.
 @binding("destack.net.raw.headerIncluded", {
     effect: "external",
-    requires: ["net.raw"],
+    requires: ["host.net.raw"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -183,7 +183,7 @@ export declare function setHeaderIncluded(
 /// Open a packet capture or injection endpoint.
 @binding("destack.net.raw.packetOpen", {
     effect: "external",
-    requires: ["net.raw"],
+    requires: ["host.net.raw"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -194,7 +194,7 @@ export declare function openPacketEndpoint(
 /// Receive one packet from a packet endpoint.
 @binding("destack.net.raw.packetReceive", {
     effect: "external",
-    requires: ["net.raw"],
+    requires: ["host.net.raw"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -206,7 +206,7 @@ export declare function receivePacket(
 /// Send one packet through a packet endpoint.
 @binding("destack.net.raw.packetSend", {
     effect: "external",
-    requires: ["net.raw"],
+    requires: ["host.net.raw"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -218,7 +218,7 @@ export declare function sendPacket(
 /// Attach one packet filter program to an endpoint.
 @binding("destack.net.raw.packetFilter", {
     effect: "external",
-    requires: ["net.raw"],
+    requires: ["host.net.raw"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -230,7 +230,7 @@ export declare function setPacketFilter(
 /// Clear the active packet filter program.
 @binding("destack.net.raw.packetClearFilter", {
     effect: "external",
-    requires: ["net.raw"],
+    requires: ["host.net.raw"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -239,7 +239,7 @@ export declare function clearPacketFilter(packet: PacketHandle): Result<void, Pl
 /// Set packet fanout on an endpoint.
 @binding("destack.net.raw.packetFanout", {
     effect: "external",
-    requires: ["net.raw"],
+    requires: ["host.net.raw"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -251,7 +251,7 @@ export declare function setPacketFanout(
 /// Clear packet fanout from an endpoint.
 @binding("destack.net.raw.packetClearFanout", {
     effect: "external",
-    requires: ["net.raw"],
+    requires: ["host.net.raw"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -260,7 +260,7 @@ export declare function clearPacketFanout(packet: PacketHandle): Result<void, Pl
 /// Configure one packet receive ring.
 @binding("destack.net.raw.packetReceiveRing", {
     effect: "external",
-    requires: ["net.raw"],
+    requires: ["host.net.raw"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -272,7 +272,7 @@ export declare function setPacketReceiveRing(
 /// Configure one packet transmit ring.
 @binding("destack.net.raw.packetSendRing", {
     effect: "external",
-    requires: ["net.raw"],
+    requires: ["host.net.raw"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -284,7 +284,7 @@ export declare function setPacketSendRing(
 /// Clear packet ring configuration.
 @binding("destack.net.raw.packetClearRing", {
     effect: "external",
-    requires: ["net.raw"],
+    requires: ["host.net.raw"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -293,7 +293,7 @@ export declare function clearPacketRing(packet: PacketHandle): Result<void, Plat
 /// Read packet endpoint statistics.
 @binding("destack.net.raw.packetStats", {
     effect: "external",
-    requires: ["net.raw"],
+    requires: ["host.net.raw"],
     families: ["windows", "unix"],
     simulation: true,
 })

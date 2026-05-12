@@ -70,7 +70,7 @@ export struct NetworkConnectivityEvent {
 /// Read network connectivity.
 @binding("destack.net.connectivity.read", {
     effect: "external",
-    requires: ["net.connectivity.read"],
+    requires: ["host.net.connectivity.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -79,7 +79,7 @@ export declare function readNetworkConnectivity(): Result<NetworkConnectivity, P
 /// Open network connectivity watch stream.
 @binding("destack.net.connectivity.watch.open", {
     effect: "external",
-    requires: ["net.connectivity.watch"],
+    requires: ["host.net.connectivity.watch"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -88,7 +88,7 @@ export declare function openNetworkConnectivityWatch(): Result<NetworkWatchHandl
 /// Close network connectivity watch stream.
 @binding("destack.net.connectivity.watch.close", {
     effect: "external",
-    requires: ["net.connectivity.watch"],
+    requires: ["host.net.connectivity.watch"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -99,7 +99,7 @@ export declare function closeNetworkConnectivityWatch(
 /// Wait for one network connectivity event.
 @binding("destack.net.connectivity.watch.read", {
     effect: "external",
-    requires: ["net.connectivity.watch"],
+    requires: ["host.net.connectivity.watch"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -111,7 +111,7 @@ export declare function readNetworkConnectivityWatch(
 /// Poll one network connectivity event without blocking.
 @binding("destack.net.connectivity.watch.tryRead", {
     effect: "external",
-    requires: ["net.connectivity.watch"],
+    requires: ["host.net.connectivity.watch"],
     families: ["windows", "unix"],
     simulation: true,
 })

@@ -446,7 +446,7 @@ export newtype InputMonitorEvent =
 /// Open one global input event monitor.
 @binding("destack.input.event.monitorOpen", {
     effect: "external",
-    requires: ["input.read"],
+    requires: ["host.input.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -455,7 +455,7 @@ export declare function monitorOpen(): Result<InputMonitorHandle, PlatformError>
 /// Close one global input event monitor.
 @binding("destack.input.event.monitorClose", {
     effect: "external",
-    requires: ["input.read"],
+    requires: ["host.input.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -464,7 +464,7 @@ export declare function monitorClose(handle: InputMonitorHandle): Result<void, P
 /// Read one global input monitor event.
 @binding("destack.input.event.monitorRead", {
     effect: "external",
-    requires: ["input.read"],
+    requires: ["host.input.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -475,7 +475,7 @@ export declare function monitorRead(
 /// Poll one global input monitor event without blocking.
 @binding("destack.input.event.monitorTryRead", {
     effect: "external",
-    requires: ["input.read"],
+    requires: ["host.input.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -486,7 +486,7 @@ export declare function monitorTryRead(
 /// Read one input event.
 @binding("destack.input.event.read", {
     effect: "external",
-    requires: ["input.read"],
+    requires: ["host.input.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -495,7 +495,7 @@ export declare function read(handle: InputDeviceHandle): Result<InputEvent, Plat
 /// Poll one input event without blocking.
 @binding("destack.input.event.tryRead", {
     effect: "external",
-    requires: ["input.read"],
+    requires: ["host.input.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -504,7 +504,7 @@ export declare function tryRead(handle: InputDeviceHandle): Result<InputEvent, P
 /// Read one batch of input events.
 @binding("destack.input.event.readBatch", {
     effect: "external",
-    requires: ["input.read"],
+    requires: ["host.input.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -516,7 +516,7 @@ export declare function readBatch(
 /// Enable or disable exclusive device grab.
 @binding("destack.input.event.setExclusiveGrab", {
     effect: "external",
-    requires: ["input.grab"],
+    requires: ["host.input.grab"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -528,7 +528,7 @@ export declare function setExclusiveGrab(
 /// Select event decoding mode for one input stream.
 @binding("destack.input.event.setReadMode", {
     effect: "external",
-    requires: ["input.control"],
+    requires: ["host.input.control"],
     families: ["windows", "unix"],
     simulation: true,
 })

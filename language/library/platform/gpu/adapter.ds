@@ -409,7 +409,7 @@ export struct GpuAdapterFormatCapabilities {
 /// List available GPU adapters.
 @binding("destack.gpu.adapter.list", {
     effect: "external",
-    requires: ["gpu.adapter"],
+    requires: ["host.gpu.adapter"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -420,7 +420,7 @@ export declare function adapterList(
 /// Open a GPU adapter.
 @binding("destack.gpu.adapter.open", {
     effect: "external",
-    requires: ["gpu.adapter"],
+    requires: ["host.gpu.adapter"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -429,7 +429,7 @@ export declare function adapterOpen(id: string): Result<GpuAdapterHandle, Platfo
 /// Read adapter metadata.
 @binding("destack.gpu.adapter.info", {
     effect: "external",
-    requires: ["gpu.adapter"],
+    requires: ["host.gpu.adapter"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -438,7 +438,7 @@ export declare function adapterInfo(handle: GpuAdapterHandle): Result<GpuAdapter
 /// Read an adapter feature snapshot.
 @binding("destack.gpu.adapter.features", {
     effect: "external",
-    requires: ["gpu.adapter"],
+    requires: ["host.gpu.adapter"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -449,7 +449,7 @@ export declare function adapterFeatures(
 /// Read an adapter limits snapshot.
 @binding("destack.gpu.adapter.limits", {
     effect: "external",
-    requires: ["gpu.adapter"],
+    requires: ["host.gpu.adapter"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -460,7 +460,7 @@ export declare function adapterLimits(
 /// Check whether an adapter supports a feature.
 @binding("destack.gpu.adapter.hasFeature", {
     effect: "external",
-    requires: ["gpu.adapter"],
+    requires: ["host.gpu.adapter"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -472,7 +472,7 @@ export declare function adapterHasFeature(
 /// Query texture-format actions for an adapter.
 @binding("destack.gpu.adapter.formatCapabilities", {
     effect: "external",
-    requires: ["gpu.adapter"],
+    requires: ["host.gpu.adapter"],
     families: ["windows", "unix"],
     simulation: true,
 })
@@ -484,7 +484,7 @@ export declare function adapterFormatCapabilities(
 /// Close a GPU adapter.
 @binding("destack.gpu.adapter.close", {
     effect: "external",
-    requires: ["gpu.adapter"],
+    requires: ["host.gpu.adapter"],
     families: ["windows", "unix"],
     simulation: true,
 })

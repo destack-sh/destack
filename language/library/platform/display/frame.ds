@@ -56,7 +56,7 @@ export struct DisplayBeginFrameOpenOptions {
 /// Open a global begin-frame stream.
 @binding("destack.display.frame.beginOpen", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -68,7 +68,7 @@ export declare function beginFrameOpen(
 /// Close a begin-frame stream.
 @binding("destack.display.frame.beginClose", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -78,7 +78,7 @@ export declare function beginFrameClose(handle: DisplayBeginFrameHandle): Result
 /// Wait for a begin-frame event.
 @binding("destack.display.frame.beginRead", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -91,7 +91,7 @@ export declare function beginFrameRead(
 /// Poll a begin-frame event without blocking.
 @binding("destack.display.frame.beginTryRead", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -103,7 +103,7 @@ export declare function beginFrameTryRead(
 /// Wait for a batch of begin-frame events.
 @binding("destack.display.frame.beginReadBatch", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",
@@ -117,7 +117,7 @@ export declare function beginFrameReadBatch(
 /// Poll a batch of begin-frame events without blocking.
 @binding("destack.display.frame.beginTryReadBatch", {
     effect: "external",
-    requires: ["display.window"],
+    requires: ["host.display.window"],
     families: ["windows", "unix"],
     simulation: true,
     affinity: "worker",

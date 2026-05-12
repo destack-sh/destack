@@ -14,7 +14,7 @@ export enum ProfileKind {
 /// Start a profiling session.
 @binding("destack.debug.profile.start", {
     effect: "external",
-    requires: ["debug.profile"],
+    requires: ["runtime.debug.profile"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -24,7 +24,7 @@ export declare function profileStart(kind: ProfileKind): Result<ProfileHandle, P
 /// Stop a profiling session.
 @binding("destack.debug.profile.stop", {
     effect: "external",
-    requires: ["debug.profile"],
+    requires: ["runtime.debug.profile"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",
@@ -34,7 +34,7 @@ export declare function profileStop(handle: ProfileHandle): Result<void, Platfor
 /// Capture a profiling snapshot.
 @binding("destack.debug.profile.snapshot", {
     effect: "external",
-    requires: ["debug.profile"],
+    requires: ["runtime.debug.profile"],
     families: ["windows", "unix"],
     hosts: ["wasi"],
     provider: "runtime",

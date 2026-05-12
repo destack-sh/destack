@@ -51,7 +51,7 @@ export struct InputTouchState {
 /// Read one touch state snapshot.
 @binding("destack.input.touch.state", {
     effect: "external",
-    requires: ["input.read"],
+    requires: ["host.input.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
