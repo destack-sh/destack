@@ -2,63 +2,61 @@ use std::collections::{HashMap, VecDeque};
 
 use crate::common::mir::terminator_arguments_for_successor;
 use crate::declare_mir_pass;
+use destack_artifact::DiagnosticBuilder;
 use destack_mir as mir;
 use mir::{
     Instruction, Place, PlaceOrigin, ReferenceKind, Terminator, Type, Value, ValueReference,
 };
 
-use crate::verify::{VerifyError, VerifyState, VerifyWarning};
+use crate::verify::value::{instruction_consumes, instruction_uses, terminator_consumes};
+use crate::verify::{VerifyError, VerifyState};
 
 declare_mir_pass! {
     /// Verify MIR memory rules.
     #[pass(id = "memory-check")]
-    pub MemoryCheck,
+    pub(crate) MemoryCheck,
     "Verify memory rules"
 }
 
-/// Lifetime of one MIR value or place inside a function body.
+/// Lifetime origin a MIR value or place is known to depend on.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-enum StorageLifetime {
-    /// The value is not an escaping reference.
+enum BorrowOrigin {
+    /// The value carries no borrowed access.
     #[default]
     None,
-    /// Storage belongs to this function activation.
-    Frame,
-    /// Storage is rooted outside this function.
-    External(mir::Lifetime),
-    /// Storage is heap-backed and can escape the frame.
-    Heap,
+    /// The value depends on this function activation.
+    Local,
+    /// The value depends on a declared lifetime.
+    Lifetime(mir::Lifetime),
 }
 
-impl StorageLifetime {
-    /// Return true when this lifetime can escape the current frame.
-    fn can_escape_frame(&self) -> bool {
-        !matches!(self, Self::Frame)
+impl BorrowOrigin {
+    /// Return true when this origin is valid beyond the current activation.
+    fn is_escaping(&self) -> bool {
+        !matches!(self, Self::Local)
     }
 
-    /// Return true when this lifetime satisfies one declared return lifetime.
+    /// Return true when this origin satisfies one required lifetime.
     fn is_covered_by(&self, required: &mir::Lifetime) -> bool {
         match self {
             Self::None => true,
-            Self::Heap => true,
-            Self::External(lifetime) => lifetime.origins.iter().all(|origin| match origin {
+            Self::Lifetime(lifetime) => lifetime.origins.iter().all(|origin| match origin {
                 mir::LifetimeOrigin::Static => required.includes_static(),
                 mir::LifetimeOrigin::Parameter(index) => required.includes_parameter(*index),
             }),
-            Self::Frame => false,
+            Self::Local => false,
         }
     }
 
-    /// Merge two lifetimes at a control-flow join.
+    /// Merge two origins at a control-flow join.
     fn merge(&self, other: &Self) -> Self {
         match (self, other) {
-            (Self::Frame, _) | (_, Self::Frame) => Self::Frame,
-            (Self::Heap, _) | (_, Self::Heap) => Self::Heap,
+            (Self::Local, _) | (_, Self::Local) => Self::Local,
             (Self::None, lifetime) | (lifetime, Self::None) => lifetime.clone(),
-            (Self::External(left), Self::External(right)) => {
+            (Self::Lifetime(left), Self::Lifetime(right)) => {
                 let origins = left.origins.iter().chain(&right.origins).copied();
 
-                Self::External(mir::Lifetime::new(origins))
+                Self::Lifetime(mir::Lifetime::new(origins))
             }
         }
     }
@@ -67,9 +65,9 @@ impl StorageLifetime {
     fn label(&self) -> String {
         match self {
             Self::None => "none".to_string(),
-            Self::Frame => "frame".to_string(),
-            Self::External(lifetime) if lifetime.is_static() => "static".to_string(),
-            Self::External(lifetime) => {
+            Self::Local => "local".to_string(),
+            Self::Lifetime(lifetime) if lifetime.is_static() => "static".to_string(),
+            Self::Lifetime(lifetime) => {
                 let parameters: Vec<_> = lifetime.parameter_indices().collect();
                 if parameters.len() == 1 {
                     format!("parameter {}", parameters[0])
@@ -77,14 +75,13 @@ impl StorageLifetime {
                     format!("parameters {parameters:?}")
                 }
             }
-            Self::Heap => "heap".to_string(),
         }
     }
 }
 
-/// Ownership state for one move-only value.
+/// Move state for one move-only value.
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum ValueState {
+enum MoveState {
     /// The value can be used.
     Available,
     /// The value was moved at this instruction.
@@ -106,24 +103,13 @@ struct Loan {
     created_at: mir::LocalNodeIdAny,
 }
 
-/// Change that can invalidate active loans.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum PlaceChange {
-    /// The whole value is moved.
-    Move,
-    /// The whole value is dropped.
-    Drop,
-    /// A local binding is assigned.
-    AssignLocal,
-}
-
-/// Memory facts tracked while checking one function.
+/// Memory state at one program point.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct MemoryState {
     /// Move state for move-only values.
-    values: HashMap<Value, ValueState>,
-    /// Storage lifetime for reference-like values.
-    lifetimes: HashMap<Value, StorageLifetime>,
+    moves: HashMap<Value, MoveState>,
+    /// Lifetime origins for reference-like values.
+    origins: HashMap<Value, BorrowOrigin>,
     /// Active loans by reference value.
     loans: HashMap<Value, Loan>,
 }
@@ -132,8 +118,8 @@ impl MemoryState {
     /// Create empty memory state.
     fn new() -> Self {
         Self {
-            values: HashMap::new(),
-            lifetimes: HashMap::new(),
+            moves: HashMap::new(),
+            origins: HashMap::new(),
             loans: HashMap::new(),
         }
     }
@@ -142,12 +128,12 @@ impl MemoryState {
     fn merge(&mut self, other: &Self) -> bool {
         let mut changed = false;
 
-        for (&value, state) in &other.values {
-            changed |= self.merge_value(value, state);
+        for (&value, state) in &other.moves {
+            changed |= self.merge_moves(value, state);
         }
 
-        for (&value, lifetime) in &other.lifetimes {
-            changed |= self.merge_lifetime(value, lifetime);
+        for (&value, source) in &other.origins {
+            changed |= self.merge_origin(value, source);
         }
 
         for (&value, loan) in &other.loans {
@@ -158,34 +144,34 @@ impl MemoryState {
     }
 
     /// Merge one move state.
-    fn merge_value(&mut self, value: Value, state: &ValueState) -> bool {
-        let next = match self.values.get(&value) {
+    fn merge_moves(&mut self, value: Value, state: &MoveState) -> bool {
+        let next = match self.moves.get(&value) {
             None => state.clone(),
             Some(current) => current.merge(state),
         };
 
-        self.values.insert(value, next.clone()).as_ref() != Some(&next)
+        self.moves.insert(value, next.clone()).as_ref() != Some(&next)
     }
 
-    /// Merge one lifetime.
-    fn merge_lifetime(&mut self, value: Value, lifetime: &StorageLifetime) -> bool {
+    /// Merge one lifetime origin.
+    fn merge_origin(&mut self, value: Value, source: &BorrowOrigin) -> bool {
         let next = self
-            .lifetimes
+            .origins
             .get(&value)
-            .map(|current| current.merge(lifetime))
-            .unwrap_or_else(|| lifetime.clone());
+            .map(|current| current.merge(source))
+            .unwrap_or_else(|| source.clone());
 
-        self.lifetimes.insert(value, next.clone()).as_ref() != Some(&next)
+        self.origins.insert(value, next.clone()).as_ref() != Some(&next)
     }
 
-    /// Copy state from one value to another.
-    fn bind_value(&mut self, source: Value, destination: Value) {
-        if let Some(state) = self.values.get(&source).cloned() {
-            self.values.insert(destination, state);
+    /// Bind one successor parameter to one predecessor argument.
+    fn bind(&mut self, source: Value, destination: Value) {
+        if let Some(state) = self.moves.get(&source).cloned() {
+            self.moves.insert(destination, state);
         }
 
-        if let Some(lifetime) = self.lifetimes.get(&source).cloned() {
-            self.lifetimes.insert(destination, lifetime);
+        if let Some(origin) = self.origins.get(&source).cloned() {
+            self.origins.insert(destination, origin);
         }
 
         if let Some(mut loan) = self.loans.get(&source).cloned() {
@@ -195,7 +181,7 @@ impl MemoryState {
     }
 }
 
-impl ValueState {
+impl MoveState {
     /// Merge two move states at a control-flow join.
     fn merge(&self, other: &Self) -> Self {
         match (self, other) {
@@ -211,8 +197,8 @@ impl ValueState {
     }
 }
 
-/// Checker for one function.
-struct FunctionMemory<'a, 'b> {
+/// Memory checker for one function.
+struct FunctionCheck<'a, 'b> {
     /// The function being verified.
     function: &'a mir::Function,
     /// The MIR tree.
@@ -222,13 +208,13 @@ struct FunctionMemory<'a, 'b> {
     /// SSA value liveness.
     liveness: mir::FunctionLiveness,
     /// Whether this pass should emit diagnostics.
-    emit_diagnostics: bool,
-    /// Current memory facts.
+    is_diagnostics_enabled: bool,
+    /// Current memory state.
     state: MemoryState,
 }
 
-impl<'a, 'b> FunctionMemory<'a, 'b> {
-    /// Create a function memory checker.
+impl<'a, 'b> FunctionCheck<'a, 'b> {
+    /// Create a function checker.
     fn new(
         function: &'a mir::Function,
         tree: &'a mir::Tree,
@@ -241,7 +227,7 @@ impl<'a, 'b> FunctionMemory<'a, 'b> {
             tree,
             context,
             liveness,
-            emit_diagnostics: true,
+            is_diagnostics_enabled: true,
             state: MemoryState::new(),
         }
     }
@@ -346,12 +332,12 @@ impl<'a, 'b> FunctionMemory<'a, 'b> {
                 continue;
             };
 
-            state.bind_value(source, destination);
+            state.bind(source, destination);
         }
 
         state
             .loans
-            .retain(|_, loan| self.liveness.is_value_live_in(successor, loan.reference));
+            .retain(|_, loan| self.is_value_live_in_successor(successor, loan.reference));
 
         state
     }
@@ -361,19 +347,19 @@ impl<'a, 'b> FunctionMemory<'a, 'b> {
         &mut self,
         block_id: mir::LocalNodeId<mir::Block>,
         state: MemoryState,
-        emit_diagnostics: bool,
+        is_diagnostics_enabled: bool,
     ) -> MemoryState {
         self.state = state;
-        self.emit_diagnostics = emit_diagnostics;
+        self.is_diagnostics_enabled = is_diagnostics_enabled;
 
         let block = self.tree.get(block_id);
-        for &instruction_id in &block.instructions {
+        for (index, &instruction_id) in block.instructions.iter().enumerate() {
             let instruction = self.tree.get(instruction_id);
-            self.check_instruction(instruction_id, instruction);
+            self.check_instruction(block_id, index, instruction_id, instruction);
             self.expire_instruction_loans(block_id, instruction_id);
         }
 
-        self.check_terminator(block_id, self.tree.get(block.terminator));
+        self.check_terminator(block.terminator, self.tree.get(block.terminator));
 
         self.state.clone()
     }
@@ -388,25 +374,37 @@ impl<'a, 'b> FunctionMemory<'a, 'b> {
             };
 
             if self.is_move_only(value.into()) {
-                state.values.insert(value, ValueState::Available);
+                state.moves.insert(value, MoveState::Available);
             }
 
-            let lifetime = self.parameter_lifetime(index as u32, parameter.ty);
-            if lifetime != StorageLifetime::None {
-                state.lifetimes.insert(value, lifetime);
+            let source = self.parameter_origin(index as u32, parameter.ty);
+            if source != BorrowOrigin::None {
+                state.origins.insert(value, source);
             }
         }
 
         state
     }
 
-    /// Return parameter storage lifetime.
-    fn parameter_lifetime(&self, index: u32, ty: mir::TypeReference) -> StorageLifetime {
+    /// Return the lifetime origin implied by one parameter type.
+    fn parameter_origin(&self, index: u32, ty: mir::TypeReference) -> BorrowOrigin {
         let mir::TypeReference::Type(ty) = ty else {
-            return StorageLifetime::None;
+            return BorrowOrigin::None;
         };
 
         match self.tree.get(ty) {
+            Type::Reference {
+                kind: ReferenceKind::Managed,
+                ..
+            }
+            | Type::Slice {
+                kind: ReferenceKind::Managed,
+                ..
+            }
+            | Type::TensorView {
+                kind: ReferenceKind::Managed,
+                ..
+            } => BorrowOrigin::Lifetime(mir::Lifetime::parameter(index)),
             Type::Reference {
                 kind: ReferenceKind::Borrowed,
                 lifetime,
@@ -423,63 +421,44 @@ impl<'a, 'b> FunctionMemory<'a, 'b> {
                 ..
             } => {
                 if lifetime.is_empty() {
-                    StorageLifetime::External(mir::Lifetime::parameter(index))
+                    BorrowOrigin::Lifetime(mir::Lifetime::parameter(index))
                 } else {
-                    StorageLifetime::External(lifetime.clone())
+                    BorrowOrigin::Lifetime(lifetime.clone())
                 }
             }
-            Type::Reference {
-                kind: ReferenceKind::Managed | ReferenceKind::Owned,
-                ..
-            }
-            | Type::Slice {
-                kind: ReferenceKind::Managed | ReferenceKind::Owned,
-                ..
-            }
-            | Type::TensorView {
-                kind: ReferenceKind::Managed | ReferenceKind::Owned,
-                ..
-            } => StorageLifetime::Heap,
-            _ => StorageLifetime::None,
+            _ => BorrowOrigin::None,
         }
     }
 
-    /// Verify one instruction and update memory facts.
+    /// Verify one instruction and update memory state.
     fn check_instruction(
         &mut self,
+        block_id: mir::LocalNodeId<mir::Block>,
+        index: usize,
         instruction_id: mir::LocalNodeId<Instruction>,
         instruction: &Instruction,
     ) {
-        for value in instruction.uses() {
+        for value in instruction_uses(instruction, self.tree) {
             self.check_use(value, instruction_id.into_any());
-        }
-        if let Some(arguments) = instruction.argument_slice() {
-            for &value in self.tree.get_arguments(arguments) {
-                self.check_use(value, instruction_id.into_any());
-            }
         }
 
         match instruction {
-            Instruction::LocalSet { local, value } => {
-                self.check_place_change(
-                    &Place::local(*local),
-                    PlaceChange::AssignLocal,
-                    instruction_id.into_any(),
-                );
-                self.move_value(*value, instruction_id.into_any());
+            Instruction::LocalSet { local, .. } => {
+                self.check_place_change(&Place::local(*local), instruction_id.into_any());
             }
             Instruction::Store { pointer, value } => {
                 self.check_store(*pointer, *value, instruction_id.into_any());
-                self.move_value(*value, instruction_id.into_any());
             }
             Instruction::FieldAddr {
                 destination,
                 aggregate,
                 ..
-            } => self.create_loan(*destination, *aggregate, instruction_id.into_any()),
+            } => self.create_projected_loan(*destination, *aggregate, instruction_id.into_any()),
             Instruction::ElementAddr {
                 destination, array, ..
-            } => self.create_loan(*destination, *array, instruction_id.into_any()),
+            } => {
+                self.create_projected_loan(*destination, *array, instruction_id.into_any());
+            }
             Instruction::LocalAddr {
                 destination, local, ..
             } => {
@@ -493,9 +472,7 @@ impl<'a, 'b> FunctionMemory<'a, 'b> {
                 ..
             } => {
                 self.check_aggregate_set(*aggregate, *value, instruction_id.into_any());
-                self.propagate_lifetime(*aggregate, *destination);
-                self.move_value(*aggregate, instruction_id.into_any());
-                self.move_value(*value, instruction_id.into_any());
+                self.propagate_origin(*aggregate, *destination);
             }
             Instruction::ElementSet {
                 destination,
@@ -504,9 +481,7 @@ impl<'a, 'b> FunctionMemory<'a, 'b> {
                 ..
             } => {
                 self.check_aggregate_set(*array, *value, instruction_id.into_any());
-                self.propagate_lifetime(*array, *destination);
-                self.move_value(*array, instruction_id.into_any());
-                self.move_value(*value, instruction_id.into_any());
+                self.propagate_origin(*array, *destination);
             }
             Instruction::Load {
                 destination,
@@ -522,87 +497,62 @@ impl<'a, 'b> FunctionMemory<'a, 'b> {
                 destination,
                 value: pointer,
                 ..
-            } => self.propagate_lifetime(*pointer, *destination),
+            } => self.propagate_origin(*pointer, *destination),
             Instruction::StackAlloc { destination, .. } => {
-                self.define_lifetime(
-                    *destination,
-                    StorageLifetime::Frame,
-                    instruction_id.into_any(),
-                );
-            }
-            Instruction::New { destination, .. }
-            | Instruction::NewSlice { destination, .. }
-            | Instruction::RawAlloc { destination, .. } => {
-                self.define_lifetime(
-                    *destination,
-                    StorageLifetime::Heap,
-                    instruction_id.into_any(),
-                );
+                self.define_origin(*destination, BorrowOrigin::Local);
             }
             Instruction::GlobalAddr { destination, .. } => {
-                self.define_lifetime(
+                self.define_origin(
                     *destination,
-                    StorageLifetime::External(mir::Lifetime::static_storage()),
-                    instruction_id.into_any(),
+                    BorrowOrigin::Lifetime(mir::Lifetime::static_storage()),
                 );
             }
-            Instruction::RawFree { pointer } | Instruction::Drop { value: pointer } => {
-                self.check_value_change(*pointer, PlaceChange::Drop, instruction_id.into_any());
-                self.move_value(*pointer, instruction_id.into_any());
+            Instruction::Drop { value: pointer } => {
+                self.check_value_change(*pointer, instruction_id.into_any());
             }
-            Instruction::Call { call, .. }
-            | Instruction::CallVirtual { call, .. }
-            | Instruction::CallInterface { call, .. }
-            | Instruction::CallIndirect { call, .. } => {
-                for &value in self.tree.get_arguments(call.arguments) {
-                    self.move_value(value.into(), instruction_id.into_any());
-                }
-                self.define_destination(instruction);
-            }
-            Instruction::Intrinsic { arguments, .. } => {
-                for &value in self.tree.get_arguments(*arguments) {
-                    self.move_value(value.into(), instruction_id.into_any());
-                }
-                self.define_destination(instruction);
-            }
-            _ => self.define_destination(instruction),
+            _ => {}
         }
+
+        for value in instruction_consumes(instruction, self.tree) {
+            if matches!(instruction, Instruction::Drop { .. }) {
+                self.mark_moved(value, instruction_id.into_any());
+            } else {
+                self.move_value(value, instruction_id.into_any());
+            }
+        }
+
+        if instruction
+            .call_behavior()
+            .is_some_and(|behavior| behavior.suspend.may_suspend())
+        {
+            self.check_instruction_suspend(block_id, index, instruction_id.into_any());
+        }
+
+        self.define_destination(instruction);
     }
 
     /// Verify one terminator.
     fn check_terminator(
         &mut self,
-        block_id: mir::LocalNodeId<mir::Block>,
+        terminator_id: mir::LocalNodeId<Terminator>,
         terminator: &Terminator,
     ) {
         for value in terminator.uses() {
-            self.check_use(value, block_id.into_any());
+            self.check_use(value, terminator_id.into_any());
         }
 
         match terminator {
             Terminator::Return { value: Some(value) } => {
-                self.check_return(*value, block_id.into_any());
-                self.move_value(*value, block_id.into_any());
+                self.check_return(*value, terminator_id.into_any());
             }
-            Terminator::Throw { value }
-            | Terminator::Yield { value, .. }
-            | Terminator::TailCallIndirect { callee: value, .. }
-            | Terminator::Trap {
-                payload: Some(value),
-                ..
-            } => self.move_value(*value, block_id.into_any()),
-            Terminator::TailCall { call, .. }
-            | Terminator::TailCallVirtual { call, .. }
-            | Terminator::TailCallInterface { call, .. }
-            | Terminator::Invoke { call, .. }
-            | Terminator::InvokeIndirect { call, .. }
-            | Terminator::InvokeVirtual { call, .. }
-            | Terminator::InvokeInterface { call, .. } => {
-                for &value in &call.arguments {
-                    self.move_value(value, block_id.into_any());
-                }
+            Terminator::Yield { .. } => {
+                self.check_terminator_suspend(terminator_id.into_any());
             }
             _ => {}
+        }
+
+        for value in terminator_consumes(terminator) {
+            self.move_value(value, terminator_id.into_any());
         }
     }
 
@@ -613,7 +563,7 @@ impl<'a, 'b> FunctionMemory<'a, 'b> {
         };
 
         if self.is_move_only(destination.into()) {
-            self.state.values.insert(destination, ValueState::Available);
+            self.state.moves.insert(destination, MoveState::Available);
         }
     }
 
@@ -623,8 +573,8 @@ impl<'a, 'b> FunctionMemory<'a, 'b> {
             return;
         };
 
-        match self.state.values.get(&value) {
-            Some(ValueState::Moved { at }) => {
+        match self.state.moves.get(&value) {
+            Some(MoveState::Moved { at }) => {
                 let moved_at = self.context.anchor(self.tree, *at);
                 self.emit_error(
                     VerifyError::UseAfterMove {
@@ -634,7 +584,7 @@ impl<'a, 'b> FunctionMemory<'a, 'b> {
                     .label(moved_at, "value moved here"),
                 );
             }
-            Some(ValueState::MaybeMoved { at }) => {
+            Some(MoveState::MaybeMoved { at }) => {
                 let moved_at = self.context.anchor(self.tree, *at);
                 self.emit_error(
                     VerifyError::MaybeUseAfterMove {
@@ -644,7 +594,7 @@ impl<'a, 'b> FunctionMemory<'a, 'b> {
                     .label(moved_at, "value moved on this path"),
                 );
             }
-            Some(ValueState::Available) | None => {}
+            Some(MoveState::Available) | None => {}
         }
     }
 
@@ -658,24 +608,36 @@ impl<'a, 'b> FunctionMemory<'a, 'b> {
             return;
         }
 
-        self.check_value_change(value.into(), PlaceChange::Move, anchor);
-        self.state
-            .values
-            .insert(value, ValueState::Moved { at: anchor });
+        self.check_value_change(value.into(), anchor);
+        self.mark_moved(value.into(), anchor);
     }
 
-    /// Create a loan projected from another value.
-    fn create_loan(
+    /// Mark one move-only value as moved.
+    fn mark_moved(&mut self, value: ValueReference, anchor: mir::LocalNodeIdAny) {
+        let Some(value) = value.value() else {
+            return;
+        };
+        if !self.is_move_only(value.into()) {
+            return;
+        }
+
+        self.state
+            .moves
+            .insert(value, MoveState::Moved { at: anchor });
+    }
+
+    /// Create a loan whose projected place is already recorded on the reference.
+    fn create_projected_loan(
         &mut self,
         reference: ValueReference,
         source: ValueReference,
         anchor: mir::LocalNodeIdAny,
     ) {
-        let place = self.place_for_value(source);
+        let place = self.place_for_value(reference);
         self.create_loan_from_place(reference, place, anchor);
 
         if let (Some(source), Some(reference)) = (source.value(), reference.value()) {
-            self.propagate_lifetime(source.into(), reference.into());
+            self.propagate_origin(source.into(), reference.into());
         }
     }
 
@@ -689,10 +651,11 @@ impl<'a, 'b> FunctionMemory<'a, 'b> {
         let Some(reference_value) = reference.value() else {
             return;
         };
+        if !self.is_borrowed_reference(reference) {
+            return;
+        }
 
-        let access = self
-            .reference_access(reference)
-            .unwrap_or(mir::Access::Mutable);
+        let access = self.reference_access(reference).unwrap_or_default();
         let loans: Vec<_> = self.state.loans.values().cloned().collect();
         for loan in loans {
             if !loan.place.may_overlap(&place) {
@@ -712,11 +675,8 @@ impl<'a, 'b> FunctionMemory<'a, 'b> {
             );
         }
 
-        let lifetime = self.lifetime_for_place(&place);
-        self.state
-            .lifetimes
-            .entry(reference_value)
-            .or_insert(lifetime);
+        let source = self.origin_for_place(&place);
+        self.state.origins.entry(reference_value).or_insert(source);
         self.state.loans.insert(
             reference_value,
             Loan {
@@ -728,7 +688,7 @@ impl<'a, 'b> FunctionMemory<'a, 'b> {
         );
     }
 
-    /// Check a pointer store for access and lifetime escape.
+    /// Check a pointer store for access and borrow escape.
     fn check_store(
         &mut self,
         pointer: ValueReference,
@@ -746,76 +706,68 @@ impl<'a, 'b> FunctionMemory<'a, 'b> {
 
         let pointer_place = self.place_for_value(pointer);
 
-        let value_lifetime = self.lifetime_for_value(value);
-        let target_lifetime = self.lifetime_for_place(&pointer_place);
-        if value_lifetime == StorageLifetime::Frame && target_lifetime.can_escape_frame() {
-            self.emit_error(VerifyError::FrameReferenceEscapes {
+        let value_source = self.origin_for_value(value);
+        let target_source = self.origin_for_place(&pointer_place);
+        if value_source == BorrowOrigin::Local && target_source.is_escaping() {
+            self.emit_error(VerifyError::BorrowOutlivesOrigin {
                 anchor: self.context.anchor(self.tree, anchor),
+                origin: value_source.label(),
             });
         }
     }
 
-    /// Check a structural aggregate update for lifetime escape.
+    /// Check a structural aggregate update for borrow escape.
     fn check_aggregate_set(
         &mut self,
         aggregate: ValueReference,
         value: ValueReference,
         anchor: mir::LocalNodeIdAny,
     ) {
-        let aggregate_lifetime = self.lifetime_for_value(aggregate);
-        let value_lifetime = self.lifetime_for_value(value);
-        if value_lifetime == StorageLifetime::Frame && aggregate_lifetime.can_escape_frame() {
-            self.emit_error(VerifyError::FrameReferenceEscapes {
+        let aggregate_source = self.origin_for_value(aggregate);
+        let value_source = self.origin_for_value(value);
+        if value_source == BorrowOrigin::Local && aggregate_source.is_escaping() {
+            self.emit_error(VerifyError::BorrowOutlivesOrigin {
                 anchor: self.context.anchor(self.tree, anchor),
+                origin: value_source.label(),
             });
         }
     }
 
     /// Check one returned value.
     fn check_return(&mut self, value: ValueReference, anchor: mir::LocalNodeIdAny) {
-        let lifetime = self.lifetime_for_value(value);
-        if lifetime == StorageLifetime::None {
-            if !self.function.return_lifetime.is_empty() {
-                self.emit_warning(VerifyWarning::ReturnLifetimeIgnored {
-                    anchor: self.context.anchor(self.tree, anchor),
-                });
-            }
+        let source = self.origin_for_value(value);
+        if source == BorrowOrigin::None {
             return;
         }
 
-        if lifetime == StorageLifetime::Frame {
-            self.emit_error(VerifyError::FrameReferenceEscapes {
+        if source == BorrowOrigin::Local {
+            self.emit_error(VerifyError::BorrowOutlivesOrigin {
                 anchor: self.context.anchor(self.tree, anchor),
+                origin: source.label(),
             });
             return;
         }
 
-        if !lifetime.is_covered_by(&self.function.return_lifetime) {
-            self.emit_error(VerifyError::ReturnLifetimeMismatch {
+        let Some(required) = self.explicit_return_lifetime() else {
+            return;
+        };
+
+        if !source.is_covered_by(required) {
+            self.emit_error(VerifyError::BorrowOutlivesOrigin {
                 anchor: self.context.anchor(self.tree, anchor),
-                origin: lifetime.label(),
+                origin: source.label(),
             });
         }
     }
 
     /// Check whether changing a value invalidates active loans.
-    fn check_value_change(
-        &mut self,
-        value: ValueReference,
-        change: PlaceChange,
-        anchor: mir::LocalNodeIdAny,
-    ) {
+    fn check_value_change(&mut self, value: ValueReference, anchor: mir::LocalNodeIdAny) {
         let place = self.place_for_value(value);
-        self.check_place_change(&place, change, anchor);
+        self.check_place_change(&place, anchor);
     }
 
     /// Check whether changing a place invalidates active loans.
-    fn check_place_change(
-        &mut self,
-        place: &Place,
-        change: PlaceChange,
-        anchor: mir::LocalNodeIdAny,
-    ) {
+    fn check_place_change(&mut self, place: &Place, anchor: mir::LocalNodeIdAny) {
         let loans: Vec<_> = self.state.loans.values().cloned().collect();
         for loan in loans {
             if !loan.place.may_overlap(place) {
@@ -823,22 +775,58 @@ impl<'a, 'b> FunctionMemory<'a, 'b> {
             }
 
             let borrowed_at = self.context.anchor(self.tree, loan.created_at);
-            let error = match change {
-                PlaceChange::Move => VerifyError::MoveOfBorrowedValue {
-                    anchor: self.context.anchor(self.tree, anchor),
-                    borrowed_at: borrowed_at.clone(),
-                },
-                PlaceChange::Drop => VerifyError::DropWhileBorrowed {
-                    anchor: self.context.anchor(self.tree, anchor),
-                    borrowed_at: borrowed_at.clone(),
-                },
-                PlaceChange::AssignLocal => VerifyError::LocalSetWhileBorrowed {
-                    anchor: self.context.anchor(self.tree, anchor),
-                    borrowed_at: borrowed_at.clone(),
-                },
+            let error = VerifyError::ChangeOfBorrowedPlace {
+                anchor: self.context.anchor(self.tree, anchor),
+                borrowed_at: borrowed_at.clone(),
             };
             self.emit_error(error.label(borrowed_at, "loan is here"));
         }
+    }
+
+    /// Check whether borrowed access crosses one suspending instruction.
+    fn check_instruction_suspend(
+        &mut self,
+        block_id: mir::LocalNodeId<mir::Block>,
+        index: usize,
+        anchor: mir::LocalNodeIdAny,
+    ) {
+        let loans: Vec<_> = self.state.loans.values().cloned().collect();
+        for loan in loans {
+            if !self.liveness.is_value_live_after_instruction(
+                block_id,
+                index,
+                loan.reference,
+                self.tree,
+            ) {
+                continue;
+            }
+
+            self.emit_borrow_across_suspend(anchor, loan.created_at);
+        }
+    }
+
+    /// Check whether borrowed access crosses one suspending terminator.
+    fn check_terminator_suspend(&mut self, anchor: mir::LocalNodeIdAny) {
+        let loans: Vec<_> = self.state.loans.values().cloned().collect();
+        for loan in loans {
+            self.emit_borrow_across_suspend(anchor, loan.created_at);
+        }
+    }
+
+    /// Emit one borrow-across-suspend diagnostic.
+    fn emit_borrow_across_suspend(
+        &mut self,
+        anchor: mir::LocalNodeIdAny,
+        borrowed_at: mir::LocalNodeIdAny,
+    ) {
+        let borrowed_at = self.context.anchor(self.tree, borrowed_at);
+        self.emit_error(
+            VerifyError::BorrowAcrossSuspend {
+                anchor: self.context.anchor(self.tree, anchor),
+                borrowed_at: borrowed_at.clone(),
+            }
+            .label(borrowed_at, "borrow is created here"),
+        );
     }
 
     /// Expire loans whose reference is no longer live after this instruction.
@@ -865,6 +853,41 @@ impl<'a, 'b> FunctionMemory<'a, 'b> {
         });
     }
 
+    /// Return whether a value remains live after entering one successor.
+    fn is_value_live_in_successor(
+        &self,
+        block_id: mir::LocalNodeId<mir::Block>,
+        value: Value,
+    ) -> bool {
+        if self.liveness.is_value_live_in(block_id, value) {
+            return true;
+        }
+
+        let block = self.tree.get(block_id);
+        let is_parameter = block
+            .parameters
+            .iter()
+            .any(|parameter| parameter.value.value() == Some(value));
+        if !is_parameter {
+            return false;
+        }
+
+        let is_used_by_instruction = block.instructions.iter().any(|instruction_id| {
+            instruction_uses(self.tree.get(*instruction_id), self.tree)
+                .iter()
+                .any(|used| used.value() == Some(value))
+        });
+
+        let is_used_by_terminator = self
+            .tree
+            .get(block.terminator)
+            .uses()
+            .iter()
+            .any(|used| used.value() == Some(value));
+
+        is_used_by_instruction || is_used_by_terminator
+    }
+
     /// Return whether a value is move-only.
     fn is_move_only(&self, value: ValueReference) -> bool {
         let Some(ty) = value.value().and_then(|value| self.type_for_value(value)) else {
@@ -872,6 +895,18 @@ impl<'a, 'b> FunctionMemory<'a, 'b> {
         };
 
         self.tree.get(ty).copy().is_no()
+    }
+
+    /// Return true when one value is a borrowed reference-like value.
+    fn is_borrowed_reference(&self, value: ValueReference) -> bool {
+        let Some(value) = value.value() else {
+            return false;
+        };
+        let Some(ty) = self.type_for_value(value) else {
+            return false;
+        };
+
+        self.tree.get(ty).is_borrowed_reference()
     }
 
     /// Return access for one reference-like value.
@@ -886,52 +921,43 @@ impl<'a, 'b> FunctionMemory<'a, 'b> {
         }
     }
 
-    /// Propagate known storage lifetime from one value to another.
-    fn propagate_lifetime(&mut self, source: ValueReference, destination: ValueReference) {
+    /// Propagate the known lifetime origin from one value to another.
+    fn propagate_origin(&mut self, source: ValueReference, destination: ValueReference) {
         let Some(destination) = destination.value() else {
             return;
         };
-        let lifetime = self.lifetime_for_value(source);
-        if lifetime != StorageLifetime::None {
-            self.state.lifetimes.insert(destination, lifetime);
+        let source = self.origin_for_value(source);
+        if source != BorrowOrigin::None {
+            self.state.origins.insert(destination, source);
         }
     }
 
-    /// Define the storage lifetime for one destination value.
-    fn define_lifetime(
-        &mut self,
-        destination: ValueReference,
-        lifetime: StorageLifetime,
-        anchor: mir::LocalNodeIdAny,
-    ) {
+    /// Define the lifetime origin for one destination value.
+    fn define_origin(&mut self, destination: ValueReference, source: BorrowOrigin) {
         let Some(destination) = destination.value() else {
-            self.emit_error(VerifyError::Internal {
-                anchor: self.context.anchor(self.tree, anchor),
-                message: "expected concrete value destination".to_string(),
-            });
             return;
         };
 
-        self.state.lifetimes.insert(destination, lifetime);
+        self.state.origins.insert(destination, source);
     }
 
-    /// Return the lifetime for one value.
-    fn lifetime_for_value(&self, value: ValueReference) -> StorageLifetime {
+    /// Return the lifetime origin for one value.
+    fn origin_for_value(&self, value: ValueReference) -> BorrowOrigin {
         let Some(value) = value.value() else {
-            return StorageLifetime::None;
+            return BorrowOrigin::None;
         };
 
         self.state
-            .lifetimes
+            .origins
             .get(&value)
             .cloned()
-            .unwrap_or_else(|| self.type_lifetime(value))
+            .unwrap_or_else(|| self.type_origin(value))
     }
 
-    /// Return the lifetime implied by one value type.
-    fn type_lifetime(&self, value: Value) -> StorageLifetime {
+    /// Return the lifetime origin implied by one value type.
+    fn type_origin(&self, value: Value) -> BorrowOrigin {
         let Some(ty) = self.type_for_value(value) else {
-            return StorageLifetime::None;
+            return BorrowOrigin::None;
         };
 
         match self.tree.get(ty) {
@@ -949,30 +975,93 @@ impl<'a, 'b> FunctionMemory<'a, 'b> {
                 kind: ReferenceKind::Borrowed,
                 lifetime,
                 ..
-            } if !lifetime.is_empty() => StorageLifetime::External(lifetime.clone()),
-            Type::Reference {
-                kind: ReferenceKind::Managed | ReferenceKind::Owned,
-                ..
-            }
-            | Type::Slice {
-                kind: ReferenceKind::Managed | ReferenceKind::Owned,
-                ..
-            }
-            | Type::TensorView {
-                kind: ReferenceKind::Managed | ReferenceKind::Owned,
-                ..
-            } => StorageLifetime::Heap,
-            _ => StorageLifetime::None,
+            } if !lifetime.is_empty() => BorrowOrigin::Lifetime(lifetime.clone()),
+            _ => self
+                .tree
+                .type_reference_lifetime(ty.into())
+                .map(BorrowOrigin::Lifetime)
+                .unwrap_or_default(),
         }
     }
 
-    /// Return the lifetime for one place.
-    fn lifetime_for_place(&self, place: &Place) -> StorageLifetime {
+    /// Return the lifetime origin for one place.
+    fn origin_for_place(&self, place: &Place) -> BorrowOrigin {
         match place.origin {
-            PlaceOrigin::Local(_) => StorageLifetime::Frame,
-            PlaceOrigin::Global(_) => StorageLifetime::External(mir::Lifetime::static_storage()),
-            PlaceOrigin::Value(value) => self.lifetime_for_value(value),
+            PlaceOrigin::Local(_) => BorrowOrigin::Local,
+            PlaceOrigin::Global(_) => BorrowOrigin::Lifetime(mir::Lifetime::static_storage()),
+            PlaceOrigin::Value(value) => self.storage_origin_for_value(value),
         }
+    }
+
+    /// Return the lifetime origin implied by a value used as storage.
+    fn storage_origin_for_value(&self, value: ValueReference) -> BorrowOrigin {
+        let Some(value) = value.value() else {
+            return BorrowOrigin::None;
+        };
+
+        if let Some(source) = self.state.origins.get(&value) {
+            return source.clone();
+        }
+
+        let Some(ty) = self.type_for_value(value) else {
+            return BorrowOrigin::None;
+        };
+
+        match self.tree.get(ty) {
+            Type::Reference {
+                kind: ReferenceKind::Managed,
+                ..
+            }
+            | Type::Slice {
+                kind: ReferenceKind::Managed,
+                ..
+            }
+            | Type::TensorView {
+                kind: ReferenceKind::Managed,
+                ..
+            } => BorrowOrigin::Local,
+            Type::Reference {
+                kind: ReferenceKind::Unique,
+                ..
+            }
+            | Type::Slice {
+                kind: ReferenceKind::Unique,
+                ..
+            }
+            | Type::TensorView {
+                kind: ReferenceKind::Unique,
+                ..
+            } => BorrowOrigin::Local,
+            Type::Reference {
+                kind: ReferenceKind::Borrowed,
+                lifetime,
+                ..
+            }
+            | Type::Slice {
+                kind: ReferenceKind::Borrowed,
+                lifetime,
+                ..
+            }
+            | Type::TensorView {
+                kind: ReferenceKind::Borrowed,
+                lifetime,
+                ..
+            } if !lifetime.is_empty() => BorrowOrigin::Lifetime(lifetime.clone()),
+            _ => BorrowOrigin::None,
+        }
+    }
+
+    /// Return the explicitly declared return lifetime.
+    fn explicit_return_lifetime(&self) -> Option<&mir::Lifetime> {
+        if self
+            .tree
+            .type_reference_lifetime(self.function.return_type)
+            .is_none()
+        {
+            return None;
+        }
+
+        Some(&self.function.return_lifetime)
     }
 
     /// Return the best known place for one value.
@@ -1001,26 +1090,16 @@ impl<'a, 'b> FunctionMemory<'a, 'b> {
     }
 
     /// Emit one error when diagnostics are enabled.
-    fn emit_error(&mut self, error: impl Into<destack_artifact::DiagnosticBuilder<VerifyError>>) {
-        if self.emit_diagnostics {
+    fn emit_error(&mut self, error: impl Into<DiagnosticBuilder<VerifyError>>) {
+        if self.is_diagnostics_enabled {
             self.context.emit_error(error);
-        }
-    }
-
-    /// Emit one warning when diagnostics are enabled.
-    fn emit_warning(
-        &mut self,
-        warning: impl Into<destack_artifact::DiagnosticBuilder<VerifyWarning>>,
-    ) {
-        if self.emit_diagnostics {
-            self.context.emit_warning(warning);
         }
     }
 }
 
 impl MemoryCheck {
     /// Verify memory rules for one MIR tree.
-    pub fn run(&self, tree: &mut mir::Tree, context: &mut VerifyState<'_>) {
+    pub(crate) fn run(&self, tree: &mut mir::Tree, context: &mut VerifyState<'_>) {
         let functions: Vec<_> = tree
             .iter_nodes::<mir::Function>()
             .map(|(id, _)| id)
@@ -1035,7 +1114,7 @@ impl MemoryCheck {
                 continue;
             }
 
-            FunctionMemory::new(function, tree, context).check();
+            FunctionCheck::new(function, tree, context).check();
         }
     }
 }
@@ -1045,25 +1124,34 @@ mod tests {
     use super::*;
     use crate::verify::tests::VerifyProgram;
 
+    /// Assert exactly one error of the expected shape.
+    fn assert_one_error(errors: &[VerifyError], expected: fn(&VerifyError) -> bool) {
+        assert_eq!(errors.len(), 1, "{errors:#?}");
+        assert!(expected(&errors[0]), "{errors:#?}");
+    }
+
+    /// Assert no verify errors.
+    fn assert_no_errors(errors: &[VerifyError]) {
+        assert!(errors.is_empty(), "{errors:#?}");
+    }
+
     #[test]
     fn test_reject_use_after_move() {
         let mut program = VerifyProgram::new(
             r#"
-function test(v0: ref<int32, owned>): void {
-b0(v0: ref<int32, owned>):
+function test(v0: ref<int32, unique>): void {
+b0(v0: ref<int32, unique>):
     drop v0
     drop v0
     return
 }"#,
         );
 
-        let (errors, _) = program.run_memory();
+        let errors = program.run_memory();
 
-        assert!(
-            errors
-                .iter()
-                .any(|error| matches!(error, VerifyError::UseAfterMove { .. }))
-        );
+        assert_one_error(&errors, |error| {
+            matches!(error, VerifyError::UseAfterMove { .. })
+        });
     }
 
     #[test]
@@ -1083,13 +1171,11 @@ b0(v0: ref<Box, borrowed>):
 }"#,
         );
 
-        let (errors, _) = program.run_memory();
+        let errors = program.run_memory();
 
-        assert!(
-            errors
-                .iter()
-                .any(|error| matches!(error, VerifyError::ConflictingLoan { .. }))
-        );
+        assert_one_error(&errors, |error| {
+            matches!(error, VerifyError::ConflictingLoan { .. })
+        });
     }
 
     #[test]
@@ -1109,9 +1195,78 @@ b0(v0: ref<Box, borrowed>):
 }"#,
         );
 
-        let (errors, _) = program.run_memory();
+        let errors = program.run_memory();
 
-        assert!(errors.is_empty());
+        assert_no_errors(&errors);
+    }
+
+    #[test]
+    fn test_allow_exclusive_disjoint_fields() {
+        let mut program = VerifyProgram::new(
+            r#"
+type Pair {
+    int32;
+    int32;
+}
+function test(v0: ref<Pair, borrowed>): void {
+b0(v0: ref<Pair, borrowed>):
+    v1: ref<int32, borrowed, exclusive> = field.address v0, 0
+    v2: ref<int32, borrowed, exclusive> = field.address v0, 1
+    v3: int32 = load v1
+    v4: int32 = load v2
+    return
+}"#,
+        );
+
+        let errors = program.run_memory();
+
+        assert_no_errors(&errors);
+    }
+
+    #[test]
+    fn test_reject_exclusive_after_readonly_overlap() {
+        let mut program = VerifyProgram::new(
+            r#"
+type Box {
+    int32;
+}
+function test(v0: ref<Box, borrowed>): void {
+b0(v0: ref<Box, borrowed>):
+    v1: ref<int32, borrowed, readonly> = field.address v0, 0
+    v2: ref<int32, borrowed, exclusive> = field.address v0, 0
+    v3: int32 = load v1
+    v4: int32 = load v2
+    return
+}"#,
+        );
+
+        let errors = program.run_memory();
+
+        assert_one_error(&errors, |error| {
+            matches!(error, VerifyError::ConflictingLoan { .. })
+        });
+    }
+
+    #[test]
+    fn test_allow_exclusive_after_last_borrow_use() {
+        let mut program = VerifyProgram::new(
+            r#"
+type Box {
+    int32;
+}
+function test(v0: ref<Box, borrowed>): void {
+b0(v0: ref<Box, borrowed>):
+    v1: ref<int32, borrowed, readonly> = field.address v0, 0
+    v2: int32 = load v1
+    v3: ref<int32, borrowed, exclusive> = field.address v0, 0
+    v4: int32 = load v3
+    return
+}"#,
+        );
+
+        let errors = program.run_memory();
+
+        assert_no_errors(&errors);
     }
 
     #[test]
@@ -1126,9 +1281,9 @@ b0(v0: ref<int32, borrowed>, v1: int32):
 }"#,
         );
 
-        let (errors, _) = program.run_memory();
+        let errors = program.run_memory();
 
-        assert!(errors.is_empty());
+        assert_no_errors(&errors);
     }
 
     #[test]
@@ -1138,26 +1293,24 @@ b0(v0: ref<int32, borrowed>, v1: int32):
 type Box {
     int32;
 }
-function consume(v0: ref<Box, owned>): void {
-b0(v0: ref<Box, owned>):
+function consume(v0: ref<Box, unique>): void {
+b0(v0: ref<Box, unique>):
     return
 }
-function test(v0: ref<Box, owned>): void {
-b0(v0: ref<Box, owned>):
+function test(v0: ref<Box, unique>): void {
+b0(v0: ref<Box, unique>):
     v1: ref<int32, borrowed> = field.address v0, 0
-    call consume(v0): (ref<Box, owned>) -> void
+    call consume(v0): (ref<Box, unique>) -> void
     v2: int32 = load v1
     return
 }"#,
         );
 
-        let (errors, _) = program.run_memory();
+        let errors = program.run_memory();
 
-        assert!(
-            errors
-                .iter()
-                .any(|error| matches!(error, VerifyError::MoveOfBorrowedValue { .. }))
-        );
+        assert_one_error(&errors, |error| {
+            matches!(error, VerifyError::ChangeOfBorrowedPlace { .. })
+        });
     }
 
     #[test]
@@ -1167,8 +1320,8 @@ b0(v0: ref<Box, owned>):
 type Box {
     int32;
 }
-function test(v0: ref<Box, owned>): void {
-b0(v0: ref<Box, owned>):
+function test(v0: ref<Box, unique>): void {
+b0(v0: ref<Box, unique>):
     v1: ref<int32, borrowed> = field.address v0, 0
     drop v0
     v2: int32 = load v1
@@ -1176,13 +1329,38 @@ b0(v0: ref<Box, owned>):
 }"#,
         );
 
-        let (errors, _) = program.run_memory();
+        let errors = program.run_memory();
 
-        assert!(
-            errors
-                .iter()
-                .any(|error| matches!(error, VerifyError::DropWhileBorrowed { .. }))
+        assert_one_error(&errors, |error| {
+            matches!(error, VerifyError::ChangeOfBorrowedPlace { .. })
+        });
+    }
+
+    #[test]
+    fn test_reject_drop_while_borrowed_through_block_parameter() {
+        let mut program = VerifyProgram::new(
+            r#"
+type Box {
+    int32;
+}
+function test(v0: ref<Box, unique>, v1: boolean): void {
+b0(v0: ref<Box, unique>, v1: boolean):
+    v2: ref<int32, borrowed> = field.address v0, 0
+    branch v1, b1(v2), b2
+b1(v3: ref<int32, borrowed>):
+    drop v0
+    v4: int32 = load v3
+    return
+b2:
+    return
+}"#,
         );
+
+        let errors = program.run_memory();
+
+        assert_one_error(&errors, |error| {
+            matches!(error, VerifyError::ChangeOfBorrowedPlace { .. })
+        });
     }
 
     #[test]
@@ -1200,13 +1378,11 @@ b0(v0: int32, v1: int32):
 }"#,
         );
 
-        let (errors, _) = program.run_memory();
+        let errors = program.run_memory();
 
-        assert!(
-            errors
-                .iter()
-                .any(|error| matches!(error, VerifyError::LocalSetWhileBorrowed { .. }))
-        );
+        assert_one_error(&errors, |error| {
+            matches!(error, VerifyError::ChangeOfBorrowedPlace { .. })
+        });
     }
 
     #[test]
@@ -1220,38 +1396,73 @@ b0(v0: ref<int32, borrowed, readonly>, v1: int32):
 }"#,
         );
 
-        let (errors, _) = program.run_memory();
+        let errors = program.run_memory();
 
-        assert!(
-            errors
-                .iter()
-                .any(|error| matches!(error, VerifyError::ReadonlyWrite { .. }))
-        );
+        assert_one_error(&errors, |error| {
+            matches!(error, VerifyError::ReadonlyWrite { .. })
+        });
     }
 
     #[test]
     fn test_reject_use_after_call_move() {
         let mut program = VerifyProgram::new(
             r#"
-function consume(v0: ref<int32, owned>): void {
-b0(v0: ref<int32, owned>):
+function consume(v0: ref<int32, unique>): void {
+b0(v0: ref<int32, unique>):
     return
 }
-function test(v0: ref<int32, owned>): void {
-b0(v0: ref<int32, owned>):
-    call consume(v0): (ref<int32, owned>) -> void
+function test(v0: ref<int32, unique>): void {
+b0(v0: ref<int32, unique>):
+    call consume(v0): (ref<int32, unique>) -> void
     drop v0
     return
 }"#,
         );
 
-        let (errors, _) = program.run_memory();
+        let errors = program.run_memory();
 
-        assert!(
-            errors
-                .iter()
-                .any(|error| matches!(error, VerifyError::UseAfterMove { .. }))
+        assert_one_error(&errors, |error| {
+            matches!(error, VerifyError::UseAfterMove { .. })
+        });
+    }
+
+    #[test]
+    fn test_reject_use_after_struct_move() {
+        let mut program = VerifyProgram::new(
+            r#"
+type Box {
+    ref<int32, unique>;
+}
+function test(v0: ref<int32, unique>): void {
+b0(v0: ref<int32, unique>):
+    v1: Box = struct Box (v0)
+    drop v0
+    return
+}"#,
         );
+
+        let errors = program.run_memory();
+
+        assert_one_error(&errors, |error| {
+            matches!(error, VerifyError::UseAfterMove { .. })
+        });
+    }
+
+    #[test]
+    fn test_ignore_raw_free_for_moves() {
+        let mut program = VerifyProgram::new(
+            r#"
+function test(v0: ref<int32, raw>): void {
+b0(v0: ref<int32, raw>):
+    raw.free v0
+    raw.free v0
+    return
+}"#,
+        );
+
+        let errors = program.run_memory();
+
+        assert_no_errors(&errors);
     }
 
     #[test]
@@ -1269,13 +1480,11 @@ b0:
 }"#,
         );
 
-        let (errors, _) = program.run_memory();
+        let errors = program.run_memory();
 
-        assert!(
-            errors
-                .iter()
-                .any(|error| matches!(error, VerifyError::FrameReferenceEscapes { .. }))
-        );
+        assert_one_error(&errors, |error| {
+            matches!(error, VerifyError::BorrowOutlivesOrigin { .. })
+        });
     }
 
     #[test]
@@ -1288,17 +1497,172 @@ b0(v0: ref<int32, borrowed>):
 }"#,
         );
 
-        let (errors, _) = program.run_memory();
+        let errors = program.run_memory();
 
-        assert!(errors.is_empty());
+        assert_no_errors(&errors);
+    }
+
+    #[test]
+    fn test_infer_parameter_return_lifetime() {
+        let mut program = VerifyProgram::new(
+            r#"
+function test(v0: ref<int32, borrowed>): ref<int32, borrowed> {
+b0(v0: ref<int32, borrowed>):
+    return v0
+}"#,
+        );
+
+        let errors = program.run_memory();
+
+        assert_no_errors(&errors);
+    }
+
+    #[test]
+    fn test_infer_managed_return_lifetime() {
+        let mut program = VerifyProgram::new(
+            r#"
+type User {
+    int32;
+}
+function test(v0: ref<User, managed>): ref<int32, borrowed, readonly> {
+b0(v0: ref<User, managed>):
+    v1: ref<int32, borrowed, readonly> = field.address v0, 0
+    return v1
+}"#,
+        );
+
+        let errors = program.run_memory();
+
+        assert_no_errors(&errors);
+    }
+
+    #[test]
+    fn test_reject_unique_borrow_return() {
+        let mut program = VerifyProgram::new(
+            r#"
+type User {
+    int32;
+}
+function test(v0: ref<User, unique>): ref<int32, borrowed> {
+b0(v0: ref<User, unique>):
+    v1: ref<int32, borrowed> = field.address v0, 0
+    return v1
+}"#,
+        );
+
+        let errors = program.run_memory();
+
+        assert_one_error(&errors, |error| {
+            matches!(error, VerifyError::BorrowOutlivesOrigin { .. })
+        });
+    }
+
+    #[test]
+    fn test_reject_managed_return_as_static() {
+        let mut program = VerifyProgram::new(
+            r#"
+type User {
+    int32;
+}
+function test(v0: ref<User, managed>): ref<int32, borrowed, readonly, lifetime(static)> {
+b0(v0: ref<User, managed>):
+    v1: ref<int32, borrowed, readonly> = field.address v0, 0
+    return v1
+}"#,
+        );
+
+        let errors = program.run_memory();
+
+        assert_one_error(&errors, |error| {
+            matches!(error, VerifyError::BorrowOutlivesOrigin { .. })
+        });
+    }
+
+    #[test]
+    fn test_reject_borrow_across_yield() {
+        let mut program = VerifyProgram::new(
+            r#"
+function test(v0: int32): int32 {
+    local local0: int32, owned
+entry0(v0: int32):
+    local.set local0, v0
+    v1: ref<int32, borrowed, space(frame)> = local.address local0
+    yield v0, block1(v1)
+block1(v2: int32, v3: ref<int32, borrowed, space(frame)>):
+    v4: int32 = load v3
+    return v4
+}"#,
+        );
+
+        let errors = program.run_memory();
+
+        assert_one_error(&errors, |error| {
+            matches!(error, VerifyError::BorrowAcrossSuspend { .. })
+        });
+    }
+
+    #[test]
+    fn test_allow_borrow_before_yield() {
+        let mut program = VerifyProgram::new(
+            r#"
+function test(v0: int32): int32 {
+    local local0: int32, owned
+entry0(v0: int32):
+    local.set local0, v0
+    v1: ref<int32, borrowed, space(frame)> = local.address local0
+    v2: int32 = load v1
+    yield v2, block1(v2)
+block1(v3: int32, v4: int32):
+    return v4
+}"#,
+        );
+
+        let errors = program.run_memory();
+
+        assert_no_errors(&errors);
+    }
+
+    #[test]
+    fn test_allow_static_borrow_return() {
+        let mut program = VerifyProgram::new(
+            r#"
+global value: int32, readonly = 1int32
+function test(): ref<int32, borrowed, lifetime(static)> {
+b0:
+    v0: ref<int32, raw, readonly> = global.address value
+    v1: ref<int32, borrowed, readonly, lifetime(static)> = cast.bit v0 -> ref<int32, borrowed, readonly, lifetime(static)>
+    return v1
+}"#,
+        );
+
+        let errors = program.run_memory();
+
+        assert_no_errors(&errors);
+    }
+
+    #[test]
+    fn test_reject_wrong_parameter_lifetime_return() {
+        let mut program = VerifyProgram::new(
+            r#"
+function test(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>): ref<int32, borrowed, lifetime(0)> {
+b0(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>):
+    return v1
+}"#,
+        );
+
+        let errors = program.run_memory();
+
+        assert_one_error(&errors, |error| {
+            matches!(error, VerifyError::BorrowOutlivesOrigin { .. })
+        });
     }
 
     #[test]
     fn test_reject_maybe_moved_after_join() {
         let mut program = VerifyProgram::new(
             r#"
-function test(v0: ref<int32, owned>, v1: boolean): void {
-b0(v0: ref<int32, owned>, v1: boolean):
+function test(v0: ref<int32, unique>, v1: boolean): void {
+b0(v0: ref<int32, unique>, v1: boolean):
     branch v1, b1, b2
 b1:
     drop v0
@@ -1311,13 +1675,11 @@ b3:
 }"#,
         );
 
-        let (errors, _) = program.run_memory();
+        let errors = program.run_memory();
 
-        assert!(
-            errors
-                .iter()
-                .any(|error| matches!(error, VerifyError::MaybeUseAfterMove { .. }))
-        );
+        assert_one_error(&errors, |error| {
+            matches!(error, VerifyError::MaybeUseAfterMove { .. })
+        });
     }
 
     #[test]
@@ -1334,9 +1696,9 @@ b2(v3: ref<int32, borrowed>):
 }"#,
         );
 
-        let (errors, _) = program.run_memory();
+        let errors = program.run_memory();
 
-        assert!(errors.is_empty());
+        assert_no_errors(&errors);
     }
 
     #[test]
@@ -1355,12 +1717,10 @@ b3(v3: ref<int32, borrowed>):
 }"#,
         );
 
-        let (errors, _) = program.run_memory();
+        let errors = program.run_memory();
 
-        assert!(
-            errors
-                .iter()
-                .any(|error| matches!(error, VerifyError::ReturnLifetimeMismatch { .. }))
-        );
+        assert_one_error(&errors, |error| {
+            matches!(error, VerifyError::BorrowOutlivesOrigin { .. })
+        });
     }
 }
