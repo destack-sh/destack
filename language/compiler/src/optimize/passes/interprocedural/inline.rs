@@ -1481,17 +1481,16 @@ fn terminator_cost(terminator: &mir::Terminator) -> u64 {
             panic!("recovered MIR terminator reached optimizer");
         }
         mir::Terminator::Return { .. } => INLINE_COST_SIMPLE,
-        mir::Terminator::Throw { .. } => INLINE_COST_SIMPLE + 1,
         mir::Terminator::Trap { .. } => INLINE_COST_SIMPLE + 1,
         mir::Terminator::Jump { .. } => INLINE_COST_SIMPLE,
         mir::Terminator::Branch { .. }
         | mir::Terminator::Check { .. }
         | mir::Terminator::Switch { .. }
         | mir::Terminator::Yield { .. } => INLINE_COST_SIMPLE + 1,
-        mir::Terminator::Invoke { .. } => INLINE_COST_CALL + 1,
-        mir::Terminator::InvokeIndirect { .. }
-        | mir::Terminator::InvokeClass { .. }
-        | mir::Terminator::InvokeInterface { .. } => INLINE_COST_CALL_INDIRECT + 1,
+        mir::Terminator::Call { .. } => INLINE_COST_CALL + 1,
+        mir::Terminator::CallIndirect { .. }
+        | mir::Terminator::CallClass { .. }
+        | mir::Terminator::CallInterface { .. } => INLINE_COST_CALL_INDIRECT + 1,
         mir::Terminator::Unreachable => 0,
         mir::Terminator::TailCall { .. } => INLINE_COST_CALL,
         mir::Terminator::TailCallClass { .. } | mir::Terminator::TailCallInterface { .. } => {

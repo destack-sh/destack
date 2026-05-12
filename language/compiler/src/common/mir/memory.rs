@@ -279,17 +279,11 @@ pub fn collect_non_escaping_stack_allocs(
                     );
                 }
             }
-            mir::Terminator::Invoke {
-                call,
-                normal_target,
-                unwind_target,
-                ..
-            } => {
+            mir::Terminator::Call { call, target, .. } => {
                 for arg in call
                     .arguments
                     .iter()
-                    .chain(normal_target.arguments.iter())
-                    .chain(unwind_target.arguments.iter())
+                    .chain(target.arguments.iter())
                     .copied()
                 {
                     record_stack_escape_reference(
@@ -303,11 +297,10 @@ pub fn collect_non_escaping_stack_allocs(
                     );
                 }
             }
-            mir::Terminator::InvokeIndirect {
+            mir::Terminator::CallIndirect {
                 callee,
                 call,
-                normal_target,
-                unwind_target,
+                target,
                 ..
             } => {
                 record_stack_escape_reference(
@@ -322,8 +315,7 @@ pub fn collect_non_escaping_stack_allocs(
                 for arg in call
                     .arguments
                     .iter()
-                    .chain(normal_target.arguments.iter())
-                    .chain(unwind_target.arguments.iter())
+                    .chain(target.arguments.iter())
                     .copied()
                 {
                     record_stack_escape_reference(
@@ -337,18 +329,10 @@ pub fn collect_non_escaping_stack_allocs(
                     );
                 }
             }
-            mir::Terminator::InvokeClass {
+            mir::Terminator::CallClass {
                 receiver,
                 call,
-                normal_target,
-                unwind_target,
-                ..
-            }
-            | mir::Terminator::InvokeInterface {
-                receiver,
-                call,
-                normal_target,
-                unwind_target,
+                target,
                 ..
             } => {
                 record_stack_escape_reference(
@@ -363,8 +347,7 @@ pub fn collect_non_escaping_stack_allocs(
                 for arg in call
                     .arguments
                     .iter()
-                    .chain(normal_target.arguments.iter())
-                    .chain(unwind_target.arguments.iter())
+                    .chain(target.arguments.iter())
                     .copied()
                 {
                     record_stack_escape_reference(
@@ -378,9 +361,14 @@ pub fn collect_non_escaping_stack_allocs(
                     );
                 }
             }
-            mir::Terminator::Throw { value } => {
+            mir::Terminator::CallInterface {
+                receiver,
+                call,
+                target,
+                ..
+            } => {
                 record_stack_escape_reference(
-                    *value,
+                    *receiver,
                     definitions,
                     &local_defs,
                     &param_defs,
@@ -388,6 +376,22 @@ pub fn collect_non_escaping_stack_allocs(
                     &stack_allocs,
                     &mut escaping,
                 );
+                for arg in call
+                    .arguments
+                    .iter()
+                    .chain(target.arguments.iter())
+                    .copied()
+                {
+                    record_stack_escape_reference(
+                        arg,
+                        definitions,
+                        &local_defs,
+                        &param_defs,
+                        tree,
+                        &stack_allocs,
+                        &mut escaping,
+                    );
+                }
             }
             mir::Terminator::Trap { payload, .. } => {
                 if let Some(payload) = payload {

@@ -4242,29 +4242,13 @@ b0:
                         &mut mismatches,
                     );
                 }
-                mir::Terminator::Invoke {
-                    normal_target,
-                    unwind_target,
-                    ..
-                } => {
+                mir::Terminator::Call { target, .. } => {
                     check_edge(
-                        normal_target
+                        target
                             .block
                             .block()
-                            .expect("invoke success target should be concrete"),
-                        &normal_target
-                            .arguments
-                            .iter()
-                            .filter_map(|value| value.value())
-                            .collect::<Vec<_>>(),
-                        &mut mismatches,
-                    );
-                    check_edge(
-                        unwind_target
-                            .block
-                            .block()
-                            .expect("invoke unwind target should be concrete"),
-                        &unwind_target
+                            .expect("call target should be concrete"),
+                        &target
                             .arguments
                             .iter()
                             .filter_map(|value| value.value())
@@ -4272,29 +4256,13 @@ b0:
                         &mut mismatches,
                     );
                 }
-                mir::Terminator::InvokeIndirect {
-                    normal_target,
-                    unwind_target,
-                    ..
-                } => {
+                mir::Terminator::CallIndirect { target, .. } => {
                     check_edge(
-                        normal_target
+                        target
                             .block
                             .block()
-                            .expect("invokeIndirect success target should be concrete"),
-                        &normal_target
-                            .arguments
-                            .iter()
-                            .filter_map(|value| value.value())
-                            .collect::<Vec<_>>(),
-                        &mut mismatches,
-                    );
-                    check_edge(
-                        unwind_target
-                            .block
-                            .block()
-                            .expect("invokeIndirect unwind target should be concrete"),
-                        &unwind_target
+                            .expect("call indirect target should be concrete"),
+                        &target
                             .arguments
                             .iter()
                             .filter_map(|value| value.value())
@@ -4302,29 +4270,13 @@ b0:
                         &mut mismatches,
                     );
                 }
-                mir::Terminator::InvokeClass {
-                    normal_target,
-                    unwind_target,
-                    ..
-                } => {
+                mir::Terminator::CallClass { target, .. } => {
                     check_edge(
-                        normal_target
+                        target
                             .block
                             .block()
-                            .expect("invokeClass success target should be concrete"),
-                        &normal_target
-                            .arguments
-                            .iter()
-                            .filter_map(|value| value.value())
-                            .collect::<Vec<_>>(),
-                        &mut mismatches,
-                    );
-                    check_edge(
-                        unwind_target
-                            .block
-                            .block()
-                            .expect("invokeClass unwind target should be concrete"),
-                        &unwind_target
+                            .expect("call class target should be concrete"),
+                        &target
                             .arguments
                             .iter()
                             .filter_map(|value| value.value())
@@ -4332,29 +4284,13 @@ b0:
                         &mut mismatches,
                     );
                 }
-                mir::Terminator::InvokeInterface {
-                    normal_target,
-                    unwind_target,
-                    ..
-                } => {
+                mir::Terminator::CallInterface { target, .. } => {
                     check_edge(
-                        normal_target
+                        target
                             .block
                             .block()
-                            .expect("invokeInterface success target should be concrete"),
-                        &normal_target
-                            .arguments
-                            .iter()
-                            .filter_map(|value| value.value())
-                            .collect::<Vec<_>>(),
-                        &mut mismatches,
-                    );
-                    check_edge(
-                        unwind_target
-                            .block
-                            .block()
-                            .expect("invokeInterface unwind target should be concrete"),
-                        &unwind_target
+                            .expect("call interface target should be concrete"),
+                        &target
                             .arguments
                             .iter()
                             .filter_map(|value| value.value())
@@ -4362,7 +4298,7 @@ b0:
                         &mut mismatches,
                     );
                 }
-                mir::Terminator::Throw { value: _ } | mir::Terminator::Error => {}
+                mir::Terminator::Error => {}
                 mir::Terminator::Return { .. }
                 | mir::Terminator::Unreachable
                 | mir::Terminator::Trap { .. }
@@ -4553,11 +4489,10 @@ b0:
                         ));
                     }
                 }
-                mir::Terminator::Invoke { .. }
-                | mir::Terminator::InvokeIndirect { .. }
-                | mir::Terminator::InvokeClass { .. }
-                | mir::Terminator::InvokeInterface { .. }
-                | mir::Terminator::Throw { value: _ } => {
+                mir::Terminator::Call { .. }
+                | mir::Terminator::CallIndirect { .. }
+                | mir::Terminator::CallClass { .. }
+                | mir::Terminator::CallInterface { .. } => {
                     for value in terminator.uses().iter().filter_map(|value| value.value()) {
                         if !defined_values.contains(&value) {
                             undefined.push(format!(

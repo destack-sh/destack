@@ -155,7 +155,7 @@ impl<'a> FunctionLowerer<'a> {
             let terminator = self.tree.get(block.terminator);
 
             match terminator {
-                mir::Terminator::Invoke { function, .. }
+                mir::Terminator::Call { function, .. }
                 | mir::Terminator::TailCall { function, .. } => {
                     let function = self.function_id(*function, "terminator callee")?;
                     if !self.function_ref_map.contains_key(&function) {
@@ -1358,21 +1358,13 @@ impl<'a> FunctionLowerer<'a> {
                 builder.ins().trap(trap::UNREACHABLE);
             }
 
-            // exception edge calls: explicit unwind CFG is not lowered yet
-            mir::Terminator::Invoke { .. }
-            | mir::Terminator::InvokeIndirect { .. }
-            | mir::Terminator::InvokeClass { .. }
-            | mir::Terminator::InvokeInterface { .. } => {
+            // call terminators: explicit call CFG is not lowered yet
+            mir::Terminator::Call { .. }
+            | mir::Terminator::CallIndirect { .. }
+            | mir::Terminator::CallClass { .. }
+            | mir::Terminator::CallInterface { .. } => {
                 return Err(CodegenCraneliftError::Internal {
-                    message: "exceptional call terminators are not supported in native codegen yet"
-                        .into(),
-                });
-            }
-
-            // throw: native exception lowering is not implemented yet
-            mir::Terminator::Throw { .. } => {
-                return Err(CodegenCraneliftError::Internal {
-                    message: "throw is not supported in native codegen yet".into(),
+                    message: "call terminators are not supported in native codegen yet".into(),
                 });
             }
 

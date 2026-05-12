@@ -1230,7 +1230,7 @@ impl SymbolCallSite {
             instruction: None,
         };
         match terminator {
-            mir::Terminator::Invoke { function, .. } => {
+            mir::Terminator::Call { function, .. } => {
                 let callee = function
                     .function()
                     .and_then(|function| symbols_by_function.get(&function).cloned());
@@ -1250,7 +1250,7 @@ impl SymbolCallSite {
                     is_precise: true,
                 })
             }
-            mir::Terminator::InvokeIndirect { call, .. } => Some(Self {
+            mir::Terminator::CallIndirect { call, .. } => Some(Self {
                 callsite,
                 dispatch: CallDispatchKind::Indirect,
                 callee: None,
@@ -1258,7 +1258,7 @@ impl SymbolCallSite {
                 signature: SignatureKey::from_function_type(tree, call.signature),
                 is_precise: false,
             }),
-            mir::Terminator::InvokeClass { slot, call, .. } => {
+            mir::Terminator::CallClass { slot, call, .. } => {
                 let declared_target = terminator.call_declared_target();
                 let callee = declared_target
                     .and_then(|target| target.function())
@@ -1282,7 +1282,7 @@ impl SymbolCallSite {
                     is_precise: false,
                 })
             }
-            mir::Terminator::InvokeInterface { slot, call, .. } => {
+            mir::Terminator::CallInterface { slot, call, .. } => {
                 let declared_target = terminator.call_declared_target();
                 let callee = declared_target
                     .and_then(|target| target.function())
@@ -1571,21 +1571,21 @@ impl CallSite {
         let callsite = CallSiteRef::Terminator(block_id);
 
         match terminator {
-            mir::Terminator::Invoke { function, .. } => Some(Self {
+            mir::Terminator::Call { function, .. } => Some(Self {
                 caller,
                 callsite,
                 dispatch: CallDispatchKind::Direct,
                 callee: function.function(),
                 is_precise: true,
             }),
-            mir::Terminator::InvokeIndirect { .. } => Some(Self {
+            mir::Terminator::CallIndirect { .. } => Some(Self {
                 caller,
                 callsite,
                 dispatch: CallDispatchKind::Indirect,
                 callee: None,
                 is_precise: false,
             }),
-            mir::Terminator::InvokeClass { slot, .. } => Some(Self {
+            mir::Terminator::CallClass { slot, .. } => Some(Self {
                 caller,
                 callsite,
                 dispatch: CallDispatchKind::Class { slot: *slot },
@@ -1594,7 +1594,7 @@ impl CallSite {
                     .and_then(|callee| callee.function()),
                 is_precise: false,
             }),
-            mir::Terminator::InvokeInterface { slot, .. } => Some(Self {
+            mir::Terminator::CallInterface { slot, .. } => Some(Self {
                 caller,
                 callsite,
                 dispatch: CallDispatchKind::Interface { slot: *slot },
@@ -1874,11 +1874,11 @@ b0(v0: int32):
 }
 function test(v0: int32): int32 {
 b0(v0: int32):
-    invoke callee(v0): (int32) -> int32 -> b1, catch b2
+    call callee(v0): (int32) -> int32 -> b1
 b1(v1: int32):
     return v1
 b2(v2: ref<int32, managed, readonly>):
-    throw v2
+    trap.panic v2
 }"#,
         );
 
@@ -1969,11 +1969,11 @@ b0(v0: int32):
 }
 function test(v0: int32): int32 {
 b0(v0: int32):
-    invoke.class v0, int32, 1(v0): (int32) -> int32 -> b1, catch b2
+    call.class v0, int32, 1(v0): (int32) -> int32 -> b1
 b1(v1: int32):
     return v1
 b2(v2: ref<int32, managed, readonly>):
-    throw v2
+    trap.panic v2
 }"#,
         );
 
@@ -1984,11 +1984,11 @@ b2(v2: ref<int32, managed, readonly>):
 
         let terminator_id = test.tree.get(block_id).terminator;
         let block = test.tree.get_mut(terminator_id);
-        let mir::Terminator::InvokeClass {
+        let mir::Terminator::CallClass {
             declared_target, ..
         } = block
         else {
-            panic!("expected virtual invoke terminator");
+            panic!("expected virtual call terminator");
         };
         *declared_target = Some(callee_id.into());
 
