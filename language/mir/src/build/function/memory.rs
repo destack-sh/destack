@@ -292,6 +292,13 @@ impl<'a> FunctionBuilder<'a> {
         });
     }
 
+    /// Free unique heap storage after drop elaboration.
+    pub fn free(&mut self, value: Value) {
+        self.insert_instruction(Instruction::Free {
+            value: value.into(),
+        });
+    }
+
     /// Allocate on the stack (lives until function returns).
     /// Returns a raw stack reference type.
     pub fn stack_alloc(

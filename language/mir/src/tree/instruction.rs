@@ -731,6 +731,13 @@ pub enum Instruction {
         /// The pointer to free.
         pointer: ValueReference,
     },
+    /// Release unique heap storage (`free`).
+    ///
+    /// This is only valid for unique references after drop elaboration has run.
+    Free {
+        /// The unique heap reference to free.
+        value: ValueReference,
+    },
 
     // stack allocation
     /// Allocate frame-scoped stack storage (`stack.alloc`).
@@ -932,6 +939,7 @@ impl Instruction {
             Instruction::NewSlice { destination, .. } => Some(*destination),
             Instruction::RawAlloc { destination, .. } => Some(*destination),
             Instruction::RawFree { .. } => None,
+            Instruction::Free { .. } => None,
             Instruction::Drop { .. } => None,
             Instruction::Pin { destination, .. } => Some(*destination),
             Instruction::Unpin { .. } => None,
@@ -1051,6 +1059,7 @@ impl Instruction {
             Instruction::NewSlice { length, .. } => smallvec![*length],
             Instruction::RawAlloc { .. } => smallvec![],
             Instruction::RawFree { pointer } => smallvec![*pointer],
+            Instruction::Free { value } => smallvec![*value],
             Instruction::Drop { value } => smallvec![*value],
             Instruction::Pin { value, .. } => smallvec![*value],
             Instruction::Unpin { value } => smallvec![*value],

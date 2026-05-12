@@ -177,22 +177,6 @@ impl EffectClass {
     }
 }
 
-/// Unwind behavior for a call or function.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum UnwindBehavior {
-    /// The operation cannot unwind.
-    CannotUnwind,
-    /// The operation may unwind.
-    MayUnwind,
-}
-
-impl UnwindBehavior {
-    /// Return true when the operation may unwind.
-    pub fn may_unwind(self) -> bool {
-        matches!(self, Self::MayUnwind)
-    }
-}
-
 /// Suspend behavior for a call or function.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SuspendBehavior {
@@ -283,8 +267,6 @@ impl AllocationEffect {
 pub struct CallBehavior {
     /// Effect class for this operation.
     pub effect_class: EffectClass,
-    /// Whether this operation may unwind.
-    pub unwind: UnwindBehavior,
     /// Whether this operation may suspend execution.
     pub suspend: SuspendBehavior,
     /// Return behavior for this operation.
@@ -300,7 +282,6 @@ impl CallBehavior {
     pub const fn none() -> Self {
         Self {
             effect_class: EffectClass::Deterministic,
-            unwind: UnwindBehavior::CannotUnwind,
             suspend: SuspendBehavior::CannotSuspend,
             return_behavior: ReturnBehavior::MayReturn,
             must_not_duplicate: false,
@@ -312,7 +293,6 @@ impl CallBehavior {
     pub const fn unknown() -> Self {
         Self {
             effect_class: EffectClass::NonDeterministic,
-            unwind: UnwindBehavior::MayUnwind,
             suspend: SuspendBehavior::CannotSuspend,
             return_behavior: ReturnBehavior::MayReturn,
             must_not_duplicate: false,
@@ -324,7 +304,6 @@ impl CallBehavior {
     pub const fn pure() -> Self {
         Self {
             effect_class: EffectClass::Pure,
-            unwind: UnwindBehavior::CannotUnwind,
             suspend: SuspendBehavior::CannotSuspend,
             return_behavior: ReturnBehavior::WillReturn,
             must_not_duplicate: false,
@@ -335,12 +314,6 @@ impl CallBehavior {
     /// Return this behavior with the may-suspend flag enabled.
     pub const fn with_suspend(mut self) -> Self {
         self.suspend = SuspendBehavior::MaySuspend;
-        self
-    }
-
-    /// Return this behavior with the may-unwind flag enabled.
-    pub const fn with_unwind(mut self) -> Self {
-        self.unwind = UnwindBehavior::MayUnwind;
         self
     }
 

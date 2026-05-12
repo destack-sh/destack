@@ -320,6 +320,8 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
 
             Instruction::Unpin { value } => write!(f, [token("unpin"), space(), value]),
 
+            Instruction::Free { value } => write!(f, [token("free"), space(), value]),
+
             Instruction::Drop { value } => write!(f, [token("drop"), space(), value]),
 
             Instruction::BarrierWrite {

@@ -87,6 +87,7 @@ impl Parser {
                 opcode_text,
                 "local.set"
                     | "store"
+                    | "free"
                     | "drop"
                     | "barrier.write"
                     | "atomic.store"
@@ -128,6 +129,10 @@ impl Parser {
             "drop" => {
                 let value = self.parse_value_segment(&mut segment_spans)?;
                 Instruction::Drop { value }
+            }
+            "free" => {
+                let value = self.parse_value_segment(&mut segment_spans)?;
+                Instruction::Free { value }
             }
             "barrier.write" => {
                 let object = self.parse_value_segment(&mut segment_spans)?;
