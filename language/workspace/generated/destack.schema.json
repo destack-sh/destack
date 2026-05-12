@@ -3515,11 +3515,6 @@
           "const": "<<"
         },
         {
-          "description": "`<<|`",
-          "type": "string",
-          "const": "<<|"
-        },
-        {
           "description": "`>>`",
           "type": "string",
           "const": ">>"
@@ -3548,11 +3543,6 @@
           "description": "`<<=`",
           "type": "string",
           "const": "<<="
-        },
-        {
-          "description": "`<<|=`",
-          "type": "string",
-          "const": "<<|="
         },
         {
           "description": "`>>=`",

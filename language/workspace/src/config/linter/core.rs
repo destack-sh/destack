@@ -348,8 +348,6 @@ pub enum BitwiseOperator {
     Not,
     /// `<<`
     ShiftLeft,
-    /// `<<|`
-    SaturatingShiftLeft,
     /// `>>`
     ShiftRight,
     /// `>>>`
@@ -362,8 +360,6 @@ pub enum BitwiseOperator {
     OrAssign,
     /// `<<=`
     ShiftLeftAssign,
-    /// `<<|=`
-    SaturatingShiftLeftAssign,
     /// `>>=`
     ShiftRightAssign,
     /// `>>>=`
@@ -379,14 +375,12 @@ impl BitwiseOperator {
             Self::Or => "|",
             Self::Not => "~",
             Self::ShiftLeft => "<<",
-            Self::SaturatingShiftLeft => "<<|",
             Self::ShiftRight => ">>",
             Self::UnsignedShiftRight => ">>>",
             Self::AndAssign => "&=",
             Self::XorAssign => "^=",
             Self::OrAssign => "|=",
             Self::ShiftLeftAssign => "<<=",
-            Self::SaturatingShiftLeftAssign => "<<|=",
             Self::ShiftRightAssign => ">>=",
             Self::UnsignedShiftRightAssign => ">>>=",
         }
@@ -1320,9 +1314,6 @@ pub enum BitwiseOperatorJson {
     /// `<<`
     #[serde(rename = "<<")]
     ShiftLeft,
-    /// `<<|`
-    #[serde(rename = "<<|")]
-    SaturatingShiftLeft,
     /// `>>`
     #[serde(rename = ">>")]
     ShiftRight,
@@ -1341,9 +1332,6 @@ pub enum BitwiseOperatorJson {
     /// `<<=`
     #[serde(rename = "<<=")]
     ShiftLeftAssign,
-    /// `<<|=`
-    #[serde(rename = "<<|=")]
-    SaturatingShiftLeftAssign,
     /// `>>=`
     #[serde(rename = ">>=")]
     ShiftRightAssign,
@@ -1360,16 +1348,12 @@ impl From<BitwiseOperatorJson> for BitwiseOperator {
             BitwiseOperatorJson::Or => BitwiseOperator::Or,
             BitwiseOperatorJson::Not => BitwiseOperator::Not,
             BitwiseOperatorJson::ShiftLeft => BitwiseOperator::ShiftLeft,
-            BitwiseOperatorJson::SaturatingShiftLeft => BitwiseOperator::SaturatingShiftLeft,
             BitwiseOperatorJson::ShiftRight => BitwiseOperator::ShiftRight,
             BitwiseOperatorJson::UnsignedShiftRight => BitwiseOperator::UnsignedShiftRight,
             BitwiseOperatorJson::AndAssign => BitwiseOperator::AndAssign,
             BitwiseOperatorJson::XorAssign => BitwiseOperator::XorAssign,
             BitwiseOperatorJson::OrAssign => BitwiseOperator::OrAssign,
             BitwiseOperatorJson::ShiftLeftAssign => BitwiseOperator::ShiftLeftAssign,
-            BitwiseOperatorJson::SaturatingShiftLeftAssign => {
-                BitwiseOperator::SaturatingShiftLeftAssign
-            }
             BitwiseOperatorJson::ShiftRightAssign => BitwiseOperator::ShiftRightAssign,
             BitwiseOperatorJson::UnsignedShiftRightAssign => {
                 BitwiseOperator::UnsignedShiftRightAssign

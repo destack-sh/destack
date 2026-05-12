@@ -167,7 +167,7 @@ fn expression_looks_like_literal(
     matches!(
         expression,
         Expression::Unary {
-            operator: UnaryOperator::Negate | UnaryOperator::WrappingNegate,
+            operator: UnaryOperator::Negate,
             right,
         } if matches!(
             ctx.tree.get(*right),

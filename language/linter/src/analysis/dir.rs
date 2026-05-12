@@ -53,9 +53,7 @@ fn evaluate_const_value(
             match operator {
                 dir::UnaryOperator::Not => Some(ConstValue::Boolean(!value.to_bool())),
                 dir::UnaryOperator::Plus => Some(value),
-                dir::UnaryOperator::Negate | dir::UnaryOperator::WrappingNegate => {
-                    negate_const_value(value)
-                }
+                dir::UnaryOperator::Negate => negate_const_value(value),
                 dir::UnaryOperator::ElementwiseNot => bit_not_const_value(value),
                 _ => None,
             }

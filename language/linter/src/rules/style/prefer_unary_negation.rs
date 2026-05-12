@@ -43,13 +43,8 @@ impl LintRule for PreferUnaryNegation {
                 continue;
             };
 
-            // check for multiplication operators (including wrapping/saturating)
-            if !matches!(
-                operator,
-                BinaryOperator::Multiply
-                    | BinaryOperator::WrappingMultiply
-                    | BinaryOperator::SaturatingMultiply
-            ) {
+            // check for multiplication
+            if !matches!(operator, BinaryOperator::Multiply) {
                 continue;
             }
 
@@ -177,30 +172,6 @@ const result = -1 * x;
             "prefer_unary_negation/test_multiply_by_negative_one_parenthesized_detected.ds",
             r#"
 const result = x * (-1);
-"#,
-        );
-        test.result(result).assert_lint("prefer-unary-negation");
-    }
-
-    #[test]
-    fn test_wrapping_multiply_by_negative_one_detected() {
-        let test = TestProgram::for_rule_without_prelude(PreferUnaryNegation);
-        let result = test.lint_ast(
-            "prefer_unary_negation/test_wrapping_multiply_by_negative_one_detected.ds",
-            r#"
-const result = x *% -1;
-"#,
-        );
-        test.result(result).assert_lint("prefer-unary-negation");
-    }
-
-    #[test]
-    fn test_saturating_multiply_by_negative_one_detected() {
-        let test = TestProgram::for_rule_without_prelude(PreferUnaryNegation);
-        let result = test.lint_ast(
-            "prefer_unary_negation/test_saturating_multiply_by_negative_one_detected.ds",
-            r#"
-const result = x *| -1;
 "#,
         );
         test.result(result).assert_lint("prefer-unary-negation");
