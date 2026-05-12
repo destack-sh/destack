@@ -2,34 +2,56 @@
 
 ## pointers
 
-### non-null pointers can be checked
+### raw pointers are non-null
 
-`NonNull` makes the null check explicit before raw pointer operations continue.
+`*T` is already non-null.
+Use a union when null or absence is a real state.
 
 ```ds
-import { NonNull } from "destack:memory";
-
 declare function pointer(): *int32;
+declare function optionalPointer(): *int32 | undefined;
 
-let value = NonNull.fromRaw(pointer());
+let value = pointer();
+let optional = optionalPointer();
 
-value satisfies NonNull<int32> | undefined;
+value satisfies *int32;
+optional satisfies *int32 | undefined;
 ```
 
-### non-null pointers expose primitive operations
+### unsafe operations use raw pointers directly
 
 Raw operations remain outside the ownership model and must be requested explicitly.
 
 ```ds
-import { NonNull } from "destack:memory";
+import { read, write } from "destack:memory";
 
-declare function destination(): NonNull<int32>;
+declare function source(): *int32;
+declare function destination(): *int32;
 
-let pointer = destination();
-pointer.write(^1);
-let value = pointer.read();
+@allowUnsafe
+function copyOne(): ^int32 {
+    let value = read(source());
+    write(destination(), value);
+    return read(destination());
+}
 
-value satisfies ^int32;
+let copied = copyOne();
+
+copied satisfies ^int32;
+```
+
+### trusted wrappers hide unsafe implementations
+
+The wrapper keeps the unsafe boundary local and exposes an ordinary safe API.
+
+```ds
+import { asReadonlyReference } from "destack:memory";
+
+@trusted
+@allowUnsafe
+function at(pointer: *int32): &readonly int32 {
+    return asReadonlyReference(pointer);
+}
 ```
 
 ## layout
