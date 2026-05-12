@@ -12,10 +12,10 @@ pub enum CompilePhase {
     Export = 4,
     /// Check expanded DIR.
     Check = 5,
-    /// Elaborate checked DIR into lowered DIR form.
-    Elaborate = 6,
     /// Materialize comptime and patch DIR.
-    Materialize = 7,
+    Materialize = 6,
+    /// Elaborate materialized DIR into lowered DIR form.
+    Elaborate = 7,
     /// Lower patched DIR into MIR.
     Lower = 8,
     /// Verify lowered MIR.
@@ -66,8 +66,8 @@ impl CompilePhase {
             Self::Expand => "expand macros into DIR patches",
             Self::Export => "resolve exports over expanded DIR",
             Self::Check => "check expanded DIR",
-            Self::Elaborate => "desugar and reify DIR",
             Self::Materialize => "materialize comptime code and patch DIR",
+            Self::Elaborate => "desugar and reify DIR",
             Self::Lower => "lower DIR into MIR",
             Self::Verify => "verify MIR semantic invariants",
             Self::Optimize => "optimize MIR",
@@ -101,8 +101,8 @@ impl CompilePhase {
         Self::Expand,
         Self::Export,
         Self::Check,
-        Self::Elaborate,
         Self::Materialize,
+        Self::Elaborate,
         Self::Lower,
         Self::Verify,
         Self::Optimize,
