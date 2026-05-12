@@ -7,23 +7,9 @@ use destack_workspace::RepositoryError;
 /// Errors produced by live session operations.
 #[derive(Debug)]
 pub enum SessionError {
-    /// Path resolution failed.
-    ResolvePathFailed {
-        /// The path that failed.
-        path: PathBuf,
-        /// The failure detail.
-        detail: String,
-    },
-    /// Semantic update failed for a path.
-    UpdatePathFailed {
-        /// The path that failed.
-        path: PathBuf,
-        /// The failure detail.
-        detail: String,
-    },
-    /// Reading a path failed.
-    ReadPathFailed {
-        /// The path that failed.
+    /// A filesystem path cannot be loaded as a module.
+    ModulePathNotLoadable {
+        /// The path that could not be loaded.
         path: PathBuf,
         /// The failure detail.
         detail: String,
@@ -67,14 +53,12 @@ pub enum SessionError {
 impl std::fmt::Display for SessionError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SessionError::ResolvePathFailed { path, detail } => {
-                write!(formatter, "resolve failed for {}: {detail}", path.display())
-            }
-            SessionError::UpdatePathFailed { path, detail } => {
-                write!(formatter, "update failed for {}: {detail}", path.display())
-            }
-            SessionError::ReadPathFailed { path, detail } => {
-                write!(formatter, "read failed for {}: {detail}", path.display())
+            SessionError::ModulePathNotLoadable { path, detail } => {
+                write!(
+                    formatter,
+                    "module path is not loadable for {}: {detail}",
+                    path.display()
+                )
             }
             SessionError::FileNotTracked { file_id } => {
                 write!(formatter, "file not tracked: {file_id:?}")

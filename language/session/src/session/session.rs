@@ -192,7 +192,7 @@ impl Session {
         // read the requested filesystem source file
         let mut source = FileSystemSource::new(repository.as_ref(), self.root());
         let Some(file) = source.get(path)? else {
-            return Err(SessionError::ResolvePathFailed {
+            return Err(SessionError::ModulePathNotLoadable {
                 path: path.to_path_buf(),
                 detail: "source file is not importable".to_string(),
             });
@@ -205,7 +205,7 @@ impl Session {
         // require the applied file to produce a module
         let module_id = repository.module_id_for_path(revision, path)?;
         let Some(module_id) = module_id else {
-            return Err(SessionError::ResolvePathFailed {
+            return Err(SessionError::ModulePathNotLoadable {
                 path: path.to_path_buf(),
                 detail: "loaded source file did not produce a module".to_string(),
             });
