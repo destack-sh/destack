@@ -391,22 +391,6 @@ let x: Point = Point { x, y };  // OK
 let x: Point = { x, y };        // ERROR: plain object is not Point
 ```
 
-For composition, structs support embedding other structs directly in line, akin to the existing `...T` spread operator for regular interface-like types.
-The embedded type has the same size, alignment and field layout as a standalone type.
-
-```ds
-struct Transform {
-    position: Vec3;
-    rotation: Quat;
-}
-
-struct Player {
-    // embeds Transform's fields
-    ...Transform;
-    health: int;
-}
-```
-
 ### Classes
 
 Classes remain the TypeScript-shaped model for managed objects with identity, except of course without a prototype chain or any dynamic class shenanigans.
