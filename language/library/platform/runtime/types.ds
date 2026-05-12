@@ -106,6 +106,14 @@ export enum RuntimeWorldKind {
     Simulation = 2,
 }
 
+/// Worker execution backing.
+export enum WorkerBacking {
+    /// Let the runtime choose the backing strategy.
+    Managed = 1,
+    /// Run this worker on one dedicated host thread.
+    DedicatedHostThread = 2,
+}
+
 /// Tick result for one world advance.
 export enum RuntimeTickResult {
     /// No progress was possible.
@@ -178,6 +186,8 @@ export struct RuntimeCreateOptions {
 export struct WorkerCreateOptions {
     /// Optional worker name.
     name?: string;
+    /// Optional execution backing preference.
+    backing?: WorkerBacking;
     /// Optional worker labels.
     labels?: Array<RuntimeLabel>;
 }

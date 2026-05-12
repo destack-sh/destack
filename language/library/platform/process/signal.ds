@@ -1,20 +1,9 @@
-import { Array } from "core";
 import type { PlatformError } from "../error/index.ds";
 import { ProcessHandle, SignalHandle } from "../resource/index.ds";
 import { ProcessId } from "./identity.ds";
 
 /// Signal number for process control.
 export newtype Signal = uint32;
-
-/// Signal mask operation selector.
-export enum SignalMaskHow {
-    /// Replace the active mask with the provided set.
-    Set = 0,
-    /// Add signals to the active mask.
-    Block = 1,
-    /// Remove signals from the active mask.
-    Unblock = 2,
-}
 
 /// Signal event payload delivered by a subscription.
 export struct SignalEvent {
@@ -80,27 +69,6 @@ export declare function receiveSignal(handle: SignalHandle): Result<SignalEvent,
     simulation: true,
 })
 export declare function tryReceiveSignal(handle: SignalHandle): Result<SignalEvent, PlatformError>;
-
-/// Read the current thread signal mask.
-@binding("destack.process.signal.mask", {
-    effect: "external",
-    requires: ["process.signal.receive"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function getSignalMask(): Result<^Array<Signal>, PlatformError>;
-
-/// Update the current thread signal mask.
-@binding("destack.process.signal.setMask", {
-    effect: "external",
-    requires: ["process.signal.receive"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setSignalMask(
-    how: SignalMaskHow,
-    signals: &readonly [Signal],
-): Result<void, PlatformError>;
 
 /// Wait for one signal from a requested set.
 @binding("destack.process.signal.wait", {

@@ -22,8 +22,6 @@ import {
     atomicLoad,
     atomicStore,
 } from "./atomic.ds";
-import * as platform from "library/platform/index.ds";
-import type { PlatformError } from "../platform/error/index.ds";
 
 export {
     AtomicScope,
@@ -49,23 +47,3 @@ export {
     atomicLoad,
     atomicStore,
 };
-
-/// Userland synchronization substrate.
-/// Wait while one 32 bit word still matches the expected value.
-export function addressWait(
-    address: uint64,
-    expected: uint32,
-    timeoutNs: uint64,
-): Result<void, PlatformError> {
-    platform.thread.addressWait(address, expected, timeoutNs);
-}
-
-/// Wake one waiter blocked on one 32 bit word address.
-export function addressWakeOne(address: uint64): Result<void, PlatformError> {
-    platform.thread.addressWakeOne(address);
-}
-
-/// Wake all waiters blocked on one 32 bit word address.
-export function addressWakeAll(address: uint64): Result<void, PlatformError> {
-    platform.thread.addressWakeAll(address);
-}

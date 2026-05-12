@@ -22,7 +22,6 @@ export * as random from "./random/index.ds";
 export * as resource from "./resource/index.ds";
 export * as runtime from "./runtime/index.ds";
 export * as security from "./security/index.ds";
-export * as thread from "./thread/index.ds";
 export * as time from "./time/index.ds";
 export * as tls from "./tls/index.ds";
 export * as tty from "./tty/index.ds";

@@ -1,94 +1,65 @@
 import type { PlatformError } from "../error/index.ds";
-import { ThreadCpuSet } from "../thread/sched.ds";
 import { ProcessId } from "./identity.ds";
 
-/// Process scheduler policy.
-export enum ProcessSchedulerPolicy {
-    /// Default timesharing policy.
-    Other = 1,
-    /// First-in-first-out real-time policy.
-    Fifo = 2,
-    /// Round-robin real-time policy.
-    RoundRobin = 3,
-    /// Batch scheduling policy.
-    Batch = 4,
-    /// Idle scheduling policy.
-    Idle = 5,
-    /// Deadline scheduling policy.
-    Deadline = 6,
+/// Process priority value in the host scheduler.
+export newtype ProcessPriority = int32;
+
+/// Logical processor index for affinity masks.
+export struct Processor {
+    /// Processor group on hosts that partition logical processors.
+    group: uint16;
+    /// Logical processor index within the group.
+    index: uint16;
 }
 
-/// Scheduler configuration for one process.
-export struct ProcessSchedulerConfig {
-    /// Scheduler policy.
-    policy: ProcessSchedulerPolicy;
-    /// Scheduler priority within the selected policy.
-    priority: int32;
-    /// Scheduler flags forwarded to host APIs.
-    flags: uint32;
+/// Logical processors allowed to run one process.
+export struct ProcessAffinity {
+    /// Logical processors in the affinity mask.
+    processors: [Processor];
 }
 
-/// Read process priority.
-@binding("destack.process.schedule.priority", {
+/// Read one process priority.
+@binding("destack.process.schedule.priority.read", {
     effect: "external",
     requires: ["process.priority"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function getProcessPriority(pid: ProcessId): Result<int32, PlatformError>;
+export declare function readProcessPriority(
+    process: ProcessId,
+): Result<ProcessPriority, PlatformError>;
 
-/// Set process priority.
-@binding("destack.process.schedule.setPriority", {
+/// Set one process priority.
+@binding("destack.process.schedule.priority.set", {
     effect: "external",
     requires: ["process.priority"],
     families: ["windows", "unix"],
     simulation: true,
 })
 export declare function setProcessPriority(
-    pid: ProcessId,
-    priority: int32,
+    process: ProcessId,
+    priority: ProcessPriority,
 ): Result<void, PlatformError>;
 
-/// Read process CPU affinity.
-@binding("destack.process.schedule.affinity", {
+/// Read one process CPU affinity.
+@binding("destack.process.schedule.affinity.read", {
     effect: "external",
     requires: ["process.affinity"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function getProcessAffinity(pid: ProcessId): Result<ThreadCpuSet, PlatformError>;
+export declare function readProcessAffinity(
+    process: ProcessId,
+): Result<ProcessAffinity, PlatformError>;
 
-/// Set process CPU affinity.
-@binding("destack.process.schedule.setAffinity", {
+/// Set one process CPU affinity.
+@binding("destack.process.schedule.affinity.set", {
     effect: "external",
     requires: ["process.affinity"],
     families: ["windows", "unix"],
     simulation: true,
 })
 export declare function setProcessAffinity(
-    pid: ProcessId,
-    cpus: &readonly ThreadCpuSet,
-): Result<void, PlatformError>;
-
-/// Read scheduler policy and priority for a process.
-@binding("destack.process.schedule.scheduler", {
-    effect: "external",
-    requires: ["process.scheduler"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function getProcessScheduler(
-    pid: ProcessId,
-): Result<ProcessSchedulerConfig, PlatformError>;
-
-/// Set scheduler policy and priority for a process.
-@binding("destack.process.schedule.setScheduler", {
-    effect: "external",
-    requires: ["process.scheduler"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function setProcessScheduler(
-    pid: ProcessId,
-    config: ProcessSchedulerConfig,
+    process: ProcessId,
+    affinity: &readonly ProcessAffinity,
 ): Result<void, PlatformError>;

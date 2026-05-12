@@ -8,12 +8,10 @@ export enum ClockId {
     Monotonic = 2,
     /// Process CPU time.
     ProcessCpu = 3,
-    /// Thread CPU time.
-    ThreadCpu = 4,
     /// Boot-time monotonic clock when available.
-    Boot = 5,
+    Boot = 4,
     /// Raw monotonic clock when available.
-    MonotonicRaw = 6,
+    MonotonicRaw = 5,
 }
 
 /// Host clock source kind.
@@ -66,15 +64,6 @@ export declare function monoNs(): Result<uint64, PlatformError>;
     provider: "runtime",
 })
 export declare function processCpuNs(): Result<uint64, PlatformError>;
-
-/// Return current thread CPU time in nanoseconds.
-@binding("destack.time.clock.threadCpuNs", {
-    effect: "external",
-    requires: ["time.monotonic.read"],
-    families: ["windows", "unix"],
-    provider: "runtime",
-})
-export declare function threadCpuNs(): Result<uint64, PlatformError>;
 
 /// Read one selected clock in nanoseconds.
 @binding("destack.time.clock.nowNs", {
