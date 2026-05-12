@@ -790,16 +790,11 @@ fn declaration_has_generic_heritage(
     declaration_id: LocalNodeId<Declaration>,
 ) -> bool {
     match context.tree.get(declaration_id) {
-        Declaration::Struct(declaration) => {
-            declaration
-                .implements_types
-                .iter()
-                .copied()
-                .any(|type_id| declaration_type_expression_has_generic_arguments(context, type_id))
-                || declaration.embedded_types.iter().copied().any(|type_id| {
-                    declaration_type_expression_has_generic_arguments(context, type_id)
-                })
-        }
+        Declaration::Struct(declaration) => declaration
+            .implements_types
+            .iter()
+            .copied()
+            .any(|type_id| declaration_type_expression_has_generic_arguments(context, type_id)),
         Declaration::Class(declaration) => {
             declaration
                 .extends_expression

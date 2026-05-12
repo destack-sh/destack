@@ -575,7 +575,6 @@ pub(crate) fn format_struct_declaration<'ast>(
     write_declaration_generic_parameters(f, &declaration.generic_parameters)?;
 
     // heritage
-    format_super_type_clause(f, Keyword::Extends, &declaration.embedded_types)?;
     format_super_type_clause(f, Keyword::Implements, &declaration.implements_types)?;
 
     // where clauses

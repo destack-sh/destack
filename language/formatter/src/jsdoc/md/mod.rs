@@ -39,8 +39,9 @@ pub(super) fn format_description_markdown(
     let jsdoc_options = format_options.map(|options| &options.jsdoc);
     let description_with_dot = jsdoc_options.is_some_and(|options| options.description_with_dot);
     let prefer_code_fences = jsdoc_options.is_some_and(|options| options.prefer_code_fences);
-    let line_wrapping_style = jsdoc_options
-        .map_or(JsdocLineWrappingStyle::default(), |options| options.line_wrapping_style);
+    let line_wrapping_style = jsdoc_options.map_or(JsdocLineWrappingStyle::default(), |options| {
+        options.line_wrapping_style
+    });
 
     // use the light paragraph wrapper when no markdown tree is needed
     if tag_string_length == 0 && !needs_markdown_parsing(text) {

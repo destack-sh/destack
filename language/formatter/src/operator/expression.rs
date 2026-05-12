@@ -9,8 +9,8 @@ use crate::chain::{
 };
 use crate::declaration::statement::format_block_wide;
 use crate::expression::{
-    expression_needs_parentheses_in_parent, format_index_expression, format_member_expression,
-    ExpressionLeftSide,
+    ExpressionLeftSide, expression_needs_parentheses_in_parent, format_index_expression,
+    format_member_expression,
 };
 use crate::operator::assign::format_assign_expression;
 use crate::operator::binary::format_binary_expression;
