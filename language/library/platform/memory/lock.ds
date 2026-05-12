@@ -1,5 +1,5 @@
 import { PlatformError } from "destack:platform/error";
-import { VirtualMemoryRange } from "./types.ds";
+import { VirtualMemoryRange } from "./virtual.ds";
 
 /// Lock one memory range into physical memory.
 @binding("destack.memory.lock", {
