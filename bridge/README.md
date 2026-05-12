@@ -1,9 +1,6 @@
 # Bridge
 
-Destack bridges are intentionally narrow.
-The first bridge surface is TypeScript and WebAssembly for the JavaScript and web world, Rust for native integration, and Python for scripting and data workflows.
-The C ABI and shared Rust core are infrastructure for those bridges, not product bridges themselves.
-Editor integrations live here for now because they share grammar and release wiring with the bridge area.
+Destack bridges into the rest of the universe.
 
 ## Projects
 
