@@ -1,138 +1,174 @@
 // reflection
-export * from "./reflect";
+export * from "destack:reflect";
 
 // memory
 export {
-    type StaticLifetime,
-    type ManagedLifetime,
-    type Lifetime,
-    type Space,
-    type Place,
-    type Ownership,
-    type Access,
-    type Form,
-    type Unique,
+    StaticLifetime,
+    Lifetime,
+    Space,
+    Place,
+    Ownership,
+    Access,
+    Form,
+    Unique,
+    Any,
     Box,
+    Pin,
     MaybeUninit,
-    type Managed,
-    type Borrowed,
-    type ReadonlyBorrowed,
-    type ExclusiveBorrowed,
-    type Raw,
-    type Owned,
-    type Shared,
-    type Local,
-    type Ambient,
-    type BaseOf,
-    type OwnershipOf,
-    type PlaceOf,
-    type SpaceOf,
-    type LifetimeOf,
-    type AccessOf,
-    type OwnershipOr,
-    type PlaceOr,
-    type SpaceOr,
-    type PlaceIn,
-    type IsManaged,
-    type IsOwned,
-    type IsBorrowed,
-    type IsRaw,
-    type IsShared,
-    type IsSharedIn,
-    type WithBase,
-    type WithOwnership,
-    type WithPlace,
-    type WithSpace,
-    type WithLifetime,
-    type WithAccess,
-    type AsManaged,
-    type AsOwned,
-    type AsBorrowed,
-    type AsReadonlyBorrowed,
-    type AsExclusiveBorrowed,
-    type AsRaw,
-    type AllocationLayout,
-    type AllocationErrorKind,
-    type AllocationError,
-    type Allocation,
-    type Allocator,
-    type Copy,
-    type Clone,
-    type Drop,
+    Managed,
+    Borrowed,
+    ReadonlyBorrowed,
+    ExclusiveBorrowed,
+    Raw,
+    Owned,
+    Shared,
+    Local,
+    Ambient,
+    BaseOf,
+    OwnershipOf,
+    PlaceOf,
+    SpaceOf,
+    LifetimeOf,
+    AccessOf,
+    OwnershipOr,
+    PlaceOr,
+    SpaceOr,
+    PlaceIn,
+    IsManaged,
+    IsOwned,
+    IsBorrowed,
+    IsRaw,
+    IsShared,
+    IsSharedIn,
+    WithBase,
+    WithOwnership,
+    WithPlace,
+    WithSpace,
+    WithLifetime,
+    WithAccess,
+    AsManaged,
+    AsOwned,
+    AsBorrowed,
+    AsReadonlyBorrowed,
+    AsExclusiveBorrowed,
+    AsRaw,
+    AllocationLayout,
+    AllocationErrorKind,
+    AllocationError,
+    Allocation,
+    Allocator,
+    Copy,
+    Clone,
+    Unpin,
+    Zeroable,
+    Drop,
     ManuallyDrop,
-    type Dispose,
-    type AsyncDispose,
-    type Send,
-    type Sync,
+    Dispose,
+    AsyncDispose,
+    Send,
+    Sync,
     defaultAllocator,
     drop,
-} from "./memory";
+    NonNull,
+} from "destack:memory";
+
+// operators
+export {
+    Try,
+    FromFailure,
+    TryBranch,
+    TryContinue,
+    TryFailure,
+    Add,
+    Plus,
+    Subtract,
+    Negate,
+    Multiply,
+    Divide,
+    Remainder,
+    Power,
+    And,
+    Or,
+    Xor,
+    Not,
+    ShiftLeft,
+    ShiftRight,
+    ShiftRightUnsigned,
+    Equal,
+    PartialEqual,
+    Compare,
+    PartialCompare,
+    Ordering,
+    Display,
+    Debug,
+    Index,
+    IndexSet,
+    Dereference,
+} from "destack:ops";
 
 // control flow
 export {
-    type Try,
-    type FromFailure,
-    type TryBranch,
-    type TryContinue,
-    type TryFailure,
-} from "./ops/try.ds";
-export { type Error } from "./error/error.ds";
-export {
+    Error,
     abort,
     panic,
     todo,
     unreachable,
-} from "./error/panic.ds";
-export {
-    type StackFrameId,
-    type SourceLocation,
-    type StackFrame,
-    type StackTrace,
-    type StackTraceOptions,
+    StackFrameId,
+    SourceLocation,
+    StackFrame,
+    StackTrace,
+    StackTraceOptions,
     captureStackTrace,
     formatStackTrace,
-} from "./error/stack.ds";
-export {
     Ok,
     Err,
     Result,
     AsyncResult,
-} from "./error/result.ds";
+} from "destack:error";
 export {
-    type As,
-    type From,
-    type Into,
-    type TryFrom,
-    type TryInto,
-} from "./convert";
+    As,
+    From,
+    Into,
+    TryFrom,
+    TryInto,
+} from "destack:convert";
 export {
-    type Encoder,
-    type Decoder,
-    type Serialize,
-    type Deserialize,
-} from "./serde";
+    Encoder,
+    Decoder,
+    Serialize,
+    Deserialize,
+} from "destack:serde";
 export {
-    type Promise,
+    JSON,
+    Json,
+    JsonError,
+    JsonErrorKind,
+    JsonPathSegment,
+    JsonObject,
+    JsonArray,
+    JsonParseContext,
+    JsonReviver,
+    JsonReplacer,
+} from "destack:json";
+export {
     Promise,
-} from "./async/promise.ds";
+    Generator,
+    AsyncIterator,
+    AsyncIterable,
+    AsyncIterableIterator,
+    AsyncGenerator,
+} from "destack:async";
 export {
     Symbol,
-    type IteratorYield,
-    type IteratorReturn,
-    type IteratorResult,
-    type Iterator,
-    type Iterable,
-    type IterableIterator,
-} from "./iter";
-export {
-    type Generator,
-    type AsyncIterator,
-    type AsyncIterable,
-    type AsyncIterableIterator,
-    type AsyncGenerator,
-} from "./async/generator.ds";
+    IteratorYield,
+    IteratorReturn,
+    IteratorResult,
+    Iterator,
+    Iterable,
+    IterableIterator,
+} from "destack:iter";
 
-// simd
+// vector
 export {
     Vector,
     splat,
@@ -145,7 +181,7 @@ export {
     reduceAnd,
     reduceOr,
     reduceXor,
-} from "./math/vector.ds";
+} from "destack:math";
 
 // decorator markers
 export {
@@ -165,12 +201,12 @@ export {
     Tagged,
     Clone,
     Debug,
-    type CaptureKind,
-    type CapturePolicy,
-    type CaptureDirective,
-    type InlineHint,
-    type TaggedCase,
-    type TaggedNames,
+    CaptureKind,
+    CapturePolicy,
+    CaptureDirective,
+    InlineHint,
+    TaggedCase,
+    TaggedNames,
     inline,
     noinline,
     unroll,
@@ -184,54 +220,23 @@ export {
     taint,
     sink,
     sanitizer,
-} from "./decorator";
+} from "destack:decorator";
 
 // macros
 export {
-    type Module,
-} from "./module/config.ds";
+    Module,
+} from "destack:module";
 export {
-    type Macro,
-    type MacroContext,
-    type ExpansionContext,
-    type MaterializationContext,
-} from "./macro";
+    Macro,
+    MacroContext,
+    ExpansionContext,
+    MaterializationContext,
+} from "destack:macro";
 
 // platform decorators
 export {
     binding,
-    type BindingOptions,
-} from "./platform/core/binding.ds";
-export {
-    type HostAction,
-} from "./platform/core/action.ds";
-
-// operator interfaces
-export { type Add, type Plus } from "./ops/plus.ds";
-export { type Subtract } from "./ops/minus.ds";
-export { type Negate } from "./ops/negate.ds";
-export { type Multiply } from "./ops/multiply.ds";
-export { type Divide } from "./ops/divide.ds";
-export { type Remainder } from "./ops/remainder.ds";
-export { type Power } from "./ops/power.ds";
-export { type And, type Or, type Xor, type Not } from "./ops/bitwise.ds";
-export {
-    type ShiftLeft,
-    type ShiftRight,
-    type ShiftRightUnsigned,
-} from "./ops/shift.ds";
-
-// equality and comparison operators
-export { type Equal, type PartialEqual } from "./ops/equality.ds";
-export {
-    type Compare,
-    type PartialCompare,
-    Ordering,
-} from "./ops/comparison.ds";
-
-// formatting
-export { type Display, type Debug } from "./ops/format.ds";
-
-// subscript operators
-export { type Index, type IndexSet } from "./ops/subscript.ds";
-export { type Dereference } from "./ops/dereference.ds";
+    BindingOptions,
+    require,
+    PlatformCapability,
+} from "destack:platform/core";

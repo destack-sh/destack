@@ -1,0 +1,26 @@
+/// JSON error category.
+export type JsonErrorKind =
+    | "syntax"
+    | "depth"
+    | "number"
+    | "unsupported"
+    | "encode"
+    | "decode";
+
+/// JSON object key or array index.
+export type JsonPathSegment = string | usize;
+
+/// JSON parse, stringify, encode, or decode error.
+export struct JsonError {
+    /// The error category.
+    kind: JsonErrorKind;
+
+    /// The error message.
+    message: string;
+
+    /// The byte offset when known.
+    offset?: usize;
+
+    /// The decoded value path when known.
+    path?: readonly JsonPathSegment[];
+}

@@ -1,0 +1,15 @@
+/// JSON object value.
+export type JsonObject = { readonly [key: string]: Json };
+
+/// JSON array value.
+export type JsonArray = readonly Json[];
+
+/// JSON value.
+@derive(Tagged)
+export newtype Json =
+    | { kind: "null" }
+    | { kind: "boolean"; value: boolean }
+    | { kind: "number"; value: number }
+    | { kind: "string"; value: string }
+    | { kind: "array"; value: JsonArray }
+    | { kind: "object"; value: JsonObject };
