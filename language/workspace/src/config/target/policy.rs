@@ -1,37 +1,5 @@
 use serde::Deserialize;
 
-/// Integer overflow checking policy.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum OverflowCheckPolicy {
-    /// Always emit overflow checks.
-    Always,
-    /// Emit overflow checks only in debug builds.
-    #[default]
-    Debug,
-    /// Never emit overflow checks.
-    Never,
-}
-
-impl std::str::FromStr for OverflowCheckPolicy {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().replace('-', "_").as_str() {
-            "always" => Ok(Self::Always),
-            "debug" => Ok(Self::Debug),
-            "never" | "off" => Ok(Self::Never),
-            _ => Err(()),
-        }
-    }
-}
-
-impl OverflowCheckPolicy {
-    /// Parse from a string value.
-    pub fn parse(s: &str) -> Option<Self> {
-        s.parse().ok()
-    }
-}
-
 /// Floating point math optimization policy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum FloatMathPolicy {
@@ -40,7 +8,7 @@ pub enum FloatMathPolicy {
     Strict,
     /// Allow reassociation and algebraic simplifications.
     Reassociate,
-    /// Enable fast math optimizations (assume no NaN, inf, or signed zero).
+    /// Enable fast math optimizations.
     Fast,
 }
 
@@ -64,208 +32,66 @@ impl FloatMathPolicy {
     }
 }
 
-/// Safety preset that configures runtime checks.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum SafetyPreset {
-    /// Debug safety mode with checks always enabled.
+/// Runtime check policy for generated safety checks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum CheckPolicy {
+    /// Always emit the check.
+    Always,
+    /// Emit the check for debug profiles.
+    #[default]
     Debug,
-    /// Release mode with checks enabled.
-    ReleaseSafe,
-    /// Release mode with checks disabled for maximum speed.
-    ReleaseFast,
-    /// Release mode with checks disabled and size focused settings.
-    ReleaseSmall,
+    /// Never emit the check.
+    Never,
 }
 
-impl std::str::FromStr for SafetyPreset {
+impl std::str::FromStr for CheckPolicy {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().replace('-', "_").as_str() {
+            "always" => Ok(Self::Always),
             "debug" => Ok(Self::Debug),
-            "release_safe" | "releasesafe" | "safe" => Ok(Self::ReleaseSafe),
-            "release_fast" | "releasefast" | "fast" => Ok(Self::ReleaseFast),
-            "release_small" | "releasesmall" | "small" => Ok(Self::ReleaseSmall),
+            "never" | "off" => Ok(Self::Never),
             _ => Err(()),
         }
     }
 }
 
-impl SafetyPreset {
+impl CheckPolicy {
     /// Parse from a string value.
     pub fn parse(s: &str) -> Option<Self> {
         s.parse().ok()
     }
-
-    /// Return the runtime check policies for this preset.
-    pub fn runtime_check_policies(self) -> RuntimeCheckPolicies {
-        match self {
-            SafetyPreset::Debug | SafetyPreset::ReleaseSafe => RuntimeCheckPolicies {
-                overflow: OverflowCheckPolicy::Always,
-                bounds: BoundsCheckPolicy::Always,
-                null: NullCheckPolicy::Always,
-                division: DivisionCheckPolicy::Always,
-                shift: ShiftCheckPolicy::Always,
-            },
-            SafetyPreset::ReleaseFast | SafetyPreset::ReleaseSmall => RuntimeCheckPolicies {
-                overflow: OverflowCheckPolicy::Never,
-                bounds: BoundsCheckPolicy::Never,
-                null: NullCheckPolicy::Never,
-                division: DivisionCheckPolicy::Never,
-                shift: ShiftCheckPolicy::Never,
-            },
-        }
-    }
-
-    /// Return the float math policy for this preset.
-    pub fn float_math_policy(self) -> FloatMathPolicy {
-        match self {
-            SafetyPreset::Debug | SafetyPreset::ReleaseSafe => FloatMathPolicy::Strict,
-            SafetyPreset::ReleaseFast | SafetyPreset::ReleaseSmall => FloatMathPolicy::Fast,
-        }
-    }
 }
 
-/// Runtime check policy bundle for safety presets.
+/// Runtime checks emitted by generated code.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub struct RuntimeCheckPolicies {
-    /// Overflow check policy.
-    pub overflow: OverflowCheckPolicy,
-    /// Bounds check policy.
-    pub bounds: BoundsCheckPolicy,
-    /// Null check policy.
-    pub null: NullCheckPolicy,
-    /// Division check policy.
-    pub division: DivisionCheckPolicy,
+pub struct RuntimeChecks {
+    /// Integer overflow check policy.
+    pub overflow: CheckPolicy,
+    /// Bounds check policy for array and slice accesses.
+    pub bounds: CheckPolicy,
+    /// Null check policy for reference operations.
+    pub null: CheckPolicy,
+    /// Division check policy for divide and remainder operations.
+    pub division: CheckPolicy,
     /// Shift range check policy.
-    pub shift: ShiftCheckPolicy,
+    pub shift: CheckPolicy,
+    /// Check failure behavior.
+    pub failure: CheckFailurePolicy,
 }
 
-/// Bounds check policy for array and slice accesses.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum BoundsCheckPolicy {
-    /// Always emit bounds checks.
-    Always,
-    /// Emit bounds checks only in debug builds.
-    #[default]
-    Debug,
-    /// Never emit bounds checks (unsafe, fastest).
-    Never,
-}
-
-impl std::str::FromStr for BoundsCheckPolicy {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().replace('-', "_").as_str() {
-            "always" => Ok(Self::Always),
-            "debug" => Ok(Self::Debug),
-            "never" | "off" => Ok(Self::Never),
-            _ => Err(()),
+impl RuntimeChecks {
+    /// Return checks where every check uses the same policy.
+    pub fn all(policy: CheckPolicy) -> Self {
+        Self {
+            overflow: policy,
+            bounds: policy,
+            null: policy,
+            division: policy,
+            shift: policy,
+            failure: CheckFailurePolicy::default(),
         }
-    }
-}
-
-impl BoundsCheckPolicy {
-    /// Parse from a string value.
-    pub fn parse(s: &str) -> Option<Self> {
-        s.parse().ok()
-    }
-}
-
-/// Null check policy for reference operations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum NullCheckPolicy {
-    /// Always emit null checks.
-    Always,
-    /// Emit null checks only in debug builds.
-    #[default]
-    Debug,
-    /// Never emit null checks (unsafe, fastest).
-    Never,
-}
-
-impl std::str::FromStr for NullCheckPolicy {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().replace('-', "_").as_str() {
-            "always" => Ok(Self::Always),
-            "debug" => Ok(Self::Debug),
-            "never" | "off" => Ok(Self::Never),
-            _ => Err(()),
-        }
-    }
-}
-
-impl NullCheckPolicy {
-    /// Parse from a string value.
-    pub fn parse(s: &str) -> Option<Self> {
-        s.parse().ok()
-    }
-}
-
-/// Division check policy for divide and remainder operations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum DivisionCheckPolicy {
-    /// Always emit division checks.
-    Always,
-    /// Emit division checks only in debug builds.
-    #[default]
-    Debug,
-    /// Never emit division checks (unsafe, fastest).
-    Never,
-}
-
-impl std::str::FromStr for DivisionCheckPolicy {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().replace('-', "_").as_str() {
-            "always" => Ok(Self::Always),
-            "debug" => Ok(Self::Debug),
-            "never" | "off" => Ok(Self::Never),
-            _ => Err(()),
-        }
-    }
-}
-
-impl DivisionCheckPolicy {
-    /// Parse from a string value.
-    pub fn parse(s: &str) -> Option<Self> {
-        s.parse().ok()
-    }
-}
-
-/// Shift range check policy.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum ShiftCheckPolicy {
-    /// Always emit shift range checks.
-    Always,
-    /// Emit shift range checks only in debug builds.
-    #[default]
-    Debug,
-    /// Never emit shift range checks (unsafe, fastest).
-    Never,
-}
-
-impl std::str::FromStr for ShiftCheckPolicy {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().replace('-', "_").as_str() {
-            "always" => Ok(Self::Always),
-            "debug" => Ok(Self::Debug),
-            "never" | "off" => Ok(Self::Never),
-            _ => Err(()),
-        }
-    }
-}
-
-impl ShiftCheckPolicy {
-    /// Parse from a string value.
-    pub fn parse(s: &str) -> Option<Self> {
-        s.parse().ok()
     }
 }
 
@@ -301,52 +127,17 @@ impl CheckFailurePolicy {
     }
 }
 
-/// Safety preset for JSON deserialization.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "kebab-case")]
-pub enum SafetyPresetJson {
-    /// Debug safety mode with checks enabled.
-    #[serde(alias = "debug")]
-    Debug,
-    /// Release mode with checks enabled.
-    #[serde(alias = "releaseSafe")]
-    #[serde(alias = "safe")]
-    ReleaseSafe,
-    /// Release mode with checks disabled.
-    #[serde(alias = "releaseFast")]
-    #[serde(alias = "fast")]
-    ReleaseFast,
-    /// Release mode with checks disabled and size focused settings.
-    #[serde(alias = "releaseSmall")]
-    #[serde(alias = "small")]
-    ReleaseSmall,
-}
-
-impl From<SafetyPresetJson> for SafetyPreset {
-    fn from(value: SafetyPresetJson) -> Self {
-        match value {
-            SafetyPresetJson::Debug => SafetyPreset::Debug,
-            SafetyPresetJson::ReleaseSafe => SafetyPreset::ReleaseSafe,
-            SafetyPresetJson::ReleaseFast => SafetyPreset::ReleaseFast,
-            SafetyPresetJson::ReleaseSmall => SafetyPreset::ReleaseSmall,
-        }
-    }
-}
-
 /// Floating point math policy for JSON deserialization.
 #[derive(Debug, Clone, Copy, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum FloatMathPolicyJson {
     /// Strict IEEE semantics.
-    #[serde(alias = "strict")]
     Strict,
     /// Permit reassociation but preserve NaNs and infinities.
     #[serde(alias = "reassoc", alias = "reassociate")]
     Reassociate,
     /// Enable fast math optimizations.
-    #[serde(alias = "fast")]
     Fast,
 }
 
@@ -360,122 +151,84 @@ impl From<FloatMathPolicyJson> for FloatMathPolicy {
     }
 }
 
-/// Overflow checking policy for JSON deserialization.
+/// Runtime check policy for JSON deserialization.
 #[derive(Debug, Clone, Copy, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
-pub enum OverflowCheckPolicyJson {
-    /// Always check for overflow.
+pub enum CheckPolicyJson {
+    /// Always emit the check.
     Always,
-    /// Debug builds check; release does not.
-    #[serde(alias = "debug")]
+    /// Emit the check for debug profiles.
     Debug,
-    /// Never check for overflow.
+    /// Never emit the check.
     Never,
 }
 
-impl From<OverflowCheckPolicyJson> for OverflowCheckPolicy {
-    fn from(value: OverflowCheckPolicyJson) -> Self {
+impl From<CheckPolicyJson> for CheckPolicy {
+    fn from(value: CheckPolicyJson) -> Self {
         match value {
-            OverflowCheckPolicyJson::Always => OverflowCheckPolicy::Always,
-            OverflowCheckPolicyJson::Debug => OverflowCheckPolicy::Debug,
-            OverflowCheckPolicyJson::Never => OverflowCheckPolicy::Never,
+            CheckPolicyJson::Always => CheckPolicy::Always,
+            CheckPolicyJson::Debug => CheckPolicy::Debug,
+            CheckPolicyJson::Never => CheckPolicy::Never,
         }
     }
 }
 
-/// Bounds checking policy for JSON deserialization.
-#[derive(Debug, Clone, Copy, Deserialize)]
+/// Runtime checks for JSON deserialization.
+#[derive(Debug, Clone, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
-pub enum BoundsCheckPolicyJson {
-    /// Always check bounds.
-    Always,
-    /// Debug builds check; release does not.
-    #[serde(alias = "debug")]
-    Debug,
-    /// Never check bounds.
-    Never,
+#[serde(untagged)]
+pub enum RuntimeChecksJson {
+    /// Shorthand used for every runtime check.
+    Policy(CheckPolicyJson),
+    /// Structured runtime checks.
+    Checks(RuntimeChecksObjectJson),
 }
 
-impl From<BoundsCheckPolicyJson> for BoundsCheckPolicy {
-    fn from(value: BoundsCheckPolicyJson) -> Self {
+impl From<RuntimeChecksJson> for RuntimeChecks {
+    fn from(value: RuntimeChecksJson) -> Self {
         match value {
-            BoundsCheckPolicyJson::Always => BoundsCheckPolicy::Always,
-            BoundsCheckPolicyJson::Debug => BoundsCheckPolicy::Debug,
-            BoundsCheckPolicyJson::Never => BoundsCheckPolicy::Never,
+            RuntimeChecksJson::Policy(policy) => Self::all(CheckPolicy::from(policy)),
+            RuntimeChecksJson::Checks(checks) => RuntimeChecks::from(checks),
         }
     }
 }
 
-/// Null checking policy for JSON deserialization.
-#[derive(Debug, Clone, Copy, Deserialize)]
+/// Structured runtime checks for JSON deserialization.
+#[derive(Debug, Clone, Default, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
-pub enum NullCheckPolicyJson {
-    /// Always check for null.
-    Always,
-    /// Debug builds check; release does not.
-    #[serde(alias = "debug")]
-    Debug,
-    /// Never check for null.
-    Never,
+#[serde(rename_all = "camelCase")]
+pub struct RuntimeChecksObjectJson {
+    /// Default policy for checks without an explicit override.
+    pub default: Option<CheckPolicyJson>,
+    /// Integer overflow check policy.
+    pub overflow: Option<CheckPolicyJson>,
+    /// Bounds check policy for array and slice accesses.
+    pub bounds: Option<CheckPolicyJson>,
+    /// Null check policy for reference operations.
+    pub null: Option<CheckPolicyJson>,
+    /// Division check policy for divide and remainder operations.
+    pub division: Option<CheckPolicyJson>,
+    /// Shift range check policy.
+    pub shift: Option<CheckPolicyJson>,
+    /// Check failure behavior.
+    pub failure: Option<CheckFailurePolicyJson>,
 }
 
-impl From<NullCheckPolicyJson> for NullCheckPolicy {
-    fn from(value: NullCheckPolicyJson) -> Self {
-        match value {
-            NullCheckPolicyJson::Always => NullCheckPolicy::Always,
-            NullCheckPolicyJson::Debug => NullCheckPolicy::Debug,
-            NullCheckPolicyJson::Never => NullCheckPolicy::Never,
-        }
-    }
-}
+impl From<RuntimeChecksObjectJson> for RuntimeChecks {
+    fn from(value: RuntimeChecksObjectJson) -> Self {
+        let default = value.default.map(CheckPolicy::from).unwrap_or_default();
 
-/// Division checking policy for JSON deserialization.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
-pub enum DivisionCheckPolicyJson {
-    /// Always check for divide-by-zero.
-    Always,
-    /// Debug builds check; release does not.
-    #[serde(alias = "debug")]
-    Debug,
-    /// Never check for divide-by-zero.
-    Never,
-}
-
-impl From<DivisionCheckPolicyJson> for DivisionCheckPolicy {
-    fn from(value: DivisionCheckPolicyJson) -> Self {
-        match value {
-            DivisionCheckPolicyJson::Always => DivisionCheckPolicy::Always,
-            DivisionCheckPolicyJson::Debug => DivisionCheckPolicy::Debug,
-            DivisionCheckPolicyJson::Never => DivisionCheckPolicy::Never,
-        }
-    }
-}
-
-/// Shift range check policy for JSON deserialization.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
-pub enum ShiftCheckPolicyJson {
-    /// Always check for invalid shift ranges.
-    Always,
-    /// Debug builds check; release does not.
-    #[serde(alias = "debug")]
-    Debug,
-    /// Never check for invalid shift ranges.
-    Never,
-}
-
-impl From<ShiftCheckPolicyJson> for ShiftCheckPolicy {
-    fn from(value: ShiftCheckPolicyJson) -> Self {
-        match value {
-            ShiftCheckPolicyJson::Always => ShiftCheckPolicy::Always,
-            ShiftCheckPolicyJson::Debug => ShiftCheckPolicy::Debug,
-            ShiftCheckPolicyJson::Never => ShiftCheckPolicy::Never,
+        Self {
+            overflow: value.overflow.map(CheckPolicy::from).unwrap_or(default),
+            bounds: value.bounds.map(CheckPolicy::from).unwrap_or(default),
+            null: value.null.map(CheckPolicy::from).unwrap_or(default),
+            division: value.division.map(CheckPolicy::from).unwrap_or(default),
+            shift: value.shift.map(CheckPolicy::from).unwrap_or(default),
+            failure: value
+                .failure
+                .map(CheckFailurePolicy::from)
+                .unwrap_or_default(),
         }
     }
 }
@@ -486,13 +239,10 @@ impl From<ShiftCheckPolicyJson> for ShiftCheckPolicy {
 #[serde(rename_all = "lowercase")]
 pub enum CheckFailurePolicyJson {
     /// Trap immediately on a failed check.
-    #[serde(alias = "trap")]
     Trap,
     /// Trigger a panic on a failed check.
-    #[serde(alias = "panic")]
     Panic,
     /// Abort execution on a failed check.
-    #[serde(alias = "abort")]
     Abort,
 }
 

@@ -7,7 +7,7 @@ use destack_artifact::EmitFormat;
 use destack_codegen_lib::CodegenBackend;
 use destack_core::StringPool;
 use destack_mir as mir;
-use destack_workspace::{MODE_DEBUG, Target};
+use destack_workspace::{MODE_DEBUG, OptimizeLevel, Target};
 use target_lexicon::Triple;
 
 use crate::lower::{ModuleLowerOutput, ModuleLowerer};
@@ -78,16 +78,12 @@ impl CodegenCraneliftBackend {
     ) -> Result<Arc<dyn TargetIsa>, CodegenCraneliftError> {
         // configure
         let mut flags_builder = settings::builder();
-        let opt_level = if target.optimize {
-            match target.optimize_level {
-                destack_workspace::OptimizeLevel::O0 => "none",
-                destack_workspace::OptimizeLevel::O1 => "speed",
-                destack_workspace::OptimizeLevel::O2 => "speed",
-                destack_workspace::OptimizeLevel::O3 => "speed_and_size",
-                destack_workspace::OptimizeLevel::O4 => "speed_and_size",
-            }
-        } else {
-            "none"
+        let opt_level = match target.optimize_level {
+            OptimizeLevel::O0 => "none",
+            OptimizeLevel::O1 => "speed",
+            OptimizeLevel::O2 => "speed",
+            OptimizeLevel::O3 => "speed_and_size",
+            OptimizeLevel::O4 => "speed_and_size",
         };
         flags_builder
             .set("opt_level", opt_level)
