@@ -60,7 +60,7 @@ install-conformance-formatter:
 
 # run language static checks
 check:
-    cargo clippy --release {{ packages }}
+    cargo clippy --release {{ packages }} --no-deps
 
 # run privileged runtime platform tests for process, fs, and net
 test-runtime-privileged:
