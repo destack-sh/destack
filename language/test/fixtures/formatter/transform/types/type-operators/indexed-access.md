@@ -69,11 +69,11 @@ type Next<TNext> = [] | [TNext];
 Bracket tuple rest elements keep array suffixes on the rest type.
 
 ```ts:main.ts
-type Requirements = [...PlatformCapability[]]
+type Requirements = [...HostAction[]]
 ```
 
 ```ts expected
-type Requirements = [...PlatformCapability[]];
+type Requirements = [...HostAction[]];
 ```
 
 ### bracket tuple labeled rest payload

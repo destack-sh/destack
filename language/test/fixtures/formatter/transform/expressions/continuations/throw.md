@@ -4,7 +4,7 @@
 
 ### throw expression
 
-Throw statements raise an exception with the given value.
+Throw statements keep JavaScript-target exception syntax formatted.
 
 ```ds
 throw new Error("message")
@@ -16,7 +16,7 @@ throw new Error("message");
 
 ### throw string
 
-Strings can be thrown directly.
+Thrown strings keep the same syntax.
 
 ```ds
 throw "error"
