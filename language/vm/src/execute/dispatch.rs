@@ -594,6 +594,8 @@ macro_rules! dispatch_instruction {
             }
             Op::FreeRaw => $step!(super::execute_free_raw($machine, instruction)),
             Op::FreeSharedRaw => $step!(super::execute_free_shared_raw($machine, instruction)),
+            Op::FreeHeap => $step!(super::execute_free_heap($machine, instruction)),
+            Op::FreeSharedHeap => $step!(super::execute_free_shared_heap($machine, instruction)),
             Op::AllocateStack => $step!(super::execute_allocate_stack($machine, instruction)),
             Op::PinHeap => $step!(super::execute_pin_heap($machine, instruction)),
             Op::PinSharedHeap => $step!(super::execute_pin_shared_heap($machine, instruction)),

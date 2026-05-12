@@ -300,30 +300,30 @@ b0:
 }
 
 #[test]
-fn test_atomic_store_load_owned_heap() {
+fn test_atomic_store_load_unique_heap() {
     let mir = r#"
 function test(): int32 {
 b0:
-    v0: ref<atomic<int32>, owned> = new atomic<int32>
+    v0: ref<atomic<int32>, unique> = new atomic<int32>
     v1: int32 = 43int32
     atomic.store v0, v1, relaxed
     v2: int32 = atomic.load v0, relaxed
-    drop v0
+    free v0
     return v2
 }"#;
     run_mir_expect(mir, "test", &[], Value::int32(43));
 }
 
 #[test]
-fn test_atomic_store_load_owned_shared_heap() {
+fn test_atomic_store_load_unique_shared_heap() {
     let mir = r#"
 function test(): int32 {
 b0:
-    v0: ref<atomic<int32>, owned, space(shared)> = new atomic<int32>
+    v0: ref<atomic<int32>, unique, space(shared)> = new atomic<int32>
     v1: int32 = 44int32
     atomic.store v0, v1, relaxed
     v2: int32 = atomic.load v0, relaxed
-    drop v0
+    free v0
     return v2
 }"#;
     run_mir_expect(mir, "test", &[], Value::int32(44));

@@ -246,14 +246,13 @@ b1(v2: int32):
     assert_eq!(output, Value::int32(7));
 }
 
-/// Yield accepts stack allocation after the lifetime is explicitly ended.
+/// Yield accepts frame-local stack memory that is not live across suspension.
 #[test]
 fn test_yield_allows_retired_stack_alloc_in_current_frame() {
     let mir = r#"
 function yieldRetiredStackLocal(): int32 {
 b0:
     v0: ref<int32, raw, readonly, space(stack)> = stack.alloc int32
-    drop v0
     v1: int32 = 1int32
     yield v1, b1
 b1(v2: int32):

@@ -270,6 +270,46 @@ pub(crate) fn execute_free_raw(
     Ok(())
 }
 
+/// Execute unique heap free.
+pub(crate) fn execute_free_heap(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    let reference = instruction.a;
+
+    // free the unique heap allocation
+    let reference = machine.load_word_at(reference).as_heap_reference();
+    match machine.heap_mut().free_heap(reference) {
+        Ok(()) => {}
+        Err(HeapError::InvalidHeapReference { .. }) => {
+            return Err(Error::InvalidHeapReference);
+        }
+        Err(error) => return Err(Error::from(error)),
+    }
+
+    Ok(())
+}
+
+/// Execute unique shared heap free.
+pub(crate) fn execute_free_shared_heap(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    let reference = instruction.a;
+
+    // free the unique shared heap allocation
+    let reference = machine.load_word_at(reference).as_shared_heap_reference();
+    match machine.shared().free_heap(reference) {
+        Ok(()) => {}
+        Err(HeapError::InvalidSharedHeapReference { .. }) => {
+            return Err(Error::InvalidSharedHeapReference);
+        }
+        Err(error) => return Err(Error::from(error)),
+    }
+
+    Ok(())
+}
+
 /// Execute local heap pin.
 pub(crate) fn execute_pin_heap(
     machine: &mut Machine<'_, '_>,

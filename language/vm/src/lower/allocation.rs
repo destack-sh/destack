@@ -3,6 +3,7 @@ use destack_mir as mir;
 
 use crate::program::{
     AllocationLayout, Instruction, Layout, Op, PointerClass, pointer_class_from_reference,
+    repr_type,
 };
 use crate::{Error, Result};
 
@@ -268,13 +269,15 @@ impl<'a> BlockLowerer<'a> {
         Ok(Instruction::new(op, word_offset(self, value)?, 0, 0, 0))
     }
 
-    /// Lower one ownership-end marker.
-    pub(super) fn lower_drop(
-        &self,
-        _pool: &mut Pool<'_, '_>,
-        _value: mir::ValueReference,
-    ) -> Result<Vec<Instruction>> {
-        Ok(Vec::new())
+    /// Lower one unique heap free.
+    pub(super) fn lower_free(&self, value: mir::ValueReference) -> Result<Instruction> {
+        let value = value.value().ok_or_else(|| Error::MissingRepresentation {
+            context: "free value".to_string(),
+        })?;
+        let value_type = self.value_type_for_value(value)?;
+        let op = unique_free_op(self.tree, value_type)?;
+
+        Ok(Instruction::new(op, word_offset(self, value)?, 0, 0, 0))
     }
 }
 
@@ -361,6 +364,31 @@ fn allocation_op(pointer_class: PointerClass, small: Option<SmallAllocationLayou
         (PointerClass::Heap, false) => Ok(Op::AllocateHeap),
         (PointerClass::SharedHeap, true) => Ok(Op::AllocateSharedHeapSmallNoscan),
         (PointerClass::SharedHeap, false) => Ok(Op::AllocateSharedHeap),
+        _ => Err(Error::InvalidPointerType {
+            actual: format!("{pointer_class:?}"),
+        }),
+    }
+}
+
+/// Select one free operation for one unique heap reference type.
+fn unique_free_op(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Result<Op> {
+    let ty = repr_type(tree, ty);
+    let mir::Type::Reference {
+        kind: mir::ReferenceKind::Unique,
+        address_space,
+        ..
+    } = tree.get(ty)
+    else {
+        return Err(Error::InvalidPointerType {
+            actual: format!("{ty:?}"),
+        });
+    };
+
+    let pointer_class =
+        pointer_class_from_reference(address_space.clone(), mir::ReferenceKind::Unique);
+    match pointer_class {
+        PointerClass::Heap => Ok(Op::FreeHeap),
+        PointerClass::SharedHeap => Ok(Op::FreeSharedHeap),
         _ => Err(Error::InvalidPointerType {
             actual: format!("{pointer_class:?}"),
         }),

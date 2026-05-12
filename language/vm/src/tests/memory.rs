@@ -8,9 +8,7 @@ use destack_heap::{
     AccountingRegion, Allocator, HeapError, HeapReference, Payload, RawAllocationShape, RawPointer,
     SharedHeapReference, SharedRawBudget, SharedRawLimits,
 };
-use destack_mir::parse::{ParseOptions, Parser};
 use destack_mir::{DataLayout, ReferenceMap};
-use destack_source::FileId;
 
 /// Decode one native-width heap reference from materialized bytes.
 fn decode_heap_reference(bytes: &[u8], offset: usize) -> HeapReference {
@@ -99,84 +97,44 @@ b0:
     assert!(isolate.shared_heap.is_heap_live(reference));
 }
 
-/// Dropping unique heap allocations releases local heap storage immediately.
+/// Freeing unique heap allocations releases local heap storage immediately.
 #[test]
-fn test_drop_releases_owned_heap_allocation() {
+fn test_free_releases_unique_heap_allocation() {
     let mir = r#"
-function dropOwned(): int32 {
+function freeUnique(): int32 {
 b0:
     v0: ref<int32, unique, readonly> = new int32
-    drop v0
+    free v0
     v1: int32 = 7int32
     return v1
 }"#;
     let mut isolate = create_isolate(mir);
     let output = isolate
-        .run_function_by_name("dropOwned", &[])
+        .run_function_by_name("freeUnique", &[])
         .expect("execution failed");
 
     assert_eq!(output, Value::int32(7));
     assert_eq!(isolate.heap.heap_allocation_count(), 0);
 }
 
-/// Dropping owned shared heap allocations releases shared heap storage immediately.
+/// Freeing unique shared heap allocations releases shared heap storage immediately.
 #[test]
-fn test_drop_releases_owned_shared_heap_allocation() {
+fn test_free_releases_unique_shared_heap_allocation() {
     let mir = r#"
-function dropOwned(): int32 {
+function freeUnique(): int32 {
 b0:
     v0: ref<int32, unique, readonly, space(shared)> = new int32
-    drop v0
+    free v0
     v1: int32 = 7int32
     return v1
 }"#;
     let mut isolate = create_isolate(mir);
     let output = isolate
-        .run_function_by_name("dropOwned", &[])
+        .run_function_by_name("freeUnique", &[])
         .expect("execution failed");
 
     assert_eq!(output, Value::int32(7));
     assert_eq!(isolate.shared_heap.heap_allocation_count(), 0);
-}
-
-/// Dropping managed heap references leaves reclamation to local GC.
-#[test]
-fn test_drop_keeps_managed_heap_allocation() {
-    let mir = r#"
-function dropManaged(): int32 {
-b0:
-    v0: ref<int32, managed, readonly> = new int32
-    drop v0
-    v1: int32 = 7int32
-    return v1
-}"#;
-    let mut isolate = create_isolate(mir);
-    let output = isolate
-        .run_function_by_name("dropManaged", &[])
-        .expect("execution failed");
-
-    assert_eq!(output, Value::int32(7));
-    assert_eq!(isolate.heap.heap_allocation_count(), 1);
-}
-
-/// Dropping managed shared heap references leaves reclamation to shared GC.
-#[test]
-fn test_drop_keeps_managed_shared_heap_allocation() {
-    let mir = r#"
-function dropManaged(): int32 {
-b0:
-    v0: ref<int32, managed, readonly, space(shared)> = new int32
-    drop v0
-    v1: int32 = 7int32
-    return v1
-}"#;
-    let mut isolate = create_isolate(mir);
-    let output = isolate
-        .run_function_by_name("dropManaged", &[])
-        .expect("execution failed");
-
-    assert_eq!(output, Value::int32(7));
-    assert_eq!(isolate.shared_heap.heap_allocation_count(), 1);
 }
 
 /// Load and store instructions read and write heap allocations.

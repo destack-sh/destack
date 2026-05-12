@@ -318,6 +318,10 @@ pub(crate) enum Op {
     FreeRaw,
     /// Free shared raw memory.
     FreeSharedRaw,
+    /// Free local unique heap storage.
+    FreeHeap,
+    /// Free shared unique heap storage.
+    FreeSharedHeap,
     /// Allocate stack memory.
     AllocateStack,
     /// Pin one local heap reference.
