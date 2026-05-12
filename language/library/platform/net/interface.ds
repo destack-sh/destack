@@ -3,25 +3,25 @@ import type { PlatformError } from "../error/index.ds";
 import { IpAddress } from "./address.ds";
 
 /// Network interface flags.
-export newtype InterfaceFlags = uint64;
+export newtype NetworkInterfaceFlags = uint64;
 
 /// Interface is administratively up.
-export const INTERFACE_UP: InterfaceFlags = InterfaceFlags(0x1);
+export const NETWORK_INTERFACE_UP: NetworkInterfaceFlags = NetworkInterfaceFlags(0x1);
 
 /// Interface is a loopback interface.
-export const INTERFACE_LOOPBACK: InterfaceFlags = InterfaceFlags(0x2);
+export const NETWORK_INTERFACE_LOOPBACK: NetworkInterfaceFlags = NetworkInterfaceFlags(0x2);
 
 /// Interface supports broadcast.
-export const INTERFACE_BROADCAST: InterfaceFlags = InterfaceFlags(0x4);
+export const NETWORK_INTERFACE_BROADCAST: NetworkInterfaceFlags = NetworkInterfaceFlags(0x4);
 
 /// Interface supports multicast.
-export const INTERFACE_MULTICAST: InterfaceFlags = InterfaceFlags(0x8);
+export const NETWORK_INTERFACE_MULTICAST: NetworkInterfaceFlags = NetworkInterfaceFlags(0x8);
 
 /// Interface is point-to-point.
-export const INTERFACE_POINT_TO_POINT: InterfaceFlags = InterfaceFlags(0x10);
+export const NETWORK_INTERFACE_POINT_TO_POINT: NetworkInterfaceFlags = NetworkInterfaceFlags(0x10);
 
 /// Network interface address.
-export struct InterfaceAddress {
+export struct NetworkInterfaceAddress {
     /// Interface address.
     address: IpAddress;
     /// Prefix length in bits.
@@ -35,13 +35,13 @@ export struct NetworkInterface {
     /// Interface index.
     index: uint32;
     /// Interface flags.
-    flags: InterfaceFlags;
+    flags: NetworkInterfaceFlags;
     /// Interface MTU in bytes.
     mtu: uint32;
     /// Link-layer hardware address.
-    hardwareAddress: uint8[];
+    hardwareAddress: [uint8];
     /// Interface addresses.
-    addresses: Array<InterfaceAddress>;
+    addresses: Array<NetworkInterfaceAddress>;
 }
 
 /// List network interfaces.
@@ -51,7 +51,7 @@ export struct NetworkInterface {
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function listInterfaces(): Result<^Array<NetworkInterface>, PlatformError>;
+export declare function listNetworkInterfaces(): Result<^Array<NetworkInterface>, PlatformError>;
 
 /// Resolve an interface name to an index.
 @binding("destack.net.interface.index", {
@@ -60,7 +60,9 @@ export declare function listInterfaces(): Result<^Array<NetworkInterface>, Platf
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function interfaceIndex(name: &readonly string): Result<uint32, PlatformError>;
+export declare function networkInterfaceIndex(
+    name: &readonly string,
+): Result<uint32, PlatformError>;
 
 /// Resolve an interface index to a name.
 @binding("destack.net.interface.name", {
@@ -69,4 +71,4 @@ export declare function interfaceIndex(name: &readonly string): Result<uint32, P
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function interfaceName(index: uint32): Result<^string, PlatformError>;
+export declare function networkInterfaceName(index: uint32): Result<^string, PlatformError>;

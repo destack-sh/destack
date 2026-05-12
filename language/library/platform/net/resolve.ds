@@ -4,25 +4,25 @@ import { IpAddress, IpEndpoint, SocketAddress, SocketFamily } from "./address.ds
 import { SocketProtocol, SocketType } from "./socket.ds";
 
 /// Address lookup flags.
-export newtype LookupFlags = uint32;
+export newtype AddressLookupFlags = uint32;
 
 /// Return socket addresses that can be used for bind.
-export const LOOKUP_PASSIVE: LookupFlags = LookupFlags(0x1);
+export const ADDRESS_LOOKUP_PASSIVE: AddressLookupFlags = AddressLookupFlags(0x1);
 
 /// Return canonical names when available.
-export const LOOKUP_CANONICAL_NAME: LookupFlags = LookupFlags(0x2);
+export const ADDRESS_LOOKUP_CANONICAL_NAME: AddressLookupFlags = AddressLookupFlags(0x2);
 
 /// Return only addresses configured on this host.
-export const LOOKUP_ADDRESS_CONFIGURED: LookupFlags = LookupFlags(0x4);
+export const ADDRESS_LOOKUP_ADDRESS_CONFIGURED: AddressLookupFlags = AddressLookupFlags(0x4);
 
 /// Return numeric host results only.
-export const LOOKUP_NUMERIC_HOST: LookupFlags = LookupFlags(0x8);
+export const ADDRESS_LOOKUP_NUMERIC_HOST: AddressLookupFlags = AddressLookupFlags(0x8);
 
 /// Return numeric service results only.
-export const LOOKUP_NUMERIC_SERVICE: LookupFlags = LookupFlags(0x10);
+export const ADDRESS_LOOKUP_NUMERIC_SERVICE: AddressLookupFlags = AddressLookupFlags(0x10);
 
 /// Host and service lookup query.
-export struct LookupQuery {
+export struct AddressLookupQuery {
     /// Hostname or numeric host literal.
     host?: string;
     /// Service name or numeric port string.
@@ -34,11 +34,11 @@ export struct LookupQuery {
     /// Requested protocol.
     protocol?: SocketProtocol;
     /// Lookup flags.
-    flags: LookupFlags;
+    flags: AddressLookupFlags;
 }
 
 /// Host and service lookup result.
-export struct LookupAddress {
+export struct AddressLookupResult {
     /// Resolved socket address.
     address: SocketAddress;
     /// Canonical name when requested and available.
@@ -102,7 +102,7 @@ export struct DnsQuery {
 }
 
 /// Mail exchange record payload.
-export struct MxRecord {
+export struct DnsMxRecord {
     /// Exchange priority.
     priority: uint16;
     /// Exchange host.
@@ -110,7 +110,7 @@ export struct MxRecord {
 }
 
 /// Start of authority record payload.
-export struct SoaRecord {
+export struct DnsSoaRecord {
     /// Primary name server.
     primary: string;
     /// Responsible mailbox.
@@ -128,7 +128,7 @@ export struct SoaRecord {
 }
 
 /// Service locator record payload.
-export struct SrvRecord {
+export struct DnsSrvRecord {
     /// Record priority.
     priority: uint16;
     /// Record weight.
@@ -140,7 +140,7 @@ export struct SrvRecord {
 }
 
 /// Naming authority pointer record payload.
-export struct NaptrRecord {
+export struct DnsNaptrRecord {
     /// Record order.
     order: uint16;
     /// Record preference.
@@ -156,7 +156,7 @@ export struct NaptrRecord {
 }
 
 /// Certification authority authorization record payload.
-export struct CaaRecord {
+export struct DnsCaaRecord {
     /// Record flags.
     flags: uint8;
     /// Property tag.
@@ -170,7 +170,7 @@ export struct RawDnsRecord {
     /// Record type number.
     record: DnsRecordType;
     /// Record payload bytes.
-    bytes: uint8[];
+    bytes: [uint8];
 }
 
 /// DNS record payload.
@@ -178,24 +178,26 @@ export newtype DnsRecord =
     | { kind: "address"; address: IpAddress }
     | { kind: "name"; name: string }
     | { kind: "text"; chunks: Array<string> }
-    | { kind: "mx"; record: MxRecord }
-    | { kind: "soa"; record: SoaRecord }
-    | { kind: "srv"; record: SrvRecord }
-    | { kind: "naptr"; record: NaptrRecord }
-    | { kind: "caa"; record: CaaRecord }
+    | { kind: "mx"; record: DnsMxRecord }
+    | { kind: "soa"; record: DnsSoaRecord }
+    | { kind: "srv"; record: DnsSrvRecord }
+    | { kind: "naptr"; record: DnsNaptrRecord }
+    | { kind: "caa"; record: DnsCaaRecord }
     | { kind: "raw"; record: RawDnsRecord };
 
 /// Reverse lookup flags.
-export newtype ReverseLookupFlags = uint32;
+export newtype ReverseAddressLookupFlags = uint32;
 
 /// Return numeric host results.
-export const REVERSE_NUMERIC_HOST: ReverseLookupFlags = ReverseLookupFlags(0x1);
+export const REVERSE_ADDRESS_LOOKUP_NUMERIC_HOST: ReverseAddressLookupFlags =
+    ReverseAddressLookupFlags(0x1);
 
 /// Return numeric service results.
-export const REVERSE_NUMERIC_SERVICE: ReverseLookupFlags = ReverseLookupFlags(0x2);
+export const REVERSE_ADDRESS_LOOKUP_NUMERIC_SERVICE: ReverseAddressLookupFlags =
+    ReverseAddressLookupFlags(0x2);
 
 /// Reverse lookup result.
-export struct ReverseLookupName {
+export struct ReverseAddressLookupResult {
     /// Resolved host value.
     host: string;
     /// Resolved service value.
@@ -210,8 +212,8 @@ export struct ReverseLookupName {
     simulation: true,
 })
 export declare function lookupAddress(
-    query: &readonly LookupQuery,
-): Result<^Array<LookupAddress>, PlatformError>;
+    query: &readonly AddressLookupQuery,
+): Result<^Array<AddressLookupResult>, PlatformError>;
 
 /// Resolve DNS records.
 @binding("destack.net.resolve.record", {
@@ -233,5 +235,5 @@ export declare function resolveRecord(
 })
 export declare function reverseLookup(
     address: &readonly SocketAddress,
-    flags: ReverseLookupFlags,
-): Result<^Array<ReverseLookupName>, PlatformError>;
+    flags: ReverseAddressLookupFlags,
+): Result<^Array<ReverseAddressLookupResult>, PlatformError>;

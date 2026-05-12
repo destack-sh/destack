@@ -2,16 +2,16 @@ import type { PlatformError } from "../error/index.ds";
 import { CompletionHandle, ResourceId } from "../resource/index.ds";
 
 /// Completion event flags.
-export newtype CompletionFlags = uint32;
+export newtype IoCompletionFlags = uint32;
 
 /// Completion event.
-export struct CompletionEvent {
+export struct IoCompletionEvent {
     /// User-assigned completion key.
     key: uint64;
     /// Host result value.
     result: int64;
     /// Completion flags.
-    flags: CompletionFlags;
+    flags: IoCompletionFlags;
 }
 
 /// Open a completion queue.
@@ -66,7 +66,7 @@ export declare function unbindCompletion(
 })
 export declare function postCompletion(
     completion: CompletionHandle,
-    event: CompletionEvent,
+    event: IoCompletionEvent,
 ): Result<void, PlatformError>;
 
 /// Wait for completion events.
@@ -78,7 +78,7 @@ export declare function postCompletion(
 })
 export declare function waitCompletion(
     completion: CompletionHandle,
-    events: &[CompletionEvent],
+    events: &[IoCompletionEvent],
     timeoutNs?: uint64,
 ): Result<uint32, PlatformError>;
 

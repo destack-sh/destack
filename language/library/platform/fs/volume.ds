@@ -1,38 +1,38 @@
 import type { PlatformError } from "../error/index.ds";
 import { FileHandle } from "../resource/index.ds";
-import { Entry } from "./entry.ds";
+import { FilesystemEntry } from "./entry.ds";
 
 /// Volume mount flags.
-export newtype VolumeFlags = uint64;
+export newtype FileVolumeFlags = uint64;
 
 /// Volume status field mask.
-export newtype VolumeMask = uint32;
+export newtype FileVolumeMask = uint32;
 
 /// Request transfer size fields.
-export const VOLUME_TRANSFER: VolumeMask = VolumeMask(0x0003);
+export const FILE_VOLUME_TRANSFER: FileVolumeMask = FileVolumeMask(0x0003);
 
 /// Request block count fields.
-export const VOLUME_BLOCKS: VolumeMask = VolumeMask(0x001c);
+export const FILE_VOLUME_BLOCKS: FileVolumeMask = FileVolumeMask(0x001c);
 
 /// Request file node count fields.
-export const VOLUME_FILES: VolumeMask = VolumeMask(0x0060);
+export const FILE_VOLUME_FILES: FileVolumeMask = FileVolumeMask(0x0060);
 
 /// Request volume identifier.
-export const VOLUME_ID: VolumeMask = VolumeMask(0x0080);
+export const FILE_VOLUME_ID: FileVolumeMask = FileVolumeMask(0x0080);
 
 /// Request mount flags.
-export const VOLUME_FLAGS: VolumeMask = VolumeMask(0x0100);
+export const FILE_VOLUME_FLAGS: FileVolumeMask = FileVolumeMask(0x0100);
 
 /// Request maximum filename length.
-export const VOLUME_NAME_LENGTH: VolumeMask = VolumeMask(0x0200);
+export const FILE_VOLUME_NAME_LENGTH: FileVolumeMask = FileVolumeMask(0x0200);
 
 /// Request all fields the host can provide.
-export const VOLUME_ALL: VolumeMask = VolumeMask(0x03ff);
+export const FILE_VOLUME_ALL: FileVolumeMask = FileVolumeMask(0x03ff);
 
 /// Volume status returned by host metadata operations.
-export struct VolumeStatus {
+export struct FileVolumeStatus {
     /// Mask of fields populated by the host.
-    mask: VolumeMask;
+    mask: FileVolumeMask;
     /// Preferred transfer block size.
     blockSize: uint64;
     /// Fragment block size.
@@ -50,7 +50,7 @@ export struct VolumeStatus {
     /// Volume identifier.
     id: uint64;
     /// Volume mount flags.
-    flags: VolumeFlags;
+    flags: FileVolumeFlags;
     /// Maximum filename length.
     nameLength: uint64;
 }
@@ -62,7 +62,9 @@ export struct VolumeStatus {
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function entryVolume(entry: &readonly Entry): Result<VolumeStatus, PlatformError>;
+export declare function readEntryVolume(
+    entry: &readonly FilesystemEntry,
+): Result<FileVolumeStatus, PlatformError>;
 
 /// Read status for the volume containing an open file.
 @binding("destack.fs.volume.file", {
@@ -71,7 +73,7 @@ export declare function entryVolume(entry: &readonly Entry): Result<VolumeStatus
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function fileVolume(file: FileHandle): Result<VolumeStatus, PlatformError>;
+export declare function readFileVolume(file: FileHandle): Result<FileVolumeStatus, PlatformError>;
 
 /// Synchronize the volume containing an open file.
 @binding("destack.fs.volume.sync", {
@@ -80,4 +82,4 @@ export declare function fileVolume(file: FileHandle): Result<VolumeStatus, Platf
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function syncVolume(file: FileHandle): Result<void, PlatformError>;
+export declare function syncFileVolume(file: FileHandle): Result<void, PlatformError>;

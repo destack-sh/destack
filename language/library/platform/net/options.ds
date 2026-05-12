@@ -21,8 +21,8 @@ export struct TcpKeepAlive {
     probeCount: uint32;
 }
 
-/// Packet timestamping mode.
-export enum PacketTimestampMode {
+/// Socket packet timestamping mode.
+export enum SocketPacketTimestampMode {
     /// Packet timestamps are disabled.
     Off = 0,
     /// Software timestamps are enabled.
@@ -32,6 +32,7 @@ export enum PacketTimestampMode {
 }
 
 /// Socket option key.
+@derive(Tagged)
 export newtype SocketOption =
     | { kind: "reuseAddress" }
     | { kind: "reusePort" }
@@ -50,6 +51,7 @@ export newtype SocketOption =
     | { kind: "packetTimestamp" };
 
 /// Socket option value.
+@derive(Tagged)
 export newtype SocketOptionValue =
     | { kind: "reuseAddress"; value: boolean }
     | { kind: "reusePort"; value: boolean }
@@ -65,7 +67,7 @@ export newtype SocketOptionValue =
     | { kind: "tcpNoDelay"; value: boolean }
     | { kind: "tcpKeepAlive"; value: TcpKeepAlive }
     | { kind: "packetMark"; value: uint32 }
-    | { kind: "packetTimestamp"; value: PacketTimestampMode };
+    | { kind: "packetTimestamp"; value: SocketPacketTimestampMode };
 
 /// Raw socket option key.
 export struct RawSocketOption {

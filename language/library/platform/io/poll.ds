@@ -2,7 +2,7 @@ import type { PlatformError } from "../error/index.ds";
 import { PollHandle, ResourceId } from "../resource/index.ds";
 
 /// Readiness backend selector.
-export enum PollBackend {
+export enum IoPollBackend {
     /// Select the best backend for the current host.
     Auto = 0,
     /// Use the Linux epoll backend.
@@ -14,29 +14,29 @@ export enum PollBackend {
 }
 
 /// Readiness interest mask.
-export newtype PollInterest = uint32;
+export newtype IoPollInterest = uint32;
 
 /// Notify when reads can make progress.
-export const POLL_READ: PollInterest = PollInterest(0x01);
+export const IO_POLL_READ: IoPollInterest = IoPollInterest(0x01);
 
 /// Notify when writes can make progress.
-export const POLL_WRITE: PollInterest = PollInterest(0x02);
+export const IO_POLL_WRITE: IoPollInterest = IoPollInterest(0x02);
 
 /// Notify when priority data can be read.
-export const POLL_PRIORITY: PollInterest = PollInterest(0x04);
+export const IO_POLL_PRIORITY: IoPollInterest = IoPollInterest(0x04);
 
 /// Notify when the target reports an error.
-export const POLL_ERROR: PollInterest = PollInterest(0x08);
+export const IO_POLL_ERROR: IoPollInterest = IoPollInterest(0x08);
 
 /// Notify when the peer has closed or disconnected.
-export const POLL_HANGUP: PollInterest = PollInterest(0x10);
+export const IO_POLL_HANGUP: IoPollInterest = IoPollInterest(0x10);
 
 /// Readiness event.
-export struct PollEvent {
+export struct IoPollEvent {
     /// User-assigned key for the registered target.
     key: uint64;
     /// Ready interest mask.
-    ready: PollInterest;
+    ready: IoPollInterest;
     /// Backend-specific payload when the host exposes one.
     value: int32;
 }
@@ -48,7 +48,7 @@ export struct PollEvent {
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function openPoll(backend: PollBackend): Result<PollHandle, PlatformError>;
+export declare function openPoll(backend: IoPollBackend): Result<PollHandle, PlatformError>;
 
 /// Close a readiness poller.
 @binding("destack.io.poll.close", {
@@ -70,7 +70,7 @@ export declare function addPoll(
     poll: PollHandle,
     resource: ResourceId,
     key: uint64,
-    interest: PollInterest,
+    interest: IoPollInterest,
 ): Result<void, PlatformError>;
 
 /// Update one resource in a readiness poller.
@@ -84,7 +84,7 @@ export declare function updatePoll(
     poll: PollHandle,
     resource: ResourceId,
     key: uint64,
-    interest: PollInterest,
+    interest: IoPollInterest,
 ): Result<void, PlatformError>;
 
 /// Remove one resource from a readiness poller.
@@ -108,6 +108,6 @@ export declare function removePoll(
 })
 export declare function waitPoll(
     poll: PollHandle,
-    events: &[PollEvent],
+    events: &[IoPollEvent],
     timeoutNs?: uint64,
 ): Result<uint32, PlatformError>;

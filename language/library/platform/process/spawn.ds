@@ -1,5 +1,5 @@
 import type { PlatformError } from "../error/index.ds";
-import { OpenFlags } from "../fs/file.ds";
+import { FileOpenFlags } from "../fs/file.ds";
 import { Path } from "../fs/path.ds";
 import { FileMode } from "../fs/status.ds";
 import { FileHandle, PipeHandle, ProcessHandle } from "../resource/index.ds";
@@ -91,7 +91,7 @@ export struct ProcessDescriptorOpen {
     /// Path opened by the descriptor action.
     path: Path;
     /// Open flags.
-    flags: OpenFlags;
+    flags: FileOpenFlags;
     /// Open mode.
     mode: FileMode;
 }

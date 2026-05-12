@@ -1,6 +1,6 @@
 import type { PlatformError } from "../error/index.ds";
 import { DirectoryHandle } from "../resource/index.ds";
-import { Entry } from "./entry.ds";
+import { FilesystemEntry } from "./entry.ds";
 import { PathBuffer, PathSpan } from "./path.ds";
 import { FileMode } from "./status.ds";
 
@@ -52,7 +52,7 @@ export struct DirectoryBatch {
     simulation: true,
 })
 export declare function createDirectory(
-    entry: &readonly Entry,
+    entry: &readonly FilesystemEntry,
     mode: FileMode,
 ): Result<void, PlatformError>;
 
@@ -63,7 +63,9 @@ export declare function createDirectory(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function removeDirectory(entry: &readonly Entry): Result<void, PlatformError>;
+export declare function removeDirectory(
+    entry: &readonly FilesystemEntry,
+): Result<void, PlatformError>;
 
 /// Open one directory stream.
 @binding("destack.fs.directory.open", {
@@ -73,7 +75,7 @@ export declare function removeDirectory(entry: &readonly Entry): Result<void, Pl
     simulation: true,
 })
 export declare function openDirectory(
-    entry: &readonly Entry,
+    entry: &readonly FilesystemEntry,
 ): Result<DirectoryHandle, PlatformError>;
 
 /// Read directory entries into an output slice.
@@ -106,5 +108,5 @@ export declare function rewindDirectory(directory: DirectoryHandle): Result<void
     simulation: true,
 })
 export declare function createTemporaryDirectory(
-    template: &readonly Entry,
-): Result<Entry, PlatformError>;
+    template: &readonly FilesystemEntry,
+): Result<FilesystemEntry, PlatformError>;

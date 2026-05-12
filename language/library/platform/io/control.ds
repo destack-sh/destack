@@ -2,20 +2,20 @@ import type { PlatformError } from "../error/index.ds";
 import { ResourceId } from "../resource/index.ds";
 
 /// Resource control flags.
-export newtype ControlFlags = uint32;
+export newtype IoControlFlags = uint32;
 
 /// Resource control request.
-export struct ControlRequest {
+export struct IoControlRequest {
     /// Host request code.
     code: uint64;
     /// Scalar argument value.
     argument: uint64;
     /// Request flags.
-    flags: ControlFlags;
+    flags: IoControlFlags;
 }
 
 /// Resource control result.
-export struct ControlResult {
+export struct IoControlResult {
     /// Host return value.
     value: int64;
     /// Output bytes written.
@@ -29,9 +29,9 @@ export struct ControlResult {
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function control(
+export declare function controlResource(
     resource: ResourceId,
-    request: ControlRequest,
+    request: IoControlRequest,
     input: &readonly [uint8],
     output: &[uint8],
-): Result<ControlResult, PlatformError>;
+): Result<IoControlResult, PlatformError>;
