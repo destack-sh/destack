@@ -561,10 +561,6 @@ pub fn walk_type_member<V: NodeVisitor + ?Sized>(
             let value_type_node = tree.get(*value_type);
             visitor.visit_type_expression(tree, *value_type, value_type_node);
         }
-        TypeMember::Embed { value, symbol: _ } => {
-            let value_node = tree.get(*value);
-            visitor.visit_type_expression(tree, *value, value_node);
-        }
         TypeMember::AssociatedType {
             name: _,
             generic_parameters,
@@ -1257,10 +1253,6 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
                     let implements_type = tree.get(*implements_type_id);
                     visitor.visit_type_expression(tree, *implements_type_id, implements_type);
                 }
-                for embedded_type_id in &declaration.embedded_types {
-                    let embedded_type = tree.get(*embedded_type_id);
-                    visitor.visit_type_expression(tree, *embedded_type_id, embedded_type);
-                }
                 for member_id in &declaration.members {
                     let member = tree.get(*member_id);
                     visitor.visit_member(tree, *member_id, member);
@@ -1547,16 +1539,6 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
                 let body_expr = tree.get(*body);
                 visitor.visit_expression(tree, *body, body_expr);
             }
-        }
-        Member::Embed {
-            value,
-            visibility: _,
-            is_ambient: _,
-            is_static: _,
-            symbol: _,
-        } => {
-            let value_expr = tree.get(*value);
-            visitor.visit_type_expression(tree, *value, value_expr);
         }
         Member::StaticBlock { body, symbol: _ } => {
             let body_expr = tree.get(*body);

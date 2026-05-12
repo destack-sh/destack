@@ -47,11 +47,6 @@ pub enum TypeMember {
         is_optional: bool,
         is_readonly: bool,
     },
-    /// Type embedding.
-    Embed {
-        value: LocalNodeId<TypeExpression>,
-        symbol: LocalSymbolId,
-    },
     /// Associated type requirement or definition.
     AssociatedType {
         name: StringId,
@@ -112,7 +107,6 @@ impl TypeMember {
             | TypeMember::CallSignature { symbol, .. }
             | TypeMember::ConstructSignature { symbol, .. }
             | TypeMember::IndexSignature { symbol, .. }
-            | TypeMember::Embed { symbol, .. }
             | TypeMember::AssociatedType { symbol, .. }
             | TypeMember::AssociatedConst { symbol, .. }
             | TypeMember::Error { symbol } => *symbol,

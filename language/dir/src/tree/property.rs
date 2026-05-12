@@ -207,14 +207,6 @@ pub enum Member {
         is_static: bool,
         is_accessor: bool,
     },
-    /// Type embedding.
-    Embed {
-        value: LocalNodeId<TypeExpression>,
-        visibility: Option<Visibility>,
-        symbol: LocalSymbolId,
-        is_ambient: bool,
-        is_static: bool,
-    },
     /// Static initialization block.
     StaticBlock {
         body: LocalNodeId<Expression>,
@@ -247,7 +239,6 @@ impl Member {
             | Member::AssociatedConst { symbol, .. }
             | Member::Field { symbol, .. }
             | Member::Method { symbol, .. }
-            | Member::Embed { symbol, .. }
             | Member::StaticBlock { symbol, .. }
             | Member::ComptimeBlock { symbol, .. }
             | Member::Error { symbol } => *symbol,
@@ -277,8 +268,7 @@ impl Member {
             Member::AssociatedType { is_static, .. }
             | Member::AssociatedConst { is_static, .. }
             | Member::Field { is_static, .. }
-            | Member::Method { is_static, .. }
-            | Member::Embed { is_static, .. } => *is_static,
+            | Member::Method { is_static, .. } => *is_static,
             Member::StaticBlock { .. } => true,
             Member::ComptimeBlock { .. } | Member::Error { .. } => false,
         }

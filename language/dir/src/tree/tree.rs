@@ -10,7 +10,7 @@ use crate::{
     DependencyItem, EnumField, Expression, FunctionRole, GenericArgument, GenericParameter,
     IfCondition, LocalNodeId, LocalNodeIdAny, LocalScopeId, LocalScopeMark, MatchCase, Member,
     Node, NodeType, NodeVisitor, NodeVisitorOptions, Parameter, Pattern, PatternField, Property,
-    ProvenanceMetadata, ProvenanceId, ProvenanceReason, TupleElement, TypeExpression, TypeMember,
+    ProvenanceId, ProvenanceMetadata, ProvenanceReason, TupleElement, TypeExpression, TypeMember,
     WhereClause, walk_argument, walk_block, walk_declaration, walk_declarator, walk_decorator,
     walk_dependency_item, walk_enum_field, walk_expression, walk_generic_argument,
     walk_generic_parameter, walk_match_case, walk_member, walk_parameter, walk_pattern,
