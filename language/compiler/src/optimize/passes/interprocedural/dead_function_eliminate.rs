@@ -252,14 +252,14 @@ fn call_constraint_from_terminator(
 
     // classify call terminators
     match terminator {
-        mir::Terminator::Invoke { .. } => None,
-        mir::Terminator::InvokeIndirect { call, .. } => {
+        mir::Terminator::Call { .. } => None,
+        mir::Terminator::CallIndirect { call, .. } => {
             call_constraint_from_signature(tree, call.signature, None)
         }
-        mir::Terminator::InvokeClass { call, .. } => {
+        mir::Terminator::CallClass { call, .. } => {
             call_constraint_from_signature(tree, call.signature, declared_target)
         }
-        mir::Terminator::InvokeInterface { call, .. } => {
+        mir::Terminator::CallInterface { call, .. } => {
             call_constraint_from_signature(tree, call.signature, declared_target)
         }
         mir::Terminator::TailCall { .. } => None,
@@ -501,11 +501,11 @@ extern function drop(int64): int64"#;
         let input = r#"
 export function root(v0: fn(int32) -> int32, v1: int32): int32 {
 b0(v0: fn(int32) -> int32, v1: int32):
-    invoke.indirect v0(v1): (int32) -> int32 -> b1, catch b2
+    call.indirect v0(v1): (int32) -> int32 -> b1
 b1(v2: int32):
     return v2
 b2(v3: ref<int32, managed, readonly>):
-    throw v3
+    trap.panic v3
 }
 function keep(v0: int32): int32 {
 b0(v0: int32):
@@ -521,11 +521,11 @@ b0(v0: int64):
         let expected = r#"
 export function root(v0: fn(int32) -> int32, v1: int32): int32 {
 b0(v0: fn(int32) -> int32, v1: int32):
-    invoke.indirect v0(v1): (int32) -> int32 -> b1, catch b2
+    call.indirect v0(v1): (int32) -> int32 -> b1
 b1(v2: int32):
     return v2
 b2(v3: ref<int32, managed, readonly>):
-    throw v3
+    trap.panic v3
 }
 function keep(v0: int32): int32 {
 b0(v0: int32):

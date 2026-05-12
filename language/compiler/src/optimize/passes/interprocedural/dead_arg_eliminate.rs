@@ -178,7 +178,7 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
             // record call terminators
             let terminator = tree.get(block.terminator);
             match terminator {
-                mir::Terminator::Invoke { function, .. } => {
+                mir::Terminator::Call { function, .. } => {
                     let Some(function) = function.function() else {
                         continue;
                     };
@@ -188,9 +188,9 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
                         .or_default()
                         .push(DirectCallSite::Terminator(block_id));
                 }
-                mir::Terminator::InvokeIndirect { call, .. }
-                | mir::Terminator::InvokeClass { call, .. }
-                | mir::Terminator::InvokeInterface { call, .. } => {
+                mir::Terminator::CallIndirect { call, .. }
+                | mir::Terminator::CallClass { call, .. }
+                | mir::Terminator::CallInterface { call, .. } => {
                     if let Some(signature) = SignatureKey::from_signature_type(tree, call.signature)
                     {
                         data.indirect_signatures.insert(signature);
@@ -349,21 +349,19 @@ fn update_call_sites(
                 let terminator_id = block.terminator;
                 let terminator = tree.get(terminator_id).clone();
                 match &terminator {
-                    mir::Terminator::Invoke {
+                    mir::Terminator::Call {
                         function,
                         call,
-                        normal_target,
-                        unwind_target,
+                        target,
                     } => {
                         // filter the argument list
                         let mut new_call = call.clone();
                         new_call.arguments = remap.filter_by_index(&call.arguments);
 
-                        let new_terminator = mir::Terminator::Invoke {
+                        let new_terminator = mir::Terminator::Call {
                             function: *function,
                             call: new_call,
-                            normal_target: normal_target.clone(),
-                            unwind_target: unwind_target.clone(),
+                            target: target.clone(),
                         };
                         tree.replace(terminator_id, new_terminator);
                     }
@@ -536,11 +534,11 @@ b0(v0: int32, v1: int32):
 }
 function root(v0: int32, v1: int32): int32 {
 b0(v0: int32, v1: int32):
-    invoke callee(v0, v1): (int32, int32) -> int32 -> b1, catch b2
+    call callee(v0, v1): (int32, int32) -> int32 -> b1
 b1(v2: int32):
     return v2
 b2(v3: ref<int32, managed, readonly>):
-    throw v3
+    trap.panic v3
 }"#;
 
         let expected = r#"
@@ -550,11 +548,11 @@ b0(v0: int32):
 }
 function root(v0: int32): int32 {
 b0(v0: int32):
-    invoke callee(v0): (int32) -> int32 -> b1, catch b2
+    call callee(v0): (int32) -> int32 -> b1
 b1(v1: int32):
     return v1
 b2(v2: ref<int32, managed, readonly>):
-    throw v2
+    trap.panic v2
 }"#;
 
         let mut test = TestProgram::new(input);

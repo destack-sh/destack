@@ -3536,55 +3536,43 @@ pub fn terminator_remap(
             remap_target(resume);
             remap_args(&mut resume.arguments);
         }
-        mir::Terminator::Invoke {
-            call,
-            normal_target,
-            unwind_target,
-            ..
-        } => {
+        mir::Terminator::Call { call, target, .. } => {
             remap_args(&mut call.arguments);
-            remap_target(normal_target);
-            remap_args(&mut normal_target.arguments);
-            remap_target(unwind_target);
-            remap_args(&mut unwind_target.arguments);
+            remap_target(target);
+            remap_args(&mut target.arguments);
         }
-        mir::Terminator::InvokeIndirect {
+        mir::Terminator::CallIndirect {
             callee,
             call,
-            normal_target,
-            unwind_target,
+            target,
             ..
         } => {
             remap_value(callee);
             remap_args(&mut call.arguments);
-            remap_target(normal_target);
-            remap_args(&mut normal_target.arguments);
-            remap_target(unwind_target);
-            remap_args(&mut unwind_target.arguments);
+            remap_target(target);
+            remap_args(&mut target.arguments);
         }
-        mir::Terminator::InvokeClass {
+        mir::Terminator::CallClass {
             receiver,
             call,
-            normal_target,
-            unwind_target,
-            ..
-        }
-        | mir::Terminator::InvokeInterface {
-            receiver,
-            call,
-            normal_target,
-            unwind_target,
+            target,
             ..
         } => {
             remap_value(receiver);
             remap_args(&mut call.arguments);
-            remap_target(normal_target);
-            remap_args(&mut normal_target.arguments);
-            remap_target(unwind_target);
-            remap_args(&mut unwind_target.arguments);
+            remap_target(target);
+            remap_args(&mut target.arguments);
         }
-        mir::Terminator::Throw { value } => {
-            remap_value(value);
+        mir::Terminator::CallInterface {
+            receiver,
+            call,
+            target,
+            ..
+        } => {
+            remap_value(receiver);
+            remap_args(&mut call.arguments);
+            remap_target(target);
+            remap_args(&mut target.arguments);
         }
         mir::Terminator::Trap { payload, .. } => {
             if let Some(payload) = payload {

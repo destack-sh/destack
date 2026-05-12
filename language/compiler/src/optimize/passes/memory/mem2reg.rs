@@ -836,12 +836,11 @@ fn update_terminator_arguments(
                 },
             }
         }
-        Terminator::Invoke {
+        Terminator::Call {
             function,
             call,
-            normal_target,
-            unwind_target,
-        } => Terminator::Invoke {
+            target,
+        } => Terminator::Call {
             function: *function,
             call: mir::Call {
                 arguments: call
@@ -851,33 +850,22 @@ fn update_terminator_arguments(
                     .collect(),
                 ..call.clone()
             },
-            normal_target: mir::BlockTarget {
-                block: normal_target.block,
+            target: mir::BlockTarget {
+                block: target.block,
                 arguments: extend_arguments(
-                    normal_target.block,
-                    &normal_target.arguments,
-                    block_params,
-                    value_stacks,
-                    substitutions,
-                ),
-            },
-            unwind_target: mir::BlockTarget {
-                block: unwind_target.block,
-                arguments: extend_arguments(
-                    unwind_target.block,
-                    &unwind_target.arguments,
+                    target.block,
+                    &target.arguments,
                     block_params,
                     value_stacks,
                     substitutions,
                 ),
             },
         },
-        Terminator::InvokeIndirect {
+        Terminator::CallIndirect {
             callee,
             call,
-            normal_target,
-            unwind_target,
-        } => Terminator::InvokeIndirect {
+            target,
+        } => Terminator::CallIndirect {
             callee: remap_value_reference(*callee, substitutions),
             call: mir::Call {
                 arguments: call
@@ -887,36 +875,25 @@ fn update_terminator_arguments(
                     .collect(),
                 ..call.clone()
             },
-            normal_target: mir::BlockTarget {
-                block: normal_target.block,
+            target: mir::BlockTarget {
+                block: target.block,
                 arguments: extend_arguments(
-                    normal_target.block,
-                    &normal_target.arguments,
-                    block_params,
-                    value_stacks,
-                    substitutions,
-                ),
-            },
-            unwind_target: mir::BlockTarget {
-                block: unwind_target.block,
-                arguments: extend_arguments(
-                    unwind_target.block,
-                    &unwind_target.arguments,
+                    target.block,
+                    &target.arguments,
                     block_params,
                     value_stacks,
                     substitutions,
                 ),
             },
         },
-        Terminator::InvokeClass {
+        Terminator::CallClass {
             receiver,
             call,
             declaring_type,
             slot,
             declared_target,
-            normal_target,
-            unwind_target,
-        } => Terminator::InvokeClass {
+            target,
+        } => Terminator::CallClass {
             receiver: remap_value_reference(*receiver, substitutions),
             call: mir::Call {
                 arguments: call
@@ -929,35 +906,24 @@ fn update_terminator_arguments(
             declaring_type: *declaring_type,
             slot: *slot,
             declared_target: *declared_target,
-            normal_target: mir::BlockTarget {
-                block: normal_target.block,
+            target: mir::BlockTarget {
+                block: target.block,
                 arguments: extend_arguments(
-                    normal_target.block,
-                    &normal_target.arguments,
-                    block_params,
-                    value_stacks,
-                    substitutions,
-                ),
-            },
-            unwind_target: mir::BlockTarget {
-                block: unwind_target.block,
-                arguments: extend_arguments(
-                    unwind_target.block,
-                    &unwind_target.arguments,
+                    target.block,
+                    &target.arguments,
                     block_params,
                     value_stacks,
                     substitutions,
                 ),
             },
         },
-        Terminator::InvokeInterface {
+        Terminator::CallInterface {
             receiver,
             call,
             declaring_type,
             slot,
-            normal_target,
-            unwind_target,
-        } => Terminator::InvokeInterface {
+            target,
+        } => Terminator::CallInterface {
             receiver: remap_value_reference(*receiver, substitutions),
             call: mir::Call {
                 arguments: call
@@ -969,21 +935,11 @@ fn update_terminator_arguments(
             },
             declaring_type: *declaring_type,
             slot: *slot,
-            normal_target: mir::BlockTarget {
-                block: normal_target.block,
+            target: mir::BlockTarget {
+                block: target.block,
                 arguments: extend_arguments(
-                    normal_target.block,
-                    &normal_target.arguments,
-                    block_params,
-                    value_stacks,
-                    substitutions,
-                ),
-            },
-            unwind_target: mir::BlockTarget {
-                block: unwind_target.block,
-                arguments: extend_arguments(
-                    unwind_target.block,
-                    &unwind_target.arguments,
+                    target.block,
+                    &target.arguments,
                     block_params,
                     value_stacks,
                     substitutions,
@@ -992,9 +948,6 @@ fn update_terminator_arguments(
         },
         Terminator::Return { value } => Terminator::Return {
             value: value.map(|value| remap_value_reference(value, substitutions)),
-        },
-        Terminator::Throw { value } => Terminator::Throw {
-            value: remap_value_reference(*value, substitutions),
         },
         Terminator::Trap { kind, payload } => Terminator::Trap {
             kind: *kind,

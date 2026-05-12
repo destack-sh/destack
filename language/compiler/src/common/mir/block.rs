@@ -83,41 +83,13 @@ pub fn terminator_arguments_for_successor(
         mir::Terminator::Yield { resume, .. } if resume.block.block() == Some(successor) => {
             &resume.arguments
         }
-        mir::Terminator::Invoke {
-            normal_target,
-            unwind_target,
-            ..
-        } => {
-            if normal_target.block.block() == Some(successor) {
-                &normal_target.arguments
-            } else if unwind_target.block.block() == Some(successor) {
-                &unwind_target.arguments
-            } else {
-                &[]
-            }
-        }
-        mir::Terminator::InvokeIndirect {
-            normal_target,
-            unwind_target,
-            ..
-        }
-        | mir::Terminator::InvokeClass {
-            normal_target,
-            unwind_target,
-            ..
-        }
-        | mir::Terminator::InvokeInterface {
-            normal_target,
-            unwind_target,
-            ..
-        } => {
-            if normal_target.block.block() == Some(successor) {
-                &normal_target.arguments
-            } else if unwind_target.block.block() == Some(successor) {
-                &unwind_target.arguments
-            } else {
-                &[]
-            }
+        mir::Terminator::Call { target, .. }
+        | mir::Terminator::CallIndirect { target, .. }
+        | mir::Terminator::CallClass { target, .. }
+        | mir::Terminator::CallInterface { target, .. }
+            if target.block.block() == Some(successor) =>
+        {
+            &target.arguments
         }
 
         _ => &[],
@@ -1559,75 +1531,44 @@ pub fn terminator_substitute_uses(
                 arguments: resume.arguments.iter().copied().map(substitute).collect(),
             },
         },
-        mir::Terminator::Invoke {
+        mir::Terminator::Call {
             function,
             call,
-            normal_target,
-            unwind_target,
-        } => mir::Terminator::Invoke {
+            target,
+        } => mir::Terminator::Call {
             function: *function,
             call: mir::Call {
                 arguments: call.arguments.iter().copied().map(substitute).collect(),
                 ..call.clone()
             },
-            normal_target: mir::BlockTarget {
-                block: normal_target.block,
-                arguments: normal_target
-                    .arguments
-                    .iter()
-                    .copied()
-                    .map(substitute)
-                    .collect(),
-            },
-            unwind_target: mir::BlockTarget {
-                block: unwind_target.block,
-                arguments: unwind_target
-                    .arguments
-                    .iter()
-                    .copied()
-                    .map(substitute)
-                    .collect(),
+            target: mir::BlockTarget {
+                block: target.block,
+                arguments: target.arguments.iter().copied().map(substitute).collect(),
             },
         },
-        mir::Terminator::InvokeIndirect {
+        mir::Terminator::CallIndirect {
             callee,
             call,
-            normal_target,
-            unwind_target,
-        } => mir::Terminator::InvokeIndirect {
+            target,
+        } => mir::Terminator::CallIndirect {
             callee: substitute(*callee),
             call: mir::Call {
                 arguments: call.arguments.iter().copied().map(substitute).collect(),
                 ..call.clone()
             },
-            normal_target: mir::BlockTarget {
-                block: normal_target.block,
-                arguments: normal_target
-                    .arguments
-                    .iter()
-                    .copied()
-                    .map(substitute)
-                    .collect(),
-            },
-            unwind_target: mir::BlockTarget {
-                block: unwind_target.block,
-                arguments: unwind_target
-                    .arguments
-                    .iter()
-                    .copied()
-                    .map(substitute)
-                    .collect(),
+            target: mir::BlockTarget {
+                block: target.block,
+                arguments: target.arguments.iter().copied().map(substitute).collect(),
             },
         },
-        mir::Terminator::InvokeClass {
+        mir::Terminator::CallClass {
             receiver,
             call,
             declaring_type,
             slot,
             declared_target,
-            normal_target,
-            unwind_target,
-        } => mir::Terminator::InvokeClass {
+            target,
+        } => mir::Terminator::CallClass {
             receiver: substitute(*receiver),
             call: mir::Call {
                 arguments: call.arguments.iter().copied().map(substitute).collect(),
@@ -1636,33 +1577,18 @@ pub fn terminator_substitute_uses(
             declaring_type: *declaring_type,
             slot: *slot,
             declared_target: *declared_target,
-            normal_target: mir::BlockTarget {
-                block: normal_target.block,
-                arguments: normal_target
-                    .arguments
-                    .iter()
-                    .copied()
-                    .map(substitute)
-                    .collect(),
-            },
-            unwind_target: mir::BlockTarget {
-                block: unwind_target.block,
-                arguments: unwind_target
-                    .arguments
-                    .iter()
-                    .copied()
-                    .map(substitute)
-                    .collect(),
+            target: mir::BlockTarget {
+                block: target.block,
+                arguments: target.arguments.iter().copied().map(substitute).collect(),
             },
         },
-        mir::Terminator::InvokeInterface {
+        mir::Terminator::CallInterface {
             receiver,
             call,
             declaring_type,
             slot,
-            normal_target,
-            unwind_target,
-        } => mir::Terminator::InvokeInterface {
+            target,
+        } => mir::Terminator::CallInterface {
             receiver: substitute(*receiver),
             call: mir::Call {
                 arguments: call.arguments.iter().copied().map(substitute).collect(),
@@ -1670,27 +1596,10 @@ pub fn terminator_substitute_uses(
             },
             declaring_type: *declaring_type,
             slot: *slot,
-            normal_target: mir::BlockTarget {
-                block: normal_target.block,
-                arguments: normal_target
-                    .arguments
-                    .iter()
-                    .copied()
-                    .map(substitute)
-                    .collect(),
+            target: mir::BlockTarget {
+                block: target.block,
+                arguments: target.arguments.iter().copied().map(substitute).collect(),
             },
-            unwind_target: mir::BlockTarget {
-                block: unwind_target.block,
-                arguments: unwind_target
-                    .arguments
-                    .iter()
-                    .copied()
-                    .map(substitute)
-                    .collect(),
-            },
-        },
-        mir::Terminator::Throw { value } => mir::Terminator::Throw {
-            value: substitute(*value),
         },
         mir::Terminator::Trap { kind, payload } => mir::Terminator::Trap {
             kind: *kind,

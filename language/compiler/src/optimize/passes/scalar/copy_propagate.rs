@@ -157,42 +157,18 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
                         .push((block_id, resume.arguments.clone()));
                 }
             }
-            Terminator::Invoke {
-                normal_target,
-                unwind_target,
-                ..
-            }
-            | Terminator::InvokeIndirect {
-                normal_target,
-                unwind_target,
-                ..
-            }
-            | Terminator::InvokeClass {
-                normal_target,
-                unwind_target,
-                ..
-            }
-            | Terminator::InvokeInterface {
-                normal_target,
-                unwind_target,
-                ..
-            } => {
-                if let Some(target_block) = normal_target.block.block() {
+            Terminator::Call { target, .. }
+            | Terminator::CallIndirect { target, .. }
+            | Terminator::CallClass { target, .. }
+            | Terminator::CallInterface { target, .. } => {
+                if let Some(target_block) = target.block.block() {
                     predecessors
                         .get_mut(&target_block)
                         .unwrap()
-                        .push((block_id, normal_target.arguments.clone()));
-                }
-
-                if let Some(target_block) = unwind_target.block.block() {
-                    predecessors
-                        .get_mut(&target_block)
-                        .unwrap()
-                        .push((block_id, unwind_target.arguments.clone()));
+                        .push((block_id, target.arguments.clone()));
                 }
             }
             Terminator::Return { .. }
-            | Terminator::Throw { .. }
             | Terminator::Trap { .. }
             | Terminator::Unreachable
             | Terminator::TailCall { .. }

@@ -511,127 +511,86 @@ fn remap_terminator_blocks(
                 })
                 .collect(),
         },
-        mir::Terminator::Invoke {
+        mir::Terminator::Call {
             function,
             call,
-            normal_target,
-            unwind_target,
-        } => mir::Terminator::Invoke {
+            target,
+        } => mir::Terminator::Call {
             function: *function,
             call: call.clone(),
-            normal_target: mir::BlockTarget {
-                block: normal_target
+            target: mir::BlockTarget {
+                block: target
                     .block
                     .block()
                     .and_then(|block| block_map.get(&block).copied())
                     .map(mir::BlockReference::from)
-                    .unwrap_or(normal_target.block),
-                arguments: normal_target.arguments.clone(),
-            },
-            unwind_target: mir::BlockTarget {
-                block: unwind_target
-                    .block
-                    .block()
-                    .and_then(|block| block_map.get(&block).copied())
-                    .map(mir::BlockReference::from)
-                    .unwrap_or(unwind_target.block),
-                arguments: unwind_target.arguments.clone(),
+                    .unwrap_or(target.block),
+                arguments: target.arguments.clone(),
             },
         },
-        mir::Terminator::InvokeIndirect {
+        mir::Terminator::CallIndirect {
             callee,
             call,
-            normal_target,
-            unwind_target,
-        } => mir::Terminator::InvokeIndirect {
+            target,
+        } => mir::Terminator::CallIndirect {
             callee: *callee,
             call: call.clone(),
-            normal_target: mir::BlockTarget {
-                block: normal_target
+            target: mir::BlockTarget {
+                block: target
                     .block
                     .block()
                     .and_then(|block| block_map.get(&block).copied())
                     .map(mir::BlockReference::from)
-                    .unwrap_or(normal_target.block),
-                arguments: normal_target.arguments.clone(),
-            },
-            unwind_target: mir::BlockTarget {
-                block: unwind_target
-                    .block
-                    .block()
-                    .and_then(|block| block_map.get(&block).copied())
-                    .map(mir::BlockReference::from)
-                    .unwrap_or(unwind_target.block),
-                arguments: unwind_target.arguments.clone(),
+                    .unwrap_or(target.block),
+                arguments: target.arguments.clone(),
             },
         },
-        mir::Terminator::InvokeClass {
+        mir::Terminator::CallClass {
             receiver,
             call,
             declaring_type,
             slot,
             declared_target,
-            normal_target,
-            unwind_target,
-        } => mir::Terminator::InvokeClass {
+            target,
+        } => mir::Terminator::CallClass {
             receiver: *receiver,
             call: call.clone(),
             declaring_type: *declaring_type,
             slot: *slot,
             declared_target: *declared_target,
-            normal_target: mir::BlockTarget {
-                block: normal_target
+            target: mir::BlockTarget {
+                block: target
                     .block
                     .block()
                     .and_then(|block| block_map.get(&block).copied())
                     .map(mir::BlockReference::from)
-                    .unwrap_or(normal_target.block),
-                arguments: normal_target.arguments.clone(),
-            },
-            unwind_target: mir::BlockTarget {
-                block: unwind_target
-                    .block
-                    .block()
-                    .and_then(|block| block_map.get(&block).copied())
-                    .map(mir::BlockReference::from)
-                    .unwrap_or(unwind_target.block),
-                arguments: unwind_target.arguments.clone(),
+                    .unwrap_or(target.block),
+                arguments: target.arguments.clone(),
             },
         },
-        mir::Terminator::InvokeInterface {
+        mir::Terminator::CallInterface {
             receiver,
             call,
             declaring_type,
             slot,
-            normal_target,
-            unwind_target,
-        } => mir::Terminator::InvokeInterface {
+            target,
+        } => mir::Terminator::CallInterface {
             receiver: *receiver,
             call: call.clone(),
             declaring_type: *declaring_type,
             slot: *slot,
-            normal_target: mir::BlockTarget {
-                block: normal_target
+            target: mir::BlockTarget {
+                block: target
                     .block
                     .block()
                     .and_then(|block| block_map.get(&block).copied())
                     .map(mir::BlockReference::from)
-                    .unwrap_or(normal_target.block),
-                arguments: normal_target.arguments.clone(),
-            },
-            unwind_target: mir::BlockTarget {
-                block: unwind_target
-                    .block
-                    .block()
-                    .and_then(|block| block_map.get(&block).copied())
-                    .map(mir::BlockReference::from)
-                    .unwrap_or(unwind_target.block),
-                arguments: unwind_target.arguments.clone(),
+                    .unwrap_or(target.block),
+                arguments: target.arguments.clone(),
             },
         },
         // return, unreachable, tailcall don't reference blocks that need remapping
         mir::Terminator::Return { .. }
-        | mir::Terminator::Throw { .. }
         | mir::Terminator::Trap { .. }
         | mir::Terminator::Unreachable
         | mir::Terminator::TailCall { .. }

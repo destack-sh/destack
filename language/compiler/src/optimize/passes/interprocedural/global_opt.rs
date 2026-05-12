@@ -519,13 +519,13 @@ fn terminator_write_arguments(
     terminator: &mir::Terminator,
 ) -> Option<Vec<mir::ValueReference>> {
     match terminator {
-        mir::Terminator::Invoke { function, call, .. } => {
+        mir::Terminator::Call { function, call, .. } => {
             let function = function.function()?;
             function_memory_writes_from_tree(tree, function).then(|| call.arguments.clone())
         }
-        mir::Terminator::InvokeIndirect { call, .. } => Some(call.arguments.clone()),
-        mir::Terminator::InvokeClass { receiver, call, .. }
-        | mir::Terminator::InvokeInterface { receiver, call, .. }
+        mir::Terminator::CallIndirect { call, .. } => Some(call.arguments.clone()),
+        mir::Terminator::CallClass { receiver, call, .. }
+        | mir::Terminator::CallInterface { receiver, call, .. }
         | mir::Terminator::TailCallClass { receiver, call, .. }
         | mir::Terminator::TailCallInterface { receiver, call, .. } => {
             let block = tree.get(block_id);
@@ -660,11 +660,11 @@ b0(v0: ref<int32, raw>):
 function root(v0: ref<void, managed, readonly>): void {
 b0(v0: ref<void, managed, readonly>):
     v1: ref<int32, raw> = global.address value
-    invoke write(v1): (ref<int32, raw>) -> void -> b1, catch b2
+    call write(v1): (ref<int32, raw>) -> void -> b1
 b1:
     return
 b2(v2: ref<void, managed, readonly>):
-    throw v2
+    trap.panic v2
 }"#;
 
         let mut test = TestProgram::new(input);

@@ -380,7 +380,7 @@ fn compute_function_summary(
             mir::Terminator::Return { .. } => {
                 has_return = true;
             }
-            mir::Terminator::Invoke { function, .. } => {
+            mir::Terminator::Call { function, .. } => {
                 let Some(function) = function.function() else {
                     continue;
                 };
@@ -392,9 +392,9 @@ fn compute_function_summary(
                     has_return = true;
                 }
             }
-            mir::Terminator::InvokeIndirect { .. }
-            | mir::Terminator::InvokeClass { .. }
-            | mir::Terminator::InvokeInterface { .. } => {
+            mir::Terminator::CallIndirect { .. }
+            | mir::Terminator::CallClass { .. }
+            | mir::Terminator::CallInterface { .. } => {
                 let (effect, behavior) =
                     call_effects_for_dynamic_terminator(tree, block_id, summaries);
                 memory_builder.record_effect(&effect);
@@ -402,9 +402,6 @@ fn compute_function_summary(
                 if !behavior.return_behavior.is_no_return() {
                     has_return = true;
                 }
-            }
-            mir::Terminator::Throw { .. } => {
-                behavior_builder.unwind_behavior = mir::UnwindBehavior::MayUnwind;
             }
             mir::Terminator::Trap { .. } => {}
             mir::Terminator::TailCall { function, .. } => {
@@ -1091,11 +1088,11 @@ b0(v0: ref<int32, raw>):
 }
 function caller(v0: ref<int32, raw>, v1: ref<void, managed, readonly>): void {
 b0(v0: ref<int32, raw>, v1: ref<void, managed, readonly>):
-    invoke callee(v0): (ref<int32, raw>) -> void -> b1, catch b2
+    call callee(v0): (ref<int32, raw>) -> void -> b1
 b1:
     return
 b2(v2: ref<void, managed, readonly>):
-    throw v2
+    trap.panic v2
 }"#;
 
         let mut test = TestProgram::new(input);

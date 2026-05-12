@@ -63,8 +63,7 @@ Make MIR more optimal for execution.
 | `profile` | ProfileSummary | module | | — | Profile counters, hotness, and value profiles |
 | `branch-prob` | BranchProbability | function | | cfg, profile | Branch probabilities derived from profiles |
 | `block-freq` | BlockFrequency | function | | cfg, branch-prob | Estimated block execution frequencies |
-| `effect` | EffectAnalysis | function | | callgraph | Summary of side effects, allocation, and throws |
-| `exception-flow` | ExceptionFlowAnalysis | function | | cfg, effect | Which edges can throw or unwind |
+| `effect` | EffectAnalysis | function | | callgraph | Summary of side effects and allocation |
 | `tbaa` | TypeBasedAliasAnalysis | function | ✓ | type-flow | Alias refinement from static type information |
 | `typed-array` | TypedArrayAnalysis | function | | type-flow | Typed array element kinds and bounds facts |
 | `string-literal` | StringLiteralAnalysis | function | | constant-propagation | Known string constants and length data |
@@ -162,7 +161,7 @@ Optimizations for memory allocation and access patterns.
 | `memcpy-opt` | MemcpyOpt | function | O2 | | alias, memory-ssa, constant-propagation | Simplify and merge memcpy, memmove, and memset operations |
 | `stack-promote` | StackPromote | function | O2 | | escape | Convert non-escaping heap allocations to stack |
 | `gc-barrier-write-elide` | BarrierWriteElide | function | O2 | | alias, effect, escape | Remove redundant GC barrier writes |
-| `speculative-load-hoist` | SpeculativeLoadHoist | function | O3 | | domtree, alias, exception-flow, block-freq | Hoist loads speculatively when safe |
+| `speculative-load-hoist` | SpeculativeLoadHoist | function | O3 | | domtree, alias, block-freq | Hoist loads speculatively when safe |
 
 ### Loop (L)
 

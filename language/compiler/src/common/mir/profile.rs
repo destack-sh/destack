@@ -467,48 +467,18 @@ pub fn terminator_edges(
                 )]
             })
         }
-        mir::Terminator::Invoke {
-            normal_target,
-            unwind_target,
-            ..
-        }
-        | mir::Terminator::InvokeIndirect {
-            normal_target,
-            unwind_target,
-            ..
-        }
-        | mir::Terminator::InvokeClass {
-            normal_target,
-            unwind_target,
-            ..
-        }
-        | mir::Terminator::InvokeInterface {
-            normal_target,
-            unwind_target,
-            ..
-        } => {
-            let mut edges = Vec::with_capacity(2);
-
-            // normal edge
-            if let Some(target) = normal_target.block.block() {
-                edges.push((
-                    mir::EdgeKey::new(source, mir::EdgeKind::CallNormal, target),
+        mir::Terminator::Call { target, .. }
+        | mir::Terminator::CallIndirect { target, .. }
+        | mir::Terminator::CallClass { target, .. }
+        | mir::Terminator::CallInterface { target, .. } => {
+            target.block.block().map_or_else(Vec::new, |target| {
+                vec![(
+                    mir::EdgeKey::new(source, mir::EdgeKind::Call, target),
                     target,
-                ));
-            }
-
-            // unwind edge
-            if let Some(target) = unwind_target.block.block() {
-                edges.push((
-                    mir::EdgeKey::new(source, mir::EdgeKind::CallUnwind, target),
-                    target,
-                ));
-            }
-
-            edges
+                )]
+            })
         }
         mir::Terminator::Return { .. }
-        | mir::Terminator::Throw { .. }
         | mir::Terminator::Trap { .. }
         | mir::Terminator::Unreachable
         | mir::Terminator::TailCall { .. }

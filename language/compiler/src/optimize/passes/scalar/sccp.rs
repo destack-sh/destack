@@ -519,38 +519,17 @@ impl<'a> SccpState<'a> {
 
                 self.mark_edge_executable(block_id, resume_block, &resume.arguments);
             }
-            mir::Terminator::Invoke {
-                normal_target,
-                unwind_target,
-                ..
-            }
-            | mir::Terminator::InvokeIndirect {
-                normal_target,
-                unwind_target,
-                ..
-            }
-            | mir::Terminator::InvokeClass {
-                normal_target,
-                unwind_target,
-                ..
-            }
-            | mir::Terminator::InvokeInterface {
-                normal_target,
-                unwind_target,
-                ..
-            } => {
-                let Some(normal_block) = normal_target.block.block() else {
-                    return;
-                };
-                let Some(unwind_block) = unwind_target.block.block() else {
+            mir::Terminator::Call { target, .. }
+            | mir::Terminator::CallIndirect { target, .. }
+            | mir::Terminator::CallClass { target, .. }
+            | mir::Terminator::CallInterface { target, .. } => {
+                let Some(target_block) = target.block.block() else {
                     return;
                 };
 
-                self.mark_edge_executable(block_id, normal_block, &normal_target.arguments);
-                self.mark_edge_executable(block_id, unwind_block, &unwind_target.arguments);
+                self.mark_edge_executable(block_id, target_block, &target.arguments);
             }
             mir::Terminator::Return { .. }
-            | mir::Terminator::Throw { .. }
             | mir::Terminator::Trap { .. }
             | mir::Terminator::Unreachable
             | mir::Terminator::TailCall { .. }

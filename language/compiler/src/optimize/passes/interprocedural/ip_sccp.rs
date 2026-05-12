@@ -648,7 +648,7 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
 
             // record call terminators
             match terminator {
-                mir::Terminator::Invoke {
+                mir::Terminator::Call {
                     function: callee,
                     call,
                     ..
@@ -666,9 +666,9 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
                         arguments,
                     });
                 }
-                mir::Terminator::InvokeIndirect { call, .. }
-                | mir::Terminator::InvokeClass { call, .. }
-                | mir::Terminator::InvokeInterface { call, .. } => {
+                mir::Terminator::CallIndirect { call, .. }
+                | mir::Terminator::CallClass { call, .. }
+                | mir::Terminator::CallInterface { call, .. } => {
                     if let Some(signature) = call
                         .signature
                         .ty()
@@ -920,11 +920,11 @@ b0(v0: int32):
 function root(): int32 {
 b0:
     v0: int32 = 9int32
-    invoke callee(v0): (int32) -> int32 -> b1, catch b2
+    call callee(v0): (int32) -> int32 -> b1
 b1(v1: int32):
     return v1
 b2(v2: ref<int32, managed, readonly>):
-    throw v2
+    trap.panic v2
 }"#;
 
         let expected = r#"
@@ -936,11 +936,11 @@ b0(v0: int32):
 function root(): int32 {
 b0:
     v0: int32 = 9int32
-    invoke callee(v0): (int32) -> int32 -> b1, catch b2
+    call callee(v0): (int32) -> int32 -> b1
 b1(v1: int32):
     return v1
 b2(v2: ref<int32, managed, readonly>):
-    throw v2
+    trap.panic v2
 }"#;
 
         let mut test = TestProgram::new(input);

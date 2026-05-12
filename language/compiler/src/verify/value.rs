@@ -142,21 +142,20 @@ pub(super) fn terminator_consumes(terminator: &Terminator) -> Vec<ValueReference
 
     match terminator {
         Terminator::Return { value: Some(value) }
-        | Terminator::Throw { value }
         | Terminator::Yield { value, .. }
         | Terminator::Trap {
             payload: Some(value),
             ..
         } => values.push(*value),
-        Terminator::Invoke { call, .. } | Terminator::TailCall { call, .. } => {
+        Terminator::Call { call, .. } | Terminator::TailCall { call, .. } => {
             push_arguments(&mut values, &call.arguments);
         }
-        Terminator::InvokeIndirect { callee, call, .. } => {
+        Terminator::CallIndirect { callee, call, .. } => {
             values.push(*callee);
             push_arguments(&mut values, &call.arguments);
         }
-        Terminator::InvokeClass { receiver, call, .. }
-        | Terminator::InvokeInterface { receiver, call, .. }
+        Terminator::CallClass { receiver, call, .. }
+        | Terminator::CallInterface { receiver, call, .. }
         | Terminator::TailCallClass { receiver, call, .. }
         | Terminator::TailCallInterface { receiver, call, .. } => {
             values.push(*receiver);
