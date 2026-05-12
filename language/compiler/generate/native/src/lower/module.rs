@@ -105,9 +105,7 @@ impl<'a> ModuleLowerer<'a> {
             let linkage = self.convert_linkage(function.linkage);
 
             // create cranelift function
-            let cl_function_id = self
-                .cl_module
-                .declare_function(&name, linkage, &signature)?;
+            let cl_function_id = self.cl_module.declare_function(name, linkage, &signature)?;
             self.cl_function_ids.insert(function_id, cl_function_id);
         }
 
@@ -128,7 +126,7 @@ impl<'a> ModuleLowerer<'a> {
             let writable = global.is_mutable();
             let data_id = self
                 .cl_module
-                .declare_data(&name, linkage, writable, false)?;
+                .declare_data(name, linkage, writable, false)?;
 
             // define the data if we have an initializer (not for imports)
             if let Some(ref init) = global.initializer {

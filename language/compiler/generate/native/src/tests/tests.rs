@@ -1,14 +1,8 @@
-use destack_artifact::MirLowered;
 use destack_mir as mir;
-use destack_source::{FileId, ModuleId, PackageId, TargetId};
+use destack_source::FileId;
 use mir::parse::ParseOptions;
 
 use crate::CodegenCraneliftBackend;
-
-/// Build one stable test target id for CLIF fixtures.
-fn test_target_id(package_id: PackageId, name: &str) -> TargetId {
-    TargetId::new(package_id, name)
-}
 
 /// Helper to compile MIR text to CLIF text.
 pub(crate) fn compile_mir_to_clif(source: &str) -> String {
@@ -17,18 +11,9 @@ pub(crate) fn compile_mir_to_clif(source: &str) -> String {
             .finish()
             .expect("failed to parse MIR");
 
-    // create a base MIR payload and populate it
-    let mut module = MirLowered::new();
-    module.tree = tree;
-
-    // copy strings into module's string pool
-    for (_, string) in strings.iter() {
-        module.strings.intern(string);
-    }
-
     let backend = CodegenCraneliftBackend::native().expect("failed to create backend");
     backend
-        .compile_to_clif(&module.tree, &module.strings, "test")
+        .compile_to_clif(&tree, &strings, "test")
         .expect("failed to compile")
 }
 
