@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use destack_mir as mir;
 
 use crate::program::{
-    Layout, PointerClass, Projection, SliceProjection, ValueLayout, WordLayout,
-    pointer_class_from_reference, repr_type, word_layout_from_type,
+    Layout, PointerClass, Projection, SliceProjection, SlotProjection, ValueLayout, WordLayout,
+    pointer_class_from_reference, repr_type, word_layout_from_pointer_class, word_layout_from_type,
 };
 
 /// Build one field projection from one compiled layout.
@@ -115,8 +115,8 @@ pub(super) fn slice_projection(
 ) -> Option<SliceProjection> {
     let mir::Type::Slice {
         element,
-        kind: _,
-        address_space: _,
+        kind,
+        address_space,
         access: _,
         ..
     } = tree.get(repr_type(tree, slice_type))
@@ -125,23 +125,24 @@ pub(super) fn slice_projection(
     };
     let element_type = element.ty()?;
     let layout = layouts.get(&slice_type)?;
-    let slice = layout.slice()?;
+    if !layout.is_slice() {
+        return None;
+    }
+
     let element_layout = layouts.get(&element_type)?;
     let element_word_layout = access_word_layout(tree, layouts, element_type);
+    let data_pointer_class = pointer_class_from_reference(address_space.clone(), *kind);
+    let data_word_layout = word_layout_from_pointer_class(data_pointer_class)?;
+    let pointer_bytes = tree.pointer_bytes() as usize;
+    let data_byte_len = data_word_layout.byte_len(pointer_bytes);
+    let length_offset = data_byte_len.next_multiple_of(pointer_bytes);
+    let length_word_layout = WordLayout::Uint {
+        width: usize::BITS as u8,
+    };
 
     Some(SliceProjection {
-        data: Projection::fixed(
-            slice.data.ty,
-            slice.data.offset,
-            slice.data.byte_len,
-            word_layout_from_type(tree, slice.data.ty),
-        ),
-        length: Projection::fixed(
-            slice.length.ty,
-            slice.length.offset,
-            slice.length.byte_len,
-            word_layout_from_type(tree, slice.length.ty),
-        ),
+        data: SlotProjection::fixed(0, data_byte_len, data_word_layout),
+        length: SlotProjection::fixed(length_offset, pointer_bytes, length_word_layout),
         element: Projection::indexed(
             element_type,
             0,

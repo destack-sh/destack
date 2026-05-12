@@ -77,13 +77,35 @@ impl Projection {
     }
 }
 
+/// Compiled projection from a base address to one physical word slot.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct SlotProjection {
+    /// The fixed byte offset from the base address.
+    pub byte_offset: usize,
+    /// The byte width of the slot payload.
+    pub byte_len: usize,
+    /// The word representation for this slot.
+    pub word_layout: WordLayout,
+}
+
+impl SlotProjection {
+    /// Return a fixed slot projection.
+    pub(crate) fn fixed(byte_offset: usize, byte_len: usize, word_layout: WordLayout) -> Self {
+        Self {
+            byte_offset,
+            byte_len,
+            word_layout,
+        }
+    }
+}
+
 /// Compiled projection data for one slice descriptor.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct SliceProjection {
     /// The slice data projection.
-    pub data: Projection,
+    pub data: SlotProjection,
     /// The slice length projection.
-    pub length: Projection,
+    pub length: SlotProjection,
     /// The backing element projection.
     pub element: Projection,
 }
