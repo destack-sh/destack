@@ -1,19 +1,32 @@
-/// Bitmask of virtual-memory protection permissions.
+/// Virtual memory address range.
+export struct VirtualMemoryRange {
+    /// Base virtual address.
+    address: uint64;
+    /// Range length in bytes.
+    length: uint64;
+}
+
+/// Bitmask of virtual memory protection permissions.
 export newtype MemoryProtection = uint32;
 
-/// Flags for virtual-memory reserve and allocate operations.
-export newtype MemoryReserveFlags = uint32;
+/// Flags for virtual memory reservation operations.
+export newtype VirtualMemoryReserveFlags = uint32;
+
+/// File mapping visibility.
+export enum MappedMemoryVisibility {
+    /// Share writes with the backing object.
+    Shared = 1,
+    /// Keep writes private to this process.
+    Private = 2,
+}
 
 /// Flags for file and anonymous memory mappings.
-export newtype MemoryMapFlags = uint32;
-
-/// Flags for virtual-memory remap operations.
-export newtype MemoryRemapFlags = uint32;
+export newtype MappedMemoryFlags = uint32;
 
 /// Flags for flushing mapped memory.
-export newtype MemorySyncFlags = uint32;
+export newtype MappedMemorySyncFlags = uint32;
 
-/// Memory access-pattern advice selector.
+/// Memory access pattern advice selector.
 export enum MemoryAdvice {
     /// No special access pattern.
     Normal = 0,
@@ -37,31 +50,32 @@ export const MEMORY_PROTECTION_WRITE: MemoryProtection = MemoryProtection(0x2);
 export const MEMORY_PROTECTION_EXECUTE: MemoryProtection = MemoryProtection(0x4);
 
 /// No reserve flags.
-export const MEMORY_RESERVE_NONE: MemoryReserveFlags = MemoryReserveFlags(0x0);
+export const VIRTUAL_MEMORY_RESERVE_NONE: VirtualMemoryReserveFlags = VirtualMemoryReserveFlags(0x0);
+
 /// Prefer high virtual addresses where supported.
-export const MEMORY_RESERVE_TOP_DOWN: MemoryReserveFlags = MemoryReserveFlags(0x1);
-/// Request large-page backing for allocation-time mappings where supported.
-export const MEMORY_RESERVE_LARGE_PAGES: MemoryReserveFlags = MemoryReserveFlags(0x2);
+export const VIRTUAL_MEMORY_RESERVE_TOP_DOWN: VirtualMemoryReserveFlags = VirtualMemoryReserveFlags(0x1);
+
 /// Reserve address space without guaranteed swap reservation where supported.
-export const MEMORY_RESERVE_NO_RESERVE: MemoryReserveFlags = MemoryReserveFlags(0x4);
+export const VIRTUAL_MEMORY_RESERVE_NO_RESERVE: VirtualMemoryReserveFlags = VirtualMemoryReserveFlags(0x2);
 
-/// Share mapping writes with the underlying object.
-export const MEMORY_MAP_SHARED: MemoryMapFlags = MemoryMapFlags(0x1);
-/// Keep mapping writes private to the process.
-export const MEMORY_MAP_PRIVATE: MemoryMapFlags = MemoryMapFlags(0x2);
+/// No mapped memory flags.
+export const MAPPED_MEMORY_NONE: MappedMemoryFlags = MappedMemoryFlags(0x0);
+
 /// Request a fixed virtual address when the host supports it.
-export const MEMORY_MAP_FIXED: MemoryMapFlags = MemoryMapFlags(0x10);
-/// Create an anonymous mapping with no file backing.
-export const MEMORY_MAP_ANONYMOUS: MemoryMapFlags = MemoryMapFlags(0x20);
+export const MAPPED_MEMORY_FIXED: MappedMemoryFlags = MappedMemoryFlags(0x10);
 
-/// No remap flags.
-export const MEMORY_REMAP_NONE: MemoryRemapFlags = MemoryRemapFlags(0x0);
-/// Allow remap operation to move mapping base address.
-export const MEMORY_REMAP_MAY_MOVE: MemoryRemapFlags = MemoryRemapFlags(0x1);
+/// Request large page backing where supported.
+export const MAPPED_MEMORY_LARGE_PAGES: MappedMemoryFlags = MappedMemoryFlags(0x20);
+
+/// No mapped memory synchronization flags.
+export const MAPPED_MEMORY_SYNC_NONE: MappedMemorySyncFlags = MappedMemorySyncFlags(0x0);
 
 /// Schedule asynchronous writeback for dirty mapping pages.
-export const MEMORY_SYNC_ASYNC: MemorySyncFlags = MemorySyncFlags(0x1);
+export const MAPPED_MEMORY_SYNC_ASYNC: MappedMemorySyncFlags = MappedMemorySyncFlags(0x1);
+
 /// Invalidate cached mapping pages after synchronization.
-export const MEMORY_SYNC_INVALIDATE: MemorySyncFlags = MemorySyncFlags(0x2);
+export const MAPPED_MEMORY_SYNC_INVALIDATE: MappedMemorySyncFlags =
+    MappedMemorySyncFlags(0x2);
+
 /// Wait for dirty mapping pages to be written back.
-export const MEMORY_SYNC_WAIT: MemorySyncFlags = MemorySyncFlags(0x4);
+export const MAPPED_MEMORY_SYNC_WAIT: MappedMemorySyncFlags = MappedMemorySyncFlags(0x4);
