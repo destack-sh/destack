@@ -43,8 +43,8 @@ impl std::fmt::Debug for Session {
 }
 
 impl Session {
-    /// Return the default session worker limit.
-    pub fn default_worker_limit() -> usize {
+    /// Return the default session worker count.
+    pub fn default_worker_count() -> usize {
         thread::available_parallelism().map_or(1, usize::from)
     }
 
@@ -58,7 +58,7 @@ impl Session {
         compiler: Arc<Compiler>,
         linter: Arc<Linter>,
         query: Arc<Query>,
-        worker_limit: usize,
+        worker_count: usize,
         event_handler: Option<SessionEventHandler>,
     ) -> Result<Self, SessionError> {
         // bind the explicit private ref to its base revision
@@ -74,7 +74,7 @@ impl Session {
             compiler,
             linter,
             query,
-            worker_limit,
+            worker_count,
             event_handler,
         )
     }
@@ -88,7 +88,7 @@ impl Session {
         compiler: Arc<Compiler>,
         linter: Arc<Linter>,
         query: Arc<Query>,
-        worker_limit: usize,
+        worker_count: usize,
         event_handler: Option<SessionEventHandler>,
     ) -> Result<Self, SessionError> {
         let state = Arc::new(SessionState::new(
@@ -104,7 +104,7 @@ impl Session {
             cwd,
             state: state.clone(),
             head,
-            executor: Executor::with_worker_limit(state, worker_limit)?,
+            executor: Executor::new(state, worker_count)?,
         })
     }
 

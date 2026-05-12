@@ -81,7 +81,7 @@ impl Default for DaemonConnectOptions {
         Self {
             client: ProtocolClientOptions::default(),
             server: ProtocolServerOptions::default(),
-            worker_limit: Session::default_worker_limit(),
+            worker_limit: Session::default_worker_count(),
             session_event_handler: None,
             retry_delay: Duration::from_millis(50),
             timeout: Duration::from_secs(3),
