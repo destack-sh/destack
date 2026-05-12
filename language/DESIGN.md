@@ -402,13 +402,21 @@ Unlike Rust, Destack's `[T]` is sized and a first-class slice _value_, more akin
 Also, unlike JavaScript, Destack does not permit holes in arrays or any other sequences, and indexing into `T[]` therefore returns `T`, not `T | undefined` (out-of-bounds indexing traps or errors depending on compiler options).
 
 ```ds
-let xs: int32[] = [1, 2, 3];
-let ys: Array<int32> = [1, 2, 3];
-let zs: [int32] = [1, 2, 3];
+let x: int32[] = [1, 2, 3]; // dynamic array of int32
+let x: Array<int32> = [1, 2, 3]; // dynamic array of int32
+
+let x: [int32] = [1, 2, 3]; // slice of int32
+let x: Slice<int32> = [1, 2, 3]; // slice of int32
+
+let x: [int32; 3] = [1, 2, 3]; // fixed array of int32
+let x: FixedArray<int32; 3> = [1, 2, 3]; // fixed array of int32
+
+let x: (int32, int32, int32) = (1, 2, 3); // tuple of int32
 ```
 
 Fixed arrays are homogeneous arrays whose length is statically known and part of the type.
 They are inline value/layout types by default, and definitionally cannot grow.
+(If you need an array that can grow, use a dynamic array, i.e. `T[]` / `Array<T>`)
 
 ```ds
 type Block = [uint8; 4096]; // 4KB of uint8
