@@ -1,32 +1,59 @@
 import type { PlatformError } from "../error/index.ds";
 import { PtyHandle, TtyHandle } from "../resource/index.ds";
+import { TtySize } from "./terminal.ds";
 
-/// Open pseudo-terminal pair.
+/// Pseudo terminal open options.
+export struct PtyOpenOptions {
+    /// Initial terminal size.
+    size: TtySize;
+}
+
+/// Pseudo terminal pair.
 export struct PtyPair {
     /// Controller endpoint.
     controller: PtyHandle;
-    /// Worker terminal endpoint.
-    worker: TtyHandle;
+    /// Terminal endpoint.
+    terminal: TtyHandle;
 }
 
-/// Open one pseudo-terminal pair.
+/// Open one pseudo terminal pair.
 @binding("destack.tty.pty.open", {
     effect: "external",
     requires: ["tty.pty"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function ptyOpen(
-    rows: uint32,
-    columns: uint32,
-    flags: uint32,
-): Result<PtyPair, PlatformError>;
+export declare function openPty(options: &readonly PtyOpenOptions): Result<PtyPair, PlatformError>;
 
-/// Close one pseudo-terminal controller.
-@binding("destack.tty.pty.close", {
+/// Read bytes from one pseudo terminal controller.
+@binding("destack.tty.pty.read", {
     effect: "external",
-    requires: ["tty.pty"],
+    requires: ["tty.pty.read"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function ptyClose(handle: PtyHandle): Result<void, PlatformError>;
+export declare function readPty(
+    pty: PtyHandle,
+    buffer: &[uint8],
+): Result<uint64, PlatformError>;
+
+/// Write bytes to one pseudo terminal controller.
+@binding("destack.tty.pty.write", {
+    effect: "external",
+    requires: ["tty.pty.write"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function writePty(
+    pty: PtyHandle,
+    buffer: &readonly [uint8],
+): Result<uint64, PlatformError>;
+
+/// Close one pseudo terminal controller.
+@binding("destack.tty.pty.close", {
+    effect: "external",
+    requires: ["tty.close"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function closePty(pty: PtyHandle): Result<void, PlatformError>;
