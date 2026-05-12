@@ -154,7 +154,7 @@ pub enum LayoutShape {
     /// Object layout with a class dispatch table header.
     Object {
         /// The byte offset of the class dispatch table pointer.
-        vtable_offset: u32,
+        table_offset: u32,
     },
     /// Erased Any value layout with value and table offsets.
     Any {
