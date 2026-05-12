@@ -6,12 +6,12 @@ use crate::{Keyword, TokenType};
 ///
 /// Precedence:
 /// ```
-/// x() x[] x{} x? x! x++ x--       // postfix
-/// !x -x -%x ~x *x &x ..x ++x --x  // prefix
-/// ** **% **|                       // exponentiation
-/// * / % *% *|                      // multiplication
-/// + - +% -% +| -|                 // addition
-/// << >> <<|                        // shift
+/// x() x[] x{} x? x! x++ x--        // postfix
+/// !x -x ~x *x &x ..x ++x --x       // prefix
+/// **                               // exponentiation
+/// * / %                            // multiplication
+/// + -                              // addition
+/// << >>                            // shift
 /// < > <= >= in instanceof          // comparison
 /// == != === !==                    // equality
 /// &                                // bitwise and
@@ -28,19 +28,19 @@ pub enum OperatorPrecedence {
     /// `x() x[] x{} x? x! x++ x--`
     Postfix = 2000,
     /// Unary prefix operators.
-    /// `!x -x -%x ~x &x *x ..x ++x --x`
+    /// `!x -x ~x &x *x ..x ++x --x`
     Prefix = 1900,
     /// Exponentiation-related binary operators.
-    /// `** **% **|`
+    /// `**`
     Exponentiation = 1800,
     /// Multiplication-related binary operators.
-    /// `* / % *% *|`
+    /// `* / %`
     Multiplication = 1700,
     /// Addition-related binary operators.
-    /// `+ - +% -% +| -|`
+    /// `+ -`
     Addition = 1600,
     /// Shift-related binary operators.
-    /// `<< >> <<|`
+    /// `<< >>`
     Shift = 1500,
     /// Comparison-related binary operators.
     /// `< > <= >= in instanceof`
@@ -89,8 +89,6 @@ pub enum UnaryOperator {
     Plus = 1906,
     /// `-`
     Negate = 1905,
-    /// `-%`
-    WrappingNegate = 1904,
     /// `~`
     ElementwiseNot = 1903,
     /// `typeof`
@@ -126,7 +124,6 @@ impl UnaryOperator {
             | UnaryOperator::Not
             | UnaryOperator::Plus
             | UnaryOperator::Negate
-            | UnaryOperator::WrappingNegate
             | UnaryOperator::ElementwiseNot
             | UnaryOperator::Typeof
             | UnaryOperator::Void
@@ -151,7 +148,6 @@ impl UnaryOperator {
             TokenType::Not => Some(UnaryOperator::Not),
             TokenType::Add => Some(UnaryOperator::Plus),
             TokenType::Subtract => Some(UnaryOperator::Negate),
-            TokenType::WrappingSubtract => Some(UnaryOperator::WrappingNegate),
             TokenType::Multiply => Some(UnaryOperator::Dereference),
             TokenType::ElementwiseNot => Some(UnaryOperator::ElementwiseNot),
             TokenType::Spread => Some(UnaryOperator::Spread),
@@ -187,18 +183,9 @@ pub enum BinaryOperator {
     // exponentiation
     /// `**`
     Exponent = 1802,
-    /// `**%`
-    WrappingExponent = 1801,
-    /// `**|`
-    SaturatingExponent = 1800,
-
     // multiplication
     /// `*`
     Multiply = 1703,
-    /// `*%`
-    WrappingMultiply = 1702,
-    /// `*|`
-    SaturatingMultiply = 1701,
     /// `/`
     Divide = 1704,
     /// `%`
@@ -207,22 +194,12 @@ pub enum BinaryOperator {
     // addition
     /// `+`
     Add = 1605,
-    /// `+%`
-    WrappingAdd = 1604,
-    /// `+|`
-    SaturatingAdd = 1603,
     /// `-`
     Subtract = 1602,
-    /// `-%`
-    WrappingSubtract = 1601,
-    /// `-|`
-    SaturatingSubtract = 1600,
 
     // shift
     /// `<<`
     ShiftLeft = 1502,
-    /// `<<|`
-    SaturatingShiftLeft = 1501,
     /// `>>`
     ShiftRight = 1500,
     /// `>>>`
@@ -274,27 +251,18 @@ impl BinaryOperator {
         match self {
             // exponentiation
             BinaryOperator::Exponent => OperatorPrecedence::Exponentiation,
-            BinaryOperator::WrappingExponent => OperatorPrecedence::Exponentiation,
-            BinaryOperator::SaturatingExponent => OperatorPrecedence::Exponentiation,
 
             // multiplication
             BinaryOperator::Multiply => OperatorPrecedence::Multiplication,
-            BinaryOperator::WrappingMultiply => OperatorPrecedence::Multiplication,
-            BinaryOperator::SaturatingMultiply => OperatorPrecedence::Multiplication,
             BinaryOperator::Divide => OperatorPrecedence::Multiplication,
             BinaryOperator::Remainder => OperatorPrecedence::Multiplication,
 
             // addition
             BinaryOperator::Add => OperatorPrecedence::Addition,
-            BinaryOperator::WrappingAdd => OperatorPrecedence::Addition,
-            BinaryOperator::SaturatingAdd => OperatorPrecedence::Addition,
             BinaryOperator::Subtract => OperatorPrecedence::Addition,
-            BinaryOperator::WrappingSubtract => OperatorPrecedence::Addition,
-            BinaryOperator::SaturatingSubtract => OperatorPrecedence::Addition,
 
             // shift
             BinaryOperator::ShiftLeft => OperatorPrecedence::Shift,
-            BinaryOperator::SaturatingShiftLeft => OperatorPrecedence::Shift,
             BinaryOperator::ShiftRight => OperatorPrecedence::Shift,
             BinaryOperator::UnsignedShiftRight => OperatorPrecedence::Shift,
 
@@ -335,25 +303,16 @@ impl BinaryOperator {
         match token_type {
             // multiplication
             TokenType::Multiply => Some(BinaryOperator::Multiply),
-            TokenType::WrappingMultiply => Some(BinaryOperator::WrappingMultiply),
-            TokenType::SaturatingMultiply => Some(BinaryOperator::SaturatingMultiply),
             TokenType::Exponent => Some(BinaryOperator::Exponent),
-            TokenType::WrappingExponent => Some(BinaryOperator::WrappingExponent),
-            TokenType::SaturatingExponent => Some(BinaryOperator::SaturatingExponent),
             TokenType::Divide => Some(BinaryOperator::Divide),
             TokenType::Remainder => Some(BinaryOperator::Remainder),
 
             // addition
             TokenType::Add => Some(BinaryOperator::Add),
-            TokenType::WrappingAdd => Some(BinaryOperator::WrappingAdd),
-            TokenType::SaturatingAdd => Some(BinaryOperator::SaturatingAdd),
             TokenType::Subtract => Some(BinaryOperator::Subtract),
-            TokenType::WrappingSubtract => Some(BinaryOperator::WrappingSubtract),
-            TokenType::SaturatingSubtract => Some(BinaryOperator::SaturatingSubtract),
 
             // shift
             TokenType::ShiftLeft => Some(BinaryOperator::ShiftLeft),
-            TokenType::SaturatingShiftLeft => Some(BinaryOperator::SaturatingShiftLeft),
             TokenType::ShiftRight => Some(BinaryOperator::ShiftRight),
             TokenType::UnsignedShiftRight => Some(BinaryOperator::UnsignedShiftRight),
 
@@ -404,16 +363,8 @@ pub enum AssignOperator {
     // multiplication assignment
     /// `*=`
     MultiplyAssign,
-    /// `*%=`
-    WrappingMultiplyAssign,
-    /// `*|=`
-    SaturatingMultiplyAssign,
     /// `**=`
     ExponentAssign,
-    /// `**%=`
-    WrappingExponentAssign,
-    /// `**|`
-    SaturatingExponentAssign,
     /// `/=`
     DivideAssign,
     /// `%=`
@@ -422,22 +373,12 @@ pub enum AssignOperator {
     // addition assignment
     /// `+=`
     AddAssign,
-    /// `+%=`
-    WrappingAddAssign,
-    /// `+|=`
-    SaturatingAddAssign,
     /// `-=`
     SubtractAssign,
-    /// `-%=`
-    WrappingSubtractAssign,
-    /// `-|=`
-    SaturatingSubtractAssign,
 
     // shift assignment
     /// `<<=`
     ShiftLeftAssign,
-    /// `<<|=`
-    SaturatingShiftLeftAssign,
     /// `>>=`
     ShiftRightAssign,
     /// `>>>=`
@@ -481,25 +422,16 @@ impl AssignOperator {
 
             // addition
             TokenType::AddAssign => Some(AssignOperator::AddAssign),
-            TokenType::WrappingAddAssign => Some(AssignOperator::WrappingAddAssign),
-            TokenType::SaturatingAddAssign => Some(AssignOperator::SaturatingAddAssign),
             TokenType::SubtractAssign => Some(AssignOperator::SubtractAssign),
-            TokenType::WrappingSubtractAssign => Some(AssignOperator::WrappingSubtractAssign),
-            TokenType::SaturatingSubtractAssign => Some(AssignOperator::SaturatingSubtractAssign),
 
             // multiplication
             TokenType::MultiplyAssign => Some(AssignOperator::MultiplyAssign),
-            TokenType::WrappingMultiplyAssign => Some(AssignOperator::WrappingMultiplyAssign),
-            TokenType::SaturatingMultiplyAssign => Some(AssignOperator::SaturatingMultiplyAssign),
             TokenType::ExponentAssign => Some(AssignOperator::ExponentAssign),
-            TokenType::WrappingExponentAssign => Some(AssignOperator::WrappingExponentAssign),
-            TokenType::SaturatingExponentAssign => Some(AssignOperator::SaturatingExponentAssign),
             TokenType::DivideAssign => Some(AssignOperator::DivideAssign),
             TokenType::RemainderAssign => Some(AssignOperator::RemainderAssign),
 
             // shift
             TokenType::ShiftLeftAssign => Some(AssignOperator::ShiftLeftAssign),
-            TokenType::SaturatingShiftLeftAssign => Some(AssignOperator::SaturatingShiftLeftAssign),
             TokenType::ShiftRightAssign => Some(AssignOperator::ShiftRightAssign),
             TokenType::UnsignedShiftRightAssign => Some(AssignOperator::UnsignedShiftRightAssign),
 
@@ -525,25 +457,16 @@ impl AssignOperator {
 
             // addition
             AssignOperator::AddAssign => TokenType::AddAssign,
-            AssignOperator::WrappingAddAssign => TokenType::WrappingAddAssign,
-            AssignOperator::SaturatingAddAssign => TokenType::SaturatingAddAssign,
             AssignOperator::SubtractAssign => TokenType::SubtractAssign,
-            AssignOperator::WrappingSubtractAssign => TokenType::WrappingSubtractAssign,
-            AssignOperator::SaturatingSubtractAssign => TokenType::SaturatingSubtractAssign,
 
             // multiplication
             AssignOperator::MultiplyAssign => TokenType::MultiplyAssign,
-            AssignOperator::WrappingMultiplyAssign => TokenType::WrappingMultiplyAssign,
-            AssignOperator::SaturatingMultiplyAssign => TokenType::SaturatingMultiplyAssign,
             AssignOperator::ExponentAssign => TokenType::ExponentAssign,
-            AssignOperator::WrappingExponentAssign => TokenType::WrappingExponentAssign,
-            AssignOperator::SaturatingExponentAssign => TokenType::SaturatingExponentAssign,
             AssignOperator::DivideAssign => TokenType::DivideAssign,
             AssignOperator::RemainderAssign => TokenType::RemainderAssign,
 
             // shift
             AssignOperator::ShiftLeftAssign => TokenType::ShiftLeftAssign,
-            AssignOperator::SaturatingShiftLeftAssign => TokenType::SaturatingShiftLeftAssign,
             AssignOperator::ShiftRightAssign => TokenType::ShiftRightAssign,
             AssignOperator::UnsignedShiftRightAssign => TokenType::UnsignedShiftRightAssign,
 

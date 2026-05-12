@@ -158,16 +158,8 @@ pub enum TokenType {
 
     /// `*`
     Multiply,
-    /// `*%`
-    WrappingMultiply,
-    /// `*|`
-    SaturatingMultiply,
     /// `**`
     Exponent,
-    /// `**%`
-    WrappingExponent,
-    /// `**|`
-    SaturatingExponent,
     /// `/`
     Divide,
     /// `%`
@@ -179,16 +171,8 @@ pub enum TokenType {
 
     /// `+`
     Add,
-    /// `+%`
-    WrappingAdd,
-    /// `+|`
-    SaturatingAdd,
     /// `-`
     Subtract,
-    /// `-%`
-    WrappingSubtract,
-    /// `-|`
-    SaturatingSubtract,
     /// `++`
     Increment,
     /// `--`
@@ -200,8 +184,6 @@ pub enum TokenType {
 
     /// `<<`
     ShiftLeft,
-    /// `<<|`
-    SaturatingShiftLeft,
     /// `>>`
     ShiftRight,
     /// `>>>`
@@ -260,16 +242,8 @@ pub enum TokenType {
 
     /// `*=`
     MultiplyAssign,
-    /// `*%=`
-    WrappingMultiplyAssign,
-    /// `*|=`
-    SaturatingMultiplyAssign,
     /// `**=`
     ExponentAssign,
-    /// `**%=`
-    WrappingExponentAssign,
-    /// `**|`
-    SaturatingExponentAssign,
     /// `/=`
     DivideAssign,
     /// `%=`
@@ -281,16 +255,8 @@ pub enum TokenType {
 
     /// `+=`
     AddAssign,
-    /// `+%=`
-    WrappingAddAssign,
-    /// `+|=`
-    SaturatingAddAssign,
     /// `-=`
     SubtractAssign,
-    /// `-%=`
-    WrappingSubtractAssign,
-    /// `-|=`
-    SaturatingSubtractAssign,
 
     /// --------------------------------------------------
     /// Assignment Shift
@@ -298,8 +264,6 @@ pub enum TokenType {
 
     /// `<<=`
     ShiftLeftAssign,
-    /// `<<|=`
-    SaturatingShiftLeftAssign,
     /// `>>=`
     ShiftRightAssign,
     /// `>>>=`
@@ -378,27 +342,18 @@ impl Display for TokenType {
 
             // multiplication
             TokenType::Multiply => write!(f, "*"),
-            TokenType::WrappingMultiply => write!(f, "*%"),
-            TokenType::SaturatingMultiply => write!(f, "*|"),
             TokenType::Exponent => write!(f, "**"),
-            TokenType::WrappingExponent => write!(f, "**%"),
-            TokenType::SaturatingExponent => write!(f, "**|"),
             TokenType::Divide => write!(f, "/"),
             TokenType::Remainder => write!(f, "%"),
 
             // addition
             TokenType::Add => write!(f, "+"),
-            TokenType::WrappingAdd => write!(f, "+%"),
-            TokenType::SaturatingAdd => write!(f, "+|"),
             TokenType::Subtract => write!(f, "-"),
-            TokenType::WrappingSubtract => write!(f, "-%"),
-            TokenType::SaturatingSubtract => write!(f, "-|"),
             TokenType::Increment => write!(f, "++"),
             TokenType::Decrement => write!(f, "--"),
 
             // shift
             TokenType::ShiftLeft => write!(f, "<<"),
-            TokenType::SaturatingShiftLeft => write!(f, "<<|"),
             TokenType::ShiftRight => write!(f, ">>"),
             TokenType::UnsignedShiftRight => write!(f, ">>>"),
 
@@ -426,25 +381,16 @@ impl Display for TokenType {
 
             // assignment multiplication
             TokenType::MultiplyAssign => write!(f, "*="),
-            TokenType::WrappingMultiplyAssign => write!(f, "*%="),
-            TokenType::SaturatingMultiplyAssign => write!(f, "*|=="),
             TokenType::ExponentAssign => write!(f, "**="),
-            TokenType::WrappingExponentAssign => write!(f, "**%="),
-            TokenType::SaturatingExponentAssign => write!(f, "**|=="),
             TokenType::DivideAssign => write!(f, "/="),
             TokenType::RemainderAssign => write!(f, "%="),
 
             // assignment addition
             TokenType::AddAssign => write!(f, "+="),
-            TokenType::WrappingAddAssign => write!(f, "+%="),
-            TokenType::SaturatingAddAssign => write!(f, "+|=="),
             TokenType::SubtractAssign => write!(f, "-="),
-            TokenType::WrappingSubtractAssign => write!(f, "-%="),
-            TokenType::SaturatingSubtractAssign => write!(f, "-|=="),
 
             // assignment shift
             TokenType::ShiftLeftAssign => write!(f, "<<="),
-            TokenType::SaturatingShiftLeftAssign => write!(f, "<<|=="),
             TokenType::ShiftRightAssign => write!(f, ">>="),
             TokenType::UnsignedShiftRightAssign => write!(f, ">>>="),
 
