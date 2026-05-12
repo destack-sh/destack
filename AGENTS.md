@@ -13,7 +13,9 @@
 - Most comments are <1 sentence and should not include a period at the end (again, lowercase).
 - Avoid using hyphens inside comments, instead prefer colons or commas (except for proper compound words)
 - Inline comments may also just be single words or sequences of words if the "scoping" is clear; i.e., not every inline comment needs to be a sentence.
-- Com≤ments serve to organize the reader's mental model of the code, so they can be just anything from a one-word summary, a three word phrase, or a short explanatory note.
+- Comments serve to organize the reader's mental model of the code, so they can be just anything from a one-word summary, a three word phrase, or a short explanatory note.
+- For anything more than one/two words, most comments should be verb shaped, e.g.:
+"// build drop plan for each function" is much better than ""// each function gets an independent drop plan"
 - Trivial functions (<3-4 lines) do not _need_ comments / blank lines, especially when the comments just repeat the documentation above.
 - Also, tests don't need quite the same level of comments, especially within obvious test cases.
 - Documentation comments for functions/types/etc. should be proper sentences with punctuation.
@@ -78,9 +80,9 @@ else {
 - Prefer pure(ish) functions, pass in context explicitly when needed (usually as the last argument).
 - Break larger code blocks into logical chunks with whitespace and/or preamble comments.
 - All logic in functions and outside should be broken into small-ish coherent blocks (2-7 lines or so) with a preceding comment.
-- Logic blocks are always separated by blank lines (except the first).
+- Logic blocks are always separated by blank lines (except the very first in a function).
 - Usually you want the comment before the if clause / loop / whatever, not inside.
-- Every logic block should have a comment (returns may omit the comment), and every logic block (except the first) should have a blank line before it.
+- Every logic block should have a comment (returns may omit the comment), and every logic block (except the first) should have a blank line before it. See commenting for how to comment properly.
 - The return value implicit or explicit should also have a blank line before it, even if it's uncommented (which is, again, fine).
 - Use temporary variables for non-trivial operations (yes, it's deliberately verbose):
 ```rust
