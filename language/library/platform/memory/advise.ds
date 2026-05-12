@@ -1,5 +1,19 @@
 import { PlatformError } from "destack:platform/error";
-import { MemoryAdvice, VirtualMemoryRange } from "./types.ds";
+import { VirtualMemoryRange } from "./virtual.ds";
+
+/// Memory access pattern advice selector.
+export enum MemoryAdvice {
+    /// No special access pattern.
+    Normal = 0,
+    /// Expect mostly sequential access.
+    Sequential = 1,
+    /// Expect mostly random access.
+    Random = 2,
+    /// Pages will be needed soon.
+    WillNeed = 3,
+    /// Pages will not be needed soon.
+    DontNeed = 4,
+}
 
 /// Apply memory access advice.
 @binding("destack.memory.advise", {
