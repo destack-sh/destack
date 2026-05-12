@@ -3515,11 +3515,6 @@
           "const": "<<"
         },
         {
-          "description": "`<<|`",
-          "type": "string",
-          "const": "<<|"
-        },
-        {
           "description": "`>>`",
           "type": "string",
           "const": ">>"
@@ -3548,11 +3543,6 @@
           "description": "`<<=`",
           "type": "string",
           "const": "<<="
-        },
-        {
-          "description": "`<<|=`",
-          "type": "string",
-          "const": "<<|="
         },
         {
           "description": "`>>=`",
@@ -4191,19 +4181,15 @@
           ]
         },
         "optimize": {
-          "description": "Whether optimization is enabled.",
-          "type": "boolean",
-          "default": false
-        },
-        "optimizeLevel": {
-          "description": "Optimization level (0-4).",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint8",
-          "minimum": 0,
-          "maximum": 4
+          "description": "Optimization setting.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OptimizeJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "ltoMode": {
           "description": "Link time optimization mode.",
@@ -4216,7 +4202,7 @@
             }
           ]
         },
-        "floatMath": {
+        "float": {
           "description": "Floating point math optimization policy.",
           "anyOf": [
             {
@@ -4260,17 +4246,6 @@
             }
           ]
         },
-        "unwind": {
-          "description": "Native unwind metadata format.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/UnwindFormatJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "strip": {
           "description": "Symbol stripping policy.",
           "anyOf": [
@@ -4282,77 +4257,11 @@
             }
           ]
         },
-        "safetyPreset": {
-          "description": "Safety preset that configures runtime checks.",
+        "checks": {
+          "description": "Runtime checks.",
           "anyOf": [
             {
-              "$ref": "#/$defs/SafetyPresetJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "overflowChecks": {
-          "description": "Overflow checking policy.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/OverflowCheckPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "boundsChecks": {
-          "description": "Bounds check policy.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/BoundsCheckPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "nullChecks": {
-          "description": "Null check policy.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/NullCheckPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "divisionChecks": {
-          "description": "Division check policy.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/DivisionCheckPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "shiftChecks": {
-          "description": "Shift range check policy.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ShiftCheckPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "checkFailure": {
-          "description": "Check failure behavior.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/CheckFailurePolicyJson"
+              "$ref": "#/$defs/RuntimeChecksJson"
             },
             {
               "type": "null"
@@ -5501,6 +5410,22 @@
         }
       }
     },
+    "OptimizeJson": {
+      "description": "Optimization setting accepted by target JSON.",
+      "anyOf": [
+        {
+          "description": "Enable or disable optimization.",
+          "type": "boolean"
+        },
+        {
+          "description": "Explicit optimization level.",
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0,
+          "maximum": 4
+        }
+      ]
+    },
     "LtoModeJson": {
       "description": "Link time optimization mode for JSON deserialization.",
       "oneOf": [
@@ -5595,34 +5520,24 @@
       "description": "Panic policy for JSON deserialization.",
       "oneOf": [
         {
-          "description": "Abort immediately.",
+          "description": "Terminate the current worker or isolate.",
+          "type": "string",
+          "const": "worker"
+        },
+        {
+          "description": "Terminate the whole runtime process.",
+          "type": "string",
+          "const": "process"
+        },
+        {
+          "description": "Lower panic to a minimal trap.",
+          "type": "string",
+          "const": "trap"
+        },
+        {
+          "description": "Abort immediately without diagnostics.",
           "type": "string",
           "const": "abort"
-        },
-        {
-          "description": "Unwind the stack.",
-          "type": "string",
-          "const": "unwind"
-        }
-      ]
-    },
-    "UnwindFormatJson": {
-      "description": "Unwind metadata format for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Emit no unwind metadata.",
-          "type": "string",
-          "const": "none"
-        },
-        {
-          "description": "Emit DWARF unwind metadata.",
-          "type": "string",
-          "const": "dwarf"
-        },
-        {
-          "description": "Emit Windows SEH unwind metadata.",
-          "type": "string",
-          "const": "seh"
         }
       ]
     },
@@ -5646,130 +5561,121 @@
         }
       ]
     },
-    "SafetyPresetJson": {
-      "description": "Safety preset for JSON deserialization.",
-      "oneOf": [
+    "RuntimeChecksJson": {
+      "description": "Runtime checks for JSON deserialization.",
+      "anyOf": [
         {
-          "description": "Debug safety mode with checks enabled.",
-          "type": "string",
-          "const": "debug"
+          "description": "Shorthand used for every runtime check.",
+          "$ref": "#/$defs/CheckPolicyJson"
         },
         {
-          "description": "Release mode with checks enabled.",
-          "type": "string",
-          "const": "release-safe"
-        },
-        {
-          "description": "Release mode with checks disabled.",
-          "type": "string",
-          "const": "release-fast"
-        },
-        {
-          "description": "Release mode with checks disabled and size focused settings.",
-          "type": "string",
-          "const": "release-small"
+          "description": "Structured runtime checks.",
+          "$ref": "#/$defs/RuntimeChecksObjectJson"
         }
       ]
     },
-    "OverflowCheckPolicyJson": {
-      "description": "Overflow checking policy for JSON deserialization.",
+    "CheckPolicyJson": {
+      "description": "Runtime check policy for JSON deserialization.",
       "oneOf": [
         {
-          "description": "Always check for overflow.",
+          "description": "Always emit the check.",
           "type": "string",
           "const": "always"
         },
         {
-          "description": "Debug builds check; release does not.",
+          "description": "Emit the check for debug profiles.",
           "type": "string",
           "const": "debug"
         },
         {
-          "description": "Never check for overflow.",
+          "description": "Never emit the check.",
           "type": "string",
           "const": "never"
         }
       ]
     },
-    "BoundsCheckPolicyJson": {
-      "description": "Bounds checking policy for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Always check bounds.",
-          "type": "string",
-          "const": "always"
+    "RuntimeChecksObjectJson": {
+      "description": "Structured runtime checks for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "default": {
+          "description": "Default policy for checks without an explicit override.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
-        {
-          "description": "Debug builds check; release does not.",
-          "type": "string",
-          "const": "debug"
+        "overflow": {
+          "description": "Integer overflow check policy.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
-        {
-          "description": "Never check bounds.",
-          "type": "string",
-          "const": "never"
+        "bounds": {
+          "description": "Bounds check policy for array and slice accesses.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "null": {
+          "description": "Null check policy for reference operations.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "division": {
+          "description": "Division check policy for divide and remainder operations.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "shift": {
+          "description": "Shift range check policy.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "failure": {
+          "description": "Check failure behavior.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckFailurePolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
-      ]
-    },
-    "NullCheckPolicyJson": {
-      "description": "Null checking policy for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Always check for null.",
-          "type": "string",
-          "const": "always"
-        },
-        {
-          "description": "Debug builds check; release does not.",
-          "type": "string",
-          "const": "debug"
-        },
-        {
-          "description": "Never check for null.",
-          "type": "string",
-          "const": "never"
-        }
-      ]
-    },
-    "DivisionCheckPolicyJson": {
-      "description": "Division checking policy for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Always check for divide-by-zero.",
-          "type": "string",
-          "const": "always"
-        },
-        {
-          "description": "Debug builds check; release does not.",
-          "type": "string",
-          "const": "debug"
-        },
-        {
-          "description": "Never check for divide-by-zero.",
-          "type": "string",
-          "const": "never"
-        }
-      ]
-    },
-    "ShiftCheckPolicyJson": {
-      "description": "Shift range check policy for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Always check for invalid shift ranges.",
-          "type": "string",
-          "const": "always"
-        },
-        {
-          "description": "Debug builds check; release does not.",
-          "type": "string",
-          "const": "debug"
-        },
-        {
-          "description": "Never check for invalid shift ranges.",
-          "type": "string",
-          "const": "never"
-        }
-      ]
+      }
     },
     "CheckFailurePolicyJson": {
       "description": "Check failure behavior for JSON deserialization.",

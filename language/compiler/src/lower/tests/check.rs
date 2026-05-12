@@ -1,8 +1,5 @@
 use destack_mir as mir;
-use destack_workspace::{
-    BoundsCheckPolicy, CheckFailurePolicy, DivisionCheckPolicy, OverflowCheckPolicy,
-    ShiftCheckPolicy,
-};
+use destack_workspace::{CheckFailurePolicy, CheckPolicy};
 
 use crate::TestProgram;
 
@@ -20,8 +17,8 @@ function sum(a: int32, b: int32): int32 {
     );
 
     test.configure_target(module_id, "native", |target| {
-        target.overflow_checks = OverflowCheckPolicy::Always;
-        target.check_failure = CheckFailurePolicy::Panic;
+        target.checks.overflow = CheckPolicy::Always;
+        target.checks.failure = CheckFailurePolicy::Panic;
     });
     test.lower_module(module_id, "native");
     test.compile_check_clean();
@@ -64,8 +61,8 @@ function sum(a: int32, b: int32): int32 {
     );
 
     test.configure_target(module_id, "native", |target| {
-        target.overflow_checks = OverflowCheckPolicy::Always;
-        target.check_failure = CheckFailurePolicy::Abort;
+        target.checks.overflow = CheckPolicy::Always;
+        target.checks.failure = CheckFailurePolicy::Abort;
     });
     test.lower_module(module_id, "native");
     test.compile_check_clean();
@@ -105,8 +102,8 @@ function sum(a: uint32, b: uint32): uint32 {
     );
 
     test.configure_target(module_id, "native", |target| {
-        target.overflow_checks = OverflowCheckPolicy::Always;
-        target.check_failure = CheckFailurePolicy::Panic;
+        target.checks.overflow = CheckPolicy::Always;
+        target.checks.failure = CheckFailurePolicy::Panic;
     });
     test.lower_module(module_id, "native");
     test.compile_check_clean();
@@ -149,8 +146,8 @@ function sum(a: int32, b: int32): int32 {
     );
 
     test.configure_target(module_id, "native", |target| {
-        target.overflow_checks = OverflowCheckPolicy::Never;
-        target.check_failure = CheckFailurePolicy::Panic;
+        target.checks.overflow = CheckPolicy::Never;
+        target.checks.failure = CheckFailurePolicy::Panic;
     });
     test.lower_module(module_id, "native");
     test.compile_check_clean();
@@ -182,8 +179,8 @@ function quotient(a: int32, b: int32): int32 {
     );
 
     test.configure_target(module_id, "native", |target| {
-        target.division_checks = DivisionCheckPolicy::Always;
-        target.check_failure = CheckFailurePolicy::Panic;
+        target.checks.division = CheckPolicy::Always;
+        target.checks.failure = CheckFailurePolicy::Panic;
     });
     test.lower_module(module_id, "native");
     test.compile_check_clean();
@@ -234,8 +231,8 @@ function quotient(a: int32, b: int32): int32 {
     );
 
     test.configure_target(module_id, "native", |target| {
-        target.division_checks = DivisionCheckPolicy::Always;
-        target.check_failure = CheckFailurePolicy::Trap;
+        target.checks.division = CheckPolicy::Always;
+        target.checks.failure = CheckFailurePolicy::Trap;
     });
     test.lower_module(module_id, "native");
     test.compile_check_clean();
@@ -279,8 +276,8 @@ function quotient(a: uint32, b: uint32): uint32 {
     );
 
     test.configure_target(module_id, "native", |target| {
-        target.division_checks = DivisionCheckPolicy::Always;
-        target.check_failure = CheckFailurePolicy::Panic;
+        target.checks.division = CheckPolicy::Always;
+        target.checks.failure = CheckFailurePolicy::Panic;
     });
     test.lower_module(module_id, "native");
     test.compile_check_clean();
@@ -325,8 +322,8 @@ function shift(value: int32, amount: int32): int32 {
     );
 
     test.configure_target(module_id, "native", |target| {
-        target.shift_checks = ShiftCheckPolicy::Always;
-        target.check_failure = CheckFailurePolicy::Panic;
+        target.checks.shift = CheckPolicy::Always;
+        target.checks.failure = CheckFailurePolicy::Panic;
     });
     test.lower_module(module_id, "native");
     test.compile_check_clean();
@@ -367,8 +364,8 @@ function shift(value: int32, amount: int32): int32 {
     );
 
     test.configure_target(module_id, "native", |target| {
-        target.shift_checks = ShiftCheckPolicy::Always;
-        target.check_failure = CheckFailurePolicy::Abort;
+        target.checks.shift = CheckPolicy::Always;
+        target.checks.failure = CheckFailurePolicy::Abort;
     });
     test.lower_module(module_id, "native");
     test.compile_check_clean();
@@ -406,8 +403,8 @@ function shift(value: uint32, amount: uint32): uint32 {
     );
 
     test.configure_target(module_id, "native", |target| {
-        target.shift_checks = ShiftCheckPolicy::Always;
-        target.check_failure = CheckFailurePolicy::Panic;
+        target.checks.shift = CheckPolicy::Always;
+        target.checks.failure = CheckFailurePolicy::Panic;
     });
     test.lower_module(module_id, "native");
     test.compile_check_clean();
@@ -448,8 +445,8 @@ function element(values: int32[4], index: int32): int32 {
     );
 
     test.configure_target(module_id, "native", |target| {
-        target.bounds_checks = BoundsCheckPolicy::Always;
-        target.check_failure = CheckFailurePolicy::Panic;
+        target.checks.bounds = CheckPolicy::Always;
+        target.checks.failure = CheckFailurePolicy::Panic;
     });
     test.lower_module(module_id, "native");
     test.compile_check_clean();
@@ -491,8 +488,8 @@ function element(values: int32[4], index: int32): int32 {
     );
 
     test.configure_target(module_id, "native", |target| {
-        target.bounds_checks = BoundsCheckPolicy::Always;
-        target.check_failure = CheckFailurePolicy::Trap;
+        target.checks.bounds = CheckPolicy::Always;
+        target.checks.failure = CheckFailurePolicy::Trap;
     });
     test.lower_module(module_id, "native");
     test.compile_check_clean();
@@ -531,8 +528,8 @@ function element(values: int32[4], index: uint32): int32 {
     );
 
     test.configure_target(module_id, "native", |target| {
-        target.bounds_checks = BoundsCheckPolicy::Always;
-        target.check_failure = CheckFailurePolicy::Panic;
+        target.checks.bounds = CheckPolicy::Always;
+        target.checks.failure = CheckFailurePolicy::Panic;
     });
     test.lower_module(module_id, "native");
     test.compile_check_clean();

@@ -40,6 +40,27 @@ impl From<OptimizeLevel> for u8 {
     }
 }
 
+/// Optimization setting accepted by target JSON.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(untagged)]
+pub enum OptimizeJson {
+    /// Enable or disable optimization.
+    Enabled(bool),
+    /// Explicit optimization level.
+    Level(#[cfg_attr(feature = "schema", schemars(range(min = 0, max = 4)))] u8),
+}
+
+impl From<OptimizeJson> for OptimizeLevel {
+    fn from(value: OptimizeJson) -> Self {
+        match value {
+            OptimizeJson::Enabled(false) => Self::O0,
+            OptimizeJson::Enabled(true) => Self::O2,
+            OptimizeJson::Level(level) => Self::from(level),
+        }
+    }
+}
+
 /// Debug info emission policy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum DebugInfoLevel {

@@ -141,14 +141,8 @@ pub struct Target {
     pub source_map_mode: Option<SourceMapMode>,
 
     // optimization
-    /// Whether optimization is enabled.
-    pub optimize: bool,
     /// Optimization level.
     pub optimize_level: OptimizeLevel,
-    /// Loop unroll threshold in instructions.
-    pub unroll_threshold: Option<u64>,
-    /// Inline budget scaling in percent.
-    pub inline_budget_scale_percent: Option<u64>,
     /// Link time optimization mode.
     pub lto_mode: LtoMode,
     /// Floating point math optimization policy.
@@ -159,24 +153,10 @@ pub struct Target {
     pub runtime_options: RuntimeOptions,
     /// Panic behavior for unrecoverable program failures.
     pub panic: PanicPolicy,
-    /// Native unwind metadata format.
-    pub unwind: UnwindFormat,
     /// Symbol stripping policy.
     pub strip: StripLevel,
-    /// Safety preset that configures runtime checks.
-    pub safety_preset: Option<SafetyPreset>,
-    /// Integer overflow checking policy.
-    pub overflow_checks: OverflowCheckPolicy,
-    /// Bounds check policy for array and slice accesses.
-    pub bounds_checks: BoundsCheckPolicy,
-    /// Null check policy for reference operations.
-    pub null_checks: NullCheckPolicy,
-    /// Division check policy for divide and remainder operations.
-    pub division_checks: DivisionCheckPolicy,
-    /// Shift range check policy.
-    pub shift_checks: ShiftCheckPolicy,
-    /// Check failure behavior.
-    pub check_failure: CheckFailurePolicy,
+    /// Runtime checks.
+    pub checks: RuntimeChecks,
 
     // output paths
     /// Output directory for this target (relative to package, defaults to "dist").
@@ -275,7 +255,7 @@ impl Target {
         target.runtime_options.runtime = Runtime::Destack;
         target.platform = Platform::Unknown;
         target.host = Host::Browser;
-        target.optimize = true;
+        target.optimize_level = OptimizeLevel::O2;
 
         target
     }
@@ -288,7 +268,7 @@ impl Target {
         target.runtime_options.runtime = Runtime::Destack;
         target.platform = Platform::Unknown;
         target.host = Host::Wasi;
-        target.optimize = true;
+        target.optimize_level = OptimizeLevel::O2;
 
         target
     }
@@ -301,7 +281,7 @@ impl Target {
         target.runtime_options.runtime = Runtime::Destack;
         target.platform = Platform::Unknown;
         target.host = Host::Native;
-        target.optimize = true;
+        target.optimize_level = OptimizeLevel::O2;
 
         target
     }
@@ -576,12 +556,6 @@ impl Target {
         self
     }
 
-    /// Set the native unwind metadata format.
-    pub fn with_unwind(mut self, unwind: UnwindFormat) -> Self {
-        self.unwind = unwind;
-        self
-    }
-
     /// Set target architecture for native codegen.
     pub fn with_target_arch(mut self, target_arch: TargetArch) -> Self {
         self.target_arch = Some(target_arch);
@@ -612,58 +586,15 @@ impl Target {
         self
     }
 
-    /// Set bounds check policy for array and slice accesses.
-    pub fn with_bounds_checks(mut self, bounds_checks: BoundsCheckPolicy) -> Self {
-        self.bounds_checks = bounds_checks;
-        self
-    }
-
-    /// Set null check policy for reference operations.
-    pub fn with_null_checks(mut self, null_checks: NullCheckPolicy) -> Self {
-        self.null_checks = null_checks;
-        self
-    }
-
-    /// Set division check policy for divide and remainder operations.
-    pub fn with_division_checks(mut self, division_checks: DivisionCheckPolicy) -> Self {
-        self.division_checks = division_checks;
-        self
-    }
-
-    /// Set shift range check policy.
-    pub fn with_shift_checks(mut self, shift_checks: ShiftCheckPolicy) -> Self {
-        self.shift_checks = shift_checks;
-        self
-    }
-
-    /// Set check failure behavior.
-    pub fn with_check_failure(mut self, check_failure: CheckFailurePolicy) -> Self {
-        self.check_failure = check_failure;
-        self
-    }
-
-    /// Set overflow check policy for integer operations.
-    pub fn with_overflow_checks(mut self, overflow_checks: OverflowCheckPolicy) -> Self {
-        self.overflow_checks = overflow_checks;
+    /// Set runtime checks.
+    pub fn with_checks(mut self, checks: RuntimeChecks) -> Self {
+        self.checks = checks;
         self
     }
 
     /// Set floating point math optimization policy.
     pub fn with_float_math(mut self, float_math: FloatMathPolicy) -> Self {
         self.float_math = float_math;
-        self
-    }
-
-    /// Set safety preset and update runtime check policies.
-    pub fn with_safety_preset(mut self, safety_preset: SafetyPreset) -> Self {
-        let policies = safety_preset.runtime_check_policies();
-        self.safety_preset = Some(safety_preset);
-        self.overflow_checks = policies.overflow;
-        self.bounds_checks = policies.bounds;
-        self.null_checks = policies.null;
-        self.division_checks = policies.division;
-        self.shift_checks = policies.shift;
-        self.float_math = safety_preset.float_math_policy();
         self
     }
 
@@ -679,27 +610,9 @@ impl Target {
         self
     }
 
-    /// Set whether optimization is enabled.
-    pub fn with_optimize(mut self, optimize: bool) -> Self {
-        self.optimize = optimize;
-        self
-    }
-
     /// Set the optimization level.
     pub fn with_optimize_level(mut self, level: OptimizeLevel) -> Self {
         self.optimize_level = level;
-        self
-    }
-
-    /// Set the loop unroll threshold.
-    pub fn with_unroll_threshold(mut self, unroll_threshold: u64) -> Self {
-        self.unroll_threshold = Some(unroll_threshold);
-        self
-    }
-
-    /// Set the inline budget scale percent.
-    pub fn with_inline_budget_scale_percent(mut self, inline_budget_scale_percent: u64) -> Self {
-        self.inline_budget_scale_percent = Some(inline_budget_scale_percent);
         self
     }
 
@@ -953,14 +866,8 @@ pub struct TargetOptions {
     pub policy: PolicyOptions,
 
     // optimization
-    /// Whether optimization is enabled.
-    pub optimize: bool,
     /// Optimization level.
     pub optimize_level: OptimizeLevel,
-    /// Loop unroll threshold in instructions.
-    pub unroll_threshold: Option<u64>,
-    /// Inline budget scaling in percent.
-    pub inline_budget_scale_percent: Option<u64>,
     /// Link time optimization mode.
     pub lto_mode: LtoMode,
     /// Floating point math optimization policy.
@@ -971,24 +878,10 @@ pub struct TargetOptions {
     pub runtime_options: RuntimeOptions,
     /// Panic behavior for unrecoverable program failures.
     pub panic: PanicPolicy,
-    /// Native unwind metadata format.
-    pub unwind: UnwindFormat,
     /// Symbol stripping policy.
     pub strip: StripLevel,
-    /// Safety preset that configures runtime checks.
-    pub safety_preset: Option<SafetyPreset>,
-    /// Integer overflow checking policy.
-    pub overflow_checks: OverflowCheckPolicy,
-    /// Bounds check policy for array and slice accesses.
-    pub bounds_checks: BoundsCheckPolicy,
-    /// Null check policy for reference operations.
-    pub null_checks: NullCheckPolicy,
-    /// Division check policy for divide and remainder operations.
-    pub division_checks: DivisionCheckPolicy,
-    /// Shift range check policy.
-    pub shift_checks: ShiftCheckPolicy,
-    /// Check failure behavior.
-    pub check_failure: CheckFailurePolicy,
+    /// Runtime checks.
+    pub checks: RuntimeChecks,
 }
 
 impl Default for TargetOptions {
@@ -1050,24 +943,14 @@ impl Default for TargetOptions {
             minify: BundleMinifyOptions::default(),
             app: AppOptions::default(),
             policy: PolicyOptions::default(),
-            optimize: false,
             optimize_level: OptimizeLevel::O0,
-            unroll_threshold: None,
-            inline_budget_scale_percent: None,
             lto_mode: LtoMode::default(),
             float_math: FloatMathPolicy::default(),
             debug_info: DebugInfoLevel::default(),
             runtime_options: RuntimeOptions::default(),
             panic: PanicPolicy::default(),
-            unwind: UnwindFormat::default(),
             strip: StripLevel::default(),
-            safety_preset: None,
-            overflow_checks: OverflowCheckPolicy::default(),
-            bounds_checks: BoundsCheckPolicy::default(),
-            null_checks: NullCheckPolicy::default(),
-            division_checks: DivisionCheckPolicy::default(),
-            shift_checks: ShiftCheckPolicy::default(),
-            check_failure: CheckFailurePolicy::default(),
+            checks: RuntimeChecks::default(),
         }
     }
 }
@@ -1152,24 +1035,14 @@ impl TargetOptions {
             minify: self.minify.clone(),
             app: self.app.clone(),
             policy: self.policy.clone(),
-            optimize: self.optimize,
             optimize_level: self.optimize_level,
-            unroll_threshold: self.unroll_threshold,
-            inline_budget_scale_percent: self.inline_budget_scale_percent,
             lto_mode: self.lto_mode,
             float_math: self.float_math,
             debug_info: self.debug_info,
             runtime_options: self.runtime_options.clone(),
             panic: self.panic,
-            unwind: self.unwind,
             strip: self.strip,
-            safety_preset: self.safety_preset,
-            overflow_checks: self.overflow_checks,
-            bounds_checks: self.bounds_checks,
-            null_checks: self.null_checks,
-            division_checks: self.division_checks,
-            shift_checks: self.shift_checks,
-            check_failure: self.check_failure,
+            checks: self.checks,
         }
     }
 
@@ -1261,12 +1134,10 @@ impl TargetOptions {
         // seed runtime options with the resolved target app declaration
         runtime_options.app = app.clone();
 
-        let safety_preset = json.safety_preset.map(SafetyPreset::from);
-        let default_checks = safety_preset
-            .map(|preset| preset.runtime_check_policies())
-            .unwrap_or_default();
-        let default_float_math = safety_preset
-            .map(|preset| preset.float_math_policy())
+        let checks = json
+            .checks
+            .clone()
+            .map(RuntimeChecks::from)
             .unwrap_or_default();
         let host = json
             .host
@@ -1358,51 +1229,17 @@ impl TargetOptions {
             minify,
             app,
             policy,
-            optimize: json.optimize,
-            optimize_level: json
-                .optimize_level
-                .map(OptimizeLevel::from)
-                .unwrap_or_default(),
-            unroll_threshold: None,
-            inline_budget_scale_percent: None,
+            optimize_level: json.optimize.map(OptimizeLevel::from).unwrap_or_default(),
             lto_mode: json.lto_mode.map(LtoMode::from).unwrap_or_default(),
-            float_math: json
-                .float_math
-                .map(FloatMathPolicy::from)
-                .unwrap_or(default_float_math),
+            float_math: json.float.map(FloatMathPolicy::from).unwrap_or_default(),
             debug_info: json
                 .debug_info
                 .map(DebugInfoLevel::from)
                 .unwrap_or_default(),
             runtime_options,
             panic: json.panic.map(PanicPolicy::from).unwrap_or_default(),
-            unwind: json.unwind.map(UnwindFormat::from).unwrap_or_default(),
             strip: json.strip.map(StripLevel::from).unwrap_or_default(),
-            safety_preset,
-            overflow_checks: json
-                .overflow_checks
-                .map(OverflowCheckPolicy::from)
-                .unwrap_or(default_checks.overflow),
-            bounds_checks: json
-                .bounds_checks
-                .map(BoundsCheckPolicy::from)
-                .unwrap_or(default_checks.bounds),
-            null_checks: json
-                .null_checks
-                .map(NullCheckPolicy::from)
-                .unwrap_or(default_checks.null),
-            division_checks: json
-                .division_checks
-                .map(DivisionCheckPolicy::from)
-                .unwrap_or(default_checks.division),
-            shift_checks: json
-                .shift_checks
-                .map(ShiftCheckPolicy::from)
-                .unwrap_or(default_checks.shift),
-            check_failure: json
-                .check_failure
-                .map(CheckFailurePolicy::from)
-                .unwrap_or_default(),
+            checks,
         })
     }
 }
@@ -1560,16 +1397,12 @@ pub struct TargetJson {
     /// Policy declarations and rules for this target.
     pub policy: Option<PolicyOptionsJson>,
     // optimization
-    /// Whether optimization is enabled.
-    #[serde(default)]
-    pub optimize: bool,
-    /// Optimization level (0-4).
-    #[cfg_attr(feature = "schema", schemars(range(min = 0, max = 4)))]
-    pub optimize_level: Option<u8>,
+    /// Optimization setting.
+    pub optimize: Option<OptimizeJson>,
     /// Link time optimization mode.
     pub lto_mode: Option<LtoModeJson>,
     /// Floating point math optimization policy.
-    pub float_math: Option<FloatMathPolicyJson>,
+    pub float: Option<FloatMathPolicyJson>,
     /// Debug info emission policy.
     pub debug_info: Option<DebugInfoLevelJson>,
     /// Execution mode for runtime scheduling and replay.
@@ -1578,24 +1411,10 @@ pub struct TargetJson {
     pub execution: Option<ExecutionModeJson>,
     /// Panic behavior for unrecoverable program failures.
     pub panic: Option<PanicPolicyJson>,
-    /// Native unwind metadata format.
-    pub unwind: Option<UnwindFormatJson>,
     /// Symbol stripping policy.
     pub strip: Option<StripLevelJson>,
-    /// Safety preset that configures runtime checks.
-    pub safety_preset: Option<SafetyPresetJson>,
-    /// Overflow checking policy.
-    pub overflow_checks: Option<OverflowCheckPolicyJson>,
-    /// Bounds check policy.
-    pub bounds_checks: Option<BoundsCheckPolicyJson>,
-    /// Null check policy.
-    pub null_checks: Option<NullCheckPolicyJson>,
-    /// Division check policy.
-    pub division_checks: Option<DivisionCheckPolicyJson>,
-    /// Shift range check policy.
-    pub shift_checks: Option<ShiftCheckPolicyJson>,
-    /// Check failure behavior.
-    pub check_failure: Option<CheckFailurePolicyJson>,
+    /// Runtime checks.
+    pub checks: Option<RuntimeChecksJson>,
 }
 
 impl TargetJson {

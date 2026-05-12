@@ -114,11 +114,6 @@ impl Compiler {
 
     /// Resolve the optimization level for a target configuration.
     fn optimization_level_for_target_config(&self, target: &Target) -> OptimizationLevel {
-        // honor disabled optimization
-        if !target.optimize {
-            return OptimizationLevel::O0;
-        }
-
         // map target optimize level to pipeline level
         match target.optimize_level {
             WorkspaceOptimizeLevel::O0 => OptimizationLevel::O0,
@@ -140,15 +135,10 @@ impl Compiler {
         // resolve pointer width from target configuration
         let pointer_width_bits = self.pointer_width_bits_for_target(target);
 
-        // resolve unroll threshold
-        let unroll_threshold = target
-            .unroll_threshold
-            .unwrap_or_else(|| Self::unroll_threshold_for_level(level));
+        // resolve optimization budgets
+        let unroll_threshold = Self::unroll_threshold_for_level(level);
         let unroll_threshold = unroll_threshold.min(usize::MAX as u64) as usize;
-
-        let inline_budget_scale_percent = target
-            .inline_budget_scale_percent
-            .unwrap_or_else(|| Self::inline_budget_scale_percent_for_level(level));
+        let inline_budget_scale_percent = Self::inline_budget_scale_percent_for_level(level);
 
         let require_optimized_metadata = matches!(
             level,

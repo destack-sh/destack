@@ -71,11 +71,15 @@ impl StripLevel {
 /// Panic behavior for unrecoverable program failures.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum PanicPolicy {
-    /// Abort immediately.
+    /// Terminate the current worker or isolate.
     #[default]
+    Worker,
+    /// Terminate the whole runtime process.
+    Process,
+    /// Lower panic to a minimal trap.
+    Trap,
+    /// Abort immediately without diagnostics.
     Abort,
-    /// Unwind the stack.
-    Unwind,
 }
 
 impl std::str::FromStr for PanicPolicy {
@@ -83,46 +87,16 @@ impl std::str::FromStr for PanicPolicy {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().replace('-', "_").as_str() {
+            "worker" | "isolate" => Ok(Self::Worker),
+            "process" | "runtime" => Ok(Self::Process),
+            "trap" => Ok(Self::Trap),
             "abort" => Ok(Self::Abort),
-            "unwind" => Ok(Self::Unwind),
             _ => Err(()),
         }
     }
 }
 
 impl PanicPolicy {
-    /// Parse from a string value.
-    pub fn parse(s: &str) -> Option<Self> {
-        s.parse().ok()
-    }
-}
-
-/// Unwind metadata format for native targets.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum UnwindFormat {
-    /// Emit no unwind metadata.
-    #[default]
-    None,
-    /// Emit DWARF unwind metadata.
-    Dwarf,
-    /// Emit Windows SEH unwind metadata.
-    Seh,
-}
-
-impl std::str::FromStr for UnwindFormat {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().replace('-', "_").as_str() {
-            "none" => Ok(Self::None),
-            "dwarf" => Ok(Self::Dwarf),
-            "seh" => Ok(Self::Seh),
-            _ => Err(()),
-        }
-    }
-}
-
-impl UnwindFormat {
     /// Parse from a string value.
     pub fn parse(s: &str) -> Option<Self> {
         s.parse().ok()
@@ -195,40 +169,23 @@ impl From<StripLevelJson> for StripLevel {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum PanicPolicyJson {
-    /// Abort immediately.
+    /// Terminate the current worker or isolate.
+    Worker,
+    /// Terminate the whole runtime process.
+    Process,
+    /// Lower panic to a minimal trap.
+    Trap,
+    /// Abort immediately without diagnostics.
     Abort,
-    /// Unwind the stack.
-    Unwind,
 }
 
 impl From<PanicPolicyJson> for PanicPolicy {
     fn from(value: PanicPolicyJson) -> Self {
         match value {
+            PanicPolicyJson::Worker => PanicPolicy::Worker,
+            PanicPolicyJson::Process => PanicPolicy::Process,
+            PanicPolicyJson::Trap => PanicPolicy::Trap,
             PanicPolicyJson::Abort => PanicPolicy::Abort,
-            PanicPolicyJson::Unwind => PanicPolicy::Unwind,
-        }
-    }
-}
-
-/// Unwind metadata format for JSON deserialization.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "lowercase")]
-pub enum UnwindFormatJson {
-    /// Emit no unwind metadata.
-    None,
-    /// Emit DWARF unwind metadata.
-    Dwarf,
-    /// Emit Windows SEH unwind metadata.
-    Seh,
-}
-
-impl From<UnwindFormatJson> for UnwindFormat {
-    fn from(value: UnwindFormatJson) -> Self {
-        match value {
-            UnwindFormatJson::None => UnwindFormat::None,
-            UnwindFormatJson::Dwarf => UnwindFormat::Dwarf,
-            UnwindFormatJson::Seh => UnwindFormat::Seh,
         }
     }
 }
