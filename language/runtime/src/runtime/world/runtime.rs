@@ -128,7 +128,7 @@ impl World {
     }
 
     /// Spawn one additional worker in one stored runtime.
-    pub(crate) fn spawn_worker(
+    pub fn spawn_worker(
         &mut self,
         runtime_id: RuntimeId,
         options: &RuntimeOptions,
@@ -300,24 +300,27 @@ impl World {
         worker_images: &BTreeMap<WorkerId, SpawnedWorkerImage>,
         rebind_context: Option<&ResourceRebinders>,
     ) -> RuntimeResult<()> {
-        let default_worker = worker_images
-            .get(&runtime_image.default_worker_id)
-            .ok_or_else(|| {
-                RuntimeError::DefaultWorkerMissing {
-                    runtime_id: runtime_id.0,
-                    worker_id: runtime_image.default_worker_id.0,
-                }
-                .boxed()
-            })?;
+        // validate image shape before mutating topology
+        if !worker_images.contains_key(&runtime_image.default_worker_id) {
+            return Err(RuntimeError::DefaultWorkerMissing {
+                runtime_id: runtime_id.0,
+                worker_id: runtime_image.default_worker_id.0,
+            }
+            .boxed());
+        }
+
         let world = &mut self.state;
-        world.register_runtime_topology(
-            runtime_id,
-            runtime_name.clone(),
-            runtime_labels,
-            runtime_image.default_worker_id,
-            default_worker.name.clone(),
-            default_worker.labels.clone(),
-        )?;
+        world.register_runtime_topology(runtime_id, runtime_name.clone(), runtime_labels)?;
+
+        // restored worker metadata
+        for (worker_id, worker) in worker_images {
+            world.register_worker_topology(
+                runtime_id,
+                *worker_id,
+                worker.name.clone(),
+                worker.labels.clone(),
+            )?;
+        }
 
         let worker_names = worker_images
             .iter()
@@ -331,7 +334,6 @@ impl World {
         let allocator = lineage.allocator();
         let collector = lineage.collector();
         drop(lineage);
-        let world = &mut self.state;
 
         let runtime = Runtime::from_image(
             world,

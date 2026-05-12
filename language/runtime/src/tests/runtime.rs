@@ -8,11 +8,9 @@ use {destack_engine as engine, destack_vm as vm};
 #[cfg(test)]
 use crate::diagnostic::RuntimeResult;
 use crate::host::Session;
-#[cfg(test)]
-use crate::platform::random::RandomStream;
 use crate::runtime::binding::BindingEngine;
 #[cfg(test)]
-use crate::runtime::random::native::{destack_random_next_u64, destack_random_next_u64_from};
+use crate::runtime::random::RandomStreamId;
 use crate::runtime::{
     BindingCallContext, SharedHeap, Worker, WorkerOptions, World, WorldState,
     enter_binding_call_context, enter_current_worker_context,
@@ -117,7 +115,7 @@ impl TestRuntime {
         drop(lineage);
         let runtime_static = engine::StaticSpace::empty();
         let world_state = &mut world.state;
-        let mut worker = Worker::new_in_world(
+        let worker = Worker::new_in_world(
             Vec::new(),
             &options,
             world_state,
@@ -133,14 +131,9 @@ impl TestRuntime {
             Session::from_runtime_options_with_native_ingress(&options, worker.runtime_id, false)
         };
 
-        // vm binding isolate
         let (tree, strings) = test_vm_isolate_module();
-        let mut vm_isolate = vm::Isolate::build(vm::IsolateId::new(2), tree, strings)
+        let vm_isolate = vm::Isolate::build(vm::IsolateId::new(2), tree, strings)
             .expect("test vm isolate should build");
-        worker
-            .bindings
-            .install_vm_defaults(&mut vm_isolate)
-            .expect("test vm bindings should install");
         let vm_heap = vm::Heap::with_allocator_limits_and_options(
             std::sync::Arc::new(
                 vm::Allocator::try_new(
@@ -175,15 +168,6 @@ impl TestRuntime {
             vm_heap: std::cell::RefCell::new(vm_heap),
             vm_shared: std::cell::RefCell::new(vm_shared),
         }
-    }
-
-    /// Install default VM bindings using the test worker.
-    #[cfg(test)]
-    pub(crate) fn install_vm_defaults(&mut self, isolate: &mut vm::Isolate) {
-        self.worker
-            .bindings
-            .install_vm_defaults(isolate)
-            .expect("test vm bindings should install");
     }
 
     /// Execute a native binding within a runtime call context.
@@ -253,32 +237,16 @@ impl TestRuntime {
             .expect("runtime context should release pins")
     }
 
-    /// Execute the native random binding with deterministic runtime state.
+    /// Execute one runtime random draw with deterministic runtime state.
     #[cfg(test)]
-    pub(crate) fn call_native_next_u64(&mut self) -> RuntimeResult<u64> {
-        self.with_native_call_context(|binding| {
-            let mut out = 0u64;
-
-            unsafe {
-                destack_random_next_u64(binding, &mut out)?;
-            }
-
-            Ok(out)
-        })
+    pub(crate) fn call_runtime_next_u64(&mut self) -> RuntimeResult<u64> {
+        self.world.next_stream_u64(RandomStreamId::DEFAULT)
     }
 
-    /// Execute the native stream binding with deterministic runtime state.
+    /// Execute one runtime stream draw with deterministic runtime state.
     #[cfg(test)]
-    pub(crate) fn call_native_next_u64_from(&mut self, stream: u64) -> RuntimeResult<u64> {
-        self.with_native_call_context(|binding| {
-            let mut out = 0u64;
-
-            unsafe {
-                destack_random_next_u64_from(binding, &mut out, RandomStream(stream))?;
-            }
-
-            Ok(out)
-        })
+    pub(crate) fn call_runtime_next_u64_from(&mut self, stream: u64) -> RuntimeResult<u64> {
+        self.world.next_stream_u64(RandomStreamId::new(stream))
     }
 }
 

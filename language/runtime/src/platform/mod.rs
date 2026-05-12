@@ -1,3 +1,5 @@
+#![allow(dead_code, unused_imports)]
+
 /// Native platform ABI for bindings.
 pub mod abi;
 /// Accessibility bindings.
@@ -44,8 +46,6 @@ pub mod process;
 pub mod random;
 /// External resource table and finalizers.
 pub mod resource;
-/// Low-level runtime control and inspection bindings.
-pub mod runtime;
 /// Security bindings.
 pub mod security;
 /// Thread bindings.
@@ -63,7 +63,7 @@ pub use abi::{
 };
 pub(crate) use core::{NativeAbiCodec, VmAbiCodec};
 pub use diagnostic::{PlatformError, PlatformErrorCode, PlatformResult};
-pub use generated::{PLATFORM_NATIVE_BINDINGS, PLATFORM_VM_BINDINGS};
+pub use generated::PLATFORM_NATIVE_BINDINGS;
 #[allow(unused_imports)]
 pub(crate) use resource::{
     ResourceBacking, ResourceCapture, ResourceEntry, ResourceId, ResourceKind, ResourcePortability,

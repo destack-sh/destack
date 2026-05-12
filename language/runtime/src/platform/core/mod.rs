@@ -15,6 +15,7 @@ mod dll;
 mod errno;
 mod error;
 mod path;
+mod queue;
 #[cfg(unix)]
 mod unix;
 mod value;
@@ -55,6 +56,7 @@ pub(crate) use error::{
 #[cfg(windows)]
 pub(crate) use path::windows_known_folder_path;
 pub(crate) use path::{file_uri_from_path, pathbuf_from_file_uri};
+pub(crate) use queue::BoundedQueue;
 #[cfg(any(target_os = "linux", target_os = "android"))]
 pub(crate) use unix::io_error_with_errno;
 #[cfg(all(unix, not(target_vendor = "apple")))]

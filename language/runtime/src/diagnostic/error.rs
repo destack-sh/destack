@@ -23,7 +23,7 @@ pub enum RuntimeError {
         name: String,
     } = 101,
     /// Binding call rejected due to a missing required action.
-    HostActionDenied {
+    ActionDenied {
         /// Fully qualified binding name.
         name: String,
         /// Required action that was not granted.
@@ -111,22 +111,6 @@ pub enum RuntimeError {
         /// Missing observation subscription identifier.
         subscription_id: u64,
     } = 141,
-    /// Control handle identifier was not found.
-    ControlHandleNotFound {
-        /// Missing control-handle identifier.
-        handle_id: u64,
-        /// Expected control-handle kind.
-        kind: String,
-    } = 142,
-    /// Control handle kind did not match the requested operation.
-    ControlHandleKindMismatch {
-        /// The control-handle identifier.
-        handle_id: u64,
-        /// The expected control-handle kind.
-        expected: String,
-        /// The actual control-handle kind.
-        actual: String,
-    } = 143,
     /// World runtime identifier was not found.
     RuntimeNotFound {
         /// Missing runtime identifier.
@@ -159,7 +143,7 @@ pub enum RuntimeError {
     /// Runtime cannot remove the default worker until a replacement is selected.
     DefaultWorkerRemoval = 133,
     /// Runtime action profile configuration is invalid.
-    HostActionProfileInvalid {
+    ActionProfileInvalid {
         /// Invalid action profile name.
         profile: String,
         /// Human-readable validation detail.
@@ -277,7 +261,7 @@ impl RuntimeError {
             RuntimeError::PolicyViolation { name } => {
                 format!("binding forbidden by policy: {name}")
             }
-            RuntimeError::HostActionDenied { name, action } => {
+            RuntimeError::ActionDenied { name, action } => {
                 format!("binding action denied: {name} requires {action}")
             }
             RuntimeError::AffinityViolation { name, affinity } => {
@@ -341,16 +325,6 @@ impl RuntimeError {
             RuntimeError::ObservationSubscriptionNotFound { subscription_id } => {
                 format!("observation subscription not found: {subscription_id}")
             }
-            RuntimeError::ControlHandleNotFound { handle_id, kind } => {
-                format!("{kind} handle not found: {handle_id}")
-            }
-            RuntimeError::ControlHandleKindMismatch {
-                handle_id,
-                expected,
-                actual,
-            } => {
-                format!("control handle {handle_id} has kind {actual}, expected {expected}")
-            }
             RuntimeError::RuntimeNotFound { runtime_id } => {
                 format!("runtime not found: {runtime_id}")
             }
@@ -373,7 +347,7 @@ impl RuntimeError {
             RuntimeError::DefaultWorkerRemoval => {
                 "cannot remove default worker: set a new default worker first".to_string()
             }
-            RuntimeError::HostActionProfileInvalid { profile, detail } => {
+            RuntimeError::ActionProfileInvalid { profile, detail } => {
                 format!("runtime action profile `{profile}` is invalid: {detail}")
             }
             RuntimeError::TopologyRuntimeMissing { runtime_id } => {
@@ -616,7 +590,7 @@ impl From<Box<RuntimeError>> for vm::Error {
             RuntimeError::Platform(error) => (*error).into(),
             RuntimeError::BindingNotFound { name } => vm::Error::BindingFunctionNotFound { name },
             RuntimeError::PolicyViolation { name } => vm::Error::BindingCallForbidden { name },
-            RuntimeError::HostActionDenied { name, action } => vm::Error::BindingCallForbidden {
+            RuntimeError::ActionDenied { name, action } => vm::Error::BindingCallForbidden {
                 name: format!("{name} ({action})"),
             },
             RuntimeError::AffinityViolation { name, affinity } => vm::Error::BindingCallForbidden {

@@ -1,16 +1,13 @@
 use std::collections::HashMap;
 
-use destack_vm as vm;
-use destack_vm::Isolate;
 use parking_lot::RwLock;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::platform;
-use crate::runtime::action::HostActionSet;
+use crate::runtime::action::ActionSet;
 use crate::runtime::binding::{
-    BindingAccess, BindingDescriptor, BindingId, NativeBinding, NativeBindingSet, VmBindingSet,
+    BindingAccess, BindingDescriptor, BindingId, NativeBinding, NativeBindingSet,
 };
-use crate::runtime::{BindingCallContext, enter_binding_call_context};
 use destack_workspace::{ExecutionMode, RuntimeOptions};
 
 /// Registry for runtime bindings and shims.
@@ -57,19 +54,9 @@ impl BindingRegistry {
     }
 
     /// Apply one allowed action set to binding access checks.
-    pub fn set_allowed_actions(&mut self, actions: HostActionSet) {
+    pub fn set_allowed_actions(&mut self, actions: ActionSet) {
         let mut access = self.access.write();
         access.set_allowed_actions(actions);
-    }
-
-    /// Install default VM bindings into a VM isolate.
-    #[allow(dead_code)]
-    pub(crate) fn install_vm_defaults(&mut self, isolate: &mut Isolate) -> vm::Result<()> {
-        for set in platform::PLATFORM_VM_BINDINGS {
-            self.install_vm_binding_set(isolate, set)?;
-        }
-
-        Ok(())
     }
 
     /// Install default native bindings for the runtime.
@@ -79,17 +66,6 @@ impl BindingRegistry {
         }
 
         Ok(())
-    }
-
-    /// Install a binding set into a VM isolate.
-    #[allow(dead_code)]
-    pub(crate) fn install_vm_binding_set(
-        &mut self,
-        isolate: &mut Isolate,
-        set: &VmBindingSet,
-    ) -> vm::Result<()> {
-        // install through the binding set hook
-        (set.install)(self, isolate)
     }
 
     /// Install a native binding set into the registry.
@@ -129,43 +105,6 @@ impl BindingRegistry {
         self.native_bindings.push(binding);
 
         Ok(())
-    }
-
-    /// Register a VM binding handler with metadata.
-    pub(crate) fn register_vm_binding(
-        &mut self,
-        isolate: &mut Isolate,
-        descriptor: BindingDescriptor,
-        handler: impl for<'ctx> Fn(
-            &mut vm::BindingContext<'ctx>,
-            &[vm::Word],
-        ) -> Result<vm::Word, vm::Error>
-        + Send
-        + Sync
-        + 'static,
-    ) {
-        // hard error on descriptor mismatches
-        let mut has_descriptor = false;
-        if let Some(existing) = self.descriptor_by_id.get(&descriptor.id) {
-            if *existing != descriptor {
-                panic!("binding id collision for {}", descriptor.name);
-            }
-            has_descriptor = true;
-        }
-
-        // NOTE #Incomplete: serialize args/results for replay payloads
-        // register the handler through the live binding call context
-        isolate.register_binding(descriptor.name, move |context, args| {
-            let call_context = BindingCallContext::from_current_worker_for_vm()?;
-            let _guard = enter_binding_call_context(&call_context);
-            handler(context, args)
-        });
-
-        // track the binding metadata for diagnostics
-        if !has_descriptor {
-            self.descriptor_by_id.insert(descriptor.id, descriptor);
-            self.descriptors.push(descriptor);
-        }
     }
 
     /// Return registered binding descriptors.

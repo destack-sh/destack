@@ -84,11 +84,6 @@ impl BindingCallContext {
         }
     }
 
-    /// Create one VM binding call context from the current-worker execution scope.
-    pub(crate) fn from_current_worker_for_vm() -> RuntimeResult<Self> {
-        Self::from_current_worker(BindingEngine::Vm)
-    }
-
     /// Create one native binding call context from the current-worker execution scope.
     pub(crate) fn from_current_worker_for_native() -> RuntimeResult<Self> {
         Self::from_current_worker(BindingEngine::Native)

@@ -5,7 +5,9 @@ use destack_core::{Capture, CaptureMode};
 use destack_workspace::RandomOptions;
 
 use super::HostRandom;
-use super::r#virtual::{StreamStateDecodeError, VirtualRandom};
+#[cfg(test)]
+use super::r#virtual::StreamStateDecodeError;
+use super::r#virtual::VirtualRandom;
 
 /// Materialized random state captured in one world image.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -170,11 +172,13 @@ impl Random {
     }
 
     /// Export one stream state into one versioned byte payload.
+    #[cfg(test)]
     pub(crate) fn export_stream_state_bytes(&self, stream_id: RandomStreamId) -> Vec<u8> {
         self.virtual_random.export_stream_state_bytes(stream_id)
     }
 
     /// Import one stream state from one versioned byte payload.
+    #[cfg(test)]
     pub(crate) fn import_stream_state_bytes(
         &self,
         stream_id: RandomStreamId,

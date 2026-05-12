@@ -4,7 +4,6 @@ use std::time::{Duration, Instant};
 use parking_lot::{Condvar, Mutex};
 
 /// One bounded producer-consumer queue.
-#[allow(dead_code)]
 pub(crate) struct BoundedQueue<T> {
     /// Queue state and pending items.
     state: Mutex<BoundedQueueState<T>>,
@@ -13,7 +12,6 @@ pub(crate) struct BoundedQueue<T> {
 }
 
 /// Mutable queue state.
-#[allow(dead_code)]
 struct BoundedQueueState<T> {
     /// Pending items.
     items: VecDeque<T>,
@@ -27,7 +25,6 @@ struct BoundedQueueState<T> {
     is_closed: bool,
 }
 
-#[allow(dead_code)]
 impl<T> BoundedQueue<T> {
     /// Create one bounded queue.
     pub(crate) fn new(capacity: usize) -> Self {
