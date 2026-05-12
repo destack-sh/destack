@@ -250,7 +250,6 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                 Member::AssociatedType { .. }
                     | Member::AssociatedConst { .. }
                     | Member::Field { .. }
-                    | Member::Embed { .. }
             ) {
                 write_member_terminator(f, node_id)?;
             }
@@ -364,20 +363,6 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                         force_quote_keys,
                     )?;
                 }
-                Member::Embed {
-                    value,
-                    visibility,
-                    is_ambient,
-                    is_static,
-                } => {
-                    // prefixes
-                    write_ambient_prefix(f, *is_ambient)?;
-                    write_visibility_prefix(f, *visibility)?;
-                    write_static_prefix(f, *is_static)?;
-
-                    // embedded type
-                    write!(f, [token("..."), *value])?;
-                }
                 Member::StaticBlock { body } => {
                     // keyword
                     write!(f, [Keyword::Static, space()])?;
@@ -404,7 +389,6 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                 Member::AssociatedType { .. }
                     | Member::AssociatedConst { .. }
                     | Member::Field { .. }
-                    | Member::Embed { .. }
             ) {
                 write_member_terminator(f, node_id)?;
             }

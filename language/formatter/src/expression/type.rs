@@ -2926,9 +2926,6 @@ impl<'ast> FormatNode<'ast, TypeMember> for TypeMember {
 
                 write!(f, [token(":"), space(), value_type])?;
             }
-            TypeMember::Embed { value, .. } => {
-                write!(f, [token("..."), *value])?;
-            }
             TypeMember::AssociatedType {
                 name,
                 generic_parameters,
