@@ -88,25 +88,16 @@ fn assign_operator_to_binary(op: AssignOperator) -> BinaryOperator {
     match op {
         // multiplication
         AssignOperator::MultiplyAssign => BinaryOperator::Multiply,
-        AssignOperator::WrappingMultiplyAssign => BinaryOperator::WrappingMultiply,
-        AssignOperator::SaturatingMultiplyAssign => BinaryOperator::SaturatingMultiply,
         AssignOperator::ExponentAssign => BinaryOperator::Exponent,
-        AssignOperator::WrappingExponentAssign => BinaryOperator::WrappingExponent,
-        AssignOperator::SaturatingExponentAssign => BinaryOperator::SaturatingExponent,
         AssignOperator::DivideAssign => BinaryOperator::Divide,
         AssignOperator::RemainderAssign => BinaryOperator::Remainder,
 
         // addition
         AssignOperator::AddAssign => BinaryOperator::Add,
-        AssignOperator::WrappingAddAssign => BinaryOperator::WrappingAdd,
-        AssignOperator::SaturatingAddAssign => BinaryOperator::SaturatingAdd,
         AssignOperator::SubtractAssign => BinaryOperator::Subtract,
-        AssignOperator::WrappingSubtractAssign => BinaryOperator::WrappingSubtract,
-        AssignOperator::SaturatingSubtractAssign => BinaryOperator::SaturatingSubtract,
 
         // shift
         AssignOperator::ShiftLeftAssign => BinaryOperator::ShiftLeft,
-        AssignOperator::SaturatingShiftLeftAssign => BinaryOperator::SaturatingShiftLeft,
         AssignOperator::ShiftRightAssign => BinaryOperator::ShiftRight,
         AssignOperator::UnsignedShiftRightAssign => BinaryOperator::UnsignedShiftRight,
 

@@ -10,25 +10,15 @@ impl OperatorLanguageItemExt for BinaryOperator {
     fn language_item(&self) -> Option<LanguageItem> {
         match self {
             // arithmetic
-            BinaryOperator::Add | BinaryOperator::WrappingAdd | BinaryOperator::SaturatingAdd => {
-                Some(LanguageItem::Add)
-            }
-            BinaryOperator::Subtract
-            | BinaryOperator::WrappingSubtract
-            | BinaryOperator::SaturatingSubtract => Some(LanguageItem::Subtract),
-            BinaryOperator::Multiply
-            | BinaryOperator::WrappingMultiply
-            | BinaryOperator::SaturatingMultiply => Some(LanguageItem::Multiply),
+            BinaryOperator::Add => Some(LanguageItem::Add),
+            BinaryOperator::Subtract => Some(LanguageItem::Subtract),
+            BinaryOperator::Multiply => Some(LanguageItem::Multiply),
             BinaryOperator::Divide => Some(LanguageItem::Divide),
             BinaryOperator::Remainder => Some(LanguageItem::Remainder),
-            BinaryOperator::Exponent
-            | BinaryOperator::WrappingExponent
-            | BinaryOperator::SaturatingExponent => Some(LanguageItem::Power),
+            BinaryOperator::Exponent => Some(LanguageItem::Power),
 
             // shift
-            BinaryOperator::ShiftLeft | BinaryOperator::SaturatingShiftLeft => {
-                Some(LanguageItem::ShiftLeft)
-            }
+            BinaryOperator::ShiftLeft => Some(LanguageItem::ShiftLeft),
             BinaryOperator::ShiftRight => Some(LanguageItem::ShiftRight),
             BinaryOperator::UnsignedShiftRight => Some(LanguageItem::ShiftRightUnsigned),
 
@@ -57,7 +47,7 @@ impl OperatorLanguageItemExt for BinaryOperator {
 impl OperatorLanguageItemExt for UnaryOperator {
     fn language_item(&self) -> Option<LanguageItem> {
         match self {
-            UnaryOperator::Negate | UnaryOperator::WrappingNegate => Some(LanguageItem::Negate),
+            UnaryOperator::Negate => Some(LanguageItem::Negate),
             UnaryOperator::Plus => Some(LanguageItem::Plus),
             UnaryOperator::ElementwiseNot => Some(LanguageItem::Not),
             UnaryOperator::Dereference => Some(LanguageItem::Dereference),
@@ -84,25 +74,15 @@ impl OperatorLanguageItemExt for AssignOperator {
     fn language_item(&self) -> Option<LanguageItem> {
         match self {
             // arithmetic
-            AssignOperator::AddAssign
-            | AssignOperator::WrappingAddAssign
-            | AssignOperator::SaturatingAddAssign => Some(LanguageItem::Add),
-            AssignOperator::SubtractAssign
-            | AssignOperator::WrappingSubtractAssign
-            | AssignOperator::SaturatingSubtractAssign => Some(LanguageItem::Subtract),
-            AssignOperator::MultiplyAssign
-            | AssignOperator::WrappingMultiplyAssign
-            | AssignOperator::SaturatingMultiplyAssign => Some(LanguageItem::Multiply),
+            AssignOperator::AddAssign => Some(LanguageItem::Add),
+            AssignOperator::SubtractAssign => Some(LanguageItem::Subtract),
+            AssignOperator::MultiplyAssign => Some(LanguageItem::Multiply),
             AssignOperator::DivideAssign => Some(LanguageItem::Divide),
             AssignOperator::RemainderAssign => Some(LanguageItem::Remainder),
-            AssignOperator::ExponentAssign
-            | AssignOperator::WrappingExponentAssign
-            | AssignOperator::SaturatingExponentAssign => Some(LanguageItem::Power),
+            AssignOperator::ExponentAssign => Some(LanguageItem::Power),
 
             // shift
-            AssignOperator::ShiftLeftAssign | AssignOperator::SaturatingShiftLeftAssign => {
-                Some(LanguageItem::ShiftLeft)
-            }
+            AssignOperator::ShiftLeftAssign => Some(LanguageItem::ShiftLeft),
             AssignOperator::ShiftRightAssign => Some(LanguageItem::ShiftRight),
             AssignOperator::UnsignedShiftRightAssign => Some(LanguageItem::ShiftRightUnsigned),
 
