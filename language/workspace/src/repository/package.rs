@@ -34,6 +34,7 @@ impl Repository {
         };
         let config = destack_config.as_deref();
         let mut targets = IndexMap::new();
+        let mut mode_dependencies = IndexMap::new();
 
         // explicit targets
         if let Some(config) = config {
@@ -42,6 +43,12 @@ impl Repository {
                 let target = options.to_target(name);
 
                 targets.insert(target_id, target);
+            }
+
+            for (name, mode) in &config.modes {
+                if !mode.dependencies.is_empty() {
+                    mode_dependencies.insert(name.clone(), mode.dependencies.clone());
+                }
             }
         }
 
@@ -52,6 +59,10 @@ impl Repository {
             path: package.path.clone(),
             name: config.and_then(|config| config.name.clone()),
             version: config.and_then(|config| config.version.clone()),
+            dependencies: config
+                .map(|config| config.dependencies.clone())
+                .unwrap_or_default(),
+            mode_dependencies,
             destack_file_id,
             targets,
         };
@@ -212,6 +223,8 @@ impl Repository {
             path: Some(package_root.to_path_buf()),
             name: None,
             version: None,
+            dependencies: IndexMap::new(),
+            mode_dependencies: IndexMap::new(),
             destack_file_id: None,
             targets: IndexMap::new(),
         }

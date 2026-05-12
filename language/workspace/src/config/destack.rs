@@ -8,11 +8,12 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::config::{
-    CompilerOptions, EnvironmentOptions, FormatterOptions, LinterOptions, ModeOptions,
-    PolicyOptions, PolicyOptionsJson, ProductOptions, ProductOptionsJson, ProfileOptions,
-    ProfileOptionsJson, RuntimeOptions, TargetOptions, builtin_modes,
-    environment_options_from_json, extend_environment_options, parse_jsonc_file,
-    runtime_options_from_json, runtime_options_with_base,
+    CompilerOptions, DependencyJsonMap, DependencyMap, EnvironmentOptions, FormatterOptions,
+    LinterOptions, ModeOptions, PolicyOptions, PolicyOptionsJson, ProductOptions,
+    ProductOptionsJson, ProfileOptions, ProfileOptionsJson, RuntimeOptions, TargetOptions,
+    builtin_modes, dependency_options_from_json, environment_options_from_json,
+    extend_environment_options, parse_jsonc_file, runtime_options_from_json,
+    runtime_options_with_base, validate_dependency_json_map,
 };
 
 use super::compiler::CompilerOptionsJson;
@@ -55,6 +56,8 @@ pub struct DestackOptions {
     pub include: Option<Vec<String>>,
     /// Glob patterns for files to exclude.
     pub exclude: Option<Vec<String>>,
+    /// Package dependencies.
+    pub dependencies: Option<DependencyJsonMap>,
     /// Compiler options.
     pub compiler: CompilerOptionsJson,
     /// Package policy declarations and rules.
@@ -133,6 +136,8 @@ pub struct DestackConfig {
     pub include: Vec<String>,
     /// Glob patterns for files to exclude.
     pub exclude: Vec<String>,
+    /// Package dependencies.
+    pub dependencies: DependencyMap,
     /// Compiler options.
     pub compiler: CompilerOptions,
     /// Package policy declarations and rules.
@@ -189,6 +194,14 @@ impl DestackConfig {
                     .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
             }
         }
+        validate_dependency_json_map(options.dependencies.as_ref())
+            .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
+        if let Some(modes) = &options.modes {
+            for mode in modes.values() {
+                mode.validate()
+                    .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
+            }
+        }
 
         let path = file
             .path
@@ -207,6 +220,7 @@ impl DestackConfig {
             ))
         })?;
         let compiler = CompilerOptions::from(&options.compiler);
+        let dependencies = dependency_options_from_json(&options.dependencies);
         let mut policy = PolicyOptions::default();
         options.policy.apply_to(&mut policy);
         let runtime = runtime_options_from_json(Some(&options.runtime));
@@ -278,6 +292,7 @@ impl DestackConfig {
             files: options.files.clone().unwrap_or_default(),
             include: options.include.clone().unwrap_or_default(),
             exclude: options.exclude.clone().unwrap_or_default(),
+            dependencies,
             compiler,
             policy,
             runtime,
@@ -437,6 +452,12 @@ impl DestackConfig {
             self.exclude = parent.exclude.clone();
         }
 
+        // dependencies
+        for (name, dependency) in &parent.dependencies {
+            if !self.dependencies.contains_key(name) {
+                self.dependencies.insert(name.clone(), dependency.clone());
+            }
+        }
         // compiler
         let parent_compiler = &parent.compiler;
         let compiler = &mut self.compiler;
@@ -621,9 +642,23 @@ impl DestackConfig {
                 self.profiles.insert(name.clone(), profile.clone());
             }
         }
+        let child_modes = self.options.modes.as_ref();
+
         for (name, mode) in &parent.modes {
-            if !self.modes.contains_key(name) {
-                self.modes.insert(name.clone(), mode.clone());
+            if child_modes.is_some_and(|modes| modes.contains_key(name)) {
+                continue;
+            }
+
+            self.modes.insert(name.clone(), mode.clone());
+        }
+        if let Some(modes) = child_modes {
+            for name in modes.keys() {
+                let mode_json = self.merged_mode_json(parent, name)?;
+                mode_json
+                    .validate()
+                    .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
+                let mode = ModeOptions::from_json(&mode_json);
+                self.modes.insert(name.clone(), mode);
             }
         }
         if self.default_target.is_none() {
@@ -667,6 +702,23 @@ impl DestackConfig {
             ))
         })?;
         let merged_json = if let Some(parent_json) = parent.raw_named_json("products", name) {
+            Self::merge_json(parent_json, child_json)
+        } else {
+            child_json.clone()
+        };
+
+        serde_json::from_value(merged_json)
+    }
+
+    /// Return one merged mode JSON object for one inherited mode name.
+    fn merged_mode_json(&self, parent: &Self, name: &str) -> Result<ModeJson, serde_json::Error> {
+        let child_json = self.raw_named_json("modes", name).ok_or_else(|| {
+            serde_json::Error::io(Error::new(
+                ErrorKind::InvalidData,
+                format!("failed to find mode config during inheritance: mode={name}"),
+            ))
+        })?;
+        let merged_json = if let Some(parent_json) = parent.raw_named_json("modes", name) {
             Self::merge_json(parent_json, child_json)
         } else {
             child_json.clone()

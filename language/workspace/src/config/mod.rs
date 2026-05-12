@@ -1,5 +1,6 @@
 mod cache;
 mod compiler;
+mod dependency;
 mod destack;
 mod env;
 mod environment;
@@ -17,6 +18,7 @@ mod target;
 
 pub use cache::*;
 pub use compiler::*;
+pub use dependency::*;
 pub use destack::*;
 pub use env::*;
 pub use environment::*;
