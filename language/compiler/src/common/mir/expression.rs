@@ -599,7 +599,7 @@ pub fn expression_key_from_instruction(
 
         // instructions with side effects or that cannot be safely deduplicated
         mir::Instruction::Call { .. }
-        | mir::Instruction::CallVirtual { .. }
+        | mir::Instruction::CallClass { .. }
         | mir::Instruction::CallInterface { .. }
         | mir::Instruction::CallIndirect { .. }
         | mir::Instruction::Intrinsic { .. }

@@ -90,7 +90,7 @@ impl GlobalsAA {
 
                     // calls may access any address-taken global
                     mir::Instruction::Call { call, .. }
-                    | mir::Instruction::CallVirtual { call, .. }
+                    | mir::Instruction::CallClass { call, .. }
                     | mir::Instruction::CallInterface { call, .. } => {
                         let args = tree.get_arguments(call.arguments);
                         for arg in args.iter().copied().filter_map(|value| value.value()) {

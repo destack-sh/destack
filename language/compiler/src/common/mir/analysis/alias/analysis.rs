@@ -153,7 +153,7 @@ impl AliasAnalysis {
         if matches!(
             inst,
             mir::Instruction::Call { .. }
-                | mir::Instruction::CallVirtual { .. }
+                | mir::Instruction::CallClass { .. }
                 | mir::Instruction::CallInterface { .. }
                 | mir::Instruction::CallIndirect { .. }
         ) {

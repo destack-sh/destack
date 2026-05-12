@@ -173,6 +173,11 @@ enum SignatureType {
         /// Stored value type signature.
         value: Box<SignatureType>,
     },
+    /// Erased Any value signature.
+    Any {
+        /// Interface type signature.
+        interface: Box<SignatureType>,
+    },
     /// Reference type signature.
     Reference {
         /// Reference kind for the pointer.
@@ -229,6 +234,15 @@ enum SignatureType {
         /// Inner type signature.
         inner: Box<SignatureType>,
         /// Copy of the newtype.
+        copy: mir::Copy,
+    },
+    /// Union type signature.
+    Union {
+        /// Tag type signature.
+        tag: Box<SignatureType>,
+        /// Variant type signatures in tag order.
+        variants: Vec<(u64, SignatureType)>,
+        /// Copy of the union.
         copy: mir::Copy,
     },
     /// Vector type signature.
@@ -316,6 +330,9 @@ impl SignatureType {
             mir::Type::Atomic { value } => SignatureType::Atomic {
                 value: Box::new(SignatureType::from_type(tree, value.ty()?)?),
             },
+            mir::Type::Any { interface } => SignatureType::Any {
+                interface: Box::new(SignatureType::from_type(tree, interface.ty()?)?),
+            },
             mir::Type::Reference {
                 kind,
                 lifetime,
@@ -381,6 +398,26 @@ impl SignatureType {
                 inner: Box::new(SignatureType::from_type(tree, inner.ty()?)?),
                 copy: *copy,
             },
+            mir::Type::Union {
+                tag,
+                variants,
+                copy,
+            } => {
+                let tag = Box::new(SignatureType::from_type(tree, tag.ty()?)?);
+                let variants = variants
+                    .iter()
+                    .map(|variant| {
+                        let ty = SignatureType::from_type(tree, variant.ty.ty()?)?;
+                        Some((variant.tag, ty))
+                    })
+                    .collect::<Option<Vec<_>>>()?;
+
+                SignatureType::Union {
+                    tag,
+                    variants,
+                    copy: *copy,
+                }
+            }
             mir::Type::Vector {
                 element,
                 lanes,
@@ -1221,7 +1258,7 @@ impl SymbolCallSite {
                 signature: SignatureKey::from_function_type(tree, call.signature),
                 is_precise: false,
             }),
-            mir::Terminator::InvokeVirtual { slot, call, .. } => {
+            mir::Terminator::InvokeClass { slot, call, .. } => {
                 let declared_target = terminator.call_declared_target();
                 let callee = declared_target
                     .and_then(|target| target.function())
@@ -1238,7 +1275,7 @@ impl SymbolCallSite {
 
                 Some(Self {
                     callsite,
-                    dispatch: CallDispatchKind::Virtual { slot: *slot },
+                    dispatch: CallDispatchKind::Class { slot: *slot },
                     callee,
                     callee_linkage,
                     signature,
@@ -1297,7 +1334,7 @@ impl SymbolCallSite {
                 signature: SignatureKey::from_function_type(tree, call.signature),
                 is_precise: false,
             }),
-            mir::Terminator::TailCallVirtual { slot, call, .. } => {
+            mir::Terminator::TailCallClass { slot, call, .. } => {
                 let declared_target = terminator.call_declared_target();
                 let callee = declared_target
                     .and_then(|target| target.function())
@@ -1314,7 +1351,7 @@ impl SymbolCallSite {
 
                 Some(Self {
                     callsite,
-                    dispatch: CallDispatchKind::Virtual { slot: *slot },
+                    dispatch: CallDispatchKind::Class { slot: *slot },
                     callee,
                     callee_linkage,
                     signature,
@@ -1548,10 +1585,10 @@ impl CallSite {
                 callee: None,
                 is_precise: false,
             }),
-            mir::Terminator::InvokeVirtual { slot, .. } => Some(Self {
+            mir::Terminator::InvokeClass { slot, .. } => Some(Self {
                 caller,
                 callsite,
-                dispatch: CallDispatchKind::Virtual { slot: *slot },
+                dispatch: CallDispatchKind::Class { slot: *slot },
                 callee: terminator
                     .call_declared_target()
                     .and_then(|callee| callee.function()),
@@ -1580,10 +1617,10 @@ impl CallSite {
                 callee: None,
                 is_precise: false,
             }),
-            mir::Terminator::TailCallVirtual { slot, .. } => Some(Self {
+            mir::Terminator::TailCallClass { slot, .. } => Some(Self {
                 caller,
                 callsite,
-                dispatch: CallDispatchKind::Virtual { slot: *slot },
+                dispatch: CallDispatchKind::Class { slot: *slot },
                 callee: terminator
                     .call_declared_target()
                     .and_then(|callee| callee.function()),
@@ -1633,7 +1670,7 @@ mod tests {
         let target_id = test_target_id(package_id, "test");
         let (tree, strings) =
             mir::parse::Parser::parse(FileId::new(0), source, ParseOptions::default())
-                .validate()
+                .finish()
                 .expect("failed to parse MIR");
         let pool = Arc::new(destack_core::StringPool::new());
         pool.ensure_all_from(&strings);
@@ -1859,7 +1896,7 @@ b2(v2: ref<int32, managed, readonly>):
         assert!(callgraph.unknown_calls(test_id).is_empty());
     }
 
-    /// Virtual dispatch keeps a call edge and records an unknown target.
+    /// Class dispatch keeps a call edge and records an unknown target.
     #[test]
     fn test_call_graph_virtual_dispatch_is_partial() {
         let mut test = TestProgram::new(
@@ -1870,7 +1907,7 @@ b0(v0: int32):
 }
 function test(v0: int32): int32 {
 b0(v0: int32):
-    v1: int32 = call.virtual v0, int32, 1(v0): (int32) -> int32
+    v1: int32 = call.class v0, int32, 1(v0): (int32) -> int32
     return v1
 }"#,
         );
@@ -1885,7 +1922,7 @@ b0(v0: int32):
             for &instruction_id in &block.instructions {
                 if matches!(
                     test.tree.get(instruction_id),
-                    mir::Instruction::CallVirtual { .. }
+                    mir::Instruction::CallClass { .. }
                 ) {
                     call_id = Some(instruction_id);
                     break;
@@ -1895,14 +1932,14 @@ b0(v0: int32):
                 break;
             }
         }
-        let call_id = call_id.expect("missing virtual call instruction");
+        let call_id = call_id.expect("missing class call instruction");
 
         let instruction = test.tree.get_mut(call_id);
-        let mir::Instruction::CallVirtual {
+        let mir::Instruction::CallClass {
             declared_target, ..
         } = instruction
         else {
-            panic!("expected virtual call instruction");
+            panic!("expected class call instruction");
         };
         *declared_target = Some(callee_id.into());
 
@@ -1913,7 +1950,7 @@ b0(v0: int32):
         assert_eq!(callgraph.outgoing(test_id)[0].callee, callee_id);
         assert_eq!(
             callgraph.outgoing(test_id)[0].dispatch,
-            CallDispatchKind::Virtual {
+            CallDispatchKind::Class {
                 slot: mir::DispatchSlot::new(1),
             }
         );
@@ -1921,9 +1958,9 @@ b0(v0: int32):
         assert_eq!(callgraph.unknown_calls(test_id)[0].callee, Some(callee_id));
     }
 
-    /// Exceptional virtual call terminators keep the declared target and unknown edge.
+    /// Exceptional class call terminators keep the declared target and unknown edge.
     #[test]
-    fn test_call_graph_call_virtual_terminator_is_partial() {
+    fn test_call_graph_call_class_terminator_is_partial() {
         let mut test = TestProgram::new(
             r#"
 function callee(v0: int32): int32 {
@@ -1932,7 +1969,7 @@ b0(v0: int32):
 }
 function test(v0: int32): int32 {
 b0(v0: int32):
-    invoke.virtual v0, int32, 1(v0): (int32) -> int32 -> b1, catch b2
+    invoke.class v0, int32, 1(v0): (int32) -> int32 -> b1, catch b2
 b1(v1: int32):
     return v1
 b2(v2: ref<int32, managed, readonly>):
@@ -1947,7 +1984,7 @@ b2(v2: ref<int32, managed, readonly>):
 
         let terminator_id = test.tree.get(block_id).terminator;
         let block = test.tree.get_mut(terminator_id);
-        let mir::Terminator::InvokeVirtual {
+        let mir::Terminator::InvokeClass {
             declared_target, ..
         } = block
         else {
@@ -1963,7 +2000,7 @@ b2(v2: ref<int32, managed, readonly>):
         assert_eq!(outgoing[0].callee, callee_id);
         assert_eq!(
             outgoing[0].dispatch,
-            CallDispatchKind::Virtual {
+            CallDispatchKind::Class {
                 slot: mir::DispatchSlot::new(1),
             }
         );

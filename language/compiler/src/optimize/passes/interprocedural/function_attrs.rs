@@ -393,7 +393,7 @@ fn compute_function_summary(
                 }
             }
             mir::Terminator::InvokeIndirect { .. }
-            | mir::Terminator::InvokeVirtual { .. }
+            | mir::Terminator::InvokeClass { .. }
             | mir::Terminator::InvokeInterface { .. } => {
                 let (effect, behavior) =
                     call_effects_for_dynamic_terminator(tree, block_id, summaries);
@@ -420,7 +420,7 @@ fn compute_function_summary(
                 }
             }
             mir::Terminator::TailCallIndirect { .. }
-            | mir::Terminator::TailCallVirtual { .. }
+            | mir::Terminator::TailCallClass { .. }
             | mir::Terminator::TailCallInterface { .. } => {
                 let (effect, behavior) =
                     call_effects_for_dynamic_terminator(tree, block_id, summaries);
@@ -587,7 +587,7 @@ fn call_effects_for_instruction(
     let is_call = matches!(
         instruction,
         mir::Instruction::Call { .. }
-            | mir::Instruction::CallVirtual { .. }
+            | mir::Instruction::CallClass { .. }
             | mir::Instruction::CallInterface { .. }
             | mir::Instruction::CallIndirect { .. }
     );

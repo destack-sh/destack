@@ -1452,7 +1452,7 @@ fn instruction_cost(instruction: &mir::Instruction, tree: &mir::Tree) -> u64 {
             INLINE_COST_SIMPLE + tree.get_arguments(*elements).len() as u64
         }
         mir::Instruction::Call { .. } => INLINE_COST_CALL,
-        mir::Instruction::CallVirtual { .. } | mir::Instruction::CallInterface { .. } => {
+        mir::Instruction::CallClass { .. } | mir::Instruction::CallInterface { .. } => {
             INLINE_COST_CALL_INDIRECT
         }
         mir::Instruction::CallIndirect { .. } => INLINE_COST_CALL_INDIRECT,
@@ -1490,11 +1490,11 @@ fn terminator_cost(terminator: &mir::Terminator) -> u64 {
         | mir::Terminator::Yield { .. } => INLINE_COST_SIMPLE + 1,
         mir::Terminator::Invoke { .. } => INLINE_COST_CALL + 1,
         mir::Terminator::InvokeIndirect { .. }
-        | mir::Terminator::InvokeVirtual { .. }
+        | mir::Terminator::InvokeClass { .. }
         | mir::Terminator::InvokeInterface { .. } => INLINE_COST_CALL_INDIRECT + 1,
         mir::Terminator::Unreachable => 0,
         mir::Terminator::TailCall { .. } => INLINE_COST_CALL,
-        mir::Terminator::TailCallVirtual { .. } | mir::Terminator::TailCallInterface { .. } => {
+        mir::Terminator::TailCallClass { .. } | mir::Terminator::TailCallInterface { .. } => {
             INLINE_COST_CALL_INDIRECT
         }
         mir::Terminator::TailCallIndirect { .. } => INLINE_COST_CALL_INDIRECT,

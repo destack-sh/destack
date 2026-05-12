@@ -142,7 +142,7 @@ b0:
         assert_eq!(targets, &[callee_id]);
     }
 
-    /// Virtual calls remain unresolved without devirtualization data.
+    /// Class calls remain unresolved without devirtualization data.
     #[test]
     fn test_call_targets_virtual_declared() {
         let test = TestProgram::new(
@@ -153,14 +153,14 @@ b0(v0: int32):
 }
 function test(v0: int32): int32 {
 b0(v0: int32):
-    v1: int32 = call.virtual v0, int32, 1(v0): (int32) -> int32
+    v1: int32 = call.class v0, int32, 1(v0): (int32) -> int32
     return v1
 }"#,
         );
 
         let test_id = test.function_id_by_name("test");
         let call_id = find_instruction_id(&test.tree, test_id, |inst| {
-            matches!(inst, mir::Instruction::CallVirtual { .. })
+            matches!(inst, mir::Instruction::CallClass { .. })
         });
 
         let analyses = ModuleAnalyses::new(&test.tree);

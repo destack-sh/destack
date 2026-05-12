@@ -36,6 +36,8 @@ pub enum TypeKey {
     TypeId,
     /// Atomic storage type.
     Atomic { value: Box<TypeKey> },
+    /// Erased Any value type.
+    Any { interface: Box<TypeKey> },
     /// Reference or pointer type.
     Reference {
         kind: mir::ReferenceKind,
@@ -72,6 +74,12 @@ pub enum TypeKey {
     /// Nominal newtype wrapper.
     Newtype {
         inner: Box<TypeKey>,
+        copy: mir::Copy,
+    },
+    /// Union type with ordered variants.
+    Union {
+        tag: Box<TypeKey>,
+        variants: Vec<(u64, TypeKey)>,
         copy: mir::Copy,
     },
     /// Vector type with fixed lanes.
@@ -159,6 +167,9 @@ impl TypeKey {
             mir::Type::Atomic { value } => TypeKey::Atomic {
                 value: Box::new(Self::from_type_reference(*value, tree)),
             },
+            mir::Type::Any { interface } => TypeKey::Any {
+                interface: Box::new(Self::from_type_reference(*interface, tree)),
+            },
 
             mir::Type::Reference {
                 kind,
@@ -229,6 +240,23 @@ impl TypeKey {
                 inner: Box::new(Self::from_type_reference(*inner, tree)),
                 copy: *copy,
             },
+
+            mir::Type::Union {
+                tag,
+                variants,
+                copy,
+            } => {
+                let tag = Box::new(Self::from_type_reference(*tag, tree));
+                let variants = variants
+                    .iter()
+                    .map(|variant| (variant.tag, Self::from_type_reference(variant.ty, tree)))
+                    .collect();
+                TypeKey::Union {
+                    tag,
+                    variants,
+                    copy: *copy,
+                }
+            }
 
             mir::Type::Vector {
                 element,

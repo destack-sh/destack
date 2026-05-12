@@ -101,7 +101,7 @@ pub fn terminator_arguments_for_successor(
             unwind_target,
             ..
         }
-        | mir::Terminator::InvokeVirtual {
+        | mir::Terminator::InvokeClass {
             normal_target,
             unwind_target,
             ..
@@ -1619,7 +1619,7 @@ pub fn terminator_substitute_uses(
                     .collect(),
             },
         },
-        mir::Terminator::InvokeVirtual {
+        mir::Terminator::InvokeClass {
             receiver,
             call,
             declaring_type,
@@ -1627,7 +1627,7 @@ pub fn terminator_substitute_uses(
             declared_target,
             normal_target,
             unwind_target,
-        } => mir::Terminator::InvokeVirtual {
+        } => mir::Terminator::InvokeClass {
             receiver: substitute(*receiver),
             call: mir::Call {
                 arguments: call.arguments.iter().copied().map(substitute).collect(),
@@ -1660,7 +1660,6 @@ pub fn terminator_substitute_uses(
             call,
             declaring_type,
             slot,
-            declared_target,
             normal_target,
             unwind_target,
         } => mir::Terminator::InvokeInterface {
@@ -1671,7 +1670,6 @@ pub fn terminator_substitute_uses(
             },
             declaring_type: *declaring_type,
             slot: *slot,
-            declared_target: *declared_target,
             normal_target: mir::BlockTarget {
                 block: normal_target.block,
                 arguments: normal_target
@@ -1706,13 +1704,13 @@ pub fn terminator_substitute_uses(
                 ..call.clone()
             },
         },
-        mir::Terminator::TailCallVirtual {
+        mir::Terminator::TailCallClass {
             receiver,
             call,
             declaring_type,
             slot,
             declared_target,
-        } => mir::Terminator::TailCallVirtual {
+        } => mir::Terminator::TailCallClass {
             receiver: substitute(*receiver),
             call: mir::Call {
                 arguments: call.arguments.iter().copied().map(substitute).collect(),
@@ -1727,7 +1725,6 @@ pub fn terminator_substitute_uses(
             call,
             declaring_type,
             slot,
-            declared_target,
         } => mir::Terminator::TailCallInterface {
             receiver: substitute(*receiver),
             call: mir::Call {
@@ -1736,7 +1733,6 @@ pub fn terminator_substitute_uses(
             },
             declaring_type: *declaring_type,
             slot: *slot,
-            declared_target: *declared_target,
         },
         mir::Terminator::TailCallIndirect { callee, call } => mir::Terminator::TailCallIndirect {
             callee: substitute(*callee),

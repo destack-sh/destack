@@ -167,7 +167,7 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
                 unwind_target,
                 ..
             }
-            | Terminator::InvokeVirtual {
+            | Terminator::InvokeClass {
                 normal_target,
                 unwind_target,
                 ..
@@ -196,7 +196,7 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
             | Terminator::Trap { .. }
             | Terminator::Unreachable
             | Terminator::TailCall { .. }
-            | Terminator::TailCallVirtual { .. }
+            | Terminator::TailCallClass { .. }
             | Terminator::TailCallInterface { .. }
             | Terminator::TailCallIndirect { .. } => {}
         }

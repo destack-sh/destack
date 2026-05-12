@@ -1139,7 +1139,7 @@ impl<'a> MemoryAccessCollector<'a> {
                 Self::single_effect(effect)
             }
             mir::Instruction::Call { call, .. }
-            | mir::Instruction::CallVirtual { call, .. }
+            | mir::Instruction::CallClass { call, .. }
             | mir::Instruction::CallInterface { call, .. } => {
                 self.call_effects(instruction, call.arguments, None)
             }
