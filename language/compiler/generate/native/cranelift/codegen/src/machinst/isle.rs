@@ -7,8 +7,8 @@ pub use super::MachLabel;
 use super::RetPair;
 pub use crate::ir::condcodes::CondCode;
 pub use crate::ir::*;
-pub use crate::isa::unwind::UnwindInst;
 pub use crate::isa::TargetIsa;
+pub use crate::isa::unwind::UnwindInst;
 pub use crate::machinst::{
     ABIArg, ABIArgSlot, ABIMachineSpec, InputSourceInst, Lower, LowerBackend, RealReg, Reg,
     RelocDistance, Sig, TryCallInfo, VCodeInst, Writable,
@@ -137,11 +137,6 @@ macro_rules! isle_lower_prelude_methods {
         }
 
         #[inline]
-        fn ensure_in_vreg(&mut self, reg: Reg, ty: Type) -> Reg {
-            self.lower_ctx.ensure_in_vreg(reg, ty)
-        }
-
-        #[inline]
         fn value_regs_get(&mut self, regs: ValueRegs, i: usize) -> Reg {
             regs.regs()[i]
         }
@@ -205,8 +200,13 @@ macro_rules! isle_lower_prelude_methods {
         }
 
         #[inline]
-        fn inst_data_value(&mut self, inst: Inst) -> InstructionData {
-            self.lower_ctx.dfg().insts[inst]
+        fn inst_data_value(&mut self, inst: Inst) -> (Type, InstructionData) {
+            let ty = match self.first_result(inst) {
+                Some(v) => self.value_type(v),
+                None => types::INVALID,
+            };
+            let data = self.lower_ctx.dfg().insts[inst];
+            (ty, data)
         }
 
         #[inline]
@@ -220,7 +220,7 @@ macro_rules! isle_lower_prelude_methods {
                 _ => return None,
             };
             let ty = self.lower_ctx.output_ty(inst, 0);
-            let shift_amt = std::cmp::max(0, 64 - self.ty_bits(ty));
+            let shift_amt = core::cmp::max(0, 64 - self.ty_bits(ty));
             Some((constant << shift_amt) >> shift_amt)
         }
 
@@ -331,14 +331,22 @@ macro_rules! isle_lower_prelude_methods {
         }
 
         #[inline]
-        fn func_ref_data(&mut self, func_ref: FuncRef) -> (SigRef, ExternalName, RelocDistance) {
+        fn func_ref_data(
+            &mut self,
+            func_ref: FuncRef,
+        ) -> (SigRef, ExternalName, RelocDistance, bool) {
             let funcdata = &self.lower_ctx.dfg().ext_funcs[func_ref];
             let reloc_distance = if funcdata.colocated {
                 RelocDistance::Near
             } else {
                 RelocDistance::Far
             };
-            (funcdata.signature, funcdata.name.clone(), reloc_distance)
+            (
+                funcdata.signature,
+                funcdata.name.clone(),
+                reloc_distance,
+                funcdata.patchable,
+            )
         }
 
         #[inline]
@@ -530,11 +538,12 @@ macro_rules! isle_lower_prelude_methods {
             dst: WritableReg,
             stack_slot: DynamicStackSlot,
         ) -> MInst {
-            assert!(self
-                .lower_ctx
-                .abi()
-                .dynamic_stackslot_offsets()
-                .is_valid(stack_slot));
+            assert!(
+                self.lower_ctx
+                    .abi()
+                    .dynamic_stackslot_offsets()
+                    .is_valid(stack_slot)
+            );
             self.lower_ctx
                 .abi()
                 .dynamic_stackslot_addr(stack_slot, dst)
@@ -753,7 +762,7 @@ macro_rules! isle_lower_prelude_methods {
             &mut self,
             targets: &MachLabelSlice,
         ) -> Option<(MachLabel, BoxVecMachLabel)> {
-            use std::boxed::Box;
+            use alloc::boxed::Box;
             if targets.is_empty() {
                 return None;
             }
@@ -765,11 +774,6 @@ macro_rules! isle_lower_prelude_methods {
 
         fn jump_table_size(&mut self, targets: &BoxVecMachLabel) -> u32 {
             targets.len() as u32
-        }
-
-        fn add_range_fact(&mut self, reg: Reg, bits: u16, min: u64, max: u64) -> Reg {
-            self.lower_ctx.add_range_fact(reg, bits, min, max);
-            reg
         }
 
         fn value_is_unused(&mut self, val: Value) -> bool {

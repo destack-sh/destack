@@ -7,9 +7,9 @@ use super::{
 };
 use crate::ir::TrapCode;
 use crate::{Reg, Writable};
+use alloc::string::String;
 use cranelift_assembler_x64 as asm;
 use regalloc2::{PReg, RegClass};
-use std::string::String;
 
 /// Define the types of registers Cranelift will use.
 #[derive(Clone, Debug)]
@@ -525,8 +525,8 @@ pub(crate) use isle_assembler_methods;
 
 #[cfg(test)]
 mod tests {
-    use super::asm::{AsReg, Size};
     use super::PairedGpr;
+    use super::asm::{AsReg, Size};
     use crate::isa::x64::args::{FromWritableReg, Gpr, WritableGpr, WritableXmm, Xmm};
     use crate::isa::x64::inst::external::PairedXmm;
     use crate::{Reg, Writable};

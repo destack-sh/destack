@@ -3,17 +3,16 @@
 //! The `Function` struct defined in this module owns all of its basic blocks and
 //! instructions.
 
+use crate::HashMap;
 use crate::entity::{PrimaryMap, SecondaryMap};
-use crate::ir::pcc::Fact;
 use crate::ir::{
     self, Block, DataFlowGraph, DebugTags, DynamicStackSlot, DynamicStackSlotData,
     DynamicStackSlots, DynamicType, ExtFuncData, FuncRef, GlobalValue, GlobalValueData, Inst,
-    JumpTable, JumpTableData, Layout, MemoryType, MemoryTypeData, SigRef, Signature, SourceLocs,
-    StackSlot, StackSlotData, StackSlots, Type,
+    JumpTable, JumpTableData, Layout, SigRef, Signature, SourceLocs, StackSlot, StackSlotData,
+    StackSlots, Type,
 };
 use crate::isa::CallConv;
 use crate::write::{write_function, write_function_spec};
-use crate::HashMap;
 #[cfg(feature = "enable-serde")]
 use alloc::string::String;
 use core::fmt;
@@ -173,12 +172,6 @@ pub struct FunctionStencil {
     /// Global values referenced.
     pub global_values: PrimaryMap<ir::GlobalValue, ir::GlobalValueData>,
 
-    /// Global value proof-carrying-code facts.
-    pub global_value_facts: SecondaryMap<ir::GlobalValue, Option<Fact>>,
-
-    /// Memory types for proof-carrying code.
-    pub memory_types: PrimaryMap<ir::MemoryType, ir::MemoryTypeData>,
-
     /// Data flow graph containing the primary definition of all instructions, blocks and values.
     pub dfg: DataFlowGraph,
 
@@ -221,8 +214,6 @@ impl FunctionStencil {
         self.sized_stack_slots.clear();
         self.dynamic_stack_slots.clear();
         self.global_values.clear();
-        self.global_value_facts.clear();
-        self.memory_types.clear();
         self.dfg.clear();
         self.layout.clear();
         self.srclocs.clear();
@@ -255,11 +246,6 @@ impl FunctionStencil {
     /// Declares a global value accessible to the function.
     pub fn create_global_value(&mut self, data: GlobalValueData) -> GlobalValue {
         self.global_values.push(data)
-    }
-
-    /// Declares a memory type for use by the function.
-    pub fn create_memory_type(&mut self, data: MemoryTypeData) -> MemoryType {
-        self.memory_types.push(data)
     }
 
     /// Find the global dyn_scale value associated with given DynamicType.
@@ -351,12 +337,13 @@ impl FunctionStencil {
             self.dfg.inst_results(dst).len(),
             self.dfg.inst_results(src).len()
         );
-        debug_assert!(self
-            .dfg
-            .inst_results(dst)
-            .iter()
-            .zip(self.dfg.inst_results(src))
-            .all(|(a, b)| self.dfg.value_type(*a) == self.dfg.value_type(*b)));
+        debug_assert!(
+            self.dfg
+                .inst_results(dst)
+                .iter()
+                .zip(self.dfg.inst_results(src))
+                .all(|(a, b)| self.dfg.value_type(*a) == self.dfg.value_type(*b))
+        );
 
         self.dfg.insts[dst] = self.dfg.insts[src];
         self.layout.remove_inst(src);
@@ -419,8 +406,6 @@ impl Function {
                 sized_stack_slots: StackSlots::new(),
                 dynamic_stack_slots: DynamicStackSlots::new(),
                 global_values: PrimaryMap::new(),
-                global_value_facts: SecondaryMap::new(),
-                memory_types: PrimaryMap::new(),
                 dfg: DataFlowGraph::new(),
                 layout: Layout::new(),
                 srclocs: SecondaryMap::new(),

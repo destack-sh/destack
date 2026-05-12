@@ -1,5 +1,5 @@
 pub mod encode {
-    use crate::{inst, CodeSink};
+    use crate::{CodeSink, inst};
 
     /// `NOP`
     pub fn nop_1b(_: &inst::nop_1b, buf: &mut impl CodeSink) {
@@ -73,8 +73,8 @@ pub mod encode {
 }
 
 pub mod mnemonic {
-    use crate::{inst, Registers, XmmMem};
-    use std::borrow::Cow;
+    use crate::{Registers, XmmMem, inst};
+    use alloc::borrow::Cow;
 
     macro_rules! lock {
         ($name:tt => $mnemonic:expr) => {
@@ -188,8 +188,9 @@ pub mod mnemonic {
 }
 
 pub mod display {
-    use crate::{inst, Amode, Gpr, GprMem, Registers, Size};
-    use std::fmt;
+    use crate::{Amode, Gpr, GprMem, Registers, Size, inst};
+    use alloc::string::ToString;
+    use core::fmt;
 
     pub fn callq_d(f: &mut fmt::Formatter, inst: &inst::callq_d) -> fmt::Result {
         let inst::callq_d { imm32 } = inst;
@@ -637,7 +638,7 @@ pub mod display {
 
 pub mod visit {
     use crate::inst::*;
-    use crate::{gpr, Amode, Fixed, Gpr, GprMem, RegisterVisitor, Registers};
+    use crate::{Amode, Fixed, Gpr, GprMem, RegisterVisitor, Registers, gpr};
 
     pub fn mulxl_rvm<R: Registers>(mulx: &mut mulxl_rvm<R>, visitor: &mut impl RegisterVisitor<R>) {
         visit_mulx(

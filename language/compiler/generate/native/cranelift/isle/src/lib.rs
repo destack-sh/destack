@@ -1,7 +1,4 @@
 #![doc = include_str!("../README.md")]
-// NOTE #Cleanup: fix clippy lints once fully vendored
-#![allow(clippy::all)]
-#![allow(warnings)]
 #![deny(missing_docs)]
 
 macro_rules! declare_id {
@@ -32,6 +29,7 @@ mod log;
 pub mod overlap;
 pub mod parser;
 pub mod printer;
+pub mod recursion;
 pub mod sema;
 pub mod serialize;
 pub mod stablemapset;

@@ -7,7 +7,7 @@ with a description of future work and expectations, as well as an
 appendix that notes design influences and similarities to the
 IonMonkey backtracking allocator.
 
-## Data Structures
+# Data Structures
 
 We now review the data structures that regalloc2 uses to track its
 state.
@@ -227,7 +227,7 @@ information if enabled, so that an annotated view of the program with
 its liveranges, bundle assignments, inserted moves, merge and split
 decisions, etc. can be viewed.
 
-## Allocation Pipeline
+# Allocation Pipeline
 
 We now describe the pipeline that computes register allocations.
 
@@ -952,7 +952,7 @@ case of a single use of an otherwise-spilled value.
 Note that there is an opportunity to do better: as we only accept SSA
 code we would know that a value could not be redefined once written.
 
-## Future Plans
+# Future Plans
 
 ## Better Split Heuristics
 
@@ -961,7 +961,7 @@ and it is now generally decent, but more work could be done here,
 especially with regard to the interaction between splits and the loop
 nest.
 
-## Appendix: Comparison to IonMonkey Allocator
+# Appendix: Comparison to IonMonkey Allocator
 
 There are a number of differences between the [IonMonkey
 allocator](https://searchfox.org/mozilla-central/source/js/src/jit/BacktrackingAllocator.cpp)
@@ -985,7 +985,7 @@ similarities than the differences.
 
 Several notable high-level differences are:
 
-* There are [many different fuzz targets](../src/fuzzing/) that
+* There are [fuzz/fuzz_targets/](many different fuzz targets) that
   exercise the allocator, including a full symbolic checker
   (`ion_checker` target) based on the [symbolic checker in
   regalloc.rs](https://cfallin.org/blog/2021/03/15/cranelift-isel-3/)
@@ -1058,7 +1058,7 @@ Several notable high-level differences are:
 * The allocator supports non-SSA code, and has native support for
   handling program moves specially.
 
-## Appendix: Performance-Tuning Lessons
+# Appendix: Performance-Tuning Lessons
 
 In the course of optimizing the allocator's performance, we found a
 number of general principles:
@@ -1116,7 +1116,7 @@ number of general principles:
   4-tuple, and the half-move sort (which can be a few percent or more
   of total allocation time) became multiple times cheaper.
 
-## Appendix: Data Structure: Chunked Sparse BitVec
+# Appendix: Data Structure: Chunked Sparse BitVec
 
 We use a "chunked sparse bitvec" to store liveness information, which
 is just a set of VReg indices. The design is fairly simple: the
@@ -1140,7 +1140,7 @@ as well because (i) it was less memory-efficient (the chunking helps
 with this) and (ii) insertions are more expensive when they always
 require a full hashset/hashmap insert.
 
-## Appendix: Fuzzing
+# Appendix: Fuzzing
 
 We have five fuzz targets: `ssagen`, `domtree`, `moves`, `ion`, and
 `ion_checker`.

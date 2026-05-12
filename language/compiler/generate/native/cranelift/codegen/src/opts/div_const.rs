@@ -218,7 +218,7 @@ pub fn magic_s64(d: i64) -> MS64 {
 
 #[cfg(test)]
 mod tests {
-    use super::{magic_s32, magic_s64, magic_u32, magic_u64, MS32, MS64, MU32, MU64};
+    use super::{MS32, MS64, MU32, MU64, magic_s32, magic_s64, magic_u32, magic_u64};
     use proptest::strategy::Strategy;
 
     fn make_mu32(mul_by: u32, do_add: bool, shift_by: i32) -> MU32 {

@@ -11,22 +11,23 @@ use crate::ir::{
     AtomicRmwOp, BlockCall, Endianness, ExternalName, Inst, InstructionData, KnownSymbol, MemFlags,
     Opcode, TrapCode, Value, ValueList,
 };
+use crate::isa::CallConv;
+use crate::isa::s390x::S390xBackend;
 use crate::isa::s390x::abi::REG_SAVE_AREA_SIZE;
 use crate::isa::s390x::inst::{
-    gpr, stack_reg, writable_gpr, zero_reg, CallInstDest, Cond, Inst as MInst, LaneOrder, MemArg,
-    RegPair, ReturnCallInfo, SymbolReloc, UImm12, UImm16Shifted, UImm32Shifted, WritableRegPair,
+    CallInstDest, Cond, Inst as MInst, LaneOrder, MemArg, RegPair, ReturnCallInfo, SImm20,
+    SymbolReloc, UImm12, UImm16Shifted, UImm32Shifted, WritableRegPair, gpr, stack_reg,
+    writable_gpr, zero_reg,
 };
-use crate::isa::s390x::S390xBackend;
-use crate::isa::CallConv;
 use crate::machinst::isle::*;
 use crate::machinst::{
-    non_writable_value_regs, ArgPair, CallArgList, CallInfo, CallRetList, InstOutput, MachInst,
-    MachLabel, Reg, TryCallInfo, VCodeConstant, VCodeConstantData,
+    ArgPair, CallArgList, CallInfo, CallRetList, InstOutput, MachInst, MachLabel, Reg, TryCallInfo,
+    VCodeConstant, VCodeConstantData, non_writable_value_regs,
 };
+use alloc::boxed::Box;
+use alloc::vec::Vec;
+use core::cell::Cell;
 use regalloc2::PReg;
-use std::boxed::Box;
-use std::cell::Cell;
-use std::vec::Vec;
 
 type BoxCallInfo = Box<CallInfo<CallInstDest>>;
 type BoxReturnCallInfo = Box<ReturnCallInfo<CallInstDest>>;
@@ -105,7 +106,7 @@ impl generated_code::Context for IsleContext<'_, '_, MInst, S390xBackend> {
     }
 
     // Adjust the stack before performing a tail call.  The actual stack
-    // adjustment is defered to the call instruction itself, but we create
+    // adjustment is deferred to the call instruction itself, but we create
     // a temporary backchain copy in the proper place here, if necessary
     // for unwinding.
     fn abi_emit_return_call_adjust_stack(&mut self, abi: Sig) -> Unit {
@@ -163,6 +164,7 @@ impl generated_code::Context for IsleContext<'_, '_, MInst, S390xBackend> {
         uses: CallArgList,
         defs: CallRetList,
         try_call_info: Option<TryCallInfo>,
+        patchable: bool,
     ) -> BoxCallInfo {
         let stack_ret_space = self.lower_ctx.sigs()[sig].sized_stack_ret_space();
         let stack_arg_space = self.lower_ctx.sigs()[sig].sized_stack_arg_space();
@@ -177,7 +179,7 @@ impl generated_code::Context for IsleContext<'_, '_, MInst, S390xBackend> {
 
         Box::new(
             self.lower_ctx
-                .gen_call_info(sig, dest, uses, defs, try_call_info),
+                .gen_call_info(sig, dest, uses, defs, try_call_info, patchable),
         )
     }
 
@@ -229,6 +231,24 @@ impl generated_code::Context for IsleContext<'_, '_, MInst, S390xBackend> {
     }
 
     #[inline]
+    fn mie4_enabled(&mut self, _: Type) -> Option<()> {
+        if self.backend.isa_flags.has_mie4() {
+            Some(())
+        } else {
+            None
+        }
+    }
+
+    #[inline]
+    fn mie4_disabled(&mut self, _: Type) -> Option<()> {
+        if !self.backend.isa_flags.has_mie4() {
+            Some(())
+        } else {
+            None
+        }
+    }
+
+    #[inline]
     fn vxrs_ext2_enabled(&mut self, _: Type) -> Option<()> {
         if self.backend.isa_flags.has_vxrs_ext2() {
             Some(())
@@ -240,6 +260,24 @@ impl generated_code::Context for IsleContext<'_, '_, MInst, S390xBackend> {
     #[inline]
     fn vxrs_ext2_disabled(&mut self, _: Type) -> Option<()> {
         if !self.backend.isa_flags.has_vxrs_ext2() {
+            Some(())
+        } else {
+            None
+        }
+    }
+
+    #[inline]
+    fn vxrs_ext3_enabled(&mut self, _: Type) -> Option<()> {
+        if self.backend.isa_flags.has_vxrs_ext3() {
+            Some(())
+        } else {
+            None
+        }
+    }
+
+    #[inline]
+    fn vxrs_ext3_disabled(&mut self, _: Type) -> Option<()> {
+        if !self.backend.isa_flags.has_vxrs_ext3() {
             Some(())
         } else {
             None
@@ -293,11 +331,7 @@ impl generated_code::Context for IsleContext<'_, '_, MInst, S390xBackend> {
 
     #[inline]
     fn i64_nonequal(&mut self, val: i64, cmp: i64) -> Option<i64> {
-        if val != cmp {
-            Some(val)
-        } else {
-            None
-        }
+        if val != cmp { Some(val) } else { None }
     }
 
     #[inline]
@@ -343,21 +377,13 @@ impl generated_code::Context for IsleContext<'_, '_, MInst, S390xBackend> {
     #[inline]
     fn u64_nonzero_hipart(&mut self, n: u64) -> Option<u64> {
         let part = n & 0xffff_ffff_0000_0000;
-        if part != 0 {
-            Some(part)
-        } else {
-            None
-        }
+        if part != 0 { Some(part) } else { None }
     }
 
     #[inline]
     fn u64_nonzero_lopart(&mut self, n: u64) -> Option<u64> {
         let part = n & 0x0000_0000_ffff_ffff;
-        if part != 0 {
-            Some(part)
-        } else {
-            None
-        }
+        if part != 0 { Some(part) } else { None }
     }
 
     #[inline]
@@ -642,7 +668,7 @@ impl generated_code::Context for IsleContext<'_, '_, MInst, S390xBackend> {
     #[inline]
     fn fcvt_to_sint_lb32(&mut self, size: u8) -> u64 {
         let lb = (-2.0_f32).powi((size - 1).into());
-        std::cmp::max(lb.to_bits() + 1, (lb - 1.0).to_bits()) as u64
+        core::cmp::max(lb.to_bits() + 1, (lb - 1.0).to_bits()) as u64
     }
 
     #[inline]
@@ -653,7 +679,7 @@ impl generated_code::Context for IsleContext<'_, '_, MInst, S390xBackend> {
     #[inline]
     fn fcvt_to_sint_lb64(&mut self, size: u8) -> u64 {
         let lb = (-2.0_f64).powi((size - 1).into());
-        std::cmp::max(lb.to_bits() + 1, (lb - 1.0).to_bits())
+        core::cmp::max(lb.to_bits() + 1, (lb - 1.0).to_bits())
     }
 
     #[inline]
@@ -692,12 +718,48 @@ impl generated_code::Context for IsleContext<'_, '_, MInst, S390xBackend> {
     }
 
     #[inline]
+    fn memarg_imm_from_offset(&mut self, imm: Offset32) -> Option<SImm20> {
+        SImm20::maybe_from_i64(i64::from(imm))
+    }
+
+    #[inline]
+    fn memarg_imm_from_offset_plus_bias(&mut self, imm: Offset32, bias: u8) -> Option<SImm20> {
+        let final_offset = i64::from(imm) + bias as i64;
+        SImm20::maybe_from_i64(final_offset)
+    }
+
+    #[inline]
     fn memarg_reg_plus_reg(&mut self, x: Reg, y: Reg, bias: u8, flags: MemFlags) -> MemArg {
         MemArg::BXD12 {
             base: x,
             index: y,
             disp: UImm12::maybe_from_u64(bias as u64).unwrap(),
             flags,
+        }
+    }
+
+    #[inline]
+    fn memarg_reg_plus_reg_plus_off(
+        &mut self,
+        x: Reg,
+        y: Reg,
+        offset: &SImm20,
+        flags: MemFlags,
+    ) -> MemArg {
+        if let Some(imm) = UImm12::maybe_from_simm20(*offset) {
+            MemArg::BXD12 {
+                base: x,
+                index: y,
+                disp: imm,
+                flags,
+            }
+        } else {
+            MemArg::BXD20 {
+                base: x,
+                index: y,
+                disp: *offset,
+                flags,
+            }
         }
     }
 
@@ -732,11 +794,7 @@ impl generated_code::Context for IsleContext<'_, '_, MInst, S390xBackend> {
     #[inline]
     fn memarg_symbol_offset_sum(&mut self, off1: i64, off2: i64) -> Option<i32> {
         let off = i32::try_from(off1 + off2).ok()?;
-        if off & 1 == 0 {
-            Some(off)
-        } else {
-            None
-        }
+        if off & 1 == 0 { Some(off) } else { None }
     }
 
     #[inline]
@@ -779,11 +837,7 @@ impl generated_code::Context for IsleContext<'_, '_, MInst, S390xBackend> {
 
     #[inline]
     fn same_reg(&mut self, dst: WritableReg, src: Reg) -> Option<Reg> {
-        if dst.to_reg() == src {
-            Some(src)
-        } else {
-            None
-        }
+        if dst.to_reg() == src { Some(src) } else { None }
     }
 
     #[inline]

@@ -6,25 +6,21 @@ use crate::cursor::{Cursor, CursorPosition, FuncCursor};
 use crate::dominator_tree::DominatorTree;
 use crate::egraph::elaborate::Elaborator;
 use crate::inst_predicates::{is_mergeable_for_egraph, is_pure_for_egraph};
-use crate::ir::pcc::Fact;
 use crate::ir::{
-    Block, DataFlowGraph, Function, Inst, InstructionData, Opcode, Type, Value, ValueDef,
-    ValueListPool,
+    Block, DataFlowGraph, Function, Inst, InstructionData, Type, Value, ValueDef, ValueListPool,
 };
 use crate::loop_analysis::LoopAnalysis;
-use crate::opts::generated_code::SkeletonInstSimplification;
 use crate::opts::IsleContext;
+use crate::opts::generated_code::SkeletonInstSimplification;
 use crate::scoped_hash_map::{Entry as ScopedEntry, ScopedHashMap};
-use crate::settings::Flags;
 use crate::take_and_replace::TakeAndReplace;
-use crate::trace;
+use crate::{FxHashSet, trace};
 use alloc::vec::Vec;
 use core::cmp::Ordering;
 use core::hash::Hasher;
 use cranelift_control::ControlPlane;
-use cranelift_entity::packed_option::ReservedValue;
 use cranelift_entity::SecondaryMap;
-use rustc_hash::FxHashSet;
+use cranelift_entity::packed_option::ReservedValue;
 use smallvec::SmallVec;
 
 mod cost;
@@ -60,8 +56,6 @@ pub struct EgraphPass<'a> {
     /// Loop analysis results, used for built-in LICM during
     /// elaboration.
     loop_analysis: &'a LoopAnalysis,
-    /// Compiler flags.
-    flags: &'a Flags,
     /// Chaos-mode control-plane so we can test that we still get
     /// correct results when our heuristics make bad decisions.
     ctrl_plane: &'a mut ControlPlane,
@@ -95,7 +89,6 @@ where
     domtree: &'opt DominatorTree,
     pub(crate) alias_analysis: &'opt mut AliasAnalysis<'analysis>,
     pub(crate) alias_analysis_state: &'opt mut LastStores,
-    flags: &'opt Flags,
     ctrl_plane: &'opt mut ControlPlane,
     // Held locally during optimization of one node (recursively):
     pub(crate) rewrite_depth: usize,
@@ -170,7 +163,6 @@ where
                 let result = self.func.dfg.first_result(inst);
                 self.value_to_opt_value[result] = orig_result;
                 self.available_block[result] = self.available_block[orig_result];
-                self.func.dfg.merge_facts(result, orig_result);
             }
             orig_result
         } else {
@@ -193,8 +185,6 @@ where
                     (inst, result, ty)
                 }
             };
-
-            self.attach_constant_fact(inst, result, ty);
 
             self.available_block[result] = self.get_available_block(inst);
             let opt_value = self.optimize_pure_enode(inst);
@@ -368,8 +358,7 @@ where
             for optimized_value in optimized_values.drain(..) {
                 trace!(
                     "Returned from ISLE for {}, got {:?}",
-                    orig_value,
-                    optimized_value
+                    orig_value, optimized_value
                 );
                 if optimized_value == orig_value {
                     trace!(" -> same as orig value; skipping");
@@ -388,7 +377,6 @@ where
                 ctx.eclass_size[union_value] = eclass_size - 1;
                 ctx.stats.union += 1;
                 trace!(" -> union: now {}", union_value);
-                ctx.func.dfg.merge_facts(old_union_value, optimized_value);
                 ctx.available_block[union_value] =
                     ctx.merge_availability(old_union_value, optimized_value);
             }
@@ -500,13 +488,10 @@ where
             let result = self.func.dfg.first_result(inst);
             trace!(
                 " -> inst {} has result {} replaced with {}",
-                inst,
-                result,
-                new_result
+                inst, result, new_result
             );
             self.value_to_opt_value[result] = new_result;
             self.available_block[result] = self.available_block[new_result];
-            self.func.dfg.merge_facts(result, new_result);
             Some(SkeletonInstSimplification::Remove)
         }
         // Otherwise, generic side-effecting op -- always keep it, and
@@ -663,7 +648,7 @@ where
 
                 let old_vals = ctx.func.dfg.inst_results(inst);
                 let new_vals = if let Some(val) = new_val.as_ref() {
-                    std::slice::from_ref(val)
+                    core::slice::from_ref(val)
                 } else {
                     ctx.func.dfg.inst_results(new_inst)
                 };
@@ -698,23 +683,6 @@ where
         // Return the best simplification!
         best
     }
-
-    /// Helper to propagate facts on constant values: if PCC is
-    /// enabled, then unconditionally add a fact attesting to the
-    /// Value's concrete value.
-    fn attach_constant_fact(&mut self, inst: Inst, value: Value, ty: Type) {
-        if self.flags.enable_pcc() {
-            if let InstructionData::UnaryImm {
-                opcode: Opcode::Iconst,
-                imm,
-            } = self.func.dfg.insts[inst]
-            {
-                let imm: i64 = imm.into();
-                self.func.dfg.facts[value] =
-                    Some(Fact::constant(ty.bits().try_into().unwrap(), imm as u64));
-            }
-        }
-    }
 }
 
 impl<'a> EgraphPass<'a> {
@@ -724,7 +692,6 @@ impl<'a> EgraphPass<'a> {
         domtree: &'a DominatorTree,
         loop_analysis: &'a LoopAnalysis,
         alias_analysis: &'a mut AliasAnalysis<'a>,
-        flags: &'a Flags,
         ctrl_plane: &'a mut ControlPlane,
     ) -> Self {
         Self {
@@ -732,7 +699,6 @@ impl<'a> EgraphPass<'a> {
             domtree,
             loop_analysis,
             alias_analysis,
-            flags,
             ctrl_plane,
             stats: Stats::default(),
             remat_values: FxHashSet::default(),
@@ -900,7 +866,6 @@ impl<'a> EgraphPass<'a> {
                             domtree: &self.domtree,
                             alias_analysis: self.alias_analysis,
                             alias_analysis_state: &mut alias_analysis_state,
-                            flags: self.flags,
                             ctrl_plane: self.ctrl_plane,
                             optimized_values: Default::default(),
                             optimized_insts: Default::default(),
@@ -1060,7 +1025,7 @@ impl<'a> EgraphPass<'a> {
 /// Implementation of external-context equality and hashing on
 /// InstructionData. This allows us to deduplicate instructions given
 /// some context that lets us see its value lists, so we don't need to
-/// store arguments inline in the `InstuctionData` (or alongside it in
+/// store arguments inline in the `InstructionData` (or alongside it in
 /// some newly-defined key type) in all cases.
 struct GVNContext<'a> {
     value_lists: &'a ValueListPool,
@@ -1078,7 +1043,7 @@ impl<'a> CtxEq<(Type, InstructionData), (Type, InstructionData)> for GVNContext<
 
 impl<'a> CtxHash<(Type, InstructionData)> for GVNContext<'a> {
     fn ctx_hash<H: Hasher>(&self, state: &mut H, (ty, inst): &(Type, InstructionData)) {
-        std::hash::Hash::hash(&ty, state);
+        core::hash::Hash::hash(&ty, state);
         inst.hash(state, self.value_lists);
     }
 }
@@ -1111,6 +1076,5 @@ pub(crate) struct Stats {
     pub(crate) elaborate_func: u64,
     pub(crate) elaborate_func_pre_insts: u64,
     pub(crate) elaborate_func_post_insts: u64,
-    pub(crate) elaborate_best_cost_fixpoint_iters: u64,
     pub(crate) eclass_size_limit: u64,
 }

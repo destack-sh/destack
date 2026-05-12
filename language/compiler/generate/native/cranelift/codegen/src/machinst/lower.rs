@@ -7,7 +7,6 @@
 
 use crate::entity::SecondaryMap;
 use crate::inst_predicates::{has_lowering_side_effect, is_constant_64bit};
-use crate::ir::pcc::{Fact, FactContext, PccError, PccResult};
 use crate::ir::{
     ArgumentPurpose, Block, BlockArg, Constant, ConstantData, DataFlowGraph, ExternalName,
     Function, GlobalValue, GlobalValueData, Immediate, Inst, InstructionData, MemFlags,
@@ -15,18 +14,17 @@ use crate::ir::{
 };
 use crate::machinst::valueregs::InvalidSentinel;
 use crate::machinst::{
-    writable_value_regs, ABIMachineSpec, BackwardsInsnIndex, BlockIndex, BlockLoweringOrder,
-    CallArgList, CallInfo, CallRetList, Callee, InsnIndex, LoweredBlock, MachLabel, Reg, Sig,
-    SigSet, TryCallInfo, VCode, VCodeBuilder, VCodeConstant, VCodeConstantData, VCodeConstants,
-    VCodeInst, ValueRegs, Writable,
+    ABIMachineSpec, BackwardsInsnIndex, BlockIndex, BlockLoweringOrder, CallArgList, CallInfo,
+    CallRetList, Callee, InsnIndex, LoweredBlock, MachLabel, Reg, Sig, SigSet, TryCallInfo, VCode,
+    VCodeBuilder, VCodeConstant, VCodeConstantData, VCodeConstants, VCodeInst, ValueRegs, Writable,
+    writable_value_regs,
 };
 use crate::settings::Flags;
-use crate::{trace, CodegenError, CodegenResult};
+use crate::{CodegenError, CodegenResult, FxHashMap, FxHashSet, trace};
 use alloc::vec::Vec;
+use core::fmt::Debug;
 use cranelift_control::ControlPlane;
-use rustc_hash::{FxHashMap, FxHashSet};
-use smallvec::{smallvec, SmallVec};
-use std::fmt::Debug;
+use smallvec::{SmallVec, smallvec};
 
 use super::{VCodeBuildDirection, VRegAllocator};
 
@@ -148,22 +146,6 @@ pub trait LowerBackend {
     /// into the associated vreg, instead using the real reg directly.
     fn maybe_pinned_reg(&self) -> Option<Reg> {
         None
-    }
-
-    /// The type of state carried between `check_fact` invocations.
-    type FactFlowState: Default + Clone + Debug;
-
-    /// Check any facts about an instruction, given VCode with facts
-    /// on VRegs. Takes mutable `VCode` so that it can propagate some
-    /// kinds of facts automatically.
-    fn check_fact(
-        &self,
-        _ctx: &FactContext<'_>,
-        _vcode: &mut VCode<Self::MInst>,
-        _inst: InsnIndex,
-        _state: &mut Self::FactFlowState,
-    ) -> PccResult<()> {
-        Err(PccError::UnimplementedBackend)
     }
 }
 
@@ -408,7 +390,7 @@ impl<'func, I: VCodeInst> Lower<'func, I> {
             for &param in f.dfg.block_params(bb) {
                 let ty = f.dfg.value_type(param);
                 if value_regs[param].is_invalid() {
-                    let regs = vregs.alloc_with_maybe_fact(ty, f.dfg.facts[param].clone())?;
+                    let regs = vregs.alloc(ty)?;
                     value_regs[param] = regs;
                     trace!("bb {} param {}: regs {:?}", bb, param, regs);
                 }
@@ -417,15 +399,11 @@ impl<'func, I: VCodeInst> Lower<'func, I> {
                 for &result in f.dfg.inst_results(inst) {
                     let ty = f.dfg.value_type(result);
                     if value_regs[result].is_invalid() && !ty.is_invalid() {
-                        let regs = vregs.alloc_with_maybe_fact(ty, f.dfg.facts[result].clone())?;
+                        let regs = vregs.alloc(ty)?;
                         value_regs[result] = regs;
                         trace!(
                             "bb {} inst {} ({:?}): result {} regs {:?}",
-                            bb,
-                            inst,
-                            f.dfg.insts[inst],
-                            result,
-                            regs,
+                            bb, inst, f.dfg.insts[inst], result, regs,
                         );
                     }
                 }
@@ -541,10 +519,6 @@ impl<'func, I: VCodeInst> Lower<'func, I> {
 
     pub fn sigs_mut(&mut self) -> &mut SigSet {
         self.vcode.sigs_mut()
-    }
-
-    pub fn vregs_mut(&mut self) -> &mut VRegAllocator<I> {
-        &mut self.vregs
     }
 
     fn gen_arg_setup(&mut self) {
@@ -714,10 +688,17 @@ impl<'func, I: VCodeInst> Lower<'func, I> {
         uses: CallArgList,
         defs: CallRetList,
         try_call_info: Option<TryCallInfo>,
+        patchable: bool,
     ) -> CallInfo<T> {
-        self.vcode
-            .abi()
-            .gen_call_info(self.vcode.sigs(), sig, dest, uses, defs, try_call_info)
+        self.vcode.abi().gen_call_info(
+            self.vcode.sigs(),
+            sig,
+            dest,
+            uses,
+            defs,
+            try_call_info,
+            patchable,
+        )
     }
 
     /// Has this instruction been sunk to a use-site (i.e., away from its
@@ -799,7 +780,9 @@ impl<'func, I: VCodeInst> Lower<'func, I> {
 
             // Value defined by "inst" becomes live after it in normal
             // order, and therefore **before** in reversed order.
-            self.emit_value_label_live_range_start_for_inst(inst);
+            // Only emit value label aliases if the instruction will be lowered
+            // (otherwise we want to keep using the earlier label instead).
+            self.emit_value_label_live_range_start_for_inst(inst, has_side_effect || value_needed);
 
             // Normal instruction: codegen if the instruction is side-effecting
             // or any of its outputs is used.
@@ -946,14 +929,14 @@ impl<'func, I: VCodeInst> Lower<'func, I> {
         }
     }
 
-    fn emit_value_label_marks_for_value(&mut self, val: Value) {
+    fn emit_value_label_marks_for_value(&mut self, val: Value, allow_alias: bool) {
         let regs = self.value_regs[val];
         if regs.len() > 1 {
             return;
         }
         let reg = regs.only_reg().unwrap();
 
-        if let Some(label_starts) = self.get_value_labels(val, 0) {
+        if let Some(label_starts) = self.get_value_labels(val, if allow_alias { 0 } else { !0 }) {
             let labels = label_starts
                 .iter()
                 .map(|&ValueLabelStart { label, .. }| label)
@@ -961,16 +944,14 @@ impl<'func, I: VCodeInst> Lower<'func, I> {
             for label in labels {
                 trace!(
                     "value labeling: defines val {:?} -> reg {:?} -> label {:?}",
-                    val,
-                    reg,
-                    label,
+                    val, reg, label,
                 );
                 self.vcode.add_value_label(reg, label);
             }
         }
     }
 
-    fn emit_value_label_live_range_start_for_inst(&mut self, inst: Inst) {
+    fn emit_value_label_live_range_start_for_inst(&mut self, inst: Inst, allow_alias: bool) {
         if self.f.dfg.values_labels.is_none() {
             return;
         }
@@ -981,7 +962,7 @@ impl<'func, I: VCodeInst> Lower<'func, I> {
             inst
         );
         for &val in self.f.dfg.inst_results(inst) {
-            self.emit_value_label_marks_for_value(val);
+            self.emit_value_label_marks_for_value(val, allow_alias);
         }
     }
 
@@ -992,7 +973,7 @@ impl<'func, I: VCodeInst> Lower<'func, I> {
 
         trace!("value labeling: block {}", block);
         for &arg in self.f.dfg.block_params(block) {
-            self.emit_value_label_marks_for_value(arg);
+            self.emit_value_label_marks_for_value(arg, true);
         }
         self.finish_ir_inst(Default::default());
     }
@@ -1022,9 +1003,7 @@ impl<'func, I: VCodeInst> Lower<'func, I> {
     ) -> CodegenResult<()> {
         trace!(
             "lower_clif_branch: block {} branch {:?} targets {:?}",
-            block,
-            branch,
-            targets,
+            block, branch, targets,
         );
         // When considering code-motion opportunities, consider the current
         // program point to be this branch.
@@ -1171,8 +1150,27 @@ impl<'func, I: VCodeInst> Lower<'func, I> {
             // End branch.
             if let Some(bb) = lb.orig_block() {
                 if let Some(branch) = self.collect_branch_and_targets(bindex, bb, &mut targets) {
+                    let branch_start = self.vcode.vcode.num_insts();
                     self.lower_clif_branch(backend, bindex, bb, branch, &targets)?;
                     self.finish_ir_inst(self.srcloc(branch));
+
+                    // Branch instructions like try_call can also be safepoints
+                    // that need stack maps. Forward the stack map from the CLIF
+                    // branch to the VCode safepoint, just like we do for
+                    // non-branch instructions in `lower_clif_block`.
+                    if let Some(entries) = self.f.dfg.user_stack_map_entries(branch) {
+                        let branch_end = self.vcode.vcode.num_insts();
+                        for i in branch_start..branch_end {
+                            let iix = InsnIndex::new(i);
+                            if self.vcode.vcode[iix].is_safepoint() {
+                                self.vcode.add_user_stack_map(
+                                    BackwardsInsnIndex::new(iix.index()),
+                                    entries,
+                                );
+                                break;
+                            }
+                        }
+                    }
                 }
             } else {
                 // If no orig block, this must be a pure edge block;
@@ -1211,8 +1209,7 @@ impl<'func, I: VCodeInst> Lower<'func, I> {
         // VCodeBuilder, let's build the VCode.
         trace!(
             "built vcode:\n{:?}Backwards {:?}",
-            &self.vregs,
-            &self.vcode.vcode
+            &self.vregs, &self.vcode.vcode
         );
         let vcode = self.vcode.build(self.vregs);
 
@@ -1530,9 +1527,7 @@ impl<'func, I: VCodeInst> Lower<'func, I> {
     pub fn get_value_as_source_or_const(&self, val: Value) -> NonRegInput {
         trace!(
             "get_input_for_val: val {} at cur_inst {:?} cur_scan_entry_color {:?}",
-            val,
-            self.cur_inst,
-            self.cur_scan_entry_color,
+            val, self.cur_inst, self.cur_scan_entry_color,
         );
         let inst = match self.f.dfg.value_def(val) {
             // OK to merge source instruction if we have a source
@@ -1598,9 +1593,7 @@ impl<'func, I: VCodeInst> Lower<'func, I> {
                     // the code-motion.
                     trace!(
                         " -> side-effecting op {} for val {}: use state {:?}",
-                        src_inst,
-                        val,
-                        self.value_ir_uses[val]
+                        src_inst, val, self.value_ir_uses[val]
                     );
                     if self.cur_scan_entry_color.is_some()
                         && self.value_ir_uses[val] == ValueUseState::Once
@@ -1654,18 +1647,6 @@ impl<'func, I: VCodeInst> Lower<'func, I> {
 
         regs
     }
-
-    /// Get the ValueRegs for the edge-defined values for special
-    /// try-call-return block arguments.
-    pub fn try_call_return_defs(&mut self, ir_inst: Inst) -> &[ValueRegs<Writable<Reg>>] {
-        &self.try_call_rets.get(&ir_inst).unwrap()[..]
-    }
-
-    /// Get the Regs for the edge-defined values for special
-    /// try-call-return exception payload arguments.
-    pub fn try_call_exception_defs(&mut self, ir_inst: Inst) -> &[Writable<Reg>] {
-        &self.try_call_payloads.get(&ir_inst).unwrap()[..]
-    }
 }
 
 /// Codegen primitives: allocate temps, emit instructions, set result registers,
@@ -1674,11 +1655,6 @@ impl<'func, I: VCodeInst> Lower<'func, I> {
     /// Get a new temp.
     pub fn alloc_tmp(&mut self, ty: Type) -> ValueRegs<Writable<Reg>> {
         writable_value_regs(self.vregs.alloc_with_deferred_error(ty))
-    }
-
-    /// Get the current root instruction that we are lowering.
-    pub fn cur_inst(&self) -> Inst {
-        self.cur_inst.unwrap()
     }
 
     /// Emit a machine instruction.
@@ -1725,40 +1701,13 @@ impl<'func, I: VCodeInst> Lower<'func, I> {
     pub fn use_constant(&mut self, constant: VCodeConstantData) -> VCodeConstant {
         self.vcode.constants().insert(constant)
     }
-
-    /// Cause the value in `reg` to be in a virtual reg, by copying it into a
-    /// new virtual reg if `reg` is a real reg. `ty` describes the type of the
-    /// value in `reg`.
-    pub fn ensure_in_vreg(&mut self, reg: Reg, ty: Type) -> Reg {
-        if reg.to_virtual_reg().is_some() {
-            reg
-        } else {
-            let new_reg = self.alloc_tmp(ty).only_reg().unwrap();
-            self.emit(I::gen_move(new_reg, reg, ty));
-            new_reg.to_reg()
-        }
-    }
-
-    /// Add a range fact to a register, if no other fact is present.
-    pub fn add_range_fact(&mut self, reg: Reg, bit_width: u16, min: u64, max: u64) {
-        if self.flags.enable_pcc() {
-            self.vregs.set_fact_if_missing(
-                reg.to_virtual_reg().unwrap(),
-                Fact::Range {
-                    bit_width,
-                    min,
-                    max,
-                },
-            );
-        }
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::ValueUseState;
     use crate::cursor::{Cursor, FuncCursor};
-    use crate::ir::{types, Function, InstBuilder};
+    use crate::ir::{Function, InstBuilder, types};
 
     #[test]
     fn multi_result_use_once() {

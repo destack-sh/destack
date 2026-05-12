@@ -12,13 +12,13 @@ use crate::isa::{self, IsaFlagsHashKey, OwnedTargetIsa, TargetIsa};
 use crate::machinst::{self, CompiledCodeStencil, MachInst, SigSet, VCode};
 use crate::result::CodegenResult;
 use crate::settings::{self as shared_settings, Flags};
-use crate::{ir, MachTextSectionBuilder, TextSectionBuilder};
+use crate::{MachTextSectionBuilder, TextSectionBuilder, ir};
 use alloc::boxed::Box;
+use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt::Debug;
 use core::marker::PhantomData;
 use cranelift_control::ControlPlane;
-use std::string::String;
 use target_lexicon::{Architecture, Triple};
 
 pub use settings::Flags as PulleyFlags;
@@ -229,7 +229,7 @@ where
         true
     }
 
-    fn has_x86_blendv_lowering(&self, _ty: ir::Type) -> bool {
+    fn has_blendv_lowering(&self, _ty: ir::Type) -> bool {
         false
     }
 

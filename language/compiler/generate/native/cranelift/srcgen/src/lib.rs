@@ -2,9 +2,6 @@
 //!
 //! This crate contains generic helper routines and classes for generating
 //! source code.
-// NOTE #Cleanup: fix clippy lints once fully vendored
-#![allow(clippy::all)]
-#![allow(warnings)]
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
@@ -383,7 +380,7 @@ impl Match {
 
 #[cfg(test)]
 mod srcgen_tests {
-    use super::{parse_multiline, Formatter, Language, Match};
+    use super::{Formatter, Language, Match, parse_multiline};
 
     fn from_raw_string<S: Into<String>>(s: S) -> Vec<String> {
         s.into()

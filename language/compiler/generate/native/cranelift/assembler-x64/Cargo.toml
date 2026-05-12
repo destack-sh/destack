@@ -1,9 +1,10 @@
 [package]
 name = "cranelift-assembler-x64"
 description = "A Cranelift-specific x64 assembler"
-version = "0.127.0"
+version = "0.131.1"
 license = "Apache-2.0 WITH LLVM-exception"
-edition = "2021"
+edition = "2024"
+rust-version = "1.92.0"
 
 [dependencies]
 arbitrary = { workspace = true, features = ["derive"], optional = true }
@@ -15,7 +16,7 @@ arbtest = { workspace = true }
 capstone = { workspace = true }
 
 [build-dependencies]
-cranelift-assembler-x64-meta = { path = "meta", version = "0.127.0" }
+cranelift-assembler-x64-meta = { path = "meta", version = "0.131.1" }
 
 
 [features]

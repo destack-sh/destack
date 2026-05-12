@@ -138,12 +138,24 @@ fn check_sse_matches_avx(sse_inst: &Inst, avx_inst: &Inst) {
         // may have slightly different operand semantics (e.g., `roundss` ->
         // `vroundss`) and we want to be careful about matching too freely.
         (
-            [(ReadWrite | Write, Reg(_)), (Read, Reg(_) | RegMem(_) | Mem(_))],
-            [(Write, Reg(_)), (Read, Reg(_)), (Read, Reg(_) | RegMem(_) | Mem(_))],
+            [
+                (ReadWrite | Write, Reg(_)),
+                (Read, Reg(_) | RegMem(_) | Mem(_)),
+            ],
+            [
+                (Write, Reg(_)),
+                (Read, Reg(_)),
+                (Read, Reg(_) | RegMem(_) | Mem(_)),
+            ],
         ) => {}
         (
             [(ReadWrite, Reg(_)), (Read, RegMem(_)), (Read, Imm(_))],
-            [(Write, Reg(_)), (Read, Reg(_)), (Read, RegMem(_)), (Read, Imm(_))],
+            [
+                (Write, Reg(_)),
+                (Read, Reg(_)),
+                (Read, RegMem(_)),
+                (Read, Imm(_)),
+            ],
         ) => {}
         (
             [(ReadWrite, Reg(_)), (Read, Imm(_))],
@@ -151,12 +163,26 @@ fn check_sse_matches_avx(sse_inst: &Inst, avx_inst: &Inst) {
         ) => {}
         // The following formats are identical.
         (
-            [(Write, Reg(_) | RegMem(_) | Mem(_)), (Read, Reg(_) | RegMem(_) | Mem(_))],
-            [(Write, Reg(_) | RegMem(_) | Mem(_)), (Read, Reg(_) | RegMem(_) | Mem(_))],
+            [
+                (Write, Reg(_) | RegMem(_) | Mem(_)),
+                (Read, Reg(_) | RegMem(_) | Mem(_)),
+            ],
+            [
+                (Write, Reg(_) | RegMem(_) | Mem(_)),
+                (Read, Reg(_) | RegMem(_) | Mem(_)),
+            ],
         ) => {}
         (
-            [(Write, Reg(_) | RegMem(_)), (Read, Reg(_) | RegMem(_)), (Read, Imm(_))],
-            [(Write, Reg(_) | RegMem(_)), (Read, Reg(_) | RegMem(_)), (Read, Imm(_))],
+            [
+                (Write, Reg(_) | RegMem(_)),
+                (Read, Reg(_) | RegMem(_)),
+                (Read, Imm(_)),
+            ],
+            [
+                (Write, Reg(_) | RegMem(_)),
+                (Read, Reg(_) | RegMem(_)),
+                (Read, Imm(_)),
+            ],
         ) => {}
         ([(Read, Reg(_)), (Read, RegMem(_))], [(Read, Reg(_)), (Read, RegMem(_))]) => {}
         // We panic on other formats for now; feel free to add more patterns to

@@ -19,11 +19,7 @@ macro_rules! isle_common_prelude_methods {
         fn checked_add_with_type(&mut self, ty: Type, a: u64, b: u64) -> Option<u64> {
             let c = a.checked_add(b)?;
             let ty_mask = self.ty_mask(ty);
-            if (c & !ty_mask) == 0 {
-                Some(c)
-            } else {
-                None
-            }
+            if (c & !ty_mask) == 0 { Some(c) } else { None }
         }
 
         #[inline]
@@ -133,8 +129,54 @@ macro_rules! isle_common_prelude_methods {
         }
 
         #[inline]
+        fn imm64_rotl(&mut self, ty: Type, x: Imm64, y: Imm64) -> Imm64 {
+            let bits = ty.bits();
+            assert!(bits <= 64);
+            // This holds for all Cranelift types ({u/i}{8,16,32,64})
+            debug_assert!(bits.is_power_of_two());
+
+            let ty_mask = self.ty_mask(ty);
+            let x = (x.bits() as u64) & ty_mask;
+
+            // Mask off any excess rotate bits so the rotate stays within `ty`.
+            let shift_mask = bits - 1;
+            let y = ((y.bits() as u64) & u64::from(shift_mask)) as u32;
+
+            // In Rust, x >> 64 or x << 64 panics.
+            let result = if y == 0 {
+                x
+            } else {
+                (x << y) | (x >> (u32::from(bits) - y))
+            };
+
+            Imm64::new((result & ty_mask) as i64)
+        }
+
+        #[inline]
+        fn imm64_rotr(&mut self, ty: Type, x: Imm64, y: Imm64) -> Imm64 {
+            let bits = ty.bits();
+            assert!(bits <= 64);
+            debug_assert!(bits.is_power_of_two());
+
+            let ty_mask = self.ty_mask(ty);
+            let x = (x.bits() as u64) & ty_mask;
+
+            // Mask off any excess rotate bits so the rotate stays within `ty`.
+            let shift_mask = bits - 1;
+            let y = ((y.bits() as u64) & u64::from(shift_mask)) as u32;
+
+            let result = if y == 0 {
+                x
+            } else {
+                (x >> y) | (x << (u32::from(bits) - y))
+            };
+
+            Imm64::new((result & ty_mask) as i64)
+        }
+
+        #[inline]
         fn i64_sextend_u64(&mut self, ty: Type, x: u64) -> i64 {
-            let shift_amt = std::cmp::max(0, 64 - ty.bits());
+            let shift_amt = core::cmp::max(0, 64 - ty.bits());
             ((x as i64) << shift_amt) >> shift_amt
         }
 
@@ -171,7 +213,7 @@ macro_rules! isle_common_prelude_methods {
 
         #[inline]
         fn ty_bits(&mut self, ty: Type) -> u8 {
-            use std::convert::TryInto;
+            use core::convert::TryInto;
             ty.bits().try_into().unwrap()
         }
 
@@ -284,7 +326,7 @@ macro_rules! isle_common_prelude_methods {
 
         #[inline]
         fn ty_int_ref_scalar_64(&mut self, ty: Type) -> Option<Type> {
-            if ty.bits() <= 64 && !ty.is_float() && !ty.is_vector() {
+            if ty.bits() <= 64 && !ty.is_float() && !ty.is_vector() && !ty.is_dynamic_vector() {
                 Some(ty)
             } else {
                 None
@@ -298,38 +340,22 @@ macro_rules! isle_common_prelude_methods {
 
         #[inline]
         fn ty_16(&mut self, ty: Type) -> Option<Type> {
-            if ty.bits() == 16 {
-                Some(ty)
-            } else {
-                None
-            }
+            if ty.bits() == 16 { Some(ty) } else { None }
         }
 
         #[inline]
         fn ty_32(&mut self, ty: Type) -> Option<Type> {
-            if ty.bits() == 32 {
-                Some(ty)
-            } else {
-                None
-            }
+            if ty.bits() == 32 { Some(ty) } else { None }
         }
 
         #[inline]
         fn ty_64(&mut self, ty: Type) -> Option<Type> {
-            if ty.bits() == 64 {
-                Some(ty)
-            } else {
-                None
-            }
+            if ty.bits() == 64 { Some(ty) } else { None }
         }
 
         #[inline]
         fn ty_128(&mut self, ty: Type) -> Option<Type> {
-            if ty.bits() == 128 {
-                Some(ty)
-            } else {
-                None
-            }
+            if ty.bits() == 128 { Some(ty) } else { None }
         }
 
         #[inline]
@@ -390,20 +416,12 @@ macro_rules! isle_common_prelude_methods {
 
         #[inline]
         fn ty_scalar(&mut self, ty: Type) -> Option<Type> {
-            if ty.lane_count() == 1 {
-                Some(ty)
-            } else {
-                None
-            }
+            if ty.lane_count() == 1 { Some(ty) } else { None }
         }
 
         #[inline]
         fn ty_scalar_float(&mut self, ty: Type) -> Option<Type> {
-            if ty.is_float() {
-                Some(ty)
-            } else {
-                None
-            }
+            if ty.is_float() { Some(ty) } else { None }
         }
 
         #[inline]
@@ -521,11 +539,7 @@ macro_rules! isle_common_prelude_methods {
 
         #[inline]
         fn u64_from_bool(&mut self, b: bool) -> u64 {
-            if b {
-                u64::MAX
-            } else {
-                0
-            }
+            if b { u64::MAX } else { 0 }
         }
 
         #[inline]
@@ -589,11 +603,7 @@ macro_rules! isle_common_prelude_methods {
         }
 
         fn not_i64x2(&mut self, ty: Type) -> Option<()> {
-            if ty == I64X2 {
-                None
-            } else {
-                Some(())
-            }
+            if ty == I64X2 { None } else { Some(()) }
         }
 
         fn trap_code_division_by_zero(&mut self) -> TrapCode {
@@ -617,11 +627,7 @@ macro_rules! isle_common_prelude_methods {
 
         #[inline]
         fn u32_nonnegative(&mut self, x: u32) -> Option<u32> {
-            if (x as i32) >= 0 {
-                Some(x)
-            } else {
-                None
-            }
+            if (x as i32) >= 0 { Some(x) } else { None }
         }
 
         #[inline]

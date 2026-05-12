@@ -1,9 +1,7 @@
 //! Top-level lib.rs for `cranelift_object`.
 //!
 //! This re-exports `object` so you don't have to explicitly keep the versions in sync.
-// NOTE #Cleanup: fix clippy lints once fully vendored
-#![allow(clippy::all)]
-#![allow(warnings)]
+
 #![deny(missing_docs)]
 
 mod backend;

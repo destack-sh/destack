@@ -1,9 +1,10 @@
 [package]
 name = "cranelift-assembler-x64-meta"
 description = "Generate a Cranelift-specific assembler for x64 instructions"
-version = "0.127.0"
+version = "0.131.1"
 license = "Apache-2.0 WITH LLVM-exception"
-edition = "2021"
+edition = "2024"
+rust-version = "1.92.0"
 
 [dependencies]
 cranelift-srcgen = { workspace = true }

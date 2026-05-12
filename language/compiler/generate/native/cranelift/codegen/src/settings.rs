@@ -289,7 +289,7 @@ pub enum SetError {
     BadValue(String),
 }
 
-impl std::error::Error for SetError {}
+impl core::error::Error for SetError {}
 
 impl fmt::Display for SetError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -476,7 +476,7 @@ impl<'a> From<&'a dyn TargetIsa> for FlagsOrIsa<'a> {
 #[cfg(test)]
 mod tests {
     use super::SetError::*;
-    use super::{builder, Configurable, Flags};
+    use super::{Configurable, Flags, builder};
     use alloc::string::ToString;
 
     #[test]
@@ -498,7 +498,6 @@ regalloc_checker = false
 regalloc_verbose_logs = false
 enable_alias_analysis = true
 enable_verifier = true
-enable_pcc = false
 is_pic = false
 use_colocated_libcalls = false
 enable_nan_canonicalization = false

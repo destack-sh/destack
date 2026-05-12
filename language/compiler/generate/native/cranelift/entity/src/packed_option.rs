@@ -8,6 +8,8 @@
 //! to represent `None`.
 
 use core::{fmt, mem};
+use wasmtime_core::alloc::TryClone;
+use wasmtime_core::error::OutOfMemory;
 
 #[cfg(feature = "enable-serde")]
 use serde_derive::{Deserialize, Serialize};
@@ -29,6 +31,15 @@ pub trait ReservedValue {
 #[repr(transparent)]
 pub struct PackedOption<T: ReservedValue>(T);
 
+impl<T> TryClone for PackedOption<T>
+where
+    T: ReservedValue + TryClone,
+{
+    fn try_clone(&self) -> Result<Self, OutOfMemory> {
+        Ok(Self(self.0.try_clone()?))
+    }
+}
+
 impl<T: ReservedValue> PackedOption<T> {
     /// Returns `true` if the packed option is a `None` value.
     pub fn is_none(&self) -> bool {
@@ -42,11 +53,7 @@ impl<T: ReservedValue> PackedOption<T> {
 
     /// Expand the packed option into a normal `Option`.
     pub fn expand(self) -> Option<T> {
-        if self.is_none() {
-            None
-        } else {
-            Some(self.0)
-        }
+        if self.is_none() { None } else { Some(self.0) }
     }
 
     /// Maps a `PackedOption<T>` to `Option<U>` by applying a function to a contained value.

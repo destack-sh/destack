@@ -12,20 +12,20 @@ use crate::ir::{
     AtomicRmwOp, BlockCall, ExternalName, Inst, InstructionData, MemFlags, Opcode, TrapCode, Value,
     ValueList,
 };
+use crate::isa::riscv64::Riscv64Backend;
 use crate::isa::riscv64::inst::*;
 use crate::isa::riscv64::lower::args::{
     FReg, VReg, WritableFReg, WritableVReg, WritableXReg, XReg,
 };
-use crate::isa::riscv64::Riscv64Backend;
 use crate::machinst::isle::*;
 use crate::machinst::{
     ArgPair, CallArgList, CallInfo, CallRetList, InstOutput, MachInst, Reg, VCodeConstant,
     VCodeConstantData,
 };
+use alloc::boxed::Box;
+use alloc::vec::Vec;
 use regalloc2::PReg;
-use std::boxed::Box;
-use std::vec::Vec;
-use wasmtime_math::{f32_cvt_to_int_bounds, f64_cvt_to_int_bounds};
+use wasmtime_core::math::{f32_cvt_to_int_bounds, f64_cvt_to_int_bounds};
 
 type BoxCallInfo = Box<CallInfo<ExternalName>>;
 type BoxCallIndInfo = Box<CallInfo<Reg>>;
@@ -71,6 +71,7 @@ impl generated_code::Context for RV64IsleContext<'_, '_, MInst, Riscv64Backend> 
         uses: CallArgList,
         defs: CallRetList,
         try_call_info: Option<TryCallInfo>,
+        patchable: bool,
     ) -> BoxCallInfo {
         let stack_ret_space = self.lower_ctx.sigs()[sig].sized_stack_ret_space();
         let stack_arg_space = self.lower_ctx.sigs()[sig].sized_stack_arg_space();
@@ -80,7 +81,7 @@ impl generated_code::Context for RV64IsleContext<'_, '_, MInst, Riscv64Backend> 
 
         Box::new(
             self.lower_ctx
-                .gen_call_info(sig, dest, uses, defs, try_call_info),
+                .gen_call_info(sig, dest, uses, defs, try_call_info, patchable),
         )
     }
 
@@ -100,7 +101,7 @@ impl generated_code::Context for RV64IsleContext<'_, '_, MInst, Riscv64Backend> 
 
         Box::new(
             self.lower_ctx
-                .gen_call_info(sig, dest, uses, defs, try_call_info),
+                .gen_call_info(sig, dest, uses, defs, try_call_info, false),
         )
     }
 
@@ -251,11 +252,7 @@ impl generated_code::Context for RV64IsleContext<'_, '_, MInst, Riscv64Backend> 
             _ => false,
         };
 
-        if supported {
-            Some(ty)
-        } else {
-            None
-        }
+        if supported { Some(ty) } else { None }
     }
 
     fn ty_supported_float_size(&mut self, ty: Type) -> Option<Type> {
@@ -363,11 +360,7 @@ impl generated_code::Context for RV64IsleContext<'_, '_, MInst, Riscv64Backend> 
     }
     #[inline]
     fn imm12_is_zero(&mut self, imm: Imm12) -> Option<()> {
-        if imm.as_i16() == 0 {
-            Some(())
-        } else {
-            None
-        }
+        if imm.as_i16() == 0 { Some(()) } else { None }
     }
 
     #[inline]
@@ -380,11 +373,7 @@ impl generated_code::Context for RV64IsleContext<'_, '_, MInst, Riscv64Backend> 
     }
     #[inline]
     fn imm20_is_zero(&mut self, imm: Imm20) -> Option<()> {
-        if imm.as_i32() == 0 {
-            Some(())
-        } else {
-            None
-        }
+        if imm.as_i32() == 0 { Some(()) } else { None }
     }
 
     #[inline]

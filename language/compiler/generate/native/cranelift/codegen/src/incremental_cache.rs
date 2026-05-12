@@ -24,12 +24,12 @@ use core::fmt;
 use core::hash::{Hash, Hasher};
 
 use crate::alloc::vec::Vec;
-use crate::ir::function::{FunctionStencil, VersionMarker};
 use crate::ir::Function;
+use crate::ir::function::{FunctionStencil, VersionMarker};
 use crate::isa::TargetIsa;
 use crate::machinst::{CompiledCode, CompiledCodeStencil};
 use crate::result::CompileResult;
-use crate::{timing, trace, CompileError, Context};
+use crate::{CompileError, Context, timing, trace};
 use alloc::borrow::Cow;
 use cranelift_control::ControlPlane;
 
@@ -111,7 +111,7 @@ pub trait CacheKvStore {
 #[derive(Clone, Hash, PartialEq, Eq)]
 pub struct CacheKeyHash([u8; 32]);
 
-impl std::fmt::Display for CacheKeyHash {
+impl core::fmt::Display for CacheKeyHash {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "CacheKeyHash:{:?}", self.0)
     }

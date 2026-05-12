@@ -52,13 +52,13 @@ use crate::result::CodegenResult;
 use crate::settings;
 use crate::settings::Flags;
 use crate::value_label::ValueLabelsRanges;
+use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt::Debug;
 use cranelift_control::ControlPlane;
 use cranelift_entity::PrimaryMap;
 use regalloc2::VReg;
-use smallvec::{smallvec, SmallVec};
-use std::string::String;
+use smallvec::{SmallVec, smallvec};
 
 #[cfg(feature = "enable-serde")]
 use serde_derive::{Deserialize, Serialize};
@@ -83,7 +83,6 @@ pub use helpers::*;
 pub mod valueregs;
 pub use reg::*;
 pub use valueregs::*;
-pub mod pcc;
 pub mod reg;
 
 /// A machine instruction.
@@ -176,9 +175,9 @@ pub trait MachInst: Clone + Debug {
     /// the instruction must have a nonzero size if preferred_size is nonzero.
     fn gen_nop(preferred_size: usize) -> Self;
 
-    /// The smallest possible NOP, as a unit that can be used to patch
-    /// out code.
-    fn gen_nop_unit() -> SmallVec<[u8; 8]>;
+    /// The various kinds of NOP, with size, sorted in ascending-size
+    /// order.
+    fn gen_nop_units() -> Vec<Vec<u8>>;
 
     /// Align a basic block offset (from start of function).  By default, no
     /// alignment occurs.
@@ -443,7 +442,7 @@ impl<T: CompilePhase> CompiledCodeBase<T> {
         params: Option<&crate::ir::function::FunctionParameters>,
         cs: &capstone::Capstone,
     ) -> Result<String, anyhow::Error> {
-        use std::fmt::Write;
+        use core::fmt::Write;
 
         let mut buf = String::new();
 
@@ -499,15 +498,15 @@ impl<T: CompilePhase> CompiledCodeBase<T> {
                     write!(buf, " ; trap: {}", trap.code)?;
                 }
 
-                if let Some(patchable) = patchables.peek() {
-                    if patchable.ret_addr == end as u32 {
-                        write!(
-                            buf,
-                            " ; patchable call: NOP out last {} bytes",
-                            patchable.len
-                        )?;
-                        patchables.next();
-                    }
+                if let Some(patchable) = patchables.peek()
+                    && patchable.ret_addr == end as u32
+                {
+                    write!(
+                        buf,
+                        " ; patchable call: NOP out last {} bytes",
+                        patchable.len
+                    )?;
+                    patchables.next();
                 }
 
                 writeln!(buf)?;

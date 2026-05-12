@@ -1,8 +1,5 @@
-//! A minimal helper crate for implementing float-related operations for
+//! A minimal module for implementing float-related operations for
 //! WebAssembly in terms of the native platform primitives.
-// NOTE #Cleanup: fix clippy lints once fully vendored
-#![allow(clippy::all)]
-#![allow(warnings)]
 //!
 //! > **⚠️ Warning ⚠️**: this crate is an internal-only crate for the Wasmtime
 //! > project and is not intended for general use. APIs are not strictly
@@ -26,10 +23,7 @@
 //! needed so they're implemented only in a single location here rather than
 //! multiple.
 
-#![no_std]
-
-#[cfg(feature = "std")]
-extern crate std;
+#![allow(missing_docs, reason = "self-describing methods")]
 
 /// Returns the bounds for guarding a trapping f32-to-int conversion.
 ///

@@ -8,7 +8,7 @@ use crate::isa::riscv64::lower::isle::generated_code::{
 };
 use crate::machinst::isle::WritableReg;
 
-use std::fmt::Result;
+use core::fmt::Result;
 
 /// A macro for defining a newtype of `Reg` that enforces some invariant about
 /// the wrapped `Reg` (such as that it is of a particular register class).
@@ -38,11 +38,7 @@ macro_rules! newtype_of_reg {
             /// Create this newtype from the given register, or return `None` if the register
             /// is not a valid instance of this newtype.
             pub fn new($check_reg: Reg) -> Option<Self> {
-                if $check {
-                    Some(Self($check_reg))
-                } else {
-                    None
-                }
+                if $check { Some(Self($check_reg)) } else { None }
             }
 
             /// Get this newtype's underlying `Reg`.
@@ -57,7 +53,7 @@ macro_rules! newtype_of_reg {
         // NB: We cannot implement `DerefMut` because that would let people do
         // nasty stuff like `*my_xreg.deref_mut() = some_freg`, breaking the
         // invariants that `XReg` provides.
-        impl std::ops::Deref for $newtype_reg {
+        impl core::ops::Deref for $newtype_reg {
             type Target = Reg;
 
             fn deref(&self) -> &Reg {
@@ -655,7 +651,7 @@ impl Display for FpuOPWidth {
 impl TryFrom<Type> for FpuOPWidth {
     type Error = &'static str;
 
-    fn try_from(value: Type) -> std::result::Result<Self, Self::Error> {
+    fn try_from(value: Type) -> core::result::Result<Self, Self::Error> {
         match value {
             F16 => Ok(FpuOPWidth::H),
             F32 => Ok(FpuOPWidth::S),
@@ -1440,18 +1436,10 @@ impl AtomicOP {
     }
 
     pub(crate) fn load_op(t: Type) -> Self {
-        if t.bits() <= 32 {
-            Self::LrW
-        } else {
-            Self::LrD
-        }
+        if t.bits() <= 32 { Self::LrW } else { Self::LrD }
     }
     pub(crate) fn store_op(t: Type) -> Self {
-        if t.bits() <= 32 {
-            Self::ScW
-        } else {
-            Self::ScD
-        }
+        if t.bits() <= 32 { Self::ScW } else { Self::ScD }
     }
 
     /// extract
@@ -1575,8 +1563,11 @@ impl AtomicOP {
 ///Atomic Memory ordering.
 #[derive(Copy, Clone, Debug)]
 pub enum AMO {
+    #[allow(dead_code, reason = "used only in emit tests for now")]
     Relax = 0b00,
+    #[allow(dead_code, reason = "used only in emit tests for now")]
     Release = 0b01,
+    #[allow(dead_code, reason = "used only in emit tests for now")]
     Acquire = 0b10,
     SeqCst = 0b11,
 }

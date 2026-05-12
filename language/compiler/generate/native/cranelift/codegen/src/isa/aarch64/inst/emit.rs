@@ -4,6 +4,7 @@ use cranelift_control::ControlPlane;
 
 use crate::ir::types::*;
 use crate::ir::{self};
+use crate::isa::aarch64;
 use crate::isa::aarch64::inst::*;
 use crate::trace;
 
@@ -712,12 +713,15 @@ impl EmitState {
 }
 
 /// Constant state used during function compilation.
-pub struct EmitInfo(settings::Flags);
+pub struct EmitInfo {
+    flags: settings::Flags,
+    isa_flags: aarch64::settings::Flags,
+}
 
 impl EmitInfo {
     /// Create a constant state for emission of instructions.
-    pub fn new(flags: settings::Flags) -> Self {
-        Self(flags)
+    pub fn new(flags: settings::Flags, isa_flags: aarch64::settings::Flags) -> Self {
+        Self { flags, isa_flags }
     }
 }
 
@@ -1376,13 +1380,15 @@ impl MachInstEmit for Inst {
             }
             &Inst::MovFromPReg { rd, rm } => {
                 let rm: Reg = rm.into();
-                debug_assert!([
-                    regs::fp_reg(),
-                    regs::stack_reg(),
-                    regs::link_reg(),
-                    regs::pinned_reg()
-                ]
-                .contains(&rm));
+                debug_assert!(
+                    [
+                        regs::fp_reg(),
+                        regs::stack_reg(),
+                        regs::link_reg(),
+                        regs::pinned_reg()
+                    ]
+                    .contains(&rm)
+                );
                 assert!(rm.class() == RegClass::Int);
                 assert!(rd.to_reg().class() == rm.class());
                 let size = OperandSize::Size64;
@@ -1390,13 +1396,15 @@ impl MachInstEmit for Inst {
             }
             &Inst::MovToPReg { rd, rm } => {
                 let rd: Writable<Reg> = Writable::from_reg(rd.into());
-                debug_assert!([
-                    regs::fp_reg(),
-                    regs::stack_reg(),
-                    regs::link_reg(),
-                    regs::pinned_reg()
-                ]
-                .contains(&rd.to_reg()));
+                debug_assert!(
+                    [
+                        regs::fp_reg(),
+                        regs::stack_reg(),
+                        regs::link_reg(),
+                        regs::pinned_reg()
+                    ]
+                    .contains(&rd.to_reg())
+                );
                 assert!(rd.to_reg().class() == RegClass::Int);
                 assert!(rm.class() == rd.to_reg().class());
                 let size = OperandSize::Size64;
@@ -2938,8 +2946,8 @@ impl MachInstEmit for Inst {
                     sink.put4(0xd65f0bff | (op2 << 9)); // reta{key}
                 }
             }
-            &Inst::Call { ref info } | &Inst::PatchableCall { ref info } => {
-                let is_patchable = matches!(self, Inst::PatchableCall { .. });
+            &Inst::Call { ref info } => {
+                let start = sink.cur_offset();
                 let user_stack_map = state.take_stack_map();
                 sink.add_reloc(Reloc::Arm64Call, &info.dest, 0);
                 sink.put4(enc_jump26(0b100101, 0));
@@ -2953,8 +2961,6 @@ impl MachInstEmit for Inst {
                         Some(state.frame_layout.sp_to_fp()),
                         try_call.exception_handlers(&state.frame_layout),
                     );
-                } else if is_patchable {
-                    sink.add_patchable_call_site(4);
                 } else {
                     sink.add_call_site();
                 }
@@ -2967,12 +2973,16 @@ impl MachInstEmit for Inst {
                     }
                 }
 
-                // Load any stack-carried return values.
-                info.emit_retval_loads::<AArch64MachineDeps, _, _>(
-                    state.frame_layout().stackslots_size,
-                    |inst| inst.emit(sink, emit_info, state),
-                    |needed_space| Some(Inst::EmitIsland { needed_space }),
-                );
+                if info.patchable {
+                    sink.add_patchable_call_site(sink.cur_offset() - start);
+                } else {
+                    // Load any stack-carried return values.
+                    info.emit_retval_loads::<AArch64MachineDeps, _, _>(
+                        state.frame_layout().stackslots_size,
+                        |inst| inst.emit(sink, emit_info, state),
+                        |needed_space| Some(Inst::EmitIsland { needed_space }),
+                    );
+                }
 
                 // If this is a try-call, jump to the continuation
                 // (normal-return) block.
@@ -3181,8 +3191,13 @@ impl MachInstEmit for Inst {
                     rm: ridx,
                 };
                 inst.emit(sink, emit_info, state);
-                // Prevent any data value speculation.
-                Inst::Csdb.emit(sink, emit_info, state);
+                // Prevent any data value speculation if spectre mitigations are
+                // enabled.
+                if emit_info.flags.enable_table_access_spectre_mitigation()
+                    && emit_info.isa_flags.use_csdb()
+                {
+                    Inst::Csdb.emit(sink, emit_info, state);
+                }
 
                 // Load address of jump table
                 let inst = Inst::Adr { rd: rtmp1, off: 16 };
@@ -3552,7 +3567,7 @@ impl MachInstEmit for Inst {
             }
 
             &Inst::StackProbeLoop { start, end, step } => {
-                assert!(emit_info.0.enable_probestack());
+                assert!(emit_info.flags.enable_probestack());
 
                 // The loop generated here uses `start` as a counter register to
                 // count backwards until negating it exceeds `end`. In other
@@ -3639,9 +3654,11 @@ fn emit_return_call_common_sequence<T>(
     state: &mut EmitState,
     info: &ReturnCallInfo<T>,
 ) {
-    for inst in
-        AArch64MachineDeps::gen_clobber_restore(CallConv::Tail, &emit_info.0, state.frame_layout())
-    {
+    for inst in AArch64MachineDeps::gen_clobber_restore(
+        CallConv::Tail,
+        &emit_info.flags,
+        state.frame_layout(),
+    ) {
         inst.emit(sink, emit_info, state);
     }
 

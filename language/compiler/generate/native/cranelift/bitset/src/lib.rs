@@ -6,9 +6,7 @@
 //!
 //! 2. [`CompoundBitSet`]: A bitset that can store more bits than fit in a
 //!    single integer, but which internally has heap allocations.
-// NOTE #Cleanup: fix clippy lints once fully vendored
-#![allow(clippy::all)]
-#![allow(warnings)]
+
 #![deny(missing_docs)]
 #![no_std]
 

@@ -44,7 +44,7 @@ fn minmax() {
     assert_eq!(s.max(), Some(7));
     assert!(s.min() == Some(0) && s.max() == Some(7));
     let s1 = ScalarBitSet::<u8>(0);
-    assert!(s1.min().is_none() && s1.max().is_none());
+    assert!(s1.min() == None && s1.max() == None);
     let s2 = ScalarBitSet::<u8>(127);
     assert!(s2.min() == Some(0) && s2.max() == Some(6));
     let s3 = ScalarBitSet::<u8>(2 | 4 | 64);

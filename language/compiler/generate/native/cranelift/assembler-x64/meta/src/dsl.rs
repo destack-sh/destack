@@ -11,13 +11,13 @@ pub mod format;
 
 pub use custom::{Custom, Customization};
 pub use encoding::{
-    evex, rex, vex, Encoding, Evex, Group1Prefix, Group2Prefix, Group3Prefix, Group4Prefix, Length,
-    ModRmKind, OpcodeMod, Opcodes, Prefixes, Rex, TupleType, Vex, VexEscape, VexPrefix,
+    Encoding, Evex, Group1Prefix, Group2Prefix, Group3Prefix, Group4Prefix, Length, ModRmKind,
+    OpcodeMod, Opcodes, Prefixes, Rex, TupleType, Vex, VexEscape, VexPrefix, evex, rex, vex,
 };
-pub use features::{Feature, Features, ALL_FEATURES};
+pub use features::{ALL_FEATURES, Feature, Features};
 pub use format::{
-    align, fmt, implicit, r, rw, sxl, sxq, sxw, w, Eflags, Extension, Format, Location, Mutability,
-    Operand, OperandKind, RegClass,
+    Eflags, Extension, Format, Location, Mutability, Operand, OperandKind, RegClass, align, fmt,
+    implicit, r, rw, sxl, sxq, sxw, w,
 };
 
 /// Abbreviated constructor for an x64 instruction.

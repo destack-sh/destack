@@ -1,7 +1,4 @@
 //! Cranelift code generation library.
-// NOTE #Cleanup: fix clippy lints once fully vendored
-#![allow(clippy::all)]
-#![allow(warnings)]
 #![deny(missing_docs)]
 // Display feature requirements in the documentation when building on docs.rs
 #![cfg_attr(docsrs, feature(doc_cfg))]
@@ -17,6 +14,7 @@
     allow(dead_code, reason = "see comment above")
 )]
 
+#[cfg_attr(not(feature = "std"), macro_use)]
 extern crate alloc;
 
 #[cfg(feature = "std")]
@@ -24,9 +22,14 @@ extern crate alloc;
 extern crate std;
 
 #[cfg(not(feature = "std"))]
-use hashbrown::{hash_map, HashMap, HashSet};
+use hashbrown::{HashMap, HashSet, hash_map};
 #[cfg(feature = "std")]
-use std::collections::{hash_map, HashMap};
+use std::collections::{HashMap, HashSet, hash_map};
+
+/// Type alias for a hash map that uses the Fx hashing algorithm.
+pub type FxHashMap<K, V> = HashMap<K, V, rustc_hash::FxBuildHasher>;
+/// Type alias for a hash set that uses the Fx hashing algorithm.
+pub type FxHashSet<V> = HashSet<V, rustc_hash::FxBuildHasher>;
 
 pub use crate::context::Context;
 pub use crate::value_label::{LabelValueLoc, ValueLabelsRanges, ValueLocRange};
@@ -71,10 +74,10 @@ pub use crate::machinst::buffer::{
     OpenPatchRegion, PatchRegion,
 };
 pub use crate::machinst::{
-    CallInfo, CompiledCode, Final, MachBuffer, MachBufferDebugTagList, MachBufferFinalized,
-    MachBufferFrameLayout, MachDebugTagPos, MachInst, MachInstEmit, MachInstEmitState, MachLabel,
-    RealReg, Reg, RelocDistance, TextSectionBuilder, VCodeConstant, VCodeConstantData,
-    VCodeConstants, VCodeInst, Writable,
+    CallInfo, CompiledCode, Final, FrameLayout, MachBuffer, MachBufferDebugTagList,
+    MachBufferFinalized, MachBufferFrameLayout, MachDebugTagPos, MachInst, MachInstEmit,
+    MachInstEmitState, MachLabel, RealReg, Reg, RelocDistance, TextSectionBuilder, VCodeConstant,
+    VCodeConstantData, VCodeConstants, VCodeInst, Writable,
 };
 
 mod alias_analysis;

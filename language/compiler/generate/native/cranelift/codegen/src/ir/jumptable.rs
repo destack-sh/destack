@@ -3,8 +3,8 @@
 //! Jump tables are declared in the preamble and assigned an `ir::entities::JumpTable` reference.
 //! The actual table of destinations is stored in a `JumpTableData` struct defined in this module.
 
-use crate::ir::instructions::ValueListPool;
 use crate::ir::BlockCall;
+use crate::ir::instructions::ValueListPool;
 use alloc::vec::Vec;
 use core::fmt::{self, Display, Formatter};
 use core::slice::{Iter, IterMut};
@@ -31,7 +31,7 @@ impl JumpTableData {
     /// Create a new jump table with the provided blocks.
     pub fn new(def: BlockCall, table: &[BlockCall]) -> Self {
         Self {
-            table: std::iter::once(def).chain(table.iter().copied()).collect(),
+            table: core::iter::once(def).chain(table.iter().copied()).collect(),
         }
     }
 
@@ -114,8 +114,8 @@ mod tests {
     use crate::entity::EntityRef;
     use crate::ir::instructions::ValueListPool;
     use crate::ir::{Block, BlockArg, BlockCall, Value};
+    use alloc::string::ToString;
     use alloc::vec::Vec;
-    use std::string::ToString;
 
     #[test]
     fn empty() {

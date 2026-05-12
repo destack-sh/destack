@@ -1,7 +1,4 @@
 //! Cranelift IR builder library.
-// NOTE #Cleanup: fix clippy lints once fully vendored
-#![allow(clippy::all)]
-#![allow(warnings)]
 //!
 //! Provides a straightforward way to create a Cranelift IR function and fill it with instructions
 //! corresponding to your source program written in another language.

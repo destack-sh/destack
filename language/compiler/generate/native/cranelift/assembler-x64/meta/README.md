@@ -6,7 +6,7 @@ and only needs to define the x64 instructions Cranelift emits. It is written in
 the style of `cranelift-codegen-meta` and _could_ be migrated there (though not
 necessarily).
 
-## Structure
+### Structure
 
 - [`dsl.rs`](src/dsl.rs): defines a domain-specific language (DSL) for
   describing x64 instructions; this language is intended to be compact--i.e.,
@@ -17,7 +17,7 @@ necessarily).
 - [`generate.rs`](src/generate.rs): generates Rust code from the defined
   instructions to: assemble machine code, pretty-print, register-allocate.
 
-## Use
+### Use
 
 This is primarily intended to be used for generating Rust code, i.e.,
 `generate_rust_assembler("some-file.rs")`. It also has the ability to print
@@ -31,7 +31,7 @@ andl: I(eax, imm32) => 0x25 id
 ...
 ```
 
-## Troubleshooting
+### Troubleshooting
 
 When something goes wrong, it can be helpful to compare the output of this
 assembler with a known-good disassembler like XED.
@@ -39,13 +39,13 @@ assembler with a known-good disassembler like XED.
 When testing finds a miscompilation, it prints the emitted bytes. To use XED to
 disassemble this:
 
-```sh
+```
 $ <path to xed>/obj/wkit/bin/xed -d 4080
 ```
 
 To generate the expected bytes:
 
-```sh
+```
 $ <path to xed>/obj/wkit/bin/xed -64 -A -e AND bpl IMM:48
 ```
 

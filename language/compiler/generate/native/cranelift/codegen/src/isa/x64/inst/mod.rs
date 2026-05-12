@@ -3,19 +3,21 @@
 pub use emit_state::EmitState;
 
 use crate::binemit::{Addend, CodeOffset, Reloc};
-use crate::ir::{types, ExternalName, LibCall, TrapCode, Type};
+use crate::ir::{ExternalName, LibCall, TrapCode, Type, types};
 use crate::isa::x64::abi::X64ABIMachineSpec;
 use crate::isa::x64::inst::regs::pretty_print_reg;
 use crate::isa::x64::settings as x64_settings;
 use crate::isa::{CallConv, FunctionAlignment};
 use crate::machinst::*;
-use crate::{settings, trace, CodegenError, CodegenResult};
+use crate::{CodegenError, CodegenResult, settings, trace};
 use alloc::boxed::Box;
+use alloc::string::{String, ToString};
+use alloc::vec;
+use alloc::vec::Vec;
+use core::fmt::{self, Write};
 use core::slice;
 use cranelift_assembler_x64 as asm;
-use smallvec::{smallvec, SmallVec};
-use std::fmt::{self, Write};
-use std::string::{String, ToString};
+use smallvec::{SmallVec, smallvec};
 
 pub mod args;
 mod emit;
@@ -57,7 +59,7 @@ pub struct ReturnCallInfo<T> {
 fn inst_size_test() {
     // This test will help with unintentionally growing the size
     // of the Inst enum.
-    assert_eq!(48, std::mem::size_of::<Inst>());
+    assert_eq!(48, core::mem::size_of::<Inst>());
 }
 
 impl Inst {
@@ -76,7 +78,6 @@ impl Inst {
             | Inst::CallUnknown { .. }
             | Inst::ReturnCallKnown { .. }
             | Inst::ReturnCallUnknown { .. }
-            | Inst::PatchableCallKnown { .. }
             | Inst::CheckedSRemSeq { .. }
             | Inst::CheckedSRemSeq8 { .. }
             | Inst::CvtFloatToSintSeq { .. }
@@ -154,7 +155,7 @@ impl Inst {
         Inst::External { inst }
     }
 
-    /// Writes the `simm64` immedaite into `dst`.
+    /// Writes the `simm64` immediate into `dst`.
     ///
     /// Note that if `dst_size` is less than 64-bits then the upper bits of
     /// `simm64` will be converted to zero.
@@ -644,11 +645,6 @@ impl PrettyPrint for Inst {
                 s
             }
 
-            Inst::PatchableCallKnown { info } => {
-                let op = ljustify("patchable_call".to_string());
-                format!("{op} {:?}", info.dest)
-            }
-
             Inst::Rets { rets } => {
                 let mut s = "rets".to_string();
                 for ret in rets {
@@ -760,42 +756,48 @@ impl PrettyPrint for Inst {
                 )
             }
 
-            Inst::Atomic128RmwSeq {
-                op,
-                mem,
-                operand_low,
-                operand_high,
-                temp_low,
-                temp_high,
-                dst_old_low,
-                dst_old_high,
-            } => {
+            Inst::Atomic128RmwSeq { args } => {
+                let Atomic128RmwSeqArgs {
+                    op,
+                    mem_low,
+                    mem_high,
+                    operand_low,
+                    operand_high,
+                    temp_low,
+                    temp_high,
+                    dst_old_low,
+                    dst_old_high,
+                } = &**args;
                 let operand_low = pretty_print_reg(**operand_low, 8);
                 let operand_high = pretty_print_reg(**operand_high, 8);
                 let temp_low = pretty_print_reg(*temp_low.to_reg(), 8);
                 let temp_high = pretty_print_reg(*temp_high.to_reg(), 8);
                 let dst_old_low = pretty_print_reg(*dst_old_low.to_reg(), 8);
                 let dst_old_high = pretty_print_reg(*dst_old_high.to_reg(), 8);
-                let mem = mem.pretty_print(16);
+                let mem_low = mem_low.pretty_print(16);
+                let mem_high = mem_high.pretty_print(16);
                 format!(
-                    "atomically {{ {dst_old_high}:{dst_old_low} = {mem}; {temp_high}:{temp_low} = {dst_old_high}:{dst_old_low} {op:?} {operand_high}:{operand_low}; {mem} = {temp_high}:{temp_low} }}"
+                    "atomically {{ {dst_old_high}:{dst_old_low} = {mem_low}:{mem_high}; {temp_high}:{temp_low} = {dst_old_high}:{dst_old_low} {op:?} {operand_high}:{operand_low}; {mem_low}:{mem_high} = {temp_high}:{temp_low} }}"
                 )
             }
 
-            Inst::Atomic128XchgSeq {
-                mem,
-                operand_low,
-                operand_high,
-                dst_old_low,
-                dst_old_high,
-            } => {
+            Inst::Atomic128XchgSeq { args } => {
+                let Atomic128XchgSeqArgs {
+                    mem_low,
+                    mem_high,
+                    operand_low,
+                    operand_high,
+                    dst_old_low,
+                    dst_old_high,
+                } = &**args;
                 let operand_low = pretty_print_reg(**operand_low, 8);
                 let operand_high = pretty_print_reg(**operand_high, 8);
                 let dst_old_low = pretty_print_reg(*dst_old_low.to_reg(), 8);
                 let dst_old_high = pretty_print_reg(*dst_old_high.to_reg(), 8);
-                let mem = mem.pretty_print(16);
+                let mem_low = mem_low.pretty_print(16);
+                let mem_high = mem_high.pretty_print(16);
                 format!(
-                    "atomically {{ {dst_old_high}:{dst_old_low} = {mem}; {mem} = {operand_high}:{operand_low} }}"
+                    "atomically {{ {dst_old_high}:{dst_old_low} = {mem_low}:{mem_high}; {mem_low}:{mem_high} = {operand_high}:{operand_low} }}"
                 )
             }
 
@@ -964,7 +966,7 @@ fn x64_get_operands(inst: &mut Inst, collector: &mut impl OperandVisitor) {
             collector.reg_early_def(tmp);
         }
 
-        Inst::CallKnown { info } | Inst::PatchableCallKnown { info } => {
+        Inst::CallKnown { info } => {
             // Probestack is special and is only inserted after
             // regalloc, so we do not need to represent its ABI to the
             // register allocator. Assert that we don't alter that
@@ -1108,16 +1110,18 @@ fn x64_get_operands(inst: &mut Inst, collector: &mut impl OperandVisitor) {
             mem.get_operands_late(collector)
         }
 
-        Inst::Atomic128RmwSeq {
-            operand_low,
-            operand_high,
-            temp_low,
-            temp_high,
-            dst_old_low,
-            dst_old_high,
-            mem,
-            ..
-        } => {
+        Inst::Atomic128RmwSeq { args } => {
+            let Atomic128RmwSeqArgs {
+                mem_low,
+                mem_high,
+                operand_low,
+                operand_high,
+                temp_low,
+                temp_high,
+                dst_old_low,
+                dst_old_high,
+                op: _,
+            } = &mut **args;
             // All registers are collected in the `Late` position so that they don't overlap.
             collector.reg_late_use(operand_low);
             collector.reg_late_use(operand_high);
@@ -1125,23 +1129,26 @@ fn x64_get_operands(inst: &mut Inst, collector: &mut impl OperandVisitor) {
             collector.reg_fixed_def(temp_high, regs::rcx());
             collector.reg_fixed_def(dst_old_low, regs::rax());
             collector.reg_fixed_def(dst_old_high, regs::rdx());
-            mem.get_operands_late(collector)
+            mem_low.get_operands_late(collector);
+            mem_high.get_operands_late(collector);
         }
 
-        Inst::Atomic128XchgSeq {
-            operand_low,
-            operand_high,
-            dst_old_low,
-            dst_old_high,
-            mem,
-            ..
-        } => {
+        Inst::Atomic128XchgSeq { args } => {
+            let Atomic128XchgSeqArgs {
+                mem_low,
+                mem_high,
+                operand_low,
+                operand_high,
+                dst_old_low,
+                dst_old_high,
+            } = &mut **args;
             // All registers are collected in the `Late` position so that they don't overlap.
             collector.reg_fixed_late_use(operand_low, regs::rbx());
             collector.reg_fixed_late_use(operand_high, regs::rcx());
             collector.reg_fixed_def(dst_old_low, regs::rax());
             collector.reg_fixed_def(dst_old_high, regs::rdx());
-            mem.get_operands_late(collector)
+            mem_low.get_operands_late(collector);
+            mem_high.get_operands_late(collector);
         }
 
         Inst::Args { args } => {
@@ -1387,11 +1394,16 @@ impl MachInst for Inst {
     }
 
     fn gen_nop(preferred_size: usize) -> Inst {
-        Inst::nop(std::cmp::min(preferred_size, 9) as u8)
+        Inst::nop(core::cmp::min(preferred_size, 9) as u8)
     }
 
-    fn gen_nop_unit() -> SmallVec<[u8; 8]> {
-        smallvec![0x90]
+    fn gen_nop_units() -> Vec<Vec<u8>> {
+        vec![
+            // Standard 1-byte NOP.
+            vec![0x90],
+            // 5-byte NOP useful for patching out patchable calls.
+            vec![0x0f, 0x1f, 0x44, 0x00, 0x00],
+        ]
     }
 
     fn rc_for_type(ty: Type) -> CodegenResult<(&'static [RegClass], &'static [Type])> {
@@ -1456,9 +1468,7 @@ impl MachInst for Inst {
 
     fn is_safepoint(&self) -> bool {
         match self {
-            Inst::CallKnown { .. } | Inst::CallUnknown { .. } | Inst::PatchableCallKnown { .. } => {
-                true
-            }
+            Inst::CallKnown { .. } | Inst::CallUnknown { .. } => true,
             _ => false,
         }
     }

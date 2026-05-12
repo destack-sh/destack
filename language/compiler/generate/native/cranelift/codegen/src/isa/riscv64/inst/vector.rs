@@ -4,7 +4,6 @@ use crate::isa::riscv64::lower::isle::generated_code::{
     VecTailMode,
 };
 use crate::machinst::{OperandVisitor, RegClass};
-use crate::Reg;
 use core::fmt;
 
 use super::{Type, UImm5};
@@ -1060,12 +1059,6 @@ impl fmt::Display for VecAluOpRImm5 {
 }
 
 impl VecAMode {
-    pub fn get_base_register(&self) -> Option<Reg> {
-        match self {
-            VecAMode::UnitStride { base, .. } => base.get_base_register(),
-        }
-    }
-
     pub fn get_operands(&mut self, collector: &mut impl OperandVisitor) {
         match self {
             VecAMode::UnitStride { base, .. } => base.get_operands(collector),

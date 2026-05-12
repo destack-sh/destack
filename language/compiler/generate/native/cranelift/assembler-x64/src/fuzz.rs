@@ -4,13 +4,17 @@
 //! throughout this crate to avoid depending on the `arbitrary` crate
 //! unconditionally (use the `fuzz` feature instead).
 
+use std::string::{String, ToString};
+use std::vec::Vec;
+use std::{format, println};
+
 use crate::{
     AmodeOffset, AmodeOffsetPlusKnownOffset, AsReg, CodeSink, DeferredTarget, Fixed, Gpr, Inst,
     KnownOffset, NonRspGpr, Registers, TrapCode, Xmm,
 };
 use arbitrary::{Arbitrary, Result, Unstructured};
-use capstone::arch::{x86, BuildsCapstone, BuildsCapstoneSyntax};
 use capstone::Capstone;
+use capstone::arch::{BuildsCapstone, BuildsCapstoneSyntax, x86};
 
 /// Take a random assembly instruction and check its encoding and
 /// pretty-printing against a known-good disassembler.
@@ -147,7 +151,7 @@ fn disassemble(assembled: &[u8], original: &Inst<FuzzRegs>) -> String {
 }
 
 fn pretty_print_hexadecimal(hex: &[u8]) -> String {
-    use std::fmt::Write;
+    use core::fmt::Write;
     let mut s = String::with_capacity(hex.len() * 2);
     for b in hex {
         write!(&mut s, "{b:02X}").unwrap();
@@ -184,7 +188,7 @@ macro_rules! hex_print_signed_imm {
 /// - print negative values as `-0x...` (signed hex) instead of `0xff...`
 ///   (normal hex)
 /// - print `mov` immediates as base-10 instead of base-16 (?!).
-fn replace_signed_immediates(dis: &str) -> std::borrow::Cow<'_, str> {
+fn replace_signed_immediates(dis: &str) -> alloc::borrow::Cow<'_, str> {
     match dis.find('$') {
         None => dis.into(),
         Some(idx) => {
@@ -260,7 +264,7 @@ fn remove_after_parenthesis_test() {
 }
 
 /// Run some post-processing on the disassembly to make it match Capstone.
-fn fix_up(dis: &str) -> std::borrow::Cow<'_, str> {
+fn fix_up(dis: &str) -> alloc::borrow::Cow<'_, str> {
     let dis = remove_after_semicolon(dis);
     replace_signed_immediates(&dis)
 }
@@ -358,13 +362,13 @@ impl<'a, R: AsReg> Arbitrary<'a> for Xmm<R> {
 /// `for<'a> Arbitrary<'a>` bound on all of the associated types.
 pub trait RegistersArbitrary:
     Registers<
-    ReadGpr: for<'a> Arbitrary<'a>,
-    ReadWriteGpr: for<'a> Arbitrary<'a>,
-    WriteGpr: for<'a> Arbitrary<'a>,
-    ReadXmm: for<'a> Arbitrary<'a>,
-    ReadWriteXmm: for<'a> Arbitrary<'a>,
-    WriteXmm: for<'a> Arbitrary<'a>,
->
+        ReadGpr: for<'a> Arbitrary<'a>,
+        ReadWriteGpr: for<'a> Arbitrary<'a>,
+        WriteGpr: for<'a> Arbitrary<'a>,
+        ReadXmm: for<'a> Arbitrary<'a>,
+        ReadWriteXmm: for<'a> Arbitrary<'a>,
+        WriteXmm: for<'a> Arbitrary<'a>,
+    >
 {
 }
 

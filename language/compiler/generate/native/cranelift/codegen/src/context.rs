@@ -13,7 +13,7 @@ use crate::alias_analysis::AliasAnalysis;
 use crate::dominator_tree::DominatorTree;
 use crate::egraph::EgraphPass;
 use crate::flowgraph::ControlFlowGraph;
-use crate::inline::{do_inlining, Inline};
+use crate::inline::{Inline, do_inlining};
 use crate::ir::Function;
 use crate::isa::TargetIsa;
 use crate::legalizer::simple_legalize;
@@ -24,8 +24,8 @@ use crate::remove_constant_phis::do_remove_constant_phis;
 use crate::result::{CodegenResult, CompileResult};
 use crate::settings::{FlagsOrIsa, OptLevel};
 use crate::unreachable_code::eliminate_unreachable_code;
-use crate::verifier::{verify_context, VerifierErrors, VerifierResult};
-use crate::{timing, trace, CompileError};
+use crate::verifier::{VerifierErrors, VerifierResult, verify_context};
+use crate::{CompileError, timing, trace};
 #[cfg(feature = "souper-harvest")]
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -380,7 +380,6 @@ impl Context {
             &self.domtree,
             &self.loop_analysis,
             &mut alias_analysis,
-            &fisa.flags,
             ctrl_plane,
         );
         pass.run();

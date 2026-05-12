@@ -1,7 +1,4 @@
 //! A forest of B+-trees.
-// NOTE #Cleanup: fix clippy lints once fully vendored
-#![allow(clippy::all)]
-#![allow(warnings)]
 //!
 //! This crate provides a data structures representing a set of small ordered sets or maps.
 //! It is implemented as a forest of B+-trees all allocating nodes out of the same pool.
@@ -35,7 +32,7 @@ mod path;
 mod pool;
 mod set;
 
-pub use self::map::{Map, MapCursor, MapForest, MapIter};
+pub use self::map::{Map, MapCursor, MapCursorMut, MapForest, MapIntoIter, MapIter, MapRange};
 pub use self::set::{Set, SetCursor, SetForest, SetIter};
 
 use self::node::NodeData;

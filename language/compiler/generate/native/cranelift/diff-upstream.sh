@@ -3,22 +3,24 @@
 # diff vendored cranelift against upstream wasmtime
 #
 # examples:
-#   ./diff-upstream.sh                    # diff code changes against v40.0.0
+#   ./diff-upstream.sh                    # diff code changes against v44.0.1
 #   ./diff-upstream.sh --stat             # summary of code changes
 #   ./diff-upstream.sh --list             # list changed code files
 #   ./diff-upstream.sh --all              # include Cargo.toml changes
 #   ./diff-upstream.sh --crate codegen    # diff only codegen crate
+#   ./diff-upstream.sh --no-format        # diff without formatting either side
 #   ./diff-upstream.sh v41.0.0            # diff against different version
 
 set -e
 
 # defaults
-UPSTREAM_TAG="v40.0.0"
+UPSTREAM_TAG="v44.0.1"
 MODE="diff"
 INCLUDE_BUILD_FILES=false
 CRATE_FILTER=""
 COLOR="auto"
 CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/cranelift-diff"
+FORMAT=true
 
 usage() {
     cat <<EOF
@@ -34,6 +36,7 @@ Options:
   --list          List changed files only
   --all           Include Cargo.toml and other build files
   --crate NAME    Filter to specific crate (e.g., codegen, frontend)
+  --no-format     Don't format upstream and local Rust sources before diffing
   --no-cache      Don't cache upstream clone
   --clear-cache   Clear cached upstream clones
   --no-color      Disable colored output
@@ -66,6 +69,7 @@ while [[ $# -gt 0 ]]; do
         --list)         MODE="list"; shift ;;
         --all)          INCLUDE_BUILD_FILES=true; shift ;;
         --crate)        CRATE_FILTER="$2"; shift 2 ;;
+        --no-format)    FORMAT=false; shift ;;
         --no-cache)     USE_CACHE=false; shift ;;
         --clear-cache)  rm -rf "$CACHE_DIR"; echo "Cache cleared."; exit 0 ;;
         --no-color)     COLOR="never"; shift ;;
@@ -76,6 +80,8 @@ while [[ $# -gt 0 ]]; do
 done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)"
+RUSTFMT_CONFIG="$REPO_ROOT/rustfmt.toml"
 
 # color support
 if [[ "$COLOR" == "auto" ]]; then
@@ -87,6 +93,38 @@ bold() { [[ "$COLOR" == "always" ]] && printf "\033[1m%s\033[0m" "$1" || printf 
 green() { [[ "$COLOR" == "always" ]] && printf "\033[32m%s\033[0m" "$1" || printf "%s" "$1"; }
 red() { [[ "$COLOR" == "always" ]] && printf "\033[31m%s\033[0m" "$1" || printf "%s" "$1"; }
 cyan() { [[ "$COLOR" == "always" ]] && printf "\033[36m%s\033[0m" "$1" || printf "%s" "$1"; }
+
+format_tree() {
+    local path="$1"
+
+    [[ ! -d "$path" ]] && return
+
+    local files=()
+    while IFS= read -r -d '' file; do
+        files+=("$file")
+
+        if [[ "${#files[@]}" -ge 64 ]]; then
+            rustfmt --edition 2024 --unstable-features --skip-children --config-path "$RUSTFMT_CONFIG" "${files[@]}"
+            files=()
+        fi
+    done < <(find "$path" -type f -name '*.rs' -not -path '*/target/*' -print0)
+
+    if [[ "${#files[@]}" -gt 0 ]]; then
+        rustfmt --edition 2024 --unstable-features --skip-children --config-path "$RUSTFMT_CONFIG" "${files[@]}"
+    fi
+}
+
+crate_paths() {
+    local crate="$1"
+
+    if [[ "$crate" == "isle" ]]; then
+        local_path="$SCRIPT_DIR/isle"
+        upstream_path="$UPSTREAM_DIR/cranelift/isle/isle"
+    else
+        local_path="$SCRIPT_DIR/$crate"
+        upstream_path="$UPSTREAM_DIR/cranelift/$crate"
+    fi
+}
 
 # get upstream
 UPSTREAM_DIR=""
@@ -198,6 +236,21 @@ output_crate() {
 # cranelift crates (isle handled specially due to nesting)
 CRATES="codegen frontend module native object entity bforest assembler-x64 bitset control reader serde srcgen isle"
 
+if [[ "$FORMAT" == "true" ]]; then
+    dim "Formatting compared Cranelift Rust sources..."
+    echo ""
+
+    for crate in $CRATES; do
+        [[ -n "$CRATE_FILTER" && "$crate" != "$CRATE_FILTER" ]] && continue
+
+        crate_paths "$crate"
+        format_tree "$upstream_path"
+        format_tree "$local_path"
+    done
+
+    echo ""
+fi
+
 total_files=0
 total_insertions=0
 total_deletions=0
@@ -218,13 +271,7 @@ crate_data=""
 for crate in $CRATES; do
     [[ -n "$CRATE_FILTER" && "$crate" != "$CRATE_FILTER" ]] && continue
 
-    if [[ "$crate" == "isle" ]]; then
-        local_path="$SCRIPT_DIR/isle"
-        upstream_path="$UPSTREAM_DIR/cranelift/isle/isle"
-    else
-        local_path="$SCRIPT_DIR/$crate"
-        upstream_path="$UPSTREAM_DIR/cranelift/$crate"
-    fi
+    crate_paths "$crate"
 
     stats=$(get_crate_stats "$local_path" "$upstream_path")
     if [[ -n "$stats" ]]; then
@@ -267,13 +314,7 @@ for entry in $crate_data; do
     ins="${rest%%:*}"
     del="${rest#*:}"
 
-    if [[ "$crate" == "isle" ]]; then
-        local_path="$SCRIPT_DIR/isle"
-        upstream_path="$UPSTREAM_DIR/cranelift/isle/isle"
-    else
-        local_path="$SCRIPT_DIR/$crate"
-        upstream_path="$UPSTREAM_DIR/cranelift/$crate"
-    fi
+    crate_paths "$crate"
 
     output_crate "$crate" "$local_path" "$upstream_path" "$files" "$ins" "$del"
 done

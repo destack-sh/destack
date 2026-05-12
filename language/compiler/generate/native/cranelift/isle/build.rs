@@ -1,7 +1,3 @@
-// NOTE #Cleanup: fix clippy lints once fully vendored
-#![allow(clippy::all)]
-#![allow(warnings)]
-
 use std::fmt::Write;
 
 fn main() {

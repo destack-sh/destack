@@ -1,6 +1,6 @@
 //! Generate feature-related Rust code.
 
-use super::{fmtln, Formatter};
+use super::{Formatter, fmtln};
 use crate::dsl;
 
 impl dsl::Feature {
