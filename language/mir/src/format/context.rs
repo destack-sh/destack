@@ -1069,6 +1069,7 @@ fn collect_type_uses(tree: &Tree) -> HashMap<LocalNodeId<Type>, u32> {
             | Instruction::ElementGet { .. }
             | Instruction::ElementSet { .. }
             | Instruction::RawFree { .. }
+            | Instruction::Free { .. }
             | Instruction::Drop { .. }
             | Instruction::Unpin { .. }
             | Instruction::Assume { .. }

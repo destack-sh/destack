@@ -117,6 +117,7 @@ impl<'a> FunctionBuilder<'a> {
                     tensor: argument, ..
                 }
                 | Instruction::RawFree { pointer: argument }
+                | Instruction::Free { value: argument }
                 | Instruction::Drop { value: argument }
                 | Instruction::Pin {
                     value: argument, ..
