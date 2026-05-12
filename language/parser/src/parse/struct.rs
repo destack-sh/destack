@@ -2,7 +2,7 @@
 
 use crate::parse::expression::common::DeclarationHeader;
 use crate::parse::prelude::*;
-use crate::{ParseResult, Parser, ParserSpanStart};
+use crate::{ParseError, ParseResult, Parser, ParserSpanStart};
 
 use destack_ast::{
     ClassDeclaration, Declaration, Keyword, LocalNodeId, NodeType, StructDeclaration, TokenType,
@@ -12,8 +12,7 @@ use destack_source::{NodeSpanRegion, NodeSpanType};
 impl Parser {
     /// Eat a struct or class declaration.
     ///
-    /// The parser accepts `extends` for both, but the heritage shape differs.
-    /// Struct declarations treat `extends` as embedded types.
+    /// The parser accepts `extends` for classes and `implements` for structs.
     /// Class declarations treat `extends` as one superclass expression.
     /// Struct declarations require a name.
     ///
@@ -28,7 +27,6 @@ impl Parser {
     ///     myField: int32;
     ///     myOtherField: T;
     ///
-    ///     ...Bar;              // embedding for composition
     ///     static x: int32 = 7; // constant
     ///
     ///     myFunc() { }
@@ -80,19 +78,24 @@ impl Parser {
             .map(|_| self.get_span_from(&generic_parameter_container_start));
 
         // optional extends clause
+        let unexpected_extends_span = if !is_class && self.is_keyword(Keyword::Extends) {
+            Some(self.peek()?.span)
+        } else {
+            None
+        };
         let extends_clause = if is_class {
             self.eat_extends_expressions_maybe()
                 .for_node_type(NodeType::Declaration)?
-        } else {
-            None
-        };
-
-        let embedded_types = if is_class {
-            None
-        } else {
+        } else if unexpected_extends_span.is_some() {
             self.eat_extends_types_maybe()
-                .for_node_type(NodeType::Declaration)?
+                .for_node_type(NodeType::Declaration)?;
+            None
+        } else {
+            None
         };
+        if let Some(span) = unexpected_extends_span {
+            self.error(&ParseError::unexpected_for(span, NodeType::Declaration));
+        }
 
         // optional implements types
         let implements_types = self
@@ -150,7 +153,6 @@ impl Parser {
                 generic_parameters: generic_parameters.unwrap_or_default(),
                 where_clauses: where_clauses.unwrap_or_default(),
                 implements_types: implements_types.unwrap_or_default(),
-                embedded_types: embedded_types.unwrap_or_default(),
                 members,
             })
         };
@@ -246,10 +248,12 @@ struct Foo { x: int32, y: int32 }
     }
 
     #[test]
-    fn test_parse_struct_with_extends_types() {
+    fn test_parse_struct_rejects_extends() {
         let mut test = TestParser::new(
             r###"
-struct Foo extends Bar {}
+struct Foo extends Bar implements Baz {
+    value: int32;
+}
 "###,
         );
         let mut parser = test.prepare();
@@ -258,14 +262,12 @@ struct Foo extends Bar {}
         let struct_id = parser
             .eat_struct_or_class(&start, DeclarationHeader::default(), false)
             .unwrap();
-        assert_node!(parser.tree, struct_id, Declaration::Struct(StructDeclaration { name, embedded_types, implements_types, members, .. }) => {
-            assert_string!(parser, name.string(), "Foo");
-            assert!(members.is_empty());
-            assert!(implements_types.is_empty());
-            assert_eq!(embedded_types.len(), 1);
-            assert_node!(parser.tree, embedded_types[0], TypeExpression::Reference { path, .. } => {
-                assert_path!(parser, *path, "Bar");
-            });
+
+        assert_eq!(parser.errors.len(), 1);
+        assert_eq!(parser.get_span_str(parser.errors[0].leaf_span()), "extends");
+        assert_node!(parser.tree, struct_id, Declaration::Struct(StructDeclaration { implements_types, members, .. }) => {
+            assert_eq!(implements_types.len(), 1);
+            assert_eq!(members.len(), 1);
         });
     }
 
@@ -583,13 +585,10 @@ Second // impl-second
     }
 
     #[test]
-    fn test_parse_struct_with_spread() {
+    fn test_parse_struct_with_implements() {
         let mut test = TestParser::new(
             r###"
-struct Foo<T: Numeric> extends Boz implements Quux {
-    ...Bar
-    ...Baz
-
+struct Foo<T: Numeric> implements Quux {
     a: T
     b?: T
     c: T
@@ -603,7 +602,7 @@ struct Foo<T: Numeric> extends Boz implements Quux {
         let struct_id = parser
             .eat_struct_or_class(&start, DeclarationHeader::default(), false)
             .unwrap();
-        assert_node!(parser.tree, struct_id, Declaration::Struct(StructDeclaration { name, generic_parameters, embedded_types, implements_types, members, .. }) => {
+        assert_node!(parser.tree, struct_id, Declaration::Struct(StructDeclaration { name, generic_parameters, implements_types, members, .. }) => {
             assert_string!(parser, name.string(), "Foo");
             assert!(!generic_parameters.is_empty());
 
@@ -617,48 +616,35 @@ struct Foo<T: Numeric> extends Boz implements Quux {
                 });
             });
 
-            // Boz
-            assert_eq!(embedded_types.len(), 1);
-            assert_node!(parser.tree, embedded_types[0], TypeExpression::Reference { path, .. } => {
-                assert_path!(parser, *path, "Boz");
-            });
             assert_eq!(implements_types.len(), 1);
             assert_node!(parser.tree, implements_types[0], TypeExpression::Reference { path, .. } => {
                 assert_path!(parser, *path, "Quux");
             });
 
-            assert_eq!(members.len(), 6);
+            assert_eq!(members.len(), 4);
 
-            // ..Bar
-            assert_node!(parser.tree, members[0], Member::Embed { value, .. } => {
-                assert_expression_path!(parser, parser.tree.get(*value), "Bar");
-            });
-            // ..Baz
-            assert_node!(parser.tree, members[1], Member::Embed { value, .. } => {
-                assert_expression_path!(parser, parser.tree.get(*value), "Baz");
-            });
             // a: T
-            assert_node!(parser.tree, members[2], Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(ty), default: None, .. } => {
+            assert_node!(parser.tree, members[0], Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(ty), default: None, .. } => {
                 assert_string!(parser, *name, "a");
                 assert_node!(parser.tree, *ty, TypeExpression::Reference { path, .. } => {
                     assert_path!(parser, *path, "T");
                 });
             });
             // b?: T
-            assert_node!(parser.tree, members[3], Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(ty), is_optional, default: None, .. } => {
+            assert_node!(parser.tree, members[1], Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(ty), is_optional, default: None, .. } => {
                 assert!(*is_optional);
                 assert_string!(parser, *name, "b");
                 assert_expression_path!(parser, parser.tree.get(*ty), "T");
             });
             // c: T
-            assert_node!(parser.tree, members[4], Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(ty), default: None, .. } => {
+            assert_node!(parser.tree, members[2], Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(ty), default: None, .. } => {
                 assert_string!(parser, *name, "c");
                 assert_node!(parser.tree, *ty, TypeExpression::Reference { path, .. } => {
                     assert_path!(parser, *path, "T");
                 });
             });
             // private d: int32 = 4
-            assert_node!(parser.tree, members[5], Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(ty), default: Some(value), visibility, .. } => {
+            assert_node!(parser.tree, members[3], Member::Field { key: Key::Name(Name::Identifier(name)), declared_type: Some(ty), default: Some(value), visibility, .. } => {
                 assert_eq!(*visibility, Some(Visibility::Private));
                 assert_string!(parser, *name, "d");
                 assert_node!(parser.tree, *ty, TypeExpression::Literal { value } => {
@@ -745,8 +731,8 @@ struct Foo {
     }
 
     #[test]
-    fn test_parse_struct_heritage_type_spans() {
-        let mut test = TestParser::new("struct Foo extends Bar.Baz implements Qux {}");
+    fn test_parse_struct_implements_type_spans() {
+        let mut test = TestParser::new("struct Foo implements Qux {}");
         let mut parser = test.prepare();
 
         let start = parser.span_start();
@@ -754,14 +740,8 @@ struct Foo {
             .eat_struct_or_class(&start, DeclarationHeader::default(), false)
             .unwrap();
 
-        // spans on extends and implements types
-        assert_node!(parser.tree, struct_id, Declaration::Struct(StructDeclaration { embedded_types, implements_types, .. }) => {
-            assert_eq!(embedded_types.len(), 1);
-            let extends_span = parser
-                .tree
-                .get_side_span(embedded_types[0], NodeSpanType::Region(NodeSpanRegion::Type))
-                .expect("expected extends type span");
-            assert_eq!(parser.get_span_str(extends_span), "Bar.Baz");
+        // spans on implements types
+        assert_node!(parser.tree, struct_id, Declaration::Struct(StructDeclaration { implements_types, .. }) => {
             assert_eq!(implements_types.len(), 1);
             let implements_span = parser
                 .tree

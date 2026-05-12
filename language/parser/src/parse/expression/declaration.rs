@@ -6,8 +6,8 @@ use destack_ast::{
 
 use super::super::PendingDecorators;
 use super::common::{
-    is_declaration_keyword, is_type_relation_keyword, DeclarationHeader, DescriptorHead,
-    DECLARATION_START_TOKENS,
+    DECLARATION_START_TOKENS, DeclarationHeader, DescriptorHead, is_declaration_keyword,
+    is_type_relation_keyword,
 };
 
 impl Parser {
