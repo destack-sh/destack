@@ -78,21 +78,13 @@ impl Token {
             // --------------------------------------------------
             // Multiplication, Division, Remainder
             TokenType::Multiply => "*".to_string(),
-            TokenType::WrappingMultiply => "*%".to_string(),
-            TokenType::SaturatingMultiply => "*|".to_string(),
             TokenType::Exponent => "**".to_string(),
-            TokenType::WrappingExponent => "**%".to_string(),
-            TokenType::SaturatingExponent => "**|".to_string(),
             TokenType::Divide => "/".to_string(),
             TokenType::Remainder => "%".to_string(),
 
             // Addition, Subtraction
             TokenType::Add => "+".to_string(),
-            TokenType::WrappingAdd => "+%".to_string(),
-            TokenType::SaturatingAdd => "+|".to_string(),
             TokenType::Subtract => "-".to_string(),
-            TokenType::WrappingSubtract => "-%".to_string(),
-            TokenType::SaturatingSubtract => "-|".to_string(),
 
             // Increment/Decrement
             TokenType::Increment => "++".to_string(),
@@ -100,7 +92,6 @@ impl Token {
 
             // Shifts
             TokenType::ShiftLeft => "<<".to_string(),
-            TokenType::SaturatingShiftLeft => "<<|".to_string(),
             TokenType::ShiftRight => ">>".to_string(),
             TokenType::UnsignedShiftRight => ">>>".to_string(),
 
@@ -131,25 +122,16 @@ impl Token {
 
             // Multiplication assignment
             TokenType::MultiplyAssign => "*=".to_string(),
-            TokenType::WrappingMultiplyAssign => "*%=".to_string(),
-            TokenType::SaturatingMultiplyAssign => "*|=".to_string(),
             TokenType::ExponentAssign => "**=".to_string(),
-            TokenType::WrappingExponentAssign => "**%=".to_string(),
-            TokenType::SaturatingExponentAssign => "**|=".to_string(),
             TokenType::DivideAssign => "/=".to_string(),
             TokenType::RemainderAssign => "%=".to_string(),
 
             // Addition assignment
             TokenType::AddAssign => "+=".to_string(),
-            TokenType::WrappingAddAssign => "+%=".to_string(),
-            TokenType::SaturatingAddAssign => "+|=".to_string(),
             TokenType::SubtractAssign => "-=".to_string(),
-            TokenType::WrappingSubtractAssign => "-%=".to_string(),
-            TokenType::SaturatingSubtractAssign => "-|=".to_string(),
 
             // Shift assignment
             TokenType::ShiftLeftAssign => "<<=".to_string(),
-            TokenType::SaturatingShiftLeftAssign => "<<|=".to_string(),
             TokenType::ShiftRightAssign => ">>=".to_string(),
             TokenType::UnsignedShiftRightAssign => ">>>=".to_string(),
 
