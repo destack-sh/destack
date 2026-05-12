@@ -42,7 +42,6 @@ impl<'a> BlockLowerer<'a> {
                 index,
                 value,
             } => self.lower_element_update(*destination, *array, *index, *value),
-            mir::Instruction::Drop { value } => self.lower_drop(pool, *value),
             _ => Ok(vec![self.lower_instruction(inst, pool)?]),
         }
     }
@@ -165,6 +164,8 @@ impl<'a> BlockLowerer<'a> {
             mir::Instruction::Unpin { value } => self.lower_unpin(*value)?,
 
             mir::Instruction::Drop { .. } => return Err(Error::InvalidInstruction),
+
+            mir::Instruction::Free { value } => self.lower_free(*value)?,
 
             mir::Instruction::Assume { condition: _ } => Instruction::new(Op::Assume, 0, 0, 0, 0),
 
