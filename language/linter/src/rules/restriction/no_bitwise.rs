@@ -30,7 +30,6 @@ declare_lint! {
 fn bitwise_binary_operator(operator: &BinaryOperator) -> Option<BitwiseOperator> {
     match operator {
         BinaryOperator::ShiftLeft => Some(BitwiseOperator::ShiftLeft),
-        BinaryOperator::SaturatingShiftLeft => Some(BitwiseOperator::SaturatingShiftLeft),
         BinaryOperator::ShiftRight => Some(BitwiseOperator::ShiftRight),
         BinaryOperator::UnsignedShiftRight => Some(BitwiseOperator::UnsignedShiftRight),
         BinaryOperator::ElementwiseAnd => Some(BitwiseOperator::And),
@@ -44,9 +43,6 @@ fn bitwise_binary_operator(operator: &BinaryOperator) -> Option<BitwiseOperator>
 fn bitwise_assign_operator(operator: &AssignOperator) -> Option<BitwiseOperator> {
     match operator {
         AssignOperator::ShiftLeftAssign => Some(BitwiseOperator::ShiftLeftAssign),
-        AssignOperator::SaturatingShiftLeftAssign => {
-            Some(BitwiseOperator::SaturatingShiftLeftAssign)
-        }
         AssignOperator::ShiftRightAssign => Some(BitwiseOperator::ShiftRightAssign),
         AssignOperator::UnsignedShiftRightAssign => Some(BitwiseOperator::UnsignedShiftRightAssign),
         AssignOperator::ElementwiseAndAssign => Some(BitwiseOperator::AndAssign),
@@ -189,16 +185,6 @@ mod tests {
     }
 
     #[test]
-    fn test_detects_saturating_shift_left() {
-        let test = TestProgram::for_rule_without_prelude(NoBitwise);
-        let result = test.lint_ast(
-            "no_bitwise/test_detects_saturating_shift_left.ds",
-            "let x = a <<| b;",
-        );
-        test.result(result).assert_lint("no-bitwise");
-    }
-
-    #[test]
     fn test_detects_shift_right() {
         let test = TestProgram::for_rule_without_prelude(NoBitwise);
         let result = test.lint_ast("no_bitwise/test_detects_shift_right.ts", "let x = a >> b;");
@@ -209,16 +195,6 @@ mod tests {
     fn test_detects_bitwise_assign() {
         let test = TestProgram::for_rule_without_prelude(NoBitwise);
         let result = test.lint_ast("no_bitwise/test_detects_bitwise_assign.ts", "x &= 1;");
-        test.result(result).assert_lint("no-bitwise");
-    }
-
-    #[test]
-    fn test_detects_saturating_shift_left_assign() {
-        let test = TestProgram::for_rule_without_prelude(NoBitwise);
-        let result = test.lint_ast(
-            "no_bitwise/test_detects_saturating_shift_left_assign.ds",
-            "x <<|= 1;",
-        );
         test.result(result).assert_lint("no-bitwise");
     }
 

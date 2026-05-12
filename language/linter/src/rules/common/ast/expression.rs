@@ -1290,20 +1290,12 @@ pub fn expression_numeric_value(
 
     // apply numeric operator semantics
     match operator {
-        ast::BinaryOperator::Add
-        | ast::BinaryOperator::WrappingAdd
-        | ast::BinaryOperator::SaturatingAdd => Some(left_value + right_value),
-        ast::BinaryOperator::Subtract
-        | ast::BinaryOperator::WrappingSubtract
-        | ast::BinaryOperator::SaturatingSubtract => Some(left_value - right_value),
-        ast::BinaryOperator::Multiply
-        | ast::BinaryOperator::WrappingMultiply
-        | ast::BinaryOperator::SaturatingMultiply => Some(left_value * right_value),
+        ast::BinaryOperator::Add => Some(left_value + right_value),
+        ast::BinaryOperator::Subtract => Some(left_value - right_value),
+        ast::BinaryOperator::Multiply => Some(left_value * right_value),
         ast::BinaryOperator::Divide => Some(left_value / right_value),
         ast::BinaryOperator::Remainder => Some(left_value % right_value),
-        ast::BinaryOperator::Exponent
-        | ast::BinaryOperator::WrappingExponent
-        | ast::BinaryOperator::SaturatingExponent => Some(left_value.powf(right_value)),
+        ast::BinaryOperator::Exponent => Some(left_value.powf(right_value)),
         _ => None,
     }
 }

@@ -202,11 +202,7 @@ fn assign_operator_with_expected_direction(
 ) -> Option<&'static str> {
     match (operator, expected_direction) {
         (ast::AssignOperator::AddAssign, Direction::Decreasing) => Some("-="),
-        (ast::AssignOperator::WrappingAddAssign, Direction::Decreasing) => Some("-%="),
-        (ast::AssignOperator::SaturatingAddAssign, Direction::Decreasing) => Some("-|="),
         (ast::AssignOperator::SubtractAssign, Direction::Increasing) => Some("+="),
-        (ast::AssignOperator::WrappingSubtractAssign, Direction::Increasing) => Some("+%="),
-        (ast::AssignOperator::SaturatingSubtractAssign, Direction::Increasing) => Some("+|="),
         _ => None,
     }
 }
@@ -317,12 +313,8 @@ fn assignment_direction(
 
     // map assignment operator and sign to update direction
     match operator {
-        ast::AssignOperator::AddAssign
-        | ast::AssignOperator::WrappingAddAssign
-        | ast::AssignOperator::SaturatingAddAssign => direction_from_sign(step_sign),
-        ast::AssignOperator::SubtractAssign
-        | ast::AssignOperator::WrappingSubtractAssign
-        | ast::AssignOperator::SaturatingSubtractAssign => direction_from_sign(-step_sign),
+        ast::AssignOperator::AddAssign => direction_from_sign(step_sign),
+        ast::AssignOperator::SubtractAssign => direction_from_sign(-step_sign),
         _ => None,
     }
 }
