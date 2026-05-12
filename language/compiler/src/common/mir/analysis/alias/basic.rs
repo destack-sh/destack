@@ -431,8 +431,8 @@ impl BasicAA {
             | mir::Instruction::RawAlloc { .. }
             | mir::Instruction::StackAlloc { .. } => ModRefInfo::NO_MOD_REF,
 
-            // deallocation: only affects the freed memory
-            mir::Instruction::RawFree { pointer } => {
+            // deallocation only affects the freed memory
+            mir::Instruction::RawFree { pointer } | mir::Instruction::Free { value: pointer } => {
                 let Some(pointer) = pointer.value() else {
                     return ModRefInfo::NO_MOD_REF;
                 };

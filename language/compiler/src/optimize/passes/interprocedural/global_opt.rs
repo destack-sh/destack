@@ -300,8 +300,9 @@ fn collect_written_globals(
                     continue;
                 }
 
-                // detect raw frees or drops through global pointers
+                // detect frees or drops through global pointers
                 if let mir::Instruction::RawFree { pointer }
+                | mir::Instruction::Free { value: pointer }
                 | mir::Instruction::Drop { value: pointer } = instruction
                     && let Some(global_id) = pointer.value().and_then(|pointer| {
                         global_addr_base(pointer, &definitions, addr_info, tree)
@@ -646,7 +647,7 @@ b0:
         test.assert_output(input);
     }
 
-    /// Exceptional call terminators keep written globals mutable.
+    /// Call terminators keep written globals mutable.
     #[test]
     fn test_global_opt_skips_call_terminator_global_write() {
         let input = r#"

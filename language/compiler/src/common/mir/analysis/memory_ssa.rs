@@ -1147,6 +1147,7 @@ impl<'a> MemoryAccessCollector<'a> {
                 self.call_effects(instruction, call.arguments, None)
             }
             mir::Instruction::RawFree { .. }
+            | mir::Instruction::Free { .. }
             | mir::Instruction::Drop { .. }
             | mir::Instruction::Pin { .. }
             | mir::Instruction::Unpin { .. }

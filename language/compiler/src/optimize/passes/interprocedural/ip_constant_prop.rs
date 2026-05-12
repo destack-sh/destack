@@ -489,7 +489,7 @@ b0:
         test.assert_output(expected);
     }
 
-    /// Exceptional direct call terminators contribute constants to the callee.
+    /// Direct call terminators contribute constants to the callee.
     #[test]
     fn test_ip_constant_prop_propagates_call_terminator() {
         let input = r#"
