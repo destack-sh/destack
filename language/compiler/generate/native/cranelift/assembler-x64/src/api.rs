@@ -1,9 +1,10 @@
 //! Contains traits that a user of this assembler must implement.
 
-use crate::{gpr, xmm, Amode, DeferredTarget, GprMem, XmmMem};
-use std::fmt;
-use std::num::NonZeroU8;
-use std::vec::Vec;
+use crate::{Amode, DeferredTarget, GprMem, XmmMem, gpr, xmm};
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::fmt;
+use core::num::NonZeroU8;
 
 /// Describe how an instruction is emitted into a code buffer.
 pub trait CodeSink {
@@ -112,7 +113,7 @@ pub trait Registers {
 }
 
 /// Describe how to interact with an external register type.
-pub trait AsReg: Copy + Clone + std::fmt::Debug + PartialEq {
+pub trait AsReg: Copy + Clone + core::fmt::Debug + PartialEq {
     /// Create a register from its hardware encoding.
     ///
     /// This is primarily useful for fuzzing, though it is also useful for

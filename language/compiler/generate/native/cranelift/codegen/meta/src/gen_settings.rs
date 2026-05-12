@@ -5,7 +5,7 @@ use crate::cdsl::settings::{BoolSetting, Preset, Setting, SettingGroup, Specific
 use crate::constant_hash::generate_table;
 use crate::unique_table::UniqueSeqTable;
 use cranelift_codegen_shared::constant_hash::simple_hash;
-use cranelift_srcgen::{error, fmtln, Formatter, Language, Match};
+use cranelift_srcgen::{Formatter, Language, Match, error, fmtln};
 use std::collections::HashMap;
 
 pub(crate) enum ParentGroup {

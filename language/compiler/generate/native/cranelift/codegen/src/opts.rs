@@ -5,7 +5,7 @@ mod div_const;
 use crate::egraph::{NewOrExistingInst, OptimizeCtx};
 pub use crate::ir::condcodes::{FloatCC, IntCC};
 use crate::ir::dfg::ValueDef;
-pub use crate::ir::immediates::{Ieee128, Ieee16, Ieee32, Ieee64, Imm64, Offset32, Uimm8, V128Imm};
+pub use crate::ir::immediates::{Ieee16, Ieee32, Ieee64, Ieee128, Imm64, Offset32, Uimm8, V128Imm};
 use crate::ir::instructions::InstructionFormat;
 pub use crate::ir::types::*;
 pub use crate::ir::{
@@ -14,9 +14,9 @@ pub use crate::ir::{
 };
 use crate::machinst::isle::*;
 use crate::{isle_common_prelude_methods, trace};
+use core::marker::PhantomData;
 use cranelift_entity::packed_option::ReservedValue;
-use smallvec::{smallvec, SmallVec};
-use std::marker::PhantomData;
+use smallvec::{SmallVec, smallvec};
 
 pub type Unit = ();
 pub type ValueArray2 = [Value; 2];

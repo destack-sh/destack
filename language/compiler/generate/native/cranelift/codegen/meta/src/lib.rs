@@ -1,10 +1,7 @@
 //! This crate generates Rust sources for use by
 //! [`cranelift_codegen`](../cranelift_codegen/index.html).
-// NOTE #Cleanup: fix clippy lints once fully vendored
-#![allow(clippy::all)]
-#![allow(warnings)]
 
-use cranelift_srcgen::{error, Formatter, Language};
+use cranelift_srcgen::{Formatter, Language, error};
 use shared::Definitions;
 
 #[macro_use]

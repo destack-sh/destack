@@ -1,7 +1,3 @@
-// NOTE #Cleanup: fix clippy lints once fully vendored
-#![allow(clippy::all)]
-#![allow(warnings)]
-
 use cranelift_assembler_x64_meta as meta;
 use std::env;
 use std::fs::File;

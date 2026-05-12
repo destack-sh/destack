@@ -1,13 +1,14 @@
 [package]
 authors = ["The Cranelift Project Developers"]
 name = "cranelift-control"
-version = "0.127.0"
+version = "0.131.1"
 description = "White-box fuzz testing framework"
 license = "Apache-2.0 WITH LLVM-exception"
 repository = "https://github.com/bytecodealliance/wasmtime"
 readme = "README.md"
 keywords = ["fuzz", "test"]
-edition = "2021"
+edition = "2024"
+rust-version = "1.92.0"
 
 [dependencies]
 arbitrary = { workspace = true, optional = true }

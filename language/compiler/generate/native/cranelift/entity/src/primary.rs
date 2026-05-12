@@ -1,8 +1,8 @@
 //! Densely numbered entity references as mapping keys.
+use crate::EntityRef;
 use crate::boxed_slice::BoxedSlice;
 use crate::iter::{IntoIter, Iter, IterMut};
 use crate::keys::Keys;
-use crate::EntityRef;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::marker::PhantomData;
@@ -10,6 +10,7 @@ use core::ops::{Index, IndexMut};
 use core::{fmt, slice};
 #[cfg(feature = "enable-serde")]
 use serde_derive::{Deserialize, Serialize};
+use wasmtime_core::error::OutOfMemory;
 
 /// A primary mapping `K -> V` allocating dense entity references.
 ///
@@ -54,6 +55,13 @@ where
             elems: Vec::with_capacity(capacity),
             unused: PhantomData,
         }
+    }
+
+    /// Like `with_capacity` but returns an error on allocation failure.
+    pub fn try_with_capacity(capacity: usize) -> Result<Self, OutOfMemory> {
+        let mut map = Self::new();
+        map.try_reserve(capacity)?;
+        Ok(map)
     }
 
     /// Check if `k` is a valid key in the map.
@@ -152,9 +160,23 @@ where
         self.elems.reserve(additional)
     }
 
+    /// Like `reserve` but returns an error on allocation failure.
+    pub fn try_reserve(&mut self, additional: usize) -> Result<(), OutOfMemory> {
+        self.elems
+            .try_reserve(additional)
+            .map_err(|_| OutOfMemory::new(self.len().saturating_add(additional)))
+    }
+
     /// Reserves the minimum capacity for exactly `additional` more elements to be inserted.
     pub fn reserve_exact(&mut self, additional: usize) {
         self.elems.reserve_exact(additional)
+    }
+
+    /// Like `reserve_exact` but returns an error on allocation failure.
+    pub fn try_reserve_exact(&mut self, additional: usize) -> Result<(), OutOfMemory> {
+        self.elems
+            .try_reserve_exact(additional)
+            .map_err(|_| OutOfMemory::new(self.len().saturating_add(additional)))
     }
 
     /// Shrinks the capacity of the `PrimaryMap` as much as possible.

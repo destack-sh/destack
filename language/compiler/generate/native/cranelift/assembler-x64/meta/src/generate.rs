@@ -6,7 +6,7 @@ mod inst;
 mod operand;
 
 use crate::dsl;
-use cranelift_srcgen::{fmtln, Formatter};
+use cranelift_srcgen::{Formatter, fmtln};
 
 /// Generate the Rust assembler code; e.g., `enum Inst { ... }`.
 pub fn rust_assembler(f: &mut Formatter, insts: &[dsl::Inst]) {
@@ -53,11 +53,11 @@ fn match_variants(f: &mut Formatter, insts: &[dsl::Inst], invoke: &str) {
     });
 }
 
-/// `impl std::fmt::Display for Inst { ... }`
+/// `impl core::fmt::Display for Inst { ... }`
 fn generate_inst_display_impl(f: &mut Formatter, insts: &[dsl::Inst]) {
-    f.add_block("impl<R: Registers> std::fmt::Display for Inst<R>", |f| {
+    f.add_block("impl<R: Registers> core::fmt::Display for Inst<R>", |f| {
         f.add_block(
-            "fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result",
+            "fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result",
             |f| {
                 match_variants(f, insts, "fmt(f)");
             },

@@ -1,0 +1,49 @@
+[package]
+authors = ["The Pulley Project Developers"]
+description = "The Pulley interpreter, its bytecode definition, encoder, decoder, and etc..."
+edition = "2024"
+rust-version = "1.92.0"
+license = "Apache-2.0 WITH LLVM-exception"
+name = "pulley-interpreter"
+readme = "./README.md"
+repository = "https://github.com/bytecodealliance/wasmtime/tree/main/pulley"
+version = "44.0.1"
+
+
+[dependencies]
+arbitrary = { workspace = true, optional = true }
+cranelift-bitset = { workspace = true }
+log = { workspace = true }
+wasmtime-core = { workspace = true, optional = true }
+anyhow = { workspace = true, optional = true }
+pulley-macros = { workspace = true }
+
+[dev-dependencies]
+env_logger = { workspace = true }
+anyhow = { workspace = true, features = ['std'] }
+clap = { workspace = true }
+termcolor = { workspace = true }
+
+[features]
+std = ['wasmtime-core?/std']
+arbitrary = ["dep:arbitrary", "arbitrary/derive", "std", "cranelift-bitset/arbitrary"]
+encode = []
+decode = []
+disas = ["decode"]
+interp = ["decode", "encode", "dep:wasmtime-core"]
+profile = ['std', 'dep:anyhow']
+
+[package.metadata.docs.rs]
+all-features = true
+
+[lints.rust.unexpected_cfgs]
+level = "warn"
+check-cfg = [
+    'cfg(pulley_tail_calls)',
+    'cfg(pulley_assume_llvm_makes_tail_calls)',
+    'cfg(pulley_disable_interp_simd)',
+]
+
+[[example]]
+name = "profiler-html"
+required-features = ["disas", "interp", "profile"]

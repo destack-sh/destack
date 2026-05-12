@@ -65,8 +65,7 @@ use crate::entity::SecondaryMap;
 use crate::inst_predicates::visit_block_succs;
 use crate::ir::{Block, Function, Inst, Opcode};
 use crate::machinst::*;
-use crate::trace;
-use rustc_hash::{FxHashMap, FxHashSet};
+use crate::{FxHashMap, FxHashSet, trace};
 
 /// Mapping from CLIF BBs to VCode BBs.
 #[derive(Debug)]
@@ -79,7 +78,7 @@ pub struct BlockLoweringOrder {
     lowered_succ_indices: Vec<BlockIndex>,
     /// Ranges in `lowered_succ_indices` giving the successor lists for each lowered
     /// block. Indexed by lowering-order index (`BlockIndex`).
-    lowered_succ_ranges: Vec<(Option<Inst>, std::ops::Range<usize>)>,
+    lowered_succ_ranges: Vec<(Option<Inst>, core::ops::Range<usize>)>,
     /// BlockIndex for each original Block.
     blockindex_by_block: SecondaryMap<Block, BlockIndex>,
     /// Cold blocks. These blocks are not reordered in the
@@ -135,6 +134,7 @@ impl LoweredBlock {
     }
 
     /// The associated out-edge successor, if this is a critical edge.
+    #[cfg(test)]
     pub fn out_edge(&self) -> Option<Block> {
         match self {
             &LoweredBlock::CriticalEdge { succ, .. } => Some(succ),
@@ -321,11 +321,7 @@ impl BlockLoweringOrder {
     /// (and thus does not appear in the lowered order).
     pub fn lowered_index_for_block(&self, block: Block) -> Option<BlockIndex> {
         let idx = self.blockindex_by_block[block];
-        if idx.is_valid() {
-            Some(idx)
-        } else {
-            None
-        }
+        if idx.is_valid() { Some(idx) } else { None }
     }
 
     /// Get the successor indices for a lowered block.

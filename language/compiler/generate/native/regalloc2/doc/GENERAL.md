@@ -7,7 +7,7 @@ various parts of the output.
 `ION.md` and `FASTALLOC.md` describe the specifics of the main Ion
 allocator and the fast allocator, respectively.
 
-## API, Input IR and Invariants
+# API, Input IR and Invariants
 
 The toplevel API to regalloc2 consists of a single entry point `run()`
 that takes a register environment, which specifies all physical

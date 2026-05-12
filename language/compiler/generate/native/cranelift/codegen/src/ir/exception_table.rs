@@ -129,7 +129,7 @@ impl ExceptionTableData {
     /// `BlockArg::TryCallExn` in the exceptional-return cases, with
     /// types corresponding to native machine words and an arity
     /// corresponding to the number of payload values that the calling
-    /// convention and platform support. (See [`isa::CallConv`] for
+    /// convention and platform support. (See [`CallConv`](crate::isa::CallConv) for
     /// more details.)
     pub fn new(
         sig: SigRef,
@@ -225,7 +225,7 @@ impl ExceptionTableData {
     }
 
     /// Get an iterator over context values.
-    pub(crate) fn contexts(&self) -> impl DoubleEndedIterator<Item = Value> + use<'_> {
+    pub(crate) fn contexts(&self) -> impl DoubleEndedIterator<Item = Value> {
         self.items.iter().filter_map(|item| match item {
             InternalExceptionTableItem::Context(ctx) => Some(*ctx),
             _ => None,

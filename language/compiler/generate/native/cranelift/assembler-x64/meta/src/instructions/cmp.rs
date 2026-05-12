@@ -3,7 +3,7 @@ use crate::dsl::Eflags::*;
 use crate::dsl::Feature::*;
 use crate::dsl::Length::*;
 use crate::dsl::Location::*;
-use crate::dsl::{align, fmt, inst, r, rex, rw, sxl, sxq, sxw, vex, w, Inst};
+use crate::dsl::{Inst, align, fmt, inst, r, rex, rw, sxl, sxq, sxw, vex, w};
 
 #[rustfmt::skip] // Keeps instructions on a single line.
 pub fn list() -> Vec<Inst> {

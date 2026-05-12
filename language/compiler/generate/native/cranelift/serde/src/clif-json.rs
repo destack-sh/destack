@@ -1,7 +1,5 @@
 //! Utility for `cranelift_serde`.
-// NOTE #Cleanup: fix clippy lints once fully vendored
-#![allow(clippy::all)]
-#![allow(warnings)]
+
 #![deny(missing_docs)]
 
 use clap::Parser;

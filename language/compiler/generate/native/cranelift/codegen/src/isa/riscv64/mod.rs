@@ -7,17 +7,17 @@ use crate::isa::{
     Builder as IsaBuilder, FunctionAlignment, IsaFlagsHashKey, OwnedTargetIsa, TargetIsa,
 };
 use crate::machinst::{
-    compile, CompiledCode, CompiledCodeStencil, MachInst, MachTextSectionBuilder, Reg, SigSet,
-    TextSectionBuilder, VCode,
+    CompiledCode, CompiledCodeStencil, MachInst, MachTextSectionBuilder, Reg, SigSet,
+    TextSectionBuilder, VCode, compile,
 };
 use crate::result::CodegenResult;
 use crate::settings::{self as shared_settings, Flags};
-use crate::{ir, CodegenError};
+use crate::{CodegenError, ir};
 use alloc::boxed::Box;
+use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt;
 use cranelift_control::ControlPlane;
-use std::string::String;
 use target_lexicon::{Architecture, Triple};
 mod abi;
 pub(crate) mod inst;
@@ -205,7 +205,7 @@ impl TargetIsa for Riscv64Backend {
         true
     }
 
-    fn has_x86_blendv_lowering(&self, _: Type) -> bool {
+    fn has_blendv_lowering(&self, _: Type) -> bool {
         false
     }
 

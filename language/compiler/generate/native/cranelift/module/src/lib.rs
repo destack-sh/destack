@@ -1,7 +1,5 @@
 //! Top-level lib.rs for `cranelift_module`.
-// NOTE #Cleanup: fix clippy lints once fully vendored
-#![allow(clippy::all)]
-#![allow(warnings)]
+
 #![deny(missing_docs)]
 #![no_std]
 
@@ -13,11 +11,11 @@ extern crate alloc as std;
 extern crate std;
 
 #[cfg(not(feature = "std"))]
-use hashbrown::{hash_map, HashMap};
+use hashbrown::{HashMap, hash_map};
 use std::borrow::ToOwned;
 use std::boxed::Box;
 #[cfg(feature = "std")]
-use std::collections::{hash_map, HashMap};
+use std::collections::{HashMap, hash_map};
 use std::string::String;
 
 use cranelift_codegen::ir;

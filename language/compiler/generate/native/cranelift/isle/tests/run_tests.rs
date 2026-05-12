@@ -7,7 +7,7 @@ use cranelift_isle::error::Errors;
 use cranelift_isle::{compile, lexer, parser, printer};
 
 fn build(filename: &str) -> Result<String, Errors> {
-    compile::from_files([filename], &Default::default())
+    compile::from_files(&[filename], &Default::default())
 }
 
 pub fn run_pass(filename: &str) {
@@ -44,7 +44,7 @@ fn build_and_link_isle(isle_filename: &str) -> (tempfile::TempDir, std::path::Pa
 
     let rust_filename = isle_filename.replace(".isle", "").to_string() + "_main.rs";
     let rust_filename_base = std::path::Path::new(&rust_filename).file_name().unwrap();
-    let rust_driver = tempdir.path().to_path_buf().join(rust_filename_base);
+    let rust_driver = tempdir.path().to_path_buf().join(&rust_filename_base);
     println!("copying {rust_filename} to {rust_driver:?}");
     std::fs::copy(&rust_filename, &rust_driver).unwrap();
 
@@ -68,12 +68,14 @@ pub fn run_link(isle_filename: &str) {
 pub fn run_run(isle_filename: &str) {
     let (_tempdir, exe) = build_and_link_isle(isle_filename);
 
-    assert!(std::process::Command::new(exe)
-        .spawn()
-        .unwrap()
-        .wait()
-        .unwrap()
-        .success());
+    assert!(
+        std::process::Command::new(exe)
+            .spawn()
+            .unwrap()
+            .wait()
+            .unwrap()
+            .success()
+    );
 }
 
 pub fn run_print(isle_filename: &str) {

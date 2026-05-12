@@ -2,7 +2,8 @@
 name = "cranelift-assembler-x64-fuzz"
 version = "0.0.0"
 publish = false
-edition = "2021"
+edition = "2024"
+rust-version = "1.92.0"
 
 [package.metadata]
 cargo-fuzz = true

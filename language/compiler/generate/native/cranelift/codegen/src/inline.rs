@@ -7,7 +7,7 @@
 //! have been marked the equivalent of `#[inline(never)]`, etc... Only the
 //! Cranelift user can understand these aspects of the full compilation
 //! pipeline, and these things can be very different between (say) Wasmtime and
-//! `cg_clif`. Therefore, this module does not attempt to define hueristics for
+//! `cg_clif`. Therefore, this module does not attempt to define heuristics for
 //! when inlining a particular call is likely beneficial. This module only
 //! provides hooks for the Cranelift user to define whether a given call should
 //! be inlined or not, and the mechanics to inline a callee into a particular
@@ -26,8 +26,8 @@ use crate::trace;
 use crate::traversals::Dfs;
 use alloc::borrow::Cow;
 use alloc::vec::Vec;
-use cranelift_entity::packed_option::PackedOption;
 use cranelift_entity::SecondaryMap;
+use cranelift_entity::packed_option::PackedOption;
 use smallvec::SmallVec;
 
 type SmallValueVec = SmallVec<[ir::Value; 8]>;
@@ -61,7 +61,7 @@ pub trait Inline {
     /// A hook invoked for each direct call instruction in a function, whose
     /// result determines whether Cranelift should inline a given call.
     ///
-    /// The Cranelift user is responsible for defining their own hueristics and
+    /// The Cranelift user is responsible for defining their own heuristics and
     /// deciding whether inlining the call is beneficial.
     ///
     /// When returning a function and directing Cranelift to inline its body
@@ -140,6 +140,14 @@ pub(crate) fn do_inlining(
             debug_assert_eq!(Some(block), cursor.func.layout.inst_block(inst));
 
             match cursor.func.dfg.insts[inst] {
+                ir::InstructionData::Call { func_ref, .. }
+                    if cursor.func.dfg.ext_funcs[func_ref].patchable =>
+                {
+                    // Can't inline patchable calls; they need to
+                    // remain patchable and inlining the whole body is
+                    // decidedly *not* patchable!
+                }
+
                 ir::InstructionData::Call {
                     opcode: opcode @ ir::Opcode::Call | opcode @ ir::Opcode::ReturnCall,
                     args: _,
@@ -1472,6 +1480,7 @@ fn create_func_refs(
         name,
         signature,
         colocated,
+        patchable,
     } in callee.dfg.ext_funcs.values()
     {
         func.dfg.ext_funcs.push(ir::ExtFuncData {
@@ -1488,6 +1497,7 @@ fn create_func_refs(
             },
             signature: entity_map.inlined_sig_ref(*signature),
             colocated: *colocated,
+            patchable: *patchable,
         });
     }
 

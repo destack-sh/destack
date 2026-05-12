@@ -1,7 +1,4 @@
 //! # Cranelift Control
-// NOTE #Cleanup: fix clippy lints once fully vendored
-#![allow(clippy::all)]
-#![allow(warnings)]
 //!
 //! This is the home of the control plane of chaos mode, a compilation feature
 //! intended to be turned on for certain fuzz targets. When the feature is

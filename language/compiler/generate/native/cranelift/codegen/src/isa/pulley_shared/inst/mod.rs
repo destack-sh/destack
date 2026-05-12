@@ -3,13 +3,15 @@
 use core::marker::PhantomData;
 
 use crate::binemit::{Addend, CodeOffset, Reloc};
-use crate::ir::types::{self, F32, F64, I128, I16, I32, I64, I8, I8X16};
+use crate::ir::types::{self, F32, F64, I8, I8X16, I16, I32, I64, I128};
 use crate::ir::{self, MemFlags, Type};
-use crate::isa::pulley_shared::abi::PulleyMachineDeps;
 use crate::isa::FunctionAlignment;
+use crate::isa::pulley_shared::abi::PulleyMachineDeps;
 use crate::machinst::*;
-use crate::{settings, trace, CodegenError, CodegenResult};
+use crate::{CodegenError, CodegenResult, settings, trace};
 use alloc::string::{String, ToString};
+use alloc::vec;
+use alloc::vec::Vec;
 use regalloc2::RegClass;
 use smallvec::SmallVec;
 
@@ -147,7 +149,7 @@ fn pulley_get_operands(inst: &mut Inst, collector: &mut impl OperandVisitor) {
             collector.reg_def(dst);
         }
 
-        Inst::Call { info } | Inst::PatchableCall { info } => {
+        Inst::Call { info } => {
             let CallInfo {
                 uses,
                 defs,
@@ -434,8 +436,7 @@ where
             }
             | Inst::Call { .. }
             | Inst::IndirectCall { .. }
-            | Inst::IndirectCallHost { .. }
-            | Inst::PatchableCall { .. } => true,
+            | Inst::IndirectCallHost { .. } => true,
             _ => false,
         }
     }
@@ -498,10 +499,9 @@ where
 
     fn call_type(&self) -> CallType {
         match &self.inst {
-            Inst::Call { .. }
-            | Inst::IndirectCall { .. }
-            | Inst::IndirectCallHost { .. }
-            | Inst::PatchableCall { .. } => CallType::Regular,
+            Inst::Call { .. } | Inst::IndirectCall { .. } | Inst::IndirectCallHost { .. } => {
+                CallType::Regular
+            }
 
             Inst::ReturnCall { .. } | Inst::ReturnIndirectCall { .. } => CallType::TailCall,
 
@@ -534,14 +534,14 @@ where
         todo!()
     }
 
-    fn gen_nop_unit() -> SmallVec<[u8; 8]> {
-        let mut bytes = smallvec::smallvec![];
+    fn gen_nop_units() -> Vec<Vec<u8>> {
+        let mut bytes = vec![];
         let nop = pulley_interpreter::op::Nop {};
         nop.encode(&mut bytes);
         // NOP needs to be a 1-byte opcode so it can be used to
         // overwrite a callsite of any length.
         assert_eq!(bytes.len(), 1);
-        bytes
+        vec![bytes]
     }
 
     fn rc_for_type(ty: Type) -> CodegenResult<(&'static [RegClass], &'static [Type])> {
@@ -610,7 +610,7 @@ const TRAP_OPCODE: &'static [u8] = &[
 
 #[test]
 fn test_trap_encoding() {
-    let mut dst = std::vec::Vec::new();
+    let mut dst = alloc::vec::Vec::new();
     pulley_interpreter::encode::trap(&mut dst);
     assert_eq!(dst, TRAP_OPCODE);
 }
@@ -721,10 +721,6 @@ impl Inst {
                     .map(|tci| pretty_print_try_call(tci))
                     .unwrap_or_default();
                 format!("indirect_call {callee}, {info:?}{try_call}")
-            }
-
-            Inst::PatchableCall { info } => {
-                format!("patchable_call {info:?}")
             }
 
             Inst::ReturnCall { info } => {

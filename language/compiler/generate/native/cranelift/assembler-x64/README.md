@@ -4,7 +4,7 @@ A Cranelift-specific x64 assembler. Unlike the existing `cranelift-codegen`
 assembler, this assembler uses instructions, not instruction classes, as the
 core abstraction.
 
-## Use
+### Use
 
 Like `cranelift-codegen`, using this assembler starts with `enum Inst`. For
 convenience, a `main.rs` script prints the path to this generated code:
@@ -19,7 +19,7 @@ pub enum Inst<R:Registers> {
     ...
 ```
 
-## Test
+### Test
 
 In order to check that this assembler emits correct machine code, we fuzz it
 against a known-good disassembler. We can run a quick, one-second check:

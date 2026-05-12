@@ -3,20 +3,19 @@
 // ISLE integration glue.
 pub(super) mod isle;
 
-use crate::ir::pcc::{FactContext, PccResult};
 use crate::ir::{
-    types, Endianness, ExternalName, Inst as IRInst, InstructionData, LibCall, Opcode, Type,
+    Endianness, ExternalName, Inst as IRInst, InstructionData, LibCall, Opcode, Type, types,
 };
+use crate::isa::CallConv;
+use crate::isa::x64::X64Backend;
 use crate::isa::x64::abi::*;
 use crate::isa::x64::inst::args::*;
 use crate::isa::x64::inst::*;
-use crate::isa::x64::{pcc, X64Backend};
-use crate::isa::CallConv;
 use crate::machinst::lower::*;
 use crate::machinst::*;
 use crate::result::CodegenResult;
 use crate::settings::Flags;
-use std::boxed::Box;
+use alloc::boxed::Box;
 use target_lexicon::Triple;
 
 /// Identifier for a particular input of an instruction.
@@ -190,7 +189,7 @@ fn emit_vm_call(
         .accumulate_outgoing_args_size(stack_ret_space + stack_arg_space);
 
     if flags.use_colocated_libcalls() {
-        let call_info = ctx.gen_call_info(sig, extname, uses, defs, None);
+        let call_info = ctx.gen_call_info(sig, extname, uses, defs, None, false);
         ctx.emit(Inst::call_known(Box::new(call_info)));
     } else {
         let tmp = ctx.alloc_tmp(types::I64).only_reg().unwrap();
@@ -200,7 +199,7 @@ fn emit_vm_call(
             offset: 0,
             distance: RelocDistance::Far,
         });
-        let call_info = ctx.gen_call_info(sig, RegMem::reg(tmp.to_reg()), uses, defs, None);
+        let call_info = ctx.gen_call_info(sig, RegMem::reg(tmp.to_reg()), uses, defs, None, false);
         ctx.emit(Inst::call_unknown(Box::new(call_info)));
     }
     Ok(outputs)
@@ -338,16 +337,4 @@ impl LowerBackend for X64Backend {
     fn maybe_pinned_reg(&self) -> Option<Reg> {
         Some(regs::pinned_reg())
     }
-
-    fn check_fact(
-        &self,
-        ctx: &FactContext<'_>,
-        vcode: &mut VCode<Self::MInst>,
-        inst: InsnIndex,
-        state: &mut pcc::FactFlowState,
-    ) -> PccResult<()> {
-        pcc::check(ctx, vcode, inst, state)
-    }
-
-    type FactFlowState = pcc::FactFlowState;
 }

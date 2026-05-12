@@ -1,10 +1,10 @@
 //! System V ABI unwind information.
 
+use crate::CodegenError;
 use crate::binemit::CodeOffset;
 use crate::isa::unwind::UnwindInst;
 use crate::machinst::Reg;
 use crate::result::CodegenResult;
-use crate::CodegenError;
 use alloc::vec::Vec;
 use gimli::write::{Address, FrameDescriptionEntry};
 
@@ -24,10 +24,10 @@ pub enum RegisterMappingError {
 
 // This is manually implementing Error and Display instead of using thiserror to reduce the amount
 // of dependencies used by Cranelift.
-impl std::error::Error for RegisterMappingError {}
+impl core::error::Error for RegisterMappingError {}
 
-impl std::fmt::Display for RegisterMappingError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl core::fmt::Display for RegisterMappingError {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         match self {
             RegisterMappingError::MissingBank => write!(f, "unable to find bank for register info"),
             RegisterMappingError::UnsupportedArchitecture => write!(
@@ -96,9 +96,9 @@ impl From<gimli::write::CallFrameInstruction> for CallFrameInstruction {
 
 impl From<CallFrameInstruction> for gimli::write::CallFrameInstruction {
     fn from(cfi: CallFrameInstruction) -> gimli::write::CallFrameInstruction {
-        use gimli::write::{CallFrameInstruction as GimliCfi, Expression};
-        use gimli::Register;
         use CallFrameInstruction as ClifCfi;
+        use gimli::Register;
+        use gimli::write::{CallFrameInstruction as GimliCfi, Expression};
 
         match cfi {
             ClifCfi::Cfa(reg, offset) => GimliCfi::Cfa(Register(reg), offset),

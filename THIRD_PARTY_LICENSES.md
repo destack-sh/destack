@@ -10,7 +10,7 @@ These components are used under their respective licenses as noted below.
 **License:** Apache-2.0 WITH LLVM-exception
 **Authors:** The Cranelift Project Developers
 **Source:** https://github.com/bytecodealliance/wasmtime
-**Location:** `language/codegen/native/cranelift/`
+**Location:** `language/compiler/generate/native/cranelift/`
 **Modifications:** This copy has been modified for Destack.
 
 ---
@@ -20,17 +20,27 @@ These components are used under their respective licenses as noted below.
 **License:** Apache-2.0 WITH LLVM-exception
 **Authors:** Chris Fallin, Mozilla SpiderMonkey Developers
 **Source:** https://github.com/bytecodealliance/regalloc2
-**Location:** `language/codegen/native/regalloc2/`
+**Location:** `language/compiler/generate/native/regalloc2/`
 **Modifications:** This copy has been modified for Destack.
 
 ---
 
-## wasmtime-math
+## wasmtime-core
 
 **License:** Apache-2.0 WITH LLVM-exception
 **Authors:** The Wasmtime Project Developers
 **Source:** https://github.com/bytecodealliance/wasmtime
-**Location:** `language/codegen/native/wasmtime-math/`
+**Location:** `language/compiler/generate/native/wasmtime-core/`
+**Modifications:** This copy has been modified for Destack.
+
+---
+
+## Pulley
+
+**License:** Apache-2.0 WITH LLVM-exception
+**Authors:** The Pulley Project Developers
+**Source:** https://github.com/bytecodealliance/wasmtime
+**Location:** `language/compiler/generate/native/pulley/`
 **Modifications:** This copy has been modified for Destack.
 
 ---
@@ -38,7 +48,7 @@ These components are used under their respective licenses as noted below.
 ## License Text
 
 The full text of the Apache License 2.0 with LLVM Exception can be found at:
-`language/codegen/native/cranelift/codegen/LICENSE`
+`language/compiler/generate/native/cranelift/codegen/LICENSE`
 
 ### LLVM Exception Summary
 

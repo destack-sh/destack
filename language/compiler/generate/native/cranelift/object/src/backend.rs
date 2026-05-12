@@ -15,11 +15,11 @@ use object::write::{
     Object, Relocation, SectionId, StandardSection, Symbol, SymbolId, SymbolSection,
 };
 use object::{
-    elf, RelocationEncoding, RelocationFlags, RelocationKind, SectionFlags, SectionKind,
-    SymbolFlags, SymbolKind, SymbolScope,
+    RelocationEncoding, RelocationFlags, RelocationKind, SectionFlags, SectionKind, SymbolFlags,
+    SymbolKind, SymbolScope, elf,
 };
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::mem;
 use target_lexicon::PointerWidth;
 
@@ -846,6 +846,28 @@ impl ObjectModule {
                     r_length: 2,
                 },
                 _ => unimplemented!("Aarch64Ld64GotLo12Nc is not supported for this file format"),
+            },
+            Reloc::Aarch64AdrPrelPgHi21 => match self.object.format() {
+                object::BinaryFormat::Elf => RelocationFlags::Elf {
+                    r_type: object::elf::R_AARCH64_ADR_PREL_PG_HI21,
+                },
+                object::BinaryFormat::MachO => RelocationFlags::MachO {
+                    r_type: object::macho::ARM64_RELOC_PAGE21,
+                    r_pcrel: true,
+                    r_length: 2,
+                },
+                _ => unimplemented!("Aarch64AdrPrelPgHi21 is not supported for this file format"),
+            },
+            Reloc::Aarch64AddAbsLo12Nc => match self.object.format() {
+                object::BinaryFormat::Elf => RelocationFlags::Elf {
+                    r_type: object::elf::R_AARCH64_ADD_ABS_LO12_NC,
+                },
+                object::BinaryFormat::MachO => RelocationFlags::MachO {
+                    r_type: object::macho::ARM64_RELOC_PAGEOFF12,
+                    r_pcrel: false,
+                    r_length: 2,
+                },
+                _ => unimplemented!("Aarch64AddAbsLo12Nc is not supported for this file format"),
             },
             Reloc::S390xPCRel32Dbl => RelocationFlags::Generic {
                 kind: RelocationKind::Relative,

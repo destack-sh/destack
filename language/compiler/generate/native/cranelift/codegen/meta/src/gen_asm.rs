@@ -3,7 +3,7 @@
 use cranelift_assembler_x64_meta::dsl::{
     Feature, Format, Inst, Location, Mutability, Operand, OperandKind, RegClass,
 };
-use cranelift_srcgen::{fmtln, Formatter};
+use cranelift_srcgen::{Formatter, fmtln};
 
 /// This factors out use of the assembler crate name.
 const ASM: &str = "cranelift_assembler_x64";
@@ -626,11 +626,12 @@ fn generate_isle_inst_decls(f: &mut Formatter, inst: &Inst) {
             // pairs, so we expect the one of the registers to be an XMM
             // register. In the future we could relax this, but would need to
             // handle more cases below.
-            assert!(inst
-                .format
-                .operands
-                .iter()
-                .any(|o| matches!(o.location.reg_class(), Some(RegClass::Xmm))));
+            assert!(
+                inst.format
+                    .operands
+                    .iter()
+                    .any(|o| matches!(o.location.reg_class(), Some(RegClass::Xmm)))
+            );
             let param_tys = if alternate.feature == Feature::avx {
                 param_tys.replace("Aligned", "")
             } else {

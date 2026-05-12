@@ -3,21 +3,21 @@
 use super::lower::isle::generated_code::{VecAMode, VecElementWidth, VecOpMasking};
 use crate::binemit::{Addend, CodeOffset, Reloc};
 pub use crate::ir::condcodes::IntCC;
-use crate::ir::types::{self, F128, F16, F32, F64, I128, I16, I32, I64, I8, I8X16};
+use crate::ir::types::{self, F16, F32, F64, F128, I8, I8X16, I16, I32, I64, I128};
 
 pub use crate::ir::{ExternalName, MemFlags, Type};
 use crate::isa::{CallConv, FunctionAlignment};
 use crate::machinst::*;
-use crate::{settings, CodegenError, CodegenResult};
+use crate::{CodegenError, CodegenResult, settings};
 
 pub use crate::ir::condcodes::FloatCC;
 
+use alloc::boxed::Box;
+use alloc::string::{String, ToString};
 use alloc::vec::Vec;
+use core::fmt::Write;
 use regalloc2::RegClass;
-use smallvec::{smallvec, SmallVec};
-use std::boxed::Box;
-use std::fmt::Write;
-use std::string::{String, ToString};
+use smallvec::{SmallVec, smallvec};
 
 pub mod regs;
 pub use self::regs::*;
@@ -38,7 +38,7 @@ use crate::isa::riscv64::abi::Riscv64MachineDeps;
 #[cfg(test)]
 mod emit_tests;
 
-use std::fmt::{Display, Formatter};
+use core::fmt::{Display, Formatter};
 
 pub(crate) type VecU8 = Vec<u8>;
 
@@ -46,8 +46,8 @@ pub(crate) type VecU8 = Vec<u8>;
 // Instructions (top level): definition
 
 pub use crate::isa::riscv64::lower::isle::generated_code::{
-    AluOPRRI, AluOPRRR, AtomicOP, CsrImmOP, CsrRegOP, FClassResult, FFlagsException, FpuOPRR,
-    FpuOPRRR, FpuOPRRRR, LoadOP, MInst as Inst, StoreOP, CSR, FRM,
+    AluOPRRI, AluOPRRR, AtomicOP, CSR, CsrImmOP, CsrRegOP, FClassResult, FFlagsException, FRM,
+    FpuOPRR, FpuOPRRR, FpuOPRRRR, LoadOP, MInst as Inst, StoreOP,
 };
 use crate::isa::riscv64::lower::isle::generated_code::{CjOp, MInst, VecAluOpRRImm5, VecAluOpRRR};
 
@@ -85,7 +85,7 @@ impl CondBrTarget {
 }
 
 impl Display for CondBrTarget {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match self {
             CondBrTarget::Label(l) => write!(f, "{}", l.to_string()),
             CondBrTarget::Fallthrough => write!(f, "0"),
@@ -330,7 +330,7 @@ fn riscv64_get_operands(inst: &mut Inst, collector: &mut impl OperandVisitor) {
             collector.reg_use(rn);
             collector.reg_def(rd);
         }
-        Inst::Call { info, .. } | Inst::PatchableCall { info, .. } => {
+        Inst::Call { info, .. } => {
             let CallInfo { uses, defs, .. } = &mut **info;
             for CallArgPair { vreg, preg } in uses {
                 collector.reg_fixed_use(vreg, *preg);
@@ -725,7 +725,7 @@ impl MachInst for Inst {
 
     fn is_safepoint(&self) -> bool {
         match self {
-            Inst::Call { .. } | Inst::CallInd { .. } | Inst::PatchableCall { .. } => true,
+            Inst::Call { .. } | Inst::CallInd { .. } => true,
             _ => false,
         }
     }
@@ -764,10 +764,9 @@ impl MachInst for Inst {
 
     fn call_type(&self) -> CallType {
         match self {
-            Inst::Call { .. }
-            | Inst::CallInd { .. }
-            | Inst::PatchableCall { .. }
-            | Inst::ElfTlsGetAddr { .. } => CallType::Regular,
+            Inst::Call { .. } | Inst::CallInd { .. } | Inst::ElfTlsGetAddr { .. } => {
+                CallType::Regular
+            }
 
             Inst::ReturnCall { .. } | Inst::ReturnCallInd { .. } => CallType::TailCall,
 
@@ -811,8 +810,8 @@ impl MachInst for Inst {
         Inst::Nop4
     }
 
-    fn gen_nop_unit() -> SmallVec<[u8; 8]> {
-        smallvec![0x13, 0x00, 0x00, 0x00]
+    fn gen_nop_units() -> Vec<Vec<u8>> {
+        vec![vec![0x13, 0x00, 0x00, 0x00]]
     }
 
     fn rc_for_type(ty: Type) -> CodegenResult<(&'static [RegClass], &'static [Type])> {
@@ -1356,9 +1355,6 @@ impl Inst {
                     .map(|tci| pretty_print_try_call(tci))
                     .unwrap_or_default();
                 format!("callind {rd}{try_call}")
-            }
-            &MInst::PatchableCall { ref info } => {
-                format!("call {} ; patchable", info.dest.display(None))
             }
             &MInst::ReturnCall { ref info } => {
                 let mut s = format!(

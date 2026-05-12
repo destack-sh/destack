@@ -2,7 +2,7 @@
 //! and parent in the loop tree.
 
 use crate::dominator_tree::DominatorTree;
-use crate::entity::{entity_impl, Keys, PrimaryMap, SecondaryMap};
+use crate::entity::{Keys, PrimaryMap, SecondaryMap, entity_impl};
 use crate::flowgraph::ControlFlowGraph;
 use crate::ir::{Block, Function};
 use crate::packed_option::PackedOption;
@@ -60,13 +60,13 @@ impl LoopLevel {
     /// A clamped loop level from a larger-width (usize) depth.
     pub fn clamped(level: usize) -> Self {
         Self(
-            u8::try_from(std::cmp::min(level, (Self::INVALID as usize) - 1))
+            u8::try_from(core::cmp::min(level, (Self::INVALID as usize) - 1))
                 .expect("Clamped value must always convert"),
         )
     }
 }
 
-impl std::default::Default for LoopLevel {
+impl core::default::Default for LoopLevel {
     fn default() -> Self {
         LoopLevel::invalid()
     }
@@ -304,7 +304,7 @@ mod tests {
     use crate::cursor::{Cursor, FuncCursor};
     use crate::dominator_tree::DominatorTree;
     use crate::flowgraph::ControlFlowGraph;
-    use crate::ir::{types, Function, InstBuilder};
+    use crate::ir::{Function, InstBuilder, types};
     use crate::loop_analysis::{Loop, LoopAnalysis};
     use alloc::vec::Vec;
 

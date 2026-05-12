@@ -5,7 +5,7 @@
 
 use crate::ir;
 use crate::ir::instructions::InstructionFormat;
-use crate::ir::{types, BlockArg, DataFlowGraph, Inst, InstructionData, Opcode, Type, Value};
+use crate::ir::{BlockArg, DataFlowGraph, Inst, InstructionData, Opcode, Type, Value, types};
 
 /// Base trait for instruction builders.
 ///

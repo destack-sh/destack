@@ -68,10 +68,9 @@ use crate::inst_predicates::{
 };
 use crate::ir::immediates::Offset32;
 use crate::ir::{AliasRegion, Block, Function, Inst, Opcode, Type, Value};
-use crate::trace;
-use cranelift_entity::packed_option::PackedOption;
+use crate::{FxHashMap, FxHashSet, trace};
 use cranelift_entity::EntityRef;
-use rustc_hash::{FxHashMap, FxHashSet};
+use cranelift_entity::packed_option::PackedOption;
 
 /// For a given program point, the vector of last-store instruction
 /// indices for each disjoint category of abstract state.

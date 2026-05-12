@@ -1,7 +1,4 @@
 //! A Cranelift-specific x64 assembler.
-// NOTE #Cleanup: fix clippy lints once fully vendored
-#![allow(clippy::all)]
-#![allow(warnings)]
 //!
 //! All instructions known to this assembler are listed in the [`inst`] module.
 //! The [`Inst`] enumeration contains a variant for each, allowing matching over
@@ -44,6 +41,10 @@
     non_camel_case_types,
     reason = "all of the generated struct names use snake case"
 )]
+#![no_std]
+extern crate alloc;
+#[cfg(any(test, feature = "fuzz"))]
+extern crate std;
 
 mod api;
 mod custom;
@@ -76,7 +77,7 @@ pub use api::{
 pub use features::{AvailableFeatures, Feature, Features};
 pub use fixed::Fixed;
 pub use gpr::{Gpr, NonRspGpr, Size};
-pub use imm::{Extension, Imm16, Imm32, Imm64, Imm8, Simm16, Simm32, Simm8};
+pub use imm::{Extension, Imm8, Imm16, Imm32, Imm64, Simm8, Simm16, Simm32};
 pub use mem::{
     Amode, AmodeOffset, AmodeOffsetPlusKnownOffset, DeferredTarget, GprMem, Scale, XmmMem,
 };

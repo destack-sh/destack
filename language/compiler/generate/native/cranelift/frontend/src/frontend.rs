@@ -8,11 +8,11 @@ use cranelift_codegen::entity::{EntityRef, EntitySet, PrimaryMap, SecondaryMap};
 use cranelift_codegen::ir;
 use cranelift_codegen::ir::condcodes::IntCC;
 use cranelift_codegen::ir::{
-    types, AbiParam, Block, DataFlowGraph, DynamicStackSlot, DynamicStackSlotData, ExtFuncData,
+    AbiParam, Block, DataFlowGraph, DynamicStackSlot, DynamicStackSlotData, ExtFuncData,
     ExternalName, FuncRef, Function, GlobalValue, GlobalValueData, Inst, InstBuilder,
     InstBuilderBase, InstructionData, JumpTable, JumpTableData, LibCall, MemFlags, RelSourceLoc,
     SigRef, Signature, StackSlot, StackSlotData, Type, Value, ValueLabel, ValueLabelAssignments,
-    ValueLabelStart,
+    ValueLabelStart, types,
 };
 use cranelift_codegen::isa::TargetFrontendConfig;
 use cranelift_codegen::packed_option::PackedOption;
@@ -845,6 +845,7 @@ impl<'a> FunctionBuilder<'a> {
             name: ExternalName::LibCall(LibCall::Memcpy),
             signature,
             colocated: false,
+            patchable: false,
         });
 
         self.ins().call(libc_memcpy, &[dest, src, size]);
@@ -946,6 +947,7 @@ impl<'a> FunctionBuilder<'a> {
             name: ExternalName::LibCall(LibCall::Memset),
             signature,
             colocated: false,
+            patchable: false,
         });
 
         let ch = self.ins().uextend(types::I32, ch);
@@ -1043,6 +1045,7 @@ impl<'a> FunctionBuilder<'a> {
             name: ExternalName::LibCall(LibCall::Memmove),
             signature,
             colocated: false,
+            patchable: false,
         });
 
         self.ins().call(libc_memmove, &[dest, source, size]);
@@ -1078,6 +1081,7 @@ impl<'a> FunctionBuilder<'a> {
             name: ExternalName::LibCall(LibCall::Memcmp),
             signature,
             colocated: false,
+            patchable: false,
         });
 
         let call = self.ins().call(libc_memcmp, &[left, right, size]);
@@ -1197,10 +1201,10 @@ impl<'a> FunctionBuilder<'a> {
 #[cfg(test)]
 mod tests {
     use super::greatest_divisible_power_of_two;
+    use crate::Variable;
     use crate::frontend::{
         DefVariableError, FunctionBuilder, FunctionBuilderContext, UseVariableError,
     };
-    use crate::Variable;
     use alloc::string::ToString;
     use cranelift_codegen::ir::condcodes::IntCC;
     use cranelift_codegen::ir::types::*;
@@ -1961,6 +1965,7 @@ block0:
             name: ExternalName::User(name),
             signature: sig0,
             colocated: false,
+            patchable: false,
         });
 
         let mut builder = FunctionBuilder::new(&mut func, &mut fn_ctx);

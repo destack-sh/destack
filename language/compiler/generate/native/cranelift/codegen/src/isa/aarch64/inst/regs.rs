@@ -4,7 +4,7 @@ use crate::isa::aarch64::inst::{OperandSize, ScalarSize, VectorSize};
 use crate::machinst::{RealReg, Reg, RegClass, Writable};
 use regalloc2::{PReg, VReg};
 
-use std::string::{String, ToString};
+use alloc::string::{String, ToString};
 
 //=============================================================================
 // Registers, the Universe thereof, and printing
@@ -32,8 +32,8 @@ pub fn writable_xreg(num: u8) -> Writable<Reg> {
 }
 
 /// Get a reference to a V-register (vector/FP register).
-pub fn vreg(num: u8) -> Reg {
-    Reg::from(vreg_preg(num))
+pub const fn vreg(num: u8) -> Reg {
+    Reg::from_real_reg(vreg_preg(num))
 }
 
 /// Get the given V-register as a PReg.

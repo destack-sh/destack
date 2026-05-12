@@ -1,0 +1,27 @@
+[package]
+authors = ["The Wasmtime Project Developers"]
+description = "INTERNAL: Wasmtime's core utilities and helpers with minimal dependencies"
+edition = "2024"
+license = "Apache-2.0 WITH LLVM-exception"
+name = "wasmtime-internal-core"
+rust-version = "1.92.0"
+version = "44.0.1"
+
+[dependencies]
+# This crate should have *very* minimal dependencies! Don't add new ones
+# lightly.
+anyhow = { workspace = true, optional = true }
+hashbrown = { workspace = true, features = ["default-hasher"] }
+libm = { workspace = true }
+serde = { workspace = true, optional = true }
+
+
+[features]
+# Enable the use of the `std` crate.
+std = []
+# Enable backtraces in errors.
+backtrace = ["std"]
+# Enable the `From<Error> for anyhow::Error` implementation and
+# `Error::from_anyhow` constructor.
+anyhow = ["dep:anyhow"]
+serde = ["dep:serde"]

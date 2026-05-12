@@ -7,16 +7,16 @@ use crate::isa::s390x::settings as s390x_settings;
 use crate::isa::unwind::systemv::RegisterMappingError;
 use crate::isa::{Builder as IsaBuilder, FunctionAlignment, IsaFlagsHashKey, TargetIsa};
 use crate::machinst::{
-    compile, CompiledCode, CompiledCodeStencil, MachInst, MachTextSectionBuilder, Reg, SigSet,
-    TextSectionBuilder, VCode,
+    CompiledCode, CompiledCodeStencil, MachInst, MachTextSectionBuilder, Reg, SigSet,
+    TextSectionBuilder, VCode, compile,
 };
 use crate::result::CodegenResult;
 use crate::settings as shared_settings;
 use alloc::boxed::Box;
+use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt;
 use cranelift_control::ControlPlane;
-use std::string::String;
 use target_lexicon::{Architecture, Triple};
 
 // New backend:
@@ -185,8 +185,8 @@ impl TargetIsa for S390xBackend {
         true
     }
 
-    fn has_x86_blendv_lowering(&self, _: Type) -> bool {
-        false
+    fn has_blendv_lowering(&self, _: Type) -> bool {
+        self.isa_flags.has_vxrs_ext3()
     }
 
     fn has_x86_pshufb_lowering(&self) -> bool {

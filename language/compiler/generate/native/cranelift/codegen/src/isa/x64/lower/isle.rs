@@ -2,31 +2,31 @@
 
 // Pull in the ISLE generated code.
 pub(crate) mod generated_code;
-use crate::ir::{types, AtomicRmwOp};
+use crate::ir::{AtomicRmwOp, types};
 use generated_code::{AssemblerOutputs, Context, MInst, RegisterClass};
 
 // Types that the generated ISLE code uses via `use super::*`.
-use super::external::{isle_assembler_methods, CraneliftRegisters, PairedGpr, PairedXmm};
-use super::{is_int_or_ref_ty, is_mergeable_load, lower_to_amode, MergeableLoadSize};
+use super::external::{CraneliftRegisters, PairedGpr, PairedXmm, isle_assembler_methods};
+use super::{MergeableLoadSize, is_int_or_ref_ty, is_mergeable_load, lower_to_amode};
 use crate::ir::condcodes::{FloatCC, IntCC};
 use crate::ir::immediates::*;
 use crate::ir::types::*;
 use crate::ir::{
     BlockCall, Inst, InstructionData, LibCall, MemFlags, Opcode, TrapCode, Value, ValueList,
 };
-use crate::isa::x64::inst::args::*;
-use crate::isa::x64::inst::{regs, ReturnCallInfo};
-use crate::isa::x64::lower::{emit_vm_call, InsnInput};
 use crate::isa::x64::X64Backend;
+use crate::isa::x64::inst::args::*;
+use crate::isa::x64::inst::{ReturnCallInfo, regs};
+use crate::isa::x64::lower::{InsnInput, emit_vm_call};
 use crate::machinst::isle::*;
 use crate::machinst::{
     ArgPair, CallArgList, CallInfo, CallRetList, InstOutput, MachInst, VCodeConstant,
     VCodeConstantData,
 };
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 use cranelift_assembler_x64 as asm;
 use regalloc2::PReg;
-use std::boxed::Box;
 
 /// Type representing out-of-line data for calls. This type optional because the
 /// call instruction is also used by Winch to emit calls, but the
@@ -37,7 +37,8 @@ type BoxCallIndInfo = Box<CallInfo<RegMem>>;
 type BoxReturnCallInfo = Box<ReturnCallInfo<ExternalName>>;
 type BoxReturnCallIndInfo = Box<ReturnCallInfo<Reg>>;
 type VecArgPair = Vec<ArgPair>;
-type BoxSyntheticAmode = Box<SyntheticAmode>;
+type BoxAtomic128RmwSeqArgs = Box<Atomic128RmwSeqArgs>;
+type BoxAtomic128XchgSeqArgs = Box<Atomic128XchgSeqArgs>;
 
 /// When interacting with the external assembler (see `external.rs`), we
 /// need to fix the types we'll use.
@@ -84,6 +85,7 @@ impl Context for IsleContext<'_, '_, MInst, X64Backend> {
         uses: CallArgList,
         defs: CallRetList,
         try_call_info: Option<TryCallInfo>,
+        patchable: bool,
     ) -> BoxCallInfo {
         let stack_ret_space = self.lower_ctx.sigs()[sig].sized_stack_ret_space();
         let stack_arg_space = self.lower_ctx.sigs()[sig].sized_stack_arg_space();
@@ -93,7 +95,7 @@ impl Context for IsleContext<'_, '_, MInst, X64Backend> {
 
         Box::new(
             self.lower_ctx
-                .gen_call_info(sig, dest, uses, defs, try_call_info),
+                .gen_call_info(sig, dest, uses, defs, try_call_info, patchable),
         )
     }
 
@@ -113,7 +115,7 @@ impl Context for IsleContext<'_, '_, MInst, X64Backend> {
 
         Box::new(
             self.lower_ctx
-                .gen_call_info(sig, dest.clone(), uses, defs, try_call_info),
+                .gen_call_info(sig, dest.clone(), uses, defs, try_call_info, false),
         )
     }
 
@@ -639,7 +641,7 @@ impl Context for IsleContext<'_, '_, MInst, X64Backend> {
     }
 
     #[inline]
-    fn amode_offset(&mut self, addr: &SyntheticAmode, offset: i32) -> SyntheticAmode {
+    fn amode_try_offset(&mut self, addr: &SyntheticAmode, offset: i32) -> Option<SyntheticAmode> {
         addr.offset(offset)
     }
 
@@ -939,11 +941,7 @@ impl Context for IsleContext<'_, '_, MInst, X64Backend> {
         // corresponding bit.
         let bit = |x: u8, c: u8| {
             if x % 8 == c {
-                if x < 8 {
-                    Some(0)
-                } else {
-                    Some(1 << c)
-                }
+                if x < 8 { Some(0) } else { Some(1 << c) }
             } else {
                 None
             }
@@ -974,8 +972,48 @@ impl Context for IsleContext<'_, '_, MInst, X64Backend> {
         WritableGpr::from_reg(reg)
     }
 
-    fn box_synthetic_amode(&mut self, amode: &SyntheticAmode) -> BoxSyntheticAmode {
-        Box::new(amode.clone())
+    fn atomic128_rmw_seq_args(
+        &mut self,
+        op: &Atomic128RmwSeqOp,
+        mem_low: &SyntheticAmode,
+        mem_high: &SyntheticAmode,
+        operand_low: Gpr,
+        operand_high: Gpr,
+        temp_low: WritableGpr,
+        temp_high: WritableGpr,
+        dst_old_low: WritableGpr,
+        dst_old_high: WritableGpr,
+    ) -> BoxAtomic128RmwSeqArgs {
+        Box::new(Atomic128RmwSeqArgs {
+            op: *op,
+            mem_low: mem_low.clone(),
+            mem_high: mem_high.clone(),
+            operand_low,
+            operand_high,
+            temp_low,
+            temp_high,
+            dst_old_low,
+            dst_old_high,
+        })
+    }
+
+    fn atomic128_xchg_seq_args(
+        &mut self,
+        mem_low: &SyntheticAmode,
+        mem_high: &SyntheticAmode,
+        operand_low: Gpr,
+        operand_high: Gpr,
+        dst_old_low: WritableGpr,
+        dst_old_high: WritableGpr,
+    ) -> BoxAtomic128XchgSeqArgs {
+        Box::new(Atomic128XchgSeqArgs {
+            mem_low: mem_low.clone(),
+            mem_high: mem_high.clone(),
+            operand_low,
+            operand_high,
+            dst_old_low,
+            dst_old_high,
+        })
     }
 
     ////////////////////////////////////////////////////////////////////////////
