@@ -93,11 +93,7 @@ fn binary_operator_is_equality(operator: BinaryOperator) -> bool {
 fn binary_operator_is_multiplicative(operator: BinaryOperator) -> bool {
     matches!(
         operator,
-        BinaryOperator::Multiply
-            | BinaryOperator::WrappingMultiply
-            | BinaryOperator::SaturatingMultiply
-            | BinaryOperator::Divide
-            | BinaryOperator::Remainder
+        BinaryOperator::Multiply | BinaryOperator::Divide | BinaryOperator::Remainder
     )
 }
 
@@ -106,10 +102,7 @@ fn binary_operator_is_multiplicative(operator: BinaryOperator) -> bool {
 fn binary_operator_is_shift(operator: BinaryOperator) -> bool {
     matches!(
         operator,
-        BinaryOperator::ShiftLeft
-            | BinaryOperator::SaturatingShiftLeft
-            | BinaryOperator::ShiftRight
-            | BinaryOperator::UnsignedShiftRight
+        BinaryOperator::ShiftLeft | BinaryOperator::ShiftRight | BinaryOperator::UnsignedShiftRight
     )
 }
 
@@ -142,12 +135,7 @@ pub(crate) fn should_flatten_binary(
         return false;
     }
 
-    if matches!(
-        parent_operator,
-        BinaryOperator::Exponent
-            | BinaryOperator::WrappingExponent
-            | BinaryOperator::SaturatingExponent
-    ) {
+    if matches!(parent_operator, BinaryOperator::Exponent) {
         return false;
     }
 
