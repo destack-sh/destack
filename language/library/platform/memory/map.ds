@@ -1,31 +1,29 @@
-import { Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
 import { FileHandle } from "../resource/index.ds";
-import { ProtectedMemoryRange } from "./protect.ds";
-import { MemoryMapFlags, MemoryProtection, MemoryReserveFlags, MemorySyncFlags } from "./types.ds";
+import {
+    MappedMemoryFlags,
+    MappedMemorySyncFlags,
+    MappedMemoryVisibility,
+    MemoryProtection,
+    VirtualMemoryRange,
+} from "./types.ds";
 
-/// Memory range descriptor.
-export struct MemoryRange {
-    /// Base address of the mapped range.
-    address: uint64;
-    /// Length of the mapped range in bytes.
-    length: uint64;
-}
-
-/// Map a file-backed memory range.
+/// Map a file backed memory range.
 @binding("destack.memory.map.file", {
     effect: "external",
     requires: ["memory.map"],
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function mapFile(
+export declare function mapFileMemory(
     handle: FileHandle,
     offset: uint64,
     length: uint64,
     protection: MemoryProtection,
-    flags: MemoryMapFlags,
-): Result<Slice<uint8>, PlatformError>;
+    visibility: MappedMemoryVisibility,
+    flags: MappedMemoryFlags,
+    addressHint?: uint64,
+): Result<VirtualMemoryRange, PlatformError>;
 
 /// Map an anonymous memory range.
 @binding("destack.memory.map.anonymous", {
@@ -34,11 +32,13 @@ export declare function mapFile(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function mapAnonymous(
+export declare function mapAnonymousMemory(
     length: uint64,
     protection: MemoryProtection,
-    flags: MemoryMapFlags,
-): Result<Slice<uint8>, PlatformError>;
+    visibility: MappedMemoryVisibility,
+    flags: MappedMemoryFlags,
+    addressHint?: uint64,
+): Result<VirtualMemoryRange, PlatformError>;
 
 /// Unmap a mapped memory range.
 @binding("destack.memory.map.unmap", {
@@ -47,7 +47,7 @@ export declare function mapAnonymous(
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function unmap(mapping: Slice<uint8>): Result<void, PlatformError>;
+export declare function unmapMemory(range: VirtualMemoryRange): Result<void, PlatformError>;
 
 /// Flush mapped memory to backing storage.
 @binding("destack.memory.map.sync", {
@@ -56,65 +56,7 @@ export declare function unmap(mapping: Slice<uint8>): Result<void, PlatformError
     families: ["windows", "unix"],
     simulation: true,
 })
-export declare function sync(
-    mapping: Slice<uint8>,
-    flags: MemorySyncFlags,
+export declare function syncMappedMemory(
+    range: VirtualMemoryRange,
+    flags: MappedMemorySyncFlags,
 ): Result<void, PlatformError>;
-
-/// Allocate one mapped range.
-@binding("destack.memory.map.allocate", {
-    effect: "external",
-    requires: ["memory.map"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function allocate(
-    length: uint64,
-    addressHint: uint64,
-    protection: MemoryProtection,
-    flags: MemoryReserveFlags,
-): Result<ProtectedMemoryRange, PlatformError>;
-
-/// Reserve one virtual memory range.
-@binding("destack.memory.map.reserve", {
-    effect: "external",
-    requires: ["memory.map"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function reserve(
-    length: uint64,
-    addressHint: uint64,
-    flags: MemoryReserveFlags,
-): Result<MemoryRange, PlatformError>;
-
-/// Commit one reserved range.
-@binding("destack.memory.map.commit", {
-    effect: "external",
-    requires: ["memory.map"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function commit(
-    address: uint64,
-    length: uint64,
-    protection: MemoryProtection,
-): Result<void, PlatformError>;
-
-/// Decommit one range.
-@binding("destack.memory.map.decommit", {
-    effect: "external",
-    requires: ["memory.map"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function decommit(address: uint64, length: uint64): Result<void, PlatformError>;
-
-/// Release one reserved range.
-@binding("destack.memory.map.release", {
-    effect: "external",
-    requires: ["memory.map"],
-    families: ["windows", "unix"],
-    simulation: true,
-})
-export declare function release(address: uint64, length: uint64): Result<void, PlatformError>;

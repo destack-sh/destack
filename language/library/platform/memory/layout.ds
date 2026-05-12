@@ -1,0 +1,20 @@
+import type { PlatformError } from "../error/index.ds";
+
+/// Virtual memory layout constraints.
+export struct VirtualMemoryLayout {
+    /// Virtual memory page size bytes.
+    pageSizeBytes: uint64;
+    /// Virtual memory allocation granularity bytes.
+    allocationGranularityBytes: uint64;
+    /// Large page allocation size bytes when available.
+    largePageSizeBytes?: uint64;
+}
+
+/// Read virtual memory layout constraints.
+@binding("destack.memory.layout.read", {
+    effect: "external",
+    requires: ["memory.layout.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function readVirtualMemoryLayout(): Result<VirtualMemoryLayout, PlatformError>;
