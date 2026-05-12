@@ -36,10 +36,10 @@ impl TimerHandle {
     }
 
     /// Return one deterministic sort key for this handle.
-    pub const fn sort_key(self) -> u64 {
+    pub const fn sort_key(self) -> (u8, u64, u64) {
         match self {
-            Self::Resource(handle) => handle.0,
-            Self::Internal(handle) => handle,
+            Self::Resource(handle) => (0, handle.worker_id.0, handle.local_id),
+            Self::Internal(handle) => (1, 0, handle),
         }
     }
 }
@@ -441,15 +441,18 @@ mod tests {
     use super::{Timer, TimerDeadline, TimerQueue};
     use crate::platform::ResourceId;
     use crate::platform::time::TimerClock;
+    use crate::runtime::WorkerId;
     use crate::runtime::scheduler::TimerHandle;
     use crate::runtime::time::Nanos;
+
+    const TEST_WORKER_ID: WorkerId = WorkerId(1);
 
     /// Ensures repeating timers reschedule correctly.
     #[test]
     fn test_repeating_timer_reschedules() {
         let mut queue = TimerQueue::default();
         queue.schedule(Timer {
-            handle: TimerHandle::Resource(ResourceId(1)),
+            handle: TimerHandle::Resource(ResourceId::new(TEST_WORKER_ID, 1)),
             deadline: TimerDeadline {
                 clock: TimerClock::Monotonic,
                 at: Nanos::new(10),
@@ -459,14 +462,14 @@ mod tests {
 
         let first = queue.poll_ready(Nanos::new(0), Nanos::new(10));
         assert_eq!(first.len(), 1);
-        assert_eq!(first[0].handle.sort_key(), 1);
+        assert_eq!(first[0].handle.sort_key(), (0, TEST_WORKER_ID.0, 1));
 
         let second = queue.poll_ready(Nanos::new(0), Nanos::new(19));
         assert!(second.is_empty());
 
         let third = queue.poll_ready(Nanos::new(0), Nanos::new(20));
         assert_eq!(third.len(), 1);
-        assert_eq!(third[0].handle.sort_key(), 1);
+        assert_eq!(third[0].handle.sort_key(), (0, TEST_WORKER_ID.0, 1));
     }
 
     /// Ensures repeating timers coalesce missed intervals into one fire.
@@ -474,7 +477,7 @@ mod tests {
     fn test_repeating_timer_coalesces_missed_intervals() {
         let mut queue = TimerQueue::default();
         queue.schedule(Timer {
-            handle: TimerHandle::Resource(ResourceId(2)),
+            handle: TimerHandle::Resource(ResourceId::new(TEST_WORKER_ID, 2)),
             deadline: TimerDeadline {
                 clock: TimerClock::Monotonic,
                 at: Nanos::new(10),
@@ -484,7 +487,7 @@ mod tests {
 
         let ready = queue.poll_ready(Nanos::new(0), Nanos::new(100));
         assert_eq!(ready.len(), 1);
-        assert_eq!(ready[0].handle.sort_key(), 2);
+        assert_eq!(ready[0].handle.sort_key(), (0, TEST_WORKER_ID.0, 2));
 
         let after_first = queue.poll_ready(Nanos::new(0), Nanos::new(100));
         assert!(after_first.is_empty());
@@ -499,7 +502,7 @@ mod tests {
     fn test_poll_ready_uses_clock_specific_deadlines() {
         let mut queue = TimerQueue::default();
         queue.schedule(Timer {
-            handle: TimerHandle::Resource(ResourceId(10)),
+            handle: TimerHandle::Resource(ResourceId::new(TEST_WORKER_ID, 10)),
             deadline: TimerDeadline {
                 clock: TimerClock::Wall,
                 at: Nanos::new(100),
@@ -507,7 +510,7 @@ mod tests {
             interval: None,
         });
         queue.schedule(Timer {
-            handle: TimerHandle::Resource(ResourceId(11)),
+            handle: TimerHandle::Resource(ResourceId::new(TEST_WORKER_ID, 11)),
             deadline: TimerDeadline {
                 clock: TimerClock::Monotonic,
                 at: Nanos::new(50),
@@ -517,10 +520,10 @@ mod tests {
 
         let first = queue.poll_ready(Nanos::new(0), Nanos::new(60));
         assert_eq!(first.len(), 1);
-        assert_eq!(first[0].handle.sort_key(), 11);
+        assert_eq!(first[0].handle.sort_key(), (0, TEST_WORKER_ID.0, 11));
 
         let second = queue.poll_ready(Nanos::new(120), Nanos::new(60));
         assert_eq!(second.len(), 1);
-        assert_eq!(second[0].handle.sort_key(), 10);
+        assert_eq!(second[0].handle.sort_key(), (0, TEST_WORKER_ID.0, 10));
     }
 }

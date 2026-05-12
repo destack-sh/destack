@@ -1,16 +1,13 @@
-use std::cmp::Ordering;
-
 use crate::platform::{ResourceBacking, ResourceCapture, ResourceId, ResourcePortability};
-use crate::runtime::WorkerId;
 use serde::{Deserialize, Serialize};
 
 use super::topology::{EdgeId, EntityId, EntityKind};
 
-/// Logical world resource record.
+/// World resource record.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct WorldResource {
-    /// Stable world resource identifier.
-    pub id: WorldResourceId,
+pub struct Resource {
+    /// Stable resource identifier.
+    pub id: ResourceId,
     /// Resource kind identifier.
     pub kind: EntityKind,
     /// Optional resource label.
@@ -23,10 +20,10 @@ pub struct WorldResource {
     pub portability: ResourcePortability,
 }
 
-impl WorldResource {
-    /// Create one logical world resource record.
+impl Resource {
+    /// Create one world resource record.
     pub fn new(
-        id: WorldResourceId,
+        id: ResourceId,
         kind: impl Into<EntityKind>,
         label: Option<String>,
         backing: ResourceBacking,
@@ -44,49 +41,18 @@ impl WorldResource {
     }
 }
 
-/// Stable identifier for one world resource record.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct WorldResourceId {
-    /// Worker owner of this resource.
-    pub worker_id: WorkerId,
-    /// Resource identifier in the owning worker table.
-    pub resource_id: ResourceId,
+/// Return the canonical topology entity id for one resource.
+pub(crate) fn resource_entity_id(resource_id: ResourceId) -> EntityId {
+    EntityId::new(format!(
+        "resource.{}.{}",
+        resource_id.worker_id.0, resource_id.local_id
+    ))
 }
 
-impl WorldResourceId {
-    /// Create one world resource identifier.
-    pub const fn new(worker_id: WorkerId, resource_id: ResourceId) -> Self {
-        Self {
-            worker_id,
-            resource_id,
-        }
-    }
-
-    /// Return the canonical topology entity id for this resource.
-    pub fn entity_id(self) -> EntityId {
-        EntityId::new(format!(
-            "resource.{}.{}",
-            self.worker_id.0, self.resource_id.0
-        ))
-    }
-
-    /// Return the canonical ownership edge id for this resource.
-    pub fn ownership_edge_id(self) -> EdgeId {
-        EdgeId::new(format!(
-            "worker.{}.owns.resource.{}",
-            self.worker_id.0, self.resource_id.0
-        ))
-    }
-}
-
-impl PartialOrd for WorldResourceId {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for WorldResourceId {
-    fn cmp(&self, other: &Self) -> Ordering {
-        (self.worker_id.0, self.resource_id.0).cmp(&(other.worker_id.0, other.resource_id.0))
-    }
+/// Return the canonical ownership edge id for one resource.
+pub(crate) fn resource_ownership_edge_id(resource_id: ResourceId) -> EdgeId {
+    EdgeId::new(format!(
+        "worker.{}.owns.resource.{}",
+        resource_id.worker_id.0, resource_id.local_id
+    ))
 }

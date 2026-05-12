@@ -12,7 +12,7 @@ use crate::platform::{
 use crate::runtime::WorkerId;
 use crate::runtime::binding::{BindingDescriptor, BindingEngine};
 use crate::runtime::trace::Observation;
-use crate::runtime::world::{EntityKind, RuntimeId, WorldResource, WorldResourceId, WorldState};
+use crate::runtime::world::{EntityKind, Resource, RuntimeId, WorldState};
 use destack_source::matches as glob_matches;
 use destack_workspace::ExecutionMode;
 
@@ -741,8 +741,8 @@ impl Hooks {
         resource_portability: ResourcePortability,
         _engine: Option<BindingEngine>,
     ) -> RuntimeResult<()> {
-        let resource = WorldResource::new(
-            WorldResourceId::new(self.worker_id, resource_id),
+        let resource = Resource::new(
+            resource_id,
             EntityKind::from(resource_kind.kind_id()),
             resource_label.map(ToString::to_string),
             resource_backing,
@@ -752,7 +752,7 @@ impl Hooks {
         world.attach_resource(resource)?;
         world.observe(Observation::resource_attached(
             self.worker_id,
-            WorldResourceId::new(self.worker_id, resource_id),
+            resource_id,
             resource_backing,
             resource_capture,
             resource_portability,
@@ -779,12 +779,8 @@ impl Hooks {
         _engine: Option<BindingEngine>,
     ) -> RuntimeResult<()> {
         let _resource_label = resource_label;
-        let world_resource_id = WorldResourceId::new(self.worker_id, resource_id);
-        world.detach_resource(world_resource_id);
-        world.observe(Observation::resource_detached(
-            self.worker_id,
-            world_resource_id,
-        ));
+        world.detach_resource(resource_id);
+        world.observe(Observation::resource_detached(self.worker_id, resource_id));
 
         self.on_policy_event(
             world,

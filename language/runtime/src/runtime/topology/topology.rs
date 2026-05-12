@@ -16,8 +16,9 @@ use super::{
     Edge, EdgeDefinition, EdgeId, EdgeKind, Entity, EntityDefinition, EntityId, EntityKind,
     EntityRole, RuntimeId, TopologyError, TopologyResult,
 };
+use crate::platform::ResourceId;
 use crate::runtime::WorkerId;
-use crate::runtime::world::WorldResourceId;
+use crate::runtime::world::{resource_entity_id, resource_ownership_edge_id};
 
 /// World topology graph and kind catalog.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -241,7 +242,7 @@ impl Topology {
     /// Attach one resource metadata record to one worker.
     pub(crate) fn attach_resource(
         &mut self,
-        resource_id: WorldResourceId,
+        resource_id: ResourceId,
         resource_kind: EntityKind,
         resource_label: Option<&str>,
     ) -> TopologyResult<()> {
@@ -261,15 +262,16 @@ impl Topology {
         if let Some(resource_label) = resource_label {
             labels.insert(LABEL_RESOURCE_LABEL.to_string(), resource_label.to_string());
         }
-        let resource_entity = Entity::new(resource_id.entity_id(), resource_kind).labels(labels);
+        let resource_entity =
+            Entity::new(resource_entity_id(resource_id), resource_kind).labels(labels);
         self.upsert_entity(resource_entity)?;
 
         // ownership edge
         let edge = Edge::new(
-            resource_id.ownership_edge_id(),
+            resource_ownership_edge_id(resource_id),
             BUILTIN_WORKER_OWNS_RESOURCE_EDGE_KIND_ID,
             resource_id.worker_id.entity_id(),
-            resource_id.entity_id(),
+            resource_entity_id(resource_id),
         );
         self.upsert_edge(edge)?;
 
@@ -277,8 +279,8 @@ impl Topology {
     }
 
     /// Detach one resource metadata record from one worker.
-    pub(crate) fn detach_resource(&mut self, resource_id: WorldResourceId) -> bool {
-        self.remove_entity(resource_id.entity_id().as_str())
+    pub(crate) fn detach_resource(&mut self, resource_id: ResourceId) -> bool {
+        self.remove_entity(resource_entity_id(resource_id).as_str())
     }
 
     /// Define one entity kind in topology.

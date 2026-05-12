@@ -20,6 +20,7 @@ use crate::runtime::{DropReason, TickResult, Worker, WorkerOptions, World};
 
 use super::tests::{
     TestEngine, TestHostClockSource, TestMultiAgentRuntime, TestPoller, TestRuntime,
+    test_resource_id,
 };
 
 /// Build runtime options with one explicit time mode.
@@ -216,7 +217,7 @@ fn test_runtime_tick_records_unmatched_poller_ingress() {
         TestEngine::default(),
     );
     runtime.set_poller(Box::new(TestPoller::with_events(vec![PollerEvent {
-        resource_id: ResourceId(19),
+        resource_id: test_resource_id(19),
         source: PollerEventSource::Io,
         mask: PollerEventMask::READABLE,
         flags: PollerEventFlags::NONE,
@@ -373,7 +374,7 @@ fn test_event_loop_suspend_roundtrip_preserves_pending_state() {
     // one queued poller event and one ready timer
     let mut event_loop = EventLoop::default();
     event_loop.enqueue_events(vec![PollerEvent {
-        resource_id: ResourceId(61),
+        resource_id: test_resource_id(61),
         source: PollerEventSource::Io,
         mask: PollerEventMask::READABLE,
         flags: PollerEventFlags::NONE,
@@ -382,7 +383,7 @@ fn test_event_loop_suspend_roundtrip_preserves_pending_state() {
     }]);
     event_loop
         .schedule_timer(Timer {
-            handle: ResourceId(62).into(),
+            handle: test_resource_id(62).into(),
             deadline: TimerDeadline {
                 clock: TimerClock::Wall,
                 at: Nanos::new(0),
@@ -438,7 +439,7 @@ fn test_event_loop_cancel_timer_drops_ready_timer_before_dispatch() {
     let mut event_loop = EventLoop::default();
     event_loop
         .schedule_timer(Timer {
-            handle: ResourceId(700).into(),
+            handle: test_resource_id(700).into(),
             deadline: TimerDeadline {
                 clock: TimerClock::Wall,
                 at: Nanos::new(0),
@@ -452,7 +453,7 @@ fn test_event_loop_cancel_timer_drops_ready_timer_before_dispatch() {
 
     // cancel before dequeue and verify dispatch is suppressed
     event_loop
-        .cancel_timer(ResourceId(700))
+        .cancel_timer(test_resource_id(700))
         .expect("timer cancel should succeed");
     let next = event_loop
         .next_runnable(0, 0)
@@ -771,7 +772,7 @@ fn register_timer_watch(
 ) {
     worker
         .watch_timer(
-            ResourceId(handle),
+            ResourceId::new(worker.worker_id(), handle),
             continuation,
             engine::Value::Void,
             priority,
@@ -790,7 +791,7 @@ fn schedule_timer(
     worker
         .event_loop
         .schedule_timer(Timer {
-            handle: ResourceId(handle).into(),
+            handle: ResourceId::new(worker.worker_id(), handle).into(),
             deadline: TimerDeadline {
                 clock,
                 at: Nanos::new(fire_at_nanos),

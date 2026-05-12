@@ -78,6 +78,11 @@ impl TestHostClockSource {
     }
 }
 
+/// Build one resource id owned by the primary test worker.
+pub(super) fn test_resource_id(local_id: u64) -> ResourceId {
+    ResourceId::new(WorkerId(1), local_id)
+}
+
 /// Build one native binding call context for runtime tests.
 pub(super) fn binding_call_context(
     worker: &mut Worker,
@@ -757,7 +762,7 @@ impl TestRuntime {
 
         self.worker
             .watch_timer(
-                ResourceId(handle),
+                test_resource_id(handle),
                 continuation,
                 engine::Value::Void,
                 priority,
@@ -767,7 +772,9 @@ impl TestRuntime {
 
     /// Remove one timer watch and return whether one watch was present.
     pub(super) fn unwatch_timer(&mut self, handle: u64) -> bool {
-        self.worker.unwatch_timer(ResourceId(handle)).is_some()
+        self.worker
+            .unwatch_timer(test_resource_id(handle))
+            .is_some()
     }
 
     /// Schedule one timer in the event loop.
@@ -791,7 +798,7 @@ impl TestRuntime {
         self.worker
             .event_loop
             .schedule_timer(Timer {
-                handle: ResourceId(handle).into(),
+                handle: test_resource_id(handle).into(),
                 deadline: TimerDeadline {
                     clock,
                     at: Nanos::new(fire_at_nanos),
@@ -832,7 +839,7 @@ impl TestRuntime {
     /// Enqueue one synthetic I/O event for dispatch tests.
     pub(super) fn enqueue_io_event(&mut self, resource_id: u64, token: u64, data: u64) {
         self.worker.event_loop.enqueue_events(vec![PollerEvent {
-            resource_id: ResourceId(resource_id),
+            resource_id: test_resource_id(resource_id),
             source: PollerEventSource::Io,
             mask: PollerEventMask::READABLE,
             flags: PollerEventFlags::NONE,

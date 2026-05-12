@@ -5,7 +5,7 @@ use destack_heap as heap;
 use parking_lot::RwLock;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::platform::PlatformError;
+use crate::platform::{PlatformError, ResourceId};
 use crate::runtime::binding::BindingReplayPayload;
 use crate::runtime::policy::{Policy, PolicyState};
 use crate::runtime::random::{Random, RandomStreamId};
@@ -24,10 +24,7 @@ pub(crate) use super::topology::{
     Edge, EdgeDefinition, EdgeId, EdgeKind, Entity, EntityDefinition, EntityId, EntityKind,
     RuntimeId,
 };
-use super::{
-    BranchId, Command, INITIAL_RUNTIME_ID, INITIAL_WORKER_ID, WorldImage, WorldResource,
-    WorldResourceId, WorldState,
-};
+use super::{BranchId, Command, Resource, WorldImage, WorldState};
 
 /// Number of bytes in one configured trace chunk mebibyte.
 const TRACE_CHUNK_MEBIBYTE_BYTES: u64 = 1024 * 1024;
@@ -123,8 +120,8 @@ impl World {
             random_mode,
             simulation: Simulation::default(),
             policy: PolicyState::new(policy),
-            next_runtime_id: INITIAL_RUNTIME_ID,
-            next_worker_id: INITIAL_WORKER_ID,
+            next_runtime_id: 1,
+            next_worker_id: 1,
             topology,
             resources: BTreeMap::new(),
             clock,
@@ -240,8 +237,8 @@ impl World {
         self.state.topology.edges().clone()
     }
 
-    /// Snapshot logical world resources.
-    pub fn resources(&self) -> BTreeMap<WorldResourceId, WorldResource> {
+    /// Snapshot world resources.
+    pub fn resources(&self) -> BTreeMap<ResourceId, Resource> {
         self.state.resources.clone()
     }
 

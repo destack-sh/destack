@@ -11,7 +11,9 @@ use crate::runtime::trace::{Observation, ObservationSequence, Observations, Trac
 use crate::runtime::{RuntimeId, WorkerId};
 use crate::simulation::Simulation;
 
-use super::{BranchId, Topology, WorldResource, WorldResourceId};
+use crate::platform::ResourceId;
+
+use super::{BranchId, Resource, Topology};
 
 /// Shared world state used by runtimes and workers.
 #[derive(Debug)]
@@ -32,8 +34,8 @@ pub(crate) struct WorldState {
     pub(crate) next_worker_id: u64,
     /// Topology registry for world metadata.
     pub(crate) topology: Topology,
-    /// Logical resource records keyed by world resource identifier.
-    pub(crate) resources: BTreeMap<WorldResourceId, WorldResource>,
+    /// Resource records keyed by resource identifier.
+    pub(crate) resources: BTreeMap<ResourceId, Resource>,
     /// Shared world clock.
     pub(crate) clock: Clock,
     /// Shared world randomness state.
@@ -121,7 +123,7 @@ impl WorldState {
     }
 
     /// Attach one resource to the world topology and resource table.
-    pub(crate) fn attach_resource(&mut self, resource: WorldResource) -> RuntimeResult<()> {
+    pub(crate) fn attach_resource(&mut self, resource: Resource) -> RuntimeResult<()> {
         let result = self.topology.attach_resource(
             resource.id,
             resource.kind.clone(),
@@ -140,7 +142,7 @@ impl WorldState {
     }
 
     /// Detach one resource from the world topology and resource table.
-    pub(crate) fn detach_resource(&mut self, resource_id: WorldResourceId) {
+    pub(crate) fn detach_resource(&mut self, resource_id: ResourceId) {
         self.topology.detach_resource(resource_id);
         self.resources.remove(&resource_id);
     }

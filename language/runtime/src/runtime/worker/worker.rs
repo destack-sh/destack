@@ -11,7 +11,6 @@ use crate::diagnostic::{DiagnosticSnapshot, DiagnosticStore, RuntimeError, Runti
 use crate::host::HostEventKind;
 use crate::platform::resource::{ResourceRebinders, ResourceTableSnapshot};
 use crate::platform::{ResourceId, ResourceTable};
-use crate::runtime::action::resolve_action_profile;
 use crate::runtime::binding::{BindingAccess, BindingRegistry};
 use crate::runtime::engine::{Context, Continuation, Engine, Image};
 use crate::runtime::heap::{
@@ -292,7 +291,7 @@ impl Worker {
 
         // hooks and resources
         let hooks = Arc::new(Hooks::new(runtime_id, worker_id, world.trace().mode()));
-        let resources = ResourceTable::default();
+        let resources = ResourceTable::new(worker_id);
         resources.set_hooks(hooks.clone());
 
         // bindings
@@ -300,7 +299,6 @@ impl Worker {
         bindings.set_access(BindingAccess::new(world.trace().mode()));
         bindings.install_native_defaults()?;
         bindings.apply_runtime_defaults(options);
-        Self::apply_action_profile(&mut bindings, options)?;
 
         // heap and statics
         let heap_options = resolve_local_heap_options(&options.heap)?;
@@ -353,28 +351,6 @@ impl Worker {
             engine,
             event_loop,
         })
-    }
-
-    /// Apply one action profile from runtime options to binding access.
-    fn apply_action_profile(
-        bindings: &mut BindingRegistry,
-        options: &RuntimeOptions,
-    ) -> RuntimeResult<()> {
-        let Some(action_profile) = options.security.action_profile.as_deref() else {
-            return Ok(());
-        };
-
-        let actions = resolve_action_profile(action_profile).map_err(|message| {
-            RuntimeError::HostActionProfileInvalid {
-                profile: action_profile.to_string(),
-                detail: message,
-            }
-            .boxed()
-        })?;
-
-        bindings.set_allowed_actions(actions);
-
-        Ok(())
     }
 
     /// Return immutable process arguments exposed to platform bindings.
@@ -835,7 +811,6 @@ impl Worker {
         bindings.set_access(BindingAccess::new(execution_mode));
         bindings.install_native_defaults()?;
         bindings.apply_runtime_defaults(&self.options);
-        Self::apply_action_profile(&mut bindings, &self.options)?;
 
         let mut heap = self.heap.fork()?;
         let mut statics = self.statics.clone();
@@ -895,7 +870,7 @@ impl Worker {
 
         // hooks and resources
         let hooks = Arc::new(Hooks::new(runtime_id, worker_id, world.trace().mode()));
-        let resources = ResourceTable::default();
+        let resources = ResourceTable::new(worker_id);
         resources.set_hooks(hooks.clone());
 
         // bindings
@@ -903,7 +878,6 @@ impl Worker {
         bindings.set_access(BindingAccess::new(world.trace().mode()));
         bindings.install_native_defaults()?;
         bindings.apply_runtime_defaults(&options);
-        Self::apply_action_profile(&mut bindings, &options)?;
 
         // diagnostics and event loop
         let diagnostics = Arc::new(DiagnosticStore::from_options(&options.diagnostic));

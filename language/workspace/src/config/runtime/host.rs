@@ -13,6 +13,8 @@ pub struct HostOptions {
     pub process: HostProcessOptions,
     /// Audio host defaults.
     pub audio: HostAudioOptions,
+    /// Display host defaults.
+    pub display: HostDisplayOptions,
     /// Input host defaults.
     pub input: HostInputOptions,
     /// GPU host defaults.
@@ -34,6 +36,10 @@ pub struct HostCryptoOptions {
     pub system_certificate_files: Vec<PathBuf>,
     /// Override list for Unix system certificate directories.
     pub system_certificate_directories: Vec<PathBuf>,
+    /// Optional macOS Keychain service for snapshot keys.
+    pub macos_keychain_snapshot_service: Option<String>,
+    /// Optional macOS Keychain account for snapshot keys.
+    pub macos_keychain_snapshot_account: Option<String>,
 }
 
 /// Host key store path overrides.
@@ -89,6 +95,25 @@ pub struct HostAudioOptions {
     pub target_latency_frames: Option<u32>,
     /// Optional target period size in frames.
     pub target_period_frames: Option<u32>,
+    /// Optional default event queue capacity.
+    pub event_queue_capacity: Option<u64>,
+    /// Optional default event polling interval in nanoseconds.
+    pub default_event_poll_interval_ns: Option<u64>,
+    /// Optional event monitor polling interval in nanoseconds.
+    pub event_monitor_poll_interval_ns: Option<u64>,
+    /// Optional maximum bytes per stream read.
+    pub max_stream_read_bytes: Option<u64>,
+    /// Optional maximum queued stream frames.
+    pub max_queued_frames: Option<u64>,
+    /// Optional worker polling interval in nanoseconds.
+    pub worker_poll_interval_ns: Option<u64>,
+}
+
+/// Display host defaults.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct HostDisplayOptions {
+    /// Optional default event queue capacity.
+    pub event_queue_capacity: Option<u64>,
 }
 
 /// Input host defaults.
@@ -140,6 +165,8 @@ pub struct HostOptionsJson {
     pub process: Option<HostProcessOptionsJson>,
     /// Audio host defaults.
     pub audio: Option<HostAudioOptionsJson>,
+    /// Display host defaults.
+    pub display: Option<HostDisplayOptionsJson>,
     /// Input host defaults.
     pub input: Option<HostInputOptionsJson>,
     /// GPU host defaults.
@@ -166,6 +193,9 @@ impl HostOptionsJson {
         }
         if self.audio.is_none() {
             self.audio = parent.audio.clone();
+        }
+        if self.display.is_none() {
+            self.display = parent.display.clone();
         }
         if self.input.is_none() {
             self.input = parent.input.clone();
@@ -198,6 +228,9 @@ impl HostOptionsJson {
         if let Some(audio) = &self.audio {
             audio.apply_to(&mut options.audio);
         }
+        if let Some(display) = &self.display {
+            display.apply_to(&mut options.display);
+        }
         if let Some(input) = &self.input {
             input.apply_to(&mut options.input);
         }
@@ -227,6 +260,10 @@ pub struct HostCryptoOptionsJson {
     pub system_certificate_files: Option<Vec<String>>,
     /// Override list for Unix system certificate directories.
     pub system_certificate_directories: Option<Vec<String>>,
+    /// Optional macOS Keychain service for snapshot keys.
+    pub macos_keychain_snapshot_service: Option<String>,
+    /// Optional macOS Keychain account for snapshot keys.
+    pub macos_keychain_snapshot_account: Option<String>,
 }
 
 impl HostCryptoOptionsJson {
@@ -245,6 +282,14 @@ impl HostCryptoOptionsJson {
                 .iter()
                 .map(PathBuf::from)
                 .collect();
+        }
+
+        if let Some(macos_keychain_snapshot_service) = &self.macos_keychain_snapshot_service {
+            options.macos_keychain_snapshot_service = Some(macos_keychain_snapshot_service.clone());
+        }
+
+        if let Some(macos_keychain_snapshot_account) = &self.macos_keychain_snapshot_account {
+            options.macos_keychain_snapshot_account = Some(macos_keychain_snapshot_account.clone());
         }
     }
 }
@@ -372,6 +417,18 @@ pub struct HostAudioOptionsJson {
     pub target_latency_frames: Option<u32>,
     /// Optional target period size in frames.
     pub target_period_frames: Option<u32>,
+    /// Optional default event queue capacity.
+    pub event_queue_capacity: Option<u64>,
+    /// Optional default event polling interval in nanoseconds.
+    pub default_event_poll_interval_ns: Option<u64>,
+    /// Optional event monitor polling interval in nanoseconds.
+    pub event_monitor_poll_interval_ns: Option<u64>,
+    /// Optional maximum bytes per stream read.
+    pub max_stream_read_bytes: Option<u64>,
+    /// Optional maximum queued stream frames.
+    pub max_queued_frames: Option<u64>,
+    /// Optional worker polling interval in nanoseconds.
+    pub worker_poll_interval_ns: Option<u64>,
 }
 
 impl HostAudioOptionsJson {
@@ -392,6 +449,42 @@ impl HostAudioOptionsJson {
         }
         if let Some(target_period_frames) = self.target_period_frames {
             options.target_period_frames = Some(target_period_frames);
+        }
+        if let Some(event_queue_capacity) = self.event_queue_capacity {
+            options.event_queue_capacity = Some(event_queue_capacity);
+        }
+        if let Some(default_event_poll_interval_ns) = self.default_event_poll_interval_ns {
+            options.default_event_poll_interval_ns = Some(default_event_poll_interval_ns);
+        }
+        if let Some(event_monitor_poll_interval_ns) = self.event_monitor_poll_interval_ns {
+            options.event_monitor_poll_interval_ns = Some(event_monitor_poll_interval_ns);
+        }
+        if let Some(max_stream_read_bytes) = self.max_stream_read_bytes {
+            options.max_stream_read_bytes = Some(max_stream_read_bytes);
+        }
+        if let Some(max_queued_frames) = self.max_queued_frames {
+            options.max_queued_frames = Some(max_queued_frames);
+        }
+        if let Some(worker_poll_interval_ns) = self.worker_poll_interval_ns {
+            options.worker_poll_interval_ns = Some(worker_poll_interval_ns);
+        }
+    }
+}
+
+/// Display host defaults for JSON deserialization.
+#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct HostDisplayOptionsJson {
+    /// Optional default event queue capacity.
+    pub event_queue_capacity: Option<u64>,
+}
+
+impl HostDisplayOptionsJson {
+    /// Apply display defaults to a base set of options.
+    pub fn apply_to(&self, options: &mut HostDisplayOptions) {
+        if let Some(event_queue_capacity) = self.event_queue_capacity {
+            options.event_queue_capacity = Some(event_queue_capacity);
         }
     }
 }

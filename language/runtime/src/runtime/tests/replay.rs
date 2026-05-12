@@ -18,9 +18,7 @@ use crate::runtime::time::Instant;
 use crate::runtime::trace::{
     EntropyKind, EntropySubject, EnvironmentConfig, Trace, TraceError, TraceHeader,
 };
-use crate::runtime::world::{
-    Command, Entity, EntityDefinition, EntityKind, RuntimeId, WorldResource, WorldResourceId,
-};
+use crate::runtime::world::{Command, Entity, EntityDefinition, EntityKind, Resource, RuntimeId};
 use destack_vm as vm;
 use destack_workspace::config::ExecutionMode;
 use serde::{Deserialize, Serialize};
@@ -485,8 +483,8 @@ fn test_record_replay_world_commands_mixed() {
 fn test_record_replay_resource_command() {
     // build one resource creation command
     let command = Command::CreateResource {
-        resource: WorldResource::new(
-            WorldResourceId::new(WorkerId(42), ResourceId(7)),
+        resource: Resource::new(
+            ResourceId::new(WorkerId(42), 7),
             EntityKind::from("resource.timer"),
             Some("test-timer".to_string()),
             ResourceBacking::Virtual,

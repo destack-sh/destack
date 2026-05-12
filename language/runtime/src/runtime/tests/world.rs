@@ -33,7 +33,7 @@ use crate::runtime::trace::{
 };
 use crate::runtime::{
     BranchId, Command, Edge, EdgeDefinition, Entity, EntityDefinition, TickResult, Worker,
-    WorkerId, WorkerOptions, World, WorldResourceId, WorldSnapshot,
+    WorkerId, WorkerOptions, World, WorldSnapshot, resource_entity_id, resource_ownership_edge_id,
 };
 
 /// Return one byte payload shape for runtime tests.
@@ -1592,7 +1592,7 @@ fn test_lineage_view_exposes_policy_runtime_and_count_accessors() {
     // empty collections and negative lookups
     assert_eq!(view.resource_count(), 0);
     assert_eq!(view.resources().len(), 0);
-    assert!(!view.has_resource(WorldResourceId::new(WorkerId(u64::MAX), ResourceId(999))));
+    assert!(!view.has_resource(ResourceId::new(WorkerId(u64::MAX), 999)));
     assert!(!view.has_entity("missing.entity"));
     assert!(!view.has_edge("missing.edge"));
 }
@@ -1727,7 +1727,7 @@ fn test_world_fork_preserves_pending_scheduler_ingress() {
         .worker_mut(worker_id)
         .expect("default worker should exist");
     worker.event_loop.enqueue_events(vec![PollerEvent {
-        resource_id: ResourceId(91),
+        resource_id: ResourceId::new(worker_id, 91),
         source: PollerEventSource::Io,
         mask: PollerEventMask::READABLE,
         flags: PollerEventFlags::NONE,
@@ -1786,7 +1786,7 @@ fn test_world_hibernate_snapshot_roundtrip_preserves_pending_state() {
         .worker_mut(worker_id)
         .expect("default worker should exist");
     worker.event_loop.enqueue_events(vec![PollerEvent {
-        resource_id: ResourceId(71),
+        resource_id: ResourceId::new(worker_id, 71),
         source: PollerEventSource::Io,
         mask: PollerEventMask::READABLE,
         flags: PollerEventFlags::NONE,
@@ -2307,12 +2307,11 @@ fn test_world_resource_lifecycle_updates_topology() {
 
     // verify world resource payload and topology metadata exist
     let resources = world.resources();
-    let world_resource_id = WorldResourceId::new(worker.id, resource_id);
     let world_resource = resources
-        .get(&world_resource_id)
+        .get(&resource_id)
         .expect("resource should exist in world resource state");
-    let resource_entity_id = world_resource_id.entity_id();
-    let resource_edge_id = world_resource_id.ownership_edge_id();
+    let resource_entity_id = resource_entity_id(resource_id);
+    let resource_edge_id = resource_ownership_edge_id(resource_id);
     let entities = world.entities();
     let edges = world.edges();
     assert_eq!(world_resource.kind.as_str(), ResourceKind::Timer.kind_id());
@@ -2326,7 +2325,7 @@ fn test_world_resource_lifecycle_updates_topology() {
     let resources = world.resources();
     let entities = world.entities();
     let edges = world.edges();
-    assert!(!resources.contains_key(&world_resource_id));
+    assert!(!resources.contains_key(&resource_id));
     assert!(!entities.contains_key(&resource_entity_id));
     assert!(!edges.contains_key(&resource_edge_id));
 }
@@ -2469,34 +2468,6 @@ fn test_world_deterministic_mode_rejects_secure_randomness() {
     let mut bytes = [0u8; 16];
     assert!(world.fill_secure_bytes(&mut bytes).is_err());
     assert!(world.try_fill_secure_bytes(&mut bytes).is_err());
-}
-
-/// Ensures action profiles configure binding policy action enforcement.
-#[test]
-fn test_worker_action_profile_configures_binding_policy() {
-    let mut options = RuntimeOptions::default();
-    options.security.action_profile = Some("fs.read,net.connect".to_string());
-
-    let mut world = World::from_options(&options).expect("world should construct");
-    let shared = super::tests::runtime_shared_heap(&world, &options);
-    let worker = Worker::new_in_world(
-        Vec::new(),
-        &options,
-        &mut world.state,
-        &shared,
-        &engine::StaticSpace::empty(),
-        WorkerOptions::default(),
-        TestEngine::default(),
-    )
-    .expect("worker should construct");
-    let access = worker.bindings.access().read();
-    let actions = access
-        .allowed_actions()
-        .expect("action profile should be configured");
-
-    assert!(actions.contains_name("fs.read"));
-    assert!(actions.contains_name("net.connect"));
-    assert_eq!(actions.len(), 2);
 }
 
 /// Ensures simulation deadlines publish the earliest scheduled event.

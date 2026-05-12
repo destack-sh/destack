@@ -15,14 +15,6 @@ export newtype RuntimeId = uint64;
 /// Stable worker identifier in one world.
 export newtype WorkerId = uint64;
 
-/// Stable world resource identifier.
-export struct WorldResourceId {
-    /// Owning worker identifier.
-    workerId: WorkerId;
-    /// Resource identifier in the owning local resource table.
-    resourceId: ResourceId;
-}
-
 /// Handle for one pinned world view.
 export newtype WorldViewHandle = ResourceId;
 
@@ -423,7 +415,7 @@ export struct TopologyEdge {
 /// Runtime resource summary.
 export struct ResourceDescriptor {
     /// Resource identifier.
-    id: WorldResourceId;
+    id: ResourceId;
     /// Logical world entity identifier for this resource.
     entityId: TopologyEntityId;
     /// Resource kind label.

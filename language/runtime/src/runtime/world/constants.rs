@@ -14,7 +14,3 @@ pub const LABEL_RUNTIME_NAME: &str = "runtime.name";
 pub const LABEL_WORKER_NAME: &str = "worker.name";
 /// System label key that stores one resource display label.
 pub const LABEL_RESOURCE_LABEL: &str = "resource.label";
-/// First allocated runtime id.
-pub(crate) const INITIAL_RUNTIME_ID: u64 = 1;
-/// First allocated worker id.
-pub(crate) const INITIAL_WORKER_ID: u64 = 1;

@@ -46,14 +46,14 @@ impl Wake {
     }
 
     /// Return the final deterministic tie-break rank.
-    const fn local_rank(&self) -> u64 {
+    const fn local_rank(&self) -> (u8, u64, u64) {
         match self {
             Self::WorkerTimer { timer, .. } => timer.handle.sort_key(),
         }
     }
 
     /// Return the stable ordering key for this wake.
-    pub(crate) const fn sort_key(&self) -> (Instant, u8, u64, u64, u64) {
+    pub(crate) const fn sort_key(&self) -> (Instant, u8, u64, u64, (u8, u64, u64)) {
         (
             self.at(),
             self.kind_rank(),

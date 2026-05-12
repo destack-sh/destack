@@ -333,7 +333,7 @@ impl HostPoller for IoUringPoller {
             .map(|entry| (entry.token, entry.fd, entry.pending))
             .ok_or_else(|| {
                 RuntimeError::ResourceNotFound {
-                    resource_id: resource_id.0,
+                    resource_id: resource_id.local_id,
                     resource_kind: None,
                 }
                 .boxed()
