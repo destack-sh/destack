@@ -1,11 +1,8 @@
-use destack_core::StringId;
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
-use crate::rules::common::{
-    expression_is_any_symbol, expression_is_standalone_statement,
-};
+use crate::rules::common::{expression_is_any_symbol, expression_is_standalone_statement};
 use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -60,12 +57,6 @@ struct NoAlertVisitor<'a, 'b> {
     confirm_symbol: Option<dir::GlobalSymbolId>,
     /// The prompt symbol for this module.
     prompt_symbol: Option<dir::GlobalSymbolId>,
-    /// The alert member name.
-    alert_name: StringId,
-    /// The confirm member name.
-    confirm_name: StringId,
-    /// The prompt member name.
-    prompt_name: StringId,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -86,9 +77,6 @@ impl<'a, 'b> NoAlertVisitor<'a, 'b> {
             alert_symbol,
             confirm_symbol,
             prompt_symbol,
-            alert_name,
-            confirm_name,
-            prompt_name,
             options: NodeVisitorOptions::default(),
         }
     }
@@ -159,13 +147,8 @@ impl<'a, 'b> NoAlertVisitor<'a, 'b> {
             .into_iter()
             .flatten()
             .collect::<Vec<_>>();
-        let names = [self.alert_name, self.confirm_name, self.prompt_name];
 
-        expression_is_any_symbol(
-            self.ctx,
-            expression_id,
-            &symbols,
-        )
+        expression_is_any_symbol(self.ctx, expression_id, &symbols)
     }
 }
 

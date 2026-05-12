@@ -15,10 +15,7 @@ use {destack_ast as ast, destack_dir as dir};
 
 use crate::linter::library::is_library_module;
 use crate::rules::common::expression_unwrap_transparent;
-use crate::{
-    ConstValue, GLOBAL_QUALIFIER_SYMBOLS, LintDirAnalysisCache, LintMeta, LintReport,
-    LintRequirement,
-};
+use crate::{ConstValue, LintDirAnalysisCache, LintMeta, LintReport, LintRequirement};
 
 /// Severity override from a `@allow`/`@warn`/`@deny`/`@forbid` decorator.
 #[derive(Debug, Clone, Copy)]
@@ -597,7 +594,6 @@ impl<'a> LintModuleDirContext<'a> {
     pub fn const_bool(&mut self, id: dir::LocalNodeId<dir::Expression>) -> Option<bool> {
         self.const_value(id).map(ConstValue::to_bool)
     }
-
 }
 
 #[cfg(test)]

@@ -1,11 +1,8 @@
-use destack_core::StringId;
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
-use crate::rules::common::{
-    expression_enters_nested_declaration_scope, expression_is_symbol,
-};
+use crate::rules::common::{expression_enters_nested_declaration_scope, expression_is_symbol};
 use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -48,8 +45,6 @@ struct NoRegexInLoopVisitor<'a, 'b> {
     meta: &'a LintMeta,
     /// The RegExp symbol for this module.
     regexp_symbol: dir::GlobalSymbolId,
-    /// The RegExp member name.
-    regexp_name: StringId,
     /// Whether the current traversal is inside a loop.
     is_in_loop: bool,
     /// The visitor options.
@@ -66,7 +61,6 @@ impl<'a, 'b> NoRegexInLoopVisitor<'a, 'b> {
             ctx,
             meta,
             regexp_symbol,
-            regexp_name,
             is_in_loop: false,
             options: NodeVisitorOptions::default(),
         }
@@ -95,11 +89,7 @@ impl<'a, 'b> NoRegexInLoopVisitor<'a, 'b> {
         }
 
         // check if this is RegExp construction
-        if !expression_is_symbol(
-            self.ctx,
-            callee_id,
-            self.regexp_symbol,
-        ) {
+        if !expression_is_symbol(self.ctx, callee_id, self.regexp_symbol) {
             return;
         }
 

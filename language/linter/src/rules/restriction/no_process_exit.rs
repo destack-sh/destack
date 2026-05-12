@@ -4,8 +4,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
-    expression_is_symbol, expression_static_property_access,
-    statement_expression_ancestor,
+    expression_is_symbol, expression_static_property_access, statement_expression_ancestor,
 };
 use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
@@ -57,8 +56,6 @@ struct NoProcessExitVisitor<'a, 'b> {
     meta: &'a LintMeta,
     /// The process symbol for this module.
     process_symbol: dir::GlobalSymbolId,
-    /// The process member name.
-    process_name: StringId,
     /// The exit member name.
     exit_name: StringId,
     /// The process event registration method names.
@@ -79,7 +76,6 @@ impl<'a, 'b> NoProcessExitVisitor<'a, 'b> {
             ctx,
             meta,
             process_symbol,
-            process_name,
             exit_name,
             event_handler_names,
             options: NodeVisitorOptions::default(),
@@ -153,11 +149,7 @@ impl<'a, 'b> NoProcessExitVisitor<'a, 'b> {
 
     /// Return true when the expression refers to the process object.
     fn is_process_expression(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        expression_is_symbol(
-            self.ctx,
-            expression_id,
-            self.process_symbol,
-        )
+        expression_is_symbol(self.ctx, expression_id, self.process_symbol)
     }
 
     /// Return true when one call target is `process.on(...)` or `process.once(...)`.

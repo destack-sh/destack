@@ -4,8 +4,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
-    expression_is_symbol, expression_unwrap_parenthesized,
-    expression_unwrap_transparent,
+    expression_is_symbol, expression_unwrap_parenthesized, expression_unwrap_transparent,
 };
 use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
@@ -53,8 +52,6 @@ struct NoJsonCloneVisitor<'a, 'b> {
     meta: &'a LintMeta,
     /// The JSON symbol for this module.
     json_symbol: dir::GlobalSymbolId,
-    /// The JSON member name.
-    json_name: StringId,
     /// The parse member name.
     parse_name: StringId,
     /// The stringify member name.
@@ -75,7 +72,6 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
             ctx,
             meta,
             json_symbol,
-            json_name,
             parse_name,
             stringify_name,
             options: NodeVisitorOptions::default(),
@@ -167,11 +163,7 @@ impl<'a, 'b> NoJsonCloneVisitor<'a, 'b> {
         }
 
         // match direct and global qualified JSON references
-        expression_is_symbol(
-            self.ctx,
-            *left,
-            self.json_symbol,
-        )
+        expression_is_symbol(self.ctx, *left, self.json_symbol)
     }
 
     /// Return true when the expression is a JSON.stringify call.

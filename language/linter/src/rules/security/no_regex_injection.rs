@@ -1,11 +1,8 @@
-use destack_core::StringId;
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
 use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
-use crate::rules::common::{
-    TaintAnalysis, TaintCache, expression_is_symbol,
-};
+use crate::rules::common::{TaintAnalysis, TaintCache, expression_is_symbol};
 use crate::{LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -49,8 +46,6 @@ struct NoRegexInjectionVisitor<'a, 'b> {
     meta: &'a LintMeta,
     /// The RegExp symbol for this module.
     regexp_symbol: dir::GlobalSymbolId,
-    /// The RegExp member name.
-    regexp_name: StringId,
     /// Cached taint analysis state.
     taint_cache: TaintCache,
     /// The visitor options.
@@ -67,7 +62,6 @@ impl<'a, 'b> NoRegexInjectionVisitor<'a, 'b> {
             ctx,
             meta,
             regexp_symbol,
-            regexp_name,
             taint_cache: TaintCache::default(),
             options: NodeVisitorOptions::default(),
         }
@@ -138,11 +132,7 @@ impl<'a, 'b> NoRegexInjectionVisitor<'a, 'b> {
 
     /// Return true when the expression is the RegExp constructor.
     fn is_regexp_constructor(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        expression_is_symbol(
-            self.ctx,
-            expression_id,
-            self.regexp_symbol,
-        )
+        expression_is_symbol(self.ctx, expression_id, self.regexp_symbol)
     }
 
     /// Report a regex injection diagnostic.

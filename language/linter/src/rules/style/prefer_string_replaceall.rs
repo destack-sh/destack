@@ -9,9 +9,9 @@ use regex_syntax::hir::HirKind;
 use crate::LintRequirement::RequireWellKnownSymbol;
 use crate::analysis::LintRegexParse;
 use crate::rules::common::{
-    expression_is_symbol, expression_static_string_literal,
-    expression_target_symbol, expression_unwrap_parenthesized, is_string_type,
-    single_quoted_string_literal, span_has_comment, symbol_initializer_expression,
+    expression_is_symbol, expression_static_string_literal, expression_target_symbol,
+    expression_unwrap_parenthesized, is_string_type, single_quoted_string_literal,
+    span_has_comment, symbol_initializer_expression,
 };
 use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
@@ -62,8 +62,6 @@ struct PreferStringReplaceAllVisitor<'a, 'b> {
     replace_all_name: StringId,
     /// The RegExp constructor symbol when available.
     regexp_symbol: Option<dir::GlobalSymbolId>,
-    /// The string id for the RegExp global name.
-    regexp_name: StringId,
     /// The visitor options.
     options: NodeVisitorOptions,
 }
@@ -84,7 +82,6 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
             replace_name,
             replace_all_name,
             regexp_symbol,
-            regexp_name,
             options: NodeVisitorOptions::default(),
         }
     }
@@ -409,11 +406,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
             return false;
         };
 
-        expression_is_symbol(
-            self.ctx,
-            expression_id,
-            regexp_symbol,
-        )
+        expression_is_symbol(self.ctx, expression_id, regexp_symbol)
     }
 
     /// Build one string literal replacement from a simple global regex argument.

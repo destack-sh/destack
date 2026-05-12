@@ -4,8 +4,7 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{
-    expression_is_standalone_statement, expression_is_symbol,
-    expression_static_property_name,
+    expression_is_standalone_statement, expression_is_symbol, expression_static_property_name,
 };
 use crate::{LintFix, LintMeta, LintModuleDirContext, LintReport, LintRule, declare_lint};
 
@@ -50,8 +49,6 @@ struct NoConsoleVisitor<'a, 'b> {
     meta: &'a LintMeta,
     /// The console symbol for this module.
     console_symbol: dir::GlobalSymbolId,
-    /// The console member name.
-    console_name: StringId,
     /// Allowed console member names.
     allowed_methods: Vec<StringId>,
     /// Stack of member left expressions to avoid double reporting.
@@ -77,7 +74,6 @@ impl<'a, 'b> NoConsoleVisitor<'a, 'b> {
             ctx,
             meta,
             console_symbol,
-            console_name,
             allowed_methods,
             member_left_stack: Vec::new(),
             options: NodeVisitorOptions::default(),
@@ -129,11 +125,7 @@ impl<'a, 'b> NoConsoleVisitor<'a, 'b> {
 
     /// Return true when the expression is a console reference.
     fn is_console_reference(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        expression_is_symbol(
-            self.ctx,
-            expression_id,
-            self.console_symbol,
-        )
+        expression_is_symbol(self.ctx, expression_id, self.console_symbol)
     }
 
     /// Return whether the console property access is allowed by configuration.
