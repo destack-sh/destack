@@ -833,7 +833,7 @@ macro_rules! dispatch_instruction {
             }
             Op::CastWideInt => $step!(super::execute_cast_wide_int($machine, instruction)),
             Op::Call => $transfer!(super::execute_call($machine, instruction, $block_pc)),
-            Op::Invoke => $transfer!(super::execute_invoke($machine, instruction)),
+            Op::CallBranch => $transfer!(super::execute_call_branch($machine, instruction)),
             Op::CallIndirect => {
                 $transfer!(super::execute_call_indirect(
                     $machine,
@@ -848,8 +848,12 @@ macro_rules! dispatch_instruction {
                     $block_pc
                 ))
             }
-            Op::InvokeIndirect => $transfer!(super::execute_invoke_indirect($machine, instruction)),
-            Op::InvokeCallable => $transfer!(super::execute_invoke_callable($machine, instruction)),
+            Op::CallIndirectBranch => {
+                $transfer!(super::execute_call_indirect_branch($machine, instruction))
+            }
+            Op::CallCallableBranch => {
+                $transfer!(super::execute_call_callable_branch($machine, instruction))
+            }
             Op::CallClassHeap => $transfer!(super::execute_call_class_heap(
                 $machine,
                 instruction,
@@ -858,11 +862,11 @@ macro_rules! dispatch_instruction {
             Op::CallClassSharedHeap => $transfer!({
                 super::execute_call_class_shared_heap($machine, instruction, $block_pc)
             }),
-            Op::InvokeClassHeap => {
-                $transfer!(super::execute_invoke_class_heap($machine, instruction))
+            Op::CallClassHeapBranch => {
+                $transfer!(super::execute_call_class_heap_branch($machine, instruction))
             }
-            Op::InvokeClassSharedHeap => {
-                $transfer!(super::execute_invoke_class_shared_heap(
+            Op::CallClassSharedHeapBranch => {
+                $transfer!(super::execute_call_class_shared_heap_branch(
                     $machine,
                     instruction
                 ))
@@ -875,11 +879,14 @@ macro_rules! dispatch_instruction {
             Op::CallInterfaceSharedHeap => $transfer!({
                 super::execute_call_interface_shared_heap($machine, instruction, $block_pc)
             }),
-            Op::InvokeInterfaceHeap => {
-                $transfer!(super::execute_invoke_interface_heap($machine, instruction))
+            Op::CallInterfaceHeapBranch => {
+                $transfer!(super::execute_call_interface_heap_branch(
+                    $machine,
+                    instruction
+                ))
             }
-            Op::InvokeInterfaceSharedHeap => {
-                $transfer!(super::execute_invoke_interface_shared_heap(
+            Op::CallInterfaceSharedHeapBranch => {
+                $transfer!(super::execute_call_interface_shared_heap_branch(
                     $machine,
                     instruction
                 ))
@@ -1030,8 +1037,6 @@ macro_rules! dispatch_instruction {
             Op::TensorTranspose => $step!(super::execute_tensor_transpose($machine, instruction)),
             Op::TensorView => $step!(super::execute_tensor_view($machine, instruction)),
             Op::Panic => $transfer!(super::execute_panic($machine, instruction)),
-            Op::ThrowWord => $transfer!(super::execute_throw_word($machine, instruction)),
-            Op::ThrowAddress => $transfer!(super::execute_throw_address($machine, instruction)),
             Op::Unreachable => $transfer!(super::execute_unreachable($machine, instruction)),
             Op::VectorConvert => $step!(super::execute_vector_convert($machine, instruction)),
             Op::VectorExtract => $step!(super::execute_vector_extract($machine, instruction)),

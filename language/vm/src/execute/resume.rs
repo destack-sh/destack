@@ -138,7 +138,7 @@ impl Interpreter {
         Ok(())
     }
 
-    /// Enter one frame state in the current caller frame with one word value.
+    /// Enter one frame state in the current caller frame, storing a word when requested.
     pub(crate) fn enter_caller_state_word(
         &mut self,
         program: &Program,
@@ -153,9 +153,11 @@ impl Interpreter {
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
 
         let frame_entry = program.frame_entry(frame_state_id);
-        let received_value_slot = frame_entry
-            .and_then(|frame_entry| frame_entry.received_value)
-            .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
+        let Some(received_value_slot) =
+            frame_entry.and_then(|frame_entry| frame_entry.received_value)
+        else {
+            return self.enter_frame_state(program, frame_index, frame_state_id, None);
+        };
         let frame = self
             .frames
             .get(frame_index)

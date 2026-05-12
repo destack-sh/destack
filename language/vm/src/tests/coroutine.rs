@@ -195,9 +195,9 @@ b0(v0: int32):
     assert_eq!(output, Value::int32(13));
 }
 
-/// Yield preserves one pending exceptional call continuation across suspension.
+/// Yield preserves one pending call terminator continuation across suspension.
 #[test]
-fn test_yield_preserves_exceptional_call_continuation() {
+fn test_yield_preserves_call_terminator_continuation() {
     let mir = r#"
 function worker(v0: int32): int32 {
 b0(v0: int32):
@@ -211,13 +211,10 @@ b1(v2: int32, v3: int32):
 function caller(v0: int32): int32 {
 b0(v0: int32):
     v1: int32 = 10int32
-    invoke worker(v0): (int32) -> int32 -> b1(v1), catch b2
+    call worker(v0): (int32) -> int32 -> b1(v1)
 b1(v2: int32, v3: int32):
     v4: int32 = int.add v2, v3
     return v4
-b2(v5: ref<void, managed, readonly>):
-    v6: int32 = 0int32
-    return v6
 }"#;
     let mut isolate = create_isolate(mir);
     let (continuation, value) = assert_execution_yielded(

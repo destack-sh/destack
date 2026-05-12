@@ -2,7 +2,7 @@ use destack_engine as engine;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ExceptionalCall, Frame, Stack, visit_frame_slot_root_slots, visit_frame_slot_roots,
+    Frame, PendingCall, Stack, visit_frame_slot_root_slots, visit_frame_slot_roots,
     visit_materialized_slots,
 };
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
@@ -40,8 +40,8 @@ pub struct ContinuationImage {
 pub struct ContinuationFrame {
     /// The logical frame state captured by this frame.
     pub frame_state: engine::FrameStateId,
-    /// The active exceptional call owned by this frame when another frame is active.
-    pub exceptional_call: Option<ExceptionalCall>,
+    /// The pending call terminator continuation when another frame is active.
+    pub pending_call: Option<PendingCall>,
     /// The captured frame bytes.
     pub bytes: Vec<u8>,
 }
@@ -271,7 +271,7 @@ impl ContinuationFrame {
     fn capture(frame: &Frame, frame_state: engine::FrameStateId) -> Self {
         Self {
             frame_state,
-            exceptional_call: frame.exceptional_call.clone(),
+            pending_call: frame.pending_call.clone(),
             bytes: frame.bytes().to_vec(),
         }
     }
@@ -337,7 +337,7 @@ impl ContinuationFrame {
             frame_base,
         );
         frame.pc = point.instruction_index as usize;
-        frame.exceptional_call = self.exceptional_call.clone();
+        frame.pending_call = self.pending_call.clone();
 
         Ok(frame)
     }

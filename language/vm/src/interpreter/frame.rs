@@ -20,8 +20,8 @@ pub struct Frame {
     pub(crate) block: u32,
     /// Program counter within the current block.
     pub(crate) pc: usize,
-    /// The active exceptional call owned by this frame while one callee runs.
-    pub(crate) exceptional_call: Option<ExceptionalCall>,
+    /// The pending call terminator continuation while one callee runs.
+    pub(crate) pending_call: Option<PendingCall>,
     /// The byte offset in the interpreter stack arena.
     pub(crate) stack_offset: usize,
     /// The frame byte width.
@@ -39,8 +39,8 @@ pub struct FrameImage {
     pub block: mir::LocalNodeId<mir::Block>,
     /// The program counter within the current block.
     pub pc: usize,
-    /// The active exceptional call owned by this frame while one callee runs.
-    pub exceptional_call: Option<ExceptionalCall>,
+    /// The pending call terminator continuation while one callee runs.
+    pub pending_call: Option<PendingCall>,
     /// The captured frame bytes.
     pub bytes: Vec<u8>,
 }
@@ -65,7 +65,7 @@ impl Frame {
             function_ptr,
             block,
             pc: 0,
-            exceptional_call: None,
+            pending_call: None,
             stack_offset,
             byte_len: layout.byte_len as usize,
             base,
@@ -394,7 +394,7 @@ impl Frame {
             function_ptr: self.function_ptr,
             block: self.block,
             pc: self.pc,
-            exceptional_call: self.exceptional_call.clone(),
+            pending_call: self.pending_call.clone(),
             stack_offset: self.stack_offset,
             byte_len: self.byte_len,
             base,
@@ -407,7 +407,7 @@ impl Frame {
             function: self.function(),
             block: self.block_id(),
             pc: self.pc,
-            exceptional_call: self.exceptional_call.clone(),
+            pending_call: self.pending_call.clone(),
             bytes: self.bytes().to_vec(),
         }
     }
@@ -454,7 +454,7 @@ impl Frame {
             function_ptr,
             block: block as u32,
             pc: image.pc,
-            exceptional_call: image.exceptional_call.clone(),
+            pending_call: image.pending_call.clone(),
             stack_offset,
             byte_len: layout.byte_len as usize,
             base,
@@ -462,13 +462,11 @@ impl Frame {
     }
 }
 
-/// One active exceptional call parked on a caller frame.
+/// Pending call terminator continuation parked on a caller frame.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ExceptionalCall {
-    /// The frame state to enter when the callee returns normally.
-    pub(crate) normal_state: engine::FrameStateId,
-    /// The frame state to enter when the callee throws.
-    pub(crate) unwind_state: engine::FrameStateId,
+pub struct PendingCall {
+    /// The frame state to enter when the callee returns.
+    pub(crate) target_state: engine::FrameStateId,
 }
 
 /// Visit each materialized frame slot once.

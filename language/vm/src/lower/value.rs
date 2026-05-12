@@ -407,32 +407,14 @@ fn propagate_block_parameter_layouts(
             mir::Terminator::Yield { resume, .. } => {
                 is_changed |= propagate_target_edge(tree, value_layout_map, resume);
             }
-            mir::Terminator::Invoke {
-                normal_target,
-                unwind_target,
-                ..
-            }
-            | mir::Terminator::InvokeIndirect {
-                normal_target,
-                unwind_target,
-                ..
-            }
-            | mir::Terminator::InvokeClass {
-                normal_target,
-                unwind_target,
-                ..
-            }
-            | mir::Terminator::InvokeInterface {
-                normal_target,
-                unwind_target,
-                ..
-            } => {
-                is_changed |= propagate_target_edge(tree, value_layout_map, normal_target);
-                is_changed |= propagate_target_edge(tree, value_layout_map, unwind_target);
+            mir::Terminator::Call { target, .. }
+            | mir::Terminator::CallIndirect { target, .. }
+            | mir::Terminator::CallClass { target, .. }
+            | mir::Terminator::CallInterface { target, .. } => {
+                is_changed |= propagate_target_edge(tree, value_layout_map, target);
             }
             mir::Terminator::Error => {}
             mir::Terminator::Return { .. }
-            | mir::Terminator::Throw { .. }
             | mir::Terminator::Trap { .. }
             | mir::Terminator::Unreachable
             | mir::Terminator::TailCall { .. }

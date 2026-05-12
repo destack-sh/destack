@@ -34,7 +34,7 @@ pub(crate) enum Transfer {
         /// PC to resume at after call returns.
         resume_pc: usize,
     },
-    /// Call another function and branch on normal or unwind completion.
+    /// Call another function and enter an explicit continuation.
     CallBranch {
         /// Function to call.
         function: u32,
@@ -44,10 +44,8 @@ pub(crate) enum Transfer {
         arguments: ArgumentRange,
         /// Optional callable environment to pass.
         env: Option<Word>,
-        /// The normal continuation frame state.
-        normal_state: engine::FrameStateId,
-        /// The unwind continuation frame state.
-        unwind_state: engine::FrameStateId,
+        /// The continuation frame state.
+        target_state: engine::FrameStateId,
     },
     /// Tail call another function.
     TailCall {
@@ -71,8 +69,6 @@ pub(crate) enum Transfer {
         /// The frame state captured in the continuation.
         frame_state: engine::FrameStateId,
     },
-    /// Throw one managed exception value.
-    Throw(Word),
     /// Return from current function.
     Return(Word),
     /// Runtime error.

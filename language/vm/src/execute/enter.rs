@@ -10,7 +10,7 @@ use super::frame::{
 };
 use crate::SharedHeap;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::interpreter::{ExceptionalCall, Frame, Interpreter, Outcome};
+use crate::interpreter::{Frame, Interpreter, Outcome, PendingCall};
 use crate::isolate::{BindingContext, BindingFn};
 use crate::options::IsolateOptions;
 use crate::program::{ArgumentRange, CallTarget, Function, MoveRange, Program};
@@ -97,7 +97,7 @@ impl Interpreter {
         env: Option<Word>,
         moves: Option<MoveRange>,
         resume_pc: usize,
-        exceptional_call: Option<ExceptionalCall>,
+        pending_call: Option<PendingCall>,
     ) -> RuntimeResult<()> {
         // reject stack overflow before allocating anything
         if self.frames.len() >= options.limits.max_stack_depth {
@@ -121,7 +121,7 @@ impl Interpreter {
             .last_mut()
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
         caller_frame.pc = resume_pc;
-        caller_frame.exceptional_call = exceptional_call;
+        caller_frame.pending_call = pending_call;
 
         let mut new_frame = Frame::new(callee, entry_block, frame_layout, stack_offset, frame_base);
         new_frame
@@ -196,7 +196,7 @@ impl Interpreter {
         frame.function_ptr = callee;
         frame.block = entry_block;
         frame.pc = 0;
-        frame.exceptional_call = None;
+        frame.pending_call = None;
         frame.replace_bytes(stack_offset, frame_layout.byte_len as usize, frame_base);
         frame
             .store_environment(frame_layout, env)
@@ -303,7 +303,7 @@ impl Interpreter {
         )
     }
 
-    /// Complete one exceptional call from the current frame.
+    /// Complete one call terminator from the current frame.
     pub(crate) fn complete_call_branch(
         &mut self,
         program: &Program,
@@ -316,20 +316,19 @@ impl Interpreter {
         target: CallTarget,
         arguments: ArgumentRange,
         env: Option<Word>,
-        normal_state: engine::FrameStateId,
-        unwind_state: engine::FrameStateId,
+        target_state: engine::FrameStateId,
     ) -> RuntimeResult<()> {
         // classify the call target
         let function_id = mir::LocalNodeId::<mir::Function>::new(function);
 
-        // imported exceptional calls resume the normal branch immediately
+        // imported calls resume the continuation immediately
         if matches!(target, CallTarget::Import) {
             let caller = self
                 .frames
                 .last()
                 .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
 
-            // collect explicit branch-call arguments first
+            // collect continuation arguments first
             let arguments = load_arguments(
                 program,
                 self.frames.as_slice(),
@@ -338,7 +337,7 @@ impl Interpreter {
                 arguments,
             )?;
 
-            // call the binding callee and continue through the normal branch
+            // call the binding callee and enter the continuation
             let result = self.call_binding_function(
                 program,
                 function_id,
@@ -348,26 +347,23 @@ impl Interpreter {
                 &arguments,
             )?;
 
-            self.enter_caller_state_word(program, normal_state, result)?;
+            self.enter_caller_state_word(program, target_state, result)?;
             return Ok(());
         }
 
-        // otherwise push the local callee and record the exceptional edge
+        // otherwise push the local callee and record the pending continuation
         let callee = Self::require_local_function(program, function_id, target)?;
         let caller = self
             .frames
             .last()
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
 
-        // resume after the terminator once the branch call completes
+        // resume after the terminator once the callee returns
         let function = unsafe { caller.function_ptr.as_ref() };
         let resume_pc = function
             .block_len(caller.block)
             .ok_or_else(|| RuntimeError::new(Error::InvalidInstruction))?;
-        let exceptional_call = ExceptionalCall {
-            normal_state,
-            unwind_state,
-        };
+        let pending_call = PendingCall { target_state };
 
         self.push_call_frame(
             program,
@@ -378,7 +374,7 @@ impl Interpreter {
             env,
             None,
             resume_pc,
-            Some(exceptional_call),
+            Some(pending_call),
         )
     }
 
