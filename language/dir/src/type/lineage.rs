@@ -68,8 +68,6 @@ pub struct Lineage {
     pub extends: Option<GlobalSymbolId>,
     /// The implemented interface types.
     pub implements: Vec<GlobalSymbolId>,
-    /// The embedded/composed types (for struct-like types).
-    pub embedded: Vec<GlobalSymbolId>,
 }
 
 impl Lineage {
@@ -80,7 +78,7 @@ impl Lineage {
 
     /// Check whether the lineage has any relationships.
     pub fn is_empty(&self) -> bool {
-        self.extends.is_none() && self.implements.is_empty() && self.embedded.is_empty()
+        self.extends.is_none() && self.implements.is_empty()
     }
 
     /// Check if this type directly extends the given symbol.
@@ -91,10 +89,5 @@ impl Lineage {
     /// Check if this type directly implements the given symbol.
     pub fn directly_implements(&self, symbol: GlobalSymbolId) -> bool {
         self.implements.contains(&symbol)
-    }
-
-    /// Check if this type directly embeds the given symbol.
-    pub fn directly_embeds(&self, symbol: GlobalSymbolId) -> bool {
-        self.embedded.contains(&symbol)
     }
 }
