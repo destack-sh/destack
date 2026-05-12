@@ -31,11 +31,6 @@ The big advantage of modeling the runtime against a single World concept is that
 The hosts are the operating systems and deployment targets, like Linux, iOS, macOS, Android, and Windows.
 Each host has its own capabilities, lifecycle constraints, framework ownership rules, and thread-affinity requirements.
 
-## Platform
-
-The `platform` implements the bindings defined in `language/library/platform`, and the corresponding bindings and ABI surface are auto-generated in `language/runtime/src/generate` (into the not-to-be-edited `*.generated.rs` files).
-The runtime generator wires as much of the native / VM data integration as possible, but unfortunately we still need to manually normalize and serialise / deserialise sometimes where no reliable automatic mapping exists.
-
 ### Modules
 
 The low-level `platform` bindings are not meant to be used _directly_ by general userland - though they are accessible to advanced users - but instead through the higher-level `destack:*` library.

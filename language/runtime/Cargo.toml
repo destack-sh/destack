@@ -35,17 +35,6 @@ audio-pulseaudio = []
 audio-jack = []
 audio-aaudio = []
 audio-opensles = []
-generator = [
-    "dep:destack_compiler",
-    "dep:destack_linter",
-    "dep:destack_session",
-]
-
-[[bin]]
-name = "generate-bindings"
-path = "src/generate/main.rs"
-required-features = ["generator"]
-
 [[test]]
 name = "runtime_execution"
 path = "src/tests/driver.rs"
@@ -55,7 +44,6 @@ harness = false
 # language
 destack_artifact = { workspace = true }
 destack_ast = { workspace = true }
-destack_compiler = { workspace = true, optional = true }
 destack_core = { workspace = true }
 destack_dir = { workspace = true }
 destack_engine = { workspace = true }
@@ -64,8 +52,6 @@ destack_heap = { workspace = true }
 destack_mir = { workspace = true }
 destack_native = { workspace = true }
 destack_query = { workspace = true }
-destack_linter = { workspace = true, optional = true }
-destack_session = { workspace = true, optional = true }
 destack_source = { workspace = true }
 destack_unicode = { workspace = true }
 destack_vm = { workspace = true }
