@@ -31,10 +31,10 @@ pub struct MirVerified {
 }
 
 impl MirVerified {
-    /// Create an empty verified MIR payload over one lowered tree.
-    pub fn new(base: &mir::Tree) -> Self {
+    /// Create a verified MIR payload from a rewritten tree.
+    pub fn from_tree(tree: mir::Tree) -> Self {
         Self {
-            patch: mir::Patch::new(base, "verify"),
+            patch: mir::Patch::from_tree("verify", tree),
         }
     }
 }
