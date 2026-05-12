@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, HashSet};
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -9,8 +10,10 @@ use destack_resolver::{CachePolicy, Resolver, ResolverContext, ResolverOptions};
 use destack_session::{FileChange, Session};
 use destack_source::{FileType, ModuleId, ProfileId, TargetId, glob};
 use destack_workspace::{
-    DestackConfig, OptimizeLevel, Ref, Repository, Revision, Target, TargetDiscovery,
+    ConfigPatch, DestackConfig, Edit, OptimizeLevel, Ref, Repository, Revision, Target,
+    TargetDiscovery, apply_config_patches_to_json, parse_jsonc_text,
 };
+use serde_json::{Map, Value};
 
 use crate::Daemon;
 
@@ -82,13 +85,7 @@ impl<'a> CommandContext<'a> {
         .map_err(|error| {
             DaemonCommandError::internal(format!("failed to initialize command session: {error}"))
         })?;
-        session
-            .apply_workspace_config_patches(session.head(), &common.config_patches)
-            .map_err(|error| {
-                DaemonCommandError::internal(format!(
-                    "failed to apply command config patches: {error}"
-                ))
-            })?;
+        Self::apply_config_patches(&session, repository.as_ref(), &common.config_patches)?;
 
         Ok(Self {
             daemon,
@@ -97,6 +94,118 @@ impl<'a> CommandContext<'a> {
             session,
             common,
             output,
+        })
+    }
+
+    /// Apply command config patches to the private session revision.
+    fn apply_config_patches(
+        session: &Session,
+        repository: &Repository,
+        patches: &[ConfigPatch],
+    ) -> CommandResult<()> {
+        let _mutation_guard = session.enter_mutation();
+
+        if patches.is_empty() {
+            return Ok(());
+        }
+
+        // collect package configs visible to this command
+        let before = session.revision(session.head()).map_err(|error| {
+            DaemonCommandError::internal(format!(
+                "failed to read command session revision: {error}"
+            ))
+        })?;
+        let config_paths = Self::config_paths(session, repository, before)?;
+        let mut edits = Vec::with_capacity(config_paths.len());
+
+        // apply patches to each config image
+        for path in config_paths {
+            let mut config = Self::load_config_json(repository, before, &path)?;
+            apply_config_patches_to_json(&mut config, patches).map_err(|detail| {
+                DaemonCommandError::config(format!("failed to update {}: {detail}", path.display()))
+            })?;
+
+            let content = serde_json::to_string_pretty(&config).map_err(|error| {
+                DaemonCommandError::config(format!(
+                    "failed to serialize {}: {error}",
+                    path.display()
+                ))
+            })?;
+            let content = format!("{content}\n");
+            let logical_path = repository.logical_path(&path);
+
+            edits.push(Edit::set_text(logical_path, content));
+        }
+
+        // publish the patched private revision
+        let revision = repository.fork_with_edits(before, edits).map_err(|error| {
+            DaemonCommandError::internal(format!("failed to apply command config edits: {error}"))
+        })?;
+        repository
+            .set_ref(session.head(), revision)
+            .map_err(|error| {
+                DaemonCommandError::internal(format!(
+                    "failed to publish command config revision: {error}"
+                ))
+            })?;
+
+        Ok(())
+    }
+
+    /// Return config paths visible to one command revision.
+    fn config_paths(
+        session: &Session,
+        repository: &Repository,
+        revision: Revision,
+    ) -> CommandResult<Vec<PathBuf>> {
+        let mut paths = vec![session.root().join("destack.json")];
+
+        // include package configs in monorepos
+        for package_path in repository.package_roots(revision).map_err(|error| {
+            DaemonCommandError::internal(format!("failed to read package roots: {error}"))
+        })? {
+            paths.push(package_path.join("destack.json"));
+        }
+
+        paths.sort();
+        paths.dedup();
+
+        Ok(paths)
+    }
+
+    /// Load one config json value from repository or filesystem source truth.
+    fn load_config_json(
+        repository: &Repository,
+        revision: Revision,
+        path: &Path,
+    ) -> CommandResult<Value> {
+        let file_id = repository.file_id(path);
+
+        // prefer revision backed source truth
+        if let Some(file) = repository.file(revision, file_id).map_err(|error| {
+            DaemonCommandError::internal(format!("failed to read {}: {error}", path.display()))
+        })? {
+            return parse_jsonc_text(file.text()).map_err(|error| {
+                DaemonCommandError::config(format!("failed to parse {}: {error}", path.display()))
+            });
+        }
+
+        // read physical source when the config file is not tracked yet
+        let content = match repository.file_system().read_to_string(path) {
+            Ok(content) => content,
+            Err(error) if error.kind() == ErrorKind::NotFound => {
+                return Ok(Value::Object(Map::new()));
+            }
+            Err(error) => {
+                return Err(DaemonCommandError::config(format!(
+                    "failed to read {}: {error}",
+                    path.display()
+                )));
+            }
+        };
+
+        parse_jsonc_text(&content).map_err(|error| {
+            DaemonCommandError::config(format!("failed to parse {}: {error}", path.display()))
         })
     }
 

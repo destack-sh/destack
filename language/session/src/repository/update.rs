@@ -1,12 +1,8 @@
 use std::collections::HashSet;
-use std::io::ErrorKind;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use destack_source::{FileContent, FileId, Uri};
-use destack_workspace::{
-    ConfigPatch, Edit, Ref, Repository, Revision, apply_config_patches_to_json, parse_jsonc_text,
-};
-use serde_json::{Map, Value};
+use destack_workspace::{Edit, Ref, Repository, Revision};
 
 use crate::{FileChange, FileUpdate, FileUpdateKind, RepositoryChange, Session, SessionError};
 
@@ -41,12 +37,12 @@ impl Session {
         // build the repository edit
         let logical_path = repository.logical_path(path);
         let edit = match update {
-            FileChange::Text { content } => Edit::set_text(logical_path.clone(), content),
+            FileChange::Text { content } => Edit::set_text(logical_path, content),
             FileChange::Bytes { content } => Edit::SetFile {
-                logical_path: logical_path.clone(),
+                logical_path,
                 content: FileContent::Binary { content },
             },
-            FileChange::Removed => Edit::remove_file(logical_path.clone()),
+            FileChange::Removed => Edit::remove_file(logical_path),
         };
 
         RepositoryChange::from_edits([edit])
@@ -123,130 +119,5 @@ impl Session {
         }
 
         Ok(files)
-    }
-
-    /// Apply workspace config patches through one coherent session mutation.
-    pub fn apply_workspace_config_patches(
-        &self,
-        reference: &Ref,
-        patches: &[ConfigPatch],
-    ) -> Result<Vec<FileUpdate>, SessionError> {
-        let _mutation_guard = self.enter_mutation();
-
-        if patches.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        // revision fork
-        let repository = self.repository();
-        let before = self.revision(reference)?;
-        let config_paths = self.collect_workspace_config_paths(repository.as_ref(), before)?;
-
-        // config updates
-        let mut change = RepositoryChange::new();
-        let mut file_changes = Vec::new();
-        let mut seen_file_ids = HashSet::new();
-
-        for path in config_paths {
-            let mut json = self.load_workspace_config_json(repository.as_ref(), before, &path)?;
-            apply_config_patches_to_json(&mut json, patches).map_err(|detail| {
-                SessionError::UpdatePathFailed {
-                    path: path.clone(),
-                    detail,
-                }
-            })?;
-
-            let content = serde_json::to_string_pretty(&json).map_err(|error| {
-                SessionError::UpdatePathFailed {
-                    path: path.clone(),
-                    detail: format!("failed to serialize {}: {error}", path.display()),
-                }
-            })?;
-            let content = format!("{content}\n");
-
-            let file_change = self.repository_change_for_file(
-                repository.as_ref(),
-                &path,
-                FileChange::Text { content },
-            );
-
-            for file_id in file_change.file_ids() {
-                if !seen_file_ids.insert(file_id) {
-                    continue;
-                }
-
-                file_changes.push(file_id);
-            }
-
-            change.extend(file_change);
-        }
-
-        let revision = change.apply(repository.as_ref(), before)?;
-        let files = self.project_file_updates(before, revision, file_changes)?;
-
-        self.set_ref(reference, revision)?;
-
-        Ok(files)
-    }
-
-    /// Collect visible workspace config paths for the current revision.
-    fn collect_workspace_config_paths(
-        &self,
-        repository: &Repository,
-        revision: Revision,
-    ) -> Result<Vec<PathBuf>, SessionError> {
-        let mut paths = vec![self.root().join("destack.json")];
-
-        for package_path in repository
-            .package_roots(revision)
-            .map_err(SessionError::from)?
-        {
-            paths.push(package_path.join("destack.json"));
-        }
-
-        paths.sort();
-        paths.dedup();
-
-        Ok(paths)
-    }
-
-    /// Load one config json value from the current revision.
-    fn load_workspace_config_json(
-        &self,
-        repository: &Repository,
-        revision: Revision,
-        path: &Path,
-    ) -> Result<Value, SessionError> {
-        let file_id = repository.file_id(path);
-
-        // prefer revision backed source truth
-        if let Some(file) = repository
-            .file(revision, file_id)
-            .map_err(SessionError::from)?
-        {
-            return parse_jsonc_text(file.text()).map_err(|error| SessionError::UpdatePathFailed {
-                path: path.to_path_buf(),
-                detail: format!("failed to parse {}: {error}", path.display()),
-            });
-        }
-
-        // read physical source when the config file is not tracked yet
-        let content = match repository.file_system().read_to_string(path) {
-            Ok(content) => content,
-            Err(error) if error.kind() == ErrorKind::NotFound => {
-                return Ok(Value::Object(Map::new()));
-            }
-            Err(error) => {
-                return Err(SessionError::ReadPathFailed {
-                    path: path.to_path_buf(),
-                    detail: format!("failed to read {}: {error}", path.display()),
-                });
-            }
-        };
-
-        parse_jsonc_text(&content).map_err(|error| SessionError::UpdatePathFailed {
-            path: path.to_path_buf(),
-            detail: format!("failed to parse {}: {error}", path.display()),
-        })
     }
 }

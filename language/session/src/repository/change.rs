@@ -13,11 +13,6 @@ pub(crate) struct RepositoryChange {
 }
 
 impl RepositoryChange {
-    /// Create an empty repository change.
-    pub(crate) fn new() -> Self {
-        Self::default()
-    }
-
     /// Create one repository change from explicit edits.
     pub(crate) fn from_edits(edits: impl IntoIterator<Item = Edit>) -> Self {
         Self {
@@ -81,11 +76,6 @@ impl RepositoryChange {
     /// Return whether this change has no edits.
     pub(crate) fn is_empty(&self) -> bool {
         self.edits.is_empty()
-    }
-
-    /// Extend this change with another change.
-    pub(crate) fn extend(&mut self, other: Self) {
-        self.edits.extend(other.edits);
     }
 
     /// Add removals for tracked files no longer present in one source.
