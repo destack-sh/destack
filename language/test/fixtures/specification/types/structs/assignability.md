@@ -146,4 +146,4 @@ struct Child extends Base {
 }
 ```
 
-- contains: invalid lineage
+- contains: parse error
