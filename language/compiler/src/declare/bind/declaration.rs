@@ -697,26 +697,6 @@ impl Compiler {
                         )
                     })
                     .collect();
-                let embedded_types = declaration
-                    .embedded_types
-                    .iter()
-                    .map(|ty| {
-                        self.bind_type_expression(
-                            module,
-                            ast,
-                            namespace_scope,
-                            global_scope,
-                            declared_modules,
-                            declaration_scope,
-                            *ty,
-                            Some(declaration_id),
-                            tree,
-                            symbols,
-                            types,
-                            SymbolSpace::Type,
-                        )
-                    })
-                    .collect();
                 let members = declaration
                     .members
                     .iter()
@@ -746,7 +726,6 @@ impl Compiler {
                     generic_parameters,
                     where_clauses,
                     implements_types,
-                    embedded_types,
                     members,
                 })
             }

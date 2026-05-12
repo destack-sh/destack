@@ -371,20 +371,6 @@ impl Compiler {
                     value_type,
                 }
             }
-            dir::TypeMember::Embed { value, .. } => {
-                let value = self.unbind_type_expression(
-                    module,
-                    *value,
-                    tree,
-                    symbols,
-                    types,
-                    ast_tree,
-                    ast_strings,
-                    context,
-                );
-
-                ast::TypeMember::Embed { value }
-            }
             dir::TypeMember::AssociatedType {
                 name,
                 generic_parameters,

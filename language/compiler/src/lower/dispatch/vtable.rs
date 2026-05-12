@@ -391,8 +391,7 @@ impl ModuleLowerer<'_> {
             dir::Member::AssociatedType { visibility, .. }
             | dir::Member::AssociatedConst { visibility, .. }
             | dir::Member::Field { visibility, .. }
-            | dir::Member::Method { visibility, .. }
-            | dir::Member::Embed { visibility, .. } => {
+            | dir::Member::Method { visibility, .. } => {
                 *visibility == Some(dir::Visibility::Private)
             }
 

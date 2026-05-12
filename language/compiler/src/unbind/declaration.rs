@@ -336,22 +336,6 @@ impl Compiler {
                         )
                     })
                     .collect();
-                let embedded_types = declaration
-                    .embedded_types
-                    .iter()
-                    .map(|ty| {
-                        self.unbind_type_expression(
-                            module,
-                            *ty,
-                            tree,
-                            symbols,
-                            types,
-                            ast_tree,
-                            ast_strings,
-                            context,
-                        )
-                    })
-                    .collect();
                 let members = declaration
                     .members
                     .iter()
@@ -376,7 +360,6 @@ impl Compiler {
                     generic_parameters,
                     where_clauses,
                     implements_types,
-                    embedded_types,
                     members,
                 })
             }
