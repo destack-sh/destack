@@ -1051,11 +1051,6 @@ Logical operators (`&&`, `||`, `??`), optional chaining, assignment, and strict 
 | `*` | `*a` | `ReadonlyDereference` |
 | `* =` | `*a = v` | `Dereference` |
 
-When overflow / wrapping policy is part of the algorithm, the expression should say so directly, so Destack provides Zig-style wrapping and saturating arithmetic for integer code:
- - `+%`, `-%`, and `*%` wrap modulo the integer's range.
- - `+|`, `-|`, and `*|` clamp to the integer's minimum or maximum value.
-(These forms are not overloadable.)
-
 Dereference operators are a little different from the main "value-shaped" operators.
 `ReadonlyDereference` and `Dereference` project one access form into another access form, preserving ownership, placement, access, and lifetimes.
 
