@@ -930,14 +930,14 @@ fn collect_type_uses(tree: &Tree) -> HashMap<LocalNodeId<Type>, u32> {
         }
 
         match terminator {
-            Terminator::Invoke { call, .. }
-            | Terminator::InvokeIndirect { call, .. }
-            | Terminator::InvokeClass {
+            Terminator::Call { call, .. }
+            | Terminator::CallIndirect { call, .. }
+            | Terminator::CallClass {
                 declaring_type: _,
                 call,
                 ..
             }
-            | Terminator::InvokeInterface {
+            | Terminator::CallInterface {
                 declaring_type: _,
                 call,
                 ..
@@ -960,8 +960,8 @@ fn collect_type_uses(tree: &Tree) -> HashMap<LocalNodeId<Type>, u32> {
         }
 
         match terminator {
-            Terminator::InvokeClass { declaring_type, .. }
-            | Terminator::InvokeInterface { declaring_type, .. }
+            Terminator::CallClass { declaring_type, .. }
+            | Terminator::CallInterface { declaring_type, .. }
             | Terminator::TailCallClass { declaring_type, .. }
             | Terminator::TailCallInterface { declaring_type, .. } => {
                 record_type_use(tree, *declaring_type, &mut counts);

@@ -84,17 +84,6 @@ impl<'a> FunctionBuilder<'a> {
         };
     }
 
-    /// Throw a managed exception object.
-    pub fn throw(&mut self, value: Value) {
-        let block = self.current_block();
-        let terminator_id = self.tree.get(block).terminator;
-        let terminator = self.tree.get_mut(terminator_id);
-
-        *terminator = Terminator::Throw {
-            value: value.into(),
-        };
-    }
-
     /// Abort execution immediately.
     pub fn trap_abort(&mut self) {
         let block = self.current_block();
@@ -119,25 +108,22 @@ impl<'a> FunctionBuilder<'a> {
         };
     }
 
-    /// Call a function with explicit success and exception continuations.
+    /// Call a function with an explicit continuation.
     pub fn call_branch(
         &mut self,
         function: LocalNodeId<Function>,
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
-        normal_block: LocalNodeId<Block>,
-        normal_arguments: Vec<Value>,
-        unwind_block: LocalNodeId<Block>,
-        unwind_arguments: Vec<Value>,
+        target_block: LocalNodeId<Block>,
+        target_arguments: Vec<Value>,
     ) {
         let block_id = self.current_block();
-        self.add_predecessor(block_id, normal_block);
-        self.add_predecessor(block_id, unwind_block);
+        self.add_predecessor(block_id, target_block);
 
         let terminator_id = self.tree.get(block_id).terminator;
         let terminator = self.tree.get_mut(terminator_id);
 
-        *terminator = Terminator::Invoke {
+        *terminator = Terminator::Call {
             function: function.into(),
             call: Call::new(
                 argument_values
@@ -146,36 +132,29 @@ impl<'a> FunctionBuilder<'a> {
                     .collect::<Vec<_>>(),
                 signature.into(),
             ),
-            normal_target: BlockTarget {
-                block: normal_block.into(),
-                arguments: normal_arguments.into_iter().map(Into::into).collect(),
-            },
-            unwind_target: BlockTarget {
-                block: unwind_block.into(),
-                arguments: unwind_arguments.into_iter().map(Into::into).collect(),
+            target: BlockTarget {
+                block: target_block.into(),
+                arguments: target_arguments.into_iter().map(Into::into).collect(),
             },
         };
     }
 
-    /// Call through a function pointer with explicit success and exception continuations.
+    /// Call through a function pointer with an explicit continuation.
     pub fn call_indirect_branch(
         &mut self,
         callee: Value,
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
-        normal_block: LocalNodeId<Block>,
-        normal_arguments: Vec<Value>,
-        unwind_block: LocalNodeId<Block>,
-        unwind_arguments: Vec<Value>,
+        target_block: LocalNodeId<Block>,
+        target_arguments: Vec<Value>,
     ) {
         let block_id = self.current_block();
-        self.add_predecessor(block_id, normal_block);
-        self.add_predecessor(block_id, unwind_block);
+        self.add_predecessor(block_id, target_block);
 
         let terminator_id = self.tree.get(block_id).terminator;
         let terminator = self.tree.get_mut(terminator_id);
 
-        *terminator = Terminator::InvokeIndirect {
+        *terminator = Terminator::CallIndirect {
             callee: callee.into(),
             call: Call::new(
                 argument_values
@@ -184,18 +163,14 @@ impl<'a> FunctionBuilder<'a> {
                     .collect::<Vec<_>>(),
                 signature.into(),
             ),
-            normal_target: BlockTarget {
-                block: normal_block.into(),
-                arguments: normal_arguments.into_iter().map(Into::into).collect(),
-            },
-            unwind_target: BlockTarget {
-                block: unwind_block.into(),
-                arguments: unwind_arguments.into_iter().map(Into::into).collect(),
+            target: BlockTarget {
+                block: target_block.into(),
+                arguments: target_arguments.into_iter().map(Into::into).collect(),
             },
         };
     }
 
-    /// Call a class method with explicit success and exception continuations.
+    /// Call a class method with an explicit continuation.
     pub fn call_class_branch(
         &mut self,
         receiver: Value,
@@ -204,19 +179,16 @@ impl<'a> FunctionBuilder<'a> {
         declared_target: Option<LocalNodeId<Function>>,
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
-        normal_block: LocalNodeId<Block>,
-        normal_arguments: Vec<Value>,
-        unwind_block: LocalNodeId<Block>,
-        unwind_arguments: Vec<Value>,
+        target_block: LocalNodeId<Block>,
+        target_arguments: Vec<Value>,
     ) {
         let block_id = self.current_block();
-        self.add_predecessor(block_id, normal_block);
-        self.add_predecessor(block_id, unwind_block);
+        self.add_predecessor(block_id, target_block);
 
         let terminator_id = self.tree.get(block_id).terminator;
         let terminator = self.tree.get_mut(terminator_id);
 
-        *terminator = Terminator::InvokeClass {
+        *terminator = Terminator::CallClass {
             receiver: receiver.into(),
             declaring_type: declaring_type.into(),
             slot,
@@ -228,18 +200,14 @@ impl<'a> FunctionBuilder<'a> {
                     .collect::<Vec<_>>(),
                 signature.into(),
             ),
-            normal_target: BlockTarget {
-                block: normal_block.into(),
-                arguments: normal_arguments.into_iter().map(Into::into).collect(),
-            },
-            unwind_target: BlockTarget {
-                block: unwind_block.into(),
-                arguments: unwind_arguments.into_iter().map(Into::into).collect(),
+            target: BlockTarget {
+                block: target_block.into(),
+                arguments: target_arguments.into_iter().map(Into::into).collect(),
             },
         };
     }
 
-    /// Call an interface method with explicit success and exception continuations.
+    /// Call an interface method with an explicit continuation.
     pub fn call_interface_branch(
         &mut self,
         receiver: Value,
@@ -247,19 +215,16 @@ impl<'a> FunctionBuilder<'a> {
         slot: DispatchSlot,
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
-        normal_block: LocalNodeId<Block>,
-        normal_arguments: Vec<Value>,
-        unwind_block: LocalNodeId<Block>,
-        unwind_arguments: Vec<Value>,
+        target_block: LocalNodeId<Block>,
+        target_arguments: Vec<Value>,
     ) {
         let block_id = self.current_block();
-        self.add_predecessor(block_id, normal_block);
-        self.add_predecessor(block_id, unwind_block);
+        self.add_predecessor(block_id, target_block);
 
         let terminator_id = self.tree.get(block_id).terminator;
         let terminator = self.tree.get_mut(terminator_id);
 
-        *terminator = Terminator::InvokeInterface {
+        *terminator = Terminator::CallInterface {
             receiver: receiver.into(),
             declaring_type: declaring_type.into(),
             slot,
@@ -270,13 +235,9 @@ impl<'a> FunctionBuilder<'a> {
                     .collect::<Vec<_>>(),
                 signature.into(),
             ),
-            normal_target: BlockTarget {
-                block: normal_block.into(),
-                arguments: normal_arguments.into_iter().map(Into::into).collect(),
-            },
-            unwind_target: BlockTarget {
-                block: unwind_block.into(),
-                arguments: unwind_arguments.into_iter().map(Into::into).collect(),
+            target: BlockTarget {
+                block: target_block.into(),
+                arguments: target_arguments.into_iter().map(Into::into).collect(),
             },
         };
     }

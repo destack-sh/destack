@@ -33,10 +33,6 @@ pub enum TokenType {
     Yield,
     /// `call`
     Call,
-    /// `invoke`
-    Invoke,
-    /// `throw`
-    Throw,
     /// `trap.abort`, `trap.panic`
     Trap,
     /// `unreachable`
@@ -45,24 +41,16 @@ pub enum TokenType {
     TailCall,
     /// `call.indirect`
     CallIndirect,
-    /// `invoke.indirect`
-    InvokeIndirect,
     /// `tailCall.indirect`
     TailCallIndirect,
     /// `call.class`
     CallClass,
-    /// `invoke.class`
-    InvokeClass,
     /// `tailCall.class`
     TailCallClass,
     /// `call.interface`
     CallInterface,
-    /// `invoke.interface`
-    InvokeInterface,
     /// `tailCall.interface`
     TailCallInterface,
-    /// `catch`
-    Catch,
 
     // type keywords
     /// `void`

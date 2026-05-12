@@ -179,44 +179,41 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             Ok(())
         }
 
-        Terminator::Invoke {
+        Terminator::Call {
             function,
             call,
-            normal_target,
-            unwind_target,
+            target,
         } => {
-            write!(f, [token("invoke"), space(), function])?;
+            write!(f, [token("call"), space(), function])?;
             format_value_list(&call.arguments, f)?;
             format_call_signature_suffix(call.signature, f)?;
-            format_call_continuations(normal_target, unwind_target, f)
+            format_call_continuation(target, f)
         }
 
-        Terminator::InvokeIndirect {
+        Terminator::CallIndirect {
             callee,
             call,
-            normal_target,
-            unwind_target,
+            target,
             ..
         } => {
-            write!(f, [token("invoke.indirect"), space(), callee])?;
+            write!(f, [token("call.indirect"), space(), callee])?;
             format_value_list(&call.arguments, f)?;
             format_call_signature_suffix(call.signature, f)?;
-            format_call_continuations(normal_target, unwind_target, f)
+            format_call_continuation(target, f)
         }
 
-        Terminator::InvokeClass {
+        Terminator::CallClass {
             receiver,
             call,
             declaring_type,
             slot,
-            normal_target,
-            unwind_target,
+            target,
             ..
         } => {
             write!(
                 f,
                 [
-                    token("invoke.class"),
+                    token("call.class"),
                     space(),
                     receiver,
                     token(","),
@@ -229,22 +226,21 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             )?;
             format_value_list(&call.arguments, f)?;
             format_call_signature_suffix(call.signature, f)?;
-            format_call_continuations(normal_target, unwind_target, f)
+            format_call_continuation(target, f)
         }
 
-        Terminator::InvokeInterface {
+        Terminator::CallInterface {
             receiver,
             call,
             declaring_type,
             slot,
-            normal_target,
-            unwind_target,
+            target,
             ..
         } => {
             write!(
                 f,
                 [
-                    token("invoke.interface"),
+                    token("call.interface"),
                     space(),
                     receiver,
                     token(","),
@@ -257,11 +253,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             )?;
             format_value_list(&call.arguments, f)?;
             format_call_signature_suffix(call.signature, f)?;
-            format_call_continuations(normal_target, unwind_target, f)
-        }
-
-        Terminator::Throw { value } => {
-            write!(f, [token("throw"), space(), value])
+            format_call_continuation(target, f)
         }
 
         Terminator::Trap { kind, payload } => {
@@ -343,15 +335,12 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
     }
 }
 
-fn format_call_continuations<'a>(
-    normal_target: &BlockTarget,
-    unwind_target: &BlockTarget,
+fn format_call_continuation<'a>(
+    target: &BlockTarget,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [space(), token("->"), space()])?;
-    format_block_target(normal_target, f)?;
-    write!(f, [token(","), space(), token("catch"), space()])?;
-    format_block_target(unwind_target, f)?;
+    format_block_target(target, f)?;
 
     Ok(())
 }

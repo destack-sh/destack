@@ -56,7 +56,7 @@ Values are literally just numbered "slots" in the function's "value table" (`Fun
 ### Terminators
 
 Every block ends with one terminator; this is what makes it a "basic" block.
-The terminators themselves are also quite straightforward: essentially, control flow can either return out of the function, jump to another block, suspend, or abruptly exit by throwing:
+The terminators themselves are also quite straightforward: control flow can return out of the function, jump to another block, suspend, call with an explicit continuation, or trap:
 
 | Terminator | Description | Example |
 |------------|-------------|---------|
@@ -65,16 +65,15 @@ The terminators themselves are also quite straightforward: essentially, control 
 | `branch` | Conditionally jumps to one of two blocks based on a boolean value. | `branch v0, b1(v1), b2(v2)` |
 | `check` | Conditionally jumps to a success or failure block based on a semantic constraint (`bounds`, `null`, `zeroDivisor`, etc.); easier to optimize than `branch` because the guard kind is explicit. | `check bounds.u v0, v1, v2 -> b1, b2` |
 | `switch` | Jumps to one of many blocks based on an integer value. | `switch v0, b3, 0 => b1, 1 => b2` |
-| `invoke` | Calls a static function that may unwind; branches to explicit success and exception successors. | `invoke foo(v0): (int32) -> int32 -> okBlock, catch errBlock` |
-| `invoke.indirect` | Calls a function value that may unwind; branches to explicit success and exception successors. | `invoke.indirect v1(v0): (int32) -> int32 -> okBlock, catch errBlock` |
-| `invoke.class` | Dispatches a class method that may unwind; branches to explicit success and exception successors. | `invoke.class receiver, TypeName, 3(v0): (ref<TypeName, managed, readonly>) -> int32 -> okBlock, catch errBlock` |
-| `invoke.interface` | Dispatches through an interface table and branches to explicit success and exception successors. | `invoke.interface receiver, InterfaceName, 3(v0): (any<InterfaceName>) -> int32 -> okBlock, catch errBlock` |
+| `call` | Calls a static function and branches to an explicit continuation. | `call foo(v0): (int32) -> int32 -> okBlock` |
+| `call.indirect` | Calls a function value and branches to an explicit continuation. | `call.indirect v1(v0): (int32) -> int32 -> okBlock` |
+| `call.class` | Dispatches a class method and branches to an explicit continuation. | `call.class receiver, TypeName, 3(v0): (ref<TypeName, managed, readonly>) -> int32 -> okBlock` |
+| `call.interface` | Dispatches through an interface table and branches to an explicit continuation. | `call.interface receiver, InterfaceName, 3(v0): (any<InterfaceName>) -> int32 -> okBlock` |
 | `tailCall` | Calls a static function and reuses the current frame, never returning to the caller. | `tailCall foo(v0): (int32) -> void` |
 | `tailCall.indirect` | Tail-calls through a function value, reusing the current frame. | `tailCall.indirect v1(v0): (int32) -> void` |
 | `tailCall.class` | Tail-calls a class method, reusing the current frame. | `tailCall.class receiver, TypeName, 3(v0): (ref<TypeName, managed, readonly>) -> void` |
 | `tailCall.interface` | Tail-calls through an interface table, reusing the current frame. | `tailCall.interface receiver, InterfaceName, 3(v0): (any<InterfaceName>) -> void` |
 | `yield` | Suspends the coroutine, returning a value and remembering where to resume in a "resume block". | `yield v0, resume(v1)` |
-| `throw` | Exits abruptly through the exception path, carrying a managed exception object. | `throw v0` |
 | `trap` | Terminates the program unrecoverably; trap kind is `trap.abort` or `trap.panic`. `trap.panic` carries a non-null readonly managed string payload. | `trap.panic v0` |
 | `unreachable` | Asserts that this point is never reached; traps with a panic if it is. | `unreachable` |
 
@@ -112,12 +111,11 @@ Blocks end with a terminator that transfers control:
 | `branch` | Conditional branch (if-then-else) |
 | `switch` | Multi-way branch on integer |
 | `yield` | Suspend coroutine (generators, async) |
-| `invoke*` terminators | Potentially-unwinding call with explicit success and exception successors |
+| `call*` terminators | Call with an explicit continuation |
 | `tailCall*` terminators | Non-returning call that reuses the current frame |
-| `throw` | Abrupt exceptional exit with a managed exception object |
 | `trap` | Unrecoverable runtime termination (`abort`, `panic`) |
 | `check` | Checked branch with semantic constraint |
-| `unreachable` | UB if reached (traps/panics somehow) |
+| `unreachable` | Invalid control-flow point that traps if reached |
 
 `check` carries a semantic constraint (`bounds`, `null`, `zeroDivisor`, `shiftRange`, `overflow`, `dynamicType`, `receiverType`, `interfaceConformance`, etc.) and splits control flow into success and failure paths.
 Canonical MIR spells checks guard-first: `check int.add.overflow.s left, right -> ok, fail`.

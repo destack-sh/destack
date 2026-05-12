@@ -180,9 +180,9 @@ impl EffectClass {
 /// Unwind behavior for a call or function.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum UnwindBehavior {
-    /// The operation cannot unwind or throw.
+    /// The operation cannot unwind.
     CannotUnwind,
-    /// The operation may unwind or throw.
+    /// The operation may unwind.
     MayUnwind,
 }
 
@@ -283,7 +283,7 @@ impl AllocationEffect {
 pub struct CallBehavior {
     /// Effect class for this operation.
     pub effect_class: EffectClass,
-    /// Whether this operation may unwind or throw.
+    /// Whether this operation may unwind.
     pub unwind: UnwindBehavior,
     /// Whether this operation may suspend execution.
     pub suspend: SuspendBehavior,

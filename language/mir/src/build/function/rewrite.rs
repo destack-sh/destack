@@ -376,49 +376,39 @@ impl<'a> FunctionBuilder<'a> {
                 Self::replace_value_in_slot(value, from, to);
                 Self::replace_values_in_slice(&mut resume.arguments, from, to);
             }
-            Terminator::Invoke {
-                call,
-                normal_target,
-                unwind_target,
-                ..
-            } => {
+            Terminator::Call { call, target, .. } => {
                 Self::replace_values_in_slice(&mut call.arguments, from, to);
-                Self::replace_values_in_slice(&mut normal_target.arguments, from, to);
-                Self::replace_values_in_slice(&mut unwind_target.arguments, from, to);
+                Self::replace_values_in_slice(&mut target.arguments, from, to);
             }
-            Terminator::InvokeIndirect {
+            Terminator::CallIndirect {
                 callee,
                 call,
-                normal_target,
-                unwind_target,
+                target,
                 ..
             } => {
                 Self::replace_value_in_slot(callee, from, to);
                 Self::replace_values_in_slice(&mut call.arguments, from, to);
-                Self::replace_values_in_slice(&mut normal_target.arguments, from, to);
-                Self::replace_values_in_slice(&mut unwind_target.arguments, from, to);
+                Self::replace_values_in_slice(&mut target.arguments, from, to);
             }
-            Terminator::InvokeClass {
+            Terminator::CallClass {
                 receiver,
                 call,
-                normal_target,
-                unwind_target,
-                ..
-            }
-            | Terminator::InvokeInterface {
-                receiver,
-                call,
-                normal_target,
-                unwind_target,
+                target,
                 ..
             } => {
                 Self::replace_value_in_slot(receiver, from, to);
                 Self::replace_values_in_slice(&mut call.arguments, from, to);
-                Self::replace_values_in_slice(&mut normal_target.arguments, from, to);
-                Self::replace_values_in_slice(&mut unwind_target.arguments, from, to);
+                Self::replace_values_in_slice(&mut target.arguments, from, to);
             }
-            Terminator::Throw { value } => {
-                Self::replace_value_in_slot(value, from, to);
+            Terminator::CallInterface {
+                receiver,
+                call,
+                target,
+                ..
+            } => {
+                Self::replace_value_in_slot(receiver, from, to);
+                Self::replace_values_in_slice(&mut call.arguments, from, to);
+                Self::replace_values_in_slice(&mut target.arguments, from, to);
             }
             Terminator::Trap { payload, .. } => {
                 if let Some(payload) = payload {

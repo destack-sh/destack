@@ -69,10 +69,8 @@ pub struct BlockProfile {
 pub enum EdgeKind {
     /// Unconditional jump.
     Jump,
-    /// Normal continuation of an exceptional call terminator.
-    CallNormal,
-    /// Exceptional continuation of an exceptional call terminator.
-    CallUnwind,
+    /// Continuation of a call terminator.
+    Call,
     /// Branch to the then target.
     BranchThen,
     /// Branch to the else target.

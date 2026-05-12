@@ -1,6 +1,4 @@
-use destack_source::Span;
-
-use destack_source::{NodeSpanRegion, NodeSpanType};
+use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
     AllocationMode, Attribute, AttributeArgs, AttributeValue, Block, BlockTarget, Call,
@@ -12,7 +10,7 @@ use crate::{
 
 use super::error::{ParseError, ParseResult};
 use super::parser::Parser;
-use super::token::TokenType;
+use super::token::{Token, TokenType};
 
 impl Parser {
     /// Resolve attributes into function metadata.
@@ -456,7 +454,6 @@ impl Parser {
                 || self.peek_token(TokenType::Check)
                 || self.peek_token(TokenType::Switch)
                 || self.peek_token(TokenType::Yield)
-                || self.peek_token(TokenType::Throw)
                 || self.peek_token(TokenType::Trap)
                 || self.peek_token(TokenType::Unreachable)
                 || self.peek_token(TokenType::TailCall)
@@ -464,10 +461,10 @@ impl Parser {
                 || self.peek_token(TokenType::TailCallClass)
                 || self.peek_token(TokenType::TailCallInterface)
                 || (self.is_call_terminator_line()
-                    && (self.peek_token(TokenType::Invoke)
-                        || self.peek_token(TokenType::InvokeIndirect)
-                        || self.peek_token(TokenType::InvokeClass)
-                        || self.peek_token(TokenType::InvokeInterface)))
+                    && (self.peek_token(TokenType::Call)
+                        || self.peek_token(TokenType::CallIndirect)
+                        || self.peek_token(TokenType::CallClass)
+                        || self.peek_token(TokenType::CallInterface)))
             {
                 let recovery_pos = self.pos();
                 let main_token = self.peek().cloned();
@@ -740,21 +737,26 @@ impl Parser {
         }
     }
 
-    /// Return whether the current line contains call continuations.
+    /// Return whether the current line contains a call terminator continuation.
     fn is_call_terminator_line(&self) -> bool {
         let mut token_index = self.pos;
         let tokens = self.tree.tokens();
-        let mut saw_arrow = false;
 
         while let Some(token) = tokens.get(token_index) {
             if token.ty == TokenType::Newline || token.ty == TokenType::End {
                 break;
             }
 
-            if !token.ty.is_trivia() {
-                if token.ty == TokenType::Arrow {
-                    saw_arrow = true;
-                } else if saw_arrow && token.ty == TokenType::Catch {
+            if token.ty == TokenType::Arrow {
+                let next_token = tokens
+                    .iter()
+                    .skip(token_index + 1)
+                    .take_while(|next_token| {
+                        next_token.ty != TokenType::Newline && next_token.ty != TokenType::End
+                    })
+                    .find(|next_token| !next_token.ty.is_trivia());
+
+                if next_token.is_some_and(|next_token| self.is_block_reference_token(next_token)) {
                     return true;
                 }
             }
@@ -763,6 +765,18 @@ impl Parser {
         }
 
         false
+    }
+
+    /// Return whether a token can start a block reference in this function.
+    fn is_block_reference_token(&self, token: &Token) -> bool {
+        match token.ty {
+            TokenType::BlockRefence => true,
+            TokenType::Identifier => {
+                let name = self.tree.source_text(token.span);
+                self.block_name_map.contains_key(name)
+            }
+            _ => false,
+        }
     }
 
     /// Parse a block terminator.
@@ -781,15 +795,14 @@ impl Parser {
                 };
                 Ok(Terminator::Return { value })
             }
-            TokenType::Invoke => {
+            TokenType::Call => {
                 self.bump();
                 let (function, arguments, signature) = self.parse_direct_call_target()?;
-                let (normal_target, unwind_target) = self.parse_call_continuations()?;
-                Ok(Terminator::Invoke {
+                let target = self.parse_call_continuation()?;
+                Ok(Terminator::Call {
                     function,
                     call: Call::new(arguments, signature),
-                    normal_target,
-                    unwind_target,
+                    target,
                 })
             }
             TokenType::Jump => {
@@ -880,11 +893,6 @@ impl Parser {
 
                 Ok(Terminator::Yield { value, resume })
             }
-            TokenType::Throw => {
-                self.bump();
-                let value = self.parse_value()?;
-                Ok(Terminator::Throw { value })
-            }
             TokenType::Trap => {
                 let trap_kind = self
                     .peek()
@@ -934,15 +942,14 @@ impl Parser {
                     call: Call::new(arguments, signature),
                 })
             }
-            TokenType::InvokeIndirect => {
+            TokenType::CallIndirect => {
                 self.bump();
                 let (callee, arguments, signature) = self.parse_indirect_call_target()?;
-                let (normal_target, unwind_target) = self.parse_call_continuations()?;
-                Ok(Terminator::InvokeIndirect {
+                let target = self.parse_call_continuation()?;
+                Ok(Terminator::CallIndirect {
                     callee,
                     call: Call::new(arguments, signature),
-                    normal_target,
-                    unwind_target,
+                    target,
                 })
             }
             TokenType::TailCallClass => {
@@ -957,19 +964,18 @@ impl Parser {
                     call: Call::new(arguments, signature),
                 })
             }
-            TokenType::InvokeClass => {
+            TokenType::CallClass => {
                 self.bump();
                 let (receiver, declaring_type, slot, arguments, signature) =
                     self.parse_class_call_target()?;
-                let (normal_target, unwind_target) = self.parse_call_continuations()?;
-                Ok(Terminator::InvokeClass {
+                let target = self.parse_call_continuation()?;
+                Ok(Terminator::CallClass {
                     receiver,
                     declaring_type,
                     slot,
                     declared_target: None,
                     call: Call::new(arguments, signature),
-                    normal_target,
-                    unwind_target,
+                    target,
                 })
             }
             TokenType::TailCallInterface => {
@@ -983,18 +989,17 @@ impl Parser {
                     call: Call::new(arguments, signature),
                 })
             }
-            TokenType::InvokeInterface => {
+            TokenType::CallInterface => {
                 self.bump();
                 let (receiver, declaring_type, slot, arguments, signature) =
                     self.parse_interface_call_target()?;
-                let (normal_target, unwind_target) = self.parse_call_continuations()?;
-                Ok(Terminator::InvokeInterface {
+                let target = self.parse_call_continuation()?;
+                Ok(Terminator::CallInterface {
                     receiver,
                     declaring_type,
                     slot,
                     call: Call::new(arguments, signature),
-                    normal_target,
-                    unwind_target,
+                    target,
                 })
             }
             _ => Err(ParseError::unexpected("terminator", token.ty, token.start)),
@@ -1253,22 +1258,15 @@ impl Parser {
         }
     }
 
-    /// Parse success and exception continuations for an invoke terminator.
-    fn parse_call_continuations(&mut self) -> ParseResult<(BlockTarget, BlockTarget)> {
+    /// Parse the continuation for a call terminator.
+    fn parse_call_continuation(&mut self) -> ParseResult<BlockTarget> {
         self.eat_token(TokenType::Arrow)?;
-        let normal_target = BlockTarget {
+        let target = BlockTarget {
             block: self.parse_block_ref()?,
             arguments: self.parse_optional_block_arguments()?,
         };
 
-        self.eat_token(TokenType::Comma)?;
-        self.eat_token(TokenType::Catch)?;
-        let unwind_target = BlockTarget {
-            block: self.parse_block_ref()?,
-            arguments: self.parse_optional_block_arguments()?,
-        };
-
-        Ok((normal_target, unwind_target))
+        Ok(target)
     }
 
     /// Collect and predeclare blocks before parsing the function body.
