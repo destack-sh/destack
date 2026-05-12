@@ -39,8 +39,6 @@ pub enum TypeMember {
         is_optional: bool,
         is_readonly: bool,
     },
-    /// Type embedding.
-    Embed { value: LocalNodeId<TypeExpression> },
     /// Associated type requirement or definition.
     AssociatedType {
         name: StringId,

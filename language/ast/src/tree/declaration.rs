@@ -84,8 +84,6 @@ pub struct StructDeclaration {
     pub where_clauses: Vec<LocalNodeId<WhereClause>>,
     /// The implemented interfaces.
     pub implements_types: Vec<LocalNodeId<TypeExpression>>,
-    /// The embedded types.
-    pub embedded_types: Vec<LocalNodeId<TypeExpression>>,
     /// The struct members.
     pub members: Vec<LocalNodeId<Member>>,
     /// Whether the declaration is ambient.
