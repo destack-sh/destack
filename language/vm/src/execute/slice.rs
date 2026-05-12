@@ -28,8 +28,8 @@ pub(crate) fn store_slice_at(
     // write the two descriptor fields through their lowered layouts
     let length = Word::uint(length as u64, usize::BITS as u8);
     let pointer = machine.frame_pointer_at(dest);
-    access::store_frame_scalar_by_layout(machine, pointer, access.data, data);
-    access::store_frame_scalar_by_layout(machine, pointer, access.length, length);
+    access::store_frame_slot_by_layout(machine, pointer, access.data, data);
+    access::store_frame_slot_by_layout(machine, pointer, access.length, length);
 
     Ok(())
 }
@@ -39,7 +39,7 @@ pub(crate) fn store_slice_at(
 fn load_slice_data(machine: &mut Machine<'_, '_>, slice: Word, access: SliceProjection) -> Word {
     let slice = slice.as_frame_pointer();
 
-    access::load_frame_scalar_by_layout(machine, slice, access.data)
+    access::load_frame_slot_by_layout(machine, slice, access.data)
 }
 
 /// Store a computed slice element address.

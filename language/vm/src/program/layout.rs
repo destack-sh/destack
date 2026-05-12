@@ -3,12 +3,10 @@ use std::collections::HashMap;
 use destack_mir::{LayoutId, LayoutTable, ReferenceMap};
 use {destack_engine as engine, destack_heap as heap, destack_mir as mir};
 
+use crate::program::{pointer_class_from_reference, word_layout_from_pointer_class};
 use crate::{Error, Result, Word};
 
-const SLICE_DATA_FIELD: u32 = 0;
-const SLICE_LENGTH_FIELD: u32 = 1;
-const BYTE_BITS: usize = 8;
-const WORD_BITS: usize = Word::BYTE_LEN * BYTE_BITS;
+const WORD_BITS: usize = Word::BYTE_LEN * 8;
 
 /// One compiled layout for one MIR type.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -40,6 +38,8 @@ pub(crate) enum LayoutShape {
     Scalar,
     /// One field-addressable payload with a fixed field list.
     Fields(Vec<FieldLayout>),
+    /// One slice descriptor with data and length slots.
+    Slice,
     /// One element-addressable array with a fixed element stride.
     Array {
         /// The element layout.
@@ -83,15 +83,6 @@ pub(crate) struct ElementLayout {
     pub stride: usize,
     /// The byte width of one element payload.
     pub byte_len: usize,
-}
-
-/// One compiled slice layout.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct SliceLayout {
-    /// The data pointer field.
-    pub data: FieldLayout,
-    /// The length field.
-    pub length: FieldLayout,
 }
 
 /// The heap object layout for one callable value.
@@ -141,12 +132,9 @@ impl Layout {
         Some(fields.len())
     }
 
-    /// Return the slice fields.
-    pub(crate) fn slice(&self) -> Option<SliceLayout> {
-        Some(SliceLayout {
-            data: self.field(SLICE_DATA_FIELD)?,
-            length: self.field(SLICE_LENGTH_FIELD)?,
-        })
+    /// Report whether this layout is a slice descriptor.
+    pub(crate) fn is_slice(&self) -> bool {
+        matches!(self.shape, LayoutShape::Slice)
     }
 
     /// Return the element layout.
@@ -155,7 +143,7 @@ impl Layout {
             LayoutShape::Array { element, .. }
             | LayoutShape::Vector { element, .. }
             | LayoutShape::Tensor { element, .. } => Some(*element),
-            LayoutShape::Scalar | LayoutShape::Fields(_) => None,
+            LayoutShape::Scalar | LayoutShape::Fields(_) | LayoutShape::Slice => None,
         }
     }
 
@@ -165,7 +153,7 @@ impl Layout {
             LayoutShape::Array { length, .. } => Some(*length),
             LayoutShape::Vector { element_count, .. } => Some(*element_count),
             LayoutShape::Tensor { element_count, .. } => Some(*element_count),
-            LayoutShape::Scalar | LayoutShape::Fields(_) => None,
+            LayoutShape::Scalar | LayoutShape::Fields(_) | LayoutShape::Slice => None,
         }
     }
 
@@ -421,23 +409,11 @@ fn build_layout(
         )?,
         mir::Type::Slice {
             kind,
-            element,
+            element: _,
             address_space,
-            access,
+            access: _,
             ..
-        } => {
-            let (data, _length) =
-                mir::slice_header_types(*kind, *element, *access, address_space.clone());
-            let data = tree
-                .iter_nodes::<mir::Type>()
-                .find_map(|(type_id, ty)| (ty == &data).then_some(type_id))
-                .ok_or_else(|| Error::MissingRepresentation {
-                    context: "slice data type".to_string(),
-                })?;
-            let length = tree.usize_type();
-
-            build_record_layout(tree, layouts, ty, [data, length])?
-        }
+        } => build_slice_layout(tree, *kind, address_space.clone())?,
         mir::Type::Callable { .. } => {
             scalar_layout(tree.pointer_bytes() as usize, tree.pointer_bytes() as usize)
         }
@@ -582,7 +558,7 @@ fn scalar_byte_len(bit_width: usize) -> usize {
         return Word::BYTE_LEN;
     }
 
-    bit_width.div_ceil(BYTE_BITS)
+    bit_width.div_ceil(8)
 }
 
 /// Build one record layout from one ordered field type list.
@@ -667,6 +643,30 @@ fn build_array_layout(
         alignment,
         |element| LayoutShape::Array { element, length },
     ))
+}
+
+/// Build one slice descriptor layout.
+fn build_slice_layout(
+    tree: &mir::Tree,
+    kind: mir::ReferenceKind,
+    address_space: mir::AddressSpace,
+) -> Result<Layout> {
+    let pointer_class = pointer_class_from_reference(address_space, kind);
+    let data_layout =
+        word_layout_from_pointer_class(pointer_class).ok_or_else(|| Error::InvalidPointerType {
+            actual: format!("{pointer_class:?}"),
+        })?;
+    let pointer_bytes = tree.pointer_bytes() as usize;
+    let data_byte_len = data_layout.byte_len(pointer_bytes);
+    let length_offset = align_offset(data_byte_len, pointer_bytes);
+    let byte_len = length_offset + pointer_bytes;
+
+    Ok(Layout {
+        byte_len,
+        shape: LayoutShape::Slice,
+        reference_map: ReferenceMap::empty(),
+        alignment: pointer_bytes,
+    })
 }
 
 /// Build one vector layout.
@@ -869,11 +869,6 @@ fn heap_reference_space(
 
     match tree.get(ty) {
         mir::Type::Reference {
-            kind,
-            address_space,
-            ..
-        } if is_heap_reference_kind(*kind) => Some(address_space.clone()),
-        mir::Type::Slice {
             kind,
             address_space,
             ..
@@ -1149,6 +1144,28 @@ fn append_reference_offsets(
             }
         }
 
+        // slice descriptors trace the backing storage pointer
+        LayoutShape::Slice => {
+            let mir::Type::Slice {
+                kind,
+                address_space,
+                ..
+            } = tree.get(repr_type(tree, ty))
+            else {
+                return Err(Error::InvariantViolation {
+                    context: "slice layout requested for non-slice type".to_string(),
+                });
+            };
+
+            if is_heap_reference_kind(*kind) {
+                match address_space {
+                    mir::AddressSpace::Local => local_offsets.push(base_offset),
+                    mir::AddressSpace::Shared => shared_offsets.push(base_offset),
+                    _ => {}
+                }
+            }
+        }
+
         // repeated layouts recurse once per logical element
         LayoutShape::Array { element, length }
         | LayoutShape::Vector {
@@ -1371,10 +1388,31 @@ type Packed {
 
     /// Heap-space borrowed references are traced as interior roots.
     #[test]
-    fn test_build_layout_traces_managed_lifetime_borrowed_reference() {
+    fn test_build_layout_traces_heap_borrowed_reference() {
         let mir_text = r#"
 type View {
-    name: ref<int32, borrowed, lifetime(managed), readonly>;
+    name: ref<int32, borrowed, lifetime(static), readonly>;
+}"#;
+        let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
+        let ty = lookup_type_alias(&tree, &strings, "View");
+        let layouts = build_layouts(&tree).expect("failed to build layouts");
+        let layout = layouts.get(&ty).expect("missing layout");
+
+        assert_eq!(
+            layout.reference_map,
+            ReferenceMap::Direct {
+                local_offsets: vec![0].into_boxed_slice(),
+                shared_offsets: Vec::new().into_boxed_slice(),
+            }
+        );
+    }
+
+    /// Heap-backed slice descriptors trace their backing storage pointer.
+    #[test]
+    fn test_build_layout_traces_heap_slice_descriptor() {
+        let mir_text = r#"
+type View {
+    items: slice<int32>;
 }"#;
         let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
         let ty = lookup_type_alias(&tree, &strings, "View");
@@ -1481,7 +1519,14 @@ type Shape = union<Tag; 0: Ref, 1: Plain>"#;
                 },
             ],
         });
-        tree.metadata.layout.set_layout_id(union_type, layout_id);
+        let union_types = tree
+            .iter_nodes::<Type>()
+            .filter_map(|(type_id, ty)| matches!(ty, Type::Union { .. }).then_some(type_id))
+            .collect::<Vec<_>>();
+
+        for union_type in union_types {
+            tree.metadata.layout.set_layout_id(union_type, layout_id);
+        }
 
         let layouts = build_layouts(&tree).expect("failed to build layouts");
         let layout = layouts.get(&union_type).expect("missing layout");

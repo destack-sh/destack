@@ -2,7 +2,7 @@ use std::ptr;
 
 use crate::diagnostic::Error;
 use crate::interpreter::Machine;
-use crate::program::{Projection, WordLayout};
+use crate::program::{Projection, SlotProjection, WordLayout};
 use crate::{
     FramePointer, HeapReference, RawPointer, SharedHeapReference, SharedRawPointer, StackPointer,
     StaticPointer, Word,
@@ -22,6 +22,12 @@ fn debug_assert_word_access(access: Projection) {
 fn scalar_layout(access: Projection) -> WordLayout {
     debug_assert!(access.word_layout.is_some());
     unsafe { access.word_layout.unwrap_unchecked() }
+}
+
+/// Return one lowered slot layout.
+#[inline(always)]
+fn slot_layout(access: SlotProjection) -> WordLayout {
+    access.word_layout
 }
 
 /// Return one local heap native address.
@@ -588,6 +594,20 @@ pub(crate) fn load_frame_scalar_by_layout(
     load_scalar_by_layout_at_address(pointer.address(), scalar_layout(access))
 }
 
+/// Load one physical slot from a frame pointer.
+#[inline(always)]
+pub(crate) fn load_frame_slot_by_layout(
+    _machine: &mut Machine<'_, '_>,
+    pointer: FramePointer,
+    access: SlotProjection,
+) -> Word {
+    let pointer = pointer.add_bytes(access.byte_offset);
+
+    debug_assert!(access.byte_len <= Word::BYTE_LEN);
+
+    load_scalar_by_layout_at_address(pointer.address(), slot_layout(access))
+}
+
 /// Load one scalar from a static pointer.
 #[inline(always)]
 pub(crate) fn load_static_scalar_by_layout(
@@ -717,6 +737,21 @@ pub(crate) fn store_frame_scalar_by_layout(
     let pointer = pointer.add_bytes(access.byte_offset);
 
     store_scalar_by_layout_at_address(pointer.address(), scalar_layout(access), value);
+}
+
+/// Store one physical slot through a frame pointer.
+#[inline(always)]
+pub(crate) fn store_frame_slot_by_layout(
+    _machine: &mut Machine<'_, '_>,
+    pointer: FramePointer,
+    access: SlotProjection,
+    value: Word,
+) {
+    let pointer = pointer.add_bytes(access.byte_offset);
+
+    debug_assert!(access.byte_len <= Word::BYTE_LEN);
+
+    store_scalar_by_layout_at_address(pointer.address(), slot_layout(access), value);
 }
 
 /// Store bytes into a frame pointer.
