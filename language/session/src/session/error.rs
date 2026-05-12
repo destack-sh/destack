@@ -4,6 +4,8 @@ use destack_artifact::{ArtifactFailure, ArtifactKey, DiagnosticError};
 use destack_source::{FileId, ModuleId, PackageId};
 use destack_workspace::RepositoryError;
 
+use crate::SourceError;
+
 /// Errors produced by live session operations.
 #[derive(Debug)]
 pub enum SessionError {
@@ -43,6 +45,8 @@ pub enum SessionError {
     },
     /// Repository work failed inside the session.
     Repository(RepositoryError),
+    /// External source work failed inside the session.
+    Source(SourceError),
     /// Internal session failure.
     Internal {
         /// The failure detail.
@@ -81,6 +85,9 @@ impl std::fmt::Display for SessionError {
             SessionError::Repository(error) => {
                 write!(formatter, "session repository error: {error}")
             }
+            SessionError::Source(error) => {
+                write!(formatter, "session source error: {error}")
+            }
             SessionError::Internal { detail } => {
                 write!(formatter, "session internal error: {detail}")
             }
@@ -92,6 +99,7 @@ impl std::error::Error for SessionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             SessionError::Repository(error) => Some(error),
+            SessionError::Source(error) => Some(error),
             _ => None,
         }
     }
@@ -100,6 +108,12 @@ impl std::error::Error for SessionError {
 impl From<RepositoryError> for SessionError {
     fn from(error: RepositoryError) -> Self {
         SessionError::Repository(error)
+    }
+}
+
+impl From<SourceError> for SessionError {
+    fn from(error: SourceError) -> Self {
+        SessionError::Source(error)
     }
 }
 

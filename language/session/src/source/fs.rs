@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use destack_source::{FileContent, FileMetadata, IgnoreSet};
-use destack_workspace::{Repository, RepositoryError};
+use destack_source::{FileContent, FileMetadata, FileType, IgnoreSet};
+use destack_workspace::Repository;
 
-use super::RepositorySource;
+use super::{Source, SourceError};
 
 /// Filesystem-backed repository source.
 pub(crate) struct FileSystemSource<'a> {
@@ -21,14 +21,14 @@ pub(crate) struct FileSystemSource<'a> {
     /// The directory names excluded from recursive scans.
     excluded_directory_names: &'a [&'a str],
     /// The repository path predicate for full source syncs.
-    tracked_path: fn(&Path) -> bool,
+    include_path: fn(&Path) -> bool,
 }
 
 /// One filesystem file visible to a repository source scan.
 pub(crate) struct FileSystemFile {
     /// The physical filesystem path.
     path: PathBuf,
-    /// The repository path.
+    /// The logical repository path.
     repository_path: PathBuf,
 }
 
@@ -42,7 +42,7 @@ impl<'a> FileSystemSource<'a> {
             visited_directories: HashSet::new(),
             ignore_set: IgnoreSet::new(),
             excluded_directory_names: &[],
-            tracked_path: |_| true,
+            include_path: |_| true,
         }
     }
 
@@ -57,30 +57,32 @@ impl<'a> FileSystemSource<'a> {
     }
 
     /// Set the repository path predicate for full source syncs.
-    pub(crate) fn with_tracked_path(mut self, tracked_path: fn(&Path) -> bool) -> Self {
-        self.tracked_path = tracked_path;
+    pub(crate) fn with_include_path(mut self, include_path: fn(&Path) -> bool) -> Self {
+        self.include_path = include_path;
 
         self
     }
 
     /// Return one file descriptor when the path is visible as a file.
-    fn file(&mut self, path: &Path) -> Result<Option<FileSystemFile>, RepositoryError> {
+    fn file(&mut self, logical_path: &Path) -> Result<Option<FileSystemFile>, SourceError> {
+        let path = self.physical_path(logical_path);
+
         // source visibility
-        self.load_ignore_rules_for_path(path);
-        if !self.tracks(path) {
+        self.load_ignore_rules_for_path(&path);
+        if !self.owns(logical_path)? {
             return Ok(None);
         }
 
         // filesystem presence
-        let metadata = match self.repository.file_system().metadata(path) {
+        let metadata = match self.repository.file_system().metadata(&path) {
             Ok(metadata) => metadata,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
                 return Ok(None);
             }
             Err(error) => {
-                return Err(RepositoryError::FileSystem {
+                return Err(SourceError::ReadFailed {
                     operation: "metadata",
-                    path: path.to_path_buf(),
+                    path,
                     message: error.to_string(),
                 });
             }
@@ -92,17 +94,17 @@ impl<'a> FileSystemSource<'a> {
         }
 
         Ok(Some(FileSystemFile {
-            path: path.to_path_buf(),
-            repository_path: PathBuf::from(self.repository.logical_path(path)),
+            path,
+            repository_path: logical_path.to_path_buf(),
         }))
     }
 
     /// Read child paths for one directory.
-    fn read_directory(&self, directory: &Path) -> Result<Vec<PathBuf>, RepositoryError> {
+    fn read_directory(&self, directory: &Path) -> Result<Vec<PathBuf>, SourceError> {
         self.repository
             .file_system()
             .read_dir(directory)
-            .map_err(|error| RepositoryError::FileSystem {
+            .map_err(|error| SourceError::ReadFailed {
                 operation: "read_dir",
                 path: directory.to_path_buf(),
                 message: error.to_string(),
@@ -110,11 +112,11 @@ impl<'a> FileSystemSource<'a> {
     }
 
     /// Read metadata for one path.
-    fn path_metadata(&self, path: &Path) -> Result<FileMetadata, RepositoryError> {
+    fn path_metadata(&self, path: &Path) -> Result<FileMetadata, SourceError> {
         self.repository
             .file_system()
             .metadata(path)
-            .map_err(|error| RepositoryError::FileSystem {
+            .map_err(|error| SourceError::ReadFailed {
                 operation: "metadata",
                 path: path.to_path_buf(),
                 message: error.to_string(),
@@ -133,7 +135,7 @@ impl<'a> FileSystemSource<'a> {
 
     /// Return whether one path is below an excluded directory.
     fn is_below_excluded_directory(&self, path: &Path) -> bool {
-        // paths outside the source are handled by tracks
+        // paths outside the source are handled by ownership
         let Ok(relative_path) = path.strip_prefix(self.root) else {
             return false;
         };
@@ -182,12 +184,54 @@ impl<'a> FileSystemSource<'a> {
             self.ignore_set.load_dir(&directory);
         }
     }
+
+    /// Resolve one logical repository path into this source's physical path space.
+    fn physical_path(&self, logical_path: &Path) -> PathBuf {
+        // absolute paths stay absolute and will fail ownership unless inside root
+        if logical_path.is_absolute() {
+            return logical_path.to_path_buf();
+        }
+
+        self.root.join(logical_path)
+    }
+
+    /// Load one source file content.
+    fn read_content(&self, path: &Path) -> Result<FileContent, SourceError> {
+        let file_type = FileType::from_path_or_unknown(path);
+
+        // binary file content
+        if file_type.is_binary() {
+            let content = self.repository.file_system().read(path).map_err(|error| {
+                SourceError::ReadFailed {
+                    operation: "read",
+                    path: path.to_path_buf(),
+                    message: error.to_string(),
+                }
+            })?;
+
+            Ok(FileContent::Binary { content })
+        }
+        // text file content
+        else {
+            let content = self
+                .repository
+                .file_system()
+                .read_to_string(path)
+                .map_err(|error| SourceError::ReadFailed {
+                    operation: "read_to_string",
+                    path: path.to_path_buf(),
+                    message: error.to_string(),
+                })?;
+
+            Ok(FileContent::Text { content })
+        }
+    }
 }
 
-impl RepositorySource for FileSystemSource<'_> {
+impl Source for FileSystemSource<'_> {
     type File = FileSystemFile;
 
-    fn list(&mut self) -> Result<Vec<Self::File>, RepositoryError> {
+    fn list(&mut self) -> Result<Vec<Self::File>, SourceError> {
         let mut files = Vec::new();
 
         // reset mutable traversal state
@@ -236,7 +280,7 @@ impl RepositorySource for FileSystemSource<'_> {
                     let repository_path = PathBuf::from(self.repository.logical_path(&path));
 
                     // skip files outside this source sync
-                    if !(self.tracked_path)(&repository_path) {
+                    if !(self.include_path)(&repository_path) {
                         continue;
                     }
 
@@ -251,7 +295,7 @@ impl RepositorySource for FileSystemSource<'_> {
         Ok(files)
     }
 
-    fn get(&mut self, path: &Path) -> Result<Option<Self::File>, RepositoryError> {
+    fn get(&mut self, path: &Path) -> Result<Option<Self::File>, SourceError> {
         self.file(path)
     }
 
@@ -259,48 +303,51 @@ impl RepositorySource for FileSystemSource<'_> {
         &file.repository_path
     }
 
-    fn read(&self, file: &Self::File) -> Result<FileContent, RepositoryError> {
-        self.repository.load_workspace_file_content(&file.path)
+    fn read(&mut self, file: &Self::File) -> Result<FileContent, SourceError> {
+        self.read_content(&file.path)
     }
 
-    fn tracks(&self, path: &Path) -> bool {
+    fn owns(&mut self, path: &Path) -> Result<bool, SourceError> {
+        let physical_path = self.physical_path(path);
+        self.load_ignore_rules_for_path(&physical_path);
+
+        // repository path authority
+        if !(self.include_path)(path) {
+            return Ok(false);
+        }
+
         // root authority
-        if !path.starts_with(self.root) {
-            return false;
+        if !physical_path.starts_with(self.root) {
+            return Ok(false);
         }
 
         // excluded directory authority
-        if self.is_below_excluded_directory(path) {
-            return false;
+        if self.is_below_excluded_directory(&physical_path) {
+            return Ok(false);
         }
 
         // ignore authority
-        if self.ignore_set.is_ignored(self.root, path, false) {
-            return false;
-        }
-
-        // repository path authority
-        let repository_path = self.repository.logical_path(path);
-
-        (self.tracked_path)(Path::new(&repository_path))
+        Ok(!self.ignore_set.is_ignored(self.root, &physical_path, false))
     }
 
-    fn has(&self, path: &Path) -> Result<bool, RepositoryError> {
+    fn exists(&mut self, path: &Path) -> Result<bool, SourceError> {
+        let physical_path = self.physical_path(path);
+
         // source authority
-        if !self.tracks(path) {
+        if !self.owns(path)? {
             return Ok(false);
         }
 
         // filesystem presence
-        let metadata = match self.repository.file_system().metadata(path) {
+        let metadata = match self.repository.file_system().metadata(&physical_path) {
             Ok(metadata) => metadata,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
                 return Ok(false);
             }
             Err(error) => {
-                return Err(RepositoryError::FileSystem {
+                return Err(SourceError::ReadFailed {
                     operation: "metadata",
-                    path: path.to_path_buf(),
+                    path: physical_path,
                     message: error.to_string(),
                 });
             }

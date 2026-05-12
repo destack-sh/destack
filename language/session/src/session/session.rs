@@ -10,7 +10,7 @@ use destack_workspace::{Ref, Repository, Revision};
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
 
 use crate::executor::Executor;
-use crate::{FileSystemSource, RepositoryChange, RepositorySource, SessionError};
+use crate::{FileSystemSource, SessionError, Source, SourceSync, apply_edits};
 
 use super::{SessionEventHandler, SessionState};
 
@@ -190,8 +190,9 @@ impl Session {
         }
 
         // read the requested filesystem source file
+        let logical_path = repository.logical_path(path);
         let mut source = FileSystemSource::new(repository.as_ref(), self.root());
-        let Some(file) = source.get(path)? else {
+        let Some(file) = source.get(Path::new(&logical_path))? else {
             return Err(SessionError::ModulePathNotLoadable {
                 path: path.to_path_buf(),
                 detail: "source file is not importable".to_string(),
@@ -199,8 +200,8 @@ impl Session {
         };
 
         // apply the selected source file
-        let change = RepositoryChange::from_files(repository.as_ref(), revision, &source, [file])?;
-        let revision = change.apply(repository.as_ref(), revision)?;
+        let edits = SourceSync::new(repository.as_ref(), revision, &mut source).files([file])?;
+        let revision = apply_edits(repository.as_ref(), revision, edits)?;
 
         // require the applied file to produce a module
         let module_id = repository.module_id_for_path(revision, path)?;
