@@ -1,6 +1,6 @@
-import { Array, Slice } from "core";
-import type { PlatformError } from "../error/index.ds";
-import { InputDeviceHandle } from "../resource/index.ds";
+import { Array, Slice } from "destack:collections";
+import { PlatformError } from "destack:platform/error";
+import { InputDeviceHandle } from "destack:platform/resource";
 
 /// Input device kind.
 export enum InputDeviceKind {

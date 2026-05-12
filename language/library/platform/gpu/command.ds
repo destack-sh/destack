@@ -1,5 +1,5 @@
-import { Slice } from "core";
-import type { PlatformError } from "../error/index.ds";
+import { Slice } from "destack:collections";
+import { PlatformError } from "destack:platform/error";
 import {
     GpuBindGroupHandle,
     GpuBufferHandle,
@@ -15,7 +15,7 @@ import {
     GpuRenderBundleHandle,
     GpuTextureHandle,
     GpuTextureViewHandle,
-} from "../resource/index.ds";
+} from "destack:platform/resource";
 import {
     GpuBufferTransition,
     GpuTextureFormat,

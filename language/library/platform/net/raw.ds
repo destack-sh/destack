@@ -1,6 +1,6 @@
-import { Array } from "core";
-import type { PlatformError } from "../error/index.ds";
-import { PacketHandle, SocketHandle } from "../resource/index.ds";
+import { Array } from "destack:collections";
+import { PlatformError } from "destack:platform/error";
+import { PacketHandle, SocketHandle } from "destack:platform/resource";
 import { SocketFamily } from "./address.ds";
 
 /// Network packet backend selector.

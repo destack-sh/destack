@@ -1,5 +1,5 @@
-import type { PlatformError } from "../error/index.ds";
-import { SharedMemoryHandle } from "../resource/index.ds";
+import { PlatformError } from "destack:platform/error";
+import { SharedMemoryHandle } from "destack:platform/resource";
 
 /// Wait on one shared-memory futex word.
 @binding("destack.ipc.futex.wait", {

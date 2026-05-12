@@ -1,4 +1,4 @@
-import type { PlatformError } from "../error/index.ds";
+import { PlatformError } from "destack:platform/error";
 import {
     GpuBufferHandle,
     GpuCommandEncoderHandle,
@@ -8,7 +8,7 @@ import {
     GpuQuerySetHandle,
     GpuQueueHandle,
     GpuRenderPassHandle,
-} from "../resource/index.ds";
+} from "destack:platform/resource";
 
 /// Fence mode selector.
 export enum GpuFenceMode {

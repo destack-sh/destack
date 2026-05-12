@@ -1,6 +1,6 @@
-import { Array } from "core";
-import type { PlatformError } from "../error/index.ds";
-import { PermissionRequestHandle } from "../resource/index.ds";
+import { Array } from "destack:collections";
+import { PlatformError } from "destack:platform/error";
+import { PermissionRequestHandle } from "destack:platform/resource";
 
 /// Permission state.
 export enum PermissionState {

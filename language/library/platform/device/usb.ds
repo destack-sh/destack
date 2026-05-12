@@ -1,5 +1,5 @@
-import type { PlatformError } from "../error/index.ds";
-import { UsbDeviceHandle, UsbWatchHandle } from "../resource/index.ds";
+import { PlatformError } from "destack:platform/error";
+import { UsbDeviceHandle, UsbWatchHandle } from "destack:platform/resource";
 
 /// USB device speed.
 export enum UsbSpeed {

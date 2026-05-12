@@ -1,6 +1,6 @@
-import { Array } from "core";
-import type { PlatformError } from "../error/index.ds";
-import { DisplayBeginFrameHandle, WindowHandle } from "../resource/index.ds";
+import { Array } from "destack:collections";
+import { PlatformError } from "destack:platform/error";
+import { DisplayBeginFrameHandle, WindowHandle } from "destack:platform/resource";
 import {
     DisplayBackend,
     DisplayBackendSelectionPolicy,

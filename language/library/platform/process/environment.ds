@@ -1,5 +1,5 @@
-import { Array } from "core";
-import type { PlatformError } from "../error/index.ds";
+import { Array } from "destack:collections";
+import { PlatformError } from "destack:platform/error";
 
 /// Environment variable.
 export struct EnvironmentVariable {

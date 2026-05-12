@@ -1,6 +1,6 @@
-import { Slice } from "core";
-import type { PlatformError } from "../error/index.ds";
-import { CryptoKeyHandle } from "../resource/index.ds";
+import { Slice } from "destack:collections";
+import { PlatformError } from "destack:platform/error";
+import { CryptoKeyHandle } from "destack:platform/resource";
 import { CryptoDigestAlgorithm, CryptoKeyAgreementAlgorithm } from "./algorithm.ds";
 
 /// Key-agreement key-derivation request.

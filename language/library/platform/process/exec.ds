@@ -1,6 +1,6 @@
-import type { PlatformError } from "../error/index.ds";
-import { Path } from "../fs/path.ds";
-import { DirectoryHandle, FileHandle } from "../resource/index.ds";
+import { PlatformError } from "destack:platform/error";
+import { Path } from "destack:platform/fs";
+import { DirectoryHandle, FileHandle } from "destack:platform/resource";
 import { EnvironmentVariable } from "./environment.ds";
 
 /// Exec flags.

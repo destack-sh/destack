@@ -1,8 +1,8 @@
-import type { PlatformError } from "../error/index.ds";
-import { FileOpenFlags } from "../fs/file.ds";
-import { Path } from "../fs/path.ds";
-import { FileMode } from "../fs/status.ds";
-import { FileHandle, PipeHandle, ProcessHandle } from "../resource/index.ds";
+import { PlatformError } from "destack:platform/error";
+import { FileOpenFlags } from "destack:platform/fs";
+import { Path } from "destack:platform/fs";
+import { FileMode } from "destack:platform/fs";
+import { FileHandle, PipeHandle, ProcessHandle } from "destack:platform/resource";
 import { EnvironmentVariable } from "./environment.ds";
 
 /// Process spawn flags.

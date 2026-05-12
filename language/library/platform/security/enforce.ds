@@ -1,6 +1,6 @@
-import type { PlatformError } from "../error/index.ds";
-import type { HostAction } from "./action.ds";
-import { SandboxHandle } from "../resource/index.ds";
+import { PlatformError } from "destack:platform/error";
+import { HostAction } from "./action.ds";
+import { SandboxHandle } from "destack:platform/resource";
 
 /// Seal one sandbox policy.
 @binding("destack.security.enforce.sandboxSeal", {

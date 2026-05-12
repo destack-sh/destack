@@ -1,6 +1,6 @@
-import { Slice } from "core";
-import type { PlatformError } from "../error/index.ds";
-import { Path } from "../fs/path.ds";
+import { Slice } from "destack:collections";
+import { PlatformError } from "destack:platform/error";
+import { Path } from "destack:platform/fs";
 
 /// Clipboard item representation kind.
 export enum ClipboardItemRepresentationKind {

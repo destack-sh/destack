@@ -1,5 +1,5 @@
-import type { PlatformError } from "../error/index.ds";
-import { CameraDeviceHandle, CameraStreamHandle, CameraWatchHandle } from "../resource/index.ds";
+import { PlatformError } from "destack:platform/error";
+import { CameraDeviceHandle, CameraStreamHandle, CameraWatchHandle } from "destack:platform/resource";
 
 /// Camera facing mode.
 export enum CameraFacing {

@@ -1,5 +1,5 @@
-import type { PlatformError } from "../error/index.ds";
-import { MessageQueueHandle } from "../resource/index.ds";
+import { PlatformError } from "destack:platform/error";
+import { MessageQueueHandle } from "destack:platform/resource";
 
 /// Message queue creation flags.
 export newtype MessageQueueFlags = uint32;

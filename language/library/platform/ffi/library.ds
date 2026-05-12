@@ -1,6 +1,6 @@
-import type { PlatformError } from "../error/index.ds";
-import { LibraryHandle } from "../resource/index.ds";
-import { Path } from "../fs/path.ds";
+import { PlatformError } from "destack:platform/error";
+import { LibraryHandle } from "destack:platform/resource";
+import { Path } from "destack:platform/fs";
 
 /// Open a dynamic library.
 @binding("destack.ffi.library.open", {

@@ -1,5 +1,5 @@
-import type { PlatformError } from "../error/index.ds";
-import { NetworkWatchHandle } from "../resource/index.ds";
+import { PlatformError } from "destack:platform/error";
+import { NetworkWatchHandle } from "destack:platform/resource";
 
 /// Network connectivity class.
 export enum NetworkConnectivityKind {

@@ -1,5 +1,5 @@
-import type { PlatformError } from "../error/index.ds";
-import { JobHandle, ProcessHandle } from "../resource/index.ds";
+import { PlatformError } from "destack:platform/error";
+import { JobHandle, ProcessHandle } from "destack:platform/resource";
 
 /// Windows job limit flags.
 export newtype JobLimitFlags = uint64;

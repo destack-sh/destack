@@ -1,5 +1,5 @@
-import type { PlatformError } from "../error/index.ds";
-import { ProfileHandle } from "../resource/index.ds";
+import { PlatformError } from "destack:platform/error";
+import { ProfileHandle } from "destack:platform/resource";
 
 /// Profiling session kind.
 export enum ProfileKind {

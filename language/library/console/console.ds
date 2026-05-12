@@ -1,7 +1,7 @@
 import { type Result } from "destack:error";
 import { todo } from "destack:error";
 import { type Writer } from "destack:sync";
-import type { PlatformError } from "destack:platform/error";
+import { PlatformError } from "destack:platform/error";
 
 /// Console output options.
 export interface ConsoleOptions {

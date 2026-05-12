@@ -1,5 +1,5 @@
-import type { PlatformError } from "../error/index.ds";
-import { ResourceId } from "../resource/index.ds";
+import { PlatformError } from "destack:platform/error";
+import { ResourceId } from "destack:platform/resource";
 
 /// Resource control flags.
 export newtype IoControlFlags = uint32;

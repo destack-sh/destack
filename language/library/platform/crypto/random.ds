@@ -1,5 +1,5 @@
-import { Slice } from "core";
-import type { PlatformError } from "../error/index.ds";
+import { Slice } from "destack:collections";
+import { PlatformError } from "destack:platform/error";
 
 /// Fill one mutable byte slice with cryptographically secure random bytes.
 @binding("destack.crypto.random.fill", {

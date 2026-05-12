@@ -1,5 +1,5 @@
-import type { PlatformError } from "../error/index.ds";
-import { SocketHandle } from "../resource/index.ds";
+import { PlatformError } from "destack:platform/error";
+import { SocketHandle } from "destack:platform/resource";
 
 /// Socket linger settings.
 export struct SocketLinger {

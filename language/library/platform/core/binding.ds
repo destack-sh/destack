@@ -1,4 +1,4 @@
-import type { HostAction } from "./action.ds";
+import { HostAction } from "./action.ds";
 
 /// Platform tags accepted by runtime bindings.
 export type PlatformTag =

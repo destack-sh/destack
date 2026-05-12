@@ -1,6 +1,6 @@
-import { Slice } from "core";
-import type { PlatformError } from "../error/index.ds";
-import { DisplayHandle } from "../resource/index.ds";
+import { Slice } from "destack:collections";
+import { PlatformError } from "destack:platform/error";
+import { DisplayHandle } from "destack:platform/resource";
 import { DisplayBackend, DisplayBackendSelectionPolicy } from "./backend.ds";
 
 /// Display output orientation.

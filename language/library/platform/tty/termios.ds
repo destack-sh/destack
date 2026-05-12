@@ -1,6 +1,6 @@
-import type { PlatformError } from "../error/index.ds";
-import { ProcessId } from "../process/identity.ds";
-import { TtyHandle } from "../resource/index.ds";
+import { PlatformError } from "destack:platform/error";
+import { ProcessId } from "destack:platform/process";
+import { TtyHandle } from "destack:platform/resource";
 
 /// Termios attribute set timing selector.
 export enum TermiosSetAction {

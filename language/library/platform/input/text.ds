@@ -1,9 +1,9 @@
-import { Slice } from "core";
-import type { PlatformError } from "../error/index.ds";
-import { DisplayDragTransfer } from "../display/drag.ds";
+import { Slice } from "destack:collections";
+import { PlatformError } from "destack:platform/error";
+import { DisplayDragTransfer } from "destack:platform/display";
 import { ClipboardItemDescriptor } from "./clipboard.ds";
 import { InputCompositionEvent, InputEventMetadata } from "./event.ds";
-import { InputTextSessionHandle } from "../resource/index.ds";
+import { InputTextSessionHandle } from "destack:platform/resource";
 import { InputWindowTarget } from "./target.ds";
 
 /// Text input type hint.

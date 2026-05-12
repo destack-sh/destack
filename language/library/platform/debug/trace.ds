@@ -1,5 +1,5 @@
-import type { PlatformError } from "../error/index.ds";
-import { TraceHandle } from "../resource/index.ds";
+import { PlatformError } from "destack:platform/error";
+import { TraceHandle } from "destack:platform/resource";
 
 /// Trace verbosity level.
 export enum TraceLevel {

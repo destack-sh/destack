@@ -1,4 +1,4 @@
-import type { PlatformError } from "../error/index.ds";
+import { PlatformError } from "destack:platform/error";
 
 /// Sleep clock domain.
 export enum SleepClock {

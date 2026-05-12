@@ -1,6 +1,6 @@
-import { Slice } from "core";
-import type { PlatformError } from "../error/index.ds";
-import { SymbolHandle } from "../resource/index.ds";
+import { Slice } from "destack:collections";
+import { PlatformError } from "destack:platform/error";
+import { SymbolHandle } from "destack:platform/resource";
 
 /// Call one foreign symbol using raw ABI argument and result buffers.
 @binding("destack.ffi.call.invoke", {

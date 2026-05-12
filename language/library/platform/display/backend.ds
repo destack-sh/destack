@@ -1,6 +1,6 @@
-import { Slice } from "core";
-import type { BackendSupport } from "../core/index.ds";
-import type { PlatformError } from "../error/index.ds";
+import { Slice } from "destack:collections";
+import { BackendSupport } from "destack:platform/core";
+import { PlatformError } from "destack:platform/error";
 
 /// Display backend selector.
 export enum DisplayBackend {

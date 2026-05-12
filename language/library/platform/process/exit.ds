@@ -1,4 +1,4 @@
-import type { PlatformError } from "../error/index.ds";
+import { PlatformError } from "destack:platform/error";
 
 /// Exit the current process with the given code.
 @binding("destack.process.exit", {

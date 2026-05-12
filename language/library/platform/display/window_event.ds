@@ -1,7 +1,7 @@
-import { Array } from "core";
-import type { PlatformError } from "../error/index.ds";
+import { Array } from "destack:collections";
+import { PlatformError } from "destack:platform/error";
 import { DisplayDragTransfer } from "./drag.ds";
-import { DisplayHandle, WindowEventHandle, WindowHandle } from "../resource/index.ds";
+import { DisplayHandle, WindowEventHandle, WindowHandle } from "destack:platform/resource";
 import {
     DisplayBackend,
     DisplayBackendSelectionPolicy,

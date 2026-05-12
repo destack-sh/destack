@@ -1,9 +1,9 @@
-import type { PlatformError } from "../error/index.ds";
+import { PlatformError } from "destack:platform/error";
 import {
     MidiInputPortHandle,
     MidiOutputPortHandle,
     MidiWatchHandle,
-} from "../resource/index.ds";
+} from "destack:platform/resource";
 
 /// MIDI transport data format.
 export enum MidiFormat {

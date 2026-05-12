@@ -1,6 +1,6 @@
-import { Array } from "core";
-import type { PlatformError } from "../error/index.ds";
-import { SocketHandle, TlsConnectionHandle, TlsContextHandle } from "../resource/index.ds";
+import { Array } from "destack:collections";
+import { PlatformError } from "destack:platform/error";
+import { SocketHandle, TlsConnectionHandle, TlsContextHandle } from "destack:platform/resource";
 
 /// TLS handshake status.
 export enum TlsHandshakeStatus {

@@ -1,1 +1,1 @@
-export type { ResourceId } from "destack:platform/resource";
+export { ResourceId } from "destack:platform/resource";

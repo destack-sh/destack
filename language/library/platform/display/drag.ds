@@ -1,7 +1,7 @@
-import { Slice } from "core";
-import type { PlatformError } from "../error/index.ds";
-import { Path } from "../fs/path.ds";
-import { DisplayDragSessionHandle, WindowHandle } from "../resource/index.ds";
+import { Slice } from "destack:collections";
+import { PlatformError } from "destack:platform/error";
+import { Path } from "destack:platform/fs";
+import { DisplayDragSessionHandle, WindowHandle } from "destack:platform/resource";
 
 /// Drag operation selector.
 export enum DisplayDragOperation {

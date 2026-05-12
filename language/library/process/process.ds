@@ -1,6 +1,6 @@
 import { Slice } from "destack:collections";
 import * as platform from "destack:platform";
-import type { PlatformError } from "destack:platform/error";
+import { PlatformError } from "destack:platform/error";
 
 /// Return the process arguments.
 export function args(): Result<Slice<string>, PlatformError> {

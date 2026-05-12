@@ -1,4 +1,4 @@
-import { DirectoryHandle } from "../resource/index.ds";
+import { DirectoryHandle } from "destack:platform/resource";
 import { Path } from "./path.ds";
 
 /// Filesystem entry addressed by an optional directory root and host path.

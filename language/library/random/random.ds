@@ -1,5 +1,5 @@
 import { Slice } from "destack:collections";
-import type { PlatformError } from "destack:platform/error";
+import { PlatformError } from "destack:platform/error";
 import * as platform from "destack:platform";
 
 /// Opaque identifier for a deterministic random stream.

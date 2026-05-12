@@ -1,5 +1,5 @@
-import type { PlatformError } from "../error/index.ds";
-import { TlsContextHandle } from "../resource/index.ds";
+import { PlatformError } from "destack:platform/error";
+import { TlsContextHandle } from "destack:platform/resource";
 
 /// TLS protocol version.
 export enum TlsVersion {

@@ -1,10 +1,10 @@
-import type { PlatformError } from "../error/index.ds";
+import { PlatformError } from "destack:platform/error";
 import {
     BluetoothAdapterWatchHandle,
     BluetoothDeviceHandle,
     BluetoothScanHandle,
     BluetoothSubscriptionHandle,
-} from "../resource/index.ds";
+} from "destack:platform/resource";
 
 /// Bluetooth scan mode.
 export enum BluetoothScanMode {

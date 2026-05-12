@@ -267,5 +267,5 @@ export {
     binding,
     BindingOptions,
     require,
-    PlatformCapability,
+    HostAction,
 } from "destack:platform/core";

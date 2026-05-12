@@ -1,6 +1,6 @@
-import { Slice } from "core";
-import type { PlatformError } from "../error/index.ds";
-import { CryptoKeyHandle, CryptoMacHandle } from "../resource/index.ds";
+import { Slice } from "destack:collections";
+import { PlatformError } from "destack:platform/error";
+import { CryptoKeyHandle, CryptoMacHandle } from "destack:platform/resource";
 import { CryptoDigestAlgorithm, CryptoMacAlgorithm } from "./algorithm.ds";
 
 /// MAC parameters.

@@ -1,4 +1,4 @@
-import { WindowHandle } from "../resource/index.ds";
+import { WindowHandle } from "destack:platform/resource";
 
 /// Optional window target for input operations.
 export struct InputWindowTarget {

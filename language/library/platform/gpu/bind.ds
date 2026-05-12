@@ -1,5 +1,5 @@
-import { Slice } from "core";
-import type { PlatformError } from "../error/index.ds";
+import { Slice } from "destack:collections";
+import { PlatformError } from "destack:platform/error";
 import {
     GpuBindGroupHandle,
     GpuBindGroupLayoutHandle,
@@ -9,7 +9,7 @@ import {
     GpuPipelineLayoutHandle,
     GpuSamplerHandle,
     GpuTextureViewHandle,
-} from "../resource/index.ds";
+} from "destack:platform/resource";
 import { GpuTextureFormat, GpuTextureViewDimension } from "./resource.ds";
 
 /// Shader stage visibility bitset.

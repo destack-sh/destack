@@ -1,5 +1,5 @@
-import type { PlatformError } from "../error/index.ds";
-import { FileHandle } from "../resource/index.ds";
+import { PlatformError } from "destack:platform/error";
+import { FileHandle } from "destack:platform/resource";
 import { FilesystemEntry } from "./entry.ds";
 import { FileSize } from "./range.ds";
 

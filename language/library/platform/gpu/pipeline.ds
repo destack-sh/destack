@@ -1,12 +1,12 @@
-import { Slice } from "core";
-import type { PlatformError } from "../error/index.ds";
+import { Slice } from "destack:collections";
+import { PlatformError } from "destack:platform/error";
 import {
     GpuBindGroupLayoutHandle,
     GpuDeviceHandle,
     GpuPipelineHandle,
     GpuPipelineLayoutHandle,
     GpuShaderHandle,
-} from "../resource/index.ds";
+} from "destack:platform/resource";
 import { GpuCompareFunction, GpuTextureFormat } from "./resource.ds";
 
 /// GPU shader module options.

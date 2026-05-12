@@ -1,5 +1,5 @@
-import type { PlatformError } from "../error/index.ds";
-import { SocketHandle, TransferredHandle } from "../resource/index.ds";
+import { PlatformError } from "destack:platform/error";
+import { SocketHandle, TransferredHandle } from "destack:platform/resource";
 import { SocketAddress, SocketFamily } from "./address.ds";
 
 /// Socket type.
