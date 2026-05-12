@@ -1,4 +1,3 @@
-mod app;
 mod codegen;
 mod js;
 mod link;
@@ -7,7 +6,6 @@ mod output;
 mod policy;
 mod target;
 
-pub use app::*;
 pub use codegen::*;
 pub use js::*;
 pub use link::*;

@@ -1,7 +1,6 @@
 use destack_artifact::Runtime;
 use serde::{Deserialize, Serialize};
 
-use crate::config::target::AppOptions;
 use crate::{ExecutionMode, ReplayPayloadMode};
 
 use super::random::{RandomMode, RandomOptions, RandomOptionsJson};
@@ -21,8 +20,6 @@ pub struct RuntimeOptions {
     pub runtime: Runtime,
     /// Stable runtime name for policy selection.
     pub name: Option<String>,
-    /// App declaration used for host support checks.
-    pub app: AppOptions,
     /// Runtime scheduler configuration.
     pub scheduler: SchedulerOptions,
     /// Runtime worker configuration.

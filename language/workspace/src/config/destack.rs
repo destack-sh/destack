@@ -9,9 +9,10 @@ use serde_json::Value;
 
 use crate::config::{
     CompilerOptions, EnvironmentOptions, FormatterOptions, LinterOptions, ModeOptions,
-    PolicyOptions, PolicyOptionsJson, ProfileOptions, ProfileOptionsJson, RuntimeOptions,
-    TargetOptions, builtin_modes, environment_options_from_json, extend_environment_options,
-    parse_jsonc_file, runtime_options_from_json, runtime_options_with_base,
+    PolicyOptions, PolicyOptionsJson, ProductOptions, ProductOptionsJson, ProfileOptions,
+    ProfileOptionsJson, RuntimeOptions, TargetOptions, builtin_modes,
+    environment_options_from_json, extend_environment_options, parse_jsonc_file,
+    runtime_options_from_json, runtime_options_with_base,
 };
 
 use super::compiler::CompilerOptionsJson;
@@ -55,22 +56,19 @@ pub struct DestackOptions {
     /// Glob patterns for files to exclude.
     pub exclude: Option<Vec<String>>,
     /// Compiler options.
-    #[serde(default)]
     pub compiler: CompilerOptionsJson,
     /// Package policy declarations and rules.
-    #[serde(default)]
     pub policy: PolicyOptionsJson,
     /// Runtime options.
-    #[serde(default)]
     pub runtime: RuntimeConfigJson,
     /// Formatter options.
-    #[serde(default)]
     pub formatter: FormatterJson,
     /// Linter options.
-    #[serde(default)]
     pub linter: LinterJson,
     /// Build targets.
     pub targets: Option<IndexMap<String, TargetJson>>,
+    /// Deliverable products.
+    pub products: Option<IndexMap<String, ProductOptionsJson>>,
     /// Named reusable toolchain and runtime environments.
     pub environments: Option<IndexMap<String, EnvironmentJson>>,
     /// Named profiles for semantic configuration.
@@ -147,6 +145,8 @@ pub struct DestackConfig {
     pub linter: LinterOptions,
     /// Build targets.
     pub targets: IndexMap<String, TargetOptions>,
+    /// Deliverable products.
+    pub products: IndexMap<String, ProductOptions>,
     /// Named reusable toolchain and runtime environments.
     pub environments: IndexMap<String, EnvironmentOptions>,
     /// Named profiles for semantic configuration.
@@ -178,6 +178,13 @@ impl DestackConfig {
         if let Some(targets) = &options.targets {
             for target in targets.values() {
                 target
+                    .validate()
+                    .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
+            }
+        }
+        if let Some(products) = &options.products {
+            for product in products.values() {
+                product
                     .validate()
                     .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
             }
@@ -227,6 +234,20 @@ impl DestackConfig {
             })
             .transpose()?
             .unwrap_or_default();
+        let products = options
+            .products
+            .as_ref()
+            .map(|product_map| {
+                product_map
+                    .iter()
+                    .map(|(name, product_json)| {
+                        let product = ProductOptions::from_json_with_policy(product_json, &policy);
+
+                        (name.clone(), product)
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
         let mut formatter = FormatterOptions::default();
         options.formatter.apply(&mut formatter);
         let mut linter = LinterOptions::default();
@@ -263,6 +284,7 @@ impl DestackConfig {
             formatter,
             linter,
             targets,
+            products,
             environments: environment_options_from_json(&options.environments),
             profiles: options
                 .profiles
@@ -314,6 +336,24 @@ impl DestackConfig {
             target.policy.validate().map_err(|error| {
                 serde_json::Error::io(Error::new(ErrorKind::InvalidData, error))
             })?;
+        }
+        for product in self.products.values() {
+            product.policy.validate().map_err(|error| {
+                serde_json::Error::io(Error::new(ErrorKind::InvalidData, error))
+            })?;
+        }
+        for (product_name, product) in &self.products {
+            for (role, target_name) in &product.targets {
+                if !self.targets.contains_key(target_name) {
+                    let error = Error::new(
+                        ErrorKind::InvalidData,
+                        format!(
+                            "product '{product_name}' role '{role}' references unknown target '{target_name}'"
+                        ),
+                    );
+                    return Err(serde_json::Error::io(error));
+                }
+            }
         }
 
         for (mode, options) in &self.modes {
@@ -547,6 +587,23 @@ impl DestackConfig {
             }
         }
 
+        // products
+        if let Some(products) = &self.options.products {
+            for name in products.keys() {
+                let product_json = self.merged_product_json(parent, name)?;
+                product_json
+                    .validate()
+                    .map_err(|error| serde_json::Error::io(invalid_config_error(error)))?;
+                let product = ProductOptions::from_json_with_policy(&product_json, &self.policy);
+                self.products.insert(name.clone(), product);
+            }
+        }
+        for (name, product) in &parent.products {
+            if !self.products.contains_key(name) {
+                self.products.insert(name.clone(), product.clone());
+            }
+        }
+
         // profiles
         if let Some(profiles) = &self.options.profiles {
             for name in profiles.keys() {
@@ -589,6 +646,27 @@ impl DestackConfig {
             ))
         })?;
         let merged_json = if let Some(parent_json) = parent.raw_named_json("targets", name) {
+            Self::merge_json(parent_json, child_json)
+        } else {
+            child_json.clone()
+        };
+
+        serde_json::from_value(merged_json)
+    }
+
+    /// Return one merged product JSON object for one inherited product name.
+    fn merged_product_json(
+        &self,
+        parent: &Self,
+        name: &str,
+    ) -> Result<ProductOptionsJson, serde_json::Error> {
+        let child_json = self.raw_named_json("products", name).ok_or_else(|| {
+            serde_json::Error::io(Error::new(
+                ErrorKind::InvalidData,
+                format!("failed to find product config during inheritance: product={name}"),
+            ))
+        })?;
+        let merged_json = if let Some(parent_json) = parent.raw_named_json("products", name) {
             Self::merge_json(parent_json, child_json)
         } else {
             child_json.clone()

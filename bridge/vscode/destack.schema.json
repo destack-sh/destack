@@ -113,29 +113,11 @@
     },
     "policy": {
       "description": "Package policy declarations and rules.",
-      "$ref": "#/$defs/PolicyOptionsJson",
-      "default": {
-        "requires": null,
-        "rules": null
-      }
+      "$ref": "#/$defs/PolicyOptionsJson"
     },
     "runtime": {
       "description": "Runtime options.",
-      "$ref": "#/$defs/RuntimeConfigJson",
-      "default": {
-        "runtime": null,
-        "name": null,
-        "scheduler": null,
-        "worker": null,
-        "time": null,
-        "random": null,
-        "simulation": null,
-        "trace": null,
-        "heap": null,
-        "diagnostic": null,
-        "host": null,
-        "platform": null
-      }
+      "$ref": "#/$defs/RuntimeConfigJson"
     },
     "formatter": {
       "description": "Formatter options.",
@@ -153,6 +135,16 @@
       ],
       "additionalProperties": {
         "$ref": "#/$defs/TargetJson"
+      }
+    },
+    "products": {
+      "description": "Deliverable products.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/ProductOptionsJson"
       }
     },
     "environments": {
@@ -193,6 +185,13 @@
       ]
     }
   },
+  "required": [
+    "compiler",
+    "policy",
+    "runtime",
+    "formatter",
+    "linter"
+  ],
   "$defs": {
     "WorkspaceLayout": {
       "description": "Workspace package layout.",
@@ -1701,6 +1700,17 @@
             }
           ]
         },
+        "display": {
+          "description": "Display host defaults.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HostDisplayOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "input": {
           "description": "Input host defaults.",
           "anyOf": [
@@ -1880,6 +1890,75 @@
           ],
           "format": "uint32",
           "minimum": 0
+        },
+        "eventQueueCapacity": {
+          "description": "Optional default event queue capacity.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "defaultEventPollIntervalNs": {
+          "description": "Optional default event polling interval in nanoseconds.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "eventMonitorPollIntervalNs": {
+          "description": "Optional event monitor polling interval in nanoseconds.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "maxStreamReadBytes": {
+          "description": "Optional maximum bytes per stream read.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "maxQueuedFrames": {
+          "description": "Optional maximum queued stream frames.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "workerPollIntervalNs": {
+          "description": "Optional worker polling interval in nanoseconds.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        }
+      }
+    },
+    "HostDisplayOptionsJson": {
+      "description": "Display host defaults for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "eventQueueCapacity": {
+          "description": "Optional default event queue capacity.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
         }
       }
     },
@@ -1997,6 +2076,20 @@
           "items": {
             "type": "string"
           }
+        },
+        "macosKeychainSnapshotService": {
+          "description": "Optional macOS Keychain service for snapshot keys.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "macosKeychainSnapshotAccount": {
+          "description": "Optional macOS Keychain account for snapshot keys.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       }
     },
@@ -4158,17 +4251,6 @@
             }
           ]
         },
-        "app": {
-          "description": "App declaration used for host integration.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/AppOptionsJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "policy": {
           "description": "Policy declarations and rules for this target.",
           "anyOf": [
@@ -4788,6 +4870,331 @@
         }
       }
     },
+    "OptimizeJson": {
+      "description": "Optimization setting accepted by target JSON.",
+      "anyOf": [
+        {
+          "description": "Enable or disable optimization.",
+          "type": "boolean"
+        },
+        {
+          "description": "Explicit optimization level.",
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0,
+          "maximum": 4
+        }
+      ]
+    },
+    "LtoModeJson": {
+      "description": "Link time optimization mode for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Choose mode based on optimization level.",
+          "type": "string",
+          "const": "auto"
+        },
+        {
+          "description": "Disable link time optimization.",
+          "type": "string",
+          "const": "none"
+        },
+        {
+          "description": "Enable thin link time optimization.",
+          "type": "string",
+          "const": "thin"
+        },
+        {
+          "description": "Enable full link time optimization.",
+          "type": "string",
+          "const": "full"
+        }
+      ]
+    },
+    "FloatMathPolicyJson": {
+      "description": "Floating point math policy for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Strict IEEE semantics.",
+          "type": "string",
+          "const": "strict"
+        },
+        {
+          "description": "Permit reassociation but preserve NaNs and infinities.",
+          "type": "string",
+          "const": "reassociate"
+        },
+        {
+          "description": "Enable fast math optimizations.",
+          "type": "string",
+          "const": "fast"
+        }
+      ]
+    },
+    "DebugInfoLevelJson": {
+      "description": "Debug info emission policy for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "No debug info.",
+          "type": "string",
+          "const": "none"
+        },
+        {
+          "description": "Line tables only.",
+          "type": "string",
+          "const": "line"
+        },
+        {
+          "description": "Full debug info.",
+          "type": "string",
+          "const": "full"
+        }
+      ]
+    },
+    "ExecutionModeJson": {
+      "description": "Execution mode for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Fast execution without determinism guarantees.",
+          "type": "string",
+          "const": "fast"
+        },
+        {
+          "description": "Deterministic scheduling with controlled randomness.",
+          "type": "string",
+          "const": "deterministic"
+        },
+        {
+          "description": "Record external effects for replay.",
+          "type": "string",
+          "const": "record"
+        },
+        {
+          "description": "Replay external effects from the log.",
+          "type": "string",
+          "const": "replay"
+        }
+      ]
+    },
+    "PanicPolicyJson": {
+      "description": "Panic policy for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Terminate the current worker or isolate.",
+          "type": "string",
+          "const": "worker"
+        },
+        {
+          "description": "Terminate the whole runtime process.",
+          "type": "string",
+          "const": "process"
+        },
+        {
+          "description": "Lower panic to a minimal trap.",
+          "type": "string",
+          "const": "trap"
+        },
+        {
+          "description": "Abort immediately without diagnostics.",
+          "type": "string",
+          "const": "abort"
+        }
+      ]
+    },
+    "StripLevelJson": {
+      "description": "Symbol stripping policy for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Keep all symbols.",
+          "type": "string",
+          "const": "none"
+        },
+        {
+          "description": "Strip local symbols.",
+          "type": "string",
+          "const": "partial"
+        },
+        {
+          "description": "Strip all symbols.",
+          "type": "string",
+          "const": "full"
+        }
+      ]
+    },
+    "RuntimeChecksJson": {
+      "description": "Runtime checks for JSON deserialization.",
+      "anyOf": [
+        {
+          "description": "Shorthand used for every runtime check.",
+          "$ref": "#/$defs/CheckPolicyJson"
+        },
+        {
+          "description": "Structured runtime checks.",
+          "$ref": "#/$defs/RuntimeChecksObjectJson"
+        }
+      ]
+    },
+    "CheckPolicyJson": {
+      "description": "Runtime check policy for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Always emit the check.",
+          "type": "string",
+          "const": "always"
+        },
+        {
+          "description": "Emit the check for debug profiles.",
+          "type": "string",
+          "const": "debug"
+        },
+        {
+          "description": "Never emit the check.",
+          "type": "string",
+          "const": "never"
+        }
+      ]
+    },
+    "RuntimeChecksObjectJson": {
+      "description": "Structured runtime checks for JSON deserialization.",
+      "type": "object",
+      "properties": {
+        "default": {
+          "description": "Default policy for checks without an explicit override.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "overflow": {
+          "description": "Integer overflow check policy.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "bounds": {
+          "description": "Bounds check policy for array and slice accesses.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "null": {
+          "description": "Null check policy for reference operations.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "division": {
+          "description": "Division check policy for divide and remainder operations.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "shift": {
+          "description": "Shift range check policy.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckPolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "failure": {
+          "description": "Check failure behavior.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckFailurePolicyJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "CheckFailurePolicyJson": {
+      "description": "Check failure behavior for JSON deserialization.",
+      "oneOf": [
+        {
+          "description": "Trap immediately on a failed check.",
+          "type": "string",
+          "const": "trap"
+        },
+        {
+          "description": "Trigger a panic on a failed check.",
+          "type": "string",
+          "const": "panic"
+        },
+        {
+          "description": "Abort execution on a failed check.",
+          "type": "string",
+          "const": "abort"
+        }
+      ]
+    },
+    "ProductOptionsJson": {
+      "description": "Product options JSON.",
+      "type": "object",
+      "properties": {
+        "targets": {
+          "description": "Target names keyed by product role.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "app": {
+          "description": "App declaration used for host integration.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AppOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "policy": {
+          "description": "Product policy declarations and rules.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolicyOptionsJson"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
     "AppOptionsJson": {
       "description": "App options JSON.",
       "type": "object",
@@ -5163,7 +5570,7 @@
       ]
     },
     "AppBackgroundOptionsJson": {
-      "description": "Background execution declaration JSON for one target app.",
+      "description": "Background execution declaration JSON for one product app.",
       "type": "object",
       "properties": {
         "modes": {
@@ -5244,7 +5651,7 @@
       ]
     },
     "AppServiceOptionsJson": {
-      "description": "Foreground or persistent service declaration JSON for one target app.",
+      "description": "Foreground or persistent service declaration JSON for one product app.",
       "type": "object",
       "properties": {
         "foregroundModes": {
@@ -5315,7 +5722,7 @@
       ]
     },
     "AppDocumentOptionsJson": {
-      "description": "Document-provider declaration JSON for one target app.",
+      "description": "Document-provider declaration JSON for one product app.",
       "type": "object",
       "properties": {
         "openTypes": {
@@ -5348,7 +5755,7 @@
       }
     },
     "AppCredentialOptionsJson": {
-      "description": "Credential and secure-store declaration JSON for one target app.",
+      "description": "Credential and secure-store declaration JSON for one product app.",
       "type": "object",
       "properties": {
         "biometricUsage": {
@@ -5381,7 +5788,7 @@
       }
     },
     "AppLocationOptionsJson": {
-      "description": "Location declaration JSON for one target app.",
+      "description": "Location declaration JSON for one product app.",
       "type": "object",
       "properties": {
         "allowsBackgroundUpdates": {
@@ -5409,293 +5816,6 @@
           }
         }
       }
-    },
-    "OptimizeJson": {
-      "description": "Optimization setting accepted by target JSON.",
-      "anyOf": [
-        {
-          "description": "Enable or disable optimization.",
-          "type": "boolean"
-        },
-        {
-          "description": "Explicit optimization level.",
-          "type": "integer",
-          "format": "uint8",
-          "minimum": 0,
-          "maximum": 4
-        }
-      ]
-    },
-    "LtoModeJson": {
-      "description": "Link time optimization mode for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Choose mode based on optimization level.",
-          "type": "string",
-          "const": "auto"
-        },
-        {
-          "description": "Disable link time optimization.",
-          "type": "string",
-          "const": "none"
-        },
-        {
-          "description": "Enable thin link time optimization.",
-          "type": "string",
-          "const": "thin"
-        },
-        {
-          "description": "Enable full link time optimization.",
-          "type": "string",
-          "const": "full"
-        }
-      ]
-    },
-    "FloatMathPolicyJson": {
-      "description": "Floating point math policy for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Strict IEEE semantics.",
-          "type": "string",
-          "const": "strict"
-        },
-        {
-          "description": "Permit reassociation but preserve NaNs and infinities.",
-          "type": "string",
-          "const": "reassociate"
-        },
-        {
-          "description": "Enable fast math optimizations.",
-          "type": "string",
-          "const": "fast"
-        }
-      ]
-    },
-    "DebugInfoLevelJson": {
-      "description": "Debug info emission policy for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "No debug info.",
-          "type": "string",
-          "const": "none"
-        },
-        {
-          "description": "Line tables only.",
-          "type": "string",
-          "const": "line"
-        },
-        {
-          "description": "Full debug info.",
-          "type": "string",
-          "const": "full"
-        }
-      ]
-    },
-    "ExecutionModeJson": {
-      "description": "Execution mode for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Fast execution without determinism guarantees.",
-          "type": "string",
-          "const": "fast"
-        },
-        {
-          "description": "Deterministic scheduling with controlled randomness.",
-          "type": "string",
-          "const": "deterministic"
-        },
-        {
-          "description": "Record external effects for replay.",
-          "type": "string",
-          "const": "record"
-        },
-        {
-          "description": "Replay external effects from the log.",
-          "type": "string",
-          "const": "replay"
-        }
-      ]
-    },
-    "PanicPolicyJson": {
-      "description": "Panic policy for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Terminate the current worker or isolate.",
-          "type": "string",
-          "const": "worker"
-        },
-        {
-          "description": "Terminate the whole runtime process.",
-          "type": "string",
-          "const": "process"
-        },
-        {
-          "description": "Lower panic to a minimal trap.",
-          "type": "string",
-          "const": "trap"
-        },
-        {
-          "description": "Abort immediately without diagnostics.",
-          "type": "string",
-          "const": "abort"
-        }
-      ]
-    },
-    "StripLevelJson": {
-      "description": "Symbol stripping policy for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Keep all symbols.",
-          "type": "string",
-          "const": "none"
-        },
-        {
-          "description": "Strip local symbols.",
-          "type": "string",
-          "const": "partial"
-        },
-        {
-          "description": "Strip all symbols.",
-          "type": "string",
-          "const": "full"
-        }
-      ]
-    },
-    "RuntimeChecksJson": {
-      "description": "Runtime checks for JSON deserialization.",
-      "anyOf": [
-        {
-          "description": "Shorthand used for every runtime check.",
-          "$ref": "#/$defs/CheckPolicyJson"
-        },
-        {
-          "description": "Structured runtime checks.",
-          "$ref": "#/$defs/RuntimeChecksObjectJson"
-        }
-      ]
-    },
-    "CheckPolicyJson": {
-      "description": "Runtime check policy for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Always emit the check.",
-          "type": "string",
-          "const": "always"
-        },
-        {
-          "description": "Emit the check for debug profiles.",
-          "type": "string",
-          "const": "debug"
-        },
-        {
-          "description": "Never emit the check.",
-          "type": "string",
-          "const": "never"
-        }
-      ]
-    },
-    "RuntimeChecksObjectJson": {
-      "description": "Structured runtime checks for JSON deserialization.",
-      "type": "object",
-      "properties": {
-        "default": {
-          "description": "Default policy for checks without an explicit override.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/CheckPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "overflow": {
-          "description": "Integer overflow check policy.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/CheckPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "bounds": {
-          "description": "Bounds check policy for array and slice accesses.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/CheckPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "null": {
-          "description": "Null check policy for reference operations.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/CheckPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "division": {
-          "description": "Division check policy for divide and remainder operations.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/CheckPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "shift": {
-          "description": "Shift range check policy.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/CheckPolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "failure": {
-          "description": "Check failure behavior.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/CheckFailurePolicyJson"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        }
-      }
-    },
-    "CheckFailurePolicyJson": {
-      "description": "Check failure behavior for JSON deserialization.",
-      "oneOf": [
-        {
-          "description": "Trap immediately on a failed check.",
-          "type": "string",
-          "const": "trap"
-        },
-        {
-          "description": "Trigger a panic on a failed check.",
-          "type": "string",
-          "const": "panic"
-        },
-        {
-          "description": "Abort execution on a failed check.",
-          "type": "string",
-          "const": "abort"
-        }
-      ]
     },
     "EnvironmentJson": {
       "description": "A reusable toolchain and runtime environment.\n\nInputs: toolchain selections, runtime overrides, and reusable policy references.\nOutputs: one named context for checking, building, and running the package.",
