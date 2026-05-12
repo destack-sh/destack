@@ -2,7 +2,22 @@ use std::error::Error;
 use std::path::{Path, PathBuf};
 use std::{env, fs, io};
 
-const CORE_ROOTS: &[&str] = &["collections", "core", "math", "memory", "reflect", "string"];
+const CORE_ROOTS: &[&str] = &[
+    "async",
+    "collections",
+    "decorator",
+    "error",
+    "iter",
+    "json",
+    "macro",
+    "math",
+    "memory",
+    "module",
+    "ops",
+    "reflect",
+    "string",
+    "sync",
+];
 const OUTPUT_FILE: &str = "library_sources.rs";
 
 /// Build embedded library source lists.
@@ -164,9 +179,21 @@ fn core_declared_symbols() -> &'static [&'static str] {
         "arrayFill",
         "Slice",
         "Vector",
+        "Math",
+        "Number",
+        "BigInt",
+        "Function",
+        "eval",
+        "Reflect",
         "Map",
         "Record",
         "Set",
+        "Promise",
+        "Iterable",
+        "Iterator",
+        "AsyncIterable",
+        "AsyncIterator",
+        "Symbol",
     ]
 }
 

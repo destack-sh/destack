@@ -60,7 +60,7 @@ impl OperatorLanguageItemExt for UnaryOperator {
             UnaryOperator::Negate | UnaryOperator::WrappingNegate => Some(LanguageItem::Negate),
             UnaryOperator::Plus => Some(LanguageItem::Plus),
             UnaryOperator::ElementwiseNot => Some(LanguageItem::Not),
-            UnaryOperator::Dereference => Some(LanguageItem::ReadonlyDereference),
+            UnaryOperator::Dereference => Some(LanguageItem::Dereference),
 
             // increment/decrement
             UnaryOperator::PostIncrement
