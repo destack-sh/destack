@@ -1790,14 +1790,9 @@ fn symbol_lineage_contains_inner(
         }) {
             true
         } else {
-            // check implemented and embedded edges
+            // check implemented edges
             let mut found_match = false;
-            for related_symbol in lineage
-                .implements
-                .iter()
-                .chain(lineage.embedded.iter())
-                .copied()
-            {
+            for related_symbol in lineage.implements.iter().copied() {
                 if symbol_lineage_contains_inner(types, related_symbol, target_symbol, state) {
                     found_match = true;
                     break;

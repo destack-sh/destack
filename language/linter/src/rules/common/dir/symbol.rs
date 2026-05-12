@@ -448,7 +448,6 @@ pub fn declaration_initializer_expression(
                 dir::Member::AssociatedConst { value, .. } => *value,
                 dir::Member::Method { .. }
                 | dir::Member::AssociatedType { .. }
-                | dir::Member::Embed { .. }
                 | dir::Member::StaticBlock { .. }
                 | dir::Member::ComptimeBlock { .. }
                 | dir::Member::Error { .. } => None,

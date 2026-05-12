@@ -772,11 +772,6 @@ pub fn expression_is_type_annotation(
                         return true;
                     }
                 }
-                ast::Member::Embed { value, .. } => {
-                    if value.id == current_id {
-                        return true;
-                    }
-                }
                 _ => {}
             }
         }

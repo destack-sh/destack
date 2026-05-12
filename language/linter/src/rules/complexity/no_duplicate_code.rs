@@ -1537,9 +1537,7 @@ impl ast::NodeVisitor for AstSignatureCollector<'_> {
                 }
                 self.push_function_signature(signature);
             }
-            ast::Member::Embed { .. }
-            | ast::Member::StaticBlock { .. }
-            | ast::Member::ComptimeBlock { .. } => {}
+            ast::Member::StaticBlock { .. } | ast::Member::ComptimeBlock { .. } => {}
             ast::Member::Error => {}
         }
 
