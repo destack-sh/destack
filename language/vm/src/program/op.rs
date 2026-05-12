@@ -732,14 +732,14 @@ pub(crate) enum Op {
     InvokeIndirect,
     /// Invoke a callable value with normal and unwind targets.
     InvokeCallable,
-    /// Call a virtual method through a local heap receiver.
-    CallVirtualHeap,
-    /// Call a virtual method through a shared heap receiver.
-    CallVirtualSharedHeap,
-    /// Invoke a virtual method through a local heap receiver.
-    InvokeVirtualHeap,
-    /// Invoke a virtual method through a shared heap receiver.
-    InvokeVirtualSharedHeap,
+    /// Call a class method through a local heap receiver.
+    CallClassHeap,
+    /// Call a class method through a shared heap receiver.
+    CallClassSharedHeap,
+    /// Invoke a class method through a local heap receiver.
+    InvokeClassHeap,
+    /// Invoke a class method through a shared heap receiver.
+    InvokeClassSharedHeap,
     /// Call an interface method through a local heap receiver.
     CallInterfaceHeap,
     /// Call an interface method through a shared heap receiver.
@@ -756,10 +756,10 @@ pub(crate) enum Op {
     TailCallIndirect,
     /// Tail call a callable value.
     TailCallCallable,
-    /// Tail call a virtual method through a local heap receiver.
-    TailCallVirtualHeap,
-    /// Tail call a virtual method through a shared heap receiver.
-    TailCallVirtualSharedHeap,
+    /// Tail call a class method through a local heap receiver.
+    TailCallClassHeap,
+    /// Tail call a class method through a shared heap receiver.
+    TailCallClassSharedHeap,
     /// Tail call an interface method through a local heap receiver.
     TailCallInterfaceHeap,
     /// Tail call an interface method through a shared heap receiver.

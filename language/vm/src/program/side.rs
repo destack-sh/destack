@@ -275,9 +275,9 @@ pub(crate) struct CallBranch {
     pub(crate) unwind_state: engine::FrameStateId,
 }
 
-/// Virtual method call.
+/// Class method call.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct CallVirtual {
+pub(crate) struct CallClass {
     /// The optional destination value.
     pub(crate) dest: Option<mir::Value>,
     /// The receiver word offset.
@@ -290,9 +290,9 @@ pub(crate) struct CallVirtual {
     pub(crate) arguments: ArgumentRange,
 }
 
-/// Virtual method call terminator with explicit normal and unwind continuations.
+/// Class method call terminator with explicit normal and unwind continuations.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct CallVirtualBranch {
+pub(crate) struct CallClassBranch {
     /// The receiver word offset.
     pub(crate) receiver_offset: u32,
     /// The dispatch table field projection.
@@ -987,9 +987,9 @@ pub(crate) struct TailCall {
     pub(crate) moves: MoveRange,
 }
 
-/// Virtual tail call.
+/// Class tail call.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct TailCallVirtual {
+pub(crate) struct TailCallClass {
     /// The receiver word offset.
     pub(crate) receiver_offset: u32,
     /// The dispatch table field projection.

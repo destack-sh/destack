@@ -850,19 +850,19 @@ macro_rules! dispatch_instruction {
             }
             Op::InvokeIndirect => $transfer!(super::execute_invoke_indirect($machine, instruction)),
             Op::InvokeCallable => $transfer!(super::execute_invoke_callable($machine, instruction)),
-            Op::CallVirtualHeap => $transfer!(super::execute_call_virtual_heap(
+            Op::CallClassHeap => $transfer!(super::execute_call_class_heap(
                 $machine,
                 instruction,
                 $block_pc
             )),
-            Op::CallVirtualSharedHeap => $transfer!({
-                super::execute_call_virtual_shared_heap($machine, instruction, $block_pc)
+            Op::CallClassSharedHeap => $transfer!({
+                super::execute_call_class_shared_heap($machine, instruction, $block_pc)
             }),
-            Op::InvokeVirtualHeap => {
-                $transfer!(super::execute_invoke_virtual_heap($machine, instruction))
+            Op::InvokeClassHeap => {
+                $transfer!(super::execute_invoke_class_heap($machine, instruction))
             }
-            Op::InvokeVirtualSharedHeap => {
-                $transfer!(super::execute_invoke_virtual_shared_heap(
+            Op::InvokeClassSharedHeap => {
+                $transfer!(super::execute_invoke_class_shared_heap(
                     $machine,
                     instruction
                 ))
@@ -892,19 +892,21 @@ macro_rules! dispatch_instruction {
             Op::TailCallCallable => {
                 $transfer!(super::execute_tail_call_callable($machine, instruction))
             }
-            Op::TailCallVirtualHeap => {
-                $transfer!(super::execute_tail_call_virtual_heap($machine, instruction))
+            Op::TailCallClassHeap => {
+                $transfer!(super::execute_tail_call_class_heap($machine, instruction))
             }
-            Op::TailCallVirtualSharedHeap => {
-                $transfer!(super::execute_tail_call_virtual_shared_heap(
+            Op::TailCallClassSharedHeap => {
+                $transfer!(super::execute_tail_call_class_shared_heap(
                     $machine,
                     instruction
                 ))
             }
-            Op::TailCallInterfaceHeap => $transfer!(super::execute_tail_call_interface_heap(
-                $machine,
-                instruction
-            )),
+            Op::TailCallInterfaceHeap => {
+                $transfer!(super::execute_tail_call_interface_heap(
+                    $machine,
+                    instruction
+                ))
+            }
             Op::TailCallInterfaceSharedHeap => {
                 $transfer!(super::execute_tail_call_interface_shared_heap(
                     $machine,

@@ -107,7 +107,7 @@ impl BlockOrder {
                     unwind_target,
                     ..
                 }
-                | mir::Terminator::InvokeVirtual {
+                | mir::Terminator::InvokeClass {
                     normal_target,
                     unwind_target,
                     ..
@@ -139,7 +139,7 @@ impl BlockOrder {
                 | mir::Terminator::Unreachable
                 | mir::Terminator::TailCall { .. }
                 | mir::Terminator::TailCallIndirect { .. }
-                | mir::Terminator::TailCallVirtual { .. }
+                | mir::Terminator::TailCallClass { .. }
                 | mir::Terminator::TailCallInterface { .. } => {}
             }
         }

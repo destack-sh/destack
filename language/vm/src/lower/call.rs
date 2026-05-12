@@ -1,17 +1,17 @@
 use {destack_engine as engine, destack_mir as mir};
 
 use crate::program::{
-    Call, CallBranch, CallIndirect, CallIndirectBranch, CallInterface, CallInterfaceBranch,
-    CallVirtual, CallVirtualBranch, CallableBind, CallableEnvironment, Instruction, Op,
-    PointerClass, TailCall, TailCallIndirect, TailCallInterface, TailCallVirtual,
-    callable_object_layout, repr_type, word_layout_from_type,
+    Call, CallBranch, CallClass, CallClassBranch, CallIndirect, CallIndirectBranch, CallInterface,
+    CallInterfaceBranch, CallableBind, CallableEnvironment, Instruction, Op, PointerClass,
+    TailCall, TailCallClass, TailCallIndirect, TailCallInterface, callable_object_layout,
+    repr_type, word_layout_from_type,
 };
 use crate::{Error, Result};
 
 use super::frame::{value_offset, word_offset};
 use super::lower::BlockLowerer;
 use super::pool::Pool;
-use super::projection::{itab_projection, vtable_projection};
+use super::projection::{interface_table_projection, vtable_projection};
 use super::value::{
     heap_pointee_type_for_value, heap_pointee_type_for_value_layout, pointer_class_for_value,
 };
@@ -30,12 +30,12 @@ impl<'a> BlockLowerer<'a> {
             mir::Terminator::InvokeIndirect { callee, call, .. } => {
                 self.lower_indirect_invoke(*callee, call, pool)?
             }
-            mir::Terminator::InvokeVirtual {
+            mir::Terminator::InvokeClass {
                 receiver,
                 slot,
                 call,
                 ..
-            } => self.lower_virtual_invoke(*receiver, *slot, call, pool)?,
+            } => self.lower_class_invoke(*receiver, *slot, call, pool)?,
             mir::Terminator::InvokeInterface {
                 receiver,
                 slot,
@@ -48,12 +48,12 @@ impl<'a> BlockLowerer<'a> {
             mir::Terminator::TailCallIndirect { callee, call, .. } => {
                 self.lower_indirect_tail_call(*callee, call, pool)?
             }
-            mir::Terminator::TailCallVirtual {
+            mir::Terminator::TailCallClass {
                 receiver,
                 slot,
                 call,
                 ..
-            } => self.lower_virtual_tail_call(*receiver, *slot, call, pool)?,
+            } => self.lower_class_tail_call(*receiver, *slot, call, pool)?,
             mir::Terminator::TailCallInterface {
                 receiver,
                 slot,
@@ -109,8 +109,8 @@ impl<'a> BlockLowerer<'a> {
         ))
     }
 
-    /// Lower one virtual call.
-    pub(super) fn lower_virtual_call(
+    /// Lower one class call.
+    pub(super) fn lower_class_call(
         &self,
         destination: Option<mir::ValueReference>,
         receiver: mir::ValueReference,
@@ -121,12 +121,12 @@ impl<'a> BlockLowerer<'a> {
         // resolve arguments and receiver
         let arguments = pool.argument_reference_range(
             self.tree.get_arguments(call.arguments),
-            "virtual call argument",
+            "class call argument",
         )?;
         let receiver = receiver
             .value()
             .ok_or_else(|| Error::MissingRepresentation {
-                context: "virtual call receiver".to_string(),
+                context: "class call receiver".to_string(),
             })?;
 
         // compile the receiver table access
@@ -137,15 +137,15 @@ impl<'a> BlockLowerer<'a> {
             heap_pointee_type_for_value(self.tree, self.value_type(), receiver),
         )
         .ok_or_else(|| Error::MissingRepresentation {
-            context: "virtual call table field".to_string(),
+            context: "class call table field".to_string(),
         })?;
         let table_field = pool.projection(table_field);
 
         // emit the receiver-space-specific opcode
         Ok(pool.instruction_with_side(
-            virtual_call_op(pointer_class)?,
-            CallVirtual {
-                dest: self.optional_value(destination, "virtual call destination")?,
+            class_call_op(pointer_class)?,
+            CallClass {
+                dest: self.optional_value(destination, "class call destination")?,
                 receiver_offset: word_offset(self, receiver)?,
                 table_field,
                 slot: method.0,
@@ -176,7 +176,7 @@ impl<'a> BlockLowerer<'a> {
 
         // compile the receiver table access
         let pointer_class = pointer_class_for_value(self.value_layout_map(), receiver);
-        let table_field = itab_projection(
+        let table_field = interface_table_projection(
             self.tree,
             self.layouts(),
             heap_pointee_type_for_value(self.tree, self.value_type(), receiver),
@@ -426,8 +426,8 @@ impl<'a> BlockLowerer<'a> {
         ))
     }
 
-    /// Lower one virtual exceptional call.
-    fn lower_virtual_invoke(
+    /// Lower one class exceptional call.
+    fn lower_class_invoke(
         &self,
         receiver: mir::ValueReference,
         method: mir::DispatchSlot,
@@ -437,10 +437,10 @@ impl<'a> BlockLowerer<'a> {
         let receiver = receiver
             .value()
             .ok_or_else(|| Error::MissingRepresentation {
-                context: "invoke virtual receiver".to_string(),
+                context: "invoke class receiver".to_string(),
             })?;
         let arguments =
-            pool.argument_reference_range(call.arguments.as_slice(), "invoke virtual argument")?;
+            pool.argument_reference_range(call.arguments.as_slice(), "invoke class argument")?;
         let (normal_state, unwind_state) = self.exceptional_call_states()?;
         let pointer_class = pointer_class_for_value(self.value_layout_map(), receiver);
         let table_field = vtable_projection(
@@ -449,13 +449,13 @@ impl<'a> BlockLowerer<'a> {
             heap_pointee_type_for_value(self.tree, self.value_type(), receiver),
         )
         .ok_or_else(|| Error::MissingRepresentation {
-            context: "invoke virtual table field".to_string(),
+            context: "invoke class table field".to_string(),
         })?;
         let table_field = pool.projection(table_field);
 
         Ok(pool.instruction_with_side(
-            virtual_invoke_op(pointer_class)?,
-            CallVirtualBranch {
+            class_invoke_op(pointer_class)?,
+            CallClassBranch {
                 receiver_offset: word_offset(self, receiver)?,
                 table_field,
                 slot: method.0,
@@ -483,7 +483,7 @@ impl<'a> BlockLowerer<'a> {
             pool.argument_reference_range(call.arguments.as_slice(), "invoke interface argument")?;
         let (normal_state, unwind_state) = self.exceptional_call_states()?;
         let pointer_class = pointer_class_for_value(self.value_layout_map(), receiver);
-        let table_field = itab_projection(
+        let table_field = interface_table_projection(
             self.tree,
             self.layouts(),
             heap_pointee_type_for_value(self.tree, self.value_type(), receiver),
@@ -580,8 +580,8 @@ impl<'a> BlockLowerer<'a> {
         ))
     }
 
-    /// Lower one virtual tail call.
-    fn lower_virtual_tail_call(
+    /// Lower one class tail call.
+    fn lower_class_tail_call(
         &self,
         receiver: mir::ValueReference,
         method: mir::DispatchSlot,
@@ -591,10 +591,10 @@ impl<'a> BlockLowerer<'a> {
         let receiver = receiver
             .value()
             .ok_or_else(|| Error::MissingRepresentation {
-                context: "tail virtual receiver".to_string(),
+                context: "tail class receiver".to_string(),
             })?;
         let arguments =
-            pool.argument_reference_range(call.arguments.as_slice(), "tail virtual argument")?;
+            pool.argument_reference_range(call.arguments.as_slice(), "tail class argument")?;
         let pointer_class = pointer_class_for_value(self.value_layout_map(), receiver);
         let table_field = vtable_projection(
             self.tree,
@@ -602,13 +602,13 @@ impl<'a> BlockLowerer<'a> {
             heap_pointee_type_for_value_layout(self.value_layout_map(), receiver),
         )
         .ok_or_else(|| Error::MissingRepresentation {
-            context: "tail virtual table field".to_string(),
+            context: "tail class table field".to_string(),
         })?;
         let table_field = pool.projection(table_field);
 
         Ok(pool.instruction_with_side(
-            virtual_tail_call_op(pointer_class)?,
-            TailCallVirtual {
+            class_tail_call_op(pointer_class)?,
+            TailCallClass {
                 receiver_offset: word_offset(self, receiver)?,
                 table_field,
                 slot: method.0,
@@ -633,7 +633,7 @@ impl<'a> BlockLowerer<'a> {
         let arguments =
             pool.argument_reference_range(call.arguments.as_slice(), "tail interface argument")?;
         let pointer_class = pointer_class_for_value(self.value_layout_map(), receiver);
-        let table_field = itab_projection(
+        let table_field = interface_table_projection(
             self.tree,
             self.layouts(),
             heap_pointee_type_for_value_layout(self.value_layout_map(), receiver),
@@ -665,33 +665,33 @@ struct IndirectCallee {
     has_environment: bool,
 }
 
-/// Return the virtual call op for one receiver pointer class.
-fn virtual_call_op(pointer_class: PointerClass) -> Result<Op> {
+/// Return the class call op for one receiver pointer class.
+fn class_call_op(pointer_class: PointerClass) -> Result<Op> {
     match pointer_class {
-        PointerClass::Heap => Ok(Op::CallVirtualHeap),
-        PointerClass::SharedHeap => Ok(Op::CallVirtualSharedHeap),
+        PointerClass::Heap => Ok(Op::CallClassHeap),
+        PointerClass::SharedHeap => Ok(Op::CallClassSharedHeap),
         _ => Err(Error::InvalidPointerType {
             actual: format!("{pointer_class:?}"),
         }),
     }
 }
 
-/// Return the virtual invoke op for one receiver pointer class.
-fn virtual_invoke_op(pointer_class: PointerClass) -> Result<Op> {
+/// Return the class invoke op for one receiver pointer class.
+fn class_invoke_op(pointer_class: PointerClass) -> Result<Op> {
     match pointer_class {
-        PointerClass::Heap => Ok(Op::InvokeVirtualHeap),
-        PointerClass::SharedHeap => Ok(Op::InvokeVirtualSharedHeap),
+        PointerClass::Heap => Ok(Op::InvokeClassHeap),
+        PointerClass::SharedHeap => Ok(Op::InvokeClassSharedHeap),
         _ => Err(Error::InvalidPointerType {
             actual: format!("{pointer_class:?}"),
         }),
     }
 }
 
-/// Return the virtual tail call op for one receiver pointer class.
-fn virtual_tail_call_op(pointer_class: PointerClass) -> Result<Op> {
+/// Return the class tail call op for one receiver pointer class.
+fn class_tail_call_op(pointer_class: PointerClass) -> Result<Op> {
     match pointer_class {
-        PointerClass::Heap => Ok(Op::TailCallVirtualHeap),
-        PointerClass::SharedHeap => Ok(Op::TailCallVirtualSharedHeap),
+        PointerClass::Heap => Ok(Op::TailCallClassHeap),
+        PointerClass::SharedHeap => Ok(Op::TailCallClassSharedHeap),
         _ => Err(Error::InvalidPointerType {
             actual: format!("{pointer_class:?}"),
         }),

@@ -417,7 +417,7 @@ fn propagate_block_parameter_layouts(
                 unwind_target,
                 ..
             }
-            | mir::Terminator::InvokeVirtual {
+            | mir::Terminator::InvokeClass {
                 normal_target,
                 unwind_target,
                 ..
@@ -437,7 +437,7 @@ fn propagate_block_parameter_layouts(
             | mir::Terminator::Unreachable
             | mir::Terminator::TailCall { .. }
             | mir::Terminator::TailCallIndirect { .. }
-            | mir::Terminator::TailCallVirtual { .. }
+            | mir::Terminator::TailCallClass { .. }
             | mir::Terminator::TailCallInterface { .. } => {}
         }
     }
@@ -585,7 +585,7 @@ fn infer_instruction_layout(
             let function = tree.get(function.function()?);
             Some(value_layout_from_type(tree, function.return_type.ty()?))
         }
-        mir::Instruction::CallVirtual {
+        mir::Instruction::CallClass {
             destination, call, ..
         }
         | mir::Instruction::CallInterface {

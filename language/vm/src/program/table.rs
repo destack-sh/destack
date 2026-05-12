@@ -1,10 +1,10 @@
 use {destack_heap as heap, destack_mir as mir};
 
 use super::{
-    AllocationLayout, AtomicCompareExchange, Call, CallBranch, CallIndirect, CallIndirectBranch,
-    CallInterface, CallInterfaceBranch, CallVirtual, CallVirtualBranch, CallableBind, ConstValue,
+    AllocationLayout, AtomicCompareExchange, Call, CallBranch, CallClass, CallClassBranch,
+    CallIndirect, CallIndirectBranch, CallInterface, CallInterfaceBranch, CallableBind, ConstValue,
     FrameSelect, Intrinsic, MoveRange, Projection, SliceProjection, SwitchCase, TailCall,
-    TailCallIndirect, TailCallInterface, TailCallVirtual, TensorBinary, TensorBroadcast,
+    TailCallClass, TailCallIndirect, TailCallInterface, TensorBinary, TensorBroadcast,
     TensorConcat, TensorContiguousBinary, TensorContiguousUnary, TensorConvert, TensorConvolution,
     TensorCopy, TensorDot, TensorExtract, TensorFill, TensorGather, TensorLayout, TensorLoad,
     TensorPad, TensorReduce, TensorReshape, TensorScatter, TensorSelect, TensorSlice, TensorStore,
@@ -274,8 +274,8 @@ side_record_table! {
     callable_bind: CallableBind,
     call: Call,
     call_branch: CallBranch,
-    call_virtual: CallVirtual,
-    call_virtual_branch: CallVirtualBranch,
+    call_class: CallClass,
+    call_class_branch: CallClassBranch,
     call_interface: CallInterface,
     call_interface_branch: CallInterfaceBranch,
     call_indirect: CallIndirect,
@@ -305,7 +305,7 @@ side_record_table! {
     tensor_view: TensorView,
     intrinsic: Intrinsic,
     tail_call: TailCall,
-    tail_call_virtual: TailCallVirtual,
+    tail_call_class: TailCallClass,
     tail_call_interface: TailCallInterface,
     tail_call_indirect: TailCallIndirect,
 }
