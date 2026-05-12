@@ -48,6 +48,44 @@ const next = counter.increment();
 next satisfies int32;
 ```
 
+### fields and methods can share names
+
+Property access and method calls use different member projections.
+
+```ds
+class Counter {
+    count: int32 = 0;
+
+    count(): string {
+        "count"
+    }
+}
+
+const counter = new Counter();
+
+counter.count satisfies int32;
+counter.count() satisfies string;
+```
+
+### callable fields can be selected explicitly
+
+Parentheses select the field before calling it.
+
+```ds
+class Runner {
+    run: () => "field" = () => "field";
+
+    run(): "method" {
+        "method"
+    }
+}
+
+const runner = new Runner();
+
+runner.run() satisfies "method";
+(runner.run)() satisfies "field";
+```
+
 ### instance members are unavailable on class values
 
 ```ds
@@ -185,6 +223,22 @@ counter.count = "bad";
 ```
 
 - contains: not assignable
+
+### fields and accessors share property names
+
+Fields and accessors cannot both answer the same property access.
+
+```ds
+class Counter {
+    count: int32 = 0;
+
+    get count(): int32 {
+        this.count
+    }
+}
+```
+
+- contains: duplicate member
 
 ## rejections
 
