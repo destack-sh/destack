@@ -256,7 +256,7 @@ fn call_constraint_from_terminator(
         mir::Terminator::InvokeIndirect { call, .. } => {
             call_constraint_from_signature(tree, call.signature, None)
         }
-        mir::Terminator::InvokeVirtual { call, .. } => {
+        mir::Terminator::InvokeClass { call, .. } => {
             call_constraint_from_signature(tree, call.signature, declared_target)
         }
         mir::Terminator::InvokeInterface { call, .. } => {
@@ -266,7 +266,7 @@ fn call_constraint_from_terminator(
         mir::Terminator::TailCallIndirect { call, .. } => {
             call_constraint_from_signature(tree, call.signature, None)
         }
-        mir::Terminator::TailCallVirtual { call, .. } => {
+        mir::Terminator::TailCallClass { call, .. } => {
             call_constraint_from_signature(tree, call.signature, declared_target)
         }
         mir::Terminator::TailCallInterface { call, .. } => {

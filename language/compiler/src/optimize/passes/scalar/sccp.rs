@@ -529,7 +529,7 @@ impl<'a> SccpState<'a> {
                 unwind_target,
                 ..
             }
-            | mir::Terminator::InvokeVirtual {
+            | mir::Terminator::InvokeClass {
                 normal_target,
                 unwind_target,
                 ..
@@ -554,7 +554,7 @@ impl<'a> SccpState<'a> {
             | mir::Terminator::Trap { .. }
             | mir::Terminator::Unreachable
             | mir::Terminator::TailCall { .. }
-            | mir::Terminator::TailCallVirtual { .. }
+            | mir::Terminator::TailCallClass { .. }
             | mir::Terminator::TailCallInterface { .. }
             | mir::Terminator::TailCallIndirect { .. } => {}
         }

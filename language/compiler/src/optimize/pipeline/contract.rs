@@ -232,7 +232,7 @@ fn enforce_type_layouts(
     // scan layout sensitive types
     let mut ok = true;
     for (type_id, ty) in tree.iter_nodes::<mir::Type>() {
-        if !type_requires_layout(tree, type_id, ty) {
+        if !type_requires_layout(ty) {
             continue;
         }
 
@@ -283,7 +283,7 @@ fn instruction_is_call(instruction: &mir::Instruction) -> bool {
     matches!(
         instruction,
         mir::Instruction::Call { .. }
-            | mir::Instruction::CallVirtual { .. }
+            | mir::Instruction::CallClass { .. }
             | mir::Instruction::CallInterface { .. }
             | mir::Instruction::CallIndirect { .. }
     )
@@ -312,15 +312,14 @@ fn is_memory_intrinsic(intrinsic: mir::Intrinsic) -> bool {
 }
 
 /// Return true when a type requires layout metadata.
-fn type_requires_layout(
-    tree: &mir::Tree,
-    type_id: mir::LocalNodeId<mir::Type>,
-    ty: &mir::Type,
-) -> bool {
+fn type_requires_layout(ty: &mir::Type) -> bool {
     matches!(
         ty,
-        mir::Type::Struct { .. } | mir::Type::Tuple { .. } | mir::Type::Array { .. }
-    ) || tree.metadata.layout.union_layout(type_id).is_some()
+        mir::Type::Struct { .. }
+            | mir::Type::Tuple { .. }
+            | mir::Type::Array { .. }
+            | mir::Type::Union { .. }
+    )
 }
 
 /// Return true when a layout entry exists in the layout table.

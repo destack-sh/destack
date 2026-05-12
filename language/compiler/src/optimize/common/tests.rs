@@ -52,7 +52,7 @@ impl TestProgram {
     pub(crate) fn new(source: &str) -> Self {
         let (tree, strings) =
             mir::parse::Parser::parse(FileId::new(0), source, ParseOptions::default())
-                .validate()
+                .finish()
                 .expect("failed to parse MIR");
         let strings_pool = StringPool::new();
 
@@ -827,7 +827,7 @@ impl TestProgram {
     pub(crate) fn assert_unchanged(&self, original: &str) {
         let (tree, strings) =
             mir::parse::Parser::parse(FileId::new(0), original, ParseOptions::default())
-                .validate()
+                .finish()
                 .expect("failed to parse expected MIR");
         let expected = mir::format_mir(&tree, &strings, mir::MirFormatOptions::default());
 

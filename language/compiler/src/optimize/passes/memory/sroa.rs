@@ -430,7 +430,7 @@ fn analyze_uses(
 
                     // calls: check if value is passed as argument (escapes)
                     mir::Instruction::Call { .. }
-                    | mir::Instruction::CallVirtual { .. }
+                    | mir::Instruction::CallClass { .. }
                     | mir::Instruction::CallInterface { .. }
                     | mir::Instruction::CallIndirect { .. } => {
                         // arguments are stored externally, access via argument_slice

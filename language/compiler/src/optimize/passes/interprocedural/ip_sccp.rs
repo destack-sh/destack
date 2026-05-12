@@ -667,7 +667,7 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
                     });
                 }
                 mir::Terminator::InvokeIndirect { call, .. }
-                | mir::Terminator::InvokeVirtual { call, .. }
+                | mir::Terminator::InvokeClass { call, .. }
                 | mir::Terminator::InvokeInterface { call, .. } => {
                     if let Some(signature) = call
                         .signature
@@ -696,7 +696,7 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
                     });
                 }
                 mir::Terminator::TailCallIndirect { call, .. }
-                | mir::Terminator::TailCallVirtual { call, .. }
+                | mir::Terminator::TailCallClass { call, .. }
                 | mir::Terminator::TailCallInterface { call, .. } => {
                     if let Some(signature) = call
                         .signature

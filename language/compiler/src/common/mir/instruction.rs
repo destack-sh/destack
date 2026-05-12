@@ -109,7 +109,7 @@ pub fn instruction_is_pure(instruction: &Instruction) -> bool {
 
         // calls may have side effects
         Instruction::Call { .. }
-        | Instruction::CallVirtual { .. }
+        | Instruction::CallClass { .. }
         | Instruction::CallInterface { .. }
         | Instruction::CallIndirect { .. } => false,
 
@@ -272,7 +272,7 @@ pub fn instruction_has_side_effects(instruction: &Instruction) -> bool {
 
         // calls may have side effects
         Instruction::Call { .. }
-        | Instruction::CallVirtual { .. }
+        | Instruction::CallClass { .. }
         | Instruction::CallInterface { .. }
         | Instruction::CallIndirect { .. } => true,
 
@@ -325,7 +325,7 @@ pub fn instruction_may_affect_memory(instruction: &Instruction) -> bool {
             | Instruction::TensorFill { .. }
             | Instruction::TensorCopy { .. }
             | Instruction::Call { .. }
-            | Instruction::CallVirtual { .. }
+            | Instruction::CallClass { .. }
             | Instruction::CallInterface { .. }
             | Instruction::CallIndirect { .. }
             | Instruction::Intrinsic { .. }
@@ -388,7 +388,7 @@ pub fn instruction_allows_read_only_motion(
     let is_call = matches!(
         instruction,
         Instruction::Call { .. }
-            | Instruction::CallVirtual { .. }
+            | Instruction::CallClass { .. }
             | Instruction::CallInterface { .. }
             | Instruction::CallIndirect { .. }
     );
@@ -1001,14 +1001,14 @@ pub fn instruction_substitute_uses(
         mir::Instruction::Assume { condition } => mir::Instruction::Assume {
             condition: substitute(condition),
         },
-        mir::Instruction::CallVirtual {
+        mir::Instruction::CallClass {
             destination,
             receiver,
             call,
             declaring_type,
             slot,
             declared_target,
-        } => mir::Instruction::CallVirtual {
+        } => mir::Instruction::CallClass {
             destination: *destination,
             receiver: substitute(receiver),
             call: call.clone(),
@@ -1022,14 +1022,12 @@ pub fn instruction_substitute_uses(
             call,
             declaring_type,
             slot,
-            declared_target,
         } => mir::Instruction::CallInterface {
             destination: *destination,
             receiver: substitute(receiver),
             call: call.clone(),
             declaring_type: *declaring_type,
             slot: *slot,
-            declared_target: *declared_target,
         },
         mir::Instruction::CallIndirect {
             destination,
@@ -1462,14 +1460,14 @@ pub fn instruction_substitute_uses_in_tree(
             function: *function,
             call: clone_call_with_arguments(call, substitute_arguments(call.arguments)),
         },
-        mir::Instruction::CallVirtual {
+        mir::Instruction::CallClass {
             destination,
             receiver,
             call,
             declaring_type,
             slot,
             declared_target,
-        } => mir::Instruction::CallVirtual {
+        } => mir::Instruction::CallClass {
             destination: *destination,
             receiver: substitute(*receiver),
             call: clone_call_with_arguments(call, substitute_arguments(call.arguments)),
@@ -1483,14 +1481,12 @@ pub fn instruction_substitute_uses_in_tree(
             call,
             declaring_type,
             slot,
-            declared_target,
         } => mir::Instruction::CallInterface {
             destination: *destination,
             receiver: substitute(*receiver),
             call: clone_call_with_arguments(call, substitute_arguments(call.arguments)),
             declaring_type: *declaring_type,
             slot: *slot,
-            declared_target: *declared_target,
         },
         mir::Instruction::CallIndirect {
             destination,
@@ -2532,14 +2528,14 @@ pub fn instruction_map(
             function: *function,
             call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
         },
-        mir::Instruction::CallVirtual {
+        mir::Instruction::CallClass {
             destination,
             receiver,
             call,
             declaring_type,
             slot,
             declared_target,
-        } => mir::Instruction::CallVirtual {
+        } => mir::Instruction::CallClass {
             destination: destination.map(remap),
             receiver: remap(*receiver),
             call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
@@ -2553,14 +2549,12 @@ pub fn instruction_map(
             call,
             declaring_type,
             slot,
-            declared_target,
         } => mir::Instruction::CallInterface {
             destination: destination.map(remap),
             receiver: remap(*receiver),
             call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
             declaring_type: *declaring_type,
             slot: *slot,
-            declared_target: *declared_target,
         },
         mir::Instruction::CallIndirect {
             destination,
@@ -3302,14 +3296,14 @@ pub fn instruction_map_with_locals(
             function: *function,
             call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
         },
-        mir::Instruction::CallVirtual {
+        mir::Instruction::CallClass {
             destination,
             receiver,
             call,
             declaring_type,
             slot,
             declared_target,
-        } => mir::Instruction::CallVirtual {
+        } => mir::Instruction::CallClass {
             destination: destination.map(remap),
             receiver: remap(*receiver),
             call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
@@ -3323,14 +3317,12 @@ pub fn instruction_map_with_locals(
             call,
             declaring_type,
             slot,
-            declared_target,
         } => mir::Instruction::CallInterface {
             destination: destination.map(remap),
             receiver: remap(*receiver),
             call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
             declaring_type: *declaring_type,
             slot: *slot,
-            declared_target: *declared_target,
         },
         mir::Instruction::CallIndirect {
             destination,
@@ -3570,7 +3562,7 @@ pub fn terminator_remap(
             remap_target(unwind_target);
             remap_args(&mut unwind_target.arguments);
         }
-        mir::Terminator::InvokeVirtual {
+        mir::Terminator::InvokeClass {
             receiver,
             call,
             normal_target,
@@ -3605,7 +3597,7 @@ pub fn terminator_remap(
         } => {
             remap_args(&mut call.arguments);
         }
-        mir::Terminator::TailCallVirtual { receiver, call, .. }
+        mir::Terminator::TailCallClass { receiver, call, .. }
         | mir::Terminator::TailCallInterface { receiver, call, .. } => {
             remap_value(receiver);
             remap_args(&mut call.arguments);

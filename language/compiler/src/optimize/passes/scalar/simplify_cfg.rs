@@ -4302,7 +4302,7 @@ b0:
                         &mut mismatches,
                     );
                 }
-                mir::Terminator::InvokeVirtual {
+                mir::Terminator::InvokeClass {
                     normal_target,
                     unwind_target,
                     ..
@@ -4311,7 +4311,7 @@ b0:
                         normal_target
                             .block
                             .block()
-                            .expect("invokeVirtual success target should be concrete"),
+                            .expect("invokeClass success target should be concrete"),
                         &normal_target
                             .arguments
                             .iter()
@@ -4323,7 +4323,7 @@ b0:
                         unwind_target
                             .block
                             .block()
-                            .expect("invokeVirtual unwind target should be concrete"),
+                            .expect("invokeClass unwind target should be concrete"),
                         &unwind_target
                             .arguments
                             .iter()
@@ -4367,7 +4367,7 @@ b0:
                 | mir::Terminator::Unreachable
                 | mir::Terminator::Trap { .. }
                 | mir::Terminator::TailCall { .. }
-                | mir::Terminator::TailCallVirtual { .. }
+                | mir::Terminator::TailCallClass { .. }
                 | mir::Terminator::TailCallInterface { .. }
                 | mir::Terminator::TailCallIndirect { .. } => {}
             }
@@ -4555,7 +4555,7 @@ b0:
                 }
                 mir::Terminator::Invoke { .. }
                 | mir::Terminator::InvokeIndirect { .. }
-                | mir::Terminator::InvokeVirtual { .. }
+                | mir::Terminator::InvokeClass { .. }
                 | mir::Terminator::InvokeInterface { .. }
                 | mir::Terminator::Throw { value: _ } => {
                     for value in terminator.uses().iter().filter_map(|value| value.value()) {
@@ -4570,7 +4570,7 @@ b0:
                 mir::Terminator::Unreachable
                 | mir::Terminator::Trap { .. }
                 | mir::Terminator::TailCall { .. }
-                | mir::Terminator::TailCallVirtual { .. }
+                | mir::Terminator::TailCallClass { .. }
                 | mir::Terminator::TailCallInterface { .. }
                 | mir::Terminator::TailCallIndirect { .. }
                 | mir::Terminator::Error => {}

@@ -54,7 +54,7 @@ pub enum OptimizeWarning {
     // -------------------------------------------------------------------------
     // 3xx: Optimization missed warnings
     // -------------------------------------------------------------------------
-    /// Virtual call could not be devirtualized.
+    /// Class call could not be devirtualized.
     #[diagnostic(code = "WO300", message = "cannot devirtualize: {reason}")]
     CannotDevirtualize {
         anchor: DiagnosticAnchor,

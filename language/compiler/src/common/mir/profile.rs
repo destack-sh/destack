@@ -477,7 +477,7 @@ pub fn terminator_edges(
             unwind_target,
             ..
         }
-        | mir::Terminator::InvokeVirtual {
+        | mir::Terminator::InvokeClass {
             normal_target,
             unwind_target,
             ..
@@ -512,7 +512,7 @@ pub fn terminator_edges(
         | mir::Terminator::Trap { .. }
         | mir::Terminator::Unreachable
         | mir::Terminator::TailCall { .. }
-        | mir::Terminator::TailCallVirtual { .. }
+        | mir::Terminator::TailCallClass { .. }
         | mir::Terminator::TailCallInterface { .. }
         | mir::Terminator::TailCallIndirect { .. } => Vec::new(),
     }

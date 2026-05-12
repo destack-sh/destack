@@ -565,7 +565,7 @@ fn remap_terminator_blocks(
                 arguments: unwind_target.arguments.clone(),
             },
         },
-        mir::Terminator::InvokeVirtual {
+        mir::Terminator::InvokeClass {
             receiver,
             call,
             declaring_type,
@@ -573,7 +573,7 @@ fn remap_terminator_blocks(
             declared_target,
             normal_target,
             unwind_target,
-        } => mir::Terminator::InvokeVirtual {
+        } => mir::Terminator::InvokeClass {
             receiver: *receiver,
             call: call.clone(),
             declaring_type: *declaring_type,
@@ -603,7 +603,6 @@ fn remap_terminator_blocks(
             call,
             declaring_type,
             slot,
-            declared_target,
             normal_target,
             unwind_target,
         } => mir::Terminator::InvokeInterface {
@@ -611,7 +610,6 @@ fn remap_terminator_blocks(
             call: call.clone(),
             declaring_type: *declaring_type,
             slot: *slot,
-            declared_target: *declared_target,
             normal_target: mir::BlockTarget {
                 block: normal_target
                     .block
@@ -637,7 +635,7 @@ fn remap_terminator_blocks(
         | mir::Terminator::Trap { .. }
         | mir::Terminator::Unreachable
         | mir::Terminator::TailCall { .. }
-        | mir::Terminator::TailCallVirtual { .. }
+        | mir::Terminator::TailCallClass { .. }
         | mir::Terminator::TailCallInterface { .. }
         | mir::Terminator::TailCallIndirect { .. } => terminator.clone(),
         // yield has a resume block that needs remapping

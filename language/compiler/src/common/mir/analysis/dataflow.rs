@@ -238,7 +238,7 @@ where
                 | mir::Terminator::Trap { .. }
                 | mir::Terminator::Unreachable
                 | mir::Terminator::TailCall { .. }
-                | mir::Terminator::TailCallVirtual { .. }
+                | mir::Terminator::TailCallClass { .. }
                 | mir::Terminator::TailCallInterface { .. }
                 | mir::Terminator::TailCallIndirect { .. }
         ) {

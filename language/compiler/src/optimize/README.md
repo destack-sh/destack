@@ -1,77 +1,18 @@
 # MIR Optimization
 
-Semantic-aware transformations on MIR before code generation.
-Runs after Lower, before Generate.
-
-## Overview
-
-```text
-... → DIR → Lower → MIR → Optimize → Generate → ...
-                             │
-                             ├─ Verify (safety, borrowing, control flow)
-                             ├─ Scalar (constant fold, CSE, copy prop, ...)
-                             ├─ Interprocedural (inline, dead function elim, ...)
-                             ├─ Memory (escape analysis, stack promote, SROA, ...)
-                             ├─ Loop (LICM, unroll, ...)
-                             └─ Type-Based (devirtualize, bounds check elim, ...)
-```
-
-The Optimize phase runs verification passes early, then executes optimization passes.
-
-Optimize performs transformations taking maximal advantage of high-level semantic information.
-The backend handles low-level optimizations such as register allocation, instruction selection, and peephole passes.
-
-MIR verification passes run at O0 for every target because they depend on lowered MIR and optimizer analyses.
-Optimization passes beyond verification run only for native targets.
-JS/TS targets generate code directly from canonical DIR after MIR verification.
-Comptime execution happens in Execute and is not part of the Optimize pipeline.
+Make MIR more optimal for execution.
 
 ## Optimization Levels
 
 | Level | Use Case | What Runs |
 |-------|----------|-----------|
-| `O0` | Debug | Verification only |
-| `O1` | Dev, fast builds | Verification + local scalar + SSA/memory canonicalization + type cleanup and bounds checks |
+| `O0` | Debug | Canonicalization only |
+| `O1` | Dev, fast builds | Local scalar + SSA/memory canonicalization + type cleanup and bounds checks |
 | `O2` | Release | O1 + global scalar, memory, and loop optimizations |
 | `O3` | Hot paths | O2 + aggressive loop, vectorization, and interprocedural transforms |
 | `O4` | Max | O3 + extra fixed point rounds and optional LTO |
 
----
-
 ## Analyses
-
-Analyses compute properties of the MIR without modifying it.
-Passes request analyses from the cache and the cache computes them lazily.
-Analysis results are shared across passes until invalidated.
-
-## Optimization Scopes
-
-The optimizer runs at different scopes depending on the build mode.
-These scopes are kept distinct to balance fast builds with maximal optimization.
-
-- Function scope operates on a single function body.
-- Module scope operates on a single MIR module.
-- Package scope operates on all modules in a build package.
-- Program scope operates on all packages that link into the final output.
-
-The default pipelines operate at function and module scope.
-Package scope is used for Thin LTO summaries and selective importing.
-Program scope is used for Full LTO with whole program inlining and devirtualization.
-Optimization scope is selected by target ltoMode.
-Auto selects Thin LTO at O4 and disables LTO at lower levels.
-The compilation unit is the selected scope when LTO is enabled.
-Module is the default compilation unit.
-Thin LTO uses package scope and Full LTO uses program scope.
-Package and program pipelines operate on worksets that aggregate module MIR.
-Program scope routes each package through the pipeline for its configured optimization level.
-
-## Pipeline Composition
-
-Pipelines are assembled from shared pass bundles.
-Function and module pipelines reuse these bundles to avoid duplicated pass lists.
-Package and program pipelines reuse module pipelines and add summary driven passes.
-
-### Dependency Graph
 
 ```text
            ┌─────────┐
@@ -102,8 +43,6 @@ Package and program pipelines reuse module pipelines and add summary driven pass
 │ lifetime │
 └──────────┘
 ```
-
-### Analysis Reference
 
 | ID | Name | Scope | Done | Depends On | Description |
 |----|------|-------|------|------------|-------------|
@@ -147,30 +86,11 @@ Passes transform the MIR to improve performance or reduce code size.
 Each pass declares which analyses it requires and which it invalidates.
 
 Pass categories:
-- **Verify**: correctness checks and required transformations (run early in the pipeline)
 - **Scalar**: value-level transforms within functions
 - **Interprocedural**: cross-function analysis and transforms
 - **Memory**: allocation, load/store, aliasing optimizations
 - **Loop**: loop-specific transforms
 - **Type**: optimizations requiring high-level type information
-
-
-### Verify (V)
-
-Verification passes ensure semantic correctness and insert required operations.
-These run before optimization passes.
-
-| ID | Name | Scope | Level | Done | Requires | Description |
-|----|------|-------|-------|------|----------|-------------|
-| `move-check` | MoveCheck | function | V | ✓ | ownership | Verify move semantics: no use-after-move for linear types, copy semantics for trivial types |
-| `borrow-check` | BorrowCheck | function | V | ✓ | cfg, liveness, borrow, alias, lifetime | Verify borrow rules, exclusivity, and return lifetimes |
-| `stack-check` | StackCheck | function | V | ✓ | cfg, lifetime | Verify stack safety: no returns of references to locals, no stack pointer escapes |
-| `lifetime-check` | LifetimeCheck | function | V | ✓ | cfg, lifetime | Verify explicit return lifetimes against returned borrows |
-| `drop-insert` | DropInsert | function | V | ✓ | cfg, liveness, ownership | Insert `drop` at last-use points for owned refs |
-
-`drop-insert` is the ownership lifetime placement pass.
-It inserts ownership cleanup markers only, and does not implement `using` protocol disposal.
-`using` disposal is lowered separately before MIR optimization.
 
 ### Scalar (S)
 
@@ -280,7 +200,7 @@ These are MIR-only optimizations that justify having an optimizer above the back
 
 | ID | Name | Scope | Level | Done | Requires | Description |
 |----|------|-------|-------|------|----------|-------------|
-| `devirtualize` | Devirtualize | function | O2 | | type-flow | Convert virtual calls to direct when concrete type is known |
+| `devirtualize` | Devirtualize | function | O2 | | type-flow | Convert class calls to direct when concrete type is known |
 | `bounds-check-eliminate` | BoundsCheckEliminate | function | O1 | ✓ | constant-propagation, cfg, domtree, range | Remove array bounds checks when provably safe |
 | `loop-bounds-check-eliminate` | LoopBoundsCheckEliminate | function | O1 | ✓ | loops, cfg, domtree, scalar-evolution, range | Remove loop bounds checks dominated by loop guards |
 | `null-check-eliminate` | NullCheckEliminate | function | O2 | | type-flow | Remove null checks when provably non-null |

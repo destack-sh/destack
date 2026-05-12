@@ -989,9 +989,9 @@ impl<'a> FunctionLowerer<'a> {
                     }
                 }
             }
-            mir::Instruction::CallVirtual { .. } | mir::Instruction::CallInterface { .. } => {
+            mir::Instruction::CallClass { .. } | mir::Instruction::CallInterface { .. } => {
                 return Err(CodegenCraneliftError::unsupported_instruction(
-                    "virtual calls are not supported in cranelift yet",
+                    "class calls are not supported in cranelift yet",
                     instruction_id.into_any(),
                 ));
             }
@@ -1361,7 +1361,7 @@ impl<'a> FunctionLowerer<'a> {
             // exception edge calls: explicit unwind CFG is not lowered yet
             mir::Terminator::Invoke { .. }
             | mir::Terminator::InvokeIndirect { .. }
-            | mir::Terminator::InvokeVirtual { .. }
+            | mir::Terminator::InvokeClass { .. }
             | mir::Terminator::InvokeInterface { .. } => {
                 return Err(CodegenCraneliftError::Internal {
                     message: "exceptional call terminators are not supported in native codegen yet"
@@ -1440,9 +1440,9 @@ impl<'a> FunctionLowerer<'a> {
                     .ins()
                     .return_call_indirect(sig_ref, callee_value, &argument_values);
             }
-            mir::Terminator::TailCallVirtual { .. } | mir::Terminator::TailCallInterface { .. } => {
+            mir::Terminator::TailCallClass { .. } | mir::Terminator::TailCallInterface { .. } => {
                 return Err(CodegenCraneliftError::Internal {
-                    message: "virtual tail calls are not supported in cranelift yet".into(),
+                    message: "class tail calls are not supported in cranelift yet".into(),
                 });
             }
         }

@@ -908,7 +908,7 @@ fn update_terminator_arguments(
                 ),
             },
         },
-        Terminator::InvokeVirtual {
+        Terminator::InvokeClass {
             receiver,
             call,
             declaring_type,
@@ -916,7 +916,7 @@ fn update_terminator_arguments(
             declared_target,
             normal_target,
             unwind_target,
-        } => Terminator::InvokeVirtual {
+        } => Terminator::InvokeClass {
             receiver: remap_value_reference(*receiver, substitutions),
             call: mir::Call {
                 arguments: call
@@ -955,7 +955,6 @@ fn update_terminator_arguments(
             call,
             declaring_type,
             slot,
-            declared_target,
             normal_target,
             unwind_target,
         } => Terminator::InvokeInterface {
@@ -970,7 +969,6 @@ fn update_terminator_arguments(
             },
             declaring_type: *declaring_type,
             slot: *slot,
-            declared_target: *declared_target,
             normal_target: mir::BlockTarget {
                 block: normal_target.block,
                 arguments: extend_arguments(
@@ -1014,13 +1012,13 @@ fn update_terminator_arguments(
                 ..call.clone()
             },
         },
-        Terminator::TailCallVirtual {
+        Terminator::TailCallClass {
             receiver,
             call,
             declaring_type,
             slot,
             declared_target,
-        } => Terminator::TailCallVirtual {
+        } => Terminator::TailCallClass {
             receiver: remap_value_reference(*receiver, substitutions),
             call: mir::Call {
                 arguments: call
@@ -1039,7 +1037,6 @@ fn update_terminator_arguments(
             call,
             declaring_type,
             slot,
-            declared_target,
         } => Terminator::TailCallInterface {
             receiver: remap_value_reference(*receiver, substitutions),
             call: mir::Call {
@@ -1052,7 +1049,6 @@ fn update_terminator_arguments(
             },
             declaring_type: *declaring_type,
             slot: *slot,
-            declared_target: *declared_target,
         },
         Terminator::TailCallIndirect { callee, call } => Terminator::TailCallIndirect {
             callee: remap_value_reference(*callee, substitutions),

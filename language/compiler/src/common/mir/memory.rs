@@ -120,7 +120,7 @@ pub fn collect_non_escaping_stack_allocs(
             let instruction = tree.get(instruction_id);
             match instruction {
                 mir::Instruction::Call { .. }
-                | mir::Instruction::CallVirtual { .. }
+                | mir::Instruction::CallClass { .. }
                 | mir::Instruction::CallInterface { .. }
                 | mir::Instruction::CallIndirect { .. } => {
                     // capture call effects for escape checks
@@ -337,7 +337,7 @@ pub fn collect_non_escaping_stack_allocs(
                     );
                 }
             }
-            mir::Terminator::InvokeVirtual {
+            mir::Terminator::InvokeClass {
                 receiver,
                 call,
                 normal_target,
@@ -403,7 +403,7 @@ pub fn collect_non_escaping_stack_allocs(
                 }
             }
             mir::Terminator::TailCall { call, .. }
-            | mir::Terminator::TailCallVirtual { call, .. }
+            | mir::Terminator::TailCallClass { call, .. }
             | mir::Terminator::TailCallInterface { call, .. } => {
                 for arg in call.arguments.iter().copied() {
                     record_stack_escape_reference(
@@ -1536,7 +1536,7 @@ impl<'a> PointerDecomposer<'a> {
 
             // calls return unknown pointers
             mir::Instruction::Call { destination, .. }
-            | mir::Instruction::CallVirtual { destination, .. }
+            | mir::Instruction::CallClass { destination, .. }
             | mir::Instruction::CallInterface { destination, .. }
             | mir::Instruction::CallIndirect { destination, .. }
                 if destination.and_then(|value| value.value()) == Some(ptr) =>
