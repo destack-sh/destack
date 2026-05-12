@@ -209,7 +209,7 @@ impl DestackLanguageServer {
             client,
             repository: OnceLock::new(),
             language_service: OnceLock::new(),
-            workers: Session::default_worker_limit(),
+            workers: Session::default_worker_count(),
             progress_cancel_notify: Arc::new(Notify::new()),
             semantic_tokens_cache: DashMap::new(),
             semantic_tokens_counter: AtomicU64::new(1),

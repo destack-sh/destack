@@ -17,7 +17,7 @@ use crate::common::{ReportArgs, report_error};
 
 /// Get the default number of worker threads (available parallelism, or 1 if unknown).
 pub fn default_workers() -> u16 {
-    Session::default_worker_limit() as u16
+    Session::default_worker_count() as u16
 }
 
 /// File system override for CLI testing.

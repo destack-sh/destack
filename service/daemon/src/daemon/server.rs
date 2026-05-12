@@ -273,7 +273,7 @@ impl Default for DaemonServerOptions {
     /// Create default daemon server options.
     fn default() -> Self {
         Self {
-            worker_limit: Session::default_worker_limit(),
+            worker_limit: Session::default_worker_count(),
             session_event_handler: None,
             protocol: ProtocolServerOptions::default(),
             idle_shutdown: Some(Duration::from_millis(DEFAULT_DAEMON_IDLE_SHUTDOWN_MS)),
