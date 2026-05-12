@@ -1,0 +1,22 @@
+import type { PlatformError } from "../error/index.ds";
+
+/// Operating-system identity.
+export struct OsIdentity {
+    /// Hostname string.
+    hostname: string;
+    /// Operating-system name.
+    name: string;
+    /// Operating-system release string.
+    release: string;
+    /// Machine architecture string.
+    architecture: string;
+}
+
+/// Read operating-system identity.
+@binding("destack.os.identity.read", {
+    effect: "external",
+    requires: ["os.identity.read"],
+    families: ["windows", "unix"],
+    simulation: true,
+})
+export declare function readOsIdentity(): Result<OsIdentity, PlatformError>;
