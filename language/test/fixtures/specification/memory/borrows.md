@@ -361,7 +361,7 @@ bucket.set(0, 1);
 item satisfies &readonly int32;
 ```
 
-### custom collections can exclude element borrows
+### custom collections can exclude unstable growth
 
 Userland methods can require exclusive receiver access when they may invalidate element borrows.
 
@@ -389,9 +389,9 @@ item satisfies &readonly int32;
 
 - contains: cannot borrow as exclusive
 
-### array push excludes element borrows
+### array push preserves element borrows
 
-Growing an array cannot overlap a borrowed element (because the Array is borrowed as `&exclusive this` for mutation).
+Default arrays preserve existing element storage when they grow.
 
 ```ds
 let items: Array<int32> = [1, 2, 3];
@@ -401,11 +401,9 @@ items.push(4);
 item satisfies &readonly int32;
 ```
 
-- contains: cannot borrow as exclusive
+### returned element borrows survive stable array growth
 
-### returned element borrows still protect arrays
-
-Returning an element borrow does not hide the array it came from.
+Returning an element borrow does not prevent borrow-stable growth.
 
 ```ds
 function second<T>(items: Array<T>): &readonly T {
@@ -419,9 +417,49 @@ items.push(4);
 item satisfies &readonly int32;
 ```
 
+### array removal excludes element borrows
+
+Removing from an array can invalidate element paths.
+
+```ds
+let items: Array<int32> = [1, 2, 3];
+let item = &readonly items[1];
+
+items.removeAt(0);
+item satisfies &readonly int32;
+```
+
 - contains: cannot borrow as exclusive
 
-### custom collections can resize after last use
+### array compaction excludes element borrows
+
+Compaction can move backing segments.
+
+```ds
+let items: Array<int32> = [1, 2, 3];
+let item = &readonly items[1];
+
+items.compact();
+item satisfies &readonly int32;
+```
+
+- contains: cannot borrow as exclusive
+
+### packed array growth excludes element borrows
+
+Packed arrays use compact storage, so growth needs exclusive access.
+
+```ds
+let items: PackedArray<int32> = PackedArray.from([1, 2, 3]);
+let item = &readonly items[1];
+
+items.push(4);
+item satisfies &readonly int32;
+```
+
+- contains: cannot borrow as exclusive
+
+### custom collections can mutate after last use
 
 The collection can take exclusive receiver access after the element borrow ends.
 
@@ -447,12 +485,12 @@ item satisfies &readonly int32;
 bucket.push(1);
 ```
 
-### array push is allowed after last use
+### packed array growth is allowed after last use
 
-The array can grow after the element borrow ends.
+Packed arrays can grow after the element borrow ends.
 
 ```ds
-let items: Array<int32> = [1, 2, 3];
+let items: PackedArray<int32> = PackedArray.from([1, 2, 3]);
 let item = &readonly items[1];
 
 item satisfies &readonly int32;
@@ -470,6 +508,55 @@ let item = &readonly items[1];
 items[1] = 4;
 item satisfies &readonly int32;
 ```
+
+### map insert preserves value borrows
+
+Default maps preserve existing entry storage when inserting an absent key.
+
+```ds
+let scores: Map<string, int32> = Map.from([
+    ["ada", 1],
+]);
+
+let score: &int32 | undefined = scores.get("ada");
+
+scores.insert("grace", 2);
+score satisfies &int32 | undefined;
+```
+
+### map removal excludes value borrows
+
+Removing from a map can invalidate an entry path.
+
+```ds
+let scores: Map<string, int32> = Map.from([
+    ["ada", 1],
+]);
+
+let score: &int32 | undefined = scores.get("ada");
+
+scores.remove("ada");
+score satisfies &int32 | undefined;
+```
+
+- contains: cannot borrow as exclusive
+
+### packed map insert excludes value borrows
+
+Packed maps use open-addressed storage, so insertion needs exclusive access.
+
+```ds
+let scores: PackedMap<string, int32> = PackedMap.from([
+    ["ada", 1],
+]);
+
+let score: &int32 | undefined = scores.get("ada");
+
+scores.insert("grace", 2);
+score satisfies &int32 | undefined;
+```
+
+- contains: cannot borrow as exclusive
 
 ### method arguments are evaluated before exclusive receivers
 

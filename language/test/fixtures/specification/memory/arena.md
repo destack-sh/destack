@@ -48,14 +48,20 @@ function escaped<L: Lifetime>(): ReadonlyBorrowed<Node, L> {
 `Bump` implements the raw `Allocator` protocol and does not create owned values by itself.
 
 ```ds
-import { AllocationLayout } from "destack:memory";
+import { Allocation, AllocationError, AllocationLayout } from "destack:memory";
 import { Bump } from "destack:memory/arena";
 
 declare function bump(): Bump;
 
 let allocator = bump();
 let layout = AllocationLayout.new(64, 8);
-let allocation = allocator.allocate(layout)?;
+
+@allowUnsafe
+function allocate(): Result<Allocation<uint8, "local">, AllocationError> {
+    return allocator.allocate(layout);
+}
+
+let allocation = allocate()?;
 
 allocation satisfies Allocation<uint8, "local">;
 ```

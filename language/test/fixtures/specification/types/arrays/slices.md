@@ -22,6 +22,17 @@ declare const values: Slice<int32>;
 values satisfies [int32];
 ```
 
+### borrowed slices keep the slice view shape
+
+Borrowing a slice preserves the pointer-length view.
+
+```ds
+declare const values: [int32];
+
+const borrow: &[int32] = &values;
+borrow satisfies &[int32];
+```
+
 ## indexing
 
 ### slice indexing yields element types
