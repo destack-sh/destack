@@ -101,11 +101,32 @@ impl TestProgram {
 
         let logical_path = self.repository.logical_path(&path);
         let reference = Ref::for_workspace_root(&self.root);
-        self.repository
-            .apply_to_ref(&reference, [Edit::set_text(logical_path, contents)])
+
+        // current repository state
+        let revision = self.repository.current(&reference).unwrap_or_else(|error| {
+            panic!(
+                "failed to read repository revision for '{}' after write: {error}",
+                path.display()
+            )
+        });
+
+        // edited repository state
+        let revision = self
+            .repository
+            .fork_with_edits(revision, [Edit::set_text(logical_path, contents)])
             .unwrap_or_else(|error| {
                 panic!(
-                    "failed to sync repository for '{}' after write: {error}",
+                    "failed to fork repository for '{}' after write: {error}",
+                    path.display()
+                )
+            });
+
+        // publish the new state
+        self.repository
+            .set_ref(&reference, revision)
+            .unwrap_or_else(|error| {
+                panic!(
+                    "failed to publish repository for '{}' after write: {error}",
                     path.display()
                 )
             });

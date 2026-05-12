@@ -167,6 +167,20 @@ impl Repository {
         Ok(revision.file_content_id(file_id))
     }
 
+    /// Return the logical path for one file in one revision.
+    pub fn file_logical_path(
+        &self,
+        revision: Revision,
+        file_id: FileId,
+    ) -> Result<Option<String>, RepositoryError> {
+        let revision = self.revision(revision)?;
+        let logical_path = revision
+            .file_entry(file_id)
+            .map(|entry| entry.logical_path.clone());
+
+        Ok(logical_path)
+    }
+
     /// Return the file ids visible in one revision.
     pub fn file_ids(&self, revision: Revision) -> Result<Vec<FileId>, RepositoryError> {
         let revision = self.revision(revision)?;

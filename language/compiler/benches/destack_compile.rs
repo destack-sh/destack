@@ -131,19 +131,28 @@ fn build_workspace(
     let reference = Ref::for_workspace_root(&workspace_root);
     for source in sources.iter() {
         let logical_path = repository.logical_path(&source.path);
-        repository
-            .apply_to_ref(
-                &reference,
+
+        // current repository state
+        let revision = repository
+            .current(&reference)
+            .unwrap_or_else(|error| panic!("missing workspace revision: {error}"));
+
+        // edited repository state
+        let revision = repository
+            .fork_with_edits(
+                revision,
                 [Edit::set_text(&logical_path, source.content.clone())],
             )
             .unwrap_or_else(|error| panic!("failed to materialize benchmark source: {error}"));
+
+        // publish the new state
+        repository
+            .set_ref(&reference, revision)
+            .unwrap_or_else(|error| panic!("failed to publish benchmark source: {error}"));
+
+        // resolve the materialized module
         let module_id = repository
-            .module_id_for_path(
-                repository
-                    .current(&reference)
-                    .unwrap_or_else(|error| panic!("missing workspace revision: {error}")),
-                &source.path,
-            )
+            .module_id_for_path(revision, &source.path)
             .unwrap_or_else(|error| panic!("failed to resolve benchmark module: {error}"))
             .unwrap_or_else(|| panic!("missing benchmark module for {}", source.path.display()));
         modules.push(module_id);

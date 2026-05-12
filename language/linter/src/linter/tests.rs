@@ -671,9 +671,16 @@ impl TestProgram {
     where
         I: IntoIterator<Item = RepositoryEdit>,
     {
+        let reference = self.current_reference();
+        let revision = self.current_revision();
+        let revision = self
+            .repository
+            .fork_with_edits(revision, edits)
+            .expect("failed to fork linter test edits");
+
         self.repository
-            .apply_to_ref(&self.current_reference(), edits)
-            .expect("failed to apply linter test edits");
+            .set_ref(&reference, revision)
+            .expect("failed to publish linter test edits");
     }
 
     /// Create a new test repository with the given rules and options.

@@ -188,7 +188,7 @@ mod tests {
     use destack_artifact::DiskCacheStore;
     use destack_source::{FileSystem, PhysicalFileSystem};
 
-    use crate::repository::{Edit, HostEnvironment, Ref, Repository};
+    use crate::repository::{Edit, HostEnvironment, Ref, Repository, Revision};
 
     /// Keep one anonymous revision alive while it is pinned.
     #[test]
@@ -218,12 +218,11 @@ mod tests {
             .expect("anonymous revision should pin");
 
         // move the named ref elsewhere and prune anonymous state
-        repository
-            .apply_to_ref(
-                &reference,
-                [Edit::add_text("src/other.ts", "export const other = 2")],
-            )
-            .expect("workspace ref should advance");
+        publish_edits(
+            repository.as_ref(),
+            &reference,
+            [Edit::add_text("src/other.ts", "export const other = 2")],
+        );
 
         // pinned revision
         assert!(repository.revision(anonymous_revision).is_ok());
@@ -262,18 +261,16 @@ mod tests {
         ));
         let reference = Ref::for_workspace_root(&root);
 
-        let revision_1 = repository
-            .apply_to_ref(
-                &reference,
-                [Edit::add_text("src/example.ts", "export const value = 1")],
-            )
-            .expect("first revision should publish");
-        let revision_2 = repository
-            .apply_to_ref(
-                &reference,
-                [Edit::set_text("src/example.ts", "export const value = 2")],
-            )
-            .expect("second revision should publish");
+        let revision_1 = publish_edits(
+            repository.as_ref(),
+            &reference,
+            [Edit::add_text("src/example.ts", "export const value = 1")],
+        );
+        let revision_2 = publish_edits(
+            repository.as_ref(),
+            &reference,
+            [Edit::set_text("src/example.ts", "export const value = 2")],
+        );
         let file_id = repository.file_id(&root.join("src/example.ts"));
 
         // current ref state
@@ -287,5 +284,22 @@ mod tests {
         assert!(repository.revision(revision_1).is_err());
 
         let _ = fs::remove_dir_all(&root);
+    }
+
+    /// Publish repository edits to one ref.
+    fn publish_edits<I>(repository: &Repository, reference: &Ref, edits: I) -> Revision
+    where
+        I: IntoIterator<Item = Edit>,
+    {
+        let revision = repository
+            .current(reference)
+            .expect("repository ref should have a current revision");
+        let revision = repository
+            .fork_with_edits(revision, edits)
+            .expect("repository edits should fork");
+
+        repository
+            .set_ref(reference, revision)
+            .expect("repository ref should advance")
     }
 }

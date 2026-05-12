@@ -32,19 +32,6 @@ impl Repository {
         Ok(revision)
     }
 
-    /// Apply edits to one ref and publish one new revision.
-    pub fn apply_to_ref<I>(&self, reference: &Ref, edits: I) -> Result<Revision, RepositoryError>
-    where
-        I: IntoIterator<Item = Edit>,
-    {
-        let base_revision_id = self.current(reference)?;
-        let revision_id = self.fork_with_edits(base_revision_id, edits)?;
-        self.refs.insert(reference.clone(), revision_id);
-        self.prune_unreachable();
-
-        Ok(revision_id)
-    }
-
     /// Fork one base revision with edits and publish one anonymous revision.
     pub fn fork_with_edits<I>(
         &self,
