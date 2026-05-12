@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::runtime::action::{HostActionId, HostActionSet};
+use crate::runtime::action::{ActionId, ActionSet};
 use crate::runtime::trace::EntropyKind;
 use destack_core::fnv1a_128;
 
@@ -26,7 +26,7 @@ pub struct BindingDescriptor {
     pub replay_kind: BindingReplayKind,
     /// Replay payload policy for recorded bindings.
     pub replay_payload: BindingReplayPayload,
-    /// Required host actions for this binding.
+    /// Required actions for this binding.
     pub requires: &'static [&'static str],
     /// Platforms where this binding is supported.
     pub platforms: &'static [&'static str],
@@ -85,18 +85,18 @@ impl BindingDescriptor {
         self.replay_payload
     }
 
-    /// Return the required host actions for this binding.
+    /// Return the required actions for this binding.
     pub const fn requires(self) -> &'static [&'static str] {
         self.requires
     }
 
-    /// Iterate required host action identifiers for this binding.
-    pub fn required_action_ids(self) -> impl Iterator<Item = HostActionId> + 'static {
-        self.requires.iter().copied().map(HostActionId::from_name)
+    /// Iterate required action identifiers for this binding.
+    pub fn required_action_ids(self) -> impl Iterator<Item = ActionId> + 'static {
+        self.requires.iter().copied().map(ActionId::from_name)
     }
 
-    /// Return the first required host action missing from one action set.
-    pub fn missing_requirement(self, actions: &HostActionSet) -> Option<&'static str> {
+    /// Return the first required action missing from one action set.
+    pub fn missing_requirement(self, actions: &ActionSet) -> Option<&'static str> {
         self.requires
             .iter()
             .copied()

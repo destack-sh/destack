@@ -1,6 +1,5 @@
 pub mod action;
 pub mod binding;
-pub(crate) mod control;
 pub mod engine;
 pub mod heap;
 pub mod history;

@@ -68,12 +68,14 @@ pub(crate) enum ExecutionMode {
     #[cfg_attr(target_os = "android", allow(dead_code))]
     Host,
     /// Run on one owned dedicated thread.
+    #[allow(dead_code)]
     Thread,
     /// Run on one owned long-lived loop.
     Loop,
     /// Run on one polling execution object.
     Polling,
     /// Run as one finite blocking task.
+    #[allow(dead_code)]
     Blocking,
 }
 

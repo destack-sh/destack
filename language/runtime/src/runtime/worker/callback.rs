@@ -162,7 +162,7 @@ impl WorkerCallbackRegistry {
     /// Return one capture barrier error for active callbacks.
     pub(crate) fn capture_barrier_error(&self, mode: impl std::fmt::Debug) -> Box<RuntimeError> {
         RuntimeError::CaptureBarrier {
-            component: "worker.callback".to_string(),
+            component: "runtime.worker.callback".to_string(),
             mode: format!("{mode:?}"),
             detail: "worker callbacks are active".to_string(),
         }

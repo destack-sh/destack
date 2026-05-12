@@ -1,5 +1,5 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::runtime::action::HostActionSet;
+use crate::runtime::action::ActionSet;
 use crate::runtime::binding::{BindingDescriptor, BindingEffect, BindingReplayPayload};
 use destack_workspace::{ExecutionMode, ReplayPayloadMode, RuntimeOptions};
 
@@ -10,8 +10,8 @@ pub struct BindingAccess {
     mode: ExecutionMode,
     /// Default replay payload when no world rule matches.
     default_replay_payload: BindingReplayPayload,
-    /// Allowed host actions when runtime security checks are enabled.
-    allowed_actions: Option<HostActionSet>,
+    /// Allowed actions when runtime security checks are enabled.
+    allowed_actions: Option<ActionSet>,
 }
 
 impl BindingAccess {
@@ -40,12 +40,12 @@ impl BindingAccess {
     }
 
     /// Set the allowed action set used for requirement checks.
-    pub fn set_allowed_actions(&mut self, actions: HostActionSet) {
+    pub fn set_allowed_actions(&mut self, actions: ActionSet) {
         self.allowed_actions = Some(actions);
     }
 
     /// Return the allowed action set when requirement checks are enabled.
-    pub fn allowed_actions(&self) -> Option<&HostActionSet> {
+    pub fn allowed_actions(&self) -> Option<&ActionSet> {
         self.allowed_actions.as_ref()
     }
 
@@ -59,7 +59,7 @@ impl BindingAccess {
     pub fn ensure_allowed(&self, spec: BindingDescriptor) -> RuntimeResult<()> {
         // action requirements
         if let Some(action) = self.missing_required_action(spec) {
-            return Err(RuntimeError::HostActionDenied {
+            return Err(RuntimeError::ActionDenied {
                 name: spec.name.to_string(),
                 action: action.to_string(),
             }

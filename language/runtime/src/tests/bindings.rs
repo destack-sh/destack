@@ -82,7 +82,6 @@ fn run_vm_random_call(
     .expect("test vm shared heap should build");
     let shared_gc = shared.register_collector_worker();
     let mut shared_allocator = shared.allocator();
-    runtime.install_vm_defaults(&mut isolate);
     isolate
         .initialize(&heap, &shared, &mut statics)
         .expect("isolate statics should initialize");
@@ -110,33 +109,33 @@ fn run_vm_random_call(
 }
 
 #[test]
-fn test_random_next_u64_matches_vm_and_native() {
-    // native and VM bindings should produce the same deterministic value
-    let mut native_runtime = TestRuntime::deterministic_random();
-    let native_value = match native_runtime.call_native_next_u64() {
+fn test_random_next_u64_matches_vm_and_runtime() {
+    // runtime and VM bindings should produce the same deterministic value
+    let mut direct_runtime = TestRuntime::deterministic_random();
+    let direct_value = match direct_runtime.call_runtime_next_u64() {
         Ok(value) => value,
         Err(error) if is_not_supported_error(&error) => return,
-        Err(error) => panic!("native random nextU64 failed: {}", error.message()),
+        Err(error) => panic!("runtime random nextU64 failed: {}", error.message()),
     };
 
     let mut vm_runtime = TestRuntime::deterministic_random();
     let vm_value = run_vm_random_call(&mut vm_runtime, "random.stream.nextU64", None);
-    assert_eq!(native_value, vm_value);
+    assert_eq!(direct_value, vm_value);
 }
 
 #[test]
-fn test_random_next_u64_from_matches_vm_and_native() {
+fn test_random_next_u64_from_matches_vm_and_runtime() {
     // stream based random calls should match for the same stream id
-    let mut native_runtime = TestRuntime::deterministic_random();
-    let native_value = match native_runtime.call_native_next_u64_from(0) {
+    let mut direct_runtime = TestRuntime::deterministic_random();
+    let direct_value = match direct_runtime.call_runtime_next_u64_from(0) {
         Ok(value) => value,
         Err(error) if is_not_supported_error(&error) => return,
-        Err(error) => panic!("native random nextU64From failed: {}", error.message()),
+        Err(error) => panic!("runtime random nextU64From failed: {}", error.message()),
     };
 
     let mut vm_runtime = TestRuntime::deterministic_random();
     let vm_value = run_vm_random_call(&mut vm_runtime, "random.stream.nextU64From", Some(0));
-    assert_eq!(native_value, vm_value);
+    assert_eq!(direct_value, vm_value);
 }
 
 /// Return whether a runtime error maps to a not-supported platform error.
