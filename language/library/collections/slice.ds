@@ -1,12 +1,12 @@
-import { panic, todo } from "destack:error";
-import { type Iterable } from "destack:iter";
-import { type Index, type IndexSet } from "destack:ops";
-import { type Array } from "./array.ds";
+import { todo } from "destack:error";
+import { Iterable, Iterator } from "destack:iter";
+import { Index, IndexSet } from "destack:ops";
 
 /// A contiguous view into storage.
 export newtype Slice<T> = [T];
 
 /// Build a slice from raw storage.
+@unsafe
 @intrinsic("slice.fromRaw")
 export declare function sliceFromRaw<T>(data: *T, length: usize): Slice<T>;
 
@@ -14,65 +14,68 @@ export declare function sliceFromRaw<T>(data: *T, length: usize): Slice<T>;
 @intrinsic("slice.length")
 declare function sliceLength<T>(slice: Slice<T>): usize;
 
-/// Load one element without bounds checks.
+/// Load one element unchecked.
+@unsafe
 @intrinsic("slice.get")
 declare function sliceUnsafeGet<T>(slice: Slice<T>, index: usize): T;
 
-/// Store one element without bounds checks.
+/// Store one element unchecked.
+@unsafe
 @intrinsic("slice.set")
-declare function sliceUnsafeSet<T>(slice: &Slice<T>, index: usize, value: T): void;
+declare function sliceUnsafeSet<T>(slice: &exclusive Slice<T>, index: usize, value: T): void;
 
-extension<T> of Slice<T> implements Index<number>, IndexSet<number, T>, Iterable<T> {
+extension<T> of Slice<T> implements
+    Index<number>,
+    IndexSet<number, T>,
+    Iterable<T>,
+    Iterable<&T>,
+    Iterable<&readonly T>,
+    Iterable<&exclusive T>
+{
     /// The indexed output type.
     type Output = T;
 
-    /// Get the length of the slice.
+    /// Return the number of elements.
     get length(): number {
         sliceLength(this) as number
     }
 
-    /// Check if the slice is empty.
+    /// Return the number of elements.
+    get size(): usize {
+        sliceLength(this)
+    }
+
+    /// Return whether this slice has no elements.
     get isEmpty(): boolean {
         sliceLength(this) == 0
     }
 
-    /// Get the element at the index with bounds checks.
-    index(i: number): T {
-        let length = sliceLength(this) as number;
-
-        if (i < 0 || i >= length) {
-            panic("slice index out of bounds")
-        }
-
-        this.unsafeGet(i as usize)
-    }
-
-    /// Borrow the element at the index with bounds checks.
-    index(this: &Slice<T>, i: number): &T {
+    /// Return the element at `index` by value.
+    index(index: number): T {
         todo("Slice.index")
     }
 
-    /// Borrow the element at the index with readonly access.
-    index(this: &readonly Slice<T>, i: number): &readonly T {
+    /// Borrow the element at `index`.
+    index(this: &Slice<T>, index: number): &T {
         todo("Slice.index")
     }
 
-    /// Borrow the element at the index with exclusive access.
-    index(this: &exclusive Slice<T>, i: number): &exclusive T {
+    /// Borrow the element at `index` with readonly access.
+    index(this: &readonly Slice<T>, index: number): &readonly T {
         todo("Slice.index")
     }
 
-    /// Get element at index (unchecked).
-    unsafeGet(i: usize): T {
-        sliceUnsafeGet(this, i)
+    /// Borrow the element at `index` with exclusive access.
+    index(this: &exclusive Slice<T>, index: number): &exclusive T {
+        todo("Slice.index")
     }
 
-    /// Get a sub-slice.
-    slice(start?: number, end?: number): Slice<T> {
-        todo("Slice.slice")
+    /// Replace the element at `index`.
+    indexSet(this: &exclusive Slice<T>, index: number, value: T): void {
+        todo("Slice.indexSet")
     }
 
-    /// Get the first element.
+    /// Return the first element by value.
     first(): T | undefined {
         if (sliceLength(this) == 0) {
             return undefined;
@@ -81,7 +84,22 @@ extension<T> of Slice<T> implements Index<number>, IndexSet<number, T>, Iterable
         this.index(0)
     }
 
-    /// Get the last element.
+    /// Borrow the first element.
+    first(this: &Slice<T>): &T | undefined {
+        todo("Slice.first")
+    }
+
+    /// Borrow the first element with readonly access.
+    first(this: &readonly Slice<T>): &readonly T | undefined {
+        todo("Slice.first")
+    }
+
+    /// Borrow the first element with exclusive access.
+    first(this: &exclusive Slice<T>): &exclusive T | undefined {
+        todo("Slice.first")
+    }
+
+    /// Return the last element by value.
     last(): T | undefined {
         let length = sliceLength(this);
 
@@ -92,44 +110,73 @@ extension<T> of Slice<T> implements Index<number>, IndexSet<number, T>, Iterable
         this.index(length as number - 1)
     }
 
-    /// Split at index into two slices.
+    /// Borrow the last element.
+    last(this: &Slice<T>): &T | undefined {
+        todo("Slice.last")
+    }
+
+    /// Borrow the last element with readonly access.
+    last(this: &readonly Slice<T>): &readonly T | undefined {
+        todo("Slice.last")
+    }
+
+    /// Borrow the last element with exclusive access.
+    last(this: &exclusive Slice<T>): &exclusive T | undefined {
+        todo("Slice.last")
+    }
+
+    /// Return a sub-slice.
+    slice(start?: number, end?: number): Slice<T> {
+        todo("Slice.slice")
+    }
+
+    /// Split this slice at `index`.
     splitAt(index: number): (Slice<T>, Slice<T>) {
         todo("Slice.splitAt")
     }
 
-    /// Copy slice contents to an owned array.
-    toArray(): Array<T> {
-        todo("Slice.toArray")
-    }
-
-    /// Set the element at the index with bounds checks.
-    indexSet(this: &Slice<T>, i: number, value: T): void {
-        let length = sliceLength(this) as number;
-
-        if (i < 0 || i >= length) {
-            panic("slice index out of bounds")
-        }
-
-        sliceUnsafeSet(this, i as usize, value);
-    }
-
-    /// Fill the slice with a value.
-    fill(this: &Slice<T>, value: T): void {
+    /// Fill this slice with `value`.
+    fill(this: &exclusive Slice<T>, value: T): void {
         todo("Slice.fill")
     }
 
     /// Copy from another slice.
-    copyFrom(this: &Slice<T>, src: Slice<T>): void {
+    copyFrom(this: &exclusive Slice<T>, source: &readonly Slice<T>): void {
         todo("Slice.copyFrom")
     }
 
     /// Swap two elements.
-    swap(this: &Slice<T>, i: number, j: number): void {
+    swap(this: &exclusive Slice<T>, a: number, b: number): void {
         todo("Slice.swap")
     }
 
-    /// Reverse in place.
-    reverse(this: &Slice<T>): void {
+    /// Reverse this slice in place.
+    reverse(this: &exclusive Slice<T>): void {
         todo("Slice.reverse")
+    }
+
+    /// Sort this slice in place.
+    sort(this: &exclusive Slice<T>, compare?: (a: &readonly T, b: &readonly T) => number): void {
+        todo("Slice.sort")
+    }
+
+    /// Return an iterator over copied values.
+    iterator(): Iterator<T> {
+        todo("Slice.iterator")
+    }
+
+    /// Return an iterator over borrowed values.
+    iterator(this: &Slice<T>): Iterator<&T> {
+        todo("Slice.iterator")
+    }
+
+    /// Return an iterator over readonly borrowed values.
+    iterator(this: &readonly Slice<T>): Iterator<&readonly T> {
+        todo("Slice.iterator")
+    }
+
+    /// Return an iterator over exclusive borrowed values.
+    iterator(this: &exclusive Slice<T>): Iterator<&exclusive T> {
+        todo("Slice.iterator")
     }
 }

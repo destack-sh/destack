@@ -1,0 +1,102 @@
+import { todo } from "destack:error";
+import { Iterable, Iterator } from "destack:iter";
+import { Compare } from "destack:ops";
+import { PackedArray } from "./packed-array.ds";
+
+/// A packed binary max-heap.
+export struct BinaryHeap<T> {
+    /// The heap storage.
+    storage: PackedArray<T>;
+}
+
+extension<T: Compare<T>> of BinaryHeap<T> implements Iterable<T>, Iterable<&T>, Iterable<&readonly T>, Iterable<&exclusive T> {
+    /// Create an empty binary heap.
+    static new(): BinaryHeap<T> {
+        todo("BinaryHeap.new")
+    }
+
+    /// Create a binary heap with room for at least `capacity` elements.
+    static withCapacity(capacity: usize): BinaryHeap<T> {
+        todo("BinaryHeap.withCapacity")
+    }
+
+    /// Create a binary heap from values.
+    static from(values: Iterable<T>): BinaryHeap<T> {
+        todo("BinaryHeap.from")
+    }
+
+    /// Return the number of elements.
+    get size(): number {
+        this.storage.length
+    }
+
+    /// Return whether this heap has no elements.
+    get isEmpty(): boolean {
+        this.storage.isEmpty
+    }
+
+    /// Borrow the greatest element.
+    peek(this: &BinaryHeap<T>): &T | undefined {
+        todo("BinaryHeap.peek")
+    }
+
+    /// Borrow the greatest element with readonly access.
+    peek(this: &readonly BinaryHeap<T>): &readonly T | undefined {
+        todo("BinaryHeap.peek")
+    }
+
+    /// Borrow the greatest element with exclusive access.
+    peek(this: &exclusive BinaryHeap<T>): &exclusive T | undefined {
+        todo("BinaryHeap.peek")
+    }
+
+    /// Push `value`.
+    push(this: &exclusive BinaryHeap<T>, value: T): void {
+        todo("BinaryHeap.push")
+    }
+
+    /// Remove and return the greatest element.
+    pop(this: &exclusive BinaryHeap<T>): T | undefined {
+        todo("BinaryHeap.pop")
+    }
+
+    /// Remove all elements.
+    clear(this: &exclusive BinaryHeap<T>): void {
+        todo("BinaryHeap.clear")
+    }
+
+    /// Reserve room for at least `additional` more elements.
+    reserve(this: &exclusive BinaryHeap<T>, additional: usize): void {
+        todo("BinaryHeap.reserve")
+    }
+
+    /// Convert this heap into a sorted packed array.
+    intoSortedArray(this: ^BinaryHeap<T>): PackedArray<T> {
+        todo("BinaryHeap.intoSortedArray")
+    }
+
+    /// Return an iterator over copied values.
+    iterator(): Iterator<T> {
+        todo("BinaryHeap.iterator")
+    }
+
+    /// Return an iterator over borrowed values.
+    iterator(this: &BinaryHeap<T>): Iterator<&T> {
+        todo("BinaryHeap.iterator")
+    }
+
+    /// Return an iterator over readonly borrowed values.
+    iterator(this: &readonly BinaryHeap<T>): Iterator<&readonly T> {
+        todo("BinaryHeap.iterator")
+    }
+
+    /// Return an iterator over exclusive borrowed values.
+    iterator(this: &exclusive BinaryHeap<T>): Iterator<&exclusive T> {
+        todo("BinaryHeap.iterator")
+    }
+
+    /// Consume this heap into owned values.
+    iterator(this: ^BinaryHeap<T>): Iterator<T> {
+        todo("BinaryHeap.iterator")
+    }
+}

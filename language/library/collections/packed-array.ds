@@ -1,0 +1,197 @@
+import { todo } from "destack:error";
+import { Iterable, Iterator } from "destack:iter";
+import { MaybeUninit, Unique } from "destack:memory";
+import { Index, IndexSet } from "destack:ops";
+import { From } from "destack:convert";
+import { Array } from "./array.ds";
+import { Slice } from "./slice.ds";
+
+/// A growable packed contiguous array.
+export struct PackedArray<T> {
+    /// The contiguous storage.
+    storage: Unique<[MaybeUninit<T>]>;
+
+    /// The number of initialized elements.
+    elementCount: usize = 0;
+
+    /// The allocated element count.
+    elementCapacity: usize = 0;
+}
+
+extension<T> of PackedArray<T> implements
+    Index<number>,
+    IndexSet<number, T>,
+    Iterable<T>,
+    Iterable<&T>,
+    Iterable<&readonly T>,
+    Iterable<&exclusive T>,
+    From<Array<T>>
+{
+    /// The indexed output type.
+    type Output = T;
+
+    /// Create an empty packed array.
+    static new(): PackedArray<T> {
+        todo("PackedArray.new")
+    }
+
+    /// Create a packed array with room for at least `capacity` elements.
+    static withCapacity(capacity: usize): PackedArray<T> {
+        todo("PackedArray.withCapacity")
+    }
+
+    /// Create a packed array from `values`.
+    static from(values: Iterable<T>): PackedArray<T> {
+        todo("PackedArray.from")
+    }
+
+    /// Create a packed array from a stable array.
+    static from(value: Array<T>): PackedArray<T> {
+        todo("PackedArray.fromArray")
+    }
+
+    /// Return the number of elements.
+    get length(): number {
+        this.elementCount as number
+    }
+
+    /// Return the number of elements.
+    get size(): usize {
+        this.elementCount
+    }
+
+    /// Return the allocated element count.
+    get capacity(): usize {
+        this.elementCapacity
+    }
+
+    /// Return whether this array has no elements.
+    get isEmpty(): boolean {
+        this.elementCount == 0
+    }
+
+    /// Return the element at `index` by value.
+    index(index: number): T {
+        todo("PackedArray.index")
+    }
+
+    /// Borrow the element at `index`.
+    index(this: &PackedArray<T>, index: number): &T {
+        todo("PackedArray.index")
+    }
+
+    /// Borrow the element at `index` with readonly access.
+    index(this: &readonly PackedArray<T>, index: number): &readonly T {
+        todo("PackedArray.index")
+    }
+
+    /// Borrow the element at `index` with exclusive access.
+    index(this: &exclusive PackedArray<T>, index: number): &exclusive T {
+        todo("PackedArray.index")
+    }
+
+    /// Replace the element at `index`.
+    indexSet(this: &exclusive PackedArray<T>, index: number, value: T): void {
+        todo("PackedArray.indexSet")
+    }
+
+    /// Append `value`.
+    push(this: &exclusive PackedArray<T>, value: T): void {
+        todo("PackedArray.push")
+    }
+
+    /// Append all `values`.
+    extend(this: &exclusive PackedArray<T>, values: Iterable<T>): void {
+        todo("PackedArray.extend")
+    }
+
+    /// Remove and return the last element.
+    pop(this: &exclusive PackedArray<T>): T | undefined {
+        todo("PackedArray.pop")
+    }
+
+    /// Insert `value` at `index`.
+    insert(this: &exclusive PackedArray<T>, index: usize, value: T): void {
+        todo("PackedArray.insert")
+    }
+
+    /// Remove and return the element at `index`.
+    removeAt(this: &exclusive PackedArray<T>, index: usize): T {
+        todo("PackedArray.removeAt")
+    }
+
+    /// Swap-remove the element at `index`.
+    swapRemove(this: &exclusive PackedArray<T>, index: usize): T {
+        todo("PackedArray.swapRemove")
+    }
+
+    /// Remove all elements.
+    clear(this: &exclusive PackedArray<T>): void {
+        todo("PackedArray.clear")
+    }
+
+    /// Retain only elements accepted by `predicate`.
+    retain(this: &exclusive PackedArray<T>, predicate: (value: &T, index: usize) => boolean): void {
+        todo("PackedArray.retain")
+    }
+
+    /// Reserve room for at least `additional` more elements.
+    reserve(this: &exclusive PackedArray<T>, additional: usize): void {
+        todo("PackedArray.reserve")
+    }
+
+    /// Shrink capacity to fit the current length.
+    shrinkToFit(this: &exclusive PackedArray<T>): void {
+        todo("PackedArray.shrinkToFit")
+    }
+
+    /// Return the initialized storage as a slice.
+    asSlice(this: &PackedArray<T>): &Slice<T> {
+        todo("PackedArray.asSlice")
+    }
+
+    /// Return the initialized storage as a readonly slice.
+    asReadonlySlice(this: &readonly PackedArray<T>): &readonly Slice<T> {
+        todo("PackedArray.asReadonlySlice")
+    }
+
+    /// Return a slice copy of the selected range.
+    slice(start?: number, end?: number): PackedArray<T> {
+        todo("PackedArray.slice")
+    }
+
+    /// Reverse this array in place.
+    reverse(this: &exclusive PackedArray<T>): this {
+        todo("PackedArray.reverse")
+    }
+
+    /// Sort this array in place.
+    sort(this: &exclusive PackedArray<T>, compare?: (a: &readonly T, b: &readonly T) => number): this {
+        todo("PackedArray.sort")
+    }
+
+    /// Return an iterator over copied values.
+    iterator(): Iterator<T> {
+        todo("PackedArray.iterator")
+    }
+
+    /// Return an iterator over borrowed values.
+    iterator(this: &PackedArray<T>): Iterator<&T> {
+        todo("PackedArray.iterator")
+    }
+
+    /// Return an iterator over readonly borrowed values.
+    iterator(this: &readonly PackedArray<T>): Iterator<&readonly T> {
+        todo("PackedArray.iterator")
+    }
+
+    /// Return an iterator over exclusive borrowed values.
+    iterator(this: &exclusive PackedArray<T>): Iterator<&exclusive T> {
+        todo("PackedArray.iterator")
+    }
+
+    /// Consume this array into owned values.
+    iterator(this: ^PackedArray<T>): Iterator<T> {
+        todo("PackedArray.iterator")
+    }
+}

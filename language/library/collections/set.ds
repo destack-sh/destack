@@ -1,106 +1,160 @@
 import { todo } from "destack:error";
-import { type Iterable, type Iterator } from "destack:iter";
-import { type HashTable } from "./map.ds";
+import { Iterable, Iterator } from "destack:iter";
+import { Equal, Hash } from "destack:ops";
+import { From } from "destack:convert";
+import { Map } from "./map.ds";
+import { PackedSet } from "./packed-set.ds";
 
-/// Ordered hash set backed by map storage.
+/// A borrow-stable hash set.
 export class Set<T> {
-    /// The hash table storage.
-    table: HashTable<T, void>;
+    /// The backing map.
+    map: Map<T, void>;
 }
 
-extension<T> of Set<T> implements Iterable<T> {
+extension<T: Hash> of Set<T> implements
+    Iterable<T>,
+    Iterable<&T>,
+    Iterable<&readonly T>,
+    Iterable<&exclusive T>,
+    From<PackedSet<T>>
+where T implements Equal<T> {
     /// Create an empty set.
     static new(): Set<T> {
         todo("Set.new")
     }
 
-    /// Get the number of elements.
-    get size(): number {
-        this.table.length as number
+    /// Create a set with room for at least `capacity` elements.
+    static withCapacity(capacity: usize): Set<T> {
+        todo("Set.withCapacity")
     }
 
-    /// Check if the set is empty.
-    get isEmpty(): boolean {
-        this.table.length == 0
-    }
-
-    /// Add an element.
-    add(value: T): this {
-        todo("Set.add")
-    }
-
-    /// Check if an element exists.
-    has(value: T): boolean {
-        todo("Set.has")
-    }
-
-    /// Delete an element.
-    delete(value: T): boolean {
-        todo("Set.delete")
-    }
-
-    /// Clear all elements.
-    clear(): void {
-        todo("Set.clear")
-    }
-
-    /// Get all values.
-    values(): Iterator<T> {
-        todo("Set.values")
-    }
-
-    /// Iterate over elements.
-    iterator(): Iterator<T> {
-        this.values()
-    }
-
-    /// Execute function for each element.
-    forEach(f: (value: T, value2: T, set: Set<T>) => void): void {
-        todo("Set.forEach")
-    }
-
-    /// Return the union of two sets.
-    union(other: Set<T>): Set<T> {
-        todo("Set.union")
-    }
-
-    /// Return the intersection of two sets.
-    intersection(other: Set<T>): Set<T> {
-        todo("Set.intersection")
-    }
-
-    /// Return the difference of this set and `other`.
-    difference(other: Set<T>): Set<T> {
-        todo("Set.difference")
-    }
-
-    /// Return the symmetric difference of two sets.
-    symmetricDifference(other: Set<T>): Set<T> {
-        todo("Set.symmetricDifference")
-    }
-
-    /// Check if this is a subset of `other`.
-    isSubsetOf(other: Set<T>): boolean {
-        todo("Set.isSubsetOf")
-    }
-
-    /// Check if this is a superset of `other`.
-    isSupersetOf(other: Set<T>): boolean {
-        todo("Set.isSupersetOf")
-    }
-
-    /// Check if this set has no overlap with `other`.
-    isDisjointFrom(other: Set<T>): boolean {
-        todo("Set.isDisjointFrom")
-    }
-
-    /// Create a new set from values.
-    static from<T>(values: Iterable<T>): Set<T> {
+    /// Create a set from values.
+    static from(values: Iterable<T>): Set<T> {
         todo("Set.from")
     }
 
-    /// Create a set with pre-allocated capacity.
-    static withCapacity<T>(capacity: uint32): Set<T> {
-        todo("Set.withCapacity")
+    /// Create a set from a packed set.
+    static from(value: PackedSet<T>): Set<T> {
+        todo("Set.fromPackedSet")
+    }
+
+    /// Return the number of elements.
+    get size(): number {
+        this.map.size
+    }
+
+    /// Return whether this set has no elements.
+    get isEmpty(): boolean {
+        this.map.isEmpty
+    }
+
+    /// Return whether `value` is present.
+    has(value: &readonly T): boolean {
+        todo("Set.has")
+    }
+
+    /// Borrow the stored value equal to `value`.
+    get(this: &Set<T>, value: &readonly T): &T | undefined {
+        todo("Set.get")
+    }
+
+    /// Borrow the stored value equal to `value` with readonly access.
+    get(this: &readonly Set<T>, value: &readonly T): &readonly T | undefined {
+        todo("Set.get")
+    }
+
+    /// Borrow the stored value equal to `value` with exclusive access.
+    get(this: &exclusive Set<T>, value: &readonly T): &exclusive T | undefined {
+        todo("Set.get")
+    }
+
+    /// Add `value` when absent.
+    add(this: &Set<T>, value: T): boolean {
+        todo("Set.add")
+    }
+
+    /// Remove `value`.
+    remove(this: &exclusive Set<T>, value: &readonly T): T | undefined {
+        todo("Set.remove")
+    }
+
+    /// Remove all elements.
+    clear(this: &exclusive Set<T>): void {
+        todo("Set.clear")
+    }
+
+    /// Reserve room for at least `additional` more elements.
+    reserve(this: &Set<T>, additional: usize): void {
+        todo("Set.reserve")
+    }
+
+    /// Rebuild storage and release tombstones.
+    compact(this: &exclusive Set<T>): void {
+        todo("Set.compact")
+    }
+
+    /// Return the union of two sets.
+    union(other: &readonly Set<T>): Set<T> {
+        todo("Set.union")
+    }
+
+    /// Return the intersection with `other`.
+    intersection(other: &readonly Set<T>): Set<T> {
+        todo("Set.intersection")
+    }
+
+    /// Return this set without values in `other`.
+    difference(other: &readonly Set<T>): Set<T> {
+        todo("Set.difference")
+    }
+
+    /// Return values present in exactly one set.
+    symmetricDifference(other: &readonly Set<T>): Set<T> {
+        todo("Set.symmetricDifference")
+    }
+
+    /// Return whether this set is a subset of `other`.
+    isSubsetOf(other: &readonly Set<T>): boolean {
+        todo("Set.isSubsetOf")
+    }
+
+    /// Return whether this set is a superset of `other`.
+    isSupersetOf(other: &readonly Set<T>): boolean {
+        todo("Set.isSupersetOf")
+    }
+
+    /// Return whether this set has no overlap with `other`.
+    isDisjointFrom(other: &readonly Set<T>): boolean {
+        todo("Set.isDisjointFrom")
+    }
+
+    /// Return an iterator over copied values.
+    iterator(): Iterator<T> {
+        todo("Set.iterator")
+    }
+
+    /// Return an iterator over borrowed values.
+    iterator(this: &Set<T>): Iterator<&T> {
+        todo("Set.iterator")
+    }
+
+    /// Return an iterator over readonly borrowed values.
+    iterator(this: &readonly Set<T>): Iterator<&readonly T> {
+        todo("Set.iterator")
+    }
+
+    /// Return an iterator over exclusive borrowed values.
+    iterator(this: &exclusive Set<T>): Iterator<&exclusive T> {
+        todo("Set.iterator")
+    }
+
+    /// Consume this set into owned values.
+    iterator(this: ^Set<T>): Iterator<T> {
+        todo("Set.iterator")
+    }
+
+    /// Call `f` for each value.
+    forEach(f: (value: T, set: Set<T>) => void): void {
+        todo("Set.forEach")
     }
 }
