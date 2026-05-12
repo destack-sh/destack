@@ -1,10 +1,9 @@
-import { Slice } from "core";
 import type { PlatformError } from "../error/index.ds";
 import { ProcessId } from "../process/identity.ds";
 import { TtyHandle } from "../resource/index.ds";
 
-/// Termios set-attributes timing selector.
-export enum TtyTermiosSetAction {
+/// Termios attribute set timing selector.
+export enum TermiosSetAction {
     /// Apply changes immediately.
     Now = 1,
     /// Apply changes after queued output drains.
@@ -14,7 +13,7 @@ export enum TtyTermiosSetAction {
 }
 
 /// Termios flush queue selector.
-export enum TtyTermiosQueue {
+export enum TermiosQueue {
     /// Flush pending input bytes.
     Input = 1,
     /// Flush pending output bytes.
@@ -23,8 +22,8 @@ export enum TtyTermiosQueue {
     InputAndOutput = 3,
 }
 
-/// Termios flow-control action.
-export enum TtyTermiosFlowAction {
+/// Termios flow control action.
+export enum TermiosFlowAction {
     /// Suspend output transmission.
     SuspendOutput = 1,
     /// Resume output transmission.
@@ -36,45 +35,45 @@ export enum TtyTermiosFlowAction {
 }
 
 /// Full POSIX termios attributes payload.
-export struct TtyTermiosAttributes {
-    /// Input-mode bit flags.
+export struct TermiosAttributes {
+    /// Input mode bit flags.
     inputFlags: uint64;
-    /// Output-mode bit flags.
+    /// Output mode bit flags.
     outputFlags: uint64;
-    /// Control-mode bit flags.
+    /// Control mode bit flags.
     controlFlags: uint64;
-    /// Local-mode bit flags.
+    /// Local mode bit flags.
     localFlags: uint64;
-    /// Control-character table bytes in host order.
-    controlCharacters: Slice<uint8>;
+    /// Control character table bytes in host order.
+    controlCharacters: [uint8];
     /// Input speed code from host termios representation.
     inputSpeedCode: uint64;
     /// Output speed code from host termios representation.
     outputSpeedCode: uint64;
 }
 
-/// POSIX termios bindings for tty handles.
-@binding("destack.tty.termios.getAttributes", {
+/// Read full POSIX termios attributes.
+@binding("destack.tty.termios.attributes.read", {
     effect: "external",
     requires: ["tty.termios"],
     families: ["unix"],
     simulation: true,
 })
-export declare function termiosGetAttributes(
-    handle: TtyHandle,
-): Result<TtyTermiosAttributes, PlatformError>;
+export declare function readTermiosAttributes(
+    tty: TtyHandle,
+): Result<TermiosAttributes, PlatformError>;
 
 /// Apply full termios attributes to one terminal handle.
-@binding("destack.tty.termios.setAttributes", {
+@binding("destack.tty.termios.attributes.set", {
     effect: "external",
     requires: ["tty.termios"],
     families: ["unix"],
     simulation: true,
 })
-export declare function termiosSetAttributes(
-    handle: TtyHandle,
-    attributes: TtyTermiosAttributes,
-    action: TtyTermiosSetAction,
+export declare function setTermiosAttributes(
+    tty: TtyHandle,
+    attributes: &readonly TermiosAttributes,
+    action: TermiosSetAction,
 ): Result<void, PlatformError>;
 
 /// Wait for pending output to drain on one terminal handle.
@@ -84,7 +83,7 @@ export declare function termiosSetAttributes(
     families: ["unix"],
     simulation: true,
 })
-export declare function termiosDrain(handle: TtyHandle): Result<void, PlatformError>;
+export declare function drainTermios(tty: TtyHandle): Result<void, PlatformError>;
 
 /// Flush one terminal queue.
 @binding("destack.tty.termios.flush", {
@@ -93,52 +92,52 @@ export declare function termiosDrain(handle: TtyHandle): Result<void, PlatformEr
     families: ["unix"],
     simulation: true,
 })
-export declare function termiosFlush(
-    handle: TtyHandle,
-    queue: TtyTermiosQueue,
+export declare function flushTermios(
+    tty: TtyHandle,
+    queue: TermiosQueue,
 ): Result<void, PlatformError>;
 
-/// Apply terminal flow-control action.
+/// Apply terminal flow control action.
 @binding("destack.tty.termios.flow", {
     effect: "external",
     requires: ["tty.termios"],
     families: ["unix"],
     simulation: true,
 })
-export declare function termiosFlow(
-    handle: TtyHandle,
-    action: TtyTermiosFlowAction,
+export declare function flowTermios(
+    tty: TtyHandle,
+    action: TermiosFlowAction,
 ): Result<void, PlatformError>;
 
 /// Send one terminal break condition.
-@binding("destack.tty.termios.sendBreak", {
+@binding("destack.tty.termios.break.send", {
     effect: "external",
     requires: ["tty.termios"],
     families: ["unix"],
     simulation: true,
 })
-export declare function termiosSendBreak(
-    handle: TtyHandle,
+export declare function sendTermiosBreak(
+    tty: TtyHandle,
     duration: uint32,
 ): Result<void, PlatformError>;
 
-/// Read controlling-terminal process-group id.
-@binding("destack.tty.termios.getProcessGroup", {
+/// Read controlling terminal process group id.
+@binding("destack.tty.termios.processGroup.read", {
     effect: "external",
     requires: ["tty.termios"],
     families: ["unix"],
     simulation: true,
 })
-export declare function termiosGetProcessGroup(handle: TtyHandle): Result<ProcessId, PlatformError>;
+export declare function readTermiosProcessGroup(tty: TtyHandle): Result<ProcessId, PlatformError>;
 
-/// Set controlling-terminal process-group id.
-@binding("destack.tty.termios.setProcessGroup", {
+/// Set controlling terminal process group id.
+@binding("destack.tty.termios.processGroup.set", {
     effect: "external",
     requires: ["tty.termios"],
     families: ["unix"],
     simulation: true,
 })
-export declare function termiosSetProcessGroup(
-    handle: TtyHandle,
+export declare function setTermiosProcessGroup(
+    tty: TtyHandle,
     processGroupId: ProcessId,
 ): Result<void, PlatformError>;
