@@ -1,6 +1,6 @@
 # Plus
 
-`+` supports receiver overloads, while `+%` and `+|` are builtin overflow-policy operators.
+`+` supports receiver overloads.
 
 ## numbers
 
@@ -171,59 +171,6 @@ const right = getOther();
 
 const sum = left + right;
 sum satisfies Scalar;
-```
-
-- contains: no matching overload
-
-## wrapping
-
-### wrapping plus is builtin integer arithmetic
-
-`+%` wraps modulo the integer range.
-
-```ds
-const a: uint8 = 250;
-const b: uint8 = 10;
-
-const wrapped = a +% b;
-wrapped satisfies uint8;
-```
-
-### saturating plus is builtin integer arithmetic
-
-`+|` clamps to the integer range.
-
-```ds
-const a: uint8 = 250;
-const b: uint8 = 10;
-
-const saturated = a +| b;
-saturated satisfies uint8;
-```
-
-### wrapping plus rejects user types
-
-`+%` is not an overloadable operator.
-
-```ds
-struct Scalar {
-    value: int;
-}
-
-extension of Scalar implements Add<Scalar> {
-    type Output = Scalar;
-
-    add(other: Scalar): this.Output {
-        return this;
-    }
-}
-
-declare function getScalar(): Scalar;
-
-const left = getScalar();
-const right = getScalar();
-
-left +% right;
 ```
 
 - contains: no matching overload
