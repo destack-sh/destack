@@ -224,17 +224,7 @@ impl FunctionLowerer<'_> {
                 None
             };
 
-            // look up function by target symbol
-            let function_id = self.function_for_symbol(target_symbol).ok_or_else(|| {
-                LowerError::UnsupportedConstruct {
-                    anchor: self.diagnostic_anchor(
-                        expression_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
-                    ),
-                    message: "missing function for resolved target symbol".to_string(),
-                }
-            })?;
+            let function_id = self.function_for_symbol(target_symbol);
 
             (function_id, receiver_value, receiver_type_id)
         };
@@ -253,8 +243,34 @@ impl FunctionLowerer<'_> {
             ),
             None => (receiver_value, receiver_value),
         };
+        let dispatch_target = if let (Some(receiver_type_id), Some(receiver_value)) =
+            (receiver_type_id, dispatch_receiver)
+        {
+            self.dispatch_target_for_symbol(
+                expression_id,
+                receiver_type_id,
+                target_symbol,
+                function_id,
+            )?
+            .map(|target| (target, receiver_type_id, receiver_value))
+        } else {
+            None
+        };
         let parameter_type_ids = self.parameter_type_ids_for_symbol(target_symbol);
-        let signature = self.signature_type_for_function(expression_id, function_id)?;
+        let signature = match &dispatch_target {
+            Some((DispatchTarget::Interface { signature, .. }, _, _)) => *signature,
+            _ => {
+                let function_id = function_id.ok_or_else(|| LowerError::UnsupportedConstruct {
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
+                    message: "missing function for resolved target symbol".to_string(),
+                })?;
+                self.signature_type_for_function(expression_id, function_id)?
+            }
+        };
         let parameter_mir_types =
             self.parameter_mir_types_for_signature(expression_id, signature)?;
         let parameter_offset = call_receiver.is_some() as usize;
@@ -316,7 +332,7 @@ impl FunctionLowerer<'_> {
             }
             let (value, lowered_type) = self.lower_binding_call_expression(
                 expression_id,
-                function_id,
+                function_id.ok_or_else(|| self.missing_type_error(expression_id))?,
                 signature,
                 argument_values,
                 result_type,
@@ -324,29 +340,19 @@ impl FunctionLowerer<'_> {
             return Ok((Some(value), lowered_type));
         }
 
-        let value = if let (Some(receiver_type_id), Some(receiver_value)) =
-            (receiver_type_id, dispatch_receiver)
-        {
-            // resolve dispatch target when the receiver supports it
-            let dispatch_target = self.dispatch_target_for_symbol(
-                expression_id,
-                receiver_type_id,
-                target_symbol,
-                function_id,
-            )?;
-            if let Some(dispatch_target) = dispatch_target {
+        let value =
+            if let Some((dispatch_target, _receiver_type_id, receiver_value)) = dispatch_target {
                 match dispatch_target {
                     DispatchTarget::Interface {
                         declaring_type,
                         slot,
-                        function_id,
+                        signature: _,
                     } => {
                         if returns_void {
                             self.state.builder.call_interface_void(
                                 receiver_value,
                                 declaring_type,
                                 slot,
-                                Some(function_id),
                                 signature,
                                 argument_values,
                             );
@@ -356,19 +362,18 @@ impl FunctionLowerer<'_> {
                                 receiver_value,
                                 declaring_type,
                                 slot,
-                                Some(function_id),
                                 signature,
                                 argument_values,
                             )
                         }
                     }
-                    DispatchTarget::Virtual {
+                    DispatchTarget::Class {
                         declaring_type,
                         slot,
                         function_id,
                     } => {
                         if returns_void {
-                            self.state.builder.call_virtual_void(
+                            self.state.builder.call_class_void(
                                 receiver_value,
                                 declaring_type,
                                 slot,
@@ -378,7 +383,7 @@ impl FunctionLowerer<'_> {
                             );
                             None
                         } else {
-                            self.state.builder.call_virtual(
+                            self.state.builder.call_class(
                                 receiver_value,
                                 declaring_type,
                                 slot,
@@ -389,28 +394,28 @@ impl FunctionLowerer<'_> {
                         }
                     }
                 }
-            } else if returns_void {
-                self.state
-                    .builder
-                    .call_void(function_id, signature, argument_values);
-                None
+            } else if let Some(function_id) = function_id {
+                if returns_void {
+                    self.state
+                        .builder
+                        .call_void(function_id, signature, argument_values);
+                    None
+                } else {
+                    self.state
+                        .builder
+                        .call(function_id, signature, argument_values)
+                }
             } else {
-                self.state
-                    .builder
-                    .call(function_id, signature, argument_values)
-            }
-        }
-        // direct call when no receiver dispatch is needed
-        else if returns_void {
-            self.state
-                .builder
-                .call_void(function_id, signature, argument_values);
-            None
-        } else {
-            self.state
-                .builder
-                .call(function_id, signature, argument_values)
-        };
+                return Err(LowerError::UnsupportedConstruct {
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
+                    message: "missing function for resolved target symbol".to_string(),
+                }
+                .into());
+            };
 
         // reject void calls for expression results (void is not a value)
         if returns_void && matches!(kind, CallKind::Expression) {
@@ -1038,22 +1043,22 @@ impl FunctionLowerer<'_> {
             });
         }
 
-        // resolve interface reference layout
+        // resolve Any value layout
         let layout = self
             .context
             .type_lowerer
-            .interface_ref_layout(receiver_type_id)
+            .any_value_layout(receiver_type_id)
             .ok_or_else(|| self.missing_type_error(expression_id))
             .map_err(CompilerError::from)?;
 
-        // extract the object pointer for argument passing
-        let object_value = self
+        // extract the erased value pointer for argument passing
+        let value = self
             .state
             .builder
-            .field_get(receiver_value, layout.object_field_index);
+            .field_get(receiver_value, layout.value_field_index);
 
         Ok(InterfaceCallReceivers {
-            argument_receiver: object_value,
+            argument_receiver: value,
             dispatch_receiver: receiver_value,
         })
     }

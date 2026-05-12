@@ -1,10 +1,10 @@
 mod aggregate;
+mod any;
 mod builtin;
 mod closure;
 mod declare;
 mod descriptor;
 mod r#enum;
-mod interface;
 mod intersection;
 mod layout;
 mod lineage;
@@ -17,10 +17,10 @@ mod scalar;
 mod union;
 mod vector;
 
+pub(crate) use any::*;
 pub(crate) use builtin::*;
 pub(crate) use closure::*;
 pub(crate) use r#enum::*;
-pub(crate) use interface::*;
 pub(crate) use layout::*;
 pub(crate) use lower::*;
 pub(crate) use scalar::*;

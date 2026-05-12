@@ -111,23 +111,6 @@ impl ModuleLowerer<'_> {
             self.collect_interface_slots_inner(base, slots, seen_fields, seen_methods, visited)?;
         }
 
-        // resolve the interface instance type for method stubs
-        let declaration_id = self.declaration_ids_for_symbol(interface).first().copied();
-        let Some(declaration_id) = declaration_id else {
-            return Ok(());
-        };
-        let anchor = declaration_id
-            .into_global_any(self.module_id)
-            .into_anchored(Some(self.profile));
-        let interface_type = self.lower_instance_type(interface, anchor)?;
-        let Some(interface_type) = interface_type else {
-            return Err(LowerError::UnsupportedConstruct {
-                anchor: self.diagnostic_anchor(anchor),
-                message: "interface missing instance type".to_string(),
-            }
-            .into());
-        };
-
         // collect local interface members
         let declaration_ids = self.declaration_ids_for_symbol(interface);
         for declaration_id in declaration_ids {
@@ -140,14 +123,7 @@ impl ModuleLowerer<'_> {
 
             // scan interface members
             for member_id in members {
-                self.collect_interface_member_slots(
-                    interface,
-                    interface_type,
-                    *member_id,
-                    slots,
-                    seen_fields,
-                    seen_methods,
-                )?;
+                self.collect_interface_member_slots(*member_id, slots, seen_fields, seen_methods)?;
             }
         }
 
@@ -157,8 +133,6 @@ impl ModuleLowerer<'_> {
     /// Collect slots for a single interface member.
     fn collect_interface_member_slots(
         &mut self,
-        interface_symbol: dir::GlobalSymbolId,
-        interface_type: mir::LocalNodeId<mir::Type>,
         member_id: dir::LocalNodeId<dir::TypeMember>,
         slots: &mut Vec<InterfaceEntry>,
         seen_fields: &mut HashMap<StringId, dir::LocalTypeId>,
@@ -212,12 +186,7 @@ impl ModuleLowerer<'_> {
                     member_id,
                 });
             }
-            dir::TypeMember::Method {
-                key,
-                signature,
-                symbol,
-                ..
-            } => {
+            dir::TypeMember::Method { key, signature, .. } => {
                 // resolve the method name
                 let method_name = self.member_dispatch_name_or_error(
                     Some(key),
@@ -240,17 +209,6 @@ impl ModuleLowerer<'_> {
                 } else {
                     seen_methods.insert(method_name, vec![signature_type_id]);
                 }
-
-                // create interface method stub when needed
-                let method_symbol = symbol.into_global(self.module_id);
-                self.lower_interface_method_stub(
-                    interface_symbol,
-                    interface_type,
-                    member_id,
-                    Some(key),
-                    signature,
-                    method_symbol,
-                )?;
 
                 slots.push(InterfaceEntry::Method {
                     name: method_name,

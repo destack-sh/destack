@@ -74,10 +74,10 @@ pub(crate) struct FunctionLoweringContext<'a> {
 
     /// Resolve interface dispatch slots for call lowering.
     pub(crate) interface_slots_by_symbol: &'a HashMap<dir::GlobalSymbolId, Vec<InterfaceEntry>>,
-    /// Resolve interface itab globals for interface upcasts.
-    pub(crate) itab_globals_by_pair:
+    /// Resolve interface table globals for upcasts.
+    pub(crate) interface_table_globals_by_pair:
         &'a HashMap<(dir::GlobalSymbolId, dir::GlobalSymbolId), DispatchTableGlobal>,
-    /// Resolve virtual dispatch slots for method calls.
+    /// Resolve class dispatch slots for method calls.
     pub(crate) virtual_method_slots_by_key: &'a HashMap<(dir::GlobalSymbolId, MethodKey), u32>,
     /// Resolve vtable globals for class allocations.
     pub(crate) vtable_globals_by_symbol: &'a HashMap<dir::GlobalSymbolId, DispatchTableGlobal>,

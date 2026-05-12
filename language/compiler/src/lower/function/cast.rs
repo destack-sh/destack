@@ -3,7 +3,7 @@ use {destack_dir as dir, destack_mir as mir};
 use crate::{CompilerError, CompilerResult, LowerError, ScalarType};
 
 use crate::lower::FunctionLowerer;
-use crate::lower::r#type::UnionPayloadKind;
+use crate::lower::r#type::UnionPayload;
 
 #[allow(clippy::too_many_arguments)]
 impl FunctionLowerer<'_> {
@@ -80,7 +80,7 @@ impl FunctionLowerer<'_> {
                 return Ok((value, source_mir_type));
             }
 
-            return self.lower_interface_upcast(
+            return self.lower_any_upcast(
                 expression_id,
                 value_id,
                 value,
@@ -265,7 +265,7 @@ impl FunctionLowerer<'_> {
         matches!(
             self.state.builder.tree().get(ty),
             mir::Type::Reference {
-                kind: mir::ReferenceKind::Managed | mir::ReferenceKind::Owned,
+                kind: mir::ReferenceKind::Managed,
                 address_space: mir::AddressSpace::Local | mir::AddressSpace::Shared,
                 ..
             } | mir::Type::Reference {
@@ -273,7 +273,7 @@ impl FunctionLowerer<'_> {
                 address_space: mir::AddressSpace::Local | mir::AddressSpace::Shared,
                 ..
             } | mir::Type::TensorView {
-                kind: mir::ReferenceKind::Managed | mir::ReferenceKind::Owned,
+                kind: mir::ReferenceKind::Managed,
                 address_space: mir::AddressSpace::Local | mir::AddressSpace::Shared,
                 ..
             } | mir::Type::TensorView {
@@ -531,7 +531,7 @@ impl FunctionLowerer<'_> {
                 .context
                 .symbol_is(reference.symbol, dir::SymbolForm::Interface)
         {
-            return self.lower_interface_upcast(
+            return self.lower_any_upcast(
                 expression_id,
                 value_id,
                 value,
@@ -583,31 +583,31 @@ impl FunctionLowerer<'_> {
         let source_type_id = self.type_for_expression_or_error(value_id)?;
         let source_dir_type = self.context.types.get_type(source_type_id);
 
-        // handle interface downcasts by extracting object pointers
+        // handle Any downcasts by extracting value pointers
         if let dir::Type::Reference(reference) = source_dir_type
             && self
                 .context
                 .symbol_is(reference.symbol, dir::SymbolForm::Interface)
         {
-            // resolve interface reference layout
+            // resolve Any value layout
             let layout = self
                 .context
                 .type_lowerer
-                .interface_ref_layout(source_type_id)
+                .any_value_layout(source_type_id)
                 .ok_or_else(|| self.missing_type_error(expression_id))
                 .map_err(CompilerError::from)?;
 
-            // extract the object pointer from the interface value
-            let object_ptr = self
+            // extract the erased value pointer
+            let value_ptr = self
                 .state
                 .builder
-                .field_get(value, layout.object_field_index);
-            let object_ptr = self.state.builder.bitcast(object_ptr, layout.object_type);
+                .field_get(value, layout.value_field_index);
+            let value_ptr = self.state.builder.bitcast(value_ptr, layout.value_type);
 
-            // cast the object pointer to the target type
+            // cast the value pointer to the target type
             let target = match self.state.builder.tree().get(target_mir_type).clone() {
                 mir::Type::Reference { .. } => {
-                    self.state.builder.bitcast(object_ptr, target_mir_type)
+                    self.state.builder.bitcast(value_ptr, target_mir_type)
                 }
                 _ => {
                     let reference_type = self.state.builder.type_reference(
@@ -617,7 +617,7 @@ impl FunctionLowerer<'_> {
                         mir::AddressSpace::Local,
                         false,
                     );
-                    let casted = self.state.builder.bitcast(object_ptr, reference_type);
+                    let casted = self.state.builder.bitcast(value_ptr, reference_type);
                     self.state.builder.load(casted, target_mir_type)
                 }
             };
@@ -698,7 +698,7 @@ impl FunctionLowerer<'_> {
 
         // resolve the union tag index for the source type
         let tag_index = layout
-            .element_types
+            .source_types
             .iter()
             .position(|element| self.type_ids_equivalent(*element, source_type_id))
             .ok_or_else(|| LowerError::UnsupportedConstruct {
@@ -752,14 +752,14 @@ impl FunctionLowerer<'_> {
         } else {
             // lower the source value into the payload
             let (value, source_mir_type) = self.lower_value_expression(value_id)?;
-            match layout.payload_kind {
-                UnionPayloadKind::Inline => self.inline_union_payload_from_value(
+            match layout.payload {
+                UnionPayload::Inline => self.inline_union_payload_from_value(
                     layout.payload_type,
                     value,
                     source_mir_type,
                     node,
                 )?,
-                UnionPayloadKind::Boxed => {
+                UnionPayload::Boxed => {
                     let boxed = self.box_value(value, source_mir_type);
                     self.state.builder.bitcast(boxed, layout.payload_type)
                 }
@@ -819,14 +819,14 @@ impl FunctionLowerer<'_> {
         let node = expression_id
             .into_global_any(self.context.module_id)
             .into_anchored(Some(self.context.profile));
-        let value = match layout.payload_kind {
-            UnionPayloadKind::Inline => self.inline_union_payload_to_value(
+        let value = match layout.payload {
+            UnionPayload::Inline => self.inline_union_payload_to_value(
                 layout.payload_type,
                 payload_value,
                 target_mir_type,
                 node,
             )?,
-            UnionPayloadKind::Boxed => {
+            UnionPayload::Boxed => {
                 let reference_type = self.state.builder.type_reference(
                     mir::ReferenceKind::Managed,
                     target_mir_type,
@@ -977,7 +977,7 @@ impl FunctionLowerer<'_> {
         Ok((value, target_mir_type))
     }
 
-    /// Build an interface reference from a concrete value.
+    /// Build an Any value from a concrete value.
     ///
     /// ```ds
     /// interface Drawable {}
@@ -996,9 +996,9 @@ impl FunctionLowerer<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v1: @DrawableRef = struct @DrawableRef (v0, <itab>)
+    /// v1: Any<Drawable> = struct Any<Drawable> (v0, <table>)
     /// ```
-    pub(crate) fn lower_interface_upcast(
+    pub(crate) fn lower_any_upcast(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         value_id: dir::LocalNodeId<dir::Expression>,
@@ -1009,11 +1009,11 @@ impl FunctionLowerer<'_> {
         target_type_id: dir::LocalTypeId,
         target_mir_type: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        // resolve interface reference layout
+        // resolve Any value layout
         let layout = self
             .context
             .type_lowerer
-            .interface_ref_layout(target_type_id)
+            .any_value_layout(target_type_id)
             .ok_or_else(|| self.missing_type_error(expression_id))
             .map_err(CompilerError::from)?;
 
@@ -1055,10 +1055,10 @@ impl FunctionLowerer<'_> {
             .into());
         };
 
-        // resolve the itab global for the concrete and interface pair
-        let itab = self
+        // resolve the dispatch table global for the concrete and interface pair
+        let table = self
             .context
-            .itab_globals_by_pair
+            .interface_table_globals_by_pair
             .get(&(concrete_symbol, interface_symbol))
             .copied()
             .ok_or_else(|| LowerError::UnsupportedConstruct {
@@ -1067,36 +1067,36 @@ impl FunctionLowerer<'_> {
                         .into_global_any(self.context.module_id)
                         .into_anchored(Some(self.context.profile)),
                 ),
-                message: "missing interface itab for concrete type".to_string(),
+                message: "missing interface table for concrete type".to_string(),
             })
             .map_err(CompilerError::from)?;
 
-        // convert the source value into an object pointer
-        let object_ptr =
-            self.object_pointer_for_instance(value, source_mir_type, layout.object_type);
+        // convert the source value into an erased value pointer
+        let value_ptr =
+            self.erased_value_pointer_for_instance(value, source_mir_type, layout.value_type);
 
-        // load the itab pointer from static space
-        let itab_value = self
+        // load the table pointer from static space
+        let table_value = self
             .state
             .builder
-            .global_addr(itab.global_id, itab.address_type);
-        let itab_value = if itab.address_type == layout.itab_type {
-            itab_value
+            .global_addr(table.global_id, table.address_type);
+        let table_value = if table.address_type == layout.table_type {
+            table_value
         } else {
             self.state
                 .builder
-                .cast(mir::CastOperator::Bitcast, itab_value, layout.itab_type)
+                .cast(mir::CastOperator::Bitcast, table_value, layout.table_type)
         };
 
-        // assemble the interface reference value
-        let mut fields = vec![object_ptr, itab_value];
-        if layout.object_field_index > layout.itab_field_index {
+        // assemble the Any value
+        let mut fields = vec![value_ptr, table_value];
+        if layout.value_field_index > layout.table_field_index {
             fields.swap(0, 1);
         }
-        let interface_value = self.state.builder.struct_(target_mir_type, fields);
+        let any_value = self.state.builder.struct_(target_mir_type, fields);
 
-        // return the interface value and type
-        Ok((interface_value, target_mir_type))
+        // return the Any value and type
+        Ok((any_value, target_mir_type))
     }
 
     /// Select an integer cast operator for scalar types.
@@ -1158,8 +1158,8 @@ impl FunctionLowerer<'_> {
         Ok(cast)
     }
 
-    /// Convert a value into a managed object pointer.
-    fn object_pointer_for_instance(
+    /// Convert a value into an erased managed pointer.
+    fn erased_value_pointer_for_instance(
         &mut self,
         value: mir::Value,
         source_type: mir::LocalNodeId<mir::Type>,

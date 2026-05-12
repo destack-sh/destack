@@ -6,17 +6,17 @@ use crate::lower::{FunctionLowerer, InterfaceEntry, MethodKey};
 
 /// Dispatch target details for lowering.
 pub(crate) enum DispatchTarget {
-    /// Interface dispatch target details.
+    /// The interface dispatch target details.
     Interface {
         /// The declaring interface type id.
         declaring_type: mir::LocalNodeId<mir::Type>,
         /// The dispatch slot for the method.
         slot: mir::DispatchSlot,
-        /// The declared target function id for the method.
-        function_id: mir::LocalNodeId<mir::Function>,
+        /// The interface method signature.
+        signature: mir::LocalNodeId<mir::Type>,
     },
-    /// Virtual dispatch target details.
-    Virtual {
+    /// Class dispatch target details.
+    Class {
         /// The declaring class type id.
         declaring_type: mir::LocalNodeId<mir::Type>,
         /// The dispatch slot for the method.
@@ -33,7 +33,7 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         receiver_type_id: dir::LocalTypeId,
         target_symbol: dir::GlobalSymbolId,
-        function_id: mir::LocalNodeId<mir::Function>,
+        function_id: Option<mir::LocalNodeId<mir::Function>>,
     ) -> CompilerResult<Option<DispatchTarget>> {
         // resolve interface and class symbols for the receiver
         let interface_symbol = self.interface_symbol_for_type(receiver_type_id);
@@ -48,21 +48,34 @@ impl FunctionLowerer<'_> {
         // prefer interface dispatch when available
         if let Some(interface_symbol) = interface_symbol {
             let slot = self.interface_method_slot(expression_id, interface_symbol, method_key)?;
+            let signature =
+                self.interface_method_signature(expression_id, interface_symbol, method_key)?;
             let declaring_type = self.interface_declaring_type(expression_id, interface_symbol)?;
             return Ok(Some(DispatchTarget::Interface {
                 declaring_type,
-                slot: mir::DispatchSlot::new(slot),
-                function_id,
+                slot,
+                signature,
             }));
         }
 
-        // resolve virtual dispatch when a slot is present
+        // resolve class dispatch when a slot is present
         if let Some(class_symbol) = class_symbol
             && let Some(slot) = self.virtual_method_slot(class_symbol, method_key)
         {
+            let Some(function_id) = function_id else {
+                return Err(LowerError::MissingFunction {
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
+                    symbol: target_symbol,
+                }
+                .into());
+            };
             let declaring_type =
-                self.declaring_type_for_virtual_call(expression_id, receiver_type_id)?;
-            return Ok(Some(DispatchTarget::Virtual {
+                self.declaring_type_for_class_call(expression_id, receiver_type_id)?;
+            return Ok(Some(DispatchTarget::Class {
                 declaring_type,
                 slot: mir::DispatchSlot::new(slot),
                 function_id,
@@ -102,7 +115,7 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         interface_symbol: dir::GlobalSymbolId,
         method_key: MethodKey,
-    ) -> CompilerResult<u32> {
+    ) -> CompilerResult<mir::DispatchSlot> {
         // load interface slots for dispatch
         let slots = self
             .context
@@ -143,7 +156,64 @@ impl FunctionLowerer<'_> {
             .into());
         };
 
-        Ok(slot_index as u32 + 1)
+        Ok(mir::InterfaceTable::slot_for_index(slot_index))
+    }
+
+    /// Resolve the interface method signature for a method key.
+    fn interface_method_signature(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        interface_symbol: dir::GlobalSymbolId,
+        method_key: MethodKey,
+    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+        let slots = self
+            .context
+            .interface_slots_by_symbol
+            .get(&interface_symbol)
+            .map(|slots| slots.as_slice())
+            .ok_or_else(|| LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
+                message: "interface dispatch layout missing".to_string(),
+            })
+            .map_err(CompilerError::from)?;
+
+        for slot in slots {
+            let InterfaceEntry::Method {
+                name, signature, ..
+            } = slot
+            else {
+                continue;
+            };
+
+            if *name != method_key.name() || *signature != method_key.signature() {
+                continue;
+            }
+
+            let signature = self
+                .context
+                .type_lowerer
+                .function_signature_types
+                .get(signature)
+                .copied()
+                .ok_or_else(|| self.missing_type_error(expression_id))
+                .map_err(CompilerError::from)?;
+
+            return Ok(signature);
+        }
+
+        Err(LowerError::UnsupportedConstruct {
+            anchor: self.diagnostic_anchor(
+                expression_id
+                    .into_global_any(self.context.module_id)
+                    .into_anchored(Some(self.context.profile)),
+            ),
+            message: "interface method signature missing".to_string(),
+        }
+        .into())
     }
 
     /// Resolve the declaring interface type id for dispatch.
@@ -167,7 +237,7 @@ impl FunctionLowerer<'_> {
         Ok(declaring_type)
     }
 
-    /// Resolve a virtual dispatch key for a symbol.
+    /// Resolve a class dispatch key for a symbol.
     fn method_key_for_symbol(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
@@ -298,7 +368,7 @@ impl FunctionLowerer<'_> {
         ))
     }
 
-    /// Resolve the vtable slot for a virtual method symbol.
+    /// Resolve the class dispatch slot for a class method symbol.
     fn virtual_method_slot(
         &self,
         class_symbol: dir::GlobalSymbolId,
@@ -310,8 +380,8 @@ impl FunctionLowerer<'_> {
             .copied()
     }
 
-    /// Resolve the declaring MIR type for a virtual call.
-    fn declaring_type_for_virtual_call(
+    /// Resolve the declaring MIR type for a class call.
+    fn declaring_type_for_class_call(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         receiver_type_id: dir::LocalTypeId,
@@ -325,7 +395,7 @@ impl FunctionLowerer<'_> {
                         .into_global_any(self.context.module_id)
                         .into_anchored(Some(self.context.profile)),
                 ),
-                message: "virtual dispatch requires a class receiver".to_string(),
+                message: "class dispatch requires a class receiver".to_string(),
             })
             .map_err(CompilerError::from)?;
 

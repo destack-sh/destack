@@ -139,6 +139,20 @@ impl FunctionLowerer<'_> {
                 }
                 self.state.builder.struct_(ty, values)
             }
+            mir::Type::Union { .. } => {
+                return Err(LowerError::UnsupportedConstruct {
+                    anchor: self.diagnostic_anchor(node),
+                    message: "constructor cannot initialize union values".to_string(),
+                }
+                .into());
+            }
+            mir::Type::Any { .. } => {
+                return Err(LowerError::UnsupportedConstruct {
+                    anchor: self.diagnostic_anchor(node),
+                    message: "constructor cannot initialize erased Any values".to_string(),
+                }
+                .into());
+            }
             mir::Type::Callable { .. } => self.state.builder.null(ty),
             mir::Type::Newtype { inner, .. } => {
                 let inner = inner

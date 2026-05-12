@@ -422,17 +422,16 @@ impl FunctionLowerer<'_> {
         }
     }
 
-    /// Lower an ownership conversion to an owning handle.
+    /// Lower an ownership conversion.
     ///
     /// ```ds
-    /// function own(value: int32): ref<int32, owned, readonly> {
+    /// function own(value: int32): int32 {
     ///     return value;
     /// }
     /// ```
     /// ->
     /// ```mir
-    /// v1: ref<int32, owned, readonly> = new int32
-    /// store v1, v0
+    /// v0: int32
     /// ```
     pub(crate) fn lower_value_of_expression(
         &mut self,
@@ -440,16 +439,9 @@ impl FunctionLowerer<'_> {
         _mutability: Option<dir::Mutability>,
         right: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        // lower the owned value expression
-        let (value, pointee_type) = self.lower_value_expression(right)?;
-
-        // resolve the owning handle type
+        let (value, _) = self.lower_value_expression(right)?;
         let result_type = self.lower_type_for_expression(expression_id)?;
 
-        // allocate owned storage and store the value
-        let pointer = self.state.builder.new_(pointee_type, result_type);
-        self.state.builder.store(pointer, value);
-
-        Ok((pointer, result_type))
+        Ok((value, result_type))
     }
 }

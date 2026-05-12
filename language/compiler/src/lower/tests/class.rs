@@ -310,7 +310,7 @@ global Dog#vtable: ref?<void, raw, readonly, space(static)>[3], readonly, space(
 
 function useDog(value0: ref<Dog, managed, readonly>): int32 {
 entry0(value0: ref<Dog, managed, readonly>):
-    value1: int32 = call.virtual value0, Dog, 2(value0): (ref<Dog, managed, readonly>) -> int32
+    value1: int32 = call.class value0, Dog, 2(value0): (ref<Dog, managed, readonly>) -> int32
     return value1
 }
 
@@ -342,7 +342,7 @@ entry0(this0: ref<Dog, managed, readonly>):
         // assert the fixed vtable prefix
         test.assert_vtable_prefix(animal_table);
 
-        // count the virtual method slots
+        // count the class method slots
         let animal_methods = test.count_vtable_methods(animal_table);
         let dog_methods = test.count_vtable_methods(dog_table);
 
@@ -352,7 +352,7 @@ entry0(this0: ref<Dog, managed, readonly>):
     });
 }
 
-/// Lower vtable slot ordering across inheritance with multiple methods.
+/// Lower class dispatch slot ordering across inheritance with multiple methods.
 #[test]
 fn test_lower_orders_class_vtable_slots() {
     let test = TestProgram::memory_sequential_with_prelude();
@@ -431,9 +431,9 @@ entry0(this0: ref<Vehicle, managed, readonly>):
     });
 }
 
-/// Lower virtual call metadata for class dispatch.
+/// Lower class call metadata for class dispatch.
 #[test]
-fn test_lower_class_virtual_call_metadata() {
+fn test_lower_class_call_metadata() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
@@ -486,7 +486,7 @@ global FileLogger#vtable: ref?<void, raw, readonly, space(static)>[3], readonly,
 
 function callLogger(value0: ref<Logger, managed, readonly>): int32 {
 entry0(value0: ref<Logger, managed, readonly>):
-    value1: int32 = call.virtual value0, Logger, 2(value0): (ref<Logger, managed, readonly>) -> int32
+    value1: int32 = call.class value0, Logger, 2(value0): (ref<Logger, managed, readonly>) -> int32
     return value1
 }
 
@@ -509,15 +509,15 @@ entry0(this0: ref<FileLogger, managed, readonly>):
         let derived_type = test.type_by_metadata_name(tree, strings, "test/test:FileLogger");
         let base_type = test.type_parent(tree, derived_type);
 
-        let call_logger_info = test.virtual_call_info_by_name(tree, strings, "callLogger");
+        let call_logger_info = test.class_call_info_by_name(tree, strings, "callLogger");
         assert_eq!(call_logger_info.slot, mir::DispatchSlot::new(2));
         assert_eq!(call_logger_info.declaring_type, base_type);
     });
 }
 
-/// Lower virtual dispatch calls in MIR.
+/// Lower class dispatch calls in MIR.
 #[test]
-fn test_lower_class_virtual_call() {
+fn test_lower_class_call() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
@@ -556,7 +556,7 @@ global FileLogger#vtable: ref?<void, raw, readonly, space(static)>[3], readonly,
 
 function callLogger(value0: ref<Logger, managed, readonly>): int32 {
 entry0(value0: ref<Logger, managed, readonly>):
-    value1: int32 = call.virtual value0, Logger, 2(value0): (ref<Logger, managed, readonly>) -> int32
+    value1: int32 = call.class value0, Logger, 2(value0): (ref<Logger, managed, readonly>) -> int32
     return value1
 }
 
@@ -575,9 +575,9 @@ entry0(this0: ref<Logger, managed, readonly>):
     );
 }
 
-/// Execute a virtual call through a base-typed reference.
+/// Execute a class call through a base-typed reference.
 #[test]
-fn test_lower_executes_class_virtual_call() {
+fn test_lower_executes_class_call() {
     // set up the test program
     let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(

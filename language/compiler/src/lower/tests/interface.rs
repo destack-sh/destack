@@ -3,9 +3,9 @@ use destack_mir as mir;
 
 use crate::TestProgram;
 
-/// Lower interface itab metadata for structs.
+/// Lower interface table metadata for structs.
 #[test]
-fn test_lower_struct_itab_metadata() {
+fn test_lower_struct_interface_table_metadata() {
     let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
@@ -59,25 +59,22 @@ entry0(this0: Circle):
 
     test.with_mir_tree(module_id, "native", |tree, strings| {
         // collect interface dispatch tables
-        let itab = test.expect_single_interface_table(tree);
-
-        // assert the itab slot layout
-        assert!(matches!(itab.entries[0], mir::ItabEntry::TypeDescriptor));
+        let interface_table = test.expect_single_interface_table(tree);
 
         // assert the field offset slot
-        let offset = test.expect_interface_field_offset(itab, strings, "color");
+        let offset = test.expect_interface_field_offset(interface_table, tree, strings, "color");
         assert_eq!(offset, 0);
 
         // assert the interface method slot
         let target_name =
-            test.expect_interface_method_target_name(itab, tree, strings, "Drawable.draw");
+            test.expect_interface_method_target_name(interface_table, tree, strings, "draw");
         assert_eq!(target_name, "Circle.draw");
     });
 }
 
-/// Lower interface reference layouts into fat pointer structs.
+/// Lower erased interface layouts into Any values.
 #[test]
-fn test_lower_interface_reference_layout() {
+fn test_lower_interface_any_layout() {
     let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
@@ -120,8 +117,8 @@ type Drawable.object {
     color: int32;
 }
 type Drawable {
-    object: ref<void, managed, readonly>;
-    itab: usize;
+    value: ref<void, managed, readonly>;
+    table: ref<void, raw, readonly, space(static)>;
 }
 
 extern function Drawable.draw(Drawable.object): int32
@@ -142,27 +139,33 @@ entry0(this0: Circle):
     test.with_mir_tree(module_id, "native", |tree, strings| {
         let interface_type = test.type_by_metadata_name(tree, strings, "test/test:Drawable");
 
-        let object_type =
-            test.expect_struct_field_type_by_name(tree, strings, interface_type, "object");
-        let itab_type =
-            test.expect_struct_field_type_by_name(tree, strings, interface_type, "itab");
+        let value_type =
+            test.expect_struct_field_type_by_name(tree, strings, interface_type, "value");
+        let table_type = test.expect_struct_field_type_by_name(tree, strings, interface_type, "table");
 
-        let object_type = tree.get(object_type);
-        let mir::Type::Reference { kind, pointee, .. } = object_type else {
-            panic!("expected managed reference for interface object field");
+        let value_type = tree.get(value_type);
+        let mir::Type::Reference { kind, pointee, .. } = value_type else {
+            panic!("expected managed reference for Any value field");
         };
         assert!(matches!(kind, mir::ReferenceKind::Managed));
         assert!(matches!(
             tree.get(
                 pointee
                     .ty()
-                    .expect("interface object pointee should be concrete")
+                    .expect("Any value pointee should be concrete")
             ),
             mir::Type::Void
         ));
 
-        let itab_type = tree.get(itab_type);
-        assert!(matches!(itab_type, mir::Type::Usize));
+        let table_type = tree.get(table_type);
+        assert!(matches!(
+            table_type,
+            mir::Type::Reference {
+                kind: mir::ReferenceKind::Raw,
+                address_space: mir::AddressSpace::Static,
+                ..
+            }
+        ));
     });
 }
 
@@ -283,9 +286,9 @@ function run(): int32 {
     test.assert_mir_function_output(module_id, "native", "run", &[], Value::int32(42));
 }
 
-/// Lower interface itab slots in declaration order for mixed members.
+/// Lower interface table slots in declaration order for mixed members.
 #[test]
-fn test_lower_orders_interface_itab_slots() {
+fn test_lower_orders_interface_table_slots() {
     let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
@@ -373,52 +376,52 @@ entry0(this0: Widget):
             "test/test:Paint.object",
         );
 
-        assert!(matches!(
-            shape_table.entries[0],
-            mir::ItabEntry::TypeDescriptor
-        ));
-        match &shape_table.entries[1] {
-            mir::ItabEntry::FieldOffset {
-                field: _,
-                field_name,
-                offset,
-            } => {
+        let shape = tree
+            .metadata
+            .dispatch
+            .interface_shape(shape_table.interface)
+            .expect("missing Shape interface shape");
+        match (&shape_table.entries[0], &shape.slots[0]) {
+            (
+                mir::InterfaceTableEntry::FieldOffset { offset },
+                mir::InterfaceSlot::Field { field_name, .. },
+            ) => {
                 assert_eq!(strings.get(*field_name), "width");
                 assert_eq!(*offset, 0);
             }
             _ => panic!("expected field offset slot for width"),
         }
-        match &shape_table.entries[2] {
-            mir::ItabEntry::Method {
-                declared_method, ..
-            } => {
-                let method_name = strings.get(tree.get(*declared_method).name);
-                assert_eq!(method_name, "Shape.area");
+        match (&shape_table.entries[1], &shape.slots[1]) {
+            (
+                mir::InterfaceTableEntry::Method { .. },
+                mir::InterfaceSlot::Method { name, .. },
+            ) => {
+                assert_eq!(strings.get(*name), "area");
             }
             _ => panic!("expected interface method slot for area"),
         }
 
-        assert!(matches!(
-            paint_table.entries[0],
-            mir::ItabEntry::TypeDescriptor
-        ));
-        match &paint_table.entries[1] {
-            mir::ItabEntry::FieldOffset {
-                field: _,
-                field_name,
-                offset,
-            } => {
+        let paint = tree
+            .metadata
+            .dispatch
+            .interface_shape(paint_table.interface)
+            .expect("missing Paint interface shape");
+        match (&paint_table.entries[0], &paint.slots[0]) {
+            (
+                mir::InterfaceTableEntry::FieldOffset { offset },
+                mir::InterfaceSlot::Field { field_name, .. },
+            ) => {
                 assert_eq!(strings.get(*field_name), "color");
                 assert_eq!(*offset, 4);
             }
             _ => panic!("expected field offset slot for color"),
         }
-        match &paint_table.entries[2] {
-            mir::ItabEntry::Method {
-                declared_method, ..
-            } => {
-                let method_name = strings.get(tree.get(*declared_method).name);
-                assert_eq!(method_name, "Paint.paint");
+        match (&paint_table.entries[1], &paint.slots[1]) {
+            (
+                mir::InterfaceTableEntry::Method { .. },
+                mir::InterfaceSlot::Method { name, .. },
+            ) => {
+                assert_eq!(strings.get(*name), "paint");
             }
             _ => panic!("expected interface method slot for paint"),
         }
@@ -469,8 +472,8 @@ type Drawable.object {
     color: int32;
 }
 type Drawable {
-    object: ref<void, managed, readonly>;
-    itab: usize;
+    value: ref<void, managed, readonly>;
+    table: ref<void, raw, readonly, space(static)>;
 }
 
 extern function Drawable.draw(Drawable.object): int32
@@ -501,7 +504,7 @@ entry0(this0: Circle):
     });
 }
 
-/// Lower interface upcasts into fat pointer values in MIR.
+/// Lower interface upcasts into Any values in MIR.
 #[test]
 fn test_lower_interface_upcast() {
     let test = TestProgram::memory_sequential_with_prelude();
@@ -540,8 +543,8 @@ type Renderable.object {
 }
 
 type Renderable {
-    object: ref<void, managed, readonly>;
-    itab: usize;
+    value: ref<void, managed, readonly>;
+    table: ref<void, raw, readonly, space(static)>;
 }
 
 type Sprite {
@@ -556,8 +559,8 @@ entry0(value0: int32):
     value2: ref<Sprite, managed, readonly> = new Sprite
     store value2, value1
     value3: ref<void, managed, readonly> = cast.bit value2 -> ref<void, managed, readonly>
-    value4: uint64 = 0uint64
-    value5: usize = cast.bit value4 -> usize
+    value4: ref<usize[2], raw, readonly, space(static)> = global.address Sprite#as#Renderable#interface_table
+    value5: ref<void, raw, readonly, space(static)> = cast.bit value4 -> ref<void, raw, readonly, space(static)>
     value6: Renderable = struct Renderable (value3, value5)
     return value6
 }

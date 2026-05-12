@@ -7,7 +7,7 @@ use crate::{LowerError, LowerResult};
 
 use crate::lower::ModuleLowerer;
 
-/// A key that identifies a virtual method slot.
+/// A key that identifies a class method slot.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct MethodKey {
     /// The method name.
@@ -19,7 +19,7 @@ pub(crate) struct MethodKey {
 }
 
 impl MethodKey {
-    /// Create a virtual method key for dispatch lookups.
+    /// Create a class method key for dispatch lookups.
     pub(crate) fn new(
         name: StringId,
         role: Option<dir::FunctionRole>,
@@ -43,7 +43,7 @@ impl MethodKey {
     }
 }
 
-/// A virtual method candidate for vtable construction.
+/// A class method candidate for vtable construction.
 #[derive(Debug, Clone)]
 pub(crate) struct VtableMethod {
     /// The dispatch slot for overrides.
@@ -69,7 +69,7 @@ impl VtableMethod {
 }
 
 impl ModuleLowerer<'_> {
-    /// Write virtual dispatch tables.
+    /// Write class dispatch tables.
     pub(crate) fn emit_vtables(&mut self) -> LowerResult<()> {
         // classes with object dispatch headers
         for symbol in self.vtable_class_symbols.clone() {
@@ -79,7 +79,7 @@ impl ModuleLowerer<'_> {
         Ok(())
     }
 
-    /// Write one virtual dispatch table.
+    /// Write one class dispatch table.
     fn vtable_for_symbol(&mut self, symbol: dir::GlobalSymbolId) -> LowerResult<()> {
         if self.lowered_vtables.contains(&symbol) {
             return Ok(());
@@ -120,7 +120,7 @@ impl ModuleLowerer<'_> {
             .into_global_any(self.module_id)
             .into_anchored(Some(self.profile));
 
-        // collect virtual methods in lineage order
+        // collect class methods in lineage order
         let virtual_slots = self.virtual_method_slots_for_class(symbol)?;
 
         // resolve the class instance mir type
@@ -208,7 +208,7 @@ impl ModuleLowerer<'_> {
         lineage
     }
 
-    /// Collect virtual methods declared on a single class.
+    /// Collect class methods declared on a single class.
     fn collect_virtual_methods_for_class(
         &self,
         symbol: dir::GlobalSymbolId,
@@ -239,7 +239,7 @@ impl ModuleLowerer<'_> {
                     continue;
                 };
 
-                // skip non virtual methods
+                // skip non class methods
                 if !self.method_is_virtual(member, signature) {
                     continue;
                 }
@@ -268,7 +268,7 @@ impl ModuleLowerer<'_> {
         Ok(methods)
     }
 
-    /// Return true when a method should participate in virtual dispatch.
+    /// Return true when a method should participate in class dispatch.
     pub(crate) fn method_is_virtual(
         &self,
         member: &dir::Member,
@@ -290,12 +290,12 @@ impl ModuleLowerer<'_> {
         true
     }
 
-    /// Collect virtual method slots for a class in vtable order.
+    /// Collect class method slots for a class in vtable order.
     pub(crate) fn virtual_method_slots_for_class(
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> LowerResult<Vec<VtableMethod>> {
-        // collect virtual methods in lineage order
+        // collect class methods in lineage order
         let lineage = self.collect_class_lineage(symbol);
         let mut virtual_slots = Vec::new();
 
@@ -341,7 +341,7 @@ impl ModuleLowerer<'_> {
         Ok(virtual_slots)
     }
 
-    /// Check whether a class has any virtual methods.
+    /// Check whether a class has any class methods.
     pub(crate) fn class_has_virtual_methods(
         &self,
         symbol: dir::GlobalSymbolId,

@@ -299,7 +299,7 @@ impl FunctionLowerer<'_> {
 
             // resolve the tag for the target type
             let Some(tag_index) = layout
-                .element_types
+                .source_types
                 .iter()
                 .position(|element| self.are_type_ids_equivalent(*element, target_type_id))
             else {

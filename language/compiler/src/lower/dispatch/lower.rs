@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use {destack_dir as dir, destack_mir as mir};
 
 use crate::lower::ModuleLowerer;
 use crate::{LowerError, LowerResult};
@@ -93,22 +93,22 @@ impl ModuleLowerer<'_> {
             self.lower_interface_slots(symbol)?;
         }
 
-        // precompute interface pairs for itab lowering
+        // precompute interface pairs for interface table lowering
         let mut pairs = self.collect_interface_pairs();
         pairs.sort_by_key(|(concrete, interface)| (concrete.local_id.id, interface.local_id.id));
         pairs.dedup();
 
-        self.interface_itab_pairs = pairs.clone();
+        self.interface_table_pairs = pairs.clone();
 
         for pair in pairs {
-            // create the static itab backing store
+            // create the static interface table backing store
             let (concrete, interface) = pair;
             let declaration_id = self.declaration_ids_for_symbol(interface).first().copied();
             let Some(declaration_id) = declaration_id else {
                 return Err(LowerError::Internal {
                     anchor: (self.module_id).into(),
                     module: self.module_id,
-                    message: "interface declaration missing for itab global".to_string(),
+                    message: "interface declaration missing for interface table global".to_string(),
                 }
                 .into());
             };
@@ -116,9 +116,13 @@ impl ModuleLowerer<'_> {
                 .into_global_any(self.module_id)
                 .into_anchored(Some(self.profile));
             let slots = self.lower_interface_slots(interface)?;
-            let itab_global =
-                self.create_itab_global(concrete, interface, slots.len() as u64 + 1, anchor)?;
-            self.insert_itab_global(pair, itab_global)?;
+            let interface_table_global = self.create_interface_table_global(
+                concrete,
+                interface,
+                mir::InterfaceTable::storage_len(slots.len()) as u64,
+                anchor,
+            )?;
+            self.insert_interface_table_global(pair, interface_table_global)?;
         }
 
         // publish the guard after every declaration is complete
@@ -130,7 +134,7 @@ impl ModuleLowerer<'_> {
     /// Write dispatch tables after function bodies are lowered.
     pub(crate) fn emit_dispatch(&mut self) -> LowerResult<()> {
         self.emit_vtables()?;
-        self.emit_itabs()?;
+        self.emit_interface_tables()?;
 
         Ok(())
     }

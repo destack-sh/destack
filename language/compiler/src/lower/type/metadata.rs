@@ -37,8 +37,8 @@ impl ModuleLowerer<'_> {
 
         // resolve the cached struct layout when available
         if let Some(layout) = self.type_lowerer.layout_for_type(ty).cloned() {
-            let layout_kind = self.layout_kind_for_mir_type(type_id, ty, anchor, &layout)?;
-            let layout_id = self.insert_layout_entry(ty, layout_kind, &layout);
+            let layout_shape = self.layout_shape_for_mir_type(type_id, ty, anchor, &layout)?;
+            let layout_id = self.insert_layout_entry(ty, layout_shape, &layout);
 
             return Ok(Some(layout_id));
         }
@@ -81,7 +81,7 @@ impl ModuleLowerer<'_> {
                 };
                 let layout_id = self.insert_layout_metadata(
                     ty,
-                    mir::LayoutKind::Tuple,
+                    mir::LayoutShape::Tuple,
                     size,
                     alignment,
                     fields,
@@ -90,10 +90,10 @@ impl ModuleLowerer<'_> {
                 Ok(Some(layout_id))
             }
             LayoutTarget::Array(element, length) => {
-                let (layout_kind, size, alignment) =
+                let (layout_shape, size, alignment) =
                     self.array_layout_info(type_id, element, length, anchor)?;
                 let layout_id =
-                    self.insert_layout_metadata(ty, layout_kind, size, alignment, Vec::new());
+                    self.insert_layout_metadata(ty, layout_shape, size, alignment, Vec::new());
 
                 Ok(Some(layout_id))
             }
@@ -104,7 +104,7 @@ impl ModuleLowerer<'_> {
     pub(crate) fn insert_layout_entry(
         &mut self,
         ty: mir::LocalNodeId<mir::Type>,
-        layout_kind: mir::LayoutKind,
+        layout_shape: mir::LayoutShape,
         layout: &StructLayout,
     ) -> mir::LayoutId {
         // build the layout fields in order
@@ -120,21 +120,21 @@ impl ModuleLowerer<'_> {
             });
         }
 
-        self.insert_layout_metadata(ty, layout_kind, layout.size, layout.alignment, fields)
+        self.insert_layout_metadata(ty, layout_shape, layout.size, layout.alignment, fields)
     }
 
     /// Insert a layout entry and attach it to the type metadata.
     fn insert_layout_metadata(
         &mut self,
         ty: mir::LocalNodeId<mir::Type>,
-        layout_kind: mir::LayoutKind,
+        layout_shape: mir::LayoutShape,
         size: u32,
         alignment: u32,
         fields: Vec<mir::LayoutField>,
     ) -> mir::LayoutId {
         // build the mir layout entry
         let layout_entry = mir::Layout {
-            kind: layout_kind,
+            shape: layout_shape,
             size,
             alignment,
             reference_map: mir::ReferenceMap::empty(),
@@ -197,7 +197,7 @@ impl ModuleLowerer<'_> {
         element: mir::LocalNodeId<mir::Type>,
         length: u64,
         anchor: dir::AnchoredGlobalNodeId,
-    ) -> LowerResult<(mir::LayoutKind, u32, u32)> {
+    ) -> LowerResult<(mir::LayoutShape, u32, u32)> {
         // compute element size and alignment
         let element_type = self.builder.tree().get(element);
         let (size, alignment) = self
@@ -221,7 +221,7 @@ impl ModuleLowerer<'_> {
         })?;
 
         Ok((
-            mir::LayoutKind::Array {
+            mir::LayoutShape::Array {
                 element_type: element,
                 element_stride: stride,
                 element_count: Some(length_u32),
@@ -232,70 +232,61 @@ impl ModuleLowerer<'_> {
     }
 
     /// Resolve the layout kind for a lowered type.
-    fn layout_kind_for_mir_type(
+    fn layout_shape_for_mir_type(
         &self,
         type_id: Option<dir::LocalTypeId>,
         mir_type: mir::LocalNodeId<mir::Type>,
         anchor: dir::AnchoredGlobalNodeId,
         layout: &StructLayout,
-    ) -> LowerResult<mir::LayoutKind> {
+    ) -> LowerResult<mir::LayoutShape> {
         // prefer union layouts when present
-        let layout_kind = if let Some(union_layout) =
-            self.builder.tree().metadata.layout.union_layout(mir_type)
+        let layout_shape = if let Some(type_id) = type_id
+            && let Some(union_layout) = self.type_lowerer.union_layout(type_id)
         {
-            let tag_index = layout
-                .field_index(union_layout.tag_field_name)
-                .ok_or_else(|| LowerError::UnsupportedConstruct {
+            let tag_index = layout.field(union_layout.tag_field_index).ok_or_else(|| {
+                LowerError::UnsupportedConstruct {
                     anchor: self.diagnostic_anchor(anchor),
                     message: "missing union tag field".to_string(),
-                })?;
-            let tag_field =
+                }
+            })?;
+            let payload_index =
                 layout
-                    .field(tag_index)
-                    .ok_or_else(|| LowerError::UnsupportedConstruct {
-                        anchor: self.diagnostic_anchor(anchor),
-                        message: "missing union tag field".to_string(),
-                    })?;
-            let payload_index = layout
-                .field_index(union_layout.payload_field_name)
-                .ok_or_else(|| LowerError::UnsupportedConstruct {
-                    anchor: self.diagnostic_anchor(anchor),
-                    message: "missing union payload field".to_string(),
-                })?;
-            let payload_field =
-                layout
-                    .field(payload_index)
+                    .field(union_layout.payload_field_index)
                     .ok_or_else(|| LowerError::UnsupportedConstruct {
                         anchor: self.diagnostic_anchor(anchor),
                         message: "missing union payload field".to_string(),
                     })?;
 
-            mir::LayoutKind::Union {
-                tag_type: union_layout.tag_type,
-                tag_offset: tag_field.offset,
-                payload_offset: payload_field.offset,
+            mir::LayoutShape::Union {
+                tag_offset: tag_index.offset,
+                payload_type: union_layout.payload_type,
+                payload_offset: payload_index.offset,
+                payload: match union_layout.payload {
+                    crate::lower::r#type::UnionPayload::Inline => mir::UnionPayload::Inline,
+                    crate::lower::r#type::UnionPayload::Boxed => mir::UnionPayload::Boxed,
+                },
             }
         }
-        // prefer interface layouts when present
+        // prefer Any layouts when present
         else if let Some(type_id) = type_id
-            && let Some(interface_layout) = self.type_lowerer.interface_ref_layout(type_id)
+            && let Some(any_layout) = self.type_lowerer.any_value_layout(type_id)
         {
-            let object_field = layout
-                .field(interface_layout.object_field_index)
-                .ok_or_else(|| LowerError::UnsupportedConstruct {
+            let value_field = layout.field(any_layout.value_field_index).ok_or_else(|| {
+                LowerError::UnsupportedConstruct {
                     anchor: self.diagnostic_anchor(anchor),
-                    message: "missing interface object field".to_string(),
-                })?;
-            let itab_field = layout
-                .field(interface_layout.itab_field_index)
-                .ok_or_else(|| LowerError::UnsupportedConstruct {
+                    message: "missing Any value field".to_string(),
+                }
+            })?;
+            let table_field = layout.field(any_layout.table_field_index).ok_or_else(|| {
+                LowerError::UnsupportedConstruct {
                     anchor: self.diagnostic_anchor(anchor),
                     message: "missing interface table field".to_string(),
-                })?;
+                }
+            })?;
 
-            mir::LayoutKind::Interface {
-                object_offset: object_field.offset,
-                table_offset: itab_field.offset,
+            mir::LayoutShape::Any {
+                value_offset: value_field.offset,
+                table_offset: table_field.offset,
             }
         }
         // preserve object dispatch headers as first-class layout metadata
@@ -304,15 +295,15 @@ impl ModuleLowerer<'_> {
             .iter()
             .find(|field| field.kind == FieldLayoutKind::VtableHeader)
         {
-            mir::LayoutKind::Object {
-                vtable_offset: vtable_field.offset,
+            mir::LayoutShape::Object {
+                table_offset: vtable_field.offset,
             }
         }
         // use function value layouts for function types
         else if type_id.is_some_and(|type_id| {
             matches!(self.types.get_type(type_id), dir::Type::Function { .. })
         }) {
-            mir::LayoutKind::Callable
+            mir::LayoutShape::Callable
         }
         // mark function environments explicitly when present
         else if self
@@ -320,14 +311,14 @@ impl ModuleLowerer<'_> {
             .values()
             .any(|env_layout| env_layout.env_type == mir_type)
         {
-            mir::LayoutKind::CallableEnvironment
+            mir::LayoutShape::CallableEnvironment
         }
         // default to plain struct layout
         else {
-            mir::LayoutKind::Struct
+            mir::LayoutShape::Struct
         };
 
-        Ok(layout_kind)
+        Ok(layout_shape)
     }
 
     /// Build one consistent array layout error.
