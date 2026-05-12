@@ -43,7 +43,7 @@ impl EventLoop {
         }
 
         // dispatch one poller event and reset host fairness streak
-        if let Some(event) = self.events.pop_front() {
+        if let Some(event) = self.poller_events.pop_front() {
             self.host_events_since_poller = 0;
             return Ok(Some(Runnable::PollerEvent(event)));
         }
@@ -61,7 +61,7 @@ impl EventLoop {
     pub fn has_ready_work(&self) -> bool {
         !self.tasks.is_empty()
             || !self.microtasks.is_empty()
-            || !self.events.is_empty()
+            || !self.poller_events.is_empty()
             || !self.host_events.is_empty()
             || self.has_dispatchable_ready_timers()
     }
@@ -172,7 +172,7 @@ impl EventLoop {
             return false;
         }
 
-        if self.events.is_empty() {
+        if self.poller_events.is_empty() {
             return true;
         }
 

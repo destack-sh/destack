@@ -235,7 +235,7 @@ impl Target {
         let mut target = Self::from_default_options(name);
         target.emit = EmitFormat::Js;
         target.runtime = Runtime::Js;
-        target.runtime_options.environment = Runtime::Js;
+        target.runtime_options.runtime = Runtime::Js;
         target.platform = Platform::Unknown;
         target.host = Host::Unknown;
         target.declaration = true;
@@ -248,7 +248,7 @@ impl Target {
         let mut target = Self::from_default_options(name);
         target.emit = EmitFormat::Ts;
         target.runtime = Runtime::Js;
-        target.runtime_options.environment = Runtime::Js;
+        target.runtime_options.runtime = Runtime::Js;
         target.platform = Platform::Unknown;
         target.host = Host::Unknown;
 
@@ -260,7 +260,7 @@ impl Target {
         let mut target = Self::from_default_options(name);
         target.emit = EmitFormat::Html;
         target.runtime = Runtime::Js;
-        target.runtime_options.environment = Runtime::Js;
+        target.runtime_options.runtime = Runtime::Js;
         target.platform = Platform::Unknown;
         target.host = Host::Browser;
 
@@ -272,7 +272,7 @@ impl Target {
         let mut target = Self::from_default_options(name);
         target.emit = EmitFormat::Wasm;
         target.runtime = Runtime::Destack;
-        target.runtime_options.environment = Runtime::Destack;
+        target.runtime_options.runtime = Runtime::Destack;
         target.platform = Platform::Unknown;
         target.host = Host::Browser;
         target.optimize = true;
@@ -285,7 +285,7 @@ impl Target {
         let mut target = Self::from_default_options(name);
         target.emit = EmitFormat::Wasm;
         target.runtime = Runtime::Destack;
-        target.runtime_options.environment = Runtime::Destack;
+        target.runtime_options.runtime = Runtime::Destack;
         target.platform = Platform::Unknown;
         target.host = Host::Wasi;
         target.optimize = true;
@@ -298,7 +298,7 @@ impl Target {
         let mut target = Self::from_default_options(name);
         target.emit = EmitFormat::Native;
         target.runtime = Runtime::Destack;
-        target.runtime_options.environment = Runtime::Destack;
+        target.runtime_options.runtime = Runtime::Destack;
         target.platform = Platform::Unknown;
         target.host = Host::Native;
         target.optimize = true;
@@ -554,7 +554,7 @@ impl Target {
     /// Set the runtime.
     pub fn with_runtime(mut self, runtime: Runtime) -> Self {
         self.runtime = runtime;
-        self.runtime_options.environment = runtime;
+        self.runtime_options.runtime = runtime;
         self
     }
 
@@ -1290,7 +1290,7 @@ impl TargetOptions {
             include: json.include.clone().unwrap_or_default(),
             exclude: json.exclude.clone().unwrap_or_default(),
             emit,
-            runtime: runtime_options.environment,
+            runtime: runtime_options.runtime,
             platform,
             host,
             target_arch: json.arch.as_deref().and_then(TargetArch::parse),
