@@ -132,7 +132,6 @@ pub fn format_member_hover(
             revision,
             strings,
         ),
-        dir::Member::Embed { .. } => format!("(embed) {qualified_name}"),
         dir::Member::StaticBlock { .. } => "(static block)".to_string(),
         dir::Member::ComptimeBlock { .. } => "(comptime block)".to_string(),
         dir::Member::Error { .. } => "(error member)".to_string(),

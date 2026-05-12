@@ -88,14 +88,6 @@ pub(crate) fn build_nominal_relations_for_module(
                 relation: NominalRelation::Implements,
             });
         }
-
-        for target_symbol in lineage.embedded.iter().copied() {
-            entries.push(NominalEntry {
-                source_symbol,
-                target_symbol,
-                relation: NominalRelation::Embeds,
-            });
-        }
     }
 
     entries

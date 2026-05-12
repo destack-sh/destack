@@ -170,9 +170,6 @@ pub fn supertypes(
         // add implemented interfaces
         supertype_ids.extend(lineage.implements.iter().copied());
 
-        // add embedded types (for structs with composition)
-        supertype_ids.extend(lineage.embedded.iter().copied());
-
         supertype_ids
     };
 
@@ -204,7 +201,7 @@ pub fn subtypes(
         let matches = entry.target_symbol == canonical_id
             && matches!(
                 entry.relation,
-                NominalRelation::Extends | NominalRelation::Implements | NominalRelation::Embeds
+                NominalRelation::Extends | NominalRelation::Implements
             );
 
         if matches {

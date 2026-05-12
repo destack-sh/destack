@@ -81,7 +81,6 @@ pub(crate) fn member_symbol_kind(member: &Member) -> Option<SymbolKind> {
         Member::AssociatedConst { .. } => Some(SymbolKind::Constant),
         Member::Field { .. } => Some(SymbolKind::Field),
         Member::Method { .. } => Some(SymbolKind::Method),
-        Member::Embed { .. } => None,
         Member::StaticBlock { .. } => None,
         Member::ComptimeBlock { .. } => None,
         Member::Error { .. } => None,
@@ -98,7 +97,6 @@ pub(crate) fn type_member_symbol_kind(member: &TypeMember) -> Option<SymbolKind>
         TypeMember::CallSignature { .. } => Some(SymbolKind::Method),
         TypeMember::ConstructSignature { .. } => Some(SymbolKind::Method),
         TypeMember::IndexSignature { .. } => None,
-        TypeMember::Embed { .. } => None,
         TypeMember::Error { .. } => None,
     }
 }
