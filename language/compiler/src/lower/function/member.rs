@@ -333,9 +333,78 @@ impl FunctionLowerer<'_> {
             arguments.push(receiver);
         }
 
-        // resolve the target function
-        let function_id = self
-            .function_for_symbol(target_symbol)
+        let function_id = self.function_for_symbol(target_symbol);
+        let dispatch_target = if let (Some(receiver_type_id), Some(receiver_value)) =
+            (receiver_type_id, dispatch_receiver)
+        {
+            self.dispatch_target_for_symbol(
+                expression_id,
+                receiver_type_id,
+                target_symbol,
+                function_id,
+            )?
+            .map(|target| (target, receiver_value))
+        } else {
+            None
+        };
+        let signature = match &dispatch_target {
+            Some((DispatchTarget::Interface { signature, .. }, _)) => *signature,
+            _ => {
+                let function_id = function_id
+                    .ok_or_else(|| LowerError::MissingFunction {
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
+                        symbol: target_symbol,
+                    })
+                    .map_err(CompilerError::from)?;
+                self.signature_type_for_function(expression_id, function_id)?
+            }
+        };
+
+        if let Some((dispatch_target, receiver_value)) = dispatch_target {
+            let value = match dispatch_target {
+                DispatchTarget::Interface {
+                    declaring_type,
+                    slot,
+                    signature: _,
+                } => self.state.builder.call_interface(
+                    receiver_value,
+                    declaring_type,
+                    slot,
+                    signature,
+                    arguments,
+                ),
+                DispatchTarget::Class {
+                    declaring_type,
+                    slot,
+                    function_id,
+                } => self.state.builder.call_class(
+                    receiver_value,
+                    declaring_type,
+                    slot,
+                    Some(function_id),
+                    signature,
+                    arguments,
+                ),
+            };
+            let value = value
+                .ok_or_else(|| LowerError::UnsupportedConstruct {
+                    anchor: self.diagnostic_anchor(
+                        expression_id
+                            .into_global_any(self.context.module_id)
+                            .into_anchored(Some(self.context.profile)),
+                    ),
+                    message: "getter call returned no value".to_string(),
+                })
+                .map_err(CompilerError::from)?;
+            return Ok((value, result_type));
+        };
+
+        // emit the direct call
+        let function_id = function_id
             .ok_or_else(|| LowerError::MissingFunction {
                 anchor: self.diagnostic_anchor(
                     expression_id
@@ -345,77 +414,6 @@ impl FunctionLowerer<'_> {
                 symbol: target_symbol,
             })
             .map_err(CompilerError::from)?;
-
-        // resolve the call signature
-        let signature = self.signature_type_for_function(expression_id, function_id)?;
-
-        // use interface or virtual dispatch when available
-        if let (Some(receiver_type_id), Some(receiver_value)) =
-            (receiver_type_id, dispatch_receiver)
-        {
-            let dispatch_target = self.dispatch_target_for_symbol(
-                expression_id,
-                receiver_type_id,
-                target_symbol,
-                function_id,
-            )?;
-            if let Some(dispatch_target) = dispatch_target {
-                match dispatch_target {
-                    DispatchTarget::Interface {
-                        declaring_type,
-                        slot,
-                        function_id,
-                    } => {
-                        let value = self.state.builder.call_interface(
-                            receiver_value,
-                            declaring_type,
-                            slot,
-                            Some(function_id),
-                            signature,
-                            arguments,
-                        );
-                        let value = value
-                            .ok_or_else(|| LowerError::UnsupportedConstruct {
-                                anchor: self.diagnostic_anchor(
-                                    expression_id
-                                        .into_global_any(self.context.module_id)
-                                        .into_anchored(Some(self.context.profile)),
-                                ),
-                                message: "getter call returned no value".to_string(),
-                            })
-                            .map_err(CompilerError::from)?;
-                        return Ok((value, result_type));
-                    }
-                    DispatchTarget::Virtual {
-                        declaring_type,
-                        slot,
-                        function_id,
-                    } => {
-                        let value = self.state.builder.call_virtual(
-                            receiver_value,
-                            declaring_type,
-                            slot,
-                            Some(function_id),
-                            signature,
-                            arguments,
-                        );
-                        let value = value
-                            .ok_or_else(|| LowerError::UnsupportedConstruct {
-                                anchor: self.diagnostic_anchor(
-                                    expression_id
-                                        .into_global_any(self.context.module_id)
-                                        .into_anchored(Some(self.context.profile)),
-                                ),
-                                message: "getter call returned no value".to_string(),
-                            })
-                            .map_err(CompilerError::from)?;
-                        return Ok((value, result_type));
-                    }
-                }
-            }
-        }
-
-        // emit the direct call
         let value = self.state.builder.call(function_id, signature, arguments);
         let value = value
             .ok_or_else(|| LowerError::UnsupportedConstruct {
@@ -465,9 +463,68 @@ impl FunctionLowerer<'_> {
         }
         arguments.push(value);
 
-        // resolve the target function
-        let function_id = self
-            .function_for_symbol(target_symbol)
+        let function_id = self.function_for_symbol(target_symbol);
+        let dispatch_target = if let (Some(receiver_type_id), Some(receiver_value)) =
+            (receiver_type_id, dispatch_receiver)
+        {
+            self.dispatch_target_for_symbol(
+                expression_id,
+                receiver_type_id,
+                target_symbol,
+                function_id,
+            )?
+            .map(|target| (target, receiver_value))
+        } else {
+            None
+        };
+        let signature = match &dispatch_target {
+            Some((DispatchTarget::Interface { signature, .. }, _)) => *signature,
+            _ => {
+                let function_id = function_id
+                    .ok_or_else(|| LowerError::MissingFunction {
+                        anchor: self.diagnostic_anchor(
+                            expression_id
+                                .into_global_any(self.context.module_id)
+                                .into_anchored(Some(self.context.profile)),
+                        ),
+                        symbol: target_symbol,
+                    })
+                    .map_err(CompilerError::from)?;
+                self.signature_type_for_function(expression_id, function_id)?
+            }
+        };
+
+        if let Some((dispatch_target, receiver_value)) = dispatch_target {
+            match dispatch_target {
+                DispatchTarget::Interface {
+                    declaring_type,
+                    slot,
+                    signature: _,
+                } => self.state.builder.call_interface_void(
+                    receiver_value,
+                    declaring_type,
+                    slot,
+                    signature,
+                    arguments,
+                ),
+                DispatchTarget::Class {
+                    declaring_type,
+                    slot,
+                    function_id,
+                } => self.state.builder.call_class_void(
+                    receiver_value,
+                    declaring_type,
+                    slot,
+                    Some(function_id),
+                    signature,
+                    arguments,
+                ),
+            }
+            return Ok(());
+        }
+
+        // emit the direct call
+        let function_id = function_id
             .ok_or_else(|| LowerError::MissingFunction {
                 anchor: self.diagnostic_anchor(
                     expression_id
@@ -477,57 +534,6 @@ impl FunctionLowerer<'_> {
                 symbol: target_symbol,
             })
             .map_err(CompilerError::from)?;
-
-        // resolve the call signature
-        let signature = self.signature_type_for_function(expression_id, function_id)?;
-
-        // use interface or virtual dispatch when available
-        if let (Some(receiver_type_id), Some(receiver_value)) =
-            (receiver_type_id, dispatch_receiver)
-        {
-            let dispatch_target = self.dispatch_target_for_symbol(
-                expression_id,
-                receiver_type_id,
-                target_symbol,
-                function_id,
-            )?;
-            if let Some(dispatch_target) = dispatch_target {
-                match dispatch_target {
-                    DispatchTarget::Interface {
-                        declaring_type,
-                        slot,
-                        function_id,
-                    } => {
-                        self.state.builder.call_interface_void(
-                            receiver_value,
-                            declaring_type,
-                            slot,
-                            Some(function_id),
-                            signature,
-                            arguments,
-                        );
-                        return Ok(());
-                    }
-                    DispatchTarget::Virtual {
-                        declaring_type,
-                        slot,
-                        function_id,
-                    } => {
-                        self.state.builder.call_virtual_void(
-                            receiver_value,
-                            declaring_type,
-                            slot,
-                            Some(function_id),
-                            signature,
-                            arguments,
-                        );
-                        return Ok(());
-                    }
-                }
-            }
-        }
-
-        // emit the direct call
         self.state
             .builder
             .call_void(function_id, signature, arguments);

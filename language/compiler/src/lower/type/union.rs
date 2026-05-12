@@ -7,7 +7,6 @@ use destack_query::format::format_unique_symbol_qualified_name;
 use destack_source::ModuleId;
 
 use super::{FieldInput, FieldLayoutKind, LayoutPolicy, TypeLowerer};
-use crate::lower::static_key_to_field_name;
 use crate::{LowerError, LowerResult};
 
 const UNION_TAG_FIELD_NAME: &str = "tag";
@@ -21,9 +20,9 @@ pub(crate) struct UnionLayout {
     /// The payload field type.
     pub(crate) payload_type: mir::LocalNodeId<mir::Type>,
     /// The payload storage strategy.
-    pub(crate) payload_kind: UnionPayloadKind,
-    /// The union element type ids in tag order.
-    pub(crate) element_types: Vec<dir::LocalTypeId>,
+    pub(crate) payload: UnionPayload,
+    /// The source union type ids in tag order.
+    pub(crate) source_types: Vec<dir::LocalTypeId>,
     /// The tag field index in layout order.
     pub(crate) tag_field_index: u32,
     /// The payload field index in layout order.
@@ -34,7 +33,7 @@ pub(crate) struct UnionLayout {
 
 /// Payload storage strategy for union layouts.
 #[derive(Debug, Clone, Copy)]
-pub(crate) enum UnionPayloadKind {
+pub(crate) enum UnionPayload {
     /// Store the payload inline inside the union struct.
     Inline,
     /// Store the payload as a managed box.
@@ -152,15 +151,15 @@ impl TypeLowerer<'_> {
         }
 
         // resolve discriminant metadata and tag ordering
-        let (ordered_elements, discriminant) =
+        let (source_types, discriminant) =
             self.order_union_elements_by_discriminant(types, &collected, node, builder.strings())?;
 
         // lower union element types for copy and layout bounds
-        let mut mir_element_types = Vec::with_capacity(ordered_elements.len());
+        let mut element_types = Vec::with_capacity(source_types.len());
         let mut copy = mir::Copy::Yes;
         let mut max_payload_size = 0;
         let mut max_payload_alignment = 1;
-        for element_id in &ordered_elements {
+        for element_id in &source_types {
             // null and undefined are tag-only variants
             let element_type = match types.get_type(*element_id) {
                 dir::Type::Literal(dir::LiteralType {
@@ -170,7 +169,7 @@ impl TypeLowerer<'_> {
             };
 
             // combine layout sizing and copy
-            mir_element_types.push(element_type);
+            element_types.push(element_type);
             let element = builder.tree().get(element_type);
             copy = copy.combine(element.copy());
             let (size, alignment) = self
@@ -187,12 +186,12 @@ impl TypeLowerer<'_> {
         // define tag and payload field types
         let tag_name = builder.intern(UNION_TAG_FIELD_NAME);
         let payload_name = builder.intern(UNION_PAYLOAD_FIELD_NAME);
-        let tag_width = self.tag_width_for_discriminant_count(ordered_elements.len(), node)?;
+        let tag_width = self.tag_width_for_discriminant_count(source_types.len(), node)?;
         let tag_type = self.union_tag_type(tag_width, builder);
-        let payload_kind = self.union_payload_kind(copy, max_payload_size, max_payload_alignment);
-        let payload_type = match payload_kind {
-            UnionPayloadKind::Inline => self.inline_union_payload_type(max_payload_size, builder),
-            UnionPayloadKind::Boxed => builder.type_managed_reference(self.ty_void),
+        let payload = self.union_payload(copy, max_payload_size, max_payload_alignment);
+        let payload_type = match payload {
+            UnionPayload::Inline => self.inline_union_payload_type(max_payload_size, builder),
+            UnionPayload::Boxed => builder.type_managed_reference(self.ty_void),
         };
 
         // compute field sizes and alignments
@@ -229,9 +228,15 @@ impl TypeLowerer<'_> {
             },
         ];
 
-        // compute layout and create the mir struct type
+        // compute layout and create the mir union type
         let layout = Self::compute_struct_layout(fields, LayoutPolicy::Source);
-        let mir_type = self.create_struct_type_with_copyability(&layout, copy, builder);
+        let variants = element_types
+            .iter()
+            .copied()
+            .enumerate()
+            .map(|(tag, ty)| (tag as u64, ty))
+            .collect();
+        let mir_type = builder.type_union(tag_type, variants, copy);
 
         // cache layout for later field lookups
         self.layout_cache.insert(mir_type, layout.clone());
@@ -252,39 +257,19 @@ impl TypeLowerer<'_> {
                     message: "missing union payload field".to_string(),
                 })?;
 
-        // build union metadata for optimization
-        let discriminant_metadata =
-            self.union_discriminant_metadata(&discriminant, &mir_element_types, builder, node)?;
-
         // cache union layout metadata
         self.union_cache.insert(
             type_id,
             UnionLayout {
                 tag_type,
                 payload_type,
-                payload_kind,
-                element_types: ordered_elements,
+                payload,
+                source_types,
                 tag_field_index,
                 payload_field_index,
                 discriminant,
             },
         );
-
-        // populate union metadata for optimization
-        let union_metadata = mir::UnionLayout {
-            tag_type,
-            payload_type,
-            payload_kind: match payload_kind {
-                UnionPayloadKind::Inline => mir::UnionPayloadKind::Inline,
-                UnionPayloadKind::Boxed => mir::UnionPayloadKind::Boxed,
-            },
-            element_types: mir_element_types,
-            tag_field_name: tag_name,
-            payload_field_name: payload_name,
-            discriminant: discriminant_metadata,
-        };
-        let type_table = &mut builder.tree_mut().metadata.layout;
-        type_table.set_union_layout(mir_type, union_metadata);
 
         // return the union type
         Ok(mir_type)
@@ -307,26 +292,26 @@ impl TypeLowerer<'_> {
     }
 
     /// Select the payload storage strategy for a union layout.
-    fn union_payload_kind(
+    fn union_payload(
         &self,
         copy: mir::Copy,
         payload_size: u32,
         payload_alignment: u32,
-    ) -> UnionPayloadKind {
+    ) -> UnionPayload {
         // require trivial copy for inline payloads
         if self.layout_policy.inline_union_requires_trivial_copyability && copy != mir::Copy::Yes {
-            return UnionPayloadKind::Boxed;
+            return UnionPayload::Boxed;
         }
 
         // keep inline payloads aligned within the policy
         if payload_alignment > self.layout_policy.inline_union_max_alignment {
-            return UnionPayloadKind::Boxed;
+            return UnionPayload::Boxed;
         }
         if payload_size <= self.layout_policy.inline_union_budget_bytes {
-            return UnionPayloadKind::Inline;
+            return UnionPayload::Inline;
         }
 
-        UnionPayloadKind::Boxed
+        UnionPayload::Boxed
     }
 
     /// Build the inline payload type for a union.
@@ -414,107 +399,6 @@ impl TypeLowerer<'_> {
             true,
         );
         Ok(Some(nullable))
-    }
-
-    /// Convert discriminant metadata into MIR metadata.
-    fn union_discriminant_metadata(
-        &self,
-        discriminant: &Option<UnionDiscriminant>,
-        element_types: &[mir::LocalNodeId<mir::Type>],
-        builder: &mut mir::ModuleBuilder,
-        anchor: dir::AnchoredGlobalNodeId,
-    ) -> LowerResult<Option<mir::UnionDiscriminant>> {
-        let Some(discriminant) = discriminant.as_ref() else {
-            return Ok(None);
-        };
-
-        let primary_field_index = discriminant
-            .fields
-            .iter()
-            .position(|field| field.key == discriminant.primary_key)
-            .ok_or_else(|| LowerError::UnsupportedConstruct {
-                anchor: self.diagnostic_anchor(anchor),
-                message: "missing primary union discriminant field".to_string(),
-            })? as u32;
-        let mut fields = Vec::with_capacity(discriminant.fields.len());
-
-        for field in &discriminant.fields {
-            let field_name = static_key_to_field_name(&field.key, builder);
-            let mut field_by_element = Vec::with_capacity(element_types.len());
-
-            for &element_type in element_types {
-                let field_id =
-                    self.union_discriminant_field_id(element_type, field_name, builder, anchor)?;
-                field_by_element.push(field_id);
-            }
-
-            let values = field
-                .values
-                .iter()
-                .map(|literal| self.union_discriminant_value_metadata(&literal.value))
-                .collect();
-            fields.push(mir::UnionDiscriminantField {
-                field_by_element,
-                field_name,
-                values,
-            });
-        }
-
-        Ok(Some(mir::UnionDiscriminant {
-            primary_field_index,
-            fields,
-        }))
-    }
-
-    /// Resolve one lowered MIR field id for one discriminant field name.
-    fn union_discriminant_field_id(
-        &self,
-        element_type: mir::LocalNodeId<mir::Type>,
-        field_name: StringId,
-        builder: &mir::ModuleBuilder,
-        anchor: dir::AnchoredGlobalNodeId,
-    ) -> LowerResult<mir::LocalNodeId<mir::Field>> {
-        let fields = match builder.tree().get(element_type) {
-            mir::Type::Struct { fields, .. } => fields,
-            _ => {
-                return Err(LowerError::UnsupportedConstruct {
-                    anchor: self.diagnostic_anchor(anchor),
-                    message: "union discriminant requires aggregate element types".to_string(),
-                }
-                .into());
-            }
-        };
-
-        for &field_id in fields {
-            let field = builder.tree().get(field_id);
-            if field.name == Some(field_name) {
-                return Ok(field_id);
-            }
-        }
-
-        Err(LowerError::UnsupportedConstruct {
-            anchor: self.diagnostic_anchor(anchor),
-            message: "missing lowered union discriminant field".to_string(),
-        }
-        .into())
-    }
-
-    /// Convert discriminant literals into MIR metadata values.
-    fn union_discriminant_value_metadata(
-        &self,
-        value: &DiscriminantValue,
-    ) -> mir::UnionDiscriminantValue {
-        match value {
-            DiscriminantValue::Null => mir::UnionDiscriminantValue::Null,
-            DiscriminantValue::Undefined => mir::UnionDiscriminantValue::Undefined,
-            DiscriminantValue::Boolean(value) => mir::UnionDiscriminantValue::Boolean(*value),
-            DiscriminantValue::Number { value } => mir::UnionDiscriminantValue::Number {
-                bits: value.to_bits(),
-            },
-            DiscriminantValue::Bigint(value) => mir::UnionDiscriminantValue::Bigint(*value),
-            DiscriminantValue::String(value) => mir::UnionDiscriminantValue::String(*value),
-            DiscriminantValue::UniqueSymbol => mir::UnionDiscriminantValue::UniqueSymbol,
-        }
     }
 
     /// Collect union elements with deduplication.

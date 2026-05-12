@@ -32,7 +32,7 @@ impl FunctionLowerer<'_> {
         let instance_mir_type = self.state.builder.tree().get(instance_type).clone();
         let this_value = match instance_mir_type {
             mir::Type::Reference { kind, pointee, .. } => match kind {
-                mir::ReferenceKind::Managed | mir::ReferenceKind::Owned => {
+                mir::ReferenceKind::Managed | mir::ReferenceKind::Unique => {
                     let pointee = pointee
                         .ty()
                         .ok_or_else(|| LowerError::UnsupportedConstruct {

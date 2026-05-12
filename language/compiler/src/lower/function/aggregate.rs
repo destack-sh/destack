@@ -709,7 +709,7 @@ impl FunctionLowerer<'_> {
         let instance_value = self.state.builder.struct_(instance_type, values);
         // allocate when returning a typed reference
         let value = match reference_kind {
-            Some(mir::ReferenceKind::Managed | mir::ReferenceKind::Owned) => {
+            Some(mir::ReferenceKind::Managed | mir::ReferenceKind::Unique) => {
                 let pointer = self.state.builder.new_(instance_type, result_type);
                 self.state.builder.store(pointer, instance_value);
                 pointer

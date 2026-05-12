@@ -5,7 +5,6 @@ mod function;
 mod instance;
 mod key;
 mod module;
-mod options;
 mod provide;
 mod runtime;
 mod state;
@@ -21,7 +20,6 @@ pub(crate) use key::*;
 pub(crate) use module::{
     ModuleLowerer, access_for_storage_mutability, lower_mutability, static_key_to_field_name,
 };
-pub(crate) use options::*;
 pub(crate) use runtime::*;
 pub(in crate::lower) use state::*;
 pub(crate) use r#type::*;

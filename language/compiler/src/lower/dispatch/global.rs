@@ -3,8 +3,8 @@ use {destack_dir as dir, destack_mir as mir};
 use crate::lower::ModuleLowerer;
 use crate::{LowerError, LowerResult};
 
-const ITAB_GLOBAL_SEPARATOR: &str = "#as#";
-const ITAB_GLOBAL_SUFFIX: &str = "#itab";
+const INTERFACE_TABLE_GLOBAL_SEPARATOR: &str = "#as#";
+const INTERFACE_TABLE_GLOBAL_SUFFIX: &str = "#interface_table";
 const VTABLE_GLOBAL_SUFFIX: &str = "#vtable";
 
 /// MIR global that stores one dispatch table.
@@ -17,7 +17,7 @@ pub(crate) struct DispatchTableGlobal {
 }
 
 impl ModuleLowerer<'_> {
-    /// Create static storage for one virtual dispatch table.
+    /// Create static storage for one class dispatch table.
     pub(crate) fn create_vtable_global(
         &mut self,
         symbol: dir::GlobalSymbolId,
@@ -65,7 +65,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Create static storage for one interface dispatch table.
-    pub(crate) fn create_itab_global(
+    pub(crate) fn create_interface_table_global(
         &mut self,
         concrete: dir::GlobalSymbolId,
         interface: dir::GlobalSymbolId,
@@ -76,17 +76,18 @@ impl ModuleLowerer<'_> {
         let concrete_name = self.qualified_symbol_name(concrete).ok_or_else(|| {
             LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(anchor),
-                message: "missing qualified name for itab concrete type".to_string(),
+                message: "missing qualified name for interface table concrete type".to_string(),
             }
         })?;
         let interface_name = self.qualified_symbol_name(interface).ok_or_else(|| {
             LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(anchor),
-                message: "missing qualified name for itab interface type".to_string(),
+                message: "missing qualified name for interface table interface type".to_string(),
             }
         })?;
-        let name =
-            format!("{concrete_name}{ITAB_GLOBAL_SEPARATOR}{interface_name}{ITAB_GLOBAL_SUFFIX}");
+        let name = format!(
+            "{concrete_name}{INTERFACE_TABLE_GLOBAL_SEPARATOR}{interface_name}{INTERFACE_TABLE_GLOBAL_SUFFIX}"
+        );
 
         // pointer sized table slots
         let slot_type = self.type_lowerer.ty_usize;

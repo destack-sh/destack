@@ -9,7 +9,7 @@ use destack_workspace::{
     TargetDiscoveryError,
 };
 
-use crate::{Compiler, LowerOptions};
+use crate::Compiler;
 
 const TARGET_CONFIGURATION_DOMAIN: &[u8] = b"destack.compiler.target-configuration.v1";
 
@@ -124,15 +124,6 @@ impl Compiler {
     ) -> Option<CompilerOptions> {
         self.destack_config_for_package(context, module.package_id)
             .map(|config| config.compiler.clone())
-    }
-
-    /// Resolve lower options for one module.
-    pub(crate) fn lower_options(
-        &self,
-        _context: &dyn ProviderContext,
-        _module: &Module,
-    ) -> LowerOptions {
-        LowerOptions::default()
     }
 
     /// Resolve the default profile id for one module in one revision.

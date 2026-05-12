@@ -8,7 +8,7 @@ use destack_workspace::{ProfileId, ProviderContext};
 
 use super::{FieldInput, FieldLayoutKind, LayoutPolicy, StructLayout, TypeLayoutPolicy};
 use crate::lower::static_key_to_field_name;
-use crate::{Compiler, InterfaceRefLayout, LowerError, LowerResult, UnionLayout};
+use crate::{AnyValueLayout, Compiler, LowerError, LowerResult, UnionLayout};
 
 // synthetic field names for function value layouts
 const FUNCTION_PTR_FIELD: &str = "@function_ptr";
@@ -67,8 +67,8 @@ pub(crate) struct TypeLowerer<'a> {
     pub(crate) ty_string: Option<mir::LocalNodeId<mir::Type>>,
     /// Cached union layout metadata by DIR type id.
     pub(crate) union_cache: HashMap<dir::LocalTypeId, UnionLayout>,
-    /// Cached interface reference layouts by DIR type id.
-    pub(crate) interface_ref_cache: HashMap<dir::LocalTypeId, InterfaceRefLayout>,
+    /// Cached Any value layouts by DIR type id.
+    pub(crate) any_value_layout_cache: HashMap<dir::LocalTypeId, AnyValueLayout>,
     /// Cached function pointer signature types by DIR function type id.
     pub(crate) function_signature_types: HashMap<dir::LocalTypeId, mir::LocalNodeId<mir::Type>>,
     /// Cached remote nominal layouts by source symbol.
@@ -119,7 +119,7 @@ impl<'a> TypeLowerer<'a> {
             ty_f64: builder.type_f64(),
             ty_string: None,
             union_cache: HashMap::new(),
-            interface_ref_cache: HashMap::new(),
+            any_value_layout_cache: HashMap::new(),
             function_signature_types: HashMap::new(),
             remote_nominal_layouts_by_symbol: HashMap::new(),
             remote_nominal_layouts_in_progress: HashSet::new(),
@@ -385,7 +385,7 @@ impl<'a> TypeLowerer<'a> {
                 node,
                 builder,
             )?,
-            dir::Type::Form(form) => self.lower_type(types, form.base, module_id, node, builder)?,
+            dir::Type::Form(form) => self.lower_form_type(types, form, module_id, node, builder)?,
             dir::Type::Object(object) => {
                 if !object.index_signatures.is_empty() {
                     return Err(LowerError::UnsupportedType {
@@ -527,7 +527,7 @@ impl<'a> TypeLowerer<'a> {
         }
 
         if self.symbol_is(symbol, dir::SymbolForm::Interface) {
-            return self.lower_interface_reference_type(types, type_id, module_id, node, builder);
+            return self.lower_any_value_type(types, type_id, module_id, node, builder);
         }
         if self.symbol_is(symbol, dir::SymbolForm::Enum) {
             if let Some(instance_type_id) = types.get_instance_type_id(symbol)
@@ -581,6 +581,105 @@ impl<'a> TypeLowerer<'a> {
             }));
         }
 
+        let instance_type =
+            self.lower_nominal_instance_type(types, type_id, symbol, module_id, node, builder)?;
+
+        if self.symbol_is(symbol, dir::SymbolForm::Class) {
+            Ok(builder.type_managed_reference(instance_type))
+        } else {
+            Ok(instance_type)
+        }
+    }
+
+    /// Lower one canonical storage form.
+    fn lower_form_type(
+        &mut self,
+        types: &dir::TypeTable,
+        form: &dir::TypeForm,
+        module_id: ModuleId,
+        node: dir::AnchoredGlobalNodeId,
+        builder: &mut mir::ModuleBuilder,
+    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+        let Some(ownership) = self.string_literal_type(types, form.ownership) else {
+            return self.lower_type(types, form.base, module_id, node, builder);
+        };
+        let ownership = self.strings.get(ownership);
+
+        match ownership.as_ref() {
+            "owned" => {
+                self.lower_value_representation_type(types, form.base, module_id, node, builder)
+            }
+            "managed" => self.lower_type(types, form.base, module_id, node, builder),
+            "borrowed" => self.lower_form_reference_type(
+                types,
+                form,
+                mir::ReferenceKind::Borrowed,
+                module_id,
+                node,
+                builder,
+            ),
+            "raw" => self.lower_form_reference_type(
+                types,
+                form,
+                mir::ReferenceKind::Raw,
+                module_id,
+                node,
+                builder,
+            ),
+            _ => self.lower_type(types, form.base, module_id, node, builder),
+        }
+    }
+
+    /// Lower one form that produces a reference carrier.
+    fn lower_form_reference_type(
+        &mut self,
+        types: &dir::TypeTable,
+        form: &dir::TypeForm,
+        kind: mir::ReferenceKind,
+        module_id: ModuleId,
+        node: dir::AnchoredGlobalNodeId,
+        builder: &mut mir::ModuleBuilder,
+    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+        let base_type =
+            self.lower_value_representation_type(types, form.base, module_id, node, builder)?;
+        let address_space = self.form_address_space(types, form.place);
+        let access = self
+            .form_access(types, form.access)
+            .unwrap_or_else(|| self.default_reference_access(kind));
+
+        Ok(builder.type_reference(kind, base_type, access, address_space, false))
+    }
+
+    /// Lower a type to its value representation, without default class indirection.
+    fn lower_value_representation_type(
+        &mut self,
+        types: &dir::TypeTable,
+        type_id: dir::LocalTypeId,
+        module_id: ModuleId,
+        node: dir::AnchoredGlobalNodeId,
+        builder: &mut mir::ModuleBuilder,
+    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+        let dir::Type::Reference(reference) = types.get_type(type_id) else {
+            return self.lower_type(types, type_id, module_id, node, builder);
+        };
+
+        if !self.symbol_is(reference.symbol, dir::SymbolForm::Class) {
+            return self.lower_type(types, type_id, module_id, node, builder);
+        }
+
+        self.lower_nominal_instance_type(types, type_id, reference.symbol, module_id, node, builder)
+    }
+
+    /// Lower one nominal type to its direct instance representation.
+    fn lower_nominal_instance_type(
+        &mut self,
+        types: &dir::TypeTable,
+        type_id: dir::LocalTypeId,
+        symbol: dir::GlobalSymbolId,
+        module_id: ModuleId,
+        node: dir::AnchoredGlobalNodeId,
+        builder: &mut mir::ModuleBuilder,
+    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
         let instance_type_id =
             types
                 .get_instance_type_id(symbol)
@@ -590,36 +689,32 @@ impl<'a> TypeLowerer<'a> {
                     message: "type reference has no instance type".to_string(),
                 })?;
 
-        let instance_type = if instance_type_id == type_id {
-            if !matches!(
-                self.symbol_form(symbol),
-                Some(dir::SymbolForm::TypeAlias | dir::SymbolForm::Newtype)
-            ) {
-                return Err(LowerError::UnsupportedType {
-                    anchor: self.diagnostic_anchor(node),
-                    ty: type_id.into_global(module_id),
-                    message: "non-alias type is self-referential".to_string(),
-                }
-                .into());
+        if instance_type_id != type_id {
+            return self.lower_type(types, instance_type_id, module_id, node, builder);
+        }
+
+        if !matches!(
+            self.symbol_form(symbol),
+            Some(dir::SymbolForm::TypeAlias | dir::SymbolForm::Newtype)
+        ) {
+            return Err(LowerError::UnsupportedType {
+                anchor: self.diagnostic_anchor(node),
+                ty: type_id.into_global(module_id),
+                message: "non-alias type is self-referential".to_string(),
             }
-            let Some(alias_target_id) = types.get_alias_target_type_id(symbol) else {
-                return Err(LowerError::UnsupportedType {
-                    anchor: self.diagnostic_anchor(node),
-                    ty: type_id.into_global(module_id),
-                    message: "type alias has no target type".to_string(),
-                }
-                .into());
-            };
-            self.lower_type(types, alias_target_id, module_id, node, builder)?
-        } else {
-            self.lower_type(types, instance_type_id, module_id, node, builder)?
+            .into());
+        }
+
+        let Some(alias_target_id) = types.get_alias_target_type_id(symbol) else {
+            return Err(LowerError::UnsupportedType {
+                anchor: self.diagnostic_anchor(node),
+                ty: type_id.into_global(module_id),
+                message: "type alias has no target type".to_string(),
+            }
+            .into());
         };
 
-        if self.symbol_is(symbol, dir::SymbolForm::Class) {
-            Ok(builder.type_managed_reference(instance_type))
-        } else {
-            Ok(instance_type)
-        }
+        self.lower_type(types, alias_target_id, module_id, node, builder)
     }
 
     /// Lower a remote nominal struct layout when its checked artifact is available.
@@ -798,12 +893,39 @@ impl<'a> TypeLowerer<'a> {
         };
         let name = self.strings.get(name).to_string();
 
+        if matches!(name.as_str(), "Managed" | "AsManaged") {
+            let base_type_id =
+                self.first_type_static_argument(static_arguments, type_id, module_id, node)?;
+
+            return self
+                .lower_type(types, base_type_id, module_id, node, builder)
+                .map(Some);
+        }
+
+        if matches!(name.as_str(), "Owned" | "AsOwned") {
+            let base_type_id =
+                self.first_type_static_argument(static_arguments, type_id, module_id, node)?;
+
+            return self
+                .lower_value_representation_type(types, base_type_id, module_id, node, builder)
+                .map(Some);
+        }
+
+        if name == "Form" {
+            return self.lower_static_form_alias_type(
+                types,
+                type_id,
+                static_arguments,
+                module_id,
+                node,
+                builder,
+            );
+        }
+
         let kind = match name.as_str() {
-            "Managed" | "AsManaged" => Some(mir::ReferenceKind::Managed),
-            "Owned" | "AsOwned" => Some(mir::ReferenceKind::Owned),
+            "Unique" | "AsUnique" => Some(mir::ReferenceKind::Unique),
             "Borrowed" | "AsBorrowed" => Some(mir::ReferenceKind::Borrowed),
             "Raw" | "AsRaw" => Some(mir::ReferenceKind::Raw),
-            "Form" => self.ownership_form_kind(static_arguments),
             "Shared" => {
                 let inner_type_id =
                     self.first_type_static_argument(static_arguments, type_id, module_id, node)?;
@@ -827,7 +949,8 @@ impl<'a> TypeLowerer<'a> {
 
         let base_type_id =
             self.first_type_static_argument(static_arguments, type_id, module_id, node)?;
-        let base_type = self.lower_type(types, base_type_id, module_id, node, builder)?;
+        let base_type =
+            self.lower_value_representation_type(types, base_type_id, module_id, node, builder)?;
         let address_space = self.ownership_form_address_space(static_arguments);
         let access = self.default_reference_access(kind);
 
@@ -840,11 +963,84 @@ impl<'a> TypeLowerer<'a> {
         )))
     }
 
+    /// Lower a statically parameterized `Form` alias.
+    fn lower_static_form_alias_type(
+        &mut self,
+        types: &dir::TypeTable,
+        type_id: dir::LocalTypeId,
+        static_arguments: Option<&[dir::StaticArgument]>,
+        module_id: ModuleId,
+        node: dir::AnchoredGlobalNodeId,
+        builder: &mut mir::ModuleBuilder,
+    ) -> LowerResult<Option<mir::LocalNodeId<mir::Type>>> {
+        let base_type_id =
+            self.first_type_static_argument(static_arguments, type_id, module_id, node)?;
+        let Some(arguments) = static_arguments else {
+            return Ok(None);
+        };
+        let ownership = self
+            .static_string_argument(arguments, 1)
+            .map(|ownership| self.strings.get(ownership));
+
+        match ownership.as_deref() {
+            Some("owned") => self
+                .lower_value_representation_type(types, base_type_id, module_id, node, builder)
+                .map(Some),
+            Some("managed") | None => self
+                .lower_type(types, base_type_id, module_id, node, builder)
+                .map(Some),
+            Some("borrowed") => self
+                .lower_static_form_reference_type(
+                    types,
+                    base_type_id,
+                    arguments,
+                    mir::ReferenceKind::Borrowed,
+                    module_id,
+                    node,
+                    builder,
+                )
+                .map(Some),
+            Some("raw") => self
+                .lower_static_form_reference_type(
+                    types,
+                    base_type_id,
+                    arguments,
+                    mir::ReferenceKind::Raw,
+                    module_id,
+                    node,
+                    builder,
+                )
+                .map(Some),
+            _ => Ok(None),
+        }
+    }
+
+    /// Lower a statically parameterized `Form` reference carrier.
+    fn lower_static_form_reference_type(
+        &mut self,
+        types: &dir::TypeTable,
+        base_type_id: dir::LocalTypeId,
+        static_arguments: &[dir::StaticArgument],
+        kind: mir::ReferenceKind,
+        module_id: ModuleId,
+        node: dir::AnchoredGlobalNodeId,
+        builder: &mut mir::ModuleBuilder,
+    ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
+        let base_type =
+            self.lower_value_representation_type(types, base_type_id, module_id, node, builder)?;
+        let address_space = self.static_form_address_space(static_arguments);
+        let access = self
+            .static_form_access(static_arguments)
+            .unwrap_or_else(|| self.default_reference_access(kind));
+
+        Ok(builder.type_reference(kind, base_type, access, address_space, false))
+    }
+
     /// Return the default access for one ownership kind.
     fn default_reference_access(&self, kind: mir::ReferenceKind) -> mir::Access {
         match kind {
             mir::ReferenceKind::Managed | mir::ReferenceKind::Raw => mir::Access::Readonly,
-            mir::ReferenceKind::Owned | mir::ReferenceKind::Borrowed => mir::Access::Mutable,
+            mir::ReferenceKind::Unique | mir::ReferenceKind::Borrowed => mir::Access::Mutable,
         }
     }
 
@@ -888,36 +1084,91 @@ impl<'a> TypeLowerer<'a> {
         Ok(*ty)
     }
 
-    /// Return the reference kind encoded by an ownership form.
-    fn ownership_form_kind(
-        &self,
-        static_arguments: Option<&[dir::StaticArgument]>,
-    ) -> Option<mir::ReferenceKind> {
-        let ownership = self.static_string_argument(static_arguments?, 1)?;
-        let ownership = self.strings.get(ownership);
-
-        match ownership.as_ref() {
-            "managed" => Some(mir::ReferenceKind::Managed),
-            "owned" => Some(mir::ReferenceKind::Owned),
-            "borrowed" => Some(mir::ReferenceKind::Borrowed),
-            "raw" => Some(mir::ReferenceKind::Raw),
-            _ => None,
-        }
-    }
-
     /// Return the address space encoded by an ownership form.
     fn ownership_form_address_space(
         &self,
         static_arguments: Option<&[dir::StaticArgument]>,
     ) -> mir::AddressSpace {
-        let Some(space) =
-            static_arguments.and_then(|arguments| self.static_string_argument(arguments, 2))
-        else {
+        let Some(arguments) = static_arguments else {
+            return mir::AddressSpace::Local;
+        };
+
+        self.static_form_address_space(arguments)
+    }
+
+    /// Return the address space encoded by static `Form` arguments.
+    fn static_form_address_space(&self, arguments: &[dir::StaticArgument]) -> mir::AddressSpace {
+        let Some(space) = self.static_string_argument(arguments, 2) else {
             return mir::AddressSpace::Local;
         };
         let space = self.strings.get(space);
 
+        if space == "ambient" {
+            return mir::AddressSpace::Local;
+        }
+
         mir::AddressSpace::from_name(space.as_ref())
+    }
+
+    /// Return the access encoded by static `Form` arguments.
+    fn static_form_access(&self, arguments: &[dir::StaticArgument]) -> Option<mir::Access> {
+        let access = self.static_string_argument(arguments, 4)?;
+        let access = self.strings.get(access);
+
+        match access.as_ref() {
+            "readonly" => Some(mir::Access::Readonly),
+            "mutable" => Some(mir::Access::Mutable),
+            "exclusive" => Some(mir::Access::Exclusive),
+            _ => None,
+        }
+    }
+
+    /// Return the address space encoded by a resolved `Form` type.
+    fn form_address_space(
+        &self,
+        types: &dir::TypeTable,
+        place: dir::LocalTypeId,
+    ) -> mir::AddressSpace {
+        let Some(place) = self.string_literal_type(types, place) else {
+            return mir::AddressSpace::Local;
+        };
+        let place = self.strings.get(place);
+
+        if place == "ambient" {
+            return mir::AddressSpace::Local;
+        }
+
+        mir::AddressSpace::from_name(place.as_ref())
+    }
+
+    /// Return the access encoded by a resolved `Form` type.
+    fn form_access(&self, types: &dir::TypeTable, access: dir::LocalTypeId) -> Option<mir::Access> {
+        let access = self.string_literal_type(types, access)?;
+        let access = self.strings.get(access);
+
+        match access.as_ref() {
+            "readonly" => Some(mir::Access::Readonly),
+            "mutable" => Some(mir::Access::Mutable),
+            "exclusive" => Some(mir::Access::Exclusive),
+            _ => None,
+        }
+    }
+
+    /// Return a string literal encoded as a DIR type.
+    fn string_literal_type(
+        &self,
+        types: &dir::TypeTable,
+        type_id: dir::LocalTypeId,
+    ) -> Option<StringId> {
+        let dir::Type::Literal(literal) = types.get_type(type_id) else {
+            return None;
+        };
+        let dir::TypeLiteral::ScalarLiteral(dir::ScalarLiteral::String(value)) = literal.value
+        else {
+            return None;
+        };
+
+        Some(value)
     }
 
     /// Return one string static argument.
@@ -959,13 +1210,7 @@ impl<'a> TypeLowerer<'a> {
             ..
         } = mir_type
         else {
-            return Ok(builder.type_reference(
-                mir::ReferenceKind::Managed,
-                ty,
-                mir::Access::Readonly,
-                address_space,
-                false,
-            ));
+            return Ok(ty);
         };
         let Some(pointee) = pointee.ty() else {
             return Err(LowerError::UnsupportedType {

@@ -6,7 +6,7 @@ use crate::{CompilerError, CompilerResult, LowerError, ScalarType};
 use crate::lower::FunctionLowerer;
 use crate::lower::r#type::{
     DiscriminantKey, DiscriminantLiteral, DiscriminantValue, UnionDiscriminantField, UnionLayout,
-    UnionPayloadKind,
+    UnionPayload,
 };
 
 /// Literal values used for union literal comparisons.
@@ -50,11 +50,9 @@ impl FunctionLowerer<'_> {
         node: dir::AnchoredGlobalNodeId,
     ) -> CompilerResult<mir::Value> {
         // build the zero value based on the payload strategy
-        match layout.payload_kind {
-            UnionPayloadKind::Inline => {
-                self.inline_union_payload_zero_value(layout.payload_type, node)
-            }
-            UnionPayloadKind::Boxed => self.zero_value_for_type(layout.payload_type, node),
+        match layout.payload {
+            UnionPayload::Inline => self.inline_union_payload_zero_value(layout.payload_type, node),
+            UnionPayload::Boxed => self.zero_value_for_type(layout.payload_type, node),
         }
     }
 
@@ -146,7 +144,7 @@ impl FunctionLowerer<'_> {
     ) -> CompilerResult<mir::Value> {
         // resolve the tag index for the variant
         let tag_index = layout
-            .element_types
+            .source_types
             .iter()
             .position(|element| *element == variant_type_id)
             .ok_or_else(|| LowerError::UnsupportedConstruct {
@@ -175,14 +173,14 @@ impl FunctionLowerer<'_> {
             .iconst(tag_index as i128, tag_width, tag_signed);
 
         // build the union payload
-        let payload = match layout.payload_kind {
-            UnionPayloadKind::Inline => self.inline_union_payload_from_value(
+        let payload = match layout.payload {
+            UnionPayload::Inline => self.inline_union_payload_from_value(
                 layout.payload_type,
                 variant_value,
                 variant_mir_type,
                 node,
             )?,
-            UnionPayloadKind::Boxed => {
+            UnionPayload::Boxed => {
                 let boxed = self.box_value(variant_value, variant_mir_type);
                 self.state.builder.bitcast(boxed, layout.payload_type)
             }
@@ -569,7 +567,7 @@ impl FunctionLowerer<'_> {
         node: dir::AnchoredGlobalNodeId,
     ) -> CompilerResult<usize> {
         let tag_index = layout
-            .element_types
+            .source_types
             .iter()
             .position(
                 |element| match (self.context.types.get_type(*element), literal) {
@@ -809,7 +807,7 @@ impl FunctionLowerer<'_> {
     ) -> CompilerResult<mir::Value> {
         // resolve the tag index for the literal type
         let tag_index = union_layout
-            .element_types
+            .source_types
             .iter()
             .position(|element| self.type_ids_equivalent(*element, literal.type_id))
             .ok_or_else(|| LowerError::UnsupportedConstruct {
@@ -835,14 +833,14 @@ impl FunctionLowerer<'_> {
             self.lower_value_for_discriminant_literal(literal, node)?;
 
         // build the payload for the union
-        let payload = match union_layout.payload_kind {
-            UnionPayloadKind::Inline => self.inline_union_payload_from_value(
+        let payload = match union_layout.payload {
+            UnionPayload::Inline => self.inline_union_payload_from_value(
                 union_layout.payload_type,
                 literal_value,
                 literal_type,
                 node,
             )?,
-            UnionPayloadKind::Boxed => {
+            UnionPayload::Boxed => {
                 let boxed = self.box_value(literal_value, literal_type);
                 self.state.builder.bitcast(boxed, union_layout.payload_type)
             }
@@ -872,7 +870,7 @@ impl FunctionLowerer<'_> {
                 anchor: self.diagnostic_anchor(
                     self.context
                         .types
-                        .get_type_source(layout.element_types[0])
+                        .get_type_source(layout.source_types[0])
                         .into_global(self.context.module_id)
                         .into_anchored(Some(self.context.profile)),
                 ),

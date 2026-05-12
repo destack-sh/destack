@@ -14,9 +14,9 @@ pub(crate) struct InterfaceCall {
     pub(crate) slot: mir::DispatchSlot,
 }
 
-/// Virtual call information extracted from MIR.
+/// Class call information extracted from MIR.
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct VirtualCall {
+pub(crate) struct ClassCall {
     /// The declaring type for dispatch.
     pub(crate) declaring_type: mir::LocalNodeId<mir::Type>,
     /// The dispatch slot.
@@ -46,36 +46,42 @@ type String {
     }
 
     /// Collect interface dispatch tables from a MIR tree.
-    pub(crate) fn interface_dispatch_tables<'a>(&self, tree: &'a mir::Tree) -> Vec<&'a mir::Itab> {
-        // collect interface itabs
-        tree.metadata.dispatch.itabs.iter().collect()
+    pub(crate) fn interface_dispatch_tables<'a>(
+        &self,
+        tree: &'a mir::Tree,
+    ) -> Vec<&'a mir::InterfaceTable> {
+        // collect interface tables
+        tree.metadata.dispatch.interface_tables.iter().collect()
     }
 
-    /// Resolve an interface dispatch table for a concrete and interface object pair.
+    /// Resolve an interface table for a concrete and interface pair.
     pub(crate) fn interface_dispatch_table<'a>(
         &self,
         tree: &'a mir::Tree,
         strings: &StringPool,
         concrete_name: &str,
         interface_name: &str,
-    ) -> &'a mir::Itab {
+    ) -> &'a mir::InterfaceTable {
         let concrete_type = self.type_by_metadata_name(tree, strings, concrete_name);
         let interface_type = self.type_by_metadata_name(tree, strings, interface_name);
 
         tree.metadata
             .dispatch
-            .itabs
+            .interface_tables
             .iter()
             .find(|table| table.concrete == concrete_type && table.interface == interface_type)
             .unwrap_or_else(|| {
                 panic!(
-                    "missing interface dispatch table for '{concrete_name}' -> '{interface_name}'"
+                    "missing interface table for '{concrete_name}' -> '{interface_name}'"
                 )
             })
     }
 
-    /// Assert that a tree has exactly one interface dispatch table.
-    pub(crate) fn expect_single_interface_table<'a>(&self, tree: &'a mir::Tree) -> &'a mir::Itab {
+    /// Assert that a tree has exactly one interface table.
+    pub(crate) fn expect_single_interface_table<'a>(
+        &self,
+        tree: &'a mir::Tree,
+    ) -> &'a mir::InterfaceTable {
         // collect interface tables
         let tables = self.interface_dispatch_tables(tree);
         assert_eq!(tables.len(), 1);
@@ -126,22 +132,22 @@ type String {
     /// Resolve an interface field offset for a given field name.
     pub(crate) fn interface_field_offset(
         &self,
-        table: &mir::Itab,
+        table: &mir::InterfaceTable,
+        tree: &mir::Tree,
         strings: &StringPool,
         field_name: &str,
     ) -> Option<u32> {
-        // scan field offset slots for the field name
-        for slot in &table.entries {
-            let mir::ItabEntry::FieldOffset {
-                field: _,
-                field_name: slot_name,
-                offset,
-            } = slot
-            else {
-                continue;
-            };
+        let shape = tree.metadata.dispatch.interface_shape(table.interface)?;
 
-            if strings.get(*slot_name) == field_name {
+        // scan field slots by interface shape
+        for (index, slot) in table.entries.iter().enumerate() {
+            if let mir::InterfaceTableEntry::FieldOffset { offset } = slot
+                && let Some(mir::InterfaceSlot::Field {
+                    field_name: slot_name,
+                    ..
+                }) = shape.slots.get(index)
+                && strings.get(*slot_name) == field_name
+            {
                 return Some(*offset);
             }
         }
@@ -152,35 +158,32 @@ type String {
     /// Resolve an interface field offset or panic.
     pub(crate) fn expect_interface_field_offset(
         &self,
-        table: &mir::Itab,
+        table: &mir::InterfaceTable,
+        tree: &mir::Tree,
         strings: &StringPool,
         field_name: &str,
     ) -> u32 {
-        self.interface_field_offset(table, strings, field_name)
+        self.interface_field_offset(table, tree, strings, field_name)
             .unwrap_or_else(|| panic!("missing interface field offset '{field_name}'"))
     }
 
     /// Resolve the target method name for an interface method slot.
     pub(crate) fn interface_method_target_name(
         &self,
-        table: &mir::Itab,
+        table: &mir::InterfaceTable,
         tree: &mir::Tree,
         strings: &StringPool,
         method_name: &str,
     ) -> Option<String> {
-        // scan interface method slots for the method name
-        for slot in &table.entries {
-            let mir::ItabEntry::Method {
-                declared_method,
-                target_method,
-            } = slot
-            else {
-                continue;
-            };
+        let shape = tree.metadata.dispatch.interface_shape(table.interface)?;
 
-            let interface_name = strings.get(tree.get(*declared_method).name);
-            if interface_name == method_name {
-                let target_name = strings.get(tree.get(*target_method).name);
+        // scan method slots by interface shape
+        for (index, slot) in table.entries.iter().enumerate() {
+            if let mir::InterfaceTableEntry::Method { function } = slot
+                && let Some(mir::InterfaceSlot::Method { name, .. }) = shape.slots.get(index)
+                && strings.get(*name) == method_name
+            {
+                let target_name = strings.get(tree.get(*function).name);
                 return Some(target_name.to_string());
             }
         }
@@ -191,7 +194,7 @@ type String {
     /// Resolve an interface method target name or panic.
     pub(crate) fn expect_interface_method_target_name(
         &self,
-        table: &mir::Itab,
+        table: &mir::InterfaceTable,
         tree: &mir::Tree,
         strings: &StringPool,
         method_name: &str,
@@ -530,27 +533,27 @@ type String {
         None
     }
 
-    /// Find the first virtual dispatch call in a function body.
-    pub(crate) fn find_virtual_call_info(
+    /// Find the first class dispatch call in a function body.
+    pub(crate) fn find_class_call_info(
         &self,
         tree: &mir::Tree,
         function_id: mir::LocalNodeId<mir::Function>,
-    ) -> Option<VirtualCall> {
-        // scan call instructions for virtual dispatch
+    ) -> Option<ClassCall> {
+        // scan call instructions for class dispatch
         let function = tree.get(function_id);
         for block_id in &function.blocks {
             let block = tree.get(*block_id);
             for instruction_id in &block.instructions {
-                if let mir::Instruction::CallVirtual {
+                if let mir::Instruction::CallClass {
                     declaring_type,
                     slot,
                     ..
                 } = tree.get(*instruction_id)
                 {
-                    return Some(VirtualCall {
+                    return Some(ClassCall {
                         declaring_type: declaring_type
                             .ty()
-                            .expect("virtual call should name a concrete declaring type"),
+                            .expect("class call should name a concrete declaring type"),
                         slot: *slot,
                     });
                 }
@@ -585,26 +588,26 @@ type String {
             .unwrap_or_else(|| panic!("missing interface call info '{function_name}'"))
     }
 
-    /// Find virtual dispatch calls for a function name.
-    pub(crate) fn find_virtual_call_info_by_name(
+    /// Find class dispatch calls for a function name.
+    pub(crate) fn find_class_call_info_by_name(
         &self,
         tree: &mir::Tree,
         strings: &StringPool,
         function_name: &str,
-    ) -> Option<VirtualCall> {
-        // scan the function for virtual dispatch
+    ) -> Option<ClassCall> {
+        // scan the function for class dispatch
         let function_id = self.find_function_by_name(tree, strings, function_name)?;
-        self.find_virtual_call_info(tree, function_id)
+        self.find_class_call_info(tree, function_id)
     }
 
-    /// Find virtual dispatch calls for a function name or panic.
-    pub(crate) fn virtual_call_info_by_name(
+    /// Find class dispatch calls for a function name or panic.
+    pub(crate) fn class_call_info_by_name(
         &self,
         tree: &mir::Tree,
         strings: &StringPool,
         function_name: &str,
-    ) -> VirtualCall {
-        self.find_virtual_call_info_by_name(tree, strings, function_name)
-            .unwrap_or_else(|| panic!("missing virtual call info '{function_name}'"))
+    ) -> ClassCall {
+        self.find_class_call_info_by_name(tree, strings, function_name)
+            .unwrap_or_else(|| panic!("missing class call info '{function_name}'"))
     }
 }

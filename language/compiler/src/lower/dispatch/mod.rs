@@ -1,6 +1,5 @@
 mod global;
 mod interface;
-mod itab;
 mod lower;
 mod shape;
 mod vtable;

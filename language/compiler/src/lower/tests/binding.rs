@@ -372,8 +372,8 @@ type Greeter.object {
 }
 
 type Greeter {
-    object: ref<void, managed, readonly>;
-    itab: usize;
+    value: ref<void, managed, readonly>;
+    table: ref<void, raw, readonly, space(static)>;
 }
 
 extern function Greeter.greet(Greeter.object): int32

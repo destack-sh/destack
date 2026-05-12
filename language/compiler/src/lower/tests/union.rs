@@ -84,8 +84,8 @@ entry0(value0: takeShape.value#union):
 
         let union_layout = test.union_layout(tree, union_type);
         assert!(matches!(
-            union_layout.payload_kind,
-            mir::UnionPayloadKind::Inline
+            union_layout.payload,
+            mir::UnionPayload::Inline
         ));
     });
 }
@@ -163,8 +163,8 @@ entry0(value0: takeFrame.value#union):
 
         let union_layout = test.union_layout(tree, union_type);
         assert!(matches!(
-            union_layout.payload_kind,
-            mir::UnionPayloadKind::Boxed
+            union_layout.payload,
+            mir::UnionPayload::Boxed
         ));
     });
 }
@@ -370,12 +370,12 @@ entry0(value0: acceptUnion.value#union):
         let parameter_layout = test.union_layout(tree, parameter_union_type);
         let return_layout = test.union_layout(tree, return_union_type);
         assert!(matches!(
-            parameter_layout.payload_kind,
-            mir::UnionPayloadKind::Inline
+            parameter_layout.payload,
+            mir::UnionPayload::Inline
         ));
         assert!(matches!(
-            return_layout.payload_kind,
-            mir::UnionPayloadKind::Inline
+            return_layout.payload,
+            mir::UnionPayload::Inline
         ));
     });
 }
