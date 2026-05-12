@@ -112,9 +112,16 @@ fn materialize_workspace_options(
         serde_json::to_string_pretty(&json).expect("workspace test config should serialize");
     let content = format!("{content}\n");
 
-    repository
-        .apply_to_ref(&reference, [Edit::set_text("destack.json", content)])
+    let revision = repository
+        .current(&reference)
+        .expect("failed to read workspace test revision");
+    let revision = repository
+        .fork_with_edits(revision, [Edit::set_text("destack.json", content)])
         .expect("failed to materialize workspace test config");
+
+    repository
+        .set_ref(&reference, revision)
+        .expect("failed to publish workspace test config");
 }
 
 /// Convert formatter options to one config json value.
@@ -222,9 +229,16 @@ pub fn write_workspace_file(
         content,
     };
 
+    let revision = repository
+        .current(&reference)
+        .expect("failed to read workspace revision");
+    let revision = repository
+        .fork_with_edits(revision, [edit])
+        .expect("failed to apply workspace file change");
+
     repository
-        .apply_to_ref(&reference, [edit])
-        .expect("failed to apply workspace file change")
+        .set_ref(&reference, revision)
+        .expect("failed to publish workspace file change")
 }
 
 /// Apply one text file write to the current workspace revision.

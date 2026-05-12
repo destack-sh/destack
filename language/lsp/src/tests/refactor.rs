@@ -4,7 +4,7 @@ use std::sync::Arc;
 use destack_artifact::DiskCacheStore;
 use destack_lsp_server::UriExt;
 use destack_source::{BatchEdit, Edit, FileEdit, FileId, FileSystem, PhysicalFileSystem, Span};
-use destack_workspace::{Edit as RepositoryEdit, HostEnvironment, Ref, Repository};
+use destack_workspace::{Edit as RepositoryEdit, HostEnvironment, Ref, Repository, Revision};
 
 use crate::query::refactor::batch_edit_to_workspace_edit;
 
@@ -20,6 +20,24 @@ fn test_repository() -> Repository {
     )
 }
 
+/// Publish repository edits to the workspace root ref.
+fn publish_edits<I>(repository: &Repository, edits: I) -> Revision
+where
+    I: IntoIterator<Item = RepositoryEdit>,
+{
+    let reference = Ref::for_workspace_root(repository.workspace_root());
+    let revision = repository
+        .current(&reference)
+        .expect("expected workspace root revision");
+    let revision = repository
+        .fork_with_edits(revision, edits)
+        .expect("expected revision write");
+
+    repository
+        .set_ref(&reference, revision)
+        .expect("expected revision publish")
+}
+
 /// Skip edits for files that are missing from the registry.
 #[test]
 fn test_batch_edit_to_workspace_edit_skips_unknown_files() {
@@ -28,15 +46,13 @@ fn test_batch_edit_to_workspace_edit_skips_unknown_files() {
     let known_path = PathBuf::from("/tmp/destack_lsp_refactor_known.ds");
     let known_file_id = repository.file_id(&known_path);
     let logical_path = repository.logical_path(&known_path);
-    let revision = repository
-        .apply_to_ref(
-            &Ref::for_workspace_root(repository.workspace_root()),
-            [RepositoryEdit::set_text(
-                &logical_path,
-                "export const value = 1;\n",
-            )],
-        )
-        .expect("expected revision write");
+    let revision = publish_edits(
+        &repository,
+        [RepositoryEdit::set_text(
+            &logical_path,
+            "export const value = 1;\n",
+        )],
+    );
 
     // build a batch edit with one known file and one unknown file
     let unknown_file_id = FileId::from_logical_str("missing/lsp-refactor.ds");

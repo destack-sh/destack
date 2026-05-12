@@ -5,7 +5,7 @@ use destack_artifact::DiskCacheStore;
 use destack_dir::{GlobalSymbolId, LocalSymbolId};
 use destack_query as query;
 use destack_source::{FileId, FileSystem, ModuleId, PackageId, PhysicalFileSystem, Span};
-use destack_workspace::{Edit as RepositoryEdit, HostEnvironment, Ref, Repository};
+use destack_workspace::{Edit as RepositoryEdit, HostEnvironment, Ref, Repository, Revision};
 
 use crate::query::navigation::{outgoing_call_to_lsp, workspace_symbol_to_lsp};
 
@@ -37,6 +37,24 @@ fn test_repository() -> Repository {
     )
 }
 
+/// Publish repository edits to the workspace root ref.
+fn publish_edits<I>(repository: &Repository, edits: I) -> Revision
+where
+    I: IntoIterator<Item = RepositoryEdit>,
+{
+    let reference = Ref::for_workspace_root(repository.workspace_root());
+    let revision = repository
+        .current(&reference)
+        .expect("expected workspace root revision");
+    let revision = repository
+        .fork_with_edits(revision, edits)
+        .expect("expected revision write");
+
+    repository
+        .set_ref(&reference, revision)
+        .expect("expected revision publish")
+}
+
 /// Return none for workspace symbols with unknown file ids.
 #[test]
 fn test_workspace_symbol_to_lsp_returns_none_for_unknown_file() {
@@ -66,15 +84,13 @@ fn test_outgoing_call_to_lsp_skips_missing_from_ranges() {
     let path = PathBuf::from("/tmp/destack_lsp_navigation_call_hierarchy.ds");
     let file_id = repository.file_id(&path);
     let logical_path = repository.logical_path(&path);
-    let revision = repository
-        .apply_to_ref(
-            &Ref::for_workspace_root(repository.workspace_root()),
-            [RepositoryEdit::set_text(
-                &logical_path,
-                "export function foo() {}\n",
-            )],
-        )
-        .expect("expected revision write");
+    let revision = publish_edits(
+        &repository,
+        [RepositoryEdit::set_text(
+            &logical_path,
+            "export function foo() {}\n",
+        )],
+    );
 
     // build an outgoing call with a missing call site span
     let item = query::CallHierarchyItem {

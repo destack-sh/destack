@@ -4,7 +4,7 @@ use std::sync::Arc;
 use destack_artifact::DiskCacheStore;
 use destack_lsp_server::UriExt;
 use destack_source::{File, FileId, FileSystem, FileType, PhysicalFileSystem, Span, Uri};
-use destack_workspace::{Edit as RepositoryEdit, HostEnvironment, Ref, Repository};
+use destack_workspace::{Edit as RepositoryEdit, HostEnvironment, Ref, Repository, Revision};
 
 use crate::query::common::{
     byte_span_to_range, byte_to_utf16_position, position_to_byte, span_to_location,
@@ -25,6 +25,24 @@ fn test_repository() -> Repository {
         file_system,
         HostEnvironment::capture_process(),
     )
+}
+
+/// Publish repository edits to the workspace root ref.
+fn publish_edits<I>(repository: &Repository, edits: I) -> Revision
+where
+    I: IntoIterator<Item = RepositoryEdit>,
+{
+    let reference = Ref::for_workspace_root(repository.workspace_root());
+    let revision = repository
+        .current(&reference)
+        .expect("expected workspace root revision");
+    let revision = repository
+        .fork_with_edits(revision, edits)
+        .expect("expected revision write");
+
+    repository
+        .set_ref(&reference, revision)
+        .expect("expected revision publish")
 }
 
 /// Return none when the span file is missing in the repository registry.
@@ -50,15 +68,13 @@ fn test_span_to_location_converts_known_file() {
     let path = PathBuf::from("/tmp/destack_lsp_span_to_location.ds");
     let file_id = repository.file_id(&path);
     let logical_path = repository.logical_path(&path);
-    let revision = repository
-        .apply_to_ref(
-            &Ref::for_workspace_root(repository.workspace_root()),
-            [RepositoryEdit::set_text(
-                &logical_path,
-                "export const value = 1;\n",
-            )],
-        )
-        .expect("expected revision write");
+    let revision = publish_edits(
+        &repository,
+        [RepositoryEdit::set_text(
+            &logical_path,
+            "export const value = 1;\n",
+        )],
+    );
 
     // convert the span and verify the path roundtrip
     let span = Span::new(file_id, 0, 6);
@@ -79,15 +95,13 @@ fn test_span_to_location_accepts_absolute_workspace_path() {
     let path = PathBuf::from("/tmp/destack_lsp_virtual_only.ds");
     let file_id = repository.file_id(&path);
     let logical_path = repository.logical_path(&path);
-    let revision = repository
-        .apply_to_ref(
-            &Ref::for_workspace_root(repository.workspace_root()),
-            [RepositoryEdit::set_text(
-                &logical_path,
-                "export const value = 1;\n",
-            )],
-        )
-        .expect("expected revision write");
+    let revision = publish_edits(
+        &repository,
+        [RepositoryEdit::set_text(
+            &logical_path,
+            "export const value = 1;\n",
+        )],
+    );
 
     // ensure absolute paths still resolve to stable lsp locations
     let span = Span::new(file_id, 0, 6);
